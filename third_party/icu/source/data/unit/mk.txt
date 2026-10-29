@@ -39,6 +39,11 @@ mk{
                 one{"{0} револуција"}
                 other{"{0} револуции"}
             }
+            steradian{
+                dnam{"стерадијани"}
+                one{"{0} стерадијан"}
+                other{"{0} стерадијани"}
+            }
         }
         area{
             acre{
@@ -160,6 +165,11 @@ mk{
                 one{"{0} карат"}
                 other{"{0} карати"}
             }
+            katal{
+                dnam{"катали"}
+                one{"{0} катал"}
+                other{"{0} катали"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"милиграми на децилитар"}
                 one{"{0} милиграм на децилитар"}
@@ -175,6 +185,26 @@ mk{
                 one{"{0} мол"}
                 other{"{0} мола"}
             }
+            ofglucose{
+                dnam{"гликоза"}
+                one{"{0} гликоза"}
+                other{"{0} гликоза"}
+            }
+            part{
+                dnam{"делови"}
+                one{"{0} дел"}
+                other{"{0} делови"}
+            }
+            part-per-1e6{
+                dnam{"делови на милион"}
+                one{"{0} дел на милион"}
+                other{"{0} дела на милион"}
+            }
+            part-per-1e9{
+                dnam{"делови на милијарда"}
+                one{"{0} дел на милијарда"}
+                other{"{0} дела на милијарда"}
+            }
             percent{
                 dnam{"процент"}
                 one{"{0} процент"}
@@ -185,20 +215,10 @@ mk{
                 one{"{0} промили"}
                 other{"{0} промили"}
             }
-            permillion{
-                dnam{"делови на милион"}
-                one{"{0} дел на милион"}
-                other{"{0} дела на милион"}
-            }
             permyriad{
                 dnam{"десетилјадити дел"}
                 one{"{0} десетилјадити дел"}
                 other{"{0} десетилјадити делови"}
-            }
-            portion-per-1e9{
-                dnam{"делови на милијарда"}
-                one{"{0} дел на милијарда"}
-                other{"{0} дела на милијарда"}
             }
         }
         consumption{
@@ -324,12 +344,6 @@ mk{
                 one{"{0} наносекунда"}
                 other{"{0} наносекунди"}
             }
-            night{
-                dnam{"ноќи"}
-                one{"{0} ноќ"}
-                other{"{0} ноќи"}
-                per{"{0}/ноќ"}
-            }
             quarter{
                 one{"{0} тримесечје"}
                 other{"{0} тримесечја"}
@@ -358,6 +372,21 @@ mk{
                 one{"{0} ампер"}
                 other{"{0} ампери"}
             }
+            coulomb{
+                dnam{"кулони"}
+                one{"{0} кулон"}
+                other{"{0} кулони"}
+            }
+            farad{
+                dnam{"фаради"}
+                one{"{0} фарад"}
+                other{"{0} фаради"}
+            }
+            henry{
+                dnam{"хенри"}
+                one{"{0} хенри"}
+                other{"{0} хенри"}
+            }
             milliampere{
                 dnam{"милиампери"}
                 one{"{0} милиампер"}
@@ -367,6 +396,11 @@ mk{
                 one{"{0} ом"}
                 other{"{0} оми"}
             }
+            siemens{
+                dnam{"сименси"}
+                one{"{0} сименс"}
+                other{"{0} сименси"}
+            }
             volt{
                 dnam{"волти"}
                 one{"{0} волт"}
@@ -374,6 +408,11 @@ mk{
             }
         }
         energy{
+            becquerel{
+                dnam{"бекерели"}
+                one{"{0} бекерел"}
+                other{"{0} бекерели"}
+            }
             british-thermal-unit{
                 dnam{"британски термални единици"}
                 one{"{0} британска термална единица"}
@@ -384,6 +423,11 @@ mk{
                 one{"{0} калорија"}
                 other{"{0} калории"}
             }
+            calorie-it{
+                dnam{"калории [IT]"}
+                one{"{0} калорија [IT]"}
+                other{"{0} калории [IT]"}
+            }
             electronvolt{
                 dnam{"електронволти"}
                 one{"{0} електронволт"}
@@ -393,6 +437,11 @@ mk{
                 dnam{"калории"}
                 one{"{0} калорија"}
                 other{"{0} калории"}
+            }
+            gray{
+                dnam{"греја"}
+                one{"{0} греј"}
+                other{"{0} греја"}
             }
             joule{
                 dnam{"џули"}
@@ -414,11 +463,21 @@ mk{
                 one{"{0} киловат-час"}
                 other{"{0} киловат-часа"}
             }
+            sievert{
+                dnam{"сиверти"}
+                one{"{0} сиверт"}
+                other{"{0} сиверти"}
+            }
             therm-us{
                 dnam{"US терми"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"килопонди"}
+                one{"{0} килопонд"}
+                other{"{0} килопонди"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"киловат-час на 100 километри"}
                 one{"{0} киловат-час на 100 километри"}
@@ -625,6 +684,18 @@ mk{
                 other{"{0} сончеви сјајности"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"тесли"}
+                one{"{0} тесла"}
+                other{"{0} тесли"}
+            }
+            weber{
+                dnam{"вебери"}
+                one{"{0} вебер"}
+                other{"{0} вебери"}
+            }
+        }
         mass{
             carat{
                 one{"{0} карат"}
@@ -775,6 +846,11 @@ mk{
                 one{"{0} милиметар жива"}
                 other{"{0} милиметри жива"}
             }
+            ofhg{
+                dnam{"жива"}
+                one{"{0} на живиниот столб"}
+                other{"{0} на живиниот столб"}
+            }
             pascal{
                 dnam{"паскали"}
                 one{"{0} паскал"}
@@ -803,9 +879,9 @@ mk{
                 other{"{0} јазли"}
             }
             light-speed{
-                dnam{"светлина"}
-                one{"{0} светлина"}
-                other{"{0} светлини"}
+                dnam{"светлосна"}
+                one{"{0} светлосна"}
+                other{"{0} светлосни"}
             }
             meter-per-second{
                 dnam{"метри во секунда"}
@@ -937,14 +1013,19 @@ mk{
                 other{"{0} капки"}
             }
             fluid-ounce{
-                dnam{"унци течност"}
-                one{"{0} унца течност"}
-                other{"{0} унци течност"}
+                dnam{"течни унци"}
+                one{"{0} течна унца"}
+                other{"{0} течни унци"}
             }
             fluid-ounce-imperial{
-                dnam{"имп. унци течност"}
-                one{"{0} имп. унца течност"}
-                other{"{0} имп. унци течност"}
+                dnam{"имп. течни унци"}
+                one{"{0} имп. течна унца"}
+                other{"{0} имп. течни унци"}
+            }
+            fluid-ounce-metric{
+                dnam{"метрички течни унци"}
+                one{"{0} метричка течна унца"}
+                other{"{0} метрички течни унци"}
             }
             gallon{
                 dnam{"галони"}
@@ -1064,6 +1145,14 @@ mk{
             }
         }
         concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"дел"}
+                one{"{0} дел"}
+                other{"{0} делови"}
+            }
             permyriad{
                 one{"{0} ‱"}
                 other{"{0} ‱"}
@@ -1126,10 +1215,8 @@ mk{
                 per{"{0}/м."}
             }
             night{
-                dnam{"ноќи"}
                 one{"{0} н."}
                 other{"{0} н."}
-                per{"{0}/ноќ"}
             }
             quarter{
                 dnam{"т."}
@@ -1161,6 +1248,11 @@ mk{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
+            }
             therm-us{
                 one{"{0} US therm"}
                 other{"{0} US therms"}
@@ -1226,9 +1318,9 @@ mk{
                 dnam{"km/hr"}
             }
             light-speed{
-                dnam{"светлина"}
-                one{"{0} светлина"}
-                other{"{0} светлини"}
+                dnam{"светлосна"}
+                one{"{0} светлосна"}
+                other{"{0} светлосни"}
             }
             meter-per-second{
                 dnam{"m/s"}
@@ -1291,6 +1383,10 @@ mk{
                 one{"{0} galIm"}
                 other{"{0} galIm"}
                 per{"{0}/galIm"}
+            }
+            jigger{
+                one{"{0} џигер"}
+                other{"{0} џигери"}
             }
             liter{
                 dnam{"литар"}
@@ -1370,6 +1466,14 @@ mk{
                 dnam{"ставка"}
                 one{"{0} ставка"}
                 other{"{0} ставки"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"дел"}
+                one{"{0} дел"}
+                other{"{0} делови"}
             }
             percent{
                 one{"{0} %"}
@@ -1504,6 +1608,11 @@ mk{
             british-thermal-unit{
                 dnam{"BTU"}
             }
+            calorie-it{
+                dnam{"cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
+            }
             foodcalorie{
                 dnam{"Cal"}
                 one{"{0} Cal"}
@@ -1608,9 +1717,9 @@ mk{
                 dnam{"км/час"}
             }
             light-speed{
-                dnam{"светлина"}
-                one{"{0} светлина"}
-                other{"{0} светлини"}
+                dnam{"светлосна"}
+                one{"{0} светлосна"}
+                other{"{0} светлосни"}
             }
             meter-per-second{
                 dnam{"метри/сек"}
@@ -1669,6 +1778,8 @@ mk{
             }
             jigger{
                 dnam{"џигер"}
+                one{"{0} џигер"}
+                other{"{0} џигери"}
             }
             liter{
                 dnam{"литри"}

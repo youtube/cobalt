@@ -222,6 +222,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<JSFunction> HeapObjectToJSFunctionWithPrototypeSlot(
       TNode<HeapObject> heap_object, Label* fail) {
+    // TODO(http://crbug.com/492211940): remove IsJSFunctionWithPrototypeSlot
+    // machinery in favor of instance type check.
+    CSA_DCHECK(this, Word32Equal(IsJSFunctionWithPrototype(heap_object),
+                                 IsJSFunctionWithPrototypeSlot(heap_object)));
     GotoIfNot(IsJSFunctionWithPrototypeSlot(heap_object), fail);
     return CAST(heap_object);
   }
@@ -1752,9 +1756,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* if_true, Label* if_false);
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
                                             TNode<Map> map, Label* runtime);
+
+  TNode<Union<JSReceiver, Map, TheHole>> LoadJSFunctionPrototypeOrInitialMap(
+      TNode<JSFunction> function);
+  void StoreJSFunctionPrototypeOrInitialMap(
+      TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value);
+
   // Load the "prototype" property of a JSFunction.
-  TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
-                                            Label* if_bailout);
+  TNode<JSPrototype> LoadJSFunctionPrototype(TNode<JSFunction> function,
+                                             Label* if_bailout);
 
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
@@ -2269,6 +2279,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                  Label* if_bailout);
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
+  // Like GetCreationContext but DCHECKs instead of branching.
+  TNode<NativeContext> GetCreationContextUnchecked(TNode<JSReceiver> receiver);
   TNode<NativeContext> GetFunctionRealm(TNode<Context> context,
                                         TNode<JSReceiver> receiver,
                                         Label* if_bailout);
@@ -2896,11 +2908,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayIterator(TNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsFunctionInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionWithoutPrototypeInstanceType(
+      TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionWithPrototypeInstanceType(
+      TNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionInstanceType(TNode<Int32T> instance_type);
 #if V8_ENABLE_WEBASSEMBLY
   TNode<BoolT> IsWasmObjectInstanceType(TNode<Int32T> instance_type);
 #endif
+  TNode<BoolT> IsJSFunctionWithoutPrototypeMap(TNode<Map> map);
+  TNode<BoolT> IsJSFunctionWithPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
+  TNode<BoolT> IsJSFunctionWithoutPrototype(TNode<HeapObject> object);
+  TNode<BoolT> IsJSFunctionWithPrototype(TNode<HeapObject> object);
   TNode<BoolT> IsJSFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(TNode<HeapObject> object);
@@ -2953,6 +2973,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStruct(TNode<Object> object);
   TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
+  TNode<BoolT> IsMapInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsName(TNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsNullOrJSReceiver(TNode<HeapObject> object);
@@ -4171,6 +4192,49 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GenerateStrictEqualAndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs,
                                           TNode<Int32T> current_type_feedback,
                                           TNode<UintPtrT> feedback_offset);
+  void GenerateEqualAndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs,
+                                    TNode<Int32T> current_type_feedback,
+                                    TNode<UintPtrT> feedback_offset);
+  void GenerateSmiEqual(TNode<Object> lhs, TNode<Object> rhs,
+                        TNode<UintPtrT> feedback_offset,
+                        Builtin fallback_builtin);
+  void GenerateNumberEqual(TNode<Object> lhs, TNode<Object> rhs,
+                           TNode<UintPtrT> feedback_offset,
+                           Builtin fallback_builtin);
+  void GenerateStringEqual(TNode<Object> lhs, TNode<Object> rhs,
+                           TNode<UintPtrT> feedback_offset,
+                           Builtin fallback_builtin);
+
+  using TypeCheckHelper = std::function<TNode<BoolT>(TNode<HeapObject>)>;
+  void GenerateTypedTaggedEqual(TNode<Object> lhs, TNode<Object> rhs,
+                                TNode<UintPtrT> feedback_offset,
+                                TypeCheckHelper type_check_helper,
+                                Builtin fallback_builtin,
+                                TNode<Int32T> type_feedback);
+  void GenerateRelationalCompareAndTryPatchCode(
+      TNode<Object> lhs, TNode<Object> rhs, TNode<Int32T> operation_type,
+      TNode<Int32T> current_type_feedback, TNode<UintPtrT> feedback_offset);
+
+#define DECLARE_RELATIONAL_COMPARE_GENERATOR(Name)                           \
+  void Generate##Name##AndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs, \
+                                       TNode<Int32T> current_type_feedback,  \
+                                       TNode<UintPtrT> feedback_offset);
+
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(LessThan)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(LessThanOrEqual)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(GreaterThan)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(GreaterThanOrEqual)
+#undef DECLARE_RELATIONAL_COMPARE_GENERATOR
+
+  void GenerateSmiRelationalCompare(Operation op, TNode<Object> lhs,
+                                    TNode<Object> rhs,
+                                    TNode<UintPtrT> feedback_offset,
+                                    Builtin fallback_builtin);
+
+  void GenerateNumberRelationalCompare(Operation op, TNode<Object> lhs,
+                                       TNode<Object> rhs,
+                                       TNode<UintPtrT> feedback_offset,
+                                       Builtin fallback_builtin);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,

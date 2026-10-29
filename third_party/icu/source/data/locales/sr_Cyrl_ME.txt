@@ -22,13 +22,13 @@ sr_Cyrl_ME{
             }
             availableFormats{
                 MMMMW{
-                    few{"MMMM: W. 'недеља'"}
-                    one{"MMMM: W. 'недеља'"}
+                    few{"W. 'сједмица' 'у' MMMM"}
+                    one{"W. 'сједмица' 'у' MMMM"}
                     other{"W. 'сједмица' 'у' MMMM"}
                 }
                 yw{
-                    few{"w. 'недеља' 'у' Y."}
-                    one{"w. 'недеља' 'у' Y."}
+                    few{"w. 'сједмица' 'у' Y."}
+                    one{"w. 'сједмица' 'у' Y."}
                     other{"w. 'сједмица' 'у' Y."}
                 }
             }
@@ -77,8 +77,7 @@ sr_Cyrl_ME{
             }
             eras{
                 wide{
-                    "прије нове ере",
-                    "нове ере",
+                    0{"прије нове ере"}
                 }
             }
             monthNames{

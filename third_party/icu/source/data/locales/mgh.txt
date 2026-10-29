@@ -121,12 +121,12 @@ mgh{
             }
             eras{
                 abbreviated{
-                    "HY",
-                    "YY",
+                    0{"HY"}
+                    1{"YY"}
                 }
                 wide{
-                    "Hinapiya yesu",
-                    "Yopia yesu",
+                    0{"Hinapiya yesu"}
+                    1{"Yopia yesu"}
                 }
             }
             monthNames{

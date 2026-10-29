@@ -1107,6 +1107,10 @@ fi{
             "XCD",
             "Itä-Karibian dollari",
         }
+        XCG{
+            "Cg.",
+            "Karibian guldeni",
+        }
         XDR{
             "XDR",
             "erityisnosto-oikeus (SDR)",
@@ -1210,6 +1214,10 @@ fi{
         ZWD{
             "ZWD",
             "Zimbabwen dollari (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwen kulta",
         }
         ZWL{
             "ZWL",
@@ -2414,6 +2422,10 @@ fi{
             one{"Itä-Karibian dollari"}
             other{"Itä-Karibian dollaria"}
         }
+        XCG{
+            one{"Karibian guldeni"}
+            other{"Karibian guldenia"}
+        }
         XDR{
             one{"erityisnosto-oikeus (SDR)"}
             other{"erityisnosto-oikeutta (SDR)"}
@@ -2517,6 +2529,10 @@ fi{
         ZWD{
             one{"Zimbabwen dollari (1980–2008)"}
             other{"Zimbabwen dollaria (1980–2008)"}
+        }
+        ZWG{
+            one{"Zimbabwen kulta"}
+            other{"Zimbabwen kultaa"}
         }
         ZWL{
             one{"Zimbabwen dollari (2009)"}

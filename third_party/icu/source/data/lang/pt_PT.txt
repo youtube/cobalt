@@ -60,7 +60,6 @@ pt_PT{
         grc{"grego clássico"}
         gsw{"alemão suíço"}
         ha{"haúça"}
-        hi{"hindi"}
         hy{"arménio"}
         ikt{"inuktitut canadiano ocidental"}
         kbd{"cabardiano"}
@@ -174,6 +173,11 @@ pt_PT{
             japanese{"Calendário japonês"}
             persian{"Calendário persa"}
         }
+        calendar%core{
+            ethiopic-amete-alem{"Etíope Amete Alem"}
+            islamic-civil{"Hegírico (civil)"}
+            roc{"República da China"}
+        }
         cf{
             account{"Formato monetário contabilístico"}
             standard{"Formato monetário padrão"}
@@ -211,15 +215,18 @@ pt_PT{
             tertiary{"Ordenar acentos/tipo de letra/largura"}
         }
         collation{
-            big5han{"Ordem do chinês tradicional - Big5"}
             eor{"Regras de ordenação europeias"}
-            gb2312han{"Ordem do chinês simplificado - GB2312"}
             phonebook{"Ordem da lista telefónica"}
             pinyin{"Ordem de pinyin"}
             standard{"Ordenação padrão"}
             stroke{"Ordem por traços"}
             unihan{"Ordem por radical e traços"}
             zhuyin{"Ordem de zhuyin"}
+        }
+        collation%core{
+            ducet{"Unicode padrão"}
+            phonebook{"Lista telefónica"}
+            unihan{"Radical e traços"}
         }
         d0{
             fwidth{"Largura completa"}
@@ -229,6 +236,15 @@ pt_PT{
             normal{"Estilo padrão de quebra de linha"}
             strict{"Estilo estrito de quebra de linha"}
         }
+        lb%core{
+            loose{"Flexível"}
+            normal{"Padrão"}
+        }
+        lw%core{
+            breakall{"Desfazer tudo"}
+            normal{"Padrão"}
+            phrase{"Manter nas frases"}
+        }
         m0{
             bgn{"Transliteração BGN"}
             ungegn{"Transliteração UNGEGN"}
@@ -236,6 +252,9 @@ pt_PT{
         ms{
             uksystem{"Sistema de medida imperial"}
             ussystem{"Sistema de medida americano"}
+        }
+        ms%core{
+            uksystem{"RU"}
         }
         numbers{
             arabext{"Algarismos indo-arábicos expandidos"}

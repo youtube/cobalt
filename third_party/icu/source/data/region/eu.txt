@@ -85,6 +85,7 @@ eu{
         CN{"Txina"}
         CO{"Kolonbia"}
         CP{"Clipperton uhartea"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Kuba"}
         CV{"Cabo Verde"}

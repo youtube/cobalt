@@ -194,5 +194,31 @@ TEST(WaitUntilTest,
   EXPECT_EQ(time_controller->GetClock()->CurrentTime(), start);
 }
 
+TEST(WaiterTest, ReturnsTrueWhenConditionIsMet) {
+  ScopedFakeClock clock;
+  Waiter waiter({.timeout = TimeDelta::Seconds(1), .clock = &clock});
+
+  int counter = 0;
+  EXPECT_TRUE(waiter.Until([&] { return ++counter == 3; }));
+  EXPECT_EQ(counter, 3);
+}
+
+TEST(WaiterTest, ReturnsResultWhenMatcherIsMet) {
+  ScopedFakeClock clock;
+  Waiter waiter({.timeout = TimeDelta::Seconds(1), .clock = &clock});
+
+  int counter = 0;
+  auto result = waiter.Until([&] { return ++counter; }, Eq(3));
+  EXPECT_THAT(result, IsRtcOkAndHolds(3));
+}
+
+TEST(WaiterTest, ReturnsFalseWhenTimeoutIsReached) {
+  SimulatedClock clock(Timestamp::Millis(1000));
+  Waiter waiter({.timeout = TimeDelta::Millis(100), .clock = &clock});
+
+  EXPECT_FALSE(waiter.Until([&] { return false; }));
+  EXPECT_EQ(clock.CurrentTime(), Timestamp::Millis(1100));
+}
+
 }  // namespace
 }  // namespace webrtc

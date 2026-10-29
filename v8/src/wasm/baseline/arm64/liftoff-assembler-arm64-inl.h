@@ -602,10 +602,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  Str(instance, liftoff::GetInstanceDataOperand());
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 enum class LoadOrStore : bool { kLoad, kStore };
@@ -694,18 +690,6 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
       liftoff::GetMemOp(this, &temps, src_addr, no_reg, offset_imm);
   Ldr(dst.X(), src_op);
 }
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
-                                                        Register src_addr,
-                                                        int32_t offset_imm) {
-  UseScratchRegisterScope temps(this);
-  MemOperand src_op =
-      liftoff::GetMemOp(this, &temps, src_addr, no_reg, offset_imm);
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
-                                                   kWasmEntrypointTag);
-}
-#endif
 
 void LiftoffAssembler::StoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
@@ -1502,7 +1486,8 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   Str(scratch, liftoff::GetStackSlot(dst_offset));
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   if (kind == kI32) {
     Mov(dst.W(), src.W());
   } else {
@@ -1511,8 +1496,9 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   }
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   if (kind == kF32) {
     Fmov(dst.S(), src.S());
   } else if (kind == kF64) {

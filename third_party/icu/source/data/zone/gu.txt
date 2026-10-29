@@ -270,6 +270,9 @@ gu{
         "America:Costa_Rica"{
             ec{"કોસ્ટા રિકા"}
         }
+        "America:Coyhaique"{
+            ec{"કોહેક"}
+        }
         "America:Creston"{
             ec{"ક્રેસ્ટન"}
         }
@@ -1086,13 +1089,13 @@ gu{
             ec{"તલ્લીન"}
         }
         "Europe:Tirane"{
-            ec{"તિરાને"}
+            ec{"તિરાના"}
         }
         "Europe:Ulyanovsk"{
             ec{"ઉલેનોવ્સ્ક"}
         }
         "Europe:Vaduz"{
-            ec{"વૅદુઝ"}
+            ec{"વડુઝ"}
         }
         "Europe:Vatican"{
             ec{"વેટિકન"}
@@ -1167,7 +1170,7 @@ gu{
             ec{"એફેટ"}
         }
         "Pacific:Enderbury"{
-            ec{"એંડર્બરી"}
+            ec{"કેંટન આઇલૅન્ડ"}
         }
         "Pacific:Fakaofo"{
             ec{"ફાકાઓફો"}
@@ -1192,9 +1195,6 @@ gu{
         }
         "Pacific:Honolulu"{
             ec{"હોનોલુલુ"}
-        }
-        "Pacific:Kanton"{
-            ec{"કેન્ટન"}
         }
         "Pacific:Kiritimati"{
             ec{"કિરિતિમાતી"}
@@ -1283,9 +1283,7 @@ gu{
             ls{"દક્ષિણ આફ્રિકા માનક સમય"}
         }
         "meta:Africa_Western"{
-            ld{"પશ્ચિમ આફ્રિકા ગ્રીષ્મ સમય"}
-            lg{"પશ્ચિમ આફ્રિકા સમય"}
-            ls{"પશ્ચિમ આફ્રિકા માનક સમય"}
+            ls{"પશ્ચિમ આફ્રિકા સમય"}
         }
         "meta:Alaska"{
             ld{"અલાસ્કા દિવસ સમય"}
@@ -1546,6 +1544,9 @@ gu{
         }
         "meta:Guyana"{
             ls{"ગયાના સમય"}
+        }
+        "meta:Hawaii"{
+            ls{"હવાઇ-એલ્યુશિઅન માનક સમય"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"હવાઇ-એલ્યુશિઅન દિવસ સમય"}

@@ -344,9 +344,6 @@ ast{
         "Pacific:Easter"{
             ec{"Pascua"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Fiji"{
             ec{"Fixi"}
         }
@@ -355,9 +352,6 @@ ast{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "meta:Acre"{
             ld{"hora braniega d’Acre"}
@@ -377,9 +371,7 @@ ast{
             ls{"Hora de Sudáfrica"}
         }
         "meta:Africa_Western"{
-            ld{"Hora braniega d’África del oeste"}
-            lg{"Hora d’África del oeste"}
-            ls{"Hora estándar d’África del oeste"}
+            ls{"Hora d’África del oeste"}
         }
         "meta:Alaska"{
             ld{"Hora braniega d’Alaska"}
@@ -662,6 +654,9 @@ ast{
         }
         "meta:Guyana"{
             ls{"Hora de La Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Hora estándar de Hawaii-Aleutianes"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hora braniega de Hawaii-Aleutianes"}

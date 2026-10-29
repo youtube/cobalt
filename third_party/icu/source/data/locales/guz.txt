@@ -119,12 +119,12 @@ guz{
             }
             eras{
                 abbreviated{
-                    "YA",
-                    "YK",
+                    0{"YA"}
+                    1{"YK"}
                 }
                 wide{
-                    "Yeso ataiborwa",
-                    "Yeso kaiboirwe",
+                    0{"Yeso ataiborwa"}
+                    1{"Yeso kaiboirwe"}
                 }
             }
             monthNames{

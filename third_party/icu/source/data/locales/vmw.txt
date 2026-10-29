@@ -8,7 +8,9 @@ vmw{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -18,7 +20,7 @@ vmw{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "vaasisu",
                 "makaaripi",
             }
@@ -40,7 +42,7 @@ vmw{
                 }
             }
             intervalFormats{
-                fallback{"{0} ‘mpakha’ {1}"}
+                fallback{"{0} mpakha {1}"}
             }
             monthNames{
                 format{

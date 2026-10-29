@@ -611,6 +611,10 @@ blo{
             "EC$",
             "Karayiib gajakalaŋ kaɖala",
         }
+        XCG{
+            "Cg.",
+            "Karayiib kafɔlɔrɛŋ",
+        }
         XOF{
             "F CFA",
             "Garɩɖontǝna gɩteŋshilelaŋ kasɛɛfa",
@@ -634,6 +638,10 @@ blo{
         ZMW{
             "ZMW",
             "Sambii kakʊwaasha",
+        }
+        ZWG{
+            "ZWG",
+            "Simbabʊwee kawura",
         }
     }
     CurrencyPlurals{
@@ -1397,6 +1405,11 @@ blo{
             other{"Karayiib gajakalaŋ kɩɖala"}
             zero{"baa Karayiib gajakalaŋ kaɖala"}
         }
+        XCG{
+            one{"Karayiib kafɔlɔrɛŋ"}
+            other{"Karayiib kɩfɔlɔrɛŋ"}
+            zero{"baa Karayiib kafɔlɔrɛŋ"}
+        }
         XOF{
             one{"Garɩɖontǝna gɩteŋshilelaŋ kasɛɛfa"}
             other{"Garɩɖontǝna gɩteŋshilelaŋ kɩsɛɛfa"}
@@ -1426,6 +1439,11 @@ blo{
             one{"Sambii kakʊwaasha"}
             other{"Sambii kɩkʊwaasha"}
             zero{"baa Sambii kakʊwaasha"}
+        }
+        ZWG{
+            one{"Simbabʊwee kawura"}
+            other{"Simbabʊwee kɩwura"}
+            zero{"baa Simbabʊwee kawura"}
         }
     }
     CurrencyUnitPatterns{

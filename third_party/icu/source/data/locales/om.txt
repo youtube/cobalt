@@ -168,21 +168,6 @@ om{
                         "H",
                         "Q",
                     }
-                    wide{
-                        "Fulbaana",
-                        "Guraandhala",
-                        "Sadaasa",
-                        "Mudde",
-                        "Amajji",
-                        "Waxabajjii",
-                        "Bitootessa",
-                        "Eebila",
-                        "Caamsaa",
-                        "Onkoloolessa",
-                        "Adoolessa",
-                        "Hagayya",
-                        "Qaam’ee",
-                    }
                 }
             }
         }
@@ -388,7 +373,6 @@ om{
                 }
                 MMMMdd{"MMMM dd"}
                 MMdd{"dd/MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -418,24 +402,6 @@ om{
                         "Jim",
                         "San",
                     }
-                    narrow{
-                        "D",
-                        "W",
-                        "K",
-                        "R",
-                        "K",
-                        "J",
-                        "S",
-                    }
-                    short{
-                        "Dil",
-                        "Wix",
-                        "Kib",
-                        "Rob",
-                        "Kam",
-                        "Jim",
-                        "San",
-                    }
                     wide{
                         "Dilbata",
                         "Wiixata",
@@ -447,15 +413,6 @@ om{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        "Dil",
-                        "Wix",
-                        "Kib",
-                        "Rob",
-                        "Kam",
-                        "Jim",
-                        "San",
-                    }
                     narrow{
                         "D",
                         "W",
@@ -465,50 +422,28 @@ om{
                         "J",
                         "S",
                     }
-                    short{
-                        "Dil",
-                        "Wix",
-                        "Kib",
-                        "Rob",
-                        "Kam",
-                        "Jim",
-                        "San",
-                    }
-                    wide{
-                        "Dilbata",
-                        "Wiixata",
-                        "Kibxata",
-                        "Roobii",
-                        "Kamisa",
-                        "Jimaata",
-                        "Sanbata",
-                    }
                 }
             }
             eras{
                 abbreviated{
-                    "DhKD",
-                    "BA",
+                    0{"DhKD"}
+                    1{"BA"}
                 }
                 abbreviated%variant{
-                    "BWD",
-                    "BW",
+                    0{"BWD"}
+                    1{"BW"}
                 }
                 narrow{
-                    "Dh",
-                    "B",
-                }
-                narrow%variant{
-                    "BWD",
-                    "BW",
+                    0{"Dh"}
+                    1{"B"}
                 }
                 wide{
-                    "Dhaloota Kiristoos Dura",
-                    "Bara Araaraa",
+                    0{"Dhaloota Kiristoos Dura"}
+                    1{"Bara Araaraa"}
                 }
                 wide%variant{
-                    "Bara Waloo Dura",
-                    "Bara Waloo",
+                    0{"Bara Waloo Dura"}
+                    1{"Bara Waloo"}
                 }
             }
             intervalFormats{
@@ -559,10 +494,6 @@ om{
                 }
                 MMMEd{
                     M{"E, MMM d – E, MMM d"}
-                    d{"MMM d, E – MMM d, E"}
-                }
-                MMMd{
-                    M{"MMM d – MMM d"}
                 }
                 Md{
                     M{"M/d – M/d"}
@@ -570,7 +501,6 @@ om{
                 }
                 h{
                     a{"h a – h a "}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
@@ -581,10 +511,6 @@ om{
                     a{"h:mm a – h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"M/y – M/y"}
@@ -635,20 +561,6 @@ om{
                         "Sadaasa",
                         "Mud",
                     }
-                    narrow{
-                        "A",
-                        "G",
-                        "B",
-                        "E",
-                        "C",
-                        "W",
-                        "A",
-                        "H",
-                        "F",
-                        "O",
-                        "S",
-                        "M",
-                    }
                     wide{
                         "Amajjii",
                         "Guraandhala",
@@ -665,20 +577,6 @@ om{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        "Ama",
-                        "Gur",
-                        "Bitootessa",
-                        "Elb",
-                        "Cam",
-                        "Wax",
-                        "Ado",
-                        "Hag",
-                        "Ful",
-                        "Onk",
-                        "Sadaasa",
-                        "Mud",
-                    }
                     narrow{
                         "A",
                         "G",
@@ -692,39 +590,11 @@ om{
                         "O",
                         "S",
                         "M",
-                    }
-                    wide{
-                        "Amajjii",
-                        "Guraandhala",
-                        "Bitootessa",
-                        "Eebila",
-                        "Caamsaa",
-                        "Waxabajjii",
-                        "Adoolessa",
-                        "Hagayya",
-                        "Fulbaana",
-                        "Onkoloolessa",
-                        "Sadaasa",
-                        "Mudde",
                     }
                 }
             }
             quarters{
                 format{
-                    abbreviated{
-                        "K1",
-                        "K2",
-                        "K3",
-                        "K4",
-                    }
-                    wide{
-                        "Kurmaana 1ffaa",
-                        "Kurmaana 2ffaa",
-                        "Kurmaana 3ffaa",
-                        "Kurmaana 4ffaa",
-                    }
-                }
-                stand-alone{
                     abbreviated{
                         "K1",
                         "K2",
@@ -761,12 +631,6 @@ om{
             }
         }
         day-narrow{
-            dn{"guyyaa"}
-            relative{
-                "-1"{"kaleessa"}
-                "0"{"har’a"}
-                "1"{"boru"}
-            }
             relativeTime{
                 future{
                     one{"g {0} keessatti"}
@@ -778,29 +642,8 @@ om{
                 }
             }
         }
-        day-short{
-            dn{"guyyaa"}
-            relative{
-                "-1"{"kaleessa"}
-                "0"{"har’a"}
-                "1"{"boru"}
-            }
-            relativeTime{
-                future{
-                    one{"guyyaa {0} keessatti"}
-                    other{"guyyoota {0} keessatti"}
-                }
-                past{
-                    one{"guyyaa {0} darbe"}
-                    other{"guyyoota {0} darban"}
-                }
-            }
-        }
         dayOfYear{
             dn{"guyyaa waggaa"}
-        }
-        dayOfYear-narrow{
-            dn{"guyyaa kan wg."}
         }
         dayOfYear-short{
             dn{"guyyaa kan wg."}
@@ -808,19 +651,7 @@ om{
         dayperiod{
             dn{"WD/WB"}
         }
-        dayperiod-narrow{
-            dn{"WD/WB"}
-        }
-        dayperiod-short{
-            dn{"WD/WB"}
-        }
         era{
-            dn{"bara"}
-        }
-        era-narrow{
-            dn{"bara"}
-        }
-        era-short{
             dn{"bara"}
         }
         fri{
@@ -892,9 +723,6 @@ om{
         }
         hour-narrow{
             dn{"sa"}
-            relative{
-                "0"{"sa’aatii kana"}
-            }
             relativeTime{
                 future{
                     one{"h {0} keessatti"}
@@ -908,9 +736,6 @@ om{
         }
         hour-short{
             dn{"sa."}
-            relative{
-                "0"{"sa’aatii kana"}
-            }
             relativeTime{
                 future{
                     one{"sa. {0} keessatti"}
@@ -937,9 +762,6 @@ om{
         }
         minute-narrow{
             dn{"dq"}
-            relative{
-                "0"{"daqiiqaa kana"}
-            }
             relativeTime{
                 future{
                     one{"d {0} keessatti"}
@@ -1038,11 +860,6 @@ om{
         }
         month-narrow{
             dn{"ji"}
-            relative{
-                "-1"{"ji. darbe"}
-                "0"{"ji. kana"}
-                "1"{"ji. dhufu"}
-            }
             relativeTime{
                 future{
                     one{"ji {0} keessatti"}
@@ -1195,9 +1012,6 @@ om{
         }
         second-narrow{
             dn{"sek"}
-            relative{
-                "0"{"amma"}
-            }
             relativeTime{
                 future{
                     one{"s {0} keessatti"}
@@ -1211,9 +1025,6 @@ om{
         }
         second-short{
             dn{"sek."}
-            relative{
-                "0"{"amma"}
-            }
             relativeTime{
                 future{
                     one{"sek. {0} keessatti"}
@@ -1450,12 +1261,6 @@ om{
         }
         week-narrow{
             dn{"tr"}
-            relative{
-                "-1"{"tr. darbe"}
-                "0"{"tr. kana"}
-                "1"{"tr. dhufu"}
-            }
-            relativePeriod{"torban {0}"}
             relativeTime{
                 future{
                     one{"w {0} keessatti"}
@@ -1474,7 +1279,6 @@ om{
                 "0"{"tr. kana"}
                 "1"{"tr. dhufu"}
             }
-            relativePeriod{"torban {0}"}
             relativeTime{
                 future{
                     one{"tr. {0} keessatti"}
@@ -1498,17 +1302,11 @@ om{
         weekday{
             dn{"guyyaa kan torbee"}
         }
-        weekday-narrow{
-            dn{"guyyaa kan tr."}
-        }
         weekday-short{
             dn{"guyyaa kan tr."}
         }
         weekdayOfMonth{
             dn{"guyyaatorbee kan ji’aa"}
-        }
-        weekdayOfMonth-narrow{
-            dn{"gytr. kan ji."}
         }
         weekdayOfMonth-short{
             dn{"gytr. kan ji."}
@@ -1533,11 +1331,6 @@ om{
         }
         year-narrow{
             dn{"wg"}
-            relative{
-                "-1"{"wg. darbe"}
-                "0"{"wg. kana"}
-                "1"{"wg. dhufu"}
-            }
             relativeTime{
                 future{
                     one{"w {0} keessatti"}
@@ -1569,9 +1362,6 @@ om{
         }
         zone{
             dn{"zoonii yeroo"}
-        }
-        zone-narrow{
-            dn{"zoonii"}
         }
         zone-short{
             dn{"zoonii"}

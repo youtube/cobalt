@@ -7,6 +7,8 @@ es_DO{
         latn{
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
             }
         }
     }
@@ -78,8 +80,8 @@ es_DO{
             }
             eras{
                 wide%variant{
-                    "antes de la Era Común",
-                    "Era Común",
+                    0{"antes de la Era Común"}
+                    1{"Era Común"}
                 }
             }
             quarters{

@@ -35,7 +35,7 @@ ckb{
                 "G y MMMM d, EEEE",
                 "dی MMMMی y G",
                 "G y MMM d",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -174,12 +174,12 @@ ckb{
             }
             eras{
                 abbreviated{
-                    "پێش زایین",
-                    "زایینی",
+                    0{"پێش زایین"}
+                    1{"زایینی"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
             }
             intervalFormats{

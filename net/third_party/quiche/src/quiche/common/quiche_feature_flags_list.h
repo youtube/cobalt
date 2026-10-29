@@ -9,7 +9,6 @@
 #if defined(QUICHE_FLAG)
 
 QUICHE_FLAG(bool, quiche_reloadable_flag_enable_h3_origin_frame, false, true, "If true, enables support for parsing HTTP/3 ORIGIN frames.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_http2_avoid_decompose_representation, true, true, "If true, HPACK encoding will use a different iteration method that avoids unnecessary copies and string splitting.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, true, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bandwidth_sampler_guard_rtt_subtraction, false, false, "When true, BandwidthSampler::OnPacketAcknowledgedInner() will return early rather than compute a negative RTT.")
@@ -69,7 +68,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_update_max_datagram, false, false,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_inlining_send_buffer_everywhere, true, true, "Use QuicStreamSendBufferInlining consistently everywhere in the codebase.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_proof_source_get_cert_chains, true, true, "When true, quic::TlsServerHandshaker will use ProofSource::GetCertChains() instead of ProofSource::GetCertChain()")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_reset_content_length_status_when_removing_content_length_header, true, true, "If true, the content_length_status field in balsa_headers will always be reset when the Content-Length header is removed, no matter if the Transfer-Encoding header is chuncked or not.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_dispatcher_close_connection_on_invalid_ack, false, false, "An invalid ack is an ack that the peer sent for a packet that was not sent by the dispatcher. If true, the dispatcher will close the connection if it receives an invalid ack.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_shed_tls_handshake_config, false, false, "If true, QUIC connections will call SSL_set_shed_handshake_config to drop BoringSSL handshake state after the handshake finishes in order to save memory.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_stop_parsing_legacy_version_info, true, true, "If true, disable parsing the legacy version information transport parameter.")

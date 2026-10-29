@@ -20,7 +20,9 @@ lb{
                 atLeast{"≥ {0}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -409,12 +411,12 @@ lb{
             }
             eras{
                 abbreviated{
-                    "v. Chr.",
-                    "n. Chr.",
+                    0{"v. Chr."}
+                    1{"n. Chr."}
                 }
                 abbreviated%variant{
-                    "v. e. Z.",
-                    "n. e. Z.",
+                    0{"v. e. Z."}
+                    1{"n. e. Z."}
                 }
             }
             intervalFormats{
@@ -582,8 +584,7 @@ lb{
         roc{
             eras{
                 abbreviated{
-                    "Before R.O.C.",
-                    "Minguo",
+                    1{"Minguo"}
                 }
             }
         }

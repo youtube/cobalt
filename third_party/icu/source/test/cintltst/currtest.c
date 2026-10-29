@@ -198,7 +198,7 @@ static void TestFractionDigitOverride(void) {
     UNumberFormat *fmt = unum_open(UNUM_CURRENCY, NULL, 0, "hu_HU", NULL, &status);
     UChar buffer[256];
     UChar expectedBuf[256];
-    const char expectedFirst[] = "123,46\\u00A0Ft"; /* changed to use 2 fraction digits */
+    const char expectedFirst[] = "123\\u00A0Ft"; /* CLDR-11586 - HUF has 0 default fractional digits */
     const char expectedSecond[] = "123,46\\u00A0Ft";
     const char expectedThird[] = "123,456\\u00A0Ft";
     if (U_FAILURE(status)) {

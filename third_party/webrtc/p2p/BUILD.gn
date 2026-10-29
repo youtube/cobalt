@@ -1172,6 +1172,7 @@ if (rtc_include_tests) {
       "../api:scoped_refptr",
       "../api:sequence_checker",
       "../api:simulated_network_api",
+      "../api:time_controller",
       "../api/crypto:options",
       "../api/environment",
       "../api/environment:environment_factory",

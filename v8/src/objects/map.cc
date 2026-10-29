@@ -205,6 +205,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_EXTERNAL_OBJECT_TYPE:
       return kVisitJSExternalObject;
 
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -389,6 +390,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case CALLABLE_TASK_TYPE:
     case CALLBACK_TASK_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
+    case ASYNC_RESUME_TASK_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
@@ -2361,7 +2363,7 @@ bool Map::EquivalentToForTransition(
   if (new_instance_type) {
     if (*new_instance_type != other->instance_type()) return false;
   } else {
-    CHECK_EQ(instance_type(), other->instance_type());
+    if (instance_type() != other->instance_type()) return false;
   }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {

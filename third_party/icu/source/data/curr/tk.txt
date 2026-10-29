@@ -627,6 +627,10 @@ tk{
             "EC$",
             "Gündogar karib dollary",
         }
+        XCG{
+            "Kg.",
+            "karib guldeni",
+        }
         XOF{
             "F CFA",
             "KFA BCEAO franky",
@@ -650,6 +654,10 @@ tk{
         ZMW{
             "ZMW",
             "Zambiýa kwaçasy",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwe altyny",
         }
     }
     Currencies%narrow{
@@ -1264,6 +1272,10 @@ tk{
             one{"gündogar karib dollary"}
             other{"gündogar karib dollary"}
         }
+        XCG{
+            one{"karib guldeni"}
+            other{"karib guldeni"}
+        }
         XPF{
             one{"fransuz ýuwaş umman franky"}
             other{"fransuz ýuwaş umman franky"}
@@ -1283,6 +1295,10 @@ tk{
         ZMW{
             one{"zambiýa kwaçasy"}
             other{"zambiýa kwaçasy"}
+        }
+        ZWG{
+            one{"Zimbabwe altyny"}
+            other{"Zimbabwe altyny"}
         }
     }
 }

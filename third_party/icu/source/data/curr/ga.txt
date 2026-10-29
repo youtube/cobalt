@@ -1035,6 +1035,10 @@ ga{
             "EC$",
             "Dollar na Cairibe Thoir",
         }
+        XCG{
+            "Cg.",
+            "gildear Chairib",
+        }
         XDR{
             "XDR",
             "Cearta Speisialta Tarraingthe",
@@ -1122,6 +1126,10 @@ ga{
         ZWD{
             "ZWD",
             "Dollar Siombábach (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "ór na Siombáibe",
         }
         ZWL{
             "ZWL",
@@ -2208,7 +2216,7 @@ ga{
             few{"pheso na nOileán Filipíneach"}
             many{"bpeso na nOileán Filipíneach"}
             one{"pheso na nOileán Filipíneach"}
-            other{"peso na nOileán Filipíneach"}
+            other{"pesos na nOileán Filipíneach"}
             two{"pheso na nOileán Filipíneach"}
         }
         PKR{
@@ -2240,11 +2248,11 @@ ga{
             two{"ghuaraní Pharagua"}
         }
         QAR{
-            few{"riyal Chatar"}
-            many{"riyal Chatar"}
-            one{"riyal Chatar"}
-            other{"riyal Chatar"}
-            two{"riyal Chatar"}
+            few{"riyals Chatar"}
+            many{"riyals Chatar"}
+            one{"riyals Chatar"}
+            other{"riyals Chatar"}
+            two{"riyals Chatar"}
         }
         ROL{
             few{"leu na Rómáine (1952–2006)"}
@@ -2652,6 +2660,13 @@ ga{
             other{"dollar na Cairibe Thoir"}
             two{"dhollar na Cairibe Thoir"}
         }
+        XCG{
+            few{"ghildear Chairib"}
+            many{"ngildear Chairib"}
+            one{"ghildear Chairib"}
+            other{"gildir Chairib"}
+            two{"ghildear Chairib"}
+        }
         XOF{
             few{"fhranc CFA Iarthar na hAfraice"}
             many{"bhfranc CFA Iarthar na hAfraice"}
@@ -2721,6 +2736,13 @@ ga{
             one{"kwacha na Saimbia"}
             other{"kwacha na Saimbia"}
             two{"kwacha na Saimbia"}
+        }
+        ZWG{
+            few{"ór na Siombáibe"}
+            many{"n-ór na Siombáibe"}
+            one{"ór na Siombáibe"}
+            other{"ór na Siombáibe"}
+            two{"ór na Siombáibe"}
         }
     }
 }

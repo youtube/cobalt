@@ -608,6 +608,12 @@ so{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'ee' {0}",
+                "{1} 'ee' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -620,6 +626,8 @@ so{
             }
             availableFormats{
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -789,6 +797,12 @@ so{
                 "{1} 'ee' {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'ee' {0}",
+                "{1} 'ee' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -801,6 +815,8 @@ so{
             }
             availableFormats{
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -861,38 +877,26 @@ so{
                     }
                 }
             }
-            dayPeriod{
-                stand-alone{
-                    narrow{
-                        am{"GH"}
-                        pm{"GD"}
-                    }
-                    wide{
-                        am{"GH"}
-                        pm{"GD"}
-                    }
-                }
-            }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "KTM",
-                    "CE",
+                    0{"KTM"}
+                    1{"CE"}
                 }
                 narrow{
-                    "B",
-                    "A",
+                    0{"B"}
+                    1{"A"}
                 }
                 wide{
-                    "Ciise Hortii",
-                    "Ciise Dabadii",
+                    0{"Ciise Hortii"}
+                    1{"Ciise Dabadii"}
                 }
                 wide%variant{
-                    "Ka Hor Taariikhda Miilaadiga",
-                    "Taariikhda Miilaadiga",
+                    0{"Ka Hor Taariikhda Miilaadiga"}
+                    1{"Taariikhda Miilaadiga"}
                 }
             }
             intervalFormats{
@@ -1131,6 +1135,10 @@ so{
             }
         }
         islamic{
+            availableFormats{
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
+            }
             intervalFormats{
                 Bh{
                     B{"h B – h B"}
@@ -1243,8 +1251,8 @@ so{
         roc{
             eras{
                 abbreviated{
-                    "Kahor R.O.C.",
-                    "Minguo",
+                    0{"Kahor R.O.C."}
+                    1{"Minguo"}
                 }
             }
             intervalFormats{
@@ -1378,8 +1386,11 @@ so{
         dayOfYear{
             dn{"maalinta sannadka"}
         }
+        dayOfYear-narrow{
+            dn{"maalinta sndka"}
+        }
         dayOfYear-short{
-            dn{"mlnta sndka"}
+            dn{"maalinta sndka"}
         }
         dayperiod{
             dn{"GH/GD"}
@@ -1820,8 +1831,11 @@ so{
         weekday{
             dn{"maalinta toddobaadka"}
         }
+        weekday-narrow{
+            dn{"maalinta tdbdka"}
+        }
         weekday-short{
-            dn{"mlnta tdbdka"}
+            dn{"maalinta tdbdka"}
         }
         weekdayOfMonth{
             dn{"maalinta-toddobaadka bisha"}
@@ -1848,7 +1862,6 @@ so{
             }
         }
         year-narrow{
-            dn{"Snd"}
             relative{
                 "-1"{"Sannadkii la soo dhaafay"}
                 "0"{"Sannadkan"}

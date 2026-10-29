@@ -21,7 +21,6 @@ rtc_library("delay_based_congestion_control") {
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
-    "../../../rtc_base:logging",
     "../../../rtc_base:windowed_min_filter",
   ]
 }
@@ -47,7 +46,6 @@ rtc_library("scream_v2") {
   deps = [
     ":delay_based_congestion_control",
     ":scream_v2_parameters",
-    "../../../api:field_trials_view",
     "../../../api/environment",
     "../../../api/transport:ecn_marking",
     "../../../api/transport:network_control",
@@ -70,10 +68,7 @@ rtc_library("scream_network_controller") {
   deps = [
     ":scream_v2",
     ":scream_v2_parameters",
-    "../../../api:field_trials_view",
     "../../../api/environment",
-    "../../../api/transport:bandwidth_usage",
-    "../../../api/transport:ecn_marking",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
     "../../../api/units:data_size",
@@ -82,7 +77,6 @@ rtc_library("scream_network_controller") {
     "../../../logging:rtc_event_bwe",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-    "../../../rtc_base/experiments:field_trial_parser",
   ]
 }
 
@@ -100,7 +94,6 @@ if (rtc_include_tests) {
       ":scream_v2",
       ":scream_v2_parameters",
       "../../../api/environment",
-      "../../../api/environment:environment_factory",
       "../../../api/transport:ecn_marking",
       "../../../api/transport:network_control",
       "../../../api/units:data_rate",

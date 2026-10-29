@@ -295,6 +295,7 @@
 <translation id="4053720452172726777">Google Chrome の設定</translation>
 <translation id="408393047846373801">すべてのデバイスでパスワードやその他の設定を使用するには、Chrome にログインしてください。このパスワードは、ログイン後に Google アカウントに保存されます。</translation>
 <translation id="409936259433005390">Windows 11 にアップグレードしようとしていますか？Chrome インストーラを OneDrive にダウンロードして、すぐに使えるようにしましょう。</translation>
+<translation id="4102173024714616627">拡張機能は、Chrome をカスタマイズできるアドオンです。情報整理や日々のタスクの効率化など、拡張機能を使って Chrome を自分仕様にすることができます。</translation>
 <translation id="4110895483821904099">新しい Chrome プロファイルの設定</translation>
 <translation id="4111566860456076004">Chrome では、この拡張機能の提供元を確認できないため、安全でない可能性があります。アクセスしたサイトでユーザーデータ（個人情報を含む）が参照、変更されないように、Chrome からこの拡張機能を削除してください。</translation>
 <translation id="4147555960264124640">現在、管理対象アカウントでログインしており、あなたの Google Chrome プロファイルを管理者が制御できる状態になっています。あなたの Chrome データ（アプリ、ブックマーク、履歴、パスワードなどの設定）は永続的に <ph name="USER_NAME" /> に関連付けられます。このデータは Google アカウントのダッシュボードを介して削除できますが、このデータを別のアカウントに関連付けることはできなくなります。<ph name="LEARN_MORE" /></translation>
@@ -354,6 +355,7 @@
 <translation id="4756182432527369254">Chrome の V8 エンジンでサイトを高速化する（攻撃に対する Chrome の耐性は若干低下します）</translation>
 <translation id="479167709087336770">Google 検索と同じスペルチェックが使用されます。ブラウザに入力したテキストは Google に送信されます。この動作はいつでも設定で変更できます。</translation>
 <translation id="4793679854893018356">Chrome のユーザー保護の仕組みについて</translation>
+<translation id="4799870290441980300">追加の機能を有効にして、Chrome の最高水準のセキュリティで保護します</translation>
 <translation id="4828579605166583682">Google Chrome が既存のパスワードを置き換えようとしています。続行するには、Windows のパスワードを入力してください。</translation>
 <translation id="4842397268809523050">お使いのドメインでは同期が利用できないため、ChromeOS Flex はデータを同期できませんでした。</translation>
 <translation id="4851866215237571846"><ph name="EXISTING_USER" />さんがすでにログインしています。ブラウジング環境を分ける場合は、自分用のプロファイルで <ph name="USER_EMAIL_ADDRESS" /> として Chrome にログインしてください。</translation>
@@ -771,6 +773,7 @@
 <translation id="8862326446509486874">権限が不十分なためシステムレベルのインストールができません。管理者権限でインストールしてください。</translation>
 <translation id="8865415417596392024">アカウント内の Chrome のデータ</translation>
 <translation id="8883862939660515976">Google レンズでこの画像について質問する</translation>
+<translation id="8892956691293410744">ページを離れることなく、タブについて AI モードに質問するには、Chrome にログインしてください。これにより、すべてのデバイスでパスワードなどの設定も使用できるようになります。</translation>
 <translation id="8914504000324227558">Chrome の再起動</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" /> から Android スマートフォンに番号を送信するには、両方のデバイスで Chrome にログインしてください。</translation>
 <translation id="8922998289262614701">Chrome からこのアプリのデータを削除する</translation>

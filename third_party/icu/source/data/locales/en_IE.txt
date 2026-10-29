@@ -53,6 +53,10 @@ en_IE{
                 "a.m.",
                 "p.m.",
             }
+            AmPmMarkersAbbr{
+                "a.m.",
+                "p.m.",
+            }
             DateTimePatterns{
                 "HH:mm:ss zzzz",
                 "HH:mm:ss z",

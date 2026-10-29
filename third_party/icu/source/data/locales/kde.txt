@@ -114,12 +114,12 @@ kde{
             }
             eras{
                 abbreviated{
-                    "AY",
-                    "NY",
+                    0{"AY"}
+                    1{"NY"}
                 }
                 wide{
-                    "Akanapawa Yesu",
-                    "Nankuida Yesu",
+                    0{"Akanapawa Yesu"}
+                    1{"Nankuida Yesu"}
                 }
             }
             monthNames{

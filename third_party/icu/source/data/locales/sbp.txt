@@ -120,12 +120,12 @@ sbp{
             }
             eras{
                 abbreviated{
-                    "AK",
-                    "PK",
+                    0{"AK"}
+                    1{"PK"}
                 }
                 wide{
-                    "Ashanali uKilisito",
-                    "Pamwandi ya Kilisto",
+                    0{"Ashanali uKilisito"}
+                    1{"Pamwandi ya Kilisto"}
                 }
             }
             monthNames{

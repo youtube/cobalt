@@ -271,9 +271,6 @@ qu{
         "Indian:Maldives"{
             ec{"Maldivas"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
@@ -290,9 +287,7 @@ qu{
             ls{"Hora de Sudafrica"}
         }
         "meta:Africa_Western"{
-            ld{"Hora Estandar de Verano de Africa Occidental"}
-            lg{"Hora de Africa Occidental"}
-            ls{"Hora Estandar de Africa Occidental"}
+            ls{"Hora de Africa Occidental"}
         }
         "meta:Alaska"{
             ld{"Hora de Verano de Alaska"}
@@ -530,6 +525,9 @@ qu{
         }
         "meta:Guyana"{
             ls{"Hora de Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Hora Estandar de Hawai-Aleutiano"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hora de Verano de Hawai-Aleutiano"}

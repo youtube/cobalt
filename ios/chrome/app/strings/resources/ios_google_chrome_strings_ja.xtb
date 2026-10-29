@@ -164,7 +164,7 @@
 <translation id="484033449593719797">Chrome ベータ版ではサポートされていません</translation>
 <translation id="4840404732697892756">Google アカウントでログインすると、Google パスワード マネージャーでパスワードを確認できるようになります。</translation>
 <translation id="4903674399067644695">このカードでは、Chrome を最大限に活用するためのヒントを紹介しています。</translation>
-<translation id="49200511069271369">組織（<ph name="DOMAIN" />）が、ログインしているアカウントと Chrome の使用方法を管理しています。管理者は特定の機能を設定または制限できます。</translation>
+<translation id="49200511069271369">ログインしようとしているアカウントおよび Chrome の使用方法は、組織（<ph name="DOMAIN" />）によって管理されています。管理者は特定の機能を設定または制限できます。</translation>
 <translation id="4925322001044117929">iPad で Chrome をデフォルトで使用する</translation>
 <translation id="4934496192263958600">Chrome にログインして同じ設定やデータにアクセス</translation>
 <translation id="496747131578053942">Chrome のヒント: Google レンズで見たものをそのまま検索</translation>
@@ -188,6 +188,7 @@
 <translation id="5395376160638294582">Google アカウントの Chrome データを常に使用できるようにしてください</translation>
 <translation id="5404252374083197467">Chrome を既定に設定しますか？</translation>
 <translation id="5439191312780166229">標準保護機能より多くのサイトデータを分析して、危険なサイト（Google が認識していなかったサイトも含む）について警告します。Chrome の警告をスキップすることもできます。</translation>
+<translation id="5453077102022695084">Chrome を既定に設定する方法を説明したフルスクリーン動画</translation>
 <translation id="5460571915754665838">4. [Chrome] を選択する</translation>
 <translation id="5492504007368565877">現在、Google パスワード マネージャーではパスワードをチェックできません。</translation>
 <translation id="5525095647255982834">このタブを別のデバイスに送信するには、送信先のデバイスで Chrome にログインしてください。</translation>

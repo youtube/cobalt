@@ -124,12 +124,12 @@ naq{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Xristub aiǃâ",
-                    "Xristub khaoǃgâ",
+                    0{"Xristub aiǃâ"}
+                    1{"Xristub khaoǃgâ"}
                 }
             }
             monthNames{

@@ -58,7 +58,7 @@ ms{
             ld{"Waktu Musim Panas British"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Pulau Canton"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
@@ -81,9 +81,7 @@ ms{
             ls{"Waktu Piawai Afrika Selatan"}
         }
         "meta:Africa_Western"{
-            ld{"Waktu Musim Panas Afrika Barat"}
-            lg{"Waktu Afrika Barat"}
-            ls{"Waktu Piawai Afrika Barat"}
+            ls{"Waktu Afrika Barat"}
         }
         "meta:Alaska"{
             ld{"Waktu Siang Alaska"}
@@ -342,6 +340,9 @@ ms{
         }
         "meta:Guyana"{
             ls{"Waktu Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Waktu Piawai Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Waktu Siang Hawaii-Aleutian"}

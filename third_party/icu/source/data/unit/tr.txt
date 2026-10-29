@@ -38,6 +38,11 @@ tr{
                 one{"{0} devir"}
                 other{"{0} devir"}
             }
+            steradian{
+                dnam{"steradyan"}
+                one{"{0} steradyan"}
+                other{"{0} steradyan"}
+            }
         }
         area{
             acre{
@@ -147,6 +152,11 @@ tr{
             }
         }
         concentr{
+            katal{
+                dnam{"katal"}
+                one{"{0} katal"}
+                other{"{0} katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligram/desilitre"}
                 one{"{0} miligram/desilitre"}
@@ -156,6 +166,20 @@ tr{
                 dnam{"milimol/litre"}
                 one{"{0} milimol/litre"}
                 other{"{0} milimol/litre"}
+            }
+            ofglucose{
+                dnam{"glikoz"}
+                one{"{0} glikoz"}
+                other{"{0} glikoz"}
+            }
+            part-per-1e6{
+                dnam{"parça/milyon"}
+                one{"{0} parça/milyon"}
+                other{"{0} parça/milyon"}
+            }
+            part-per-1e9{
+                one{"{0} parça/milyar"}
+                other{"{0} parça/milyar"}
             }
             percent{
                 dnam{"yüzde"}
@@ -167,19 +191,9 @@ tr{
                 one{"binde {0}"}
                 other{"binde {0}"}
             }
-            permillion{
-                dnam{"parça/milyon"}
-                one{"{0} parça/milyon"}
-                other{"{0} parça/milyon"}
-            }
             permyriad{
                 one{"onbinde {0}"}
                 other{"onbinde {0}"}
-            }
-            portion-per-1e9{
-                dnam{"parça/milyar"}
-                one{"{0} parça/milyar"}
-                other{"{0} parça/milyar"}
             }
         }
         consumption{
@@ -287,12 +301,6 @@ tr{
                 one{"{0} nanosaniye"}
                 other{"{0} nanosaniye"}
             }
-            night{
-                dnam{"gece"}
-                one{"{0} gece"}
-                other{"{0} gece"}
-                per{"{0}/gece"}
-            }
             quarter{
                 one{"{0} çeyrek"}
                 other{"{0} çeyrek"}
@@ -316,6 +324,15 @@ tr{
                 one{"{0} amper"}
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"coulomb"}
+            }
+            farad{
+                dnam{"farad"}
+            }
+            henry{
+                dnam{"henry"}
+            }
             milliampere{
                 one{"{0} miliamper"}
                 other{"{0} miliamper"}
@@ -324,12 +341,20 @@ tr{
                 one{"{0} ohm"}
                 other{"{0} ohm"}
             }
+            siemens{
+                dnam{"siemens"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} volt"}
             }
         }
         energy{
+            becquerel{
+                dnam{"bekerel"}
+                one{"{0} bekerel"}
+                other{"{0} bekerel"}
+            }
             british-thermal-unit{
                 dnam{"İngiliz ısı birimi"}
                 one{"{0} İngiliz ısı birimi"}
@@ -340,6 +365,11 @@ tr{
                 one{"{0} kalori"}
                 other{"{0} kalori"}
             }
+            calorie-it{
+                dnam{"kalori [IT]"}
+                one{"{0} kalori [IT]"}
+                other{"{0} kalori [IT]"}
+            }
             electronvolt{
                 one{"{0} elektronvolt"}
                 other{"{0} elektronvolt"}
@@ -348,6 +378,11 @@ tr{
                 dnam{"kilokalori"}
                 one{"{0} kilokalori"}
                 other{"{0} kilokalori"}
+            }
+            gray{
+                dnam{"gray"}
+                one{"{0} gray"}
+                other{"{0} gray"}
             }
             joule{
                 one{"{0} jul"}
@@ -368,8 +403,18 @@ tr{
                 one{"{0} kilovatsaat"}
                 other{"{0} kilovatsaat"}
             }
+            sievert{
+                dnam{"sievert"}
+                one{"{0} sievert"}
+                other{"{0} sievert"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilogram-kuvvet"}
+                one{"{0} kilogram-kuvvet"}
+                other{"{0} kilogram-kuvvet"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"100 kilometre / kilowatt-saat"}
                 one{"100 kilometre/{0} kilowatt-saat"}
@@ -548,6 +593,18 @@ tr{
                 other{"{0} Güneş parlaklığı"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"weber"}
+                one{"{0} weber"}
+                other{"{0} weber"}
+            }
+        }
         mass{
             carat{
                 one{"{0} karat"}
@@ -680,6 +737,11 @@ tr{
                 one{"{0} milimetre cıva"}
                 other{"{0} milimetre cıva"}
             }
+            ofhg{
+                dnam{"cıva"}
+                one{"{0} cıva"}
+                other{"{0} cıva"}
+            }
             pascal{
                 dnam{"paskal"}
                 one{"{0} paskal"}
@@ -706,11 +768,6 @@ tr{
                 dnam{"knot"}
                 one{"{0} knot"}
                 other{"{0} knot"}
-            }
-            light-speed{
-                dnam{"ışık"}
-                one{"{0} ışık"}
-                other{"{0} ışık"}
             }
             meter-per-second{
                 dnam{"metre/saniye"}
@@ -836,6 +893,9 @@ tr{
                 one{"{0} dram"}
                 other{"{0} dram"}
             }
+            fluid-ounce-metric{
+                dnam{"metrik sıvı ons"}
+            }
             gallon{
                 dnam{"galon"}
                 one{"{0} galon"}
@@ -911,6 +971,9 @@ tr{
                 one{"{0} mmol/L"}
                 other{"{0} mmol/L"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -947,12 +1010,6 @@ tr{
             nanosecond{
                 dnam{"nsn"}
             }
-            night{
-                dnam{"gece"}
-                one{"{0} gece"}
-                other{"{0} gece"}
-                per{"{0}/gece"}
-            }
             quarter{
                 dnam{"çey."}
                 per{"{0}/çey."}
@@ -972,6 +1029,9 @@ tr{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -1038,11 +1098,6 @@ tr{
             }
         }
         speed{
-            light-speed{
-                dnam{"ışık"}
-                one{"{0} ışık"}
-                other{"{0} ışık"}
-            }
             mile-per-hour{
                 dnam{"mil/sa"}
             }
@@ -1153,6 +1208,15 @@ tr{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
+                dnam{"parça/milyon"}
+            }
+            part-per-1e9{
+                dnam{"parça/milyar"}
+            }
             percent{
                 one{"%{0}"}
                 other{"%{0}"}
@@ -1165,9 +1229,6 @@ tr{
                 dnam{"onbinde"}
                 one{"‱{0}"}
                 other{"‱{0}"}
-            }
-            portion-per-1e9{
-                dnam{"parça/milyar"}
             }
         }
         consumption{
@@ -1309,6 +1370,9 @@ tr{
         energy{
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
             }
             electronvolt{
                 dnam{"elektronvolt"}

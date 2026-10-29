@@ -3,7 +3,7 @@
 // Generated using tools/cldr/cldr-to-icu/
 fil{
     Countries{
-        001{"Mundo"}
+        001{"mundo"}
         002{"Africa"}
         003{"Hilagang Amerika"}
         005{"Timog Amerika"}
@@ -85,6 +85,7 @@ fil{
         CN{"China"}
         CO{"Colombia"}
         CP{"Clipperton Island"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Cuba"}
         CV{"Cape Verde"}
@@ -302,7 +303,7 @@ fil{
         IO{"Chagos Archipelago"}
     }
     Countries%short{
-        GB{"U.K."}
+        GB{"UK"}
         UN{"UN"}
         US{"U.S."}
     }

@@ -24,9 +24,15 @@
 #include "absl/functional/any_invocable.h"
 #include "api/dtls_transport_interface.h"
 #include "api/media_stream_interface.h"
+#include "api/rtc_error.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/sframe/sframe_decrypter_interface.h"
+#include "api/sframe/sframe_types.h"
 #include "media/base/media_channel.h"
+#include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -95,6 +101,18 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   static std::vector<scoped_refptr<MediaStreamInterface>> CreateStreamsFromIds(
       std::vector<std::string> stream_ids);
+};
+
+class RtpReceiverBase : public RtpReceiverInternal {
+ public:
+  RTCErrorOr<scoped_refptr<SframeDecrypterInterface>>
+  CreateSframeDecrypterOrError(SframeCipherSuite cipher_suite) override;
+
+ protected:
+  explicit RtpReceiverBase(Thread* worker_thread);
+
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
+  Thread* const worker_thread_;
 };
 
 }  // namespace webrtc

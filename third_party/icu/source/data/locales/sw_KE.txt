@@ -6,7 +6,7 @@ sw_KE{
     NumberElements{
         latn{
             patterns{
-                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             patternsLong{
                 decimalFormat{
@@ -62,41 +62,99 @@ sw_KE{
             }
             patternsShort{
                 currencyFormat{
+                    1000{
+                        one{"¤ elfu 0"}
+                        other{"¤ elfu 0"}
+                    }
+                    10000{
+                        one{"¤ elfu 00"}
+                        other{"¤ elfu 00"}
+                    }
+                    100000{
+                        one{"¤ elfu 000"}
+                        other{"¤ elfu 000"}
+                    }
                     1000000{
-                        one{"¤ M0;¤-M0"}
+                        one{"¤ M0"}
                         other{"¤ M0"}
                     }
                     10000000{
-                        one{"¤ M00;¤M-M00"}
-                        other{"¤ M00;¤-M00"}
+                        one{"¤ M00"}
+                        other{"¤ M00"}
                     }
                     100000000{
-                        one{"¤ M000;¤M-000"}
+                        one{"¤ M000"}
                         other{"¤ M000"}
                     }
                     1000000000{
-                        one{"¤ B0;¤-B0"}
-                        other{"¤ B0;¤-B0"}
+                        one{"¤ B0"}
+                        other{"¤ B0"}
                     }
                     10000000000{
-                        one{"¤ B00;¤-B00"}
-                        other{"¤ B00;¤-B00"}
+                        one{"¤ B00"}
+                        other{"¤ B00"}
                     }
                     100000000000{
-                        one{"¤ B000;¤-B000"}
-                        other{"¤ B000;¤-B000"}
+                        one{"¤ B000"}
+                        other{"¤ B000"}
                     }
                     1000000000000{
-                        one{"¤ T0;¤-T0"}
+                        one{"¤ T0"}
                         other{"¤ T0"}
                     }
                     10000000000000{
-                        one{"¤ T00;¤-T00"}
+                        one{"¤ T00"}
                         other{"¤ T00"}
                     }
                     100000000000000{
-                        one{"¤ T000;¤-T000"}
-                        other{"¤ T000;¤-T000"}
+                        one{"¤ T000"}
+                        other{"¤ T000"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
+                    1000{
+                        one{"¤ elfu 0"}
+                        other{"¤ elfu 0"}
+                    }
+                    10000{
+                        one{"¤ elfu 00"}
+                        other{"¤ elfu 00"}
+                    }
+                    100000{
+                        one{"¤ elfu 000"}
+                        other{"¤ elfu 000"}
+                    }
+                    1000000{
+                        one{"¤ M0"}
+                    }
+                    10000000{
+                        one{"¤ M00"}
+                        other{"¤ M00"}
+                    }
+                    100000000{
+                        one{"¤ M000"}
+                    }
+                    1000000000{
+                        one{"¤ B0"}
+                        other{"¤ B0"}
+                    }
+                    10000000000{
+                        one{"¤ B00"}
+                        other{"¤ B00"}
+                    }
+                    100000000000{
+                        one{"¤ B000"}
+                        other{"¤ B000"}
+                    }
+                    1000000000000{
+                        one{"¤ T0"}
+                    }
+                    10000000000000{
+                        one{"¤ T00"}
+                    }
+                    100000000000000{
+                        one{"¤ T000"}
+                        other{"¤ T000"}
                     }
                 }
                 decimalFormat{

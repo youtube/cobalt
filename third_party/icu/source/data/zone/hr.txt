@@ -15,9 +15,6 @@ hr{
         "Africa:Djibouti"{
             ec{"Džibuti"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "America:Anguilla"{
             ec{"Angvila"}
         }
@@ -50,9 +47,6 @@ hr{
         }
         "America:Merida"{
             ec{"Merida"}
-        }
-        "America:Mexico_City"{
-            ec{"Ciudad de México"}
         }
         "America:North_Dakota:Beulah"{
             ec{"Beulah, Sjeverna Dakota"}
@@ -294,9 +288,6 @@ hr{
         "Europe:Sofia"{
             ec{"Sofija"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -317,9 +308,6 @@ hr{
         }
         "Indian:Mauritius"{
             ec{"Mauricijus"}
-        }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
@@ -348,9 +336,7 @@ hr{
             ls{"južnoafričko vrijeme"}
         }
         "meta:Africa_Western"{
-            ld{"zapadnoafričko ljetno vrijeme"}
-            lg{"zapadnoafričko vrijeme"}
-            ls{"zapadnoafričko standardno vrijeme"}
+            ls{"zapadnoafričko vrijeme"}
         }
         "meta:Alaska"{
             ld{"aljaško ljetno vrijeme"}
@@ -624,6 +610,9 @@ hr{
         }
         "meta:Guyana"{
             ls{"gvajansko vrijeme"}
+        }
+        "meta:Hawaii"{
+            ls{"havajsko-aleutsko standardno vrijeme"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"havajsko-aleutsko ljetno vrijeme"}
@@ -922,6 +911,11 @@ hr{
         }
         "meta:Truk"{
             ls{"vrijeme Chuuka"}
+        }
+        "meta:Turkey"{
+            ld{"tursko ljetno vrijeme"}
+            lg{"tursko vrijeme"}
+            ls{"tursko standardno vrijeme"}
         }
         "meta:Turkmenistan"{
             ld{"turkmenistansko ljetno vrijeme"}

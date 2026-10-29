@@ -35,7 +35,7 @@ import {
   getItemId,
   getLinkedSourceNodeIds,
 } from './dashboard_registry';
-import {EmptyState} from '../../../widgets/empty_state';
+import {ResultsPanelEmptyState} from '../query_builder/widgets';
 import {SqlValue} from '../../../trace_processor/query_result';
 import {
   isQuantitativeType,
@@ -52,6 +52,13 @@ export interface DashboardChartViewAttrs {
   brushFilters: Map<string, DashboardBrushFilter[]>;
   onItemsChange: (items: DashboardItem[]) => void;
   onBrushFiltersChange: (filters: Map<string, DashboardBrushFilter[]>) => void;
+  /**
+   * When true, this chart is a "driver" (above a segment divider).
+   * Driver charts show brush selection overlays but do NOT apply brush
+   * filters to their own SQL queries — they only propagate filters to
+   * consumer charts below dividers.
+   */
+  isDriverChart?: boolean;
 }
 
 /** Subset of DashboardChartViewAttrs needed by the adapter. */
@@ -277,7 +284,7 @@ export class DashboardChartView
     const config = attrs.config;
 
     if (config.column === '') {
-      return m(EmptyState, {
+      return m(ResultsPanelEmptyState, {
         icon: 'ssid_chart',
         title: 'Select a column',
       });
@@ -289,7 +296,7 @@ export class DashboardChartView
     );
     if (!columnExists) {
       return m(
-        EmptyState,
+        ResultsPanelEmptyState,
         {icon: 'warning', title: 'Invalid column'},
         `Column "${config.column}" not found in this data source.`,
       );
@@ -301,12 +308,16 @@ export class DashboardChartView
         this.executionRequested = true;
         attrs.source
           .requestExecution()
-          .then(() => m.redraw())
-          .catch((e) => console.debug('Dashboard source execution failed:', e));
+          .catch((e) => console.debug('Dashboard source execution failed:', e))
+          .finally(() => {
+            this.executionRequested = false;
+          });
       }
-      return m(EmptyState, {icon: 'hourglass_empty', title: 'Loading data…'});
+      return m(ResultsPanelEmptyState, {
+        icon: 'hourglass_empty',
+        title: 'Loading data…',
+      });
     }
-    this.executionRequested = false;
 
     const entry = this.ensureLoader(attrs, config);
     const ctx = {node: adapter, onFilterChange: () => m.redraw()};
@@ -323,27 +334,31 @@ export class DashboardChartView
     );
     if (tableName === undefined || config.column === '' || !columnValid) {
       let entry = this.loaders.get(config.id);
-      if (!entry) {
+      if (entry === undefined) {
         entry = {key: ''};
         this.loaders.set(config.id, entry);
       }
       return entry;
     }
 
+    // Driver charts (above a divider) show brush overlays but don't filter
+    // their own data — skip the WHERE clause entirely.
     // Drop brush filters referencing columns that don't exist in the current
     // source (can happen after switching the chart's data source).
     const validColumns = new Set(attrs.source.columns.map((c) => c.name));
-    const filters = (attrs.brushFilters.get(attrs.source.nodeId) ?? []).filter(
-      (f) => validColumns.has(f.column),
-    );
+    const filters = attrs.isDriverChart
+      ? []
+      : (attrs.brushFilters.get(attrs.source.nodeId) ?? []).filter((f) =>
+          validColumns.has(f.column),
+        );
     const filterKey = JSON.stringify(filters);
 
     const key = buildLoaderCacheKey(tableName, config, filterKey);
 
     const existing = this.loaders.get(config.id);
-    if (existing && existing.key === key) return existing;
+    if (existing !== undefined && existing.key === key) return existing;
 
-    if (existing) {
+    if (existing !== undefined) {
       disposeChartLoaders(existing);
     }
 
@@ -426,11 +441,12 @@ function buildWhereClause(
  */
 export function createDefaultChartConfig(
   columns: ReadonlyArray<{name: string}>,
+  chartType: ChartType = 'bar',
 ): ChartConfig {
   const column = columns.length > 0 ? columns[0].name : '';
   return {
     id: generateChartId(),
     column,
-    chartType: 'bar',
+    chartType,
   };
 }

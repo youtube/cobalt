@@ -33,9 +33,6 @@ ee{
         "Europe:London"{
             ld{"British dzomeŋɔli gaƒoƒo me"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
@@ -55,11 +52,7 @@ ee{
             ss{"SAST"}
         }
         "meta:Africa_Western"{
-            ld{"West Africa dzomeŋɔli gaƒoƒo me"}
-            lg{"West Africa game"}
-            ls{"West Africa nutome gaƒoƒo me"}
-            sd{"WAST"}
-            sg{"WAT"}
+            ls{"West Africa game"}
             ss{"WAT"}
         }
         "meta:Alaska"{
@@ -264,7 +257,7 @@ ee{
             ls{"French Southern & Antarctic gaƒoƒo me"}
         }
         "meta:GMT"{
-            ls{"Greenwich gaƒoƒo me"}
+            ls{"Greenwich gaƒoƒo"}
         }
         "meta:Galapagos"{
             ls{"Galapagos gaƒoƒo me"}
@@ -295,6 +288,9 @@ ee{
         }
         "meta:Guyana"{
             ls{"Guyana gaƒoƒo me"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleutia nutome gaƒoƒo me"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleutia kele gaƒoƒo me"}

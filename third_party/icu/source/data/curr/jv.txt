@@ -619,6 +619,10 @@ jv{
             "EC$",
             "Dolar Karibia Wetan",
         }
+        XCG{
+            "Cg.",
+            "Guilder Karibia",
+        }
         XOF{
             "F CFA",
             "CFA Franc Afrika Kulon",
@@ -643,16 +647,20 @@ jv{
             "ZMW",
             "Kwacha Sambia",
         }
+        ZWG{
+            "ZWG",
+            "Emas Zimbabwe",
+        }
     }
     CurrencyPlurals{
-        LSL{
-            other{"Loti Lesotho"}
-        }
         MAD{
             other{"Dirham Moroko"}
         }
-        PHP{
-            other{"Peso Filipina"}
+        XCG{
+            other{"Guilder Karibia"}
+        }
+        ZWG{
+            other{"Emas Zimbabwe"}
         }
     }
     CurrencyUnitPatterns{

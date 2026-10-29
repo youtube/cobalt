@@ -19,6 +19,11 @@ sd{
             radian{
                 dnam{"ريڊيئنز"}
             }
+            steradian{
+                dnam{"اسٽيراڊيئن"}
+                one{"{0} اسٽيراڊيئن"}
+                other{"{0} اسٽيراڊيئن"}
+            }
         }
         area{
             dunam{
@@ -88,6 +93,11 @@ sd{
             }
         }
         concentr{
+            katal{
+                dnam{"ڪيٽال"}
+                one{"{0} ڪيٽال"}
+                other{"{0} ڪيٽال"}
+            }
             milligram-ofglucose-per-deciliter{
                 one{"{0} مليگرام في ڊيسيليٽر"}
                 other{"{0} ملي گرامز في ڊيسي ليٽر"}
@@ -97,19 +107,29 @@ sd{
                 one{"{0} مول"}
                 other{"{0} مولز"}
             }
-            permillion{
+            ofglucose{
+                dnam{"گلوڪوز جو"}
+                one{"گلوڪوز جو {0}"}
+                other{"گلوڪوز جو {0}"}
+            }
+            part{
+                dnam{"حصا"}
+                one{"{0} حصو"}
+                other{"{0} حصا"}
+            }
+            part-per-1e6{
                 dnam{"حصا في ملين"}
                 one{"{0} حصو في ملين"}
                 other{"{0} حصا في ملين"}
             }
-            permyriad{
-                one{"{0} پيرمائيرڊ"}
-                other{"{0} پيرمائيرڊ"}
-            }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"حصا في ارب"}
                 one{"{0} حصو في ارب"}
                 other{"{0} حصا في ارب"}
+            }
+            permyriad{
+                one{"{0} پيرمائيرڊ"}
+                other{"{0} پيرمائيرڊ"}
             }
         }
         consumption{
@@ -194,33 +214,38 @@ sd{
                 other{"{0} صديون"}
             }
             month{
-                one{"{0} مهينو"}
-                other{"{0} مهينا"}
                 per{"{0} في مهينو"}
             }
             night{
-                dnam{"راتيون"}
-                one{"{0} رات"}
-                other{"{0} راتيون"}
                 per{"{0} في رات"}
             }
             quarter{
                 dnam{"ٽه ماهيون"}
-                one{"{0} ٽه ماهيون"}
-                other{"{0} ٽه ماهيون"}
-                per{"{0}/ٽه ماهي"}
             }
             second{
                 one{"{0} في سيڪنڊ"}
                 other{"{0} سيڪنڊ"}
             }
             week{
-                one{"{0} هفتو"}
-                other{"{0} هفتا"}
                 per{"{0} في هفتو"}
             }
         }
         electric{
+            coulomb{
+                dnam{"ڪولمبس"}
+                one{"{0} ڪولمب"}
+                other{"{0} ڪولمبس"}
+            }
+            farad{
+                dnam{"فيراڊ"}
+                one{"{0} فيراڊ"}
+                other{"{0} فيراڊ"}
+            }
+            henry{
+                dnam{"هينري"}
+                one{"{0} هينري"}
+                other{"{0} هينري"}
+            }
             milliampere{
                 one{"{0} ملي ايمپئير"}
                 other{"{0} ملي ايمپئير"}
@@ -229,6 +254,11 @@ sd{
                 one{"{0} اوهم"}
                 other{"{0} اوهمس"}
             }
+            siemens{
+                dnam{"سيمنز"}
+                one{"{0} سيمنز"}
+                other{"{0} سيمنز"}
+            }
             volt{
                 dnam{"وولٽز"}
                 one{"{0} وولٽ"}
@@ -236,6 +266,11 @@ sd{
             }
         }
         energy{
+            becquerel{
+                dnam{"بيڪرل"}
+                one{"{0} بيڪرل"}
+                other{"{0} بيڪرل"}
+            }
             british-thermal-unit{
                 dnam{"برٽش ٿرمل يونٽس"}
                 one{"{0} برٽش ٿرمل يونٽ"}
@@ -244,6 +279,11 @@ sd{
             calorie{
                 one{"{0} ڪيلوري"}
                 other{"{0} ڪيلوريز"}
+            }
+            calorie-it{
+                dnam{"ڪيلوريز [IT]"}
+                one{"{0} ڪيلوريز [IT]"}
+                other{"{0} ڪيلوريز [IT]"}
             }
             electronvolt{
                 dnam{"اليڪٽرون وولٽس"}
@@ -254,6 +294,11 @@ sd{
                 dnam{"ڪيلوريز"}
                 one{"{0} ڪيلوري"}
                 other{"{0} ڪيلوريز"}
+            }
+            gray{
+                dnam{"گري"}
+                one{"{0} گري"}
+                other{"{0} گري"}
             }
             joule{
                 one{"{0} جول"}
@@ -268,11 +313,21 @@ sd{
                 one{"{0} ڪلو واٽ في ڪلاڪ"}
                 other{"{0} ڪلو واٽ في ڪلڪ"}
             }
+            sievert{
+                dnam{"سيورٽس"}
+                one{"{0} سيورٽ"}
+                other{"{0} سيورٽ"}
+            }
             therm-us{
                 dnam{"US ٿرمس"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"ڪلوگرام فورس"}
+                one{"{0} ڪلوگرام فورس"}
+                other{"{0} ڪلوگرام فورس"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ڪلو واٽ آورز في 100 ڪلوميٽر"}
                 one{"{0} ڪلو واٽ آور في 100 ڪلوميٽر"}
@@ -356,6 +411,18 @@ sd{
             solar-luminosity{
                 one{"{0} سولر ليومينوسٽي"}
                 other{"{0} سولر ليومينوسائيٽيز"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"ٽيسلا"}
+                one{"{0} ٽيسلا"}
+                other{"{0} ٽيسلا"}
+            }
+            weber{
+                dnam{"ويبر"}
+                one{"{0} ويبر"}
+                other{"{0} ويبر"}
             }
         }
         mass{
@@ -462,6 +529,11 @@ sd{
                 one{"مرڪري جو {0} ملي ميٽر"}
                 other{"مرڪري جو {0} ملي ميٽر"}
             }
+            ofhg{
+                dnam{"مرڪيوري جو"}
+                one{"مرڪيوري جو {0}"}
+                other{"مرڪيوري جو {0}"}
+            }
             pascal{
                 dnam{"پاسڪلز"}
                 one{"{0} پاسڪل"}
@@ -478,11 +550,6 @@ sd{
                 dnam{"بوفورٽ"}
                 one{"بوفورٽ {0}"}
                 other{"بوفورٽ {0}"}
-            }
-            light-speed{
-                dnam{"نوري"}
-                one{"{0} نوري"}
-                other{"{0} نوري"}
             }
         }
         temperature{
@@ -559,7 +626,7 @@ sd{
             }
         }
         concentr{
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"ح ف ا"}
                 one{"{0}ح ف ا"}
                 other{"{0}ح ف ا"}
@@ -567,14 +634,12 @@ sd{
         }
         duration{
             century{
-                dnam{"ص"}
                 one{"{0}ص"}
                 other{"{0}ص"}
             }
             day{
                 one{"{0}ڏينهن"}
                 other{"{0}ڏينهن"}
-                per{"{0}/ڏينهن"}
             }
             decade{
                 one{"{0}ڏهاڪ"}
@@ -592,18 +657,14 @@ sd{
                 dnam{"مهينو"}
                 one{"{0}مهينو"}
                 other{"{0}مهينا"}
-                per{"{0}/مهينو"}
             }
             night{
-                dnam{"راتيون"}
                 one{"{0}رات"}
                 other{"{0}راتيون"}
-                per{"{0}/رات"}
             }
             quarter{
                 one{"{0}ٽه ماهي"}
                 other{"{0}ٽه ماهي"}
-                per{"{0}/ٽه ماهي"}
             }
             second{
                 one{"{0}سيڪنڊ"}
@@ -613,12 +674,15 @@ sd{
                 dnam{"هفتو"}
                 one{"{0}هفتو"}
                 other{"{0}هفتا"}
-                per{"{0}/هفتو"}
             }
             year{
                 one{"{0}س"}
                 other{"{0}س"}
-                per{"{0}/س"}
+            }
+        }
+        energy{
+            calorie-it{
+                dnam{"cal-IT"}
             }
         }
         force{
@@ -713,7 +777,6 @@ sd{
                 other{"{0} km/h"}
             }
             light-speed{
-                dnam{"نوري"}
                 one{"{0}نوري"}
                 other{"{0}نوري"}
             }
@@ -755,6 +818,10 @@ sd{
                 dnam{"گردش"}
                 one{"{0} گردشون"}
                 other{"{0} گردشون"}
+            }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
             }
         }
         area{
@@ -825,6 +892,10 @@ sd{
                 one{"{0} قيراط"}
                 other{"{0} قيراط"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ملي گرامز في ڊيسي ليٽر"}
             }
@@ -836,13 +907,23 @@ sd{
             mole{
                 dnam{"مول"}
             }
-            permyriad{
-                dnam{"پيرمائيرڊ"}
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
             }
-            portion-per-1e9{
+            part{
+                dnam{"حصو"}
+                one{"{0} حصو"}
+                other{"{0} حصو"}
+            }
+            part-per-1e9{
                 dnam{"حصا/ارب"}
                 one{"{0} ح ف ا"}
                 other{"{0} ح ف ا"}
+            }
+            permyriad{
+                dnam{"پيرمائيرڊ"}
             }
         }
         consumption{
@@ -979,6 +1060,18 @@ sd{
                 one{"{0} ایمپئیر"}
                 other{"{0} ایمپئیر"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             milliampere{
                 dnam{"ملي ايمپئير"}
                 one{"{0} ملي ايمپيئر"}
@@ -986,6 +1079,10 @@ sd{
             }
             ohm{
                 dnam{"اوهمس"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 dnam{"وولٽ"}
@@ -1001,6 +1098,11 @@ sd{
                 dnam{"ڪيلوري"}
                 one{"{0} ڪيلوري"}
                 other{"{0} ڪيلوري"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"اليڪٽرون وولٽ"}
@@ -1028,6 +1130,10 @@ sd{
                 one{"{0} ڪلو واٽ في ڪلڪ"}
                 other{"{0} ڪلو واٽ في ڪلڪ"}
             }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+            }
             therm-us{
                 dnam{"US ٿرم"}
                 one{"{0} US ٿرم"}
@@ -1035,6 +1141,10 @@ sd{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ڪ و آ / 100 ڪ م"}
                 one{"{0} ڪ و آ / 100 ڪ م"}
@@ -1193,6 +1303,16 @@ sd{
                 dnam{"سولر ليومينوسائيٽيز"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"ڪيرٽ"}
@@ -1285,6 +1405,11 @@ sd{
             millimeter-ofhg{
                 one{"{0} mmHg"}
                 other{"{0} mm Hg"}
+            }
+            ofhg{
+                dnam{"Hg جو"}
+                one{"Hg جو {0}"}
+                other{"Hg جو {0}"}
             }
         }
         speed{

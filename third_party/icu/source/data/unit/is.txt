@@ -145,6 +145,11 @@ is{
                 one{"{0} snúningur"}
                 other{"{0} snúningar"}
             }
+            steradian{
+                dnam{"steradíanar"}
+                one{"{0} steradíani"}
+                other{"{0} steradíanar"}
+            }
         }
         area{
             acre{
@@ -404,6 +409,11 @@ is{
                 one{"{0} karat"}
                 other{"{0} karöt"}
             }
+            katal{
+                dnam{"katöl"}
+                one{"{0} katal"}
+                other{"{0} katöl"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -463,6 +473,55 @@ is{
                 one{"{0} mól"}
                 other{"{0} mól"}
             }
+            ofglucose{
+                dnam{"af glúkósa"}
+                one{"{0} af glúkósa"}
+                other{"{0} af glúkósa"}
+            }
+            part{
+                dnam{"hlutar"}
+                one{"{0} hluti"}
+                other{"{0} hlutar"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        one{"{0} milljónarhluta"}
+                        other{"{0} milljónarhluta"}
+                    }
+                    dative{
+                        one{"{0} milljónarhluta"}
+                        other{"{0} milljónarhlutum"}
+                    }
+                    genitive{
+                        one{"{0} milljónarhluta"}
+                        other{"{0} milljónarhluta"}
+                    }
+                }
+                gender{"masculine"}
+                one{"{0} milljónarhluti"}
+                other{"{0} milljónarhlutar"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        one{"{0} hluta á milljarð"}
+                        other{"{0} hluta á milljarð"}
+                    }
+                    dative{
+                        one{"{0} hluta á milljarð"}
+                        other{"{0} hlutum á milljarð"}
+                    }
+                    genitive{
+                        one{"{0} hluta á milljarð"}
+                        other{"{0} hluta á milljarð"}
+                    }
+                }
+                dnam{"hlutar á milljarð"}
+                gender{"masculine"}
+                one{"{0} hluti á milljarð"}
+                other{"{0} hlutar á milljarð"}
+            }
             percent{
                 case{
                     accusative{
@@ -501,25 +560,6 @@ is{
                 one{"{0} prómill"}
                 other{"{0} prómill"}
             }
-            permillion{
-                case{
-                    accusative{
-                        one{"{0} milljónarhluta"}
-                        other{"{0} milljónarhluta"}
-                    }
-                    dative{
-                        one{"{0} milljónarhluta"}
-                        other{"{0} milljónarhlutum"}
-                    }
-                    genitive{
-                        one{"{0} milljónarhluta"}
-                        other{"{0} milljónarhluta"}
-                    }
-                }
-                gender{"masculine"}
-                one{"{0} milljónarhluti"}
-                other{"{0} milljónarhlutar"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -538,26 +578,6 @@ is{
                 gender{"neuter"}
                 one{"{0} permyriad"}
                 other{"{0} permyriad"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        one{"{0} hluta á milljarð"}
-                        other{"{0} hluta á milljarð"}
-                    }
-                    dative{
-                        one{"{0} hluta á milljarð"}
-                        other{"{0} hlutum á milljarð"}
-                    }
-                    genitive{
-                        one{"{0} hluta á milljarð"}
-                        other{"{0} hluta á milljarð"}
-                    }
-                }
-                dnam{"hlutar á milljarð"}
-                gender{"masculine"}
-                one{"{0} hluti á milljarð"}
-                other{"{0} hlutar á milljarð"}
             }
         }
         consumption{
@@ -1060,7 +1080,6 @@ is{
                 gender{"feminine"}
                 one{"{0} nótt"}
                 other{"{0} nætur"}
-                per{"{0}/nótt"}
             }
             quarter{
                 case{
@@ -1166,6 +1185,21 @@ is{
                 one{"{0} amper"}
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"kúlomb"}
+                one{"{0} kúlomb"}
+                other{"{0} kúlomb"}
+            }
+            farad{
+                dnam{"faröd"}
+                one{"{0} farad"}
+                other{"{0} faröd"}
+            }
+            henry{
+                dnam{"henry"}
+                one{"{0} henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -1205,6 +1239,11 @@ is{
                 one{"{0} óm"}
                 other{"{0} óm"}
             }
+            siemens{
+                dnam{"símens"}
+                one{"{0} símens"}
+                other{"{0} símens"}
+            }
             volt{
                 case{
                     accusative{
@@ -1226,6 +1265,11 @@ is{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekerel"}
+                one{"{0} bekerel"}
+                other{"{0} bekerel"}
+            }
             british-thermal-unit{
                 dnam{"Breskar varmaeiningar"}
                 one{"{0} Bresk varmaeining"}
@@ -1251,6 +1295,11 @@ is{
                 one{"{0} kaloría"}
                 other{"{0} kaloríur"}
             }
+            calorie-it{
+                dnam{"hitaeiningar [IT]"}
+                one{"{0} hitaeining [IT]"}
+                other{"{0} hitaeiningar [IT]"}
+            }
             electronvolt{
                 one{"{0} rafeindarvolt"}
                 other{"{0} rafeindarvolt"}
@@ -1259,6 +1308,11 @@ is{
                 dnam{"hitaeiningar"}
                 one{"{0} hitaeining"}
                 other{"{0} hitaeiningar"}
+            }
+            gray{
+                dnam{"grei"}
+                one{"{0} grei"}
+                other{"{0} grei"}
             }
             joule{
                 case{
@@ -1338,6 +1392,11 @@ is{
                 one{"{0} kílóvattstund"}
                 other{"{0} kílóvattstundir"}
             }
+            sievert{
+                dnam{"sívert"}
+                one{"{0} sívert"}
+                other{"{0} sívert"}
+            }
             therm-us{
                 dnam{"bandarískar varmaeiningar"}
                 one{"{0} bandarísk varmaeining"}
@@ -1345,6 +1404,11 @@ is{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kílópond"}
+                one{"{0} kílópond"}
+                other{"{0} kílópond"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -1868,6 +1932,18 @@ is{
                 other{"{0} ljósafl sólar"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"teslur"}
+                one{"{0} tesla"}
+                other{"{0} teslur"}
+            }
+            weber{
+                dnam{"veber"}
+                one{"{0} veber"}
+                other{"{0} veber"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -2279,6 +2355,11 @@ is{
                 one{"{0} millimetri af kvikasilfri"}
                 other{"{0} millimetrar af kvikasilfri"}
             }
+            ofhg{
+                dnam{"af kvikasilfri"}
+                one{"{0} af kvikasilfri"}
+                other{"{0} af kvikasilfri"}
+            }
             pascal{
                 case{
                     accusative{
@@ -2334,6 +2415,11 @@ is{
                 dnam{"hnútar"}
                 one{"{0} hnútur"}
                 other{"{0} hnútar"}
+            }
+            light-speed{
+                dnam{"ljóshraði"}
+                one{"{0} ljóshraði"}
+                other{"{0} ljóshraðar"}
             }
             meter-per-second{
                 case{
@@ -2625,6 +2711,11 @@ is{
                 one{"{0} bresk vökvaúnsa"}
                 other{"{0} breskar vökvaúnsur"}
             }
+            fluid-ounce-metric{
+                dnam{"vökvaúnsur í metrakerfi"}
+                one{"{0} vökvaúnsa í metrakerfi"}
+                other{"{0} vökvaúnsur í metrakerfi"}
+            }
             gallon{
                 dnam{"gallon"}
                 one{"{0} gallon"}
@@ -2809,15 +2900,23 @@ is{
                 one{"{0}mmól/l"}
                 other{"{0}mmól/l"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"hluti"}
+                one{"{0} hluti"}
+                other{"{0} hlutar"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+                one{"{0}ppm"}
+                other{"{0}ppm"}
+            }
             percent{
                 dnam{"%"}
                 one{"{0}%"}
                 other{"{0}%"}
-            }
-            permillion{
-                dnam{"ppm"}
-                one{"{0}ppm"}
-                other{"{0}ppm"}
             }
             permyriad{
                 dnam{"‱"}
@@ -2881,6 +2980,11 @@ is{
             }
         }
         energy{
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -2977,6 +3081,11 @@ is{
                 one{"{0}\u0022 Hg"}
                 other{"{0}\u0022 Hg"}
             }
+            ofhg{
+                dnam{"af Hg"}
+                one{"{0} af Hg"}
+                other{"{0} af Hg"}
+            }
         }
         speed{
             beaufort{
@@ -2985,6 +3094,11 @@ is{
             }
             kilometer-per-hour{
                 dnam{"km/klst."}
+            }
+            light-speed{
+                dnam{"ljóshraði"}
+                one{"{0} ljóshraði"}
+                other{"{0} ljóshraðar"}
             }
             meter-per-second{
                 dnam{"m/sek."}
@@ -3132,6 +3246,17 @@ is{
                 one{"{0} mól"}
                 other{"{0} mól"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"hluti"}
+                one{"{0} hluti"}
+                other{"{0} hlutar"}
+            }
+            part-per-1e6{
+                dnam{"milljónarhlutar"}
+            }
             percent{
                 dnam{"prósent"}
                 one{"{0}%"}
@@ -3139,9 +3264,6 @@ is{
             }
             permille{
                 dnam{"prómill"}
-            }
-            permillion{
-                dnam{"milljónarhlutar"}
             }
             permyriad{
                 dnam{"permyriad"}
@@ -3276,6 +3398,11 @@ is{
         energy{
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
             }
             electronvolt{
                 dnam{"rafeindarvolt"}
@@ -3477,6 +3604,11 @@ is{
                 one{"{0} mbar"}
                 other{"{0} mbör"}
             }
+            ofhg{
+                dnam{"af Hg"}
+                one{"{0} af Hg"}
+                other{"{0} af Hg"}
+            }
         }
         speed{
             beaufort{
@@ -3487,6 +3619,11 @@ is{
                 dnam{"kílómetrar á klukkustund"}
                 one{"{0} km/klst."}
                 other{"{0} km/klst."}
+            }
+            light-speed{
+                dnam{"ljóshraði"}
+                one{"{0} ljóshraði"}
+                other{"{0} ljóshraðar"}
             }
             meter-per-second{
                 dnam{"metrar/sek."}

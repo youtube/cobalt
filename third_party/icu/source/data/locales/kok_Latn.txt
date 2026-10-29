@@ -3,19 +3,28 @@
 // Generated using tools/cldr/cldr-to-icu/
 kok_Latn{
     %%Parent{"root"}
-    AuxExemplarCharacters{"[áàăâåäā æ éèĕëē íìĭîïī óòŏöøō œ úùŭûüū ÿ]"}
-    ExemplarCharacters{"[aã b cç d eêẽ f g h iĩ j k l m nñ oôõ p q r s t u v w x y z]"}
-    ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
+    AuxExemplarCharacters{"[áàăâåäā æ éèĕëē íìĭîïī óòŏöō œ úùŭûüū ÿ]"}
+    ExemplarCharacters{"[aã b cç d eêẽ f g h iĩ j k l m nñ oôõø p q r s t u v w x y z]"}
+    ExemplarCharactersPunctuation{
+        "[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” « » ( ) \\[ \\] § @ * / \\& # † ‡ ′"
+        " ″]"
+    }
     NumberElements{
         deva{
             patterns{
-                currencyFormat{"¤#,##,##0.00"}
-                decimalFormat{"#,##,##0.###"}
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
             }
         }
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
             }
             patternsLong{
@@ -97,6 +106,44 @@ kok_Latn{
                         other{"¤0hoz'.'nikh'.'"}
                     }
                 }
+                currencyFormat%alphaNextToNumber{
+                    1000{
+                        other{"¤ 0hoz"}
+                    }
+                    10000{
+                        other{"¤ 00hoz"}
+                    }
+                    100000{
+                        other{"¤ 0lak"}
+                    }
+                    1000000{
+                        other{"¤ 00lak"}
+                    }
+                    10000000{
+                        other{"¤ 0ko"}
+                    }
+                    100000000{
+                        other{"¤ 00ko"}
+                    }
+                    1000000000{
+                        other{"¤ 0obz"}
+                    }
+                    10000000000{
+                        other{"¤ 00obz"}
+                    }
+                    100000000000{
+                        other{"¤ 0nikh"}
+                    }
+                    1000000000000{
+                        other{"¤ 00nikh"}
+                    }
+                    10000000000000{
+                        other{"¤ 000nikh"}
+                    }
+                    100000000000000{
+                        other{"¤ 0hoz'.'nikh'.'"}
+                    }
+                }
                 decimalFormat{
                     1000{
                         other{"0hoz"}
@@ -137,6 +184,15 @@ kok_Latn{
                 }
             }
         }
+        minimalPairs{
+            ordinal{
+                other{"{0}vya uzvya vatten voch."}
+            }
+            plural{
+                one{"{0} vantto"}
+                other{"{0} vantte"}
+            }
+        }
     }
     calendar{
         generic{
@@ -161,13 +217,31 @@ kok_Latn{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1}, {0} 'vaztam'",
+                "{1}, {0} 'vaztam'",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
+                Bh{"B h 'vaztam'"}
+                Bhm{"B h:mm"}
+                Bhms{"B h:mm:ss"}
+                EBh{"E B h 'vaztam'"}
+                EBhm{"E B h:mm 'vaztam'"}
+                EBhms{"E B h:mm:ss"}
+                Ed{"E, d"}
+                Eh{"E a h 'vaztam'"}
+                Ehm{"E a h:mm "}
                 Ehms{"E a h:mm:ss"}
-                Gy{"y G"}
+                GyM{"M-y G"}
+                GyMEd{"E, d-M-y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM, y G"}
                 GyMMMd{"d MMM, y G"}
                 GyMd{"d-M-y GGGGG"}
+                H{"HH'v'"}
+                Hv{"HH'v' v"}
                 MEd{"E, d-M"}
                 MMMEd{"E, d MMM"}
                 MMMMd{"d MMMM"}
@@ -176,6 +250,7 @@ kok_Latn{
                 h{"a h"}
                 hm{"a h:mm"}
                 hms{"a h:mm:ss"}
+                hv{"a h 'vaztam' v"}
                 y{"y G"}
                 yyyy{"y G"}
                 yyyyM{"M-y GGGGG"}
@@ -190,10 +265,10 @@ kok_Latn{
             }
             intervalFormats{
                 Bh{
+                    B{"B h – B h 'vaztam'"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -334,6 +409,10 @@ kok_Latn{
                 "sokallim",
                 "sanje",
             }
+            AmPmMarkersNarrow{
+                "a",
+                "p",
+            }
             DateTimePatterns{
                 "a h:mm:ss zzzz",
                 "a h:mm:ss z",
@@ -355,33 +434,46 @@ kok_Latn{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1}, {0} 'vaztam'",
+                "{1}, {0} 'vaztam'",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
-                Bh{"B h"}
+                Bh{"B h 'vaztam'"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h 'vaztam'"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
+                Eh{"E a h 'vaztam'"}
                 Ehm{"E a h:mm"}
                 Ehms{"E a h:mm:ss"}
-                Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d-M-y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM, y G"}
                 GyMMMd{"d MMM, y G"}
                 GyMd{"d-M-y G"}
+                H{"HH'v'"}
+                Hv{"HH'v' v"}
                 MEd{"dd-MM, E"}
                 MMMEd{"E, d MMM"}
                 MMMMW{
+                    one{"MMMM -'acho' 'suman' W"}
                     other{"MMMM -'acho' 'suman' W"}
                 }
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"a h"}
+                h{"a h 'vaztam'"}
                 hm{"a h:mm"}
                 hms{"a h:mm:ss"}
                 hmsv{"a h:mm:ss v"}
                 hmv{"a h:mm v"}
-                yM{"M-y"}
+                hv{"a h 'vaztam' v"}
+                yM{"M/y"}
                 yMEd{"E, d-M-y"}
                 yMMM{"MMM y"}
                 yMMMEd{"E, d MMM, y"}
@@ -391,6 +483,7 @@ kok_Latn{
                 yQQQ{"QQQ y"}
                 yQQQQ{"QQQQ y"}
                 yw{
+                    one{"Y -'acho' 'suman' w"}
                     other{"Y -'acho' 'suman' w"}
                 }
             }
@@ -404,15 +497,6 @@ kok_Latn{
                         "Bre",
                         "Suk",
                         "Son",
-                    }
-                    narrow{
-                        "A",
-                        "S",
-                        "M",
-                        "B",
-                        "B",
-                        "S",
-                        "S",
                     }
                     short{
                         "Ai",
@@ -446,44 +530,78 @@ kok_Latn{
                 }
             }
             dayPeriod{
-                stand-alone{
+                format{
+                    abbreviated{
+                        afternoon1{"donpar"}
+                        evening1{"sanj"}
+                        midnight{"modhyan"}
+                        morning1{"sokall"}
+                        night1{"rat"}
+                    }
+                    narrow{
+                        afternoon1{"dp"}
+                        evening1{"sj"}
+                        midnight{"md"}
+                        morning1{"sk"}
+                        night1{"rt"}
+                    }
                     wide{
+                        afternoon1{"donparam"}
+                        evening1{"sanje"}
+                        midnight{"modhyanrat"}
+                        morning1{"sokallim"}
+                        night1{"rati"}
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        afternoon1{"donpar"}
+                        evening1{"sanj"}
+                        midnight{"modhyan"}
+                        morning1{"sokall"}
+                        night1{"rat"}
+                    }
+                    narrow{
+                        afternoon1{"dp"}
+                        evening1{"sj"}
+                        midnight{"md"}
+                        morning1{"sk"}
+                        night1{"rt"}
+                    }
+                    wide{
+                        afternoon1{"donparam"}
                         am{"sokallim"}
+                        evening1{"sanje"}
+                        midnight{"modhyanrat"}
+                        morning1{"sokallim"}
+                        night1{"rati"}
                         pm{"sanje"}
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "KA",
-                    "AD",
+                    0{"KA"}
+                    1{"AD"}
                 }
                 narrow{
-                    "K",
-                    "A",
+                    0{"K"}
+                    1{"A"}
                 }
                 wide{
-                    "Krista Adim",
-                    "Anno Domini",
-                }
-                wide%variant{
-                    "KA",
-                    "AD",
+                    0{"Krista Adim"}
+                    1{"Anno Domini"}
                 }
             }
             intervalFormats{
                 Bh{
-                    B{"B h – B h"}
-                    h{"B h – h"}
+                    B{"B h 'vaztam' – B h 'vaztam'"}
+                    h{"B h – h 'vaztam'"}
                 }
                 Bhm{
                     B{"B h:mm – B h:mm"}
                     h{"B h:mm – h:mm"}
                     m{"B h:mm–h:mm"}
-                }
-                Gy{
-                    G{"y G – y G"}
-                    y{"y – y G"}
                 }
                 GyM{
                     G{"M/y G – M/y G"}
@@ -520,7 +638,7 @@ kok_Latn{
                     y{"d/M/y – d/M/y G"}
                 }
                 H{
-                    H{"HH – HH"}
+                    H{"HH–HH'v'"}
                 }
                 Hm{
                     H{"HH:mm – HH:mm"}
@@ -531,7 +649,7 @@ kok_Latn{
                     m{"HH:mm – HH:mm v"}
                 }
                 Hv{
-                    H{"HH – HH v"}
+                    H{"HH–HH'v' v"}
                 }
                 M{
                     M{"M – M"}
@@ -559,8 +677,8 @@ kok_Latn{
                     d{"d – d"}
                 }
                 h{
-                    a{"a h – a h"}
-                    h{"a h–h"}
+                    a{"a h 'vaztam' – a h 'vaztam'"}
+                    h{"a h–h 'vaztam'"}
                 }
                 hm{
                     a{"a h:mm – a h:mm"}
@@ -573,8 +691,8 @@ kok_Latn{
                     m{"a h:mm–h:mm v"}
                 }
                 hv{
-                    a{"a h – a h v"}
-                    h{"a h–h v"}
+                    a{"a h 'vaztam' – a h 'vaztam' v"}
+                    h{"a h–h 'vaztam' v"}
                 }
                 y{
                     y{"y – y"}
@@ -628,20 +746,6 @@ kok_Latn{
                         "Nov",
                         "Dez",
                     }
-                    narrow{
-                        "J",
-                        "F",
-                        "M",
-                        "A",
-                        "M",
-                        "J",
-                        "J",
-                        "A",
-                        "S",
-                        "O",
-                        "N",
-                        "D",
-                    }
                     wide{
                         "Janer",
                         "Febrer",
@@ -686,7 +790,15 @@ kok_Latn{
                         "1lem timhoinallem",
                         "2rem timhoinallem",
                         "3rem timhoinallem",
-                        "4tem timhoinallem",
+                        "4them timhoinallem",
+                    }
+                }
+                stand-alone{
+                    wide{
+                        "1lem timhoinallem",
+                        "2rem timhoinallem",
+                        "3rem timhoinallem",
+                        "4them timhoinallem",
                     }
                 }
             }
@@ -702,9 +814,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} disan"}
                     other{"{0} disanim"}
                 }
                 past{
+                    one{"{0} dis adim"}
                     other{"{0} dis adim"}
                 }
             }
@@ -718,26 +832,20 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0}disan"}
                     other{"{0}disanim"}
                 }
                 past{
+                    one{"{0}d adim"}
                     other{"{0}d adim"}
                 }
             }
         }
         day-short{
-            dn{"dis"}
-            relative{
-                "-1"{"kal"}
-                "0"{"aiz"}
-                "1"{"faleam"}
-            }
             relativeTime{
                 future{
+                    one{"{0} disan"}
                     other{"{0} disanim"}
-                }
-                past{
-                    other{"{0} dis adim"}
                 }
             }
         }
@@ -747,25 +855,10 @@ kok_Latn{
         dayOfYear-narrow{
             dn{"vorsacho d."}
         }
-        dayOfYear-short{
-            dn{"vorsacho dis"}
-        }
         dayperiod{
             dn{"AM/PM"}
         }
-        dayperiod-narrow{
-            dn{"AM/PM"}
-        }
-        dayperiod-short{
-            dn{"AM/PM"}
-        }
         era{
-            dn{"yug"}
-        }
-        era-narrow{
-            dn{"yug"}
-        }
-        era-short{
             dn{"yug"}
         }
         fri{
@@ -776,9 +869,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sukraran"}
                     other{"{0} Sukraranim"}
                 }
                 past{
+                    one{"{0} Sukrar adim"}
                     other{"{0} Sukraram adim"}
                 }
             }
@@ -791,9 +886,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sukraran"}
                     other{"{0} Sukraranim"}
                 }
                 past{
+                    one{"{0} Su adim"}
                     other{"{0} Su adim"}
                 }
             }
@@ -806,9 +903,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sukraran"}
                     other{"{0} Sukraranim"}
                 }
                 past{
+                    one{"{0} Suk. adim"}
                     other{"{0} Suk. adim"}
                 }
             }
@@ -820,37 +919,35 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} voran"}
                     other{"{0} voranim"}
                 }
                 past{
+                    one{"{0} vor adim"}
                     other{"{0} voram adim"}
                 }
             }
         }
         hour-narrow{
-            dn{"vor"}
-            relative{
-                "0"{"hem vor"}
-            }
             relativeTime{
                 future{
+                    one{"{0}voran"}
                     other{"{0}voranim"}
                 }
                 past{
+                    one{"{0}vor adim"}
                     other{"{0}voram adim"}
                 }
             }
         }
         hour-short{
-            dn{"vor"}
-            relative{
-                "0"{"hem vor"}
-            }
             relativeTime{
                 future{
+                    one{"{0} voran"}
                     other{"{0} voranim"}
                 }
                 past{
+                    one{"{0} vor adim"}
                     other{"{0} voram adim"}
                 }
             }
@@ -862,9 +959,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} mintan"}
                     other{"{0} mintanim"}
                 }
                 past{
+                    one{"{0} minut adim"}
                     other{"{0} mintam adim"}
                 }
             }
@@ -876,9 +975,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0}mintan"}
                     other{"{0}min"}
                 }
                 past{
+                    one{"{0}min adim"}
                     other{"{0}min adim"}
                 }
             }
@@ -890,9 +991,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} mintan"}
                     other{"{0} min."}
                 }
                 past{
+                    one{"{0} min. adim"}
                     other{"{0} min. adim"}
                 }
             }
@@ -905,9 +1008,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Somaran"}
                     other{"{0} Somaranim"}
                 }
                 past{
+                    one{"{0} Somar adim"}
                     other{"{0} Somaram adim"}
                 }
             }
@@ -920,9 +1025,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Somaran"}
                     other{"{0} Somaranim"}
                 }
                 past{
+                    one{"{0} Sm adim"}
                     other{"{0} Sm adim"}
                 }
             }
@@ -935,9 +1042,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Somaran"}
                     other{"{0} Somaranim"}
                 }
                 past{
+                    one{"{0} Som. adim"}
                     other{"{0} Som. adim"}
                 }
             }
@@ -951,9 +1060,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} mhoinean"}
                     other{"{0} mhoineanim"}
                 }
                 past{
+                    one{"{0} mhoino adim"}
                     other{"{0} mhoine adim"}
                 }
             }
@@ -967,9 +1078,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0}mhoinean"}
                     other{"{0}mhoineanim"}
                 }
                 past{
+                    one{"{0}mh adim"}
                     other{"{0}mh adim"}
                 }
             }
@@ -983,9 +1096,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} mhoinean"}
                     other{"{0} mhoineanim"}
                 }
                 past{
+                    one{"{0} mho. adim"}
                     other{"{0} mho. adim"}
                 }
             }
@@ -999,9 +1114,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} timhoinallean"}
                     other{"{0} timhoinalleanim"}
                 }
                 past{
+                    one{"{0} timhoinallem adim"}
                     other{"{0} timhoinalle adim"}
                 }
             }
@@ -1015,9 +1132,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0}timhoinallean"}
                     other{"{0}timhoinalleanim"}
                 }
                 past{
+                    one{"{0}timh adim"}
                     other{"{0}timh adim"}
                 }
             }
@@ -1031,9 +1150,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} timhoinallean"}
                     other{"{0} timhoinalleanim"}
                 }
                 past{
+                    one{"{0} timho. adim"}
                     other{"{0} timho. adim"}
                 }
             }
@@ -1046,9 +1167,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sonvaran"}
                     other{"{0} Sonvaranim"}
                 }
                 past{
+                    one{"{0} Sonvar adim"}
                     other{"{0} Sonvaram adim"}
                 }
             }
@@ -1061,9 +1184,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sonvaran"}
                     other{"{0} Sonvaranim"}
                 }
                 past{
+                    one{"{0} Sn adim"}
                     other{"{0} Sn adim"}
                 }
             }
@@ -1076,9 +1201,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Sonvaran"}
                     other{"{0} Sonvaranim"}
                 }
                 past{
+                    one{"{0} Son. adim"}
                     other{"{0} Son. adim"}
                 }
             }
@@ -1090,37 +1217,37 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} sekondan"}
                     other{"{0} sekondanim"}
                 }
                 past{
+                    one{"{0} sekond adim"}
                     other{"{0} sekond adim"}
                 }
             }
         }
         second-narrow{
             dn{"sek"}
-            relative{
-                "0"{"atam"}
-            }
             relativeTime{
                 future{
+                    one{"{0}sekondan"}
                     other{"{0}sekondanim"}
                 }
                 past{
+                    one{"{0}sek adim"}
                     other{"{0}sek adim"}
                 }
             }
         }
         second-short{
             dn{"sek."}
-            relative{
-                "0"{"atam"}
-            }
             relativeTime{
                 future{
+                    one{"{0} sekondan"}
                     other{"{0} sekondanim"}
                 }
                 past{
+                    one{"{0} sek. adim"}
                     other{"{0} sek. adim"}
                 }
             }
@@ -1133,9 +1260,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Aitaran"}
                     other{"{0} Aitaranim"}
                 }
                 past{
+                    one{"{0} Aitar adim"}
                     other{"{0} Aitaram adim"}
                 }
             }
@@ -1148,9 +1277,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Aitaran"}
                     other{"{0} Aitaranim"}
                 }
                 past{
+                    one{"{0} Ai adim"}
                     other{"{0} Ai adim"}
                 }
             }
@@ -1163,9 +1294,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Aitaran"}
                     other{"{0} Aitaranim"}
                 }
                 past{
+                    one{"{0} Ait. adim"}
                     other{"{0} Ait. adim"}
                 }
             }
@@ -1178,9 +1311,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Birestaran"}
                     other{"{0} Birestaranim"}
                 }
                 past{
+                    one{"{0} Birestar adim"}
                     other{"{0} Birestaram adim"}
                 }
             }
@@ -1193,9 +1328,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Birestaran"}
                     other{"{0} Birestaranim"}
                 }
                 past{
+                    one{"{0} Br adim"}
                     other{"{0} Br adim"}
                 }
             }
@@ -1208,9 +1345,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Birestaran"}
                     other{"{0} Birestaranim"}
                 }
                 past{
+                    one{"{0} Bre. adim"}
                     other{"{0} Bre. adim"}
                 }
             }
@@ -1223,9 +1362,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Mongllaran"}
                     other{"{0} Mongllaranim"}
                 }
                 past{
+                    one{"{0} Mongllar adim"}
                     other{"{0} Mongllaram adim"}
                 }
             }
@@ -1238,9 +1379,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Mongllaran"}
                     other{"{0} Mongllaranim"}
                 }
                 past{
+                    one{"{0} Mg adim"}
                     other{"{0} Mg adim"}
                 }
             }
@@ -1253,9 +1396,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Mongllaran"}
                     other{"{0} Mongllaranim"}
                 }
                 past{
+                    one{"{0} Mon. adim"}
                     other{"{0} Mon. adim"}
                 }
             }
@@ -1268,9 +1413,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Budhvaran"}
                     other{"{0} Budhvaranim"}
                 }
                 past{
+                    one{"{0} Budhvar adim"}
                     other{"{0} Budhvaram adim"}
                 }
             }
@@ -1283,9 +1430,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Budhvaran"}
                     other{"{0} Budhvaranim"}
                 }
                 past{
+                    one{"{0} Bu adim"}
                     other{"{0} Bu adim"}
                 }
             }
@@ -1298,9 +1447,11 @@ kok_Latn{
             }
             relativeTime{
                 future{
+                    one{"{0} Budhvaran"}
                     other{"{0} Budhvaranim"}
                 }
                 past{
+                    one{"{0} Bud. adim"}
                     other{"{0} Bud. adim"}
                 }
             }
@@ -1315,9 +1466,11 @@ kok_Latn{
             relativePeriod{"{0} cho suman"}
             relativeTime{
                 future{
+                    one{"{0} sumanan"}
                     other{"{0} sumananim"}
                 }
                 past{
+                    one{"{0} suman adim"}
                     other{"{0} suman adim"}
                 }
             }
@@ -1332,27 +1485,20 @@ kok_Latn{
             relativePeriod{"{0} cho sum"}
             relativeTime{
                 future{
+                    one{"{0}sumanan"}
                     other{"{0}sumananim"}
                 }
                 past{
+                    one{"{0}sum adim"}
                     other{"{0}sum adim"}
                 }
             }
         }
         week-short{
-            dn{"suman"}
-            relative{
-                "-1"{"fattlo suman"}
-                "0"{"ho suman"}
-                "1"{"fuddlo suman"}
-            }
-            relativePeriod{"{0} cho suman"}
             relativeTime{
                 future{
+                    one{"{0} sumanan"}
                     other{"{0} sumananim"}
-                }
-                past{
-                    other{"{0} suman adim"}
                 }
             }
         }
@@ -1362,62 +1508,69 @@ kok_Latn{
         weekOfMonth-narrow{
             dn{"mhoineacho sum."}
         }
-        weekOfMonth-short{
-            dn{"mhoineacho suman"}
-        }
         weekday{
             dn{"sumanacho dis"}
         }
         weekday-narrow{
             dn{"sumanacho d."}
         }
-        weekday-short{
-            dn{"sumanacho dis"}
+        weekdayOfMonth{
+            dn{"mhoineant disacho prosong"}
+        }
+        weekdayOfMonth-narrow{
+            dn{"mhoineant disacho prosong"}
+        }
+        weekdayOfMonth-short{
+            dn{"mhoineant disacho prosong"}
         }
         year{
             dn{"voros"}
             relative{
-                "-1"{"fattlem voros"}
-                "0"{"hem voros"}
+                "-1"{"porum"}
+                "0"{"ondum"}
                 "1"{"fuddlem voros"}
             }
             relativeTime{
                 future{
+                    one{"{0} vorsan"}
                     other{"{0} vorsanim"}
                 }
                 past{
+                    one{"{0} voros adim"}
                     other{"{0} vorsam adim"}
                 }
             }
         }
         year-narrow{
-            dn{"voros"}
             relative{
-                "-1"{"fattlem voros"}
-                "0"{"hem voros"}
+                "-1"{"porum"}
+                "0"{"ondum"}
                 "1"{"fuddlem voros"}
             }
             relativeTime{
                 future{
+                    one{"{0}vorsan"}
                     other{"{0}vorsanim"}
                 }
                 past{
+                    one{"{0}voros adim"}
                     other{"{0}vorsam adim"}
                 }
             }
         }
         year-short{
-            dn{"voros"}
             relative{
-                "-1"{"fattlem voros"}
-                "0"{"hem voros"}
+                "-1"{"porum"}
+                "0"{"ondum"}
                 "1"{"fuddlem voros"}
             }
             relativeTime{
                 future{
+                    one{"{0} vorsan"}
                     other{"{0} vorsanim"}
                 }
                 past{
+                    one{"{0} voros adim"}
                     other{"{0} vorsam adim"}
                 }
             }
@@ -1425,11 +1578,110 @@ kok_Latn{
         zone{
             dn{"vell kxetr"}
         }
-        zone-narrow{
-            dn{"kxetr"}
-        }
         zone-short{
             dn{"kxetr"}
+        }
+    }
+    listPattern{
+        or{
+            2{"{0} vo {1}"}
+            end{"{0}, vo {1}"}
+        }
+        or-narrow{
+            2{"{0} vo {1}"}
+            end{"{0}, vo {1}"}
+        }
+        or-short{
+            2{"{0} vo {1}"}
+            end{"{0}, vo {1}"}
+        }
+        standard{
+            2{"{0} ani {1}"}
+            end{"{0}, ani {1}"}
+        }
+        standard-short{
+            2{"{0} & {1}"}
+            end{"{0}, & {1}"}
+        }
+        unit{
+            2{"{0} ani {1}"}
+        }
+        unit-narrow{
+            2{"{0} {1}"}
+            end{"{0} {1}"}
+            middle{"{0} {1}"}
+            start{"{0} {1}"}
+        }
+    }
+    measurementSystemNames{
+        UK{"Britix"}
+        US{"Ameriki"}
+    }
+    personNames{
+        nameOrderLocales{
+            givenFirst{
+                "und",
+                "kok",
+                "kok_Latn",
+            }
+        }
+        namePattern{
+            givenFirst-long-addressing-formal{"{title} {surname}"}
+            givenFirst-long-addressing-informal{"{given-informal}"}
+            givenFirst-long-monogram-formal{
+                "{given-monogram-allCaps}{given2-monogram-allCaps}{surname-monogram-a"
+                "llCaps}{surname2-monogram-allCaps}"
+            }
+            givenFirst-long-monogram-informal{
+                "{given-informal-monogram-allCaps}{surname-monogram-allCaps}{surname2"
+                "-monogram-allCaps}"
+            }
+            givenFirst-long-referring-formal{
+                "{title} {given} {given2} {surname} {surname2} {generation}, {credent"
+                "ials}"
+            }
+            givenFirst-long-referring-informal{"{given-informal} {surname}"}
+            givenFirst-medium-addressing-formal{"{title} {surname}"}
+            givenFirst-medium-addressing-informal{"{given-informal}"}
+            givenFirst-medium-monogram-formal{"{surname-monogram-allCaps}"}
+            givenFirst-medium-monogram-informal{"{given-informal-monogram-allCaps}"}
+            givenFirst-medium-referring-formal{"{given} {given2-initial} {surname} {generation}, {credentials}"}
+            givenFirst-medium-referring-informal{"{given-informal} {surname}"}
+            givenFirst-short-addressing-formal{"{title} {surname}"}
+            givenFirst-short-addressing-informal{"{given-informal}"}
+            givenFirst-short-monogram-formal{"{surname-monogram-allCaps}"}
+            givenFirst-short-monogram-informal{"{given-informal-monogram-allCaps}"}
+            givenFirst-short-referring-formal{"{given-initial} {given2-initial} {surname}"}
+            givenFirst-short-referring-informal{"{given-informal} {surname-initial}"}
+            sorting-long-referring-formal{"{surname-core}, {given} {given2} {surname-prefix}"}
+            sorting-long-referring-informal{"{surname} {surname2}, {given-informal}"}
+            sorting-medium-referring-formal{"{surname-core}, {given} {given2-initial} {surname-prefix}"}
+            sorting-medium-referring-informal{"{surname}, {given-informal}"}
+            sorting-short-referring-formal{"{surname-core}, {given-initial} {given2-initial} {surname-prefix}"}
+            sorting-short-referring-informal{"{surname}, {given-informal}"}
+            surnameFirst-long-addressing-formal{"{title} {surname}"}
+            surnameFirst-long-addressing-informal{"{given-informal}"}
+            surnameFirst-long-monogram-informal{"{surname-monogram-allCaps}{given-informal-monogram-allCaps}"}
+            surnameFirst-long-referring-formal{
+                "{surname} {surname2} {title} {given} {given2} {generation}, {credent"
+                "ials}"
+            }
+            surnameFirst-long-referring-informal{"{surname} {surname2} {given-informal}"}
+            surnameFirst-medium-addressing-formal{"{title} {surname}"}
+            surnameFirst-medium-addressing-informal{"{given-informal}"}
+            surnameFirst-medium-monogram-formal{"{surname-monogram-allCaps}"}
+            surnameFirst-medium-monogram-informal{"{given-informal-monogram-allCaps}"}
+            surnameFirst-medium-referring-formal{"{surname} {given} {given2-initial} {generation}, {credentials}"}
+            surnameFirst-medium-referring-informal{"{surname} {given-informal}"}
+            surnameFirst-short-addressing-formal{"{title} {surname}"}
+            surnameFirst-short-addressing-informal{"{given-informal}"}
+            surnameFirst-short-monogram-formal{"{surname-monogram-allCaps}"}
+            surnameFirst-short-monogram-informal{"{given-informal-monogram-allCaps}"}
+            surnameFirst-short-referring-formal{"{surname} {given-initial} {given2-initial}"}
+            surnameFirst-short-referring-informal{"{surname} {given-initial}"}
+        }
+        parameterDefault{
+            formality{"informal"}
         }
     }
 }

@@ -69,6 +69,12 @@ zh_Hant_HK{
         yue{"廣東話"}
         zgh{"摩洛哥標準塔馬齊格特文"}
     }
+    Languages%core{
+        ku{"庫德文"}
+    }
+    Languages%extension{
+        ku{"北庫德文"}
+    }
     Languages%short{
         en_GB{"英式英文"}
         en_US{"美式英文"}
@@ -97,10 +103,17 @@ zh_Hant_HK{
             ethiopic{"埃塞俄比亞曆"}
             ethiopic-amete-alem{"埃塞俄比亞阿美德阿萊姆曆"}
         }
+        calendar%core{
+            ethiopic{"埃塞俄比亞曆"}
+            ethiopic-amete-alem{"埃塞俄比亞阿美德阿萊姆曆"}
+            islamic-civil{"伊斯蘭曆（表格曆，民用紀元）"}
+            islamic-tbla{"伊斯蘭曆（表格式，天文紀元）"}
+        }
         collation{
-            big5han{"繁體中文排序 (Big5)"}
             dictionary{"詞典排序"}
-            gb2312han{"簡體中文排序 (GB2312)"}
+        }
+        collation%core{
+            dictionary{"詞典"}
         }
         ms{
             uksystem{"英制"}

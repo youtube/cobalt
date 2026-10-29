@@ -24,23 +24,11 @@ it{
         "Africa:Khartoum"{
             ec{"Khartum"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Mogadiscio"}
         }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
-        }
         "Africa:Tunis"{
             ec{"Tunisi"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
         }
         "America:Cayenne"{
             ec{"Caienna"}
@@ -71,9 +59,6 @@ it{
         }
         "America:Puerto_Rico"{
             ec{"Portorico"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
         }
         "America:Sao_Paulo"{
             ec{"San Paolo"}
@@ -204,9 +189,6 @@ it{
         "Europe:Bucharest"{
             ec{"Bucarest"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Copenhagen"{
             ec{"Copenaghen"}
         }
@@ -254,9 +236,6 @@ it{
         "Europe:Stockholm"{
             ec{"Stoccolma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Vatican"{
             ec{"Città del Vaticano"}
         }
@@ -281,17 +260,11 @@ it{
         "Pacific:Easter"{
             ec{"Pasqua"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Fiji"{
             ec{"Figi"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Kanton"{
-            ec{"Canton"}
         }
         "Pacific:Marquesas"{
             ec{"Marchesi"}
@@ -309,9 +282,7 @@ it{
             ls{"Ora dell’Africa meridionale"}
         }
         "meta:Africa_Western"{
-            ld{"Ora legale dell’Africa occidentale"}
-            lg{"Ora dell’Africa occidentale"}
-            ls{"Ora standard dell’Africa occidentale"}
+            ls{"Ora dell’Africa occidentale"}
         }
         "meta:Alaska"{
             ld{"Ora legale dell’Alaska"}
@@ -563,6 +534,9 @@ it{
         }
         "meta:Guyana"{
             ls{"Ora della Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Ora standard delle Isole Hawaii-Aleutine"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Ora legale delle Isole Hawaii-Aleutine"}

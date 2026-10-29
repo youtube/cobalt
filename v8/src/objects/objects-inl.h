@@ -32,6 +32,8 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/casting.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/objects/field-type.h"
+#include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
@@ -697,6 +699,19 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) {
   return IsHashTable(obj, cage_base);
 }
 
+// This should be in objects/map-inl.h, but can't, because of a cyclic
+// dependency.
+bool IsMetaMapMap(Tagged<Map> map) {
+  return InstanceTypeChecker::IsMap(map->instance_type());
+}
+
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMetaMap) {
+  if (!InstanceTypeChecker::IsMap(obj->map(cage_base)->instance_type())) {
+    return false;
+  }
+  return IsMetaMapMap(UncheckedCast<Map>(obj));
+}
+
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
   return IsHashTable(obj, cage_base);
 }
@@ -1214,7 +1229,7 @@ void HeapObject::InitSelfIndirectPointerField(
     TrustedPointerPublishingScope* opt_publishing_scope) {
   DCHECK(IsExposedTrustedObject(*this));
   InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(*this);
+  SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(*this));
   IndirectPointerTag tag =
       IndirectPointerTagFromInstanceType(instance_type, shared);
   i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
@@ -1233,7 +1248,7 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
     TrustedPointerPublishingScope* opt_publishing_scope) {
   DCHECK(IsExposedTrustedObject(this));
   InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(this);
+  SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(this));
   IndirectPointerTag tag =
       IndirectPointerTagFromInstanceType(instance_type, shared);
   i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
@@ -1321,8 +1336,8 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
 // static
 template <typename ObjectType>
 JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
-    ObjectType host, size_t offset, Isolate* isolate, uint16_t parameter_count,
-    DirectHandle<Code> code, WriteBarrierMode mode) {
+    DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(host->field_address(offset));
   JSDispatchHandle handle =
@@ -1333,6 +1348,24 @@ JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
   // may access an uninitialized table entry and crash.
   auto location =
       reinterpret_cast<JSDispatchHandle*>(host->field_address(offset));
+  base::AsAtomic32::Release_Store(location, handle);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
+
+  return handle;
+}
+
+// static
+template <typename ObjectType>
+JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
+    DirectHandle<ObjectType> host, JSDispatchHandle* location, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
+  JSDispatchTable::Space* space = isolate->GetJSDispatchTableSpaceFor(location);
+  JSDispatchHandle handle =
+      isolate->factory()->NewJSDispatchHandle(parameter_count, code, space);
+
+  // Use a Release_Store to ensure that the store of the pointer into the table
+  // is not reordered after the store of the handle. Otherwise, other threads
+  // may access an uninitialized table entry and crash.
   base::AsAtomic32::Release_Store(location, handle);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
 

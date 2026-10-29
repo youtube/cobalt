@@ -10,6 +10,7 @@
 
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/child_process_id.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
@@ -31,6 +32,10 @@ class StoragePartition;
 class StoragePartitionConfig;
 class RenderFrameHost;
 }  // namespace content
+
+namespace download {
+class DownloadItem;
+}  // namespace download
 
 namespace extensions {
 class Extension;
@@ -120,7 +125,7 @@ bool IsExtensionVisibleToContext(const Extension& extension,
 
 // Initializes file scheme access if the extension has such permission.
 void InitializeFileSchemeAccessForExtension(
-    int render_process_id,
+    content::ChildProcessId render_process_id,
     const ExtensionId& extension_id,
     content::BrowserContext* browser_context);
 
@@ -173,6 +178,10 @@ bool IsAppLaunchableWithoutEnabling(const ExtensionId& extension_id,
 // webstore, otherwise false.
 bool AnyCurrentlyInstalledExtensionIsFromWebstore(
     content::BrowserContext* context);
+
+// Returns true if this is an extension download. This also considers user
+// scripts to be extension downloads, since we convert those automatically.
+bool IsExtensionDownload(const download::DownloadItem& download_item);
 
 }  // namespace util
 }  // namespace extensions

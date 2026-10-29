@@ -7,7 +7,7 @@
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/sys-info.h"
@@ -213,8 +213,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   const size_t kAdditionalTrailingGuardRegionSize = 0;
 #else
   // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
-  // size) + 4GB (additional offset for TypedArray access).
-  const size_t kTotalTrailingGuardRegionSize = 260ULL * GB;
+  // size) + 32GB (additional bounded size offset for TypedArray access).
+  const size_t kTotalTrailingGuardRegionSize = 288ULL * GB;
   const size_t kAdditionalTrailingGuardRegionSize =
       kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
 #endif

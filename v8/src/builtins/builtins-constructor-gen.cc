@@ -266,7 +266,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
-                                        JSFunction::kSizeWithoutPrototype);
+                                        JSFunctionWithoutPrototype::kMinSize);
 
   // Initialize the rest of the function.
   StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
@@ -280,20 +280,21 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
            &done);
 
     BIND(&init_prototype);
-    StoreObjectFieldRoot(result, JSFunction::kPrototypeOrInitialMapOffset,
+    StoreObjectFieldRoot(result,
+                         JSFunctionWithPrototype::kPrototypeOrInitialMapOffset,
                          RootIndex::kTheHoleValue);
     Goto(&done);
     BIND(&done);
   }
 
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunctionWithoutPrototype::kMinSize == 7 * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      feedback_cell, FeedbackCell::kDispatchHandleOffset);
+      feedback_cell, offsetof(FeedbackCell, dispatch_handle_));
   CSA_DCHECK(this,
              Word32NotEqual(dispatch_handle,
                             Int32Constant(kNullJSDispatchHandle.value())));
@@ -346,7 +347,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   // Load the initial map and verify that it's in fact a map.
   TNode<Union<JSReceiver, Map, TheHole>> initial_map_or_proto =
       LoadJSFunctionPrototypeOrInitialMap(new_target_func);
-  GotoIf(DoesntHaveInstanceType(initial_map_or_proto, MAP_TYPE), call_runtime);
+  GotoIfNot(IsMap(initial_map_or_proto), call_runtime);
   TNode<Map> initial_map = CAST(initial_map_or_proto);
 
   // Fall back to runtime if the target differs from the new target's
@@ -492,8 +493,8 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     // Initialize Object fields.
     TNode<JSFunction> regexp_function = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
-    TNode<Map> initial_map = CAST(LoadObjectField(
-        regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Map> initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(regexp_function));
     StoreMapNoWriteBarrier(new_object, initial_map);
     // Initialize JSReceiver fields.
     StoreObjectFieldRoot(new_object, JSReceiver::kPropertiesOrHashOffset,

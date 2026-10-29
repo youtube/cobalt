@@ -1238,14 +1238,13 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
 }
 
 FrameSummaries BuiltinExitFrame::Summarize(bool never_allocate) const {
-  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
   std::tie(code, code_offset) = LookupCodeAndOffset();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), Cast<AbstractCode>(code), code_offset,
-      IsConstructor(), *parameters);
+      IsConstructor());
   return FrameSummaries(summary);
 }
 
@@ -1273,19 +1272,6 @@ uint32_t BuiltinExitFrame::ComputeParametersCount() const {
   uint32_t argc = Smi::ToUInt(argc_slot);
   DCHECK_GE(argc, BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
   return argc - BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
-}
-
-DirectHandle<FixedArray> BuiltinExitFrame::GetParameters(
-    bool never_allocate) const {
-  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
-    return isolate()->factory()->empty_fixed_array();
-  }
-  uint32_t param_count = ComputeParametersCount();
-  auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (uint32_t i = 0; i < param_count; i++) {
-    parameters->set(i, GetParameter(i));
-  }
-  return parameters;
 }
 
 bool BuiltinExitFrame::IsConstructor() const {
@@ -1367,19 +1353,6 @@ ApiCallbackExitFrame::GetFunctionTemplateInfo() const {
   return direct_handle(Cast<FunctionTemplateInfo>(maybe_function), isolate());
 }
 
-DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters(
-    bool never_allocate) const {
-  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
-    return isolate()->factory()->empty_fixed_array();
-  }
-  uint32_t param_count = ComputeParametersCount();
-  auto parameters = isolate()->factory()->NewFixedArray(param_count);
-  for (uint32_t i = 0; i < param_count; i++) {
-    parameters->set(i, GetParameter(i));
-  }
-  return parameters;
-}
-
 FrameSummaries ApiCallbackExitFrame::SummarizeApiFrame(
     bool is_constructor, bool never_allocate) const {
   DirectHandle<JSFunction> function = GetFunction(never_allocate);
@@ -1387,14 +1360,13 @@ FrameSummaries ApiCallbackExitFrame::SummarizeApiFrame(
     // GetFunction() would need to instantiate the function, skip this frame.
     return FrameSummaries{};
   }
-  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
   std::tie(code, code_offset) = LookupCodeAndOffset();
-  FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), *function, Cast<AbstractCode>(code), code_offset,
-      is_constructor, *parameters);
+  FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(), *function,
+                                               Cast<AbstractCode>(code),
+                                               code_offset, is_constructor);
   return FrameSummaries(summary);
 }
 
@@ -1921,7 +1893,8 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
       reinterpret_cast<wasm::CanonicalSig*>(maybe_sig);
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
-                                           wasm::kFpParamRegisters, 0);
+                                           wasm::kFpParamRegisters,
+                                           wasm::kSimd128ParamRegisters, 0);
   // The first parameter is the instance data, which we don't have to scan. We
   // have to tell the LinkageLocationAllocator about it though.
   allocator.Next(MachineRepresentation::kTaggedPointer);
@@ -2531,10 +2504,9 @@ FrameSummaries CommonFrameWithJSLinkage::Summarize(bool never_allocate) const {
     return FrameSummaries{};
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *Cast<AbstractCode>(code), offset,
-      IsConstructor(), *params);
+      IsConstructor());
   return FrameSummaries(summary);
 }
 
@@ -2700,20 +2672,7 @@ uint32_t JavaScriptFrame::GetActualArgumentCount() const {
   return argc - kJSArgcReceiverSlots;
 }
 
-DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters(
-    bool never_allocate) const {
-  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
-    return isolate()->factory()->empty_fixed_array();
-  }
-  uint32_t param_count = ComputeParametersCount();
-  DirectHandle<FixedArray> parameters =
-      isolate()->factory()->NewFixedArray(param_count);
-  for (uint32_t i = 0; i < param_count; i++) {
-    parameters->set(i, GetParameter(i));
-  }
 
-  return parameters;
-}
 
 Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   const int offset = BuiltinContinuationFrameConstants::kFunctionOffset;
@@ -2759,15 +2718,13 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Tagged<Object> receiver, Tagged<JSFunction> function,
-    Tagged<AbstractCode> abstract_code, int code_offset, bool is_constructor,
-    Tagged<FixedArray> parameters)
+    Tagged<AbstractCode> abstract_code, int code_offset, bool is_constructor)
     : FrameSummaryBase(isolate, FrameSummary::JAVASCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
       abstract_code_(abstract_code, isolate),
       code_offset_(code_offset),
-      is_constructor_(is_constructor),
-      parameters_(parameters, isolate) {
+      is_constructor_(is_constructor) {
   DCHECK_IMPLIES(CodeKindIsOptimizedJSFunction(abstract_code->kind(isolate)),
                  // It might be an ApiCallbackBuiltin inlined into optimized
                  // code generated by Maglev.
@@ -3130,10 +3087,9 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
-      DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), receiver(), function(), *abstract_code,
-          kFunctionEntryBytecodeOffset, IsConstructor(), *params);
+          kFunctionEntryBytecodeOffset, IsConstructor());
       summaries.frames.push_back(summary);
       return summaries;
     }
@@ -3170,9 +3126,22 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       // Get the correct receiver in the optimized frame.
       static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
+      // Check GetRawValue() against arguments_marker() first to see whether
+      // calling GetValue() allocates.
       Tagged<Object> receiver_obj = translated_values->GetRawValue();
-      CHECK_NE(receiver_obj, ReadOnlyRoots(isolate()).arguments_marker());
-      DirectHandle<Object> receiver = direct_handle(receiver_obj, isolate());
+      DirectHandle<Object> receiver;
+      if (receiver_obj == ReadOnlyRoots(isolate()).arguments_marker() &&
+          never_allocate) {
+        // Calling GetValue() would definitely trigger allocation but with
+        // `never_allocate` allocations are not allowed. Simply pick `undefined`
+        // as receiver instead even though it is off. `never_allocate` is
+        // currently only used for OOM stacks, where we don't even emit the
+        // receiver but want to see as many stack frames as possible.
+        receiver = isolate()->factory()->undefined_value();
+      } else {
+        receiver = translated_values->GetValue();
+      }
+
       translated_values++;
 
       // Determine the underlying code object and the position within it from
@@ -3191,10 +3160,9 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       }
 
       // Append full summary of the encountered JS frame.
-      DirectHandle<FixedArray> params = GetParameters(never_allocate);
-      FrameSummary::JavaScriptFrameSummary summary(
-          isolate(), *receiver, *function, *abstract_code, code_offset,
-          is_constructor, *params);
+      FrameSummary::JavaScriptFrameSummary summary(isolate(), *receiver,
+                                                   *function, *abstract_code,
+                                                   code_offset, is_constructor);
       summaries.frames.push_back(summary);
       is_constructor = false;
     } else if (it->kind() == TranslatedFrame::kConstructCreateStub ||
@@ -3392,10 +3360,9 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
 FrameSummaries UnoptimizedJSFrame::Summarize(bool never_allocate) const {
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());
-  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
-      IsConstructor(), *params);
+      IsConstructor());
   return FrameSummaries(summary);
 }
 

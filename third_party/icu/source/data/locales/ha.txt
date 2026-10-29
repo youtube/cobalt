@@ -89,45 +89,19 @@ ha{
             patternsShort{
                 currencyFormat{
                     1000{
-                        one{"¤ 0D"}
-                        other{"¤ 0D"}
+                        one{"¤ 0K"}
+                        other{"¤ 0K"}
                     }
                     10000{
                         one{"¤ 00D"}
                         other{"¤ 00D"}
                     }
                     100000{
-                        one{"¤ 000K"}
-                        other{"¤ 000K"}
+                        one{"¤ 000D"}
+                        other{"¤ 000D"}
                     }
                     1000000000{
-                        one{"¤0B"}
-                        other{"¤0B"}
-                    }
-                    10000000000{
-                        one{"¤00B"}
-                        other{"¤00B"}
-                    }
-                    100000000000{
-                        one{"¤000B"}
-                        other{"¤000B"}
-                    }
-                    1000000000000{
-                        one{"¤0T"}
-                        other{"¤0T"}
-                    }
-                    10000000000000{
-                        one{"¤00T"}
-                        other{"¤00T"}
-                    }
-                    100000000000000{
-                        one{"¤000T"}
-                        other{"¤000T"}
-                    }
-                }
-                currencyFormat%alphaNextToNumber{
-                    1000000000{
-                        one{"¤0B"}
+                        one{"¤ 0B"}
                         other{"¤ 0B"}
                     }
                     10000000000{
@@ -204,10 +178,16 @@ ha{
                 "{0}, {1}",
             }
             DateTimePatterns%atTime{
-                "{0} 'da' {1}",
-                "{0} 'da' {1}",
-                "{0}, {1}",
-                "{0}, {1}",
+                "{1} 'a' {0}",
+                "{1} 'a' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{0} 'a' {1}",
+                "{1} 'a' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
             }
             DateTimeSkeletons{
                 "HHmmsszzzz",
@@ -264,6 +244,12 @@ ha{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' {0}",
+                "{1} 'a' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -276,6 +262,8 @@ ha{
             }
             availableFormats{
                 Ed{"E, d"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 MEd{"E, M/d"}
                 MMMEd{"E, MMM d"}
                 MMMMEd{"E, MMMM d"}
@@ -342,20 +330,19 @@ ha{
             }
             eras{
                 abbreviated{
-                    "K.H",
-                    "BHAI",
+                    0{"K.H"}
+                    1{"BHAI"}
                 }
                 abbreviated%variant{
-                    "K.H.Y",
-                    "B.H.Y",
+                    0{"K.H.Y"}
+                    1{"B.H.Y"}
                 }
                 wide{
-                    "Kafin haihuwar annab",
-                    "Bayan haihuwar annab",
+                    0{"Kafin haihuwar annab"}
+                    1{"Bayan haihuwar annab"}
                 }
                 wide%variant{
-                    "K.H.Y",
-                    "Sanannen Zamani",
+                    1{"Sanannen Zamani"}
                 }
             }
             intervalFormats{
@@ -370,31 +357,12 @@ ha{
                 MEd{
                     d{"E, dd/M – E, dd/M"}
                 }
-                h{
-                    a{"h a – h a"}
-                }
                 hm{
                     a{"h:mm a – h:mm a"}
                 }
                 yM{
                     M{"MM/y – MM/y"}
                     y{"MM/y – MM/y"}
-                }
-                yMEd{
-                    M{"y-MM-dd, E – y-MM-dd, E"}
-                    y{"y-MM-dd, E – y-MM-dd, E"}
-                }
-                yMMM{
-                    y{"y MMM – y MMM"}
-                }
-                yMMMEd{
-                    y{"y MMM d, E – y MMM d, E"}
-                }
-                yMMMM{
-                    y{"y MMMM – y MMMM"}
-                }
-                yMMMd{
-                    y{"y MMM d – y MMM d"}
                 }
                 yMd{
                     M{"dd/MM/y – dd/MM/y"}
@@ -620,30 +588,6 @@ ha{
                 }
             }
         }
-        day-narrow{
-            relativeTime{
-                future{
-                    one{"a cikin kwanaki {0}"}
-                    other{"a cikin kwanaki {0}"}
-                }
-                past{
-                    one{"kwana {0} da ya gabata"}
-                    other{"kwanaki {0} da suka gabata"}
-                }
-            }
-        }
-        day-short{
-            relativeTime{
-                future{
-                    one{"a cikin kwanaki {0}"}
-                    other{"a cikin kwanaki {0}"}
-                }
-                past{
-                    one{"kwana {0} da ya gabata"}
-                    other{"kwanaki {0} da suka gabata"}
-                }
-            }
-        }
         dayOfYear{
             dn{"Kwanan Shekara"}
         }
@@ -659,30 +603,6 @@ ha{
                 "0"{"wannan Jumaʼar"}
                 "1"{"Jumaʼa mai zuwa"}
             }
-            relativeTime{
-                future{
-                    one{"cikin Jumaʼa {0}"}
-                    other{"cikin Jumaʼa {0}"}
-                }
-                past{
-                    one{"Jumaʼa {0} da ta wuce"}
-                    other{"Jumaʼa {0} da suka wuce"}
-                }
-            }
-        }
-        fri-narrow{
-            relativeTime{
-                future{
-                    one{"cikin Jumaʼa {0}"}
-                    other{"cikin Jumaʼa {0}"}
-                }
-                past{
-                    one{"Jumaʼa {0} da ta wuce"}
-                    other{"Jumaʼa {0} da suka wuce"}
-                }
-            }
-        }
-        fri-short{
             relativeTime{
                 future{
                     one{"cikin Jumaʼa {0}"}
@@ -710,30 +630,6 @@ ha{
                 }
             }
         }
-        hour-narrow{
-            relativeTime{
-                future{
-                    one{"cikin awa {0}"}
-                    other{"cikin awanni {0}"}
-                }
-                past{
-                    one{"awa {0} da ta gabata"}
-                    other{"awanni {0} da suka gabata"}
-                }
-            }
-        }
-        hour-short{
-            relativeTime{
-                future{
-                    one{"cikin awa {0}"}
-                    other{"cikin awanni {0}"}
-                }
-                past{
-                    one{"awa {0} da ta gabata"}
-                    other{"awanni {0} da suka gabata"}
-                }
-            }
-        }
         minute{
             dn{"minti"}
             relative{
@@ -750,65 +646,7 @@ ha{
                 }
             }
         }
-        minute-narrow{
-            relativeTime{
-                future{
-                    one{"cikin minti {0}"}
-                    other{"cikin mintuna {0}"}
-                }
-                past{
-                    one{"minti {0} da ya gabata"}
-                    other{"mintuna {0} da suka gabata"}
-                }
-            }
-        }
-        minute-short{
-            relativeTime{
-                future{
-                    one{"cikin minti {0}"}
-                    other{"cikin mintuna {0}"}
-                }
-                past{
-                    one{"minti {0} da ya gabata"}
-                    other{"mintuna {0} da suka gabata"}
-                }
-            }
-        }
         mon{
-            relative{
-                "-1"{"Litinin din da ta gabata"}
-                "0"{"wannan Litinin din"}
-                "1"{"Litinin mai zuwa"}
-            }
-            relativeTime{
-                future{
-                    one{"cikin Litinin {0}"}
-                    other{"cikin Litinin {0}"}
-                }
-                past{
-                    one{"Litinin {0} da ta gabata"}
-                    other{"Litinin {0} da suka gabata"}
-                }
-            }
-        }
-        mon-narrow{
-            relative{
-                "-1"{"Litinin din da ta gabata"}
-                "0"{"wannan Litinin din"}
-                "1"{"Litinin mai zuwa"}
-            }
-            relativeTime{
-                future{
-                    one{"cikin Litinin {0}"}
-                    other{"cikin Litinin {0}"}
-                }
-                past{
-                    one{"Litinin {0} da ta gabata"}
-                    other{"Litinin {0} da suka gabata"}
-                }
-            }
-        }
-        mon-short{
             relative{
                 "-1"{"Litinin din da ta gabata"}
                 "0"{"wannan Litinin din"}
@@ -843,23 +681,11 @@ ha{
                 }
             }
         }
-        month-narrow{
-            relativeTime{
-                past{
-                    one{"wata {0} da ya gabata"}
-                    other{"watanni {0} da suka gabata"}
-                }
-            }
-        }
         month-short{
             relativeTime{
                 future{
                     one{"a cikin watan {0}"}
                     other{"a cikin watan {0}"}
-                }
-                past{
-                    one{"wata {0} da ya gabata"}
-                    other{"watanni {0} da suka gabata"}
                 }
             }
         }
@@ -875,22 +701,6 @@ ha{
                     one{"a cikin kwata {0}"}
                     other{"a cikin kwatas {0}"}
                 }
-                past{
-                    one{"kwata {0} da suka gabata"}
-                    other{"kwata {0} da suka gabata"}
-                }
-            }
-        }
-        quarter-narrow{
-            relativeTime{
-                past{
-                    one{"kwata {0} da suka gabata"}
-                    other{"kwata {0} da suka gabata"}
-                }
-            }
-        }
-        quarter-short{
-            relativeTime{
                 past{
                     one{"kwata {0} da suka gabata"}
                     other{"kwata {0} da suka gabata"}
@@ -914,24 +724,8 @@ ha{
                 }
             }
         }
-        sat-narrow{
-            relativeTime{
-                future{
-                    one{"cikin Asabar {0}"}
-                    other{"cikin Asabar {0}"}
-                }
-                past{
-                    one{"Asabar {0} da ta wuce"}
-                    other{"Asabar {0} da suka wuce"}
-                }
-            }
-        }
         sat-short{
             relativeTime{
-                future{
-                    one{"cikin Asabar {0}"}
-                    other{"cikin Asabar {0}"}
-                }
                 past{
                     one{"Asabar {0} da ta wuce"}
                     other{"Asabar {0} da suka wuce"}
@@ -943,30 +737,6 @@ ha{
             relative{
                 "0"{"yanzu"}
             }
-            relativeTime{
-                future{
-                    one{"cikin dakika {0}"}
-                    other{"cikin dakiku {0}"}
-                }
-                past{
-                    one{"dakika {0} da ta gabata"}
-                    other{"dakiku {0} da suka gabata"}
-                }
-            }
-        }
-        second-narrow{
-            relativeTime{
-                future{
-                    one{"cikin dakika {0}"}
-                    other{"cikin dakiku {0}"}
-                }
-                past{
-                    one{"dakika {0} da ta gabata"}
-                    other{"dakiku {0} da suka gabata"}
-                }
-            }
-        }
-        second-short{
             relativeTime{
                 future{
                     one{"cikin dakika {0}"}
@@ -1001,28 +771,6 @@ ha{
                 "0"{"wannan Lahadin"}
                 "1"{"Lahadi mai zuwa"}
             }
-            relativeTime{
-                future{
-                    one{"cikin Lahadi {0}"}
-                    other{"cikin Lahadi {0}"}
-                }
-                past{
-                    one{"Lahadi {0} da ta gabata"}
-                    other{"Lahadi {0} da suka gabata"}
-                }
-            }
-        }
-        sun-short{
-            relativeTime{
-                future{
-                    one{"cikin Lahadi {0}"}
-                    other{"cikin Lahadi {0}"}
-                }
-                past{
-                    one{"Lahadi {0} da ta gabata"}
-                    other{"Lahadi {0} da suka gabata"}
-                }
-            }
         }
         thu{
             relative{
@@ -1030,30 +778,6 @@ ha{
                 "0"{"wannan Alhamis din"}
                 "1"{"Alhamis din mai zuwa"}
             }
-            relativeTime{
-                future{
-                    one{"cikin Alhamis {0}"}
-                    other{"cikin Alhamis {0}"}
-                }
-                past{
-                    one{"Alhamis {0} da ta gabata"}
-                    other{"Alhamis {0} da suka gabata"}
-                }
-            }
-        }
-        thu-narrow{
-            relativeTime{
-                future{
-                    one{"cikin Alhamis {0}"}
-                    other{"cikin Alhamis {0}"}
-                }
-                past{
-                    one{"Alhamis {0} da ta gabata"}
-                    other{"Alhamis {0} da suka gabata"}
-                }
-            }
-        }
-        thu-short{
             relativeTime{
                 future{
                     one{"cikin Alhamis {0}"}
@@ -1082,60 +806,12 @@ ha{
                 }
             }
         }
-        tue-narrow{
-            relativeTime{
-                future{
-                    one{"cikin Talata {0}"}
-                    other{"cikin Talata {0}"}
-                }
-                past{
-                    one{"Talata {0} da ta gabata"}
-                    other{"Talata {0} da suka gabata"}
-                }
-            }
-        }
-        tue-short{
-            relativeTime{
-                future{
-                    one{"cikin Talata {0}"}
-                    other{"cikin Talata {0}"}
-                }
-                past{
-                    one{"Talata {0} da ta gabata"}
-                    other{"Talata {0} da suka gabata"}
-                }
-            }
-        }
         wed{
             relative{
                 "-1"{"Laraba da ta gabata"}
                 "0"{"wannan Larabar"}
                 "1"{"Laraba mai zuwa"}
             }
-            relativeTime{
-                future{
-                    one{"cikin Laraba {0}"}
-                    other{"cikin Laraba {0}"}
-                }
-                past{
-                    one{"Laraba {0} da ta gabata"}
-                    other{"Laraba {0} da suka gabata"}
-                }
-            }
-        }
-        wed-narrow{
-            relativeTime{
-                future{
-                    one{"cikin Laraba {0}"}
-                    other{"cikin Laraba {0}"}
-                }
-                past{
-                    one{"Laraba {0} da ta gabata"}
-                    other{"Laraba {0} da suka gabata"}
-                }
-            }
-        }
-        wed-short{
             relativeTime{
                 future{
                     one{"cikin Laraba {0}"}
@@ -1174,14 +850,6 @@ ha{
                 }
             }
         }
-        week-short{
-            relativeTime{
-                past{
-                    one{"mako {0} da ya gabata"}
-                    other{"makonni {0} da suka gabata"}
-                }
-            }
-        }
         weekOfMonth{
             dn{"Makon Wata"}
         }
@@ -1206,22 +874,6 @@ ha{
                     one{"a shekarar {0}"}
                     other{"a shekaru {0}"}
                 }
-                past{
-                    one{"shekara {0} da ta gabata"}
-                    other{"shekaru {0} da suka gabata"}
-                }
-            }
-        }
-        year-narrow{
-            relativeTime{
-                past{
-                    one{"shekara {0} da ta gabata"}
-                    other{"shekaru {0} da suka gabata"}
-                }
-            }
-        }
-        year-short{
-            relativeTime{
                 past{
                     one{"shekara {0} da ta gabata"}
                     other{"shekaru {0} da suka gabata"}

@@ -290,7 +290,7 @@ et{
         WF{"Wallis ja Futuna"}
         WS{"Samoa"}
         XA{"pseudo-aktsent"}
-        XB{"pseudo-Bidi"}
+        XB{"pseudobidi"}
         XK{"Kosovo"}
         YE{"Jeemen"}
         YT{"Mayotte"}

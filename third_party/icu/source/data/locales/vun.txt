@@ -114,12 +114,12 @@ vun{
             }
             eras{
                 abbreviated{
-                    "KK",
-                    "BK",
+                    0{"KK"}
+                    1{"BK"}
                 }
                 wide{
-                    "Kabla ya Kristu",
-                    "Baada ya Kristu",
+                    0{"Kabla ya Kristu"}
+                    1{"Baada ya Kristu"}
                 }
             }
             monthNames{

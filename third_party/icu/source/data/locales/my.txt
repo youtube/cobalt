@@ -22,7 +22,9 @@ my{
             }
             patterns{
                 accountingFormat{"¤ #,##0.00"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -67,40 +69,40 @@ my{
             patternsShort{
                 currencyFormat{
                     1000{
-                        other{"¤ 0 ထောင်"}
+                        other{"0 ထောင် ¤"}
                     }
                     10000{
-                        other{"¤ 0 သောင်း"}
+                        other{"0 သောင်း ¤"}
                     }
                     100000{
-                        other{"¤ 0 သိန်း"}
+                        other{"0 သိန်း ¤"}
                     }
                     1000000{
-                        other{"¤ 0 သန်း"}
+                        other{"0 သန်း ¤"}
                     }
                     10000000{
-                        other{"¤ 0 ကုဋေ"}
+                        other{"0 ကုဋေ ¤"}
                     }
                     100000000{
-                        other{"¤ 00 ကုဋေ"}
+                        other{"00 ကုဋေ ¤"}
                     }
                     1000000000{
-                        other{"¤ 000 ကုဋေ"}
+                        other{"000 ဋေ ¤"}
                     }
                     10000000000{
-                        other{"¤ 0000 ကုဋေ"}
+                        other{"ဋေ 0 ထ ¤"}
                     }
                     100000000000{
-                        other{"¤ ကုဋေ 0 သောင်း"}
+                        other{"ဋေ 0 သ ¤"}
                     }
                     1000000000000{
-                        other{"¤ ကုဋေ 0 သိန်း"}
+                        other{"ဋေ 0 သိန်း ¤"}
                     }
                     10000000000000{
-                        other{"¤ ကုဋေ 0 သန်း"}
+                        other{"ဋေ 0 သန်း ¤"}
                     }
                     100000000000000{
-                        other{"¤ 0 ကောဋိ"}
+                        other{"0 ကောဋိ ¤"}
                     }
                 }
                 decimalFormat{
@@ -155,6 +157,10 @@ my{
             }
         }
         mymr{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
+            }
             symbols{
                 list{"၊"}
             }
@@ -192,20 +198,28 @@ my{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"d E"}
+                Eh{"E a h"}
                 Ehm{"E a h:mm"}
                 Ehms{"E a h:mm:ss"}
+                GyMEd{"G y-MM-dd၊ E"}
+                GyMMMEd{"G y MMM d၊ E"}
                 GyMMMd{"G d MMM y"}
                 GyMd{"GGGGG y/M/d"}
+                Hv{"v HH'h'"}
+                MEd{"MM-dd၊ E"}
                 MMMEd{"MMM d E"}
                 MMMMEd{"MMMM d Eနေ့"}
                 Md{"d/M"}
                 h{"a h"}
                 hm{"a h:mm"}
                 hms{"a h:mm:ss"}
+                hv{"v a h"}
                 yyyyM{"G M/y"}
+                yyyyMMMEd{"G y MMM d၊ E"}
                 yyyyMMMd{"G d MMM y"}
                 yyyyMd{"GGGGG dd/MM/Y"}
             }
@@ -222,6 +236,12 @@ my{
                 }
                 GyM{
                     G{"GGGGG y/M – GGGGG y/M"}
+                }
+                GyMMMEd{
+                    G{"G y MMM d၊ E – G y MMM d၊ E"}
+                    M{"G y MMM d၊ E – MMM d၊ E"}
+                    d{"G y MMM d၊ E – MMM d၊ E"}
+                    y{"G y MMM d၊ E – y MMM d၊ E"}
                 }
                 M{
                     M{"M – M"}
@@ -320,15 +340,19 @@ my{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"d ရက် E"}
+                Eh{"E a h"}
                 Ehm{"E a h:mm"}
                 Ehms{"E a h:mm:ss"}
-                GyMMMEd{"G y/ MMM d/ E"}
+                GyMEd{"G y-MM-dd၊ E"}
+                GyMMMEd{"G y MMM d၊ E"}
                 GyMd{"G y/M/d"}
                 Hmsv{"v HH:mm:ss"}
                 Hmv{"v HH:mm"}
+                Hv{"v HH"}
                 MEd{"d/M E"}
                 MMMEd{"MMM d E"}
                 MMMMEd{"MMMM d E"}
@@ -341,6 +365,7 @@ my{
                 hms{"a h:mm:ss"}
                 hmsv{"v a h:mm:ss"}
                 hmv{"v a h:mm"}
+                hv{"v a h"}
                 yMEd{"d/M/y E"}
                 yMMMEd{"y MMM d E"}
                 yMd{"d/M/y"}
@@ -379,15 +404,6 @@ my{
                         "သ",
                         "စ",
                     }
-                    short{
-                        "နွေ",
-                        "လာ",
-                        "ဂါ",
-                        "ဟူး",
-                        "တေး",
-                        "ကြာ",
-                        "နေ",
-                    }
                 }
             }
             dayPeriod{
@@ -404,20 +420,20 @@ my{
             }
             eras{
                 abbreviated{
-                    "ဘီစီ",
-                    "အဒေီ",
+                    0{"ဘီစီ"}
+                    1{"အဒေီ"}
                 }
                 abbreviated%variant{
-                    "ဘီစီအီး",
-                    "စီအီး",
+                    0{"ဘီစီအီး"}
+                    1{"စီအီး"}
                 }
                 wide{
-                    "ခရစ်တော် မပေါ်မီနှစ်",
-                    "ခရစ်နှစ်",
+                    0{"ခရစ်တော် မပေါ်မီနှစ်"}
+                    1{"ခရစ်နှစ်"}
                 }
                 wide%variant{
-                    "ဘုံခေတ် မတိုင်မီ",
-                    "ဘုံခေတ်",
+                    0{"ဘုံခေတ် မတိုင်မီ"}
+                    1{"ဘုံခေတ်"}
                 }
             }
             intervalFormats{
@@ -610,12 +626,6 @@ my{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        "Q1",
-                        "Q2",
-                        "Q3",
-                        "Q4",
-                    }
                     narrow{
                         "ပ",
                         "ဒု",
@@ -1011,19 +1021,6 @@ my{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

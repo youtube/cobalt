@@ -272,7 +272,14 @@ useful to check for different configurations."""
     errors_by_file = defaultdict(lambda: defaultdict(set))
 
     if flags.local_build_dir:
-        mb_output = Run(["gn", "gen", "--check", flags.local_build_dir])
+        mb_output = Run([
+            "gn",
+            "gen",
+            "--check",
+            # High limit to expose all errors to the tool.
+            "--error-limit=20000",
+            flags.local_build_dir
+        ])
     else:
         with TemporaryDirectory() as tmp_dir:
             mb_script_path = os.path.join(SCRIPT_DIR, 'mb', 'mb.py')

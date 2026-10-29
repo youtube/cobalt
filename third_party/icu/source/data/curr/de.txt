@@ -1103,6 +1103,10 @@ de{
             "EC$",
             "Ostkaribischer Dollar",
         }
+        XCG{
+            "Cg.",
+            "Karibischer Gulden",
+        }
         XDR{
             "XDR",
             "Sonderziehungsrechte",
@@ -1206,6 +1210,10 @@ de{
         ZWD{
             "ZWD",
             "Simbabwe-Dollar (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Simbabwe-Gold",
         }
         ZWL{
             "ZWL",
@@ -1717,7 +1725,7 @@ de{
         }
         MVR{
             one{"Malediven-Rufiyaa"}
-            other{"Malediven-Rupien"}
+            other{"Malediven-Rufiyaa"}
         }
         MXN{
             one{"Mexikanischer Peso"}
@@ -2011,6 +2019,10 @@ de{
             one{"Ostkaribischer Dollar"}
             other{"Ostkaribische Dollar"}
         }
+        XCG{
+            one{"Karibischer Gulden"}
+            other{"Karibische Gulden"}
+        }
         XEU{
             one{"Europäische Währungseinheiten (XEU)"}
             other{"Europäische Währungseinheiten (XEU)"}
@@ -2066,6 +2078,10 @@ de{
         ZRN{
             one{"Zaire-Neuer Zaïre (1993–1998)"}
             other{"Zaire-Neue Zaïre (1993–1998)"}
+        }
+        ZWG{
+            one{"Simbabwe-Gold"}
+            other{"Simbabwe-Gold"}
         }
     }
 }

@@ -7,10 +7,13 @@ uz{
         cf{"valyuta formati"}
         collation{"saralash tartibi"}
         currency{"valyuta"}
+        em{"emoji namoyishi"}
         hc{"soat tizimi (12 yoki 24)"}
         lb{"qatorni uzish uslubi"}
+        lw{"so‘z ko‘chirish uslubi"}
         ms{"o‘lchov tizimi"}
         numbers{"raqamlar"}
+        ss{"qisqartirilgandan keyin gapning uzilishi"}
     }
     Languages{
         aa{"afar"}
@@ -42,6 +45,7 @@ uz{
         ay{"aymara"}
         az{"ozarbayjon"}
         ba{"boshqird"}
+        bal{"baluj"}
         ban{"bali"}
         bas{"basa"}
         be{"belarus"}
@@ -460,12 +464,17 @@ uz{
         za{"Chjuan"}
         zgh{"tamazigxt"}
         zh{"xitoy"}
-        zh_Hans{"xitoy (soddalashgan)"}
         zh_Hant{"xitoy (an’anaviy)"}
         zu{"zulu"}
         zun{"zuni"}
         zxx{"til tarkibi yo‘q"}
         zza{"zaza"}
+    }
+    Languages%core{
+        ku{"kurd"}
+    }
+    Languages%extension{
+        ku{"kurmanji"}
     }
     Languages%long{
         zh_Hans{"xitoy (soddalashtirilgan mandarin)"}
@@ -566,14 +575,45 @@ uz{
             persian{"fors taqvimi"}
             roc{"mingo taqvimi"}
         }
+        calendar%core{
+            buddhist{"buddist"}
+            chinese{"xitoy"}
+            coptic{"qibtiy"}
+            dangi{"dangi"}
+            ethiopic{"habash"}
+            ethiopic-amete-alem{"Amete Alem habash"}
+            gregorian{"grigorian"}
+            hebrew{"yahudiy"}
+            islamic{"hijriy"}
+            islamic-civil{"jadvalli hijriy"}
+            islamic-tbla{"jadvalli hijriy (atronomik davr)"}
+            islamic-umalqura{"hijriy (Ummul Quro)"}
+            japanese{"yapon"}
+            persian{"fors"}
+            roc{"mingo"}
+        }
         cf{
             account{"moliyaviy valyuta formati"}
             standard{"standart valyuta formati"}
+        }
+        cf%core{
+            account{"moliyaviy"}
+            standard{"standart"}
         }
         collation{
             ducet{"standart Unicode saralash tartibi"}
             search{"qidiruv"}
             standard{"standart saralash tartibi"}
+        }
+        collation%core{
+            ducet{"standart Unicode"}
+            search{"qidiruv"}
+            standard{"standart"}
+        }
+        em%core{
+            default{"birlamchi"}
+            emoji{"emoji"}
+            text{"matn"}
         }
         hc{
             h11{"12 soatlik tizim (0–11)"}
@@ -581,15 +621,37 @@ uz{
             h23{"24 soatlik tizim (0–23)"}
             h24{"24 soatlik tizim (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"qatorni yumshoq uzish"}
             normal{"qatorni odatiy uzish"}
             strict{"qatorni qat’iy uzish"}
         }
+        lb%core{
+            loose{"yumshoq"}
+            normal{"odatiy"}
+            strict{"qatʼiy"}
+        }
+        lw%core{
+            breakall{"hammasini koʻchirish"}
+            keepall{"hammasini saqlash"}
+            normal{"oddiy uslub"}
+            phrase{"iboralarda saqlash"}
+        }
         ms{
             metric{"metrik tizim"}
             uksystem{"Britaniya o‘lchov tizimi"}
             ussystem{"AQSH o‘lchov tizimi"}
+        }
+        ms%core{
+            metric{"metrik"}
+            uksystem{"Birlashgan Qirollik"}
+            ussystem{"AQSH"}
         }
         numbers{
             arab{"arab-hind raqamlari"}
@@ -632,6 +694,10 @@ uz{
             thai{"tay raqamlari"}
             tibt{"tibet raqamlari"}
             vaii{"vay raqamlari"}
+        }
+        ss%core{
+            none{"oʻchiq"}
+            standard{"yoniq"}
         }
     }
     characterLabelPattern{

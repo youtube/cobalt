@@ -351,9 +351,6 @@ sl{
         "Europe:Tallinn"{
             ec{"Talin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -388,7 +385,7 @@ sl{
             ec{"Velikonočni otok"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kanton"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
@@ -409,9 +406,7 @@ sl{
             ls{"Južnoafriški čas"}
         }
         "meta:Africa_Western"{
-            ld{"Zahodnoafriški poletni čas"}
-            lg{"Zahodnoafriški čas"}
-            ls{"Zahodnoafriški standardni čas"}
+            ls{"Zahodnoafriški čas"}
         }
         "meta:Alaska"{
             ld{"Aljaški poletni čas"}
@@ -654,6 +649,9 @@ sl{
         }
         "meta:Guyana"{
             ls{"Gvajanski čas"}
+        }
+        "meta:Hawaii"{
+            ls{"Havajski aleutski standardni čas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havajski aleutski poletni čas"}
@@ -937,6 +935,11 @@ sl{
         "meta:Truk"{
             ls{"Čas: Otok Chuuk"}
         }
+        "meta:Turkey"{
+            ld{"Turški poletni čas"}
+            lg{"Turški čas"}
+            ls{"Turški standardni čas"}
+        }
         "meta:Turkmenistan"{
             ld{"Turkmenistanski poletni čas"}
             lg{"Turkmenistanski čas"}
@@ -996,9 +999,10 @@ sl{
             ls{"Jukonski čas"}
         }
         gmtFormat{"GMT {0}"}
+        gmtUnknownFormat{"GMT +?"}
         hourFormat{"+HH.mm;-HH.mm"}
-        regionFormat{"{0} čas"}
-        regionFormatDaylight{"{0} poletni čas"}
-        regionFormatStandard{"{0} standardni čas"}
+        regionFormat{"{0} (lokalni čas)"}
+        regionFormatDaylight{"{0} (poletni čas)"}
+        regionFormatStandard{"{0} (standardni čas)"}
     }
 }

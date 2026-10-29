@@ -18,9 +18,6 @@ mod ffi {
     enum OutputLanguage {
         Null,
         Essl,
-        GlslCompatibility,
-        Glsl130,
-        Glsl140,
         Glsl150Core,
         Glsl330Core,
         Glsl400Core,
@@ -291,10 +288,7 @@ unsafe fn generate_ast(
             #[cfg(not(angle_enable_essl))]
             panic!("Internal error: ESSL generator is not built");
         }
-        OutputLanguage::GlslCompatibility
-        | OutputLanguage::Glsl130
-        | OutputLanguage::Glsl140
-        | OutputLanguage::Glsl150Core
+        OutputLanguage::Glsl150Core
         | OutputLanguage::Glsl330Core
         | OutputLanguage::Glsl400Core
         | OutputLanguage::Glsl410Core
@@ -428,7 +422,7 @@ fn common_pre_variable_collection_transforms(ir: &mut IR, options: &Options) {
 fn common_post_variable_collection_transforms(ir: &mut IR, options: &Options) {
     // Basic dead-code-elimination to avoid outputting variables, constants and types that are not
     // used by the shader.
-    transform::run!(prune_unused_variables, ir);
+    transform::run!(dead_code_eliminate, ir);
 
     // Run after unused variables are removed, initialize local and output variables if necessary.
     if options.initialize_uninitialized_variables {

@@ -270,6 +270,9 @@ ps{
         "America:Costa_Rica"{
             ec{"کوستاریکا"}
         }
+        "America:Coyhaique"{
+            ec{"کوهيک"}
+        }
         "America:Creston"{
             ec{"کرسټون"}
         }
@@ -1167,7 +1170,7 @@ ps{
             ec{"عفات"}
         }
         "Pacific:Enderbury"{
-            ec{"انډربري"}
+            ec{"کانټون"}
         }
         "Pacific:Fakaofo"{
             ec{"فوکافو"}
@@ -1275,9 +1278,7 @@ ps{
             ls{"جنوبي افريقا معياري وخت"}
         }
         "meta:Africa_Western"{
-            ld{"د افریقا افریقا لویدیځ وخت"}
-            lg{"لوېديځ افريقا وخت"}
-            ls{"لویدیځ افریقایي معیاري وخت"}
+            ls{"لوېديځ افريقا وخت"}
         }
         "meta:Alaska"{
             ld{"الاسکا د ورځې روښانه وخت"}
@@ -1515,6 +1516,9 @@ ps{
         }
         "meta:Guyana"{
             ls{"د ګوانانا وخت"}
+        }
+        "meta:Hawaii"{
+            ls{"هوایی الیوتین معیاری وخت"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"هوایی الیوتین رڼا ورځې وخت"}
@@ -1846,7 +1850,7 @@ ps{
         "meta:Yukon"{
             ls{"د یوکون وخت"}
         }
-        regionFormat{"د {0} په وخت"}
+        regionFormat{"{0} وخت"}
         regionFormatDaylight{"{0} رڼا ورځ وخت"}
         regionFormatStandard{"{0} معیاری وخت"}
     }

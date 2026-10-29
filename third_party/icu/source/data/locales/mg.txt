@@ -2,8 +2,8 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 // Generated using tools/cldr/cldr-to-icu/
 mg{
-    AuxExemplarCharacters{"[c q u w x]"}
-    ExemplarCharacters{"[aàâ b d eéèêë f g h iìîï j k l m nñ oô p r s t v y z]"}
+    AuxExemplarCharacters{"[áâã c éêë îï {n̂}{n̈}ñ óö q u w x ýÿ]"}
+    ExemplarCharacters{"[aà b d eè f g h iì j k l m n oòô p r s t v yỳ z]"}
     ExemplarCharactersIndex{"[A B D E F G H I J K L M N O P R S T V Y Z]"}
     NumberElements{
         latn{
@@ -143,16 +143,16 @@ mg{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Alohan’i JK",
-                    "Aorian’i JK",
+                    0{"Alohan’i JK"}
+                    1{"Aorian’i JK"}
                 }
             }
             intervalFormats{

@@ -111,12 +111,12 @@ nd{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "UKristo angakabuyi",
-                    "Ukristo ebuyile",
+                    0{"UKristo angakabuyi"}
+                    1{"Ukristo ebuyile"}
                 }
             }
             monthNames{

@@ -354,7 +354,7 @@ zh_Hant{
         }
         ERN{
             "ERN",
-            "厄立特里亞納克法",
+            "厄利垂亞納可法",
         }
         ESA{
             "ESA",
@@ -646,7 +646,7 @@ zh_Hant{
         }
         MDL{
             "MDL",
-            "摩杜雲列伊",
+            "摩爾多瓦列伊",
         }
         MGA{
             "MGA",
@@ -754,7 +754,7 @@ zh_Hant{
         }
         NIO{
             "NIO",
-            "尼加拉瓜金科多巴",
+            "尼加拉瓜科多巴",
         }
         NLG{
             "NLG",
@@ -1070,7 +1070,7 @@ zh_Hant{
         }
         XAF{
             "FCFA",
-            "法郎 (CFA–BEAC)",
+            "中非法郎",
         }
         XAG{
             "XAG",
@@ -1100,6 +1100,10 @@ zh_Hant{
             "EC$",
             "格瑞那達元",
         }
+        XCG{
+            "Cg.",
+            "加勒比盾",
+        }
         XDR{
             "XDR",
             "特殊提款權",
@@ -1118,7 +1122,7 @@ zh_Hant{
         }
         XOF{
             "F CFA",
-            "法郎 (CFA–BCEAO)",
+            "西非法郎",
         }
         XPD{
             "XPD",
@@ -1126,7 +1130,7 @@ zh_Hant{
         }
         XPF{
             "CFPF",
-            "法郎 (CFP)",
+            "太平洋法郎",
         }
         XPT{
             "XPT",
@@ -1204,6 +1208,10 @@ zh_Hant{
             "ZWD",
             "辛巴威元 (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "辛巴威金",
+        }
         ZWL{
             "ZWL",
             "辛巴威元 (2009)",
@@ -1222,8 +1230,32 @@ zh_Hant{
         RUR{"р."}
     }
     CurrencyPlurals{
+        ERN{
+            other{"厄利垂亞納可法"}
+        }
+        MDL{
+            other{"摩爾多瓦列伊"}
+        }
+        NIO{
+            other{"尼加拉瓜科多巴"}
+        }
+        XAF{
+            other{"中非法郎"}
+        }
+        XCG{
+            other{"加勒比盾"}
+        }
+        XOF{
+            other{"西非法郎"}
+        }
+        XPF{
+            other{"太平洋法郎"}
+        }
         XXX{
             other{"（未知貨幣）"}
+        }
+        ZWG{
+            other{"辛巴威金"}
         }
     }
 }

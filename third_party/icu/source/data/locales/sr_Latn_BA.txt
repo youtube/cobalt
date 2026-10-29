@@ -58,12 +58,10 @@ sr_Latn_BA{
             }
             eras{
                 wide{
-                    "prije nove ere",
-                    "nove ere",
+                    0{"prije nove ere"}
                 }
                 wide%variant{
-                    "pre naše ere",
-                    "nove ere",
+                    1{"nove ere"}
                 }
             }
         }

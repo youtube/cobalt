@@ -24,8 +24,6 @@ static_library("ranking") {
     "filtering_ranker.h",
     "ftrl_ranker.cc",
     "ftrl_ranker.h",
-    "keyword_ranker.cc",
-    "keyword_ranker.h",
     "launch_data.cc",
     "launch_data.h",
     "mrfu_ranker.cc",
@@ -57,7 +55,6 @@ static_library("ranking") {
     "//chrome/browser/ash/app_list/search/util",
     "//chrome/browser/ash/app_list/search/util:proto",
     "//chrome/browser/profiles:profile",
-    "//chromeos/crosapi/mojom",
     "//components/omnibox/browser",
   ]
 }
@@ -70,7 +67,6 @@ source_set("unit_tests") {
     "best_match_ranker_unittest.cc",
     "filtering_ranker_unittest.cc",
     "ftrl_ranker_unittest.cc",
-    "keyword_ranker_unittest.cc",
     "mrfu_ranker_unittest.cc",
     "query_highlighter_unittest.cc",
     "removed_results_proto_unittest.cc",
@@ -95,7 +91,6 @@ source_set("unit_tests") {
     "//chrome/browser/ui",
     "//chrome/browser/ui:test_support",
     "//chrome/test:test_support",
-    "//chromeos/crosapi/mojom",
     "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",

@@ -1271,7 +1271,8 @@ ProcessResult MaglevGraphOptimizer::VisitGetTemplateObject(
 
 ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain(
     HasInPrototypeChain* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryBuildFastHasInPrototypeChain(
+      node->input_node(0), node->prototype()));
   return ProcessResult::kContinue;
 }
 
@@ -2011,18 +2012,15 @@ ProcessResult MaglevGraphOptimizer::VisitUnwrapStringWrapper(
 
 ProcessResult MaglevGraphOptimizer::VisitToBoolean(
     ToBoolean* node, const ProcessingState& state) {
-  if (IsConstantNode(node->input_node(0)->opcode())) {
-    return ReplaceWith(reducer_.GetBooleanConstant(
-        FromConstantToBool(reducer_.local_isolate(), node->input_node(0))));
-  }
-  // TODO(b/424157317): Optimize further (cf
-  // MaglevGraphBuilder::BuildToBoolean).
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldToBoolean<false>(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitToBooleanLogicalNot(
     ToBooleanLogicalNot* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldToBoolean<true>(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -2052,7 +2050,8 @@ ProcessResult MaglevGraphOptimizer::VisitTestInstanceOf(
 
 ProcessResult MaglevGraphOptimizer::VisitTestUndetectable(
     TestUndetectable* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldTestUndetectable(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -2703,6 +2702,11 @@ ProcessResult MaglevGraphOptimizer::VisitObjectIsArray(
 ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitTrap(Trap* node,
+                                              const ProcessingState& state) {
   return ProcessResult::kContinue;
 }
 

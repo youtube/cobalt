@@ -116,6 +116,10 @@ namespace maglev {
 class MaglevConcurrentDispatcher;
 }  // namespace maglev
 
+namespace regexp {
+class Stack;
+}  // namespace regexp
+
 class AddressToIndexHashMap;
 class AstStringConstants;
 class Bootstrapper;
@@ -150,7 +154,6 @@ class OptimizingCompileTaskExecutor;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
-class RegExpStack;
 class RootVisitor;
 class SetupIsolateDelegate;
 class SharedStructTypeRegistry;
@@ -1298,6 +1301,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return heap()->js_dispatch_table_space();
   }
 
+  inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(void* owning_slot) {
+    return GetJSDispatchTableSpaceFor(reinterpret_cast<Address>(owning_slot));
+  }
+
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
   V8_INLINE Address* builtin_tier0_table() {
     return isolate_data_.builtin_tier0_table();
@@ -1434,7 +1441,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     builtins_effects_analyzer_ = builtins_effects_analyzer;
   }
 
-  RegExpStack* regexp_stack() const { return regexp_stack_; }
+  regexp::Stack* regexp_stack() const { return regexp_stack_; }
 
   // Either points to jsregexp_static_offsets_vector, or nullptr if the static
   // vector is in use.
@@ -2631,7 +2638,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
 #endif  // !V8_INTL_SUPPORT
-  RegExpStack* regexp_stack_ = nullptr;
+  regexp::Stack* regexp_stack_ = nullptr;
   std::vector<int> regexp_indices_;
   // Necessary in order to avoid memory leaks in the presence of
   // TerminateExecution exceptions.

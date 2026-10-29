@@ -696,50 +696,6 @@ fi
 AC_SUBST(U_HAVE_NL_LANGINFO_CODESET)
 AC_SUBST(U_NL_LANGINFO_CODESET)
 
-AC_LANG(C++)
-AC_MSG_CHECKING([for properly overriding new and delete])
-U_OVERRIDE_CXX_ALLOCATION=0
-U_HAVE_PLACEMENT_NEW=0
-AC_CACHE_VAL(ac_cv_override_cxx_allocation_ok,
-    [AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
-    class UMemory {
-    public:
-    void *operator new(size_t size) {return malloc(size);}
-    void *operator new[](size_t size) {return malloc(size);}
-    void operator delete(void *p) {free(p);}
-    void operator delete[](void *p) {free(p);}
-    };
-    ]], [])],[ac_cv_override_cxx_allocation_ok=yes],[ac_cv_override_cxx_allocation_ok=no])] )
-AC_MSG_RESULT($ac_cv_override_cxx_allocation_ok)
-if test $ac_cv_override_cxx_allocation_ok = yes
-then
-    U_OVERRIDE_CXX_ALLOCATION=1
-    AC_MSG_CHECKING([for placement new and delete])
-    AC_CACHE_VAL(ac_cv_override_placement_new_ok,
-        [AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdlib.h>
-        class UMemory {
-        public:
-        void *operator new(size_t size) {return malloc(size);}
-        void *operator new[](size_t size) {return malloc(size);}
-        void operator delete(void *p) {free(p);}
-        void operator delete[](void *p) {free(p);}
-        void * operator new(size_t, void *ptr) { return ptr; }
-        void operator delete(void *, void *) {}
-        };
-        ]], [])],[ac_cv_override_placement_new_ok=yes],[ac_cv_override_placement_new_ok=no])] )
-    AC_MSG_RESULT($ac_cv_override_placement_new_ok)
-    if test $ac_cv_override_placement_new_ok = yes
-    then
-        U_HAVE_PLACEMENT_NEW=1
-    else
-        CONFIG_CPPFLAGS="${CONFIG_CPPFLAGS} -DU_HAVE_PLACEMENT_NEW=0"
-    fi
-else
-    CONFIG_CPPFLAGS="${CONFIG_CPPFLAGS} -DU_OVERRIDE_CXX_ALLOCATION=0"
-fi
-AC_SUBST(U_OVERRIDE_CXX_ALLOCATION)
-AC_SUBST(U_HAVE_PLACEMENT_NEW)
-
 AC_LANG(C)
 AC_CHECK_FUNC(popen)
 if test x$ac_cv_func_popen = xyes
@@ -827,24 +783,6 @@ else
 fi
 AC_SUBST(U_HAVE_TIMEZONE)
 AC_SUBST(U_TIMEZONE)
-
-AC_CHECK_FUNC(strtod_l)
-if test x$ac_cv_func_strtod_l = xyes
-then
-    U_HAVE_STRTOD_L=1
-    AC_CHECK_HEADER(xlocale.h)
-    if test "$ac_cv_header_xlocale_h" = yes; then
-      U_HAVE_XLOCALE_H=1
-      CONFIG_CPPFLAGS="${CONFIG_CPPFLAGS} -DU_HAVE_STRTOD_L=1 -DU_HAVE_XLOCALE_H=1"
-    else
-      U_HAVE_XLOCALE_H=0
-      CONFIG_CPPFLAGS="${CONFIG_CPPFLAGS} -DU_HAVE_STRTOD_L=1 -DU_HAVE_XLOCALE_H=0"
-    fi
-else
-    CONFIG_CPPFLAGS="${CONFIG_CPPFLAGS} -DU_HAVE_STRTOD_L=0"
-    U_HAVE_STRTOD_L=0
-fi
-AC_SUBST(U_HAVE_STRTOD_L)
 
 # Do various wchar_t related checks
 AC_CHECK_HEADER(wchar.h)

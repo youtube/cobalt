@@ -1100,9 +1100,6 @@ yrl{
         "Pacific:Efate"{
             ec{"Efaté"}
         }
-        "Pacific:Enderbury"{
-            ec{"Ẽdeburi"}
-        }
         "Pacific:Fakaofo"{
             ec{"Fakaufu"}
         }
@@ -1193,9 +1190,7 @@ yrl{
             ls{"Afirika Su suí Hurariyu"}
         }
         "meta:Africa_Western"{
-            ld{"Afirika Usidẽtawara Kurasí Ara Hurariyu"}
-            lg{"Afirikia Usidẽtawara Hurariyu"}
-            ls{"Afirika Usidẽtawara Hurariyu Retewa"}
+            ls{"Afirikia Usidẽtawara Hurariyu"}
         }
         "meta:Alaska"{
             ld{"Alasika Kurasí Ara Hurariyu"}
@@ -1462,6 +1457,9 @@ yrl{
         }
         "meta:Guyana"{
             ls{"Giyana Hurariyu"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaí asuí Kapuã-ita Areuta-ita Hurariyu Retewa"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaí asuí Kapuã-ita Areuta-ita Kurasí Ara Hurariyu"}

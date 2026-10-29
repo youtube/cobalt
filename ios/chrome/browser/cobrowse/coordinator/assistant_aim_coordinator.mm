@@ -6,7 +6,10 @@
 
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_delegate.h"
+#import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_mediator.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_view_controller.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_coordinator.h"
@@ -30,36 +33,38 @@
   AssistantAIMMediator* _mediator;
   ComposeboxInputPlateCoordinator* _inputPlateCoordinator;
   ComposeboxModeHolder* _modeHolder;
-  CobrowseContext* _context;
+
+  // Handler for container related interactions.
+  __weak id<AssistantContainerCommands> _containerHandler;
 }
 
-- (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser
-                                   context:(CobrowseContext*)context {
-  self = [super initWithBaseViewController:viewController browser:browser];
-  if (self) {
-    _context = context;
-  }
-  return self;
-}
 
 - (void)start {
+  if (self.browser->GetProfile()->IsOffTheRecord()) {
+    return;
+  }
+
   [self.browser->GetSceneState().tabGridState addObserver:self];
 
   _viewController = [[AssistantAIMViewController alloc] init];
   _viewController.delegate = self;
 
-  id<AssistantContainerCommands> containerHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), AssistantContainerCommands);
+  _containerHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                                         AssistantContainerCommands);
 
-  [containerHandler showAssistantContainerWithContent:_viewController
-                                             delegate:self];
+  [_containerHandler showAssistantContainerWithContent:_viewController
+                                              delegate:self];
 
   web::WebState::CreateParams params(self.browser->GetProfile());
+  CobrowseBrowserAgent* agent = CobrowseBrowserAgent::FromBrowser(self.browser);
+  CobrowseContext* context = agent ? agent->GetCobrowseContext() : nil;
+  if (!context) {
+    context = [CobrowseContext defaultContext];
+  }
   _mediator = [[AssistantAIMMediator alloc]
       initWithWebState:web::WebState::Create(params)
-               context:_context
-      containerHandler:containerHandler];
+               context:context
+      containerHandler:_containerHandler];
   _mediator.delegate = self;
   _mediator.consumer = _viewController;
 
@@ -111,6 +116,34 @@
   [self dismissAssistantContainerAnimated:YES];
 }
 
+- (void)assistantAIMViewController:(AssistantAIMViewController*)viewController
+       didShowKeyboardWithDuration:(NSTimeInterval)duration
+                             curve:(UIViewAnimationCurve)curve {
+  // When the keyboard is shown, prevent collapsing before latching to the
+  // medium detent first.
+  [_containerHandler
+      setAssistantContainerDetents:{AssistantContainerDetent::kMedium,
+                                    AssistantContainerDetent::kLarge}];
+  [_containerHandler
+      animateAssistantContainerToDetent:AssistantContainerDetent::kLarge
+                               duration:duration
+                                  curve:curve];
+}
+
+- (void)assistantAIMViewControllerDidHideKeyboard:
+    (AssistantAIMViewController*)viewController {
+  // When the keyboard is dismissed, all detents are available.
+  [_containerHandler
+      setAssistantContainerDetents:{AssistantContainerDetent::kMinimized,
+                                    AssistantContainerDetent::kMedium,
+                                    AssistantContainerDetent::kLarge}];
+}
+
+- (void)assistantAIMViewControllerDidRequestEndEditing:
+    (AssistantAIMViewController*)viewController {
+  [_inputPlateCoordinator endEditing];
+}
+
 #pragma mark - AssistantContainerDelegate
 
 - (void)assistantContainer:(AssistantContainerViewController*)container
@@ -146,6 +179,14 @@
   // NOTE: This API is already called in a animation block so no need to
   // animate.
   [_viewController adjustForContainerOpenPercentage:percentage];
+}
+
+- (void)assistantContainer:(AssistantContainerViewController*)container
+           didChangeDetent:(AssistantContainerDetent)newDetent {
+  // Attempt to dismiss the keyboard when the sheet is collapsing.
+  if (newDetent == AssistantContainerDetent::kMedium) {
+    [_inputPlateCoordinator endEditing];
+  }
 }
 
 #pragma mark - AssistantAIMMediatorDelegate

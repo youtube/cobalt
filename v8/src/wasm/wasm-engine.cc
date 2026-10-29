@@ -1127,15 +1127,6 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   compilation_stats_.reset();
 }
 
-void WasmEngine::DumpTurboStatistics() {
-  base::MutexGuard guard(&mutex_);
-  if (compilation_stats_ != nullptr) {
-    StdoutStream os;
-    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_, false}
-       << std::endl;
-  }
-}
-
 CodeTracer* WasmEngine::GetCodeTracer() {
   base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
@@ -1789,6 +1780,19 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       // the thread info below instead.
       continue;
     }
+    if (!stack->has_frames() && stack->jmpbuf()->pc != kNullAddress) {
+      // This is a WasmFX stack that has been reserved for a new continuation
+      // but hasn't been started yet. It does not contain any frames yet, but
+      // the jump buffer PC points to the stack entry wrapper, so we must keep
+      // the wrapper alive.
+      WasmCode* stack_entry_wrapper =
+          wasm::GetWasmCodeManager()->LookupCode(isolate, stack->jmpbuf()->pc);
+      DCHECK_NOT_NULL(stack_entry_wrapper);
+      DCHECK_EQ(stack_entry_wrapper->kind(),
+                WasmCode::Kind::kWasmStackEntryWrapper);
+      live_wasm_code.insert(stack_entry_wrapper);
+      continue;
+    }
     for (StackFrameIterator it(isolate, stack.get()); !it.done();
          it.Advance()) {
       StackFrame* const frame = it.frame();
@@ -1855,8 +1859,7 @@ void WasmEngine::TriggerCodeGCForTesting() {
   if (!v8_flags.wasm_code_gc) return;
   base::MutexGuard guard(&mutex_);
   TRACE_CODE_GC("Wasm Code GC explicitly requested for testing:\n");
-  if (new_potentially_dead_code_size_ == 0) {
-    DCHECK(potentially_dead_code_.empty());
+  if (potentially_dead_code_.empty()) {
     // Let's not waste a GC sequence index when there is no code to free.
     TRACE_CODE_GC("But there is nothing to do.\n");
     return;

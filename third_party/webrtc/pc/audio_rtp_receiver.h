@@ -36,7 +36,6 @@
 #include "pc/media_stream_track_proxy.h"
 #include "pc/remote_audio_source.h"
 #include "pc/rtp_receiver.h"
-#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -44,7 +43,7 @@ namespace webrtc {
 
 class AudioRtpReceiver : public ObserverInterface,
                          public AudioSourceInterface::AudioObserver,
-                         public RtpReceiverInternal {
+                         public RtpReceiverBase {
  public:
   // The constructor supports optionally passing the voice channel to the
   // instance at construction time without having to call `SetMediaChannel()`
@@ -147,8 +146,6 @@ class AudioRtpReceiver : public ObserverInterface,
   void Reconfigure(bool track_enabled) RTC_RUN_ON(worker_thread_);
   void SetOutputVolume_w(double volume) RTC_RUN_ON(worker_thread_);
 
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
-  Thread* const worker_thread_;
   const std::string id_;
   const scoped_refptr<RemoteAudioSource> source_;
   const scoped_refptr<AudioTrackProxyWithInternal<AudioTrack>> track_;

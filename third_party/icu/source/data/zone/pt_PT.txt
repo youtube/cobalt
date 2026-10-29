@@ -39,9 +39,6 @@ pt_PT{
         "Africa:Tunis"{
             ec{"Tunes"}
         }
-        "America:Araguaina"{
-            ec{"Araguaina"}
-        }
         "America:Argentina:Tucuman"{
             ec{"Tucumán"}
         }
@@ -86,6 +83,36 @@ pt_PT{
         }
         "America:St_Thomas"{
             ec{"St. Thomas"}
+        }
+        "Antarctica:Casey"{
+            ec{"Estação Casey"}
+        }
+        "Antarctica:DumontDUrville"{
+            ec{"Estação Dumont-d’Urville"}
+        }
+        "Antarctica:Macquarie"{
+            ec{"Ilha Macquarie"}
+        }
+        "Antarctica:Mawson"{
+            ec{"Estação Mawson"}
+        }
+        "Antarctica:McMurdo"{
+            ec{"Estação McMurdo"}
+        }
+        "Antarctica:Palmer"{
+            ec{"Terra de Palmer"}
+        }
+        "Antarctica:Rothera"{
+            ec{"Estação Rothera"}
+        }
+        "Antarctica:Syowa"{
+            ec{"Estação Showa"}
+        }
+        "Antarctica:Troll"{
+            ec{"Estação Troll"}
+        }
+        "Antarctica:Vostok"{
+            ec{"Estação Vostok"}
         }
         "Asia:Aden"{
             ec{"Adem"}
@@ -150,11 +177,11 @@ pt_PT{
         "Etc:UTC"{
             ls{"Hora Coordenada Universal"}
         }
+        "Etc:Unknown"{
+            ec{"Localização desconhecida"}
+        }
         "Europe:Amsterdam"{
             ec{"Amesterdão"}
-        }
-        "Europe:Busingen"{
-            ec{"Busingen"}
         }
         "Europe:Copenhagen"{
             ec{"Copenhaga"}
@@ -186,20 +213,23 @@ pt_PT{
         "Europe:Tallinn"{
             ec{"Talim"}
         }
+        "Indian:Chagos"{
+            ec{"Arquipélago de Chagos"}
+        }
         "Indian:Christmas"{
             ec{"Ilha do Natal"}
         }
         "Indian:Cocos"{
             ec{"Ilhas Cocos"}
         }
-        "Indian:Mahe"{
-            ec{"Mahe"}
+        "Indian:Kerguelen"{
+            ec{"Ilhas Kerguelen"}
         }
         "Indian:Mauritius"{
             ec{"Maurícia"}
         }
         "Pacific:Chatham"{
-            ec{"Chatham"}
+            ec{"Ilhas Chatham"}
         }
         "Pacific:Easter"{
             ec{"Ilha da Páscoa"}
@@ -207,11 +237,32 @@ pt_PT{
         "Pacific:Efate"{
             ec{"Efate"}
         }
+        "Pacific:Enderbury"{
+            ec{"Ilha Canton"}
+        }
+        "Pacific:Galapagos"{
+            ec{"Ilhas Galápagos"}
+        }
+        "Pacific:Kwajalein"{
+            ec{"Atol de Kwajalein"}
+        }
+        "Pacific:Marquesas"{
+            ec{"Ilhas Marquesas"}
+        }
+        "Pacific:Midway"{
+            ec{"Atol de Midway"}
+        }
+        "Pacific:Norfolk"{
+            ec{"Ilha Norfolk"}
+        }
         "Pacific:Pitcairn"{
             ec{"Ilhas Pitcairn"}
         }
         "Pacific:Tarawa"{
             ec{"Tarawa"}
+        }
+        "Pacific:Wake"{
+            ec{"Ilha Wake"}
         }
         "meta:Acre"{
             ld{"Hora de verão do Acre"}
@@ -234,9 +285,7 @@ pt_PT{
             ls{"Hora da África do Sul"}
         }
         "meta:Africa_Western"{
-            ld{"Hora de verão da África Ocidental"}
-            lg{"Hora da África Ocidental"}
-            ls{"Hora padrão da África Ocidental"}
+            ls{"Hora da África Ocidental"}
         }
         "meta:Alaska"{
             ld{"Hora de verão do Alasca"}
@@ -282,9 +331,9 @@ pt_PT{
             ls{"Hora padrão de Anadyr"}
         }
         "meta:Apia"{
-            ld{"Hora de verão de Apia"}
-            lg{"Hora de Apia"}
-            ls{"Hora padrão de Apia"}
+            ld{"Hora de verão de Samoa"}
+            lg{"Hora de Samoa"}
+            ls{"Hora padrão de Samoa"}
         }
         "meta:Aqtau"{
             ld{"Hora de verão de Aqtau"}
@@ -374,7 +423,7 @@ pt_PT{
             ss{"∅∅∅"}
         }
         "meta:Brunei"{
-            ls{"Hora do Brunei Darussalam"}
+            ls{"Hora do Brunei"}
         }
         "meta:Cape_Verde"{
             ld{"Hora de verão de Cabo Verde"}
@@ -516,6 +565,9 @@ pt_PT{
         "meta:Guyana"{
             ls{"Hora da Guiana"}
         }
+        "meta:Hawaii"{
+            ls{"Hora padrão do Havai e Aleutas"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"Hora de verão do Havai e Aleutas"}
             lg{"Hora do Havai e Aleutas"}
@@ -528,7 +580,7 @@ pt_PT{
         }
         "meta:Hovd"{
             ld{"Hora de verão de Hovd"}
-            lg{"Hora de Hovd"}
+            lg{"Hora de Khovd"}
             ls{"Hora padrão de Hovd"}
         }
         "meta:India"{
@@ -743,10 +795,10 @@ pt_PT{
             ls{"Hora de Pitcairn"}
         }
         "meta:Ponape"{
-            ls{"Hora de Ponape"}
+            ls{"Hora de Pohnpei"}
         }
         "meta:Pyongyang"{
-            ls{"Hora de Pyongyang"}
+            ls{"Hora da Coreia do Norte"}
         }
         "meta:Qyzylorda"{
             ld{"Hora de verão de Qyzylorda"}
@@ -770,9 +822,9 @@ pt_PT{
             ls{"Hora padrão de Samara"}
         }
         "meta:Samoa"{
-            ld{"Hora de verão de Samoa"}
-            lg{"Hora de Samoa"}
-            ls{"Hora padrão de Samoa"}
+            ld{"Hora de verão de Samoa Americana"}
+            lg{"Hora de Samoa Americana"}
+            ls{"Hora padrão de Samoa Americana"}
         }
         "meta:Seychelles"{
             ls{"Hora das Seicheles"}
@@ -796,9 +848,9 @@ pt_PT{
             ls{"Hora do Taiti"}
         }
         "meta:Taipei"{
-            ld{"Hora de verão de Taipé"}
-            lg{"Hora de Taipé"}
-            ls{"Hora padrão de Taipé"}
+            ld{"Hora de verão de Taiwan"}
+            lg{"Hora de Taiwan"}
+            ls{"Hora padrão de Taiwan"}
         }
         "meta:Tajikistan"{
             ls{"Hora do Tajiquistão"}
@@ -813,6 +865,11 @@ pt_PT{
         }
         "meta:Truk"{
             ls{"Hora de Chuuk"}
+        }
+        "meta:Turkey"{
+            ld{"Hora de Verão da Turquia"}
+            lg{"Hora da Turquia"}
+            ls{"Hora Padrão da Turquia"}
         }
         "meta:Turkmenistan"{
             ld{"Hora de verão do Turquemenistão"}

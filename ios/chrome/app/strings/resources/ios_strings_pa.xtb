@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">ਆਫ਼ਲਾਈਨ ਉਪਲਬਧ ਨਹੀਂ ਹੈ</translation>
 <translation id="2697530870203420261">ਅਵੈਧ ਉਪਨਾਮ</translation>
 <translation id="269819437389494246">ਤੁਸੀਂ ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੇ ਗਏ ਪੰਨਿਆਂ ਨੂੰ ਦੇਖ ਸਕਦੇ ਹੋ ਜਾਂ ਆਪਣੇ ਇਤਿਹਾਸ ਵਿੱਚੋਂ ਉਨ੍ਹਾਂ ਨੂੰ ਮਿਟਾ ਸਕਦੇ ਹੋ</translation>
+<translation id="2704295676501803339">ਖੱਬੇ ਪਾਸੇ ਮੂਵ ਕਰੋ</translation>
 <translation id="2704606927547763573">ਕਾਪੀ ਕੀਤਾ</translation>
 <translation id="2708051474374549906">ਉਨ੍ਹਾਂ ਖਤਰਨਾਕ ਸਾਈਟਾਂ, ਡਾਊਨਲੋਡਾਂ ਅਤੇ ਐਕਸਟੈਂਸ਼ਨਾਂ ਦੇ ਵਿਰੁੱਧ ਅਸਲ-ਸਮੇਂ ਦੀ, ਚੁਸਤ ਸੁਰੱਖਿਆ ਜੋ ਕਿ Google ਨੂੰ ਭੇਜੇ ਜਾਣ ਵਾਲੇ ਤੁਹਾਡੇ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟੇ 'ਤੇ ਆਧਾਰਿਤ ਹੁੰਦੀ ਹੈ</translation>
 <translation id="2709516037105925701">ਆਟੋਫਿਲ</translation>
@@ -1662,6 +1663,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6899890595581608884">ਸੁਰੱਖਿਆ ਜਾਂਚ ਸੂਚਨਾਵਾਂ ਬੰਦ ਕਰ ਦਿੱਤੀਆਂ ਗਈਆਂ ਹਨ</translation>
 <translation id="6900532703269623216">ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਆ</translation>
 <translation id="6900702165119149418">ਤੁਸੀਂ ਸਾਈਨ-ਆਊਟ ਹੋ</translation>
+<translation id="6903282483217634857">ਸੱਜੇ ਪਾਸੇ ਮੂਵ ਕਰੋ</translation>
 <translation id="6903907808598579934">ਸਿੰਕ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="6906448540340261898">ਪੱਕਾ ਕਰੋ ਕਿ ਤੁਸੀਂ ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ ਕਦੇ ਵੀ ਪਾਸਵਰਡਾਂ ਨੂੰ ਵਰਤ ਸਕਦੇ ਹੋ</translation>
 <translation id="6908734251759299256">ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਅੱਪਡੇਟ ਕਰੋ</translation>
@@ -1724,6 +1726,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="7149893636342594995">ਪਿਛਲੇ 24 ਘੰਟੇ</translation>
 <translation id="7154417656353909837">ਪਤੇ ਹਟਾਓ</translation>
 <translation id="7161230316646448869">ਆਪਣੇ ਬੁੱਕਮਾਰਕ, ਇਤਿਹਾਸ ਅਤੇ ਹੋਰ ਚੀਜ਼ਾਂ ਨੂੰ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਸਿੰਕ ਕਰੋ</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੋ</translation>
 <translation id="7173721738069475737">{count,plural, =1{ਬੁੱਕਮਾਰਕ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}one{{count} ਬੁੱਕਮਾਰਕ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}other{{count} ਬੁੱਕਮਾਰਕ ਰੱਖਿਅਤ ਕੀਤੇ ਗਏ}}</translation>
 <translation id="7176183551031110427">ਜ਼ੂਮ ਘਟਾਓ</translation>
@@ -2218,6 +2221,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" /> ਨੂੰ ਭੇਜਿਆ ਜਾ ਰਿਹਾ ਹੈ…</translation>
 <translation id="8863431381414769983">Google Maps ਤੋਂ ਦਿਸ਼ਾਵਾਂ ਅਤੇ ਸਥਾਨਕ ਜਾਣਕਾਰੀ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
 <translation id="8871974300055371298">ਸਮੱਗਰੀ ਸੈਟਿੰਗਾਂ</translation>
+<translation id="8876661425082386199">ਆਪਣੇ ਕਨੈਕਸ਼ਨ ਦੀ ਜਾਂਚ ਕਰੋ</translation>
 <translation id="8877788021141246043">ਕੋਈ ਯਾਦ-ਸੂਚਨਾ ਸੈੱਟ ਕਰੋ</translation>
 <translation id="8879604564928138696">ਕੋਸ਼ਿਸ਼ ਕਰਨ ਲਈ ਡਬਲ ਟੈਪ ਕਰੋ</translation>
 <translation id="8879952635974818770">ਵਿਅਕਤੀਗਤ ਬਣਾਈ ਸਮੱਗਰੀ</translation>
@@ -2319,7 +2323,6 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="926455622548529175">ਸਵਿੱਚ ਕਰੋ ਅਤੇ ਮਿਟਾਓ</translation>
 <translation id="929748059769569925">ਉਜਾਗਰ ਕੀਤੀ ਲਿਖਤ</translation>
 <translation id="932305336591073205">{count,plural, =1{ਟੈਬ ਨੂੰ ਬੰਦ ਕਰੋ}one{ਟੈਬ ਨੂੰ ਬੰਦ ਕਰੋ}other{ਟੈਬਾਂ ਨੂੰ ਬੰਦ ਕਰੋ}}</translation>
-<translation id="932327136139879170">ਹੋਮ</translation>
 <translation id="939472100615258482">ਮੌਜੂਦਾ ਸਾਈਟ</translation>
 <translation id="939598580284253335">ਪਾਸਫਰੇਜ਼ ਦਾਖਲ ਕਰੋ</translation>
 <translation id="939736085109172342">ਨਵਾਂ ਫੋਲਡਰ</translation>

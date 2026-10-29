@@ -11,10 +11,115 @@ eu{
     ExemplarCharactersNumbers{"[, . % ‰ + − 0 1 2 3 4 5 6 7 8 9]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        adlm{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
         arab{
             symbols{
                 minusSign{"-"}
                 plusSign{"+"}
+            }
+        }
+        arabext{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        bali{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        beng{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        brah{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        cakm{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        cham{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        fullwide{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        gong{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        gonm{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        gujr{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        guru{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        hanidec{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        java{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        kali{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        khmr{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        knda{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        lana{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        lanatham{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        laoo{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
             }
         }
         latn{
@@ -24,8 +129,10 @@ eu{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 percentFormat{"% #,##0"}
             }
@@ -177,6 +284,16 @@ eu{
                 minusSign{"−"}
             }
         }
+        lepc{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        limb{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
         minimalPairs{
             ordinal{
                 other{"{0}. bira eskuinetara"}
@@ -186,12 +303,117 @@ eu{
                 other{"{0} lagun etorri dira"}
             }
         }
+        mlym{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        mong{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        mtei{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        mymr{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        mymrshan{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        nkoo{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        olck{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        orya{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        osma{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        rohg{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        saur{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        shrd{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        sora{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        sund{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        takr{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        talu{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        tamldec{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        telu{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        thai{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        tibt{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
+        vaii{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+            }
+        }
     }
     calendar{
         buddhist{
             eras{
                 abbreviated{
-                    "BG",
+                    0{"BG"}
                 }
             }
             intervalFormats{
@@ -346,7 +568,7 @@ eu{
                 "G. 'aroko' y. 'urteko' MMMM d, EEEE",
                 "G. 'aroko' y. 'urteko' MMMM d",
                 "G. 'aroko' y('e')'ko' MMM d",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1}, {0}",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -363,12 +585,15 @@ eu{
                 Bh{"B h('r')('a')'k'"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:s"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"d, EEEE"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"G. 'aroko' y. 'urtea'"}
+                GyM{"G. 'aroko' y-MM"}
+                GyMEd{"G 'aroko' y-MM-dd, E"}
                 GyMMM{"G. 'aroko' y('e')'ko' MMMM"}
                 GyMMMEd{"G. 'aroko' y('e')'ko' MMMM d, EEEE"}
                 GyMMMd{"G. 'aroko' y('e')'ko' MMMM d"}
@@ -378,7 +603,6 @@ eu{
                 MMMMd{"MMMM'k' d"}
                 MMMd{"MMM'k' d"}
                 Md{"MM/dd"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y"}
@@ -545,10 +769,13 @@ eu{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
+                GyM{"G y/M"}
+                GyMEd{"G y/M/d, E"}
                 GyMMM{"G y. 'urteko' MMM"}
                 GyMMMEd{"G y. 'urteko' MMM d('a'), E"}
                 GyMMMd{"G y. 'urteko' MMM d('a')"}
@@ -561,7 +788,6 @@ eu{
                 MMMMd{"MMMM'ren' d('a')"}
                 MMMd{"MMM d('a')"}
                 Md{"M/d"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -673,28 +899,28 @@ eu{
             }
             eras{
                 abbreviated{
-                    "K.a.",
-                    "K.o.",
+                    0{"K.a."}
+                    1{"K.o."}
                 }
                 abbreviated%variant{
-                    "o.a.a.",
-                    "o.a.",
+                    0{"o.a.a."}
+                    1{"o.a."}
                 }
                 narrow{
-                    "a",
-                    "o",
+                    0{"a"}
+                    1{"o"}
                 }
                 narrow%variant{
-                    "G.a.a.",
-                    "G.a.",
+                    0{"G.a.a."}
+                    1{"G.a."}
                 }
                 wide{
-                    "Kristo aurretik",
-                    "Kristo ondoren",
+                    0{"Kristo aurretik"}
+                    1{"Kristo ondoren"}
                 }
                 wide%variant{
-                    "oraingo aroaren aurretik",
-                    "oraingo aroa",
+                    0{"oraingo aroaren aurretik"}
+                    1{"oraingo aroa"}
                 }
             }
             intervalFormats{
@@ -745,10 +971,6 @@ eu{
                     M{"M/d – M/d"}
                     d{"M/d – M/d"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
-                }
                 hm{
                     a{"h:mm a – h:mm a"}
                     h{"h:mm–h:mm a"}
@@ -758,10 +980,6 @@ eu{
                     a{"h:mm a – h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"y/M – y/M"}
@@ -984,8 +1202,7 @@ eu{
         roc{
             eras{
                 abbreviated{
-                    "R.O.C. aurretik",
-                    "R.O.C.",
+                    0{"R.O.C. aurretik"}
                 }
             }
             intervalFormats{

@@ -7,10 +7,13 @@ gd{
         cf{"Fòrmat an airgeadra"}
         collation{"Òrdugh an t-seòrsachaidh"}
         currency{"Airgeadra"}
+        em{"Riochdachadh nan Emoji"}
         hc{"Cearcall an ama (12 no 24 uair)"}
         lb{"Stoidhle nam brisidhean-loidhe"}
+        lw{"Brisidhean loidhne am broinn fhaclan"}
         ms{"Siostam tomhais"}
         numbers{"Àireamhan"}
+        ss{"Briseadh rosgrainn às dèidh giorr."}
     }
     Languages{
         aa{"Afar"}
@@ -291,6 +294,7 @@ gd{
         kcg{"Tyap"}
         kde{"Makonde"}
         kea{"Kabuverdianu"}
+        kek{"Qʼeqchiʼ"}
         ken{"Kenyang"}
         kfo{"Koro"}
         kg{"Kongo"}
@@ -524,6 +528,7 @@ gd{
         ses{"Koyraboro Senni"}
         sg{"Sango"}
         sga{"Seann-Ghaeilge"}
+        sgs{"Samogitis"}
         sh{"Sèirb-Chròthaisis"}
         shi{"Tachelhit"}
         shn{"Shan"}
@@ -555,6 +560,7 @@ gd{
         suk{"Sukuma"}
         sus{"Susu"}
         sux{"Cànan Sumer"}
+        suz{"Sunwar"}
         sv{"Suainis"}
         sw{"Kiswahili"}
         sw_CD{"Kiswahili na Congo"}
@@ -657,6 +663,12 @@ gd{
         zxx{"Susbaint nach eil ’na chànan"}
         zza{"Zazaki"}
     }
+    Languages%core{
+        ku{"Cùrdais"}
+    }
+    Languages%extension{
+        ku{"Kurmanji"}
+    }
     Languages%long{
         zh_Hans{"Mandairinis Shimplichte"}
         zh_Hant{"Mandairinis Thradaiseanta"}
@@ -687,6 +699,7 @@ gd{
         Bass{"Bassa Vah"}
         Batk{"Batak"}
         Beng{"Beangailis"}
+        Berf{"Beria Erfe"}
         Bhks{"Bhaiksuki"}
         Blis{"Comharran Bliss"}
         Bopo{"Bopomofo"}
@@ -821,6 +834,7 @@ gd{
         Shaw{"Sgrìobhadh an t-Seathaich"}
         Shrd{"Sharada"}
         Sidd{"Siddham"}
+        Sidt{"Sideatach"}
         Sind{"Khudawadi"}
         Sinh{"Sinhala"}
         Sogd{"Sogdianais"}
@@ -841,6 +855,7 @@ gd{
         Taml{"Taimil"}
         Tang{"Tangut"}
         Tavt{"Tai Viet"}
+        Tayo{"Tai Yo"}
         Telu{"Telugu"}
         Teng{"Tengwar"}
         Tfng{"Tifinagh"}
@@ -851,6 +866,7 @@ gd{
         Tirh{"Tirhuta"}
         Tnsa{"Tangsa"}
         Todr{"Todhri"}
+        Tols{"Tolong Siki"}
         Tutg{"Tulu-Tigalari"}
         Ugar{"Ugariticeach"}
         Vaii{"Vai"}
@@ -877,7 +893,7 @@ gd{
     }
     Types{
         calendar{
-            buddhist{"Am Mìosachan Budach"}
+            buddhist{"Am Mìosachan Bùdach"}
             chinese{"Am Mìosachan Sìneach"}
             coptic{"Am Mìosachan Coptach"}
             dangi{"Mìosachan Dangi"}
@@ -896,18 +912,38 @@ gd{
             persian{"Am Mìosachan Pearsach"}
             roc{"Mìosachan Poblachd na Sìne"}
         }
+        calendar%core{
+            buddhist{"Bùdach"}
+            chinese{"Sìneach"}
+            coptic{"Coptach"}
+            dangi{"Dangi"}
+            ethiopic{"Itiopach"}
+            ethiopic-amete-alem{"Amete Alem Itiopach"}
+            gregorian{"Griogarach"}
+            hebrew{"Eabhrach"}
+            indian{"Nàiseanta nan Innseachan"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (clàrach, linn sìobhalta)"}
+            islamic-tbla{"Hijri (clàrach, linn reul-eòlach)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            japanese{"Seapanach"}
+            persian{"Pearsach"}
+            roc{"Poblachd na Sìne"}
+        }
         cf{
             account{"Fòrmat airgeadra na cunntasachd"}
             standard{"Fòrmat stannardach an airgeadra"}
         }
+        cf%core{
+            account{"Cunntasachd"}
+            standard{"Stannardach"}
+        }
         collation{
-            big5han{"Òrdugh seòrsachaidh na Sìnise Tradaiseanta - Big5"}
             compat{"Òrdugh seòrsachaidh roimhe a chum co-chòrdalachd"}
             dictionary{"Òrdugh seòrsachaidh an fhaclair"}
             ducet{"Òrdugh seòrsachaidh Unicode bunaiteach"}
             emoji{"Òrdugh seòrsachaidh Emoji"}
             eor{"Òrdugh seòrsachaidh Eòrpach"}
-            gb2312han{"Òrdugh seòrsachaidh na Sìnise Simplichte - GB2312"}
             phonebook{"Òrdugh seòrsachaidh nan leabhraichean-fòn"}
             pinyin{"Òrdugh seòrsachaidh Pinyin"}
             search{"Lorg coitcheann"}
@@ -918,10 +954,29 @@ gd{
             unihan{"Òrdugh an fhreumha ’s nan stràcan"}
             zhuyin{"Òrdugh seòrsachaidh Zhuyin"}
         }
+        collation%core{
+            compat{"Co-chòrdalachd"}
+            dictionary{"Faclair"}
+            ducet{"Unicode bunaiteach"}
+            phonebook{"Leabhar-fòn"}
+            phonetic{"Tar-litreachadh"}
+            pinyin{"Pinyin"}
+            search{"Coitcheann"}
+            standard{"Stannardach"}
+            stroke{"Stràcan"}
+            traditional{"Tradaiseanta"}
+            unihan{"Freumh is stràcan"}
+            zhuyin{"Zhuyin"}
+        }
         d0{
             fwidth{"Làn-Leud"}
             hwidth{"Leth-Leud"}
             npinyin{"Àireamhach"}
+        }
+        em%core{
+            default{"Bunaiteach"}
+            emoji{"Emoji"}
+            text{"Teacsa"}
         }
         hc{
             h11{"Cleoc 12 uair a thìde (0–11)"}
@@ -929,10 +984,27 @@ gd{
             h23{"Cleoc 24 uair a thìde (0–23)"}
             h24{"Cleoc 24 uair a thìde (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Brisidhean-loidhe fuasgailte"}
             normal{"Brisidhean-loidhe àbhaisteach"}
             strict{"Brisidhean-loidhe teanna"}
+        }
+        lb%core{
+            loose{"Fuasgailte"}
+            normal{"Àbhaisteach"}
+            strict{"Teann"}
+        }
+        lw%core{
+            breakall{"Bris na h-uile"}
+            keepall{"Cùm na h-uile"}
+            normal{"Àbhaisteach"}
+            phrase{"Cùm ann an abairt"}
         }
         m0{
             bgn{"Tar-litreachadh BGN nan Stàitean Aonaichte"}
@@ -942,6 +1014,11 @@ gd{
             metric{"Tomhas meatrach"}
             uksystem{"Tomhas impireil"}
             ussystem{"Tomhas nan Stàitean Aonaichte"}
+        }
+        ms%core{
+            metric{"Meatrach"}
+            uksystem{"RA"}
+            ussystem{"SA"}
         }
         numbers{
             ahom{"Àireamhan Ahom"}
@@ -1031,9 +1108,14 @@ gd{
             tibt{"Àireamhan na Tibeitise"}
             tirh{"Àireamhan Tirhuta"}
             tnsa{"Àireamhan Tangsa"}
+            tols{"Àireamhan Tolong Siki"}
             vaii{"Àireamhan Vai"}
             wara{"Àireamhan Warang Citi"}
             wcho{"Àireamhan Wancho"}
+        }
+        ss%core{
+            none{"Dheth"}
+            standard{"Air"}
         }
     }
     Variants{

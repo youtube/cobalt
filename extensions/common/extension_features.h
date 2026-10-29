@@ -286,18 +286,6 @@ BASE_DECLARE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch);
 // memory leaks from stale cache entries and false-positive corruption reports.
 BASE_DECLARE_FEATURE(kExtensionContentVerificationUsesExtensionRoot);
 
-// Addresses content verification race conditions during extension updates. When
-// an extension updates, a content verification job for a previous version can
-// sometimes run *after* the new version has been loaded. This can lead to two
-// issues:
-//   1) the old job might be given the hashes for the new version, or
-//   2) it might unnecessarily re-create hashes for the old version.
-//
-// When this feature is enabled, the verification job will strictly use its
-// original extension version for all hash lookups and creations, preventing
-// these inconsistencies.
-BASE_DECLARE_FEATURE(kContentVerifyJobUseJobVersionForHashing);
-
 // Enables the shouldShowPromotion API to determine which promotion to show for
 // Chrome Enterprise on CWS.
 BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
@@ -322,6 +310,14 @@ BASE_DECLARE_FEATURE(kWebRequestSecurityInfo);
 // EventRouter. If disabled, they're instead persisted by the custom mechanism
 // in WebRequestEventRouter.
 BASE_DECLARE_FEATURE(kWebRequestPersistFilteredEventsViaEventRouter);
+
+// When enabled, optimizes WebRequest proxying by strictly limiting it to
+// requests that are subject to interception. This ensures that the 'webview'
+// permission only triggers proxying for its own guest frames (e.g., <webview>
+// or Controlled Frame), rather than globally proxying all requests. This
+// avoids unnecessary performance overhead and restores navigation
+// optimizations like preconnect.
+BASE_DECLARE_FEATURE(kOptimizeWebRequestProxy);
 
 }  // namespace extensions_features
 

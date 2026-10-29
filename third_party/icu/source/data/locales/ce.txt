@@ -15,7 +15,9 @@ ce{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -223,20 +225,19 @@ ce{
             }
             eras{
                 abbreviated{
-                    "в. э. тӀ. я",
-                    "в. э",
+                    0{"в. э. тӀ. я"}
+                    1{"в. э"}
                 }
                 abbreviated%variant{
-                    "МАССО",
-                    "в. э",
+                    0{"МАССО"}
                 }
                 wide{
-                    "Ӏийса пайхамар вина де кхачале",
-                    "Ӏийса пайхамар вина дийнахь дуьйна",
+                    0{"Ӏийса пайхамар вина де кхачале"}
+                    1{"Ӏийса пайхамар вина дийнахь дуьйна"}
                 }
                 wide%variant{
-                    "вайн эра тӀеяле",
-                    "вайн эрехь",
+                    0{"вайн эра тӀеяле"}
+                    1{"вайн эрехь"}
                 }
             }
             monthNames{

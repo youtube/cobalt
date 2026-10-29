@@ -69,11 +69,6 @@ sw_KE{
         "meta:Afghanistan"{
             ls{"Saa za Afghanistani"}
         }
-        "meta:Africa_Western"{
-            ld{"Saa za Majira ya Joto za Afrika Magharibi"}
-            lg{"Saa za Afrika Magharibi"}
-            ls{"Saa za Wastani za Afrika Magharibi"}
-        }
         "meta:Amazon"{
             ld{"Saa za Majira ya Joto za Amazon"}
             lg{"Saa za Amazon"}

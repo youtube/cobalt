@@ -433,7 +433,7 @@ message BoundingRect {
 // Note: ScrollerInfo is populated for ANNOTATED_PAGE_CONTENT_MODE_DEFAULT. The
 // rest of the fields are only populated for
 // ANNOTATED_PAGE_CONTENT_MODE_ACTIONABLE_ELEMENTS.
-// Next ID: 18
+// Next ID: 21
 message InteractionInfo {
   // Set if the content node is scrollable.
   ScrollerInfo scroller_info = 12 [features = { field_presence: EXPLICIT }];
@@ -467,7 +467,10 @@ message InteractionInfo {
     features = { field_presence: EXPLICIT }
   ];
 
-  // Whether the content node is focusable.
+  // Whether the content node is focusable. See also `is_tabbable`.
+  // A node can be focusable even if it is not tabbable. For
+  // example, every option in a long listbox might be focusable, but
+  // only reachable using the arrow keys.
   bool is_focusable = 7 [features = { field_presence: EXPLICIT }];
 
   // Whether the content node is draggable.
@@ -519,6 +522,21 @@ message InteractionInfo {
   //
   // TODO(linnan): Deprecate is_disabled in favour of the list of reasons.
   repeated InteractionDisabledReason interaction_disabled_reasons = 17;
+
+  // Whether the content node is tabbable. This is determined by whether the
+  // node is focusable and has a non-negative computed tab index (usually 0,
+  // which indicates it fits into the tab cycle in its natural order).
+  bool is_tabbable = 18 [features = { field_presence: EXPLICIT }];
+
+  // Whether the content node has the aria-activedescendant attribute set. This
+  // attribute is used to indicate which element in a set of child elements is
+  // currently active.
+  bool has_aria_activedescendant = 19 [features = { field_presence: EXPLICIT }];
+
+  // Secondary-action targets for a container widget. This lets APC represent
+  // cases like split buttons or tabs with close buttons where both the
+  // container and the secondary action element are actionable.
+  repeated int32 aria_action_target_node_ids = 20;
 
   reserved 8, 1, 2, 11;
 }
@@ -711,6 +729,11 @@ message SelectOption {
 
 message TableData {
   // The name of the table, coming from the caption.
+  // Note: this field has some quirks for backwards-compatibility reasons:
+  // 1. It is only populated if the table name is an immediate child of the
+  //    table element. Table names further down in the tree are skipped, leaving
+  //    this field empty.
+  // 2. The table name also will appear in a separate child text node.
   string table_name = 1 [features = { field_presence: EXPLICIT }];
 
   reserved 2, 3, 4;
@@ -2150,7 +2173,7 @@ enum ContentAttributeType {
 }
 
 // The reason why a node is clickable.
-// Next ID: 15
+// Next ID: 17
 enum ClickabilityReason {
   // The node is a native form control.
   CLICKABILITY_REASON_CLICKABLE_CONTROL = 0;
@@ -2209,10 +2232,18 @@ enum ClickabilityReason {
   // in Chrome to know what properties the rule might effect, so this reason
   // just indicates that a :hover rule is defined.
   CLICKABILITY_REASON_HOVER_PSEUDO_CLASS = 14;
+
+  // The node has the aria-checked or aria-pressed attribute indicating it can
+  // be toggled.
+  CLICKABILITY_REASON_ARIA_TOGGLE = 15;
+
+  // The node has the aria-selected attribute indicating it can be selected or
+  // unselected.
+  CLICKABILITY_REASON_ARIA_SELECTABLE = 16;
 }
 
 // Provides hints that indicate that interaction with this node is disabled.
-// Next ID: 4
+// Next ID: 6
 enum InteractionDisabledReason {
   INTERACTION_DISABLED_REASON_UNSPECIFIED = 0;
 
@@ -2224,6 +2255,13 @@ enum InteractionDisabledReason {
 
   // The node has the style `cursor: not-allowed`.
   INTERACTION_DISABLED_REASON_CURSOR_NOT_ALLOWED = 3;
+
+  // The node is hidden from the accessibility tree via `aria-hidden="true"`
+  // on an ancestor node or itself.
+  INTERACTION_DISABLED_REASON_ARIA_HIDDEN = 4;
+
+  // The node has an ARIA Role of `presentation` or `none`.
+  INTERACTION_DISABLED_REASON_ARIA_ROLE_PRESENTATIONAL = 5;
 }
 
 // Next ID: 5

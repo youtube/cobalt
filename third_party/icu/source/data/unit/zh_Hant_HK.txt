@@ -49,6 +49,18 @@ zh_Hant_HK{
                 dnam{"每公升毫摩爾"}
                 other{"每公升 {0} 毫摩爾"}
             }
+            part{
+                dnam{"等份"}
+                other{"{0} 等份"}
+            }
+            part-per-1e6{
+                dnam{"百萬分比"}
+                other{"{0} 百萬分比"}
+            }
+            part-per-1e9{
+                dnam{"十億分比"}
+                other{"十億分之{0}"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -106,12 +118,24 @@ zh_Hant_HK{
             }
         }
         energy{
+            becquerel{
+                dnam{"貝克勒爾"}
+                other{"{0} 貝克勒爾"}
+            }
             british-thermal-unit{
                 dnam{"英制熱量單位"}
                 other{"{0} 英制熱量單位"}
             }
+            calorie-it{
+                dnam{"國際蒸汽表卡路里"}
+                other{"{0} 國際蒸汽表卡路里"}
+            }
             foodcalorie{
                 other{"{0} 卡路里"}
+            }
+            gray{
+                dnam{"戈瑞"}
+                other{"{0} 戈瑞"}
             }
             kilocalorie{
                 dnam{"千卡"}
@@ -119,6 +143,10 @@ zh_Hant_HK{
             }
             kilojoule{
                 other{"{0} 千焦"}
+            }
+            sievert{
+                dnam{"希沃特"}
+                other{"{0} 希沃特"}
             }
         }
         force{
@@ -235,6 +263,10 @@ zh_Hant_HK{
             cubic-meter{
                 per{"{0} 每立方米"}
             }
+            fluid-ounce-metric{
+                dnam{"公制液安士"}
+                other{"{0} 公制液安士"}
+            }
             gallon{
                 per{"{0} 每加侖"}
             }
@@ -247,6 +279,10 @@ zh_Hant_HK{
         angle{
             revolution{
                 other{"{0} 周"}
+            }
+            steradian{
+                dnam{"球面度"}
+                other{"{0}球面度"}
             }
         }
         area{
@@ -261,11 +297,22 @@ zh_Hant_HK{
             item{
                 other{"{0} 個項目"}
             }
-            permillion{
+            katal{
+                other{"{0}開特"}
+            }
+            ofglucose{
+                other{"{0}葡萄糖"}
+            }
+            part{
+                dnam{"等份"}
+                other{"{0}等份"}
+            }
+            part-per-1e6{
+                dnam{"百萬分比"}
                 other{"{0} ppm"}
             }
-            portion-per-1e9{
-                dnam{"濃度/十億"}
+            part-per-1e9{
+                dnam{"ppb"}
             }
         }
         consumption{
@@ -317,12 +364,41 @@ zh_Hant_HK{
                 other{"{0}年"}
             }
         }
+        electric{
+            coulomb{
+                other{"{0} 庫侖"}
+            }
+            farad{
+                other{"{0} 法拉"}
+            }
+        }
         energy{
+            becquerel{
+                dnam{"貝克"}
+                other{"{0}貝克"}
+            }
+            calorie-it{
+                other{"{0} 卡路里-IT"}
+            }
             foodcalorie{
                 other{"{0}千卡"}
             }
+            gray{
+                dnam{"戈"}
+                other{"{0}戈"}
+            }
             kilojoule{
                 other{"{0}千焦"}
+            }
+            sievert{
+                dnam{"希"}
+                other{"{0}希"}
+            }
+        }
+        force{
+            kilogram-force{
+                dnam{"公斤力"}
+                other{"{0}公斤力"}
             }
         }
         length{
@@ -345,6 +421,16 @@ zh_Hant_HK{
         light{
             candela{
                 other{"{0}坎德拉"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"特斯拉"}
+                other{"{0}特斯拉"}
+            }
+            weber{
+                dnam{"韋伯"}
+                other{"{0}韋伯"}
             }
         }
         mass{
@@ -390,8 +476,8 @@ zh_Hant_HK{
             fluid-ounce-imperial{
                 other{"{0}英液安士"}
             }
-            gallon{
-                per{"{0} 每加侖"}
+            fluid-ounce-metric{
+                dnam{"公制液穴士"}
             }
             liter{
                 per{"{0} 每升"}
@@ -415,6 +501,10 @@ zh_Hant_HK{
             revolution{
                 dnam{"周"}
                 other{"{0} 周"}
+            }
+            steradian{
+                dnam{"球面度"}
+                other{"{0}球面度"}
             }
         }
         area{
@@ -463,9 +553,26 @@ zh_Hant_HK{
             10p6{"{0} 百萬米"}
         }
         concentr{
+            katal{
+                other{"{0}開特"}
+            }
             millimole-per-liter{
                 dnam{"毫摩爾/公升"}
                 other{"{0} 毫摩爾/公升"}
+            }
+            ofglucose{
+                other{"{0}葡萄糖"}
+            }
+            part{
+                dnam{"等份"}
+                other{"{0}等份"}
+            }
+            part-per-1e6{
+                dnam{"百萬分比"}
+                other{"{0} 百萬分比"}
+            }
+            part-per-1e9{
+                dnam{"十億分比"}
             }
         }
         consumption{
@@ -515,15 +622,37 @@ zh_Hant_HK{
             }
         }
         energy{
+            becquerel{
+                dnam{"貝克"}
+                other{"{0} 貝克"}
+            }
+            calorie-it{
+                dnam{"國際蒸汽表卡"}
+                other{"{0} 國際蒸汽表卡"}
+            }
             foodcalorie{
                 dnam{"千卡"}
                 other{"{0} 千卡"}
+            }
+            gray{
+                dnam{"戈"}
+                other{"{0} 戈"}
             }
             joule{
                 other{"{0} 焦耳"}
             }
             kilojoule{
                 dnam{"千焦"}
+            }
+            sievert{
+                dnam{"希"}
+                other{"{0} 希"}
+            }
+        }
+        force{
+            kilogram-force{
+                dnam{"公斤力"}
+                other{"{0}公斤力"}
             }
         }
         length{
@@ -576,6 +705,16 @@ zh_Hant_HK{
             candela{
                 dnam{"坎德拉"}
                 other{"{0} 坎德拉"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"特斯拉"}
+                other{"{0}特斯拉"}
+            }
+            weber{
+                dnam{"韋伯"}
+                other{"{0}韋伯"}
             }
         }
         mass{
@@ -687,6 +826,10 @@ zh_Hant_HK{
             fluid-ounce-imperial{
                 dnam{"英制液安士"}
                 other{"{0} 英制液安士"}
+            }
+            fluid-ounce-metric{
+                dnam{"公制液安士"}
+                other{"{0} 公制液安士"}
             }
             gallon{
                 per{"{0} 每加侖"}

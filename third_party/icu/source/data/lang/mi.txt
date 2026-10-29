@@ -114,7 +114,7 @@ mi{
         en_US{"Ingarihi Amerikana"}
         eo{"Eheperāto"}
         es{"Pāniora"}
-        es_419{"Pāniora Amerikana ki te Tonga"}
+        es_419{"Pāniora o Amerika Rātini"}
         es_ES{"Pāniora Ūropi"}
         es_MX{"Pāniora Mehikana"}
         et{"Etōniana"}
@@ -532,10 +532,13 @@ mi{
             islamic{"Maramataka Hitiuri"}
             islamic-civil{"Maramataka Hitiuri (tūtohi, wā o naiānei)"}
             islamic-umalqura{"Maramataka Hitiuri (Uma ara Kura)"}
-            iso8601{"Maramataka ISO-8601"}
+            iso8601{"Maramataka Pākehā (Tau Tuatahi)"}
             japanese{"Maramataka Hapanihi"}
             persian{"Maramataka Pāhia"}
             roc{"Maramataka Minguo"}
+        }
+        calendar%core{
+            gregorian{"Pākehā"}
         }
         cf{
             account{"Hōputu Moni Mahi Kaute"}
@@ -545,6 +548,9 @@ mi{
             ducet{"Raupapa Kōmaka Unicode Taunoa"}
             search{"Rapunga Arowhānui"}
             standard{"Raupapa Kōmaka Arowhānui"}
+        }
+        collation%core{
+            standard{"Arowhānui"}
         }
         hc{
             h11{"Pūnaha Haora 12 (0–11)"}

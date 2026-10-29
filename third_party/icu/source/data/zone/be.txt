@@ -270,6 +270,9 @@ be{
         "America:Costa_Rica"{
             ec{"Коста-Рыка"}
         }
+        "America:Coyhaique"{
+            ec{"Кайайке"}
+        }
         "America:Creston"{
             ec{"Крэстан"}
         }
@@ -1167,7 +1170,7 @@ be{
             ec{"Эфатэ"}
         }
         "Pacific:Enderbury"{
-            ec{"Эндэрберы"}
+            ec{"Кантон"}
         }
         "Pacific:Fakaofo"{
             ec{"Факаофа"}
@@ -1192,9 +1195,6 @@ be{
         }
         "Pacific:Honolulu"{
             ec{"Ганалулу"}
-        }
-        "Pacific:Kanton"{
-            ec{"Кантон"}
         }
         "Pacific:Kiritimati"{
             ec{"Кірыцімаці"}
@@ -1278,9 +1278,7 @@ be{
             ls{"Паўднёваафрыканскі час"}
         }
         "meta:Africa_Western"{
-            ld{"Заходнеафрыканскі летні час"}
-            lg{"Заходнеафрыканскі час"}
-            ls{"Заходнеафрыканскі стандартны час"}
+            ls{"Заходнеафрыканскі час"}
         }
         "meta:Alaska"{
             ld{"Летні час Аляскі"}
@@ -1518,6 +1516,9 @@ be{
         }
         "meta:Guyana"{
             ls{"Час Гаяны"}
+        }
+        "meta:Hawaii"{
+            ls{"Гавайска-Алеуцкі стандартны час"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Гавайска-Алеуцкі летні час"}

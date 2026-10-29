@@ -270,6 +270,9 @@ kk{
         "America:Costa_Rica"{
             ec{"Коста-Рика"}
         }
+        "America:Coyhaique"{
+            ec{"Койайке"}
+        }
         "America:Creston"{
             ec{"Крестон"}
         }
@@ -1167,7 +1170,7 @@ kk{
             ec{"Эфате"}
         }
         "Pacific:Enderbury"{
-            ec{"Эндербери"}
+            ec{"Кантон"}
         }
         "Pacific:Fakaofo"{
             ec{"Факаофо"}
@@ -1192,9 +1195,6 @@ kk{
         }
         "Pacific:Honolulu"{
             ec{"Гонолулу"}
-        }
-        "Pacific:Kanton"{
-            ec{"Кантон"}
         }
         "Pacific:Kiritimati"{
             ec{"Киритимати"}
@@ -1278,9 +1278,7 @@ kk{
             ls{"Оңтүстік Африка стандартты уақыты"}
         }
         "meta:Africa_Western"{
-            ld{"Батыс Африка жазғы уақыты"}
-            lg{"Батыс Африка уақыты"}
-            ls{"Батыс Африка стандартты уақыты"}
+            ls{"Батыс Африка уақыты"}
         }
         "meta:Alaska"{
             ld{"Аляска жазғы уақыты"}
@@ -1521,6 +1519,9 @@ kk{
         }
         "meta:Guyana"{
             ls{"Гайана уақыты"}
+        }
+        "meta:Hawaii"{
+            ls{"Гавай және Алеут аралдары стандартты уақыты"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Гавай және Алеут аралдары жазғы уақыты"}

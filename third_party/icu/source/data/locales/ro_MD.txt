@@ -71,8 +71,7 @@ ro_MD{
             }
             eras{
                 abbreviated%variant{
-                    "î.e.n.",
-                    "e.n.",
+                    0{"î.e.n."}
                 }
             }
             quarters{

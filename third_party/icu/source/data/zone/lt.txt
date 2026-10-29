@@ -249,6 +249,9 @@ lt{
         "America:Costa_Rica"{
             ec{"Kosta Rika"}
         }
+        "America:Coyhaique"{
+            ec{"Kojhaikė"}
+        }
         "America:Creston"{
             ec{"Krestonas"}
         }
@@ -1004,9 +1007,6 @@ lt{
         "Europe:Tallinn"{
             ec{"Talinas"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovskas"}
         }
@@ -1083,7 +1083,7 @@ lt{
             ec{"Efatė"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderburis"}
+            ec{"Kantono sala"}
         }
         "Pacific:Fakaofo"{
             ec{"Fakaofas"}
@@ -1184,9 +1184,7 @@ lt{
             ls{"Pietų Afrikos laikas"}
         }
         "meta:Africa_Western"{
-            ld{"Vakarų Afrikos vasaros laikas"}
-            lg{"Vakarų Afrikos laikas"}
-            ls{"Vakarų Afrikos žiemos laikas"}
+            ls{"Vakarų Afrikos laikas"}
         }
         "meta:Alaska"{
             ld{"Aliaskos vasaros laikas"}
@@ -1450,6 +1448,9 @@ lt{
         }
         "meta:Guyana"{
             ls{"Gajanos laikas"}
+        }
+        "meta:Hawaii"{
+            ls{"Havajų–Aleutų žiemos laikas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havajų–Aleutų vasaros laikas"}
@@ -1748,6 +1749,11 @@ lt{
         }
         "meta:Truk"{
             ls{"Čuko laikas"}
+        }
+        "meta:Turkey"{
+            ld{"Turkijos vasaros laikas"}
+            lg{"Turkijos laikas"}
+            ls{"Turkijos žiemos laikas"}
         }
         "meta:Turkmenistan"{
             ld{"Turkmėnistano vasaros laikas"}

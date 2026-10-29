@@ -21,11 +21,11 @@ br{
         ady{"adygeieg"}
         ae{"avesteg"}
         aeb{"arabeg Tunizia"}
-        af{"afrikaans"}
+        af{"afrikaaneg"}
         afh{"afrihili"}
         agq{"aghem"}
         ain{"ainoueg"}
-        ak{"akan"}
+        ak{"akaneg"}
         akk{"akadeg"}
         akz{"alabamaeg"}
         ale{"aleouteg"}
@@ -57,7 +57,7 @@ br{
         ay{"aymara"}
         az{"azerbaidjaneg"}
         ba{"bachkir"}
-        bal{"baloutchi"}
+        bal{"baloutcheg"}
         ban{"balineg"}
         bar{"bavarieg"}
         bas{"basaa"}
@@ -67,13 +67,14 @@ br{
         bez{"bena"}
         bg{"bulgareg"}
         bgn{"baloutchi ar Cʼhornôg"}
-        bho{"bhojpuri"}
+        bho{"bhojpureg"}
         bi{"bislama"}
         bik{"bikol"}
         bin{"bini"}
         bla{"siksika"}
+        blo{"aniieg"}
         bm{"bambara"}
-        bn{"bengali"}
+        bn{"bengaleg"}
         bo{"tibetaneg"}
         br{"brezhoneg"}
         bra{"braj"}
@@ -91,7 +92,7 @@ br{
         cch{"atsam"}
         ccp{"chakmaeg"}
         ce{"tchetcheneg"}
-        ceb{"cebuano"}
+        ceb{"cebuanoeg"}
         cgg{"chigaeg"}
         ch{"chamorru"}
         chb{"chibcha"}
@@ -99,7 +100,7 @@ br{
         chm{"marieg"}
         cho{"choktaw"}
         chp{"chipewyan"}
-        chr{"cherokee"}
+        chr{"cherokieg"}
         chy{"cheyenne"}
         ckb{"kurdeg sorani"}
         clc{"chilkotineg"}
@@ -118,7 +119,7 @@ br{
         csb{"kachoubeg"}
         csw{"krieg ar gwernioù"}
         cu{"slavoneg iliz"}
-        cv{"tchouvatch"}
+        cv{"tchouvatcheg"}
         cy{"kembraeg"}
         da{"daneg"}
         dak{"dakota"}
@@ -165,7 +166,7 @@ br{
         fa_AF{"dareg"}
         fan{"fang"}
         fat{"fanti"}
-        ff{"fula"}
+        ff{"fulaeg"}
         fi{"finneg"}
         fil{"filipineg"}
         fit{"finneg traoñienn an Torne"}
@@ -184,7 +185,7 @@ br{
         fur{"frioulaneg"}
         fy{"frizeg ar Cʼhornôg"}
         ga{"iwerzhoneg"}
-        gaa{"ga"}
+        gaa{"gaeg"}
         gag{"gagaouzeg"}
         gan{"sinaeg Gan"}
         gay{"gayo"}
@@ -201,17 +202,18 @@ br{
         grb{"grebo"}
         grc{"hencʼhresianeg"}
         gsw{"alamaneg Suis"}
-        gu{"gujarati"}
+        gu{"gujarateg"}
         guz{"gusiieg"}
         gv{"manaveg"}
         gwi{"gwich’in"}
-        ha{"haousa"}
+        ha{"haousaeg"}
         hai{"haideg"}
         hak{"sinaeg Hakka"}
         haw{"hawaieg"}
         hax{"haideg ar Su"}
         he{"hebraeg"}
-        hi{"hindi"}
+        hi{"hindieg"}
+        hi_Latn{"hindieg (latin)"}
         hil{"hiligaynon"}
         hmn{"hmong"}
         ho{"hiri motu"}
@@ -224,12 +226,12 @@ br{
         hur{"halkomelemeg"}
         hy{"armenianeg"}
         hz{"herero"}
-        ia{"interlingua"}
+        ia{"interlinguaeg"}
         iba{"iban"}
         ibb{"ibibio"}
         id{"indonezeg"}
         ie{"interlingue"}
-        ig{"igbo"}
+        ig{"igboeg"}
         ii{"yieg Sichuan"}
         ik{"inupiaq"}
         ikt{"inuktitut Kanada ar Cʼhornôg"}
@@ -265,11 +267,11 @@ br{
         khq{"koyra chiini"}
         ki{"kikuyu"}
         kj{"kwanyama"}
-        kk{"kazak"}
+        kk{"kazakeg"}
         kkj{"kakoeg"}
         kl{"greunlandeg"}
         kln{"kalendjineg"}
-        km{"khmer"}
+        km{"khmereg"}
         kmb{"kimbundu"}
         kn{"kanareg"}
         ko{"koreaneg"}
@@ -281,7 +283,7 @@ br{
         kri{"krio"}
         krl{"karelieg"}
         kru{"kurukh"}
-        ks{"kashmiri"}
+        ks{"kashmireg"}
         ksb{"shambala"}
         ksf{"bafiaeg"}
         ksh{"koluneg"}
@@ -291,7 +293,7 @@ br{
         kv{"komieg"}
         kw{"kerneveureg"}
         kwk{"kwakwaleg"}
-        ky{"kirgiz"}
+        ky{"kirgizeg"}
         la{"latin"}
         lad{"ladino"}
         lag{"langi"}
@@ -340,14 +342,14 @@ br{
         mic{"mikmakeg"}
         min{"minangkabau"}
         mk{"makedoneg"}
-        ml{"malayalam"}
+        ml{"malayalameg"}
         mn{"mongoleg"}
         mnc{"manchou"}
         mni{"manipuri"}
         moe{"montagneg"}
         moh{"mohawk"}
         mos{"more"}
-        mr{"marathi"}
+        mr{"maratheg"}
         mrj{"marieg ar Cʼhornôg"}
         ms{"malayseg"}
         mt{"malteg"}
@@ -383,7 +385,7 @@ br{
         nov{"novial"}
         nqo{"nkoeg"}
         nr{"ndebele ar Su"}
-        nso{"sotho an Norzh"}
+        nso{"sothoeg an Norzh"}
         nus{"nouereg"}
         nv{"navacʼho"}
         nwc{"newari klasel"}
@@ -399,11 +401,11 @@ br{
         ojw{"ojibweg ar Cʼhornôg"}
         oka{"okanaganeg"}
         om{"oromoeg"}
-        or{"oriya"}
+        or{"oriyaeg"}
         os{"oseteg"}
         osa{"osage"}
         ota{"turkeg otoman"}
-        pa{"punjabi"}
+        pa{"punjabeg"}
         pag{"pangasinan"}
         pal{"pahlavi"}
         pam{"pampanga"}
@@ -423,14 +425,14 @@ br{
         pqm{"malisiteg-pasamawkodieg"}
         prg{"henbruseg"}
         pro{"henbrovañseg"}
-        ps{"pachto"}
+        ps{"pachtoeg"}
         pt{"portugaleg"}
         pt_BR{"portugaleg Brazil"}
         pt_PT{"portugaleg Europa"}
         qu{"kechuaeg"}
         quc{"kʼicheʼ"}
         qug{"kichuaeg Chimborazo"}
-        raj{"rajasthani"}
+        raj{"rajasthaneg"}
         rap{"rapanui"}
         rar{"rarotonga"}
         rgn{"romagnoleg"}
@@ -480,7 +482,7 @@ br{
         sms{"sámi Skolt"}
         sn{"shona"}
         snk{"soninke"}
-        so{"somali"}
+        so{"somalieg"}
         sog{"sogdieg"}
         sq{"albaneg"}
         sr{"serbeg"}
@@ -488,12 +490,12 @@ br{
         srr{"serer"}
         ss{"swati"}
         ssy{"sahoeg"}
-        st{"sotho ar Su"}
+        st{"sothoeg ar Su"}
         su{"sundaneg"}
         suk{"sukuma"}
         sux{"sumereg"}
         sv{"svedeg"}
-        sw{"swahili"}
+        sw{"swahilieg"}
         sw_CD{"swahili Kongo"}
         swb{"komoreg"}
         syc{"sirieg klasel"}
@@ -507,9 +509,9 @@ br{
         teo{"tesoeg"}
         ter{"tereno"}
         tet{"tetum"}
-        tg{"tadjik"}
-        th{"thai"}
-        ti{"tigrigna"}
+        tg{"tadjikeg"}
+        th{"thaieg"}
+        ti{"tigrignaeg"}
         tig{"tigreaneg"}
         tiv{"tiv"}
         tk{"turkmeneg"}
@@ -518,8 +520,8 @@ br{
         tlh{"klingon"}
         tli{"tinglit"}
         tmh{"tamacheg"}
-        tn{"tswana"}
-        to{"tonga"}
+        tn{"tswanaeg"}
+        to{"tongaeg"}
         tog{"nyasa tonga"}
         tok{"toki pona"}
         tpi{"tok pisin"}
@@ -528,7 +530,7 @@ br{
         trv{"taroko"}
         ts{"tsonga"}
         tsi{"tsimshian"}
-        tt{"tatar"}
+        tt{"tatareg"}
         ttm{"tutchoneg an Norzh"}
         tum{"tumbuka"}
         tvl{"tuvalu"}
@@ -543,7 +545,7 @@ br{
         uk{"ukraineg"}
         umb{"umbundu"}
         und{"yezh dianav"}
-        ur{"ourdou"}
+        ur{"ourdoueg"}
         uz{"ouzbekeg"}
         vai{"vai"}
         ve{"venda"}
@@ -560,10 +562,10 @@ br{
         wal{"walamo"}
         war{"waray"}
         was{"washo"}
-        wo{"wolof"}
+        wo{"wolofeg"}
         wuu{"sinaeg Wu"}
         xal{"kalmouk"}
-        xh{"xhosa"}
+        xh{"xhosaeg"}
         xmf{"megreleg"}
         xog{"sogaeg"}
         yao{"yao"}
@@ -571,7 +573,7 @@ br{
         yav{"yangben"}
         ybb{"yemba"}
         yi{"yiddish"}
-        yo{"yorouba"}
+        yo{"yoroubaeg"}
         yrl{"nengatoueg"}
         yue{"kantoneg"}
         za{"zhuang"}
@@ -588,6 +590,12 @@ br{
         zxx{"diyezh"}
         zza{"zazakeg"}
     }
+    Languages%core{
+        ku{"kurdeg"}
+    }
+    Languages%extension{
+        ku{"kurmandji"}
+    }
     Languages%long{
         zh_Hans{"sinaeg mandarinek eeunaet"}
         zh_Hant{"sinaeg mandarinek hengounel"}
@@ -601,6 +609,9 @@ br{
         az{"azeri"}
         en_GB{"saozneg RU"}
         en_US{"saozneg SU"}
+    }
+    Languages%variant{
+        hi_Latn{"Hinglish"}
     }
     Scripts{
         Adlm{"adlam"}
@@ -662,6 +673,7 @@ br{
         Mong{"mongolek"}
         Mymr{"myanmar"}
         Narb{"henarabek an Norzh"}
+        Nkoo{"nkoek"}
         Ogam{"ogam"}
         Orya{"oriya"}
         Phnx{"fenikianek"}
@@ -712,17 +724,31 @@ br{
             persian{"deiziadur persek"}
             roc{"deiziadur Republik Sina"}
         }
+        calendar%core{
+            buddhist{"boudaat"}
+            chinese{"sinaat"}
+            coptic{"kopt"}
+            dangi{"dangi"}
+            ethiopic{"etiopiat"}
+            ethiopic-amete-alem{"etiopiat Amete Alem"}
+            gregorian{"gregorian"}
+            hebrew{"hebraek"}
+            japanese{"japanat"}
+            persian{"persek"}
+            roc{"Republik Sina"}
+        }
         cf{
             account{"furmad unanenn jediñ"}
             standard{"furmad moneiz standart"}
         }
+        cf%core{
+            standard{"standart"}
+        }
         collation{
-            big5han{"urzh rummañ sinaek hengounel - Big5"}
             dictionary{"urzh rummañ ar geriadur"}
             ducet{"urzh rummañ Unicode dre ziouer"}
             emoji{"urzh rummañ ar fromlunioù"}
             eor{"reolennoù urzhiañ europat"}
-            gb2312han{"urzh rummañ sinaek eeunaet - GB2312"}
             phonebook{"urzh rummañ al levr-pellgomz"}
             pinyin{"urzh rummañ pinyin"}
             search{"enklask hollek"}
@@ -732,21 +758,46 @@ br{
             unihan{"urzh rummañ UniHan"}
             zhuyin{"urzh rummañ Zhuyin"}
         }
+        collation%core{
+            ducet{"Unicode dre ziouer"}
+            standard{"standart"}
+        }
+        em%core{
+            default{"dre ziouer"}
+            emoji{"emoji"}
+            text{"skrid"}
+        }
         hc{
             h11{"reizhiad 12 eurvezh (0–11)"}
             h12{"reizhiad 12 eurvezh (1–12)"}
             h23{"reizhiad 24 eurvezh (0–23)"}
             h24{"reizhiad 24 eurvezh (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"stil torr linenn lezober"}
             normal{"stil torr linenn boas"}
             strict{"stil torr linenn strizh"}
         }
+        lb%core{
+            loose{"lezober"}
+            normal{"boas"}
+            strict{"strizh"}
+        }
         ms{
             metric{"reizhiad vetrek"}
             uksystem{"reizhiad vuzuliañ RU"}
             ussystem{"reizhiad vuzuliañ SU"}
+        }
+        ms%core{
+            metric{"metrek"}
+            uksystem{"muzuliañ RU"}
+            ussystem{"muzuliañ SU"}
         }
         numbers{
             ahom{"sifroù ahomek"}

@@ -85,6 +85,7 @@ ko{
         CN{"중국"}
         CO{"콜롬비아"}
         CP{"클리퍼턴섬"}
+        CQ{"사크"}
         CR{"코스타리카"}
         CU{"쿠바"}
         CV{"카보베르데"}
@@ -302,6 +303,7 @@ ko{
         IO{"차고스 제도"}
     }
     Countries%short{
+        KR{"한국"}
         UN{"유엔"}
     }
     Countries%variant{

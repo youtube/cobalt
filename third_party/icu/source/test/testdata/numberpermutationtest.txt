@@ -32,7 +32,7 @@ compact-short percent unit-width-full-name
 compact-short currency/EUR unit-width-narrow
   es-MX
     €0
-    92 k€
+    €92 k
     -€0.22
   zh-TW
     €0
@@ -228,7 +228,7 @@ compact-short percent @@
 compact-short currency/EUR precision-integer
   es-MX
     EUR 0
-    92 kEUR
+    EUR 92 k
     -EUR 0
   zh-TW
     €0
@@ -242,7 +242,7 @@ compact-short currency/EUR precision-integer
 compact-short currency/EUR .000
   es-MX
     EUR 0.000
-    91.827 kEUR
+    EUR 91.827 k
     -EUR 0.222
   zh-TW
     €0.000
@@ -256,7 +256,7 @@ compact-short currency/EUR .000
 compact-short currency/EUR .##/@@@+
   es-MX
     EUR 0
-    91.83 kEUR
+    EUR 91.83 k
     -EUR 0.222
   zh-TW
     €0
@@ -270,7 +270,7 @@ compact-short currency/EUR .##/@@@+
 compact-short currency/EUR @@
   es-MX
     EUR 0.0
-    92 kEUR
+    EUR 92 k
     -EUR 0.22
   zh-TW
     €0.0
@@ -522,7 +522,7 @@ compact-short percent rounding-mode-floor
 compact-short currency/EUR rounding-mode-floor
   es-MX
     EUR 0
-    91 kEUR
+    EUR 91 k
     -EUR 0.23
   zh-TW
     €0
@@ -606,7 +606,7 @@ compact-short percent integer-width/##00
 compact-short currency/EUR integer-width/##00
   es-MX
     EUR 00
-    92 kEUR
+    EUR 92 k
     -EUR 00.22
   zh-TW
     €00
@@ -690,7 +690,7 @@ compact-short percent scale/0.5
 compact-short currency/EUR scale/0.5
   es-MX
     EUR 0
-    46 kEUR
+    EUR 46 k
     -EUR 0.11
   zh-TW
     €0
@@ -774,7 +774,7 @@ compact-short percent group-on-aligned
 compact-short currency/EUR group-on-aligned
   es-MX
     EUR 0
-    92 kEUR
+    EUR 92 k
     -EUR 0.22
   zh-TW
     €0
@@ -858,7 +858,7 @@ compact-short percent latin
 compact-short currency/EUR latin
   es-MX
     EUR 0
-    92 kEUR
+    EUR 92 k
     -EUR 0.22
   zh-TW
     €0
@@ -942,7 +942,7 @@ compact-short percent sign-accounting-except-zero
 compact-short currency/EUR sign-accounting-except-zero
   es-MX
     EUR 0
-    +92 kEUR
+    +EUR 92 k
     -EUR 0.22
   zh-TW
     €0
@@ -1026,7 +1026,7 @@ compact-short percent decimal-always
 compact-short currency/EUR decimal-always
   es-MX
     EUR 0.
-    92. kEUR
+    EUR 92. k
     -EUR 0.22
   zh-TW
     €0.

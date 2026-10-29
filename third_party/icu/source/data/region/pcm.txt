@@ -85,6 +85,7 @@ pcm{
         CN{"Chaína"}
         CO{"Kolómbia"}
         CP{"Klipatọ́n Aíland"}
+        CQ{"Sák"}
         CR{"Kósta Ríka"}
         CU{"Kiúbá"}
         CV{"Kép Vẹ́d"}

@@ -10,15 +10,19 @@ ceb{
         de{"German"}
         de_CH{"Swiss High German"}
         en{"English"}
-        en_GB{"Britanikong English"}
+        en_GB{"English (British)"}
         en_US{"English (America)"}
         es{"Espanyol"}
-        es_ES{"Espanyol (Europa)"}
-        fr{"Pranses"}
+        es_419{"Spanish (Latin America)"}
+        es_ES{"Spanish (Europe)"}
+        es_MX{"Spanish (Mexico)"}
+        fr{"French"}
+        fr_CA{"French (Canada)"}
+        fr_CH{"French (Switzerland)"}
         hi{"Hindi"}
         id{"Indonesian"}
-        it{"Italyano"}
-        ja{"Hinapon"}
+        it{"Italian"}
+        ja{"Japanese"}
         ko{"Korean"}
         nl{"Dutch"}
         nl_BE{"Flemish"}
@@ -27,8 +31,8 @@ ceb{
         ru{"Russian"}
         th{"Thai"}
         tr{"Turkish"}
-        und{"Wala Mailhing Pinulongan"}
-        zh{"Inintsik"}
+        und{"Wala mailhi nga pinulongan"}
+        zh{"Chinese"}
         zh_Hans{"Pinasimple nga Chinese"}
         zh_Hant{"Tradisyonal nga Chinese"}
     }
@@ -47,7 +51,7 @@ ceb{
         hi_Latn{"Hinglish"}
     }
     Scripts{
-        Arab{"Arabiko"}
+        Arab{"Arabic"}
         Cyrl{"Cyrillic"}
         Hans{"Pinasimple"}
         Hant{"Tradisyonal"}
@@ -64,10 +68,16 @@ ceb{
     Types{
         calendar{
             gregorian{"Gregorian nga Kalendaryo"}
-            iso8601{"Kalendaryo sa ISO-8601"}
+            iso8601{"Gregorian nga Kalendaryo (Tuig Una)"}
+        }
+        calendar%core{
+            gregorian{"Gregorian"}
         }
         collation{
             standard{"Standard nga Paagi sa Paghan-ay"}
+        }
+        collation%core{
+            standard{"Standard"}
         }
         numbers{
             latn{"Mga Western Digit"}

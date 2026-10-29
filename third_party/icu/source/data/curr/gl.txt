@@ -257,7 +257,7 @@ gl{
             {
                 "#,##0.00 ¤",
                 ",",
-                ".",
+                " ",
             }
         }
         ETB{
@@ -816,6 +816,10 @@ gl{
             "XCD",
             "dólar do Caribe Oriental",
         }
+        XCG{
+            "ƒ",
+            "florín caribeño",
+        }
         XOF{
             "F CFA",
             "franco CFA (BCEAO)",
@@ -851,6 +855,10 @@ gl{
         ZMW{
             "ZMW",
             "kwacha zambiano",
+        }
+        ZWG{
+            "ZWG",
+            "ouro de Zimbabwe",
         }
     }
     Currencies%narrow{
@@ -1580,6 +1588,10 @@ gl{
             one{"dólar do Caribe Oriental"}
             other{"dólares do Caribe Oriental"}
         }
+        XCG{
+            one{"florín caribeño"}
+            other{"florín caribeño"}
+        }
         XOF{
             one{"franco CFA (BCEAO)"}
             other{"francos CFA (BCEAO)"}
@@ -1603,6 +1615,10 @@ gl{
         ZMW{
             one{"kwacha zambiano"}
             other{"kwachas zambianos"}
+        }
+        ZWG{
+            one{"ouro de Zimbabwe"}
+            other{"ouro de Zimbabwe"}
         }
     }
 }

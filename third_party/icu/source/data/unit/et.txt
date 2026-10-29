@@ -38,6 +38,11 @@ et{
                 one{"{0} täispööre"}
                 other{"{0} täispööret"}
             }
+            steradian{
+                dnam{"steradiaan"}
+                one{"{0} steradiaan"}
+                other{"{0} steradiaani"}
+            }
         }
         area{
             acre{
@@ -151,6 +156,11 @@ et{
                 one{"{0} karaat"}
                 other{"{0} karaati"}
             }
+            katal{
+                dnam{"katal"}
+                one{"{0} katal"}
+                other{"{0} katalit"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"milligrammid detsiliitri kohta"}
                 one{"{0} milligramm detsiliitri kohta"}
@@ -166,6 +176,24 @@ et{
                 one{"{0} mool"}
                 other{"{0} mooli"}
             }
+            ofglucose{
+                dnam{"glükoosi"}
+                one{"{0} glükoosi"}
+                other{"{0} glükoosi"}
+            }
+            part{
+                dnam{"osa"}
+                one{"{0} osa"}
+                other{"{0} osa"}
+            }
+            part-per-1e6{
+                dnam{"osa miljoni kohta"}
+                one{"{0} osa miljoni kohta"}
+                other{"{0} osa miljoni kohta"}
+            }
+            part-per-1e9{
+                dnam{"miljardikosa"}
+            }
             percent{
                 dnam{"protsent"}
                 one{"{0} protsent"}
@@ -176,19 +204,9 @@ et{
                 one{"{0} promill"}
                 other{"{0} promilli"}
             }
-            permillion{
-                dnam{"osa miljoni kohta"}
-                one{"{0} osa miljoni kohta"}
-                other{"{0} osa miljoni kohta"}
-            }
             permyriad{
                 one{"{0} promüriaad"}
                 other{"{0} promüriaadi"}
-            }
-            portion-per-1e9{
-                dnam{"miljardikosa"}
-                one{"{0} miljardikosa"}
-                other{"{0} miljardikosa"}
             }
         }
         consumption{
@@ -323,9 +341,6 @@ et{
                 other{"{0} nanosekundit"}
             }
             night{
-                dnam{"ööd"}
-                one{"{0} öö"}
-                other{"{0} ööd"}
                 per{"{0} öö kohta"}
             }
             quarter{
@@ -356,6 +371,21 @@ et{
                 one{"{0} amper"}
                 other{"{0} amprit"}
             }
+            coulomb{
+                dnam{"kulon"}
+                one{"{0} kulon"}
+                other{"{0} kulonit"}
+            }
+            farad{
+                dnam{"farad"}
+                one{"{0} farad"}
+                other{"{0} faradit"}
+            }
+            henry{
+                dnam{"henri"}
+                one{"{0} henri"}
+                other{"{0} henrit"}
+            }
             milliampere{
                 one{"{0} milliamper"}
                 other{"{0} milliamprit"}
@@ -364,12 +394,22 @@ et{
                 one{"{0} oom"}
                 other{"{0} oomi"}
             }
+            siemens{
+                dnam{"siimens"}
+                one{"{0} siimens"}
+                other{"{0} siimensit"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} volti"}
             }
         }
         energy{
+            becquerel{
+                dnam{"bekrellid"}
+                one{"{0} bekrell"}
+                other{"{0} bekrelli"}
+            }
             british-thermal-unit{
                 dnam{"Briti soojusühikud"}
                 one{"{0} Briti soojusühik"}
@@ -380,6 +420,11 @@ et{
                 one{"{0} kalor"}
                 other{"{0} kalorit"}
             }
+            calorie-it{
+                dnam{"kalorid [IT]"}
+                one{"{0} kalor [IT]"}
+                other{"{0} kalorit [IT]"}
+            }
             electronvolt{
                 dnam{"elektronvoldid"}
                 one{"{0} elektronvolt"}
@@ -389,6 +434,11 @@ et{
                 dnam{"kalorid"}
                 one{"{0} kalor"}
                 other{"{0} kalorit"}
+            }
+            gray{
+                dnam{"greid"}
+                one{"{0} grei"}
+                other{"{0} greid"}
             }
             joule{
                 one{"{0} džaul"}
@@ -409,11 +459,21 @@ et{
                 one{"{0} kilovatt-tund"}
                 other{"{0} kilovatt-tundi"}
             }
+            sievert{
+                dnam{"siivert"}
+                one{"{0} siivert"}
+                other{"{0} siivertit"}
+            }
             therm-us{
                 dnam{"USA termid"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"jõukilogramm"}
+                one{"{0} jõukilogramm"}
+                other{"{0} jõukilogrammi"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kilovatt-tunnid 100 kilomeetri kohta"}
                 one{"{0} kilovatt-tund 100 kilomeetri kohta"}
@@ -620,6 +680,18 @@ et{
                 other{"{0} Päikese heledust"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} teslat"}
+            }
+            weber{
+                dnam{"veeber"}
+                one{"{0} veeber"}
+                other{"{0} veebrit"}
+            }
+        }
         mass{
             carat{
                 dnam{"karaadid"}
@@ -760,6 +832,11 @@ et{
                 one{"{0} millimeeter elavhõbedasammast"}
                 other{"{0} millimeetrit elavhõbedasammast"}
             }
+            ofhg{
+                dnam{"elavhõbedasammast"}
+                one{"{0} elavhõbedasammast"}
+                other{"{0} elavhõbedasammast"}
+            }
             pascal{
                 dnam{"paskalid"}
                 one{"{0} paskal"}
@@ -786,6 +863,11 @@ et{
                 dnam{"sõlm"}
                 one{"{0} sõlm"}
                 other{"{0} sõlme"}
+            }
+            light-speed{
+                dnam{"valgus"}
+                one{"{0} valgus"}
+                other{"{0} valgust"}
             }
             meter-per-second{
                 dnam{"meetrid sekundis"}
@@ -925,6 +1007,11 @@ et{
                 one{"{0} inglise vedelikuuntsi"}
                 other{"{0} inglise vedelikuuntsi"}
             }
+            fluid-ounce-metric{
+                dnam{"vedelikuunts m"}
+                one{"{0} vedelikuunts m"}
+                other{"{0} vedelikuuntsi m"}
+            }
             gallon{
                 dnam{"gallonid"}
                 one{"{0} gallon"}
@@ -999,6 +1086,14 @@ et{
             mole{
                 dnam{"mol"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"osa"}
+                one{"{0} osa"}
+                other{"{0} osa"}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -1036,12 +1131,6 @@ et{
                 one{"{0} k"}
                 other{"{0} k"}
             }
-            night{
-                dnam{"ööd"}
-                one{"{0} öö"}
-                other{"{0} ööd"}
-                per{"{0}/öö"}
-            }
             second{
                 dnam{"s"}
                 one{"{0} s"}
@@ -1055,6 +1144,11 @@ et{
             }
             year{
                 dnam{"a"}
+            }
+        }
+        energy{
+            calorie-it{
+                dnam{"cal-IT"}
             }
         }
         force{
@@ -1104,6 +1198,11 @@ et{
                 one{"B{0}"}
                 other{"B{0}"}
             }
+            light-speed{
+                dnam{"valgus"}
+                one{"{0} valg."}
+                other{"{0} valg."}
+            }
         }
         volume{
             dram{
@@ -1115,6 +1214,10 @@ et{
                 dnam{"Imp fl oz"}
                 one{"{0} fl oz Im"}
                 other{"{0} fl oz Im"}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m"}
+                other{"{0} fl oz m"}
             }
             gallon-imperial{
                 one{"{0} gal Im"}
@@ -1159,6 +1262,10 @@ et{
                 one{"{0} pööre"}
                 other{"{0} pööret"}
             }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -1193,6 +1300,10 @@ et{
                 one{"{0} ct"}
                 other{"{0} ct"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dl"}
                 one{"{0} mg/dl"}
@@ -1206,16 +1317,26 @@ et{
             mole{
                 dnam{"mool"}
             }
-            permillion{
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"osa"}
+                one{"{0} osa"}
+                other{"{0} osa"}
+            }
+            part-per-1e6{
                 dnam{"osa/miljon"}
             }
-            permyriad{
-                dnam{"promüriaad"}
-            }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"osakesed/miljard"}
                 one{"{0} miljardikosa"}
                 other{"{0} miljardikosa"}
+            }
+            permyriad{
+                dnam{"promüriaad"}
             }
         }
         consumption{
@@ -1323,19 +1444,44 @@ et{
             ampere{
                 dnam{"amprid"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             milliampere{
                 dnam{"milliamprid"}
             }
             ohm{
                 dnam{"oomid"}
             }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+            }
             volt{
                 dnam{"voldid"}
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"Briti soojusühik"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"elektronvolt"}
@@ -1345,11 +1491,19 @@ et{
                 one{"{0} cal"}
                 other{"{0} cal"}
             }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+            }
             joule{
                 dnam{"džaulid"}
             }
             kilowatt-hour{
                 dnam{"kW-tund"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
             therm-us{
                 dnam{"USA term"}
@@ -1358,6 +1512,10 @@ et{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh / 100 km"}
                 one{"{0} kWh / 100 km"}
@@ -1438,6 +1596,16 @@ et{
                 dnam{"Päikese heledus"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"ct"}
@@ -1493,6 +1661,17 @@ et{
                 dnam{"in Hg"}
                 one{"{0} in Hg"}
                 other{"{0} in Hg"}
+            }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
+        }
+        speed{
+            light-speed{
+                dnam{"valgus"}
+                one{"{0} valgus"}
+                other{"{0} valgust"}
             }
         }
         temperature{
@@ -1563,6 +1742,10 @@ et{
                 dnam{"fl oz"}
                 one{"{0} fl oz"}
                 other{"{0} fl oz"}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m"}
+                other{"{0} fl oz m"}
             }
             gallon{
                 dnam{"gal"}

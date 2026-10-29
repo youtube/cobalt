@@ -153,6 +153,11 @@ class BrowserWindowInterface : public content::PageNavigator {
     // additional restrictions, like it cannot navigated, to prevent misuse.
     TYPE_PICTURE_IN_PICTURE,
 #endif
+#if BUILDFLAG(IS_ANDROID)
+    // TODO(https://crbug.com/493668475): Revisit if this type is needed.
+    // Android Custom Tab browser.
+    TYPE_CUSTOM_TAB,
+#endif
     // If you add a new type, consider updating the test
     // BrowserTest.StartMaximized.
   };
@@ -316,6 +321,9 @@ class BrowserWindowInterface : public content::PageNavigator {
 
   // Checks if the browser popup is tab modal dialog.
   virtual bool IsTabModalPopupDeprecated() const = 0;
+
+  // Checks if the browser was created by session restore.
+  virtual bool CreatedBySessionRestore() const = 0;
 
   virtual DesktopBrowserWindowCapabilities* capabilities() = 0;
   virtual const DesktopBrowserWindowCapabilities* capabilities() const = 0;

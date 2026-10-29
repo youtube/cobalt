@@ -12,7 +12,7 @@ fr_MA{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "a.m.",
                 "p.m.",
             }

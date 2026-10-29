@@ -1191,6 +1191,15 @@ class GraphEmitter : public Next {
   using node_t = OpIndex;
   using block_t = Block;
 
+  // By default, source positions are copied from the origin operation, but
+  // reducers can override this method to provide custom source position
+  // mapping.
+  SourcePosition GetSourcePositionFor(OpIndex index) {
+    OpIndex origin = Asm().output_graph().operation_origins()[index];
+    return origin.valid() ? Asm().input_graph().source_positions()[origin]
+                          : SourcePosition::Unknown();
+  }
+
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
     static_assert((std::is_base_of_v<Operation, Op>));
@@ -1200,6 +1209,13 @@ class GraphEmitter : public Next {
     Op& op = Asm().output_graph().template Add<Op>(args...);
     Asm().output_graph().operation_origins()[result] =
         Asm().current_operation_origin();
+    // During graph building, the input graph's source positions are empty
+    // and the origin might not be a valid OpIndex. So we only track source
+    // positions if the input graph already has them.
+    if (!Asm().input_graph().source_positions().empty()) {
+      Asm().output_graph().source_positions()[result] =
+          Asm().GetSourcePositionFor(result);
+    }
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_intermediate_reductions) {
       std::cout << std::setw(Asm().intermediate_tracing_depth()) << ' ' << "["
@@ -5075,7 +5091,7 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input, bool is_shared) {
+  V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared) {
     return ReduceIfReachableAnyConvertExtern(input, is_shared);
   }
 
@@ -5149,14 +5165,14 @@ class AssemblerOpInterface : public Next {
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
                                  const wasm::ArrayType* array_type,
-                                 bool is_shared) {
+                                 SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
                                               is_shared);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
                                    const wasm::StructType* struct_type,
-                                   bool is_shared) {
+                                   SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
   }
 

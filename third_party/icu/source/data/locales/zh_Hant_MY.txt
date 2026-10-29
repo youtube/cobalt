@@ -17,7 +17,7 @@ zh_Hant_MY{
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
-                "{1} {0}",
+                "{1} {0}",
             }
             DateTimeSkeletons{
                 "ahmmsszzzz",

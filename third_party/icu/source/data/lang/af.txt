@@ -14,10 +14,13 @@ af{
         colStrength{"Rangskiksterkte"}
         collation{"Rangskikvolgorde"}
         currency{"Geldeenheid"}
-        hc{"Uursiklus (12 vs 24)"}
+        em{"Emoji-voorstelling"}
+        hc{"Uursiklus (12 vs. 24)"}
         lb{"Reëlafbreek-styl"}
+        lw{"Lynafbrekingsteken in woorde"}
         ms{"Maatstelsel"}
         numbers{"Syfers"}
+        ss{"Afbrekingsteken ná afkorting"}
         timezone{"Tydsone"}
         va{"Lokaalvariant"}
         x{"Privaat gebruik"}
@@ -54,6 +57,7 @@ af{
         ay{"Aymara"}
         az{"Azerbeidjans"}
         ba{"Baskir"}
+        bal{"Baloetsji"}
         ban{"Balinees"}
         bas{"Basaa"}
         be{"Belarussies"}
@@ -125,8 +129,6 @@ af{
         eka{"Ekajuk"}
         el{"Grieks"}
         en{"Engels"}
-        en_GB{"Engels (VK)"}
-        en_US{"Engels (VSA)"}
         eo{"Esperanto"}
         es{"Spaans"}
         et{"Estnies"}
@@ -334,7 +336,7 @@ af{
         ojw{"Wes-Ojibwa"}
         oka{"Okanagan"}
         om{"Oromo"}
-        or{"Oriya"}
+        or{"Odia"}
         os{"Osseties"}
         pa{"Pandjabi"}
         pag{"Pangasinan"}
@@ -478,6 +480,12 @@ af{
         zxx{"Geen taalinhoud nie"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Koerdies"}
+    }
+    Languages%extension{
+        ku{"Koermandji"}
+    }
     Languages%long{
         zh_Hans{"Mandarynse Chinees (Vereenvoudig)"}
         zh_Hant{"Mandarynse Chinees (Tradisioneel)"}
@@ -532,7 +540,7 @@ af{
         Mymr{"Mianmar"}
         Nkoo{"N’Ko"}
         Olck{"Ol Chiki"}
-        Orya{"Oriya"}
+        Orya{"Odia"}
         Rohg{"Hanifi"}
         Sinh{"Sinhala"}
         Sund{"Soendanees"}
@@ -577,9 +585,29 @@ af{
             persian{"Persiese kalender"}
             roc{"Minguo-kalender"}
         }
+        calendar%core{
+            buddhist{"Boeddhis"}
+            chinese{"Chinees"}
+            coptic{"Kopties"}
+            dangi{"Dangi"}
+            ethiopic{"Etiopies"}
+            ethiopic-amete-alem{"Etiopiese Amete Alem"}
+            gregorian{"Gregoriaans"}
+            hebrew{"Hebreeus"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (tabelvormige burgerlike kalender)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            japanese{"Japannees"}
+            persian{"Persies"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Rekeningkundige geldeenheidformaat"}
             standard{"Standaard geldeenheidformaat"}
+        }
+        cf%core{
+            account{"Rekeningkunde"}
+            standard{"Standaard"}
         }
         colAlternate{
             non-ignorable{"Sorteer simbole"}
@@ -614,10 +642,8 @@ af{
             tertiary{"Sorteer aksente/kas/breedte"}
         }
         collation{
-            big5han{"Tradisionele Chinese sorteervolgorde - Groot5"}
             dictionary{"Woordeboek-sorteervolgorde"}
             ducet{"Verstek Unicode-rangskikvolgorde"}
-            gb2312han{"Vereenvoudigde Chinese sorteervolgorde - GB2312"}
             phonebook{"Foonboek-sorteervolgorde"}
             phonetic{"Fonetiese sorteerorde"}
             pinyin{"Pinyin-sorteervolgorde"}
@@ -628,10 +654,20 @@ af{
             traditional{"Tradisionele sorteervolgorde"}
             unihan{"Radikale-slag-sorteervolgorde"}
         }
+        collation%core{
+            ducet{"Verstek Unicode"}
+            search{"Soektog"}
+            standard{"Standaard"}
+        }
         d0{
             fwidth{"Vollewydte"}
             hwidth{"Halfwydte"}
             npinyin{"Numeries"}
+        }
+        em%core{
+            default{"Verstek"}
+            emoji{"Emoji"}
+            text{"Teks"}
         }
         hc{
             h11{"12-uur-stelsel (0-11)"}
@@ -639,10 +675,27 @@ af{
             h23{"24-uur-stelsel (0-23)"}
             h24{"24-uur-stelsel (1-24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Losse reëlafbreek-styl"}
             normal{"Normale reëlafbreek-styl"}
             strict{"Streng reëlafbreek-styl"}
+        }
+        lb%core{
+            loose{"Los"}
+            normal{"Normaal"}
+            strict{"Streng"}
+        }
+        lw%core{
+            breakall{"Breek als"}
+            keepall{"Hou als"}
+            normal{"Normaal"}
+            phrase{"Hou in frases"}
         }
         m0{
             bgn{"BGN-transliterasie"}
@@ -652,6 +705,11 @@ af{
             metric{"Metrieke stelsel"}
             uksystem{"Imperiale maatstelsel"}
             ussystem{"VSA-maatstelsel"}
+        }
+        ms%core{
+            metric{"Metriek"}
+            uksystem{"VK"}
+            ussystem{"VSA"}
         }
         numbers{
             arab{"Arabies-Indiese syfers"}
@@ -698,6 +756,10 @@ af{
             tibt{"Tibettaanse syfers"}
             traditional{"Tradisionele syfers"}
             vaii{"Vai-syfers"}
+        }
+        ss%core{
+            none{"Af"}
+            standard{"Aan"}
         }
     }
     characterLabelPattern{

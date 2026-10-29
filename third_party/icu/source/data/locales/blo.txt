@@ -3,12 +3,12 @@
 // Generated using tools/cldr/cldr-to-icu/
 blo{
     AuxExemplarCharacters{
-        "[ăǎåäãā{a̰} æ ɓ ćç d ɗ ĕěëẽēḛ {ǝ̃}{ǝ̄}{ǝ̰} {ə̌} {ɛ̌}{ɛ̃}{ɛ̄}{ɛ̰} ƒ ɣ {hw} ĭǐ"
-        "ïĩīḭ ĳ {ɩ̃}{ɩ̄}{ɩ̰} {m̌}{m̄} ňñ{n̄} {ŋw} ŏǒöõøō{o̰} œ {ɔ̌}{ɔ̃}{ɔ̄}{ɔ̰} ř šſ "
-        "ß ŭǔüūṵ {̃ũ} {ʊ̌}{ʊ̃}{ʊ̄}{ʊ̰} v ʋ x {xw} ÿ ƴ z ʒ {̃ʼ}]"
+        "[ăǎåäãā{a̰} æ {ǝ̃}{ǝ̄}{ǝ̰} ɓ ćç d ɗ ĕěëẽēḛ {ə̌} {ɛ̌}{ɛ̃}{ɛ̄}{ɛ̰} ƒ ɣ {hw} ĭǐ"
+        "ïĩīḭ ĳ {ɩ̃}{ɩ̄}{ɩ̰} {m̌}{m̄} ňñ{n̄} {ŋw} ŏǒöõøō{o̰} œ {ɔ̌}{ɔ̃}{ɔ̄}{ɔ̰} q ř š"
+        "ſ ß ŭǔüūṵ {̃ũ} {ʊ̌}{ʊ̃}{ʊ̄}{ʊ̰} v ʋ x {xw} ÿ ƴ z ʒ {̃ʼ}]"
     }
     ExemplarCharacters{
-        "[aáàâ b c ɖ eéèê ǝ{ǝ́}{ǝ̀}{ǝ̂} ɛ{ɛ́}{ɛ̀}{ɛ̂} f g {gb} h iíìî ɩ{ɩ́}{ɩ̀}{ɩ̂} j"
+        "[aáàâ ǝ{ǝ́}{ǝ̀}{ǝ̂} b c ɖ eéèê ɛ{ɛ́}{ɛ̀}{ɛ̂} f g {gb} h iíìî ɩ{ɩ́}{ɩ̀}{ɩ̂} j"
         " k {kp} l mḿ{m̀} nńǹ {ny} ŋ{ŋ́}{ŋ̀} {ŋm} oóòô ɔ{ɔ́}{ɔ̀}{ɔ̂} p r s {sh} t uúù"
         "û ʊ{ʊ́}{ʊ̀}{ʊ̂} w y]"
     }
@@ -20,8 +20,202 @@ blo{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;¤ -#,##0.00"}
+                accountingFormat%noCurrency{"#,##0.00"}
                 currencyFormat{"¤ #,##0.00;¤ -#,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00;¤ -#,##0.00"}
+                currencyFormat%noCurrency{"#,##0.00"}
                 percentFormat{"% #,#0;% -#,#0"}
+            }
+            patternsLong{
+                decimalFormat{
+                    1000{
+                        one{"kotoku 0"}
+                        other{"ɩkotoku 0"}
+                        zero{"baa kotoku 0"}
+                    }
+                    10000{
+                        one{"kotoku 00"}
+                        other{"ɩkotoku 00"}
+                        zero{"baa kotoku 00"}
+                    }
+                    100000{
+                        one{"kotoku 000"}
+                        other{"ɩkotoku 000"}
+                        zero{"baa kotoku 000"}
+                    }
+                    1000000{
+                        one{"gakuli 0"}
+                        other{"bʊkuli 0"}
+                        zero{"baa gakuli 0"}
+                    }
+                    10000000{
+                        one{"gakuli 00"}
+                        other{"bʊkuli 00"}
+                        zero{"baa gakuli 00"}
+                    }
+                    100000000{
+                        one{"gakuli 000"}
+                        other{"bʊkuli 000"}
+                        zero{"baa gakuli 000"}
+                    }
+                    1000000000{
+                        one{"ŋkulo 0"}
+                        other{"akulo 0"}
+                        zero{"baa ŋkulo 0"}
+                    }
+                    10000000000{
+                        one{"ŋkulo 00"}
+                        other{"akulo 00"}
+                        zero{"baa ŋkulo 00"}
+                    }
+                    100000000000{
+                        one{"ŋkulo 000"}
+                        other{"akulo 000"}
+                        zero{"baa ŋkulo 000"}
+                    }
+                    1000000000000{
+                        one{"ŋkrǝ 0"}
+                        other{"akrǝ 0"}
+                        zero{"baa ŋkrǝ 0"}
+                    }
+                    10000000000000{
+                        one{"ŋkrǝ 00"}
+                        other{"akrǝ 00"}
+                        zero{"baa ŋkrǝ 00"}
+                    }
+                    100000000000000{
+                        one{"ŋkrǝ 000"}
+                        other{"akrǝ 000"}
+                        zero{"baa ŋkrǝ 000"}
+                    }
+                }
+            }
+            patternsShort{
+                currencyFormat{
+                    1000{
+                        one{"¤ kt 0"}
+                        other{"¤ ɩkt 0"}
+                        zero{"¤ kt 0"}
+                    }
+                    10000{
+                        one{"¤ kt 00"}
+                        other{"¤ ɩkt 00"}
+                        zero{"¤ kt 00"}
+                    }
+                    100000{
+                        one{"¤ kt 000"}
+                        other{"¤ ɩkt 000"}
+                        zero{"¤ kt 000"}
+                    }
+                    1000000{
+                        one{"¤ gkl 0"}
+                        other{"¤ bkl 0"}
+                        zero{"¤ gkl 0"}
+                    }
+                    10000000{
+                        one{"¤ gkl 00"}
+                        other{"¤ bkl 00"}
+                        zero{"¤ gkl 00"}
+                    }
+                    100000000{
+                        one{"¤ gkl 000"}
+                        other{"¤ bkl 000"}
+                        zero{"¤ gkl 000"}
+                    }
+                    1000000000{
+                        one{"¤ ŋkl 0"}
+                        other{"¤ akl 0"}
+                        zero{"¤ ŋkl 0"}
+                    }
+                    10000000000{
+                        one{"¤ ŋkl 00"}
+                        other{"¤ akl 00"}
+                        zero{"¤ ŋkl 00"}
+                    }
+                    100000000000{
+                        one{"¤ ŋkl 000"}
+                        other{"¤ akl 000"}
+                        zero{"¤ ŋkl 000"}
+                    }
+                    1000000000000{
+                        one{"¤ ŋkr 0"}
+                        other{"¤ akr 0"}
+                        zero{"¤ ŋkr 0"}
+                    }
+                    10000000000000{
+                        one{"¤ ŋkr 00"}
+                        other{"¤ akr 00"}
+                        zero{"¤ ŋkr 00"}
+                    }
+                    100000000000000{
+                        one{"¤ ŋkr 000"}
+                        other{"¤ akr 000"}
+                        zero{"¤ ŋkr 000"}
+                    }
+                }
+                decimalFormat{
+                    1000{
+                        one{"kt 0"}
+                        other{"ɩkt 0"}
+                        zero{"kt 0"}
+                    }
+                    10000{
+                        one{"kt 00"}
+                        other{"ɩkt 00"}
+                        zero{"kt 00"}
+                    }
+                    100000{
+                        one{"kt 000"}
+                        other{"ɩkt 000"}
+                        zero{"kt 000"}
+                    }
+                    1000000{
+                        one{"gkl 0"}
+                        other{"bkl 0"}
+                        zero{"gkl 0"}
+                    }
+                    10000000{
+                        one{"gkl 00"}
+                        other{"bkl 00"}
+                        zero{"gkl 00"}
+                    }
+                    100000000{
+                        one{"gkl 000"}
+                        other{"bkl 000"}
+                        zero{"gkl 000"}
+                    }
+                    1000000000{
+                        one{"ŋkl 0"}
+                        other{"akl 0"}
+                        zero{"ŋkl 0"}
+                    }
+                    10000000000{
+                        one{"ŋkl 00"}
+                        other{"akl 00"}
+                        zero{"ŋkl 00"}
+                    }
+                    100000000000{
+                        one{"ŋkl 000"}
+                        other{"akl 000"}
+                        zero{"ŋkl 000"}
+                    }
+                    1000000000000{
+                        one{"ŋkr 0"}
+                        other{"akr 0"}
+                        zero{"ŋkr 0"}
+                    }
+                    10000000000000{
+                        one{"ŋkr 00"}
+                        other{"akr 00"}
+                        zero{"ŋkr 00"}
+                    }
+                    100000000000000{
+                        one{"ŋkr 000"}
+                        other{"akr 000"}
+                        zero{"ŋkr 000"}
+                    }
+                }
             }
             symbols{
                 decimal{","}
@@ -49,7 +243,7 @@ blo{
                 "EEEE, MMMM d y G",
                 "MMMM d y G",
                 "MMM d y G",
-                "M/d/y GGGGG",
+                "M/d/y G",
                 "{1}, {0}",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -60,13 +254,16 @@ blo{
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E d"}
+                Eh{"E, h a"}
                 Ehm{"E, h a mm"}
                 Ehms{"E, h a mm:ss"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d y G"}
                 GyMMMd{"MMM d y G"}
-                GyMd{"M/d/y GGGGG"}
+                GyMd{"M/d/y G"}
                 MEd{"E, M/d"}
                 MMMEd{"E, MMM d"}
                 Md{"M/d"}
@@ -74,13 +271,13 @@ blo{
                 hms{"h a mm:ss"}
                 y{"y G"}
                 yyyy{"y G"}
-                yyyyM{"M/y GGGGG"}
-                yyyyMEd{"E, M/d/y GGGGG"}
+                yyyyM{"M/y G"}
+                yyyyMEd{"E, M/d/y G"}
                 yyyyMMM{"MMM y G"}
                 yyyyMMMEd{"E, MMM d y G"}
                 yyyyMMMM{"MMMM y G"}
                 yyyyMMMd{"MMM d y G"}
-                yyyyMd{"M/d/y GGGGG"}
+                yyyyMd{"M/d/y G"}
                 yyyyQQQ{"QQQ y G"}
                 yyyyQQQQ{"QQQQ y G"}
             }
@@ -138,7 +335,6 @@ blo{
                     d{"E, MMM d – E, MMM d"}
                 }
                 MMMd{
-                    M{"MMM d – MMM d"}
                     d{"MMM d – d"}
                 }
                 Md{
@@ -200,9 +396,9 @@ blo{
                 "HH:mm:ss z",
                 "HH:mm:ss",
                 "HH:mm",
-                "EEEE, MMMM d y",
-                "MMMM d y",
-                "MMM d y",
+                "EEEE, MMMM d/y",
+                "y MMMM d",
+                "MMM d/y",
                 "M/d/y",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -211,14 +407,12 @@ blo{
                 "{1}, {0}",
             }
             availableFormats{
-                Bhm{"h B mm"}
-                Bhms{"h B mm:ss"}
-                EBhm{"E h B mm"}
-                EBhms{"E h B mm:ss"}
                 Ed{"E d"}
-                Ehm{"E h a mm"}
-                Ehms{"E h a mm:ss"}
+                Ehm{"E h:mm a"}
+                Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d y G"}
                 GyMMMd{"MMM d y G"}
@@ -231,16 +425,16 @@ blo{
                     zero{"MMMM 'abɔkɔɩ' W'ja'"}
                 }
                 Md{"M/d"}
-                hm{"h a mm"}
-                hms{"h a mm:ss"}
-                hmsv{"h a mm:ss v"}
-                hmv{"h a mm v"}
+                hm{"h:mm a"}
+                hms{"h:mm:ss a"}
+                hmsv{"h:mm:ss a v"}
+                hmv{"h:mm a v"}
                 yM{"M/y"}
                 yMEd{"E, M/d/y"}
                 yMMM{"MMM y"}
-                yMMMEd{"E, MMM d y"}
+                yMMMEd{"E, MMM d/y"}
                 yMMMM{"MMMM y"}
-                yMMMd{"MMM d y"}
+                yMMMd{"MMM d/y"}
                 yMd{"M/d/y"}
                 yQQQ{"QQQ y"}
                 yQQQQ{"QQQQ y"}
@@ -332,20 +526,20 @@ blo{
             }
             eras{
                 abbreviated{
-                    "naaBYŊAƖ",
-                    "AƖAK",
+                    0{"naaBYŊAƖ"}
+                    1{"AƖAK"}
                 }
                 abbreviated%variant{
-                    "naaNSYP",
-                    "NKS",
+                    0{"naaNSYP"}
+                    1{"NKS"}
                 }
                 wide{
-                    "naa Ba Ye Ŋʊm Annabi Ɩsa",
-                    "Annabi Ɩsa Abʊŋʊma Kaŋkǝm",
+                    0{"naa Ba Ye Ŋʊm Annabi Ɩsa"}
+                    1{"Annabi Ɩsa Abʊŋʊma Kaŋkǝm"}
                 }
                 wide%variant{
-                    "naa Nnyǝmǝ kaSaamanɩ a Ye Pɩ",
-                    "Nnyǝmǝ KaSaamanɩ",
+                    0{"naa Nnyǝmǝ kaSaamanɩ a Ye Pɩ"}
+                    1{"Nnyǝmǝ KaSaamanɩ"}
                 }
             }
             intervalFormats{
@@ -416,7 +610,6 @@ blo{
                     d{"E, MMM d – E, MMM d"}
                 }
                 MMMd{
-                    M{"MMM d – MMM d"}
                     d{"MMM d – d"}
                 }
                 Md{
@@ -431,17 +624,16 @@ blo{
                     h{"h a – h a"}
                 }
                 hm{
-                    a{"h a mm – h a mm"}
-                    h{"h a mm – h a mm"}
-                    m{"h a mm – h a mm"}
+                    a{"h:mm a – h:mm a"}
+                    h{"h:mm a – h:mm a"}
+                    m{"h:mm a – h:mm a"}
                 }
                 hmv{
-                    a{"h a mm a – h a mm v"}
-                    h{"h a mm – h a mm v"}
-                    m{"h a mm – h a mm v"}
+                    a{"h:mm a – h:mm a v"}
+                    h{"h:mm – h:mm a v"}
+                    m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h a – h a v"}
                 }
                 y{

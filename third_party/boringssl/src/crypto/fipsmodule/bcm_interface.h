@@ -628,6 +628,9 @@ OPENSSL_EXPORT bcm_infallible
 BCM_mlkem768_public_from_private(MLKEM768_public_key *out_public_key,
                                  const MLKEM768_private_key *private_key);
 
+OPENSSL_EXPORT const MLKEM768_public_key *BCM_mlkem768_public_of_private(
+    const MLKEM768_private_key *private_key);
+
 OPENSSL_EXPORT bcm_infallible
 BCM_mlkem768_encap(uint8_t out_ciphertext[MLKEM768_CIPHERTEXT_BYTES],
                    uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
@@ -640,6 +643,11 @@ BCM_mlkem768_decap(uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
 
 OPENSSL_EXPORT bcm_status BCM_mlkem768_marshal_public_key(
     CBB *out, const MLKEM768_public_key *public_key);
+
+// BCM_mlkem768_public_keys_equal returns one if |a| and |b| are equal and zero
+// otherwise.
+int BCM_mlkem768_public_keys_equal(const MLKEM768_public_key *a,
+                                   const MLKEM768_public_key *b);
 
 OPENSSL_EXPORT bcm_status
 BCM_mlkem768_parse_public_key(MLKEM768_public_key *out_public_key, CBS *in);
@@ -701,6 +709,9 @@ OPENSSL_EXPORT bcm_infallible
 BCM_mlkem1024_public_from_private(MLKEM1024_public_key *out_public_key,
                                   const MLKEM1024_private_key *private_key);
 
+OPENSSL_EXPORT const MLKEM1024_public_key *BCM_mlkem1024_public_of_private(
+    const MLKEM1024_private_key *private_key);
+
 OPENSSL_EXPORT bcm_infallible
 BCM_mlkem1024_encap(uint8_t out_ciphertext[MLKEM1024_CIPHERTEXT_BYTES],
                     uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
@@ -713,6 +724,11 @@ BCM_mlkem1024_decap(uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
 
 OPENSSL_EXPORT bcm_status BCM_mlkem1024_marshal_public_key(
     CBB *out, const MLKEM1024_public_key *public_key);
+
+// BCM_mlkem1024_public_keys_equal returns one if |a| and |b| are equal and zero
+// otherwise.
+int BCM_mlkem1024_public_keys_equal(const MLKEM1024_public_key *a,
+                                    const MLKEM1024_public_key *b);
 
 OPENSSL_EXPORT bcm_status
 BCM_mlkem1024_parse_public_key(MLKEM1024_public_key *out_public_key, CBS *in);

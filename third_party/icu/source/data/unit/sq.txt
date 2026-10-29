@@ -41,6 +41,11 @@ sq{
                 one{"{0} rrotullim"}
                 other{"{0} rrotullime"}
             }
+            steradian{
+                dnam{"steradianë"}
+                one{"{0} steradian"}
+                other{"{0} steradianë"}
+            }
         }
         area{
             acre{
@@ -162,6 +167,11 @@ sq{
                 one{"{0} karat"}
                 other{"{0} karatë"}
             }
+            katal{
+                dnam{"katalë"}
+                one{"{0} katal"}
+                other{"{0} katalë"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligramë për decilitër"}
                 one{"{0} miligram për decilitër"}
@@ -177,6 +187,24 @@ sq{
                 one{"{0} mol"}
                 other{"{0} molë"}
             }
+            ofglucose{
+                dnam{"glukoze"}
+            }
+            part{
+                dnam{"pjesë"}
+                one{"{0} pjesë"}
+                other{"{0} pjesë"}
+            }
+            part-per-1e6{
+                dnam{"pjesë për milion"}
+                one{"{0} pjesë për milion"}
+                other{"{0} pjesë për milion"}
+            }
+            part-per-1e9{
+                dnam{"pjesë për miliard"}
+                one{"{0} pjesë për miliard"}
+                other{"{0} pjesë për miliard"}
+            }
             percent{
                 dnam{"përqind"}
                 one{"{0} përqind"}
@@ -187,20 +215,10 @@ sq{
                 one{"{0} përmijë"}
                 other{"{0} përmijë"}
             }
-            permillion{
-                dnam{"pjesë për milion"}
-                one{"{0} pjesë për milion"}
-                other{"{0} pjesë për milion"}
-            }
             permyriad{
                 dnam{"përdhjetëmijë"}
                 one{"{0} përdhjetëmijë"}
                 other{"{0} përdhjetëmijë"}
-            }
-            portion-per-1e9{
-                dnam{"pjesë për miliard"}
-                one{"{0} pjesë për miliard"}
-                other{"{0} pjesë për miliard"}
             }
         }
         consumption{
@@ -306,12 +324,6 @@ sq{
                 one{"{0} nanosekondë"}
                 other{"{0} nanosekonda"}
             }
-            night{
-                dnam{"net"}
-                one{"{0} natë"}
-                other{"{0} net"}
-                per{"{0}/natë"}
-            }
             quarter{
                 dnam{"çerekë"}
             }
@@ -328,6 +340,21 @@ sq{
                 one{"{0} amper"}
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"coulomb"}
+                one{"{0} coulomb"}
+                other{"{0} coulomb"}
+            }
+            farad{
+                dnam{"faradë"}
+                one{"{0} farad"}
+                other{"{0} faradë"}
+            }
+            henry{
+                dnam{"henry"}
+                one{"{0} henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 dnam{"miliamper"}
                 one{"{0} miliamper"}
@@ -338,6 +365,11 @@ sq{
                 one{"{0} om"}
                 other{"{0} om"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 dnam{"volt"}
                 one{"{0} volt"}
@@ -345,6 +377,11 @@ sq{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekuerelë"}
+                one{"{0} bekuerel"}
+                other{"{0} bekuerelë"}
+            }
             british-thermal-unit{
                 dnam{"njësi termale britanike"}
                 one{"{0} njësi termale britanike"}
@@ -355,6 +392,11 @@ sq{
                 one{"{0} kalori"}
                 other{"{0} kalori"}
             }
+            calorie-it{
+                dnam{"kalori [IT]"}
+                one{"{0} kalori [IT]"}
+                other{"{0} kalori [IT]"}
+            }
             electronvolt{
                 dnam{"elektrovolt"}
                 one{"{0} elektrovolt"}
@@ -364,6 +406,11 @@ sq{
                 dnam{"kalori ushqimore"}
                 one{"{0} kalori ushqimore"}
                 other{"{0} kalori ushqimore"}
+            }
+            gray{
+                dnam{"grej"}
+                one{"{0} grej"}
+                other{"{0} grej"}
             }
             joule{
                 dnam{"zhul"}
@@ -385,6 +432,11 @@ sq{
                 one{"{0} kilovat-orë"}
                 other{"{0} kilovat-orë"}
             }
+            sievert{
+                dnam{"sievertë"}
+                one{"{0} sievert"}
+                other{"{0} sievertë"}
+            }
             therm-us{
                 dnam{"njësi termale amerikane"}
                 one{"{0} njësi termale amerikane"}
@@ -392,6 +444,11 @@ sq{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilogram-forcë"}
+                one{"{0} kilogram-forcë"}
+                other{"{0} kilogram-forcë"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kilovat-orë në 100 kilometra"}
                 one{"{0} kilovat-orë në 100 kilometra"}
@@ -608,6 +665,18 @@ sq{
                 other{"{0} lumenë diellorë"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"veberë"}
+                one{"{0} veber"}
+                other{"{0} veberë"}
+            }
+        }
         mass{
             carat{
                 dnam{"karatë"}
@@ -752,6 +821,9 @@ sq{
                 one{"{0} milimetër mërkuri"}
                 other{"{0} milimetra mërkuri"}
             }
+            ofhg{
+                dnam{"mërkuri"}
+            }
             pascal{
                 dnam{"paskal"}
                 one{"{0} paskal"}
@@ -778,6 +850,11 @@ sq{
                 dnam{"milje nautike në orë"}
                 one{"{0} milje nautike në orë"}
                 other{"{0} milje nautike në orë"}
+            }
+            light-speed{
+                dnam{"dritë"}
+                one{"{0} dritë"}
+                other{"{0} dritë"}
             }
             meter-per-second{
                 dnam{"metra në sekondë"}
@@ -917,6 +994,11 @@ sq{
                 one{"{0} ons i lëngshëm imperial"}
                 other{"{0} onsë të lëngshëm imperial"}
             }
+            fluid-ounce-metric{
+                dnam{"onsë të lëngshëm metrikë"}
+                one{"{0} fl oz m."}
+                other{"{0} onsë të lëngshëm metrikë"}
+            }
             gallon{
                 dnam{"gallonë"}
                 one{"{0} gallon"}
@@ -1019,6 +1101,20 @@ sq{
                 one{"{0} mol"}
                 other{"{0} molë"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"pjesë"}
+                one{"{0} pjesë"}
+                other{"{0} pjesë"}
+            }
+            part-per-1e6{
+                dnam{"pjesë/milion"}
+            }
+            part-per-1e9{
+                dnam{"pjesë/miliard"}
+            }
         }
         consumption{
             mile-per-gallon{
@@ -1073,12 +1169,6 @@ sq{
             minute{
                 per{"{0}/min"}
             }
-            night{
-                dnam{"net"}
-                one{"{0} natë"}
-                other{"{0} net"}
-                per{"{0}/natë"}
-            }
             quarter{
                 one{"{0} çer."}
                 other{"{0} çer."}
@@ -1088,6 +1178,9 @@ sq{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             therm-us{
                 one{"{0} UStu"}
                 other{"{0} UStu"}
@@ -1128,6 +1221,13 @@ sq{
             millibar{
                 one{"{0} mb"}
                 other{"{0} mb"}
+            }
+        }
+        speed{
+            light-speed{
+                dnam{"dritë"}
+                one{"{0} dritë"}
+                other{"{0} dritë"}
             }
         }
         temperature{
@@ -1213,6 +1313,20 @@ sq{
                 dnam{"njësi"}
                 one{"{0} njësi"}
                 other{"{0} njësi"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"pjesë"}
+                one{"{0} pjesë"}
+                other{"{0} pjesë"}
+            }
+            part-per-1e6{
+                dnam{"pjesë/milion"}
+            }
+            part-per-1e9{
+                dnam{"pjesë/miliard"}
             }
         }
         consumption{
@@ -1351,6 +1465,9 @@ sq{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             foodcalorie{
                 dnam{"Cal"}
                 one{"{0} Cal"}
@@ -1413,6 +1530,11 @@ sq{
                 dnam{"km/orë"}
                 one{"{0} km/orë"}
                 other{"{0} km/orë"}
+            }
+            light-speed{
+                dnam{"dritë"}
+                one{"{0} dritë"}
+                other{"{0} dritë"}
             }
         }
         temperature{

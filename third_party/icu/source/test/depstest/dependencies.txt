@@ -67,6 +67,8 @@ group: c_strings
     # Additional symbols in an optimized build.
     __strcpy_chk __strncpy_chk __strcat_chk __strncat_chk
     __rawmemchr __memcpy_chk __memmove_chk __memset_chk
+    # glibc
+    __isoc23_strtol __isoc23_strtoul
 
 group: c_string_formatting
     atoi atol strtod strtod_l strtol strtoul
@@ -851,6 +853,7 @@ group: platform
     cmemory.o uobject.o
     cstring.o cwchar.o uinvchar.o
     charstr.o
+    fixedstring.o
     unistr.o  # for CharString::appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode)
     appendable.o stringpiece.o ustrtrns.o  # for unistr.o
     ustring.o  # Other platform files really just need u_strlen

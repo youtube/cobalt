@@ -7,10 +7,13 @@ yo{
         cf{"Ònà Ìgbekalẹ̀ owó"}
         collation{"Ètò Ẹlẹ́sẹẹsẹ"}
         currency{"Owó"}
+        em{"Ìgbékalẹ̀ Ẹ̀mójì"}
         hc{"Òbíríkiti Wákàtí (12 vs 24)"}
         lb{"Àra Ìda Ìlà"}
+        lw{"Àwọn Ìdá Ìlà Láàárín Àwọn Ọ̀rọ̀"}
         ms{"Èto Ìdiwọ̀n"}
         numbers{"Àwọn nọ́ńbà"}
+        ss{"Ìdá Gbólóhùn Lẹ́yìn Ìgékúrú"}
     }
     Languages{
         ab{"Èdè Abasia"}
@@ -28,7 +31,6 @@ yo{
         ann{"Èdè Obolo"}
         anp{"Èdè Angika"}
         ar{"Èdè Lárúbáwá"}
-        ar_001{"Èdè Lárúbáwá (Agbáyé)"}
         arn{"Èdè Mapushe"}
         arp{"Èdè Arapaho"}
         ars{"Èdè Arabiki ti Najidi"}
@@ -41,6 +43,7 @@ yo{
         ay{"Èdè Amara"}
         az{"Èdè Asabaijani"}
         ba{"Èdè Bashiri"}
+        bal{"Èdè Belúṣì"}
         ban{"Èdè Balini"}
         bas{"Èdè Basaa"}
         be{"Èdè Belarusi"}
@@ -452,6 +455,12 @@ yo{
         zxx{"Kò sí àkóònú elédè"}
         zza{"Èdè Sasa"}
     }
+    Languages%core{
+        ku{"Èdè Kọ́dìṣì"}
+    }
+    Languages%extension{
+        ku{"Èdè Kùmáǹjì"}
+    }
     Languages%long{
         zh_Hans{"Èdè Mandárínì Ṣáínà Onírọ̀rùn"}
         zh_Hant{"Èdè Mandárínì Ṣáínà Ìbílẹ̀"}
@@ -563,14 +572,44 @@ yo{
             persian{"Kàlẹ́ńdà Pásíànù"}
             roc{"Kàlẹ́ńdà Minguo"}
         }
+        calendar%core{
+            buddhist{"Ti Búdà"}
+            chinese{"Ti Ṣáínà"}
+            coptic{"Kọ́pítíìkì"}
+            dangi{"Dangi"}
+            ethiopic{"ti Etiópíà"}
+            ethiopic-amete-alem{"Kàlẹ́ńdà Etiópíà"}
+            gregorian{"Ti Gregory"}
+            hebrew{"Hébérù"}
+            islamic{"Híjìrì"}
+            islamic-civil{"Híjìrí (kàlẹ́ńdà oní-àtòkọ ti arà-ìlú)"}
+            islamic-umalqura{"Híjìrí (Umm al-Qura)"}
+            japanese{"Ti Japan"}
+            persian{"Ti Páṣíà"}
+            roc{"Kàlẹ́ńdà Ṣáínà"}
+        }
         cf{
             account{"Ìgúnrégé Ìṣirò Owó Kọ́rẹ́ńsì"}
             standard{"Ònà ìgbekalẹ̀ owó tó jẹ́ àjùmọ̀lò"}
+        }
+        cf%core{
+            account{"Ìṣirò owó"}
+            standard{"Àjùmọ̀lò"}
         }
         collation{
             ducet{"Ètò Ẹlẹ́sẹẹsẹ Àkùàyàn Unicode"}
             search{"Ìṣàwárí Ète-Gbogbogbò"}
             standard{"Ìlànà Onírúurú Ètò"}
+        }
+        collation%core{
+            ducet{"Unicode Àkùnyàn"}
+            search{"Ṣàwárí"}
+            standard{"Àjùmọ̀lò"}
+        }
+        em%core{
+            default{"Àkùnàyàn"}
+            emoji{"Ẹ̀mójì"}
+            text{"àtẹ̀jíṣẹ́"}
         }
         hc{
             h11{"Èto Wákàtí 12 (0–11)"}
@@ -578,15 +617,37 @@ yo{
             h23{"Èto Wákàtí 24 (0–23)"}
             h24{"Èto Wákàtí 24 (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Àra Ìda Ìlà Títú"}
             normal{"Àra Ìda Ìlà Déédéé"}
             strict{"Àra Ìda Ìlà Mímúná"}
         }
+        lb%core{
+            loose{"Tó dẹ̀"}
+            normal{"Déédéé"}
+            strict{"Pàtó"}
+        }
+        lw%core{
+            breakall{"Fọ́ gbogbo ẹ̀"}
+            keepall{"Pa gbogbo ẹ̀ mọ́"}
+            normal{"Déédéé"}
+            phrase{"Fi sílẹ̀ ní àpólà"}
+        }
         ms{
             metric{"Èto Mẹ́tíríìkì"}
             uksystem{"Èto Ìdiwọ̀n Ọba"}
             ussystem{"Èto Ìdiwọ̀n US"}
+        }
+        ms%core{
+            metric{"Mẹ́tíríìkì"}
+            uksystem{"UK"}
+            ussystem{"US"}
         }
         numbers{
             arab{"àwọn díjítì Làrubáwá-Índíà"}
@@ -629,6 +690,10 @@ yo{
             thai{"Àwọn díjíìtì Thai"}
             tibt{"Àwọn díjíìtì Tibetán"}
             vaii{"Àwọn díjíìtì Fai"}
+        }
+        ss%core{
+            none{"Pípa"}
+            standard{"Títàn"}
         }
     }
     characterLabelPattern{

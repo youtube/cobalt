@@ -628,7 +628,7 @@ void MockPingManagerImpl::SendPing(const std::string& session_id,
                                    const CrxComponent& component,
                                    std::vector<base::DictValue> events,
                                    base::OnceClosure callback) {
-  for (const base::DictValue& event : events) {
+  auto event_to_ping_data = [&](const base::DictValue& event) {
     PingData ping_data;
     ping_data.id = component.app_id;
     int event_type = event.FindInt("eventtype").value_or(0);
@@ -660,10 +660,14 @@ void MockPingManagerImpl::SendPing(const std::string& session_id,
     if (event_type != 0) {
       ping_data.event_type = event_type;
     }
-    ping_data_.push_back(ping_data);
-    if (event_type == protocol_request::kEventInstall ||
-        event_type == protocol_request::kEventUpdate ||
-        event_type == protocol_request::kEventUninstall) {
+    return ping_data;
+  };
+
+  ping_data_ = base::ToVector(events, event_to_ping_data);
+  for (const auto& ping_data : ping_data_) {
+    if (ping_data.event_type == protocol_request::kEventInstall ||
+        ping_data.event_type == protocol_request::kEventUpdate ||
+        ping_data.event_type == protocol_request::kEventUninstall) {
       terminal_ping_data_.push_back(ping_data);
     }
   }
@@ -4981,7 +4985,7 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
 
    protected:
 #if BUILDFLAG(IS_STARBOARD)
-    ~MockPingManager() override { EXPECT_EQ(4u, ping_data().size()); }
+    ~MockPingManager() override { EXPECT_EQ(1u, ping_data().size()); }
 #else
     ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
 #endif
@@ -5364,13 +5368,12 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 #endif
     Unpacker::Unpack(
         "gjpmebpgbhcamgdgjcmnjfhggjpgcimm",
-        std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
+        base::ToVector(gjpm_hash),
         op_result,
 #else
     Unpacker::Unpack(
         "gjpmebpgbhcamgdgjcmnjfhggjpgcimm", "UpdateClientTest",
-        std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
-        GetTestFilePath("runaction_test_win.crx3"),
+        base::ToVector(gjpm_hash), GetTestFilePath("runaction_test_win.crx3"),
 #endif
 #if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
         base::MakeRefCounted<UnzipCobaltFactory>()

@@ -1,0 +1,78 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/notifications/scheduler/internal/clients/finds_client.h"
+
+#include <utility>
+
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
+#include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
+#include "chrome/browser/notifications/scheduler/internal/stats.h"
+#include "chrome/browser/notifications/scheduler/public/finds_agent.h"
+#include "chrome/browser/notifications/scheduler/public/notification_scheduler_constant.h"
+#include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
+#include "url/gurl.h"
+
+namespace notifications {
+
+FindsClient::FindsClient(std::unique_ptr<FindsAgent> finds_agent,
+                         PrefService* pref_service)
+    : finds_agent_(std::move(finds_agent)), pref_service_(pref_service) {}
+
+FindsClient::~FindsClient() = default;
+
+void FindsClient::BeforeShowNotification(
+    std::unique_ptr<NotificationData> notification_data,
+    NotificationDataCallback callback) {
+  std::move(callback).Run(std::move(notification_data));
+}
+
+void FindsClient::OnShowNotification(
+    std::unique_ptr<NotificationData> notification_data) {
+  NOTIMPLEMENTED();
+}
+
+void FindsClient::OnSchedulerInitialized(bool success,
+                                         std::set<std::string> guids) {
+  NOTIMPLEMENTED();
+}
+
+void FindsClient::OpenNotificationAction(const UserActionData& action_data) {
+  // Finds the notification URL in the notification data and opens the link
+  // with Intent created by FindsAgent.
+  auto url_it = action_data.custom_data.find(kChromeFindsNotificationsUrl);
+  if (url_it != action_data.custom_data.end()) {
+    std::string finds_url_string = url_it->second;
+    GURL finds_gurl = GURL(finds_url_string);
+    DCHECK(finds_gurl.is_valid());
+    finds_agent_->OpenNotificationUrl(finds_gurl);
+  }
+}
+
+void FindsClient::OnUserAction(const UserActionData& action_data) {
+  switch (action_data.action_type) {
+    case UserActionType::kClick: {
+      OpenNotificationAction(action_data);
+      break;
+    }
+    case UserActionType::kDismiss:
+      NOTIMPLEMENTED();
+      break;
+    case UserActionType::kButtonClick:
+      // TODO(crbug.com/483104552): Add notification button click logic.
+      NOTIMPLEMENTED();
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
+void FindsClient::GetThrottleConfig(ThrottleConfigCallback callback) {
+  std::move(callback).Run(nullptr);
+}
+
+}  // namespace notifications

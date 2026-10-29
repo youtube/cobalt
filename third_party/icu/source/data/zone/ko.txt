@@ -270,6 +270,9 @@ ko{
         "America:Costa_Rica"{
             ec{"코스타리카"}
         }
+        "America:Coyhaique"{
+            ec{"코이아이케"}
+        }
         "America:Creston"{
             ec{"크레스톤"}
         }
@@ -1167,7 +1170,7 @@ ko{
             ec{"에파테"}
         }
         "Pacific:Enderbury"{
-            ec{"엔더베리"}
+            ec{"칸톤"}
         }
         "Pacific:Fakaofo"{
             ec{"파카오푸"}
@@ -1192,9 +1195,6 @@ ko{
         }
         "Pacific:Honolulu"{
             ec{"호놀룰루"}
-        }
-        "Pacific:Kanton"{
-            ec{"칸톤"}
         }
         "Pacific:Kiritimati"{
             ec{"키리티마티"}
@@ -1283,9 +1283,7 @@ ko{
             ls{"남아프리카 시간"}
         }
         "meta:Africa_Western"{
-            ld{"서아프리카 하계 표준시"}
-            lg{"서아프리카 시간"}
-            ls{"서아프리카 표준시"}
+            ls{"서아프리카 시간"}
         }
         "meta:Alaska"{
             ld{"알래스카 하계 표준시"}
@@ -1546,6 +1544,9 @@ ko{
         }
         "meta:Guyana"{
             ls{"가이아나 시간"}
+        }
+        "meta:Hawaii"{
+            ls{"하와이 알류샨 표준시"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"하와이 알류샨 하계 표준시"}

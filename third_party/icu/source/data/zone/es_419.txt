@@ -27,12 +27,6 @@ es_419{
         "Etc:UTC"{
             ls{"hora universal coordinada"}
         }
-        "Etc:Unknown"{
-            ec{"ciudad desconocida"}
-        }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Dublin"{
             ld{"hora estándar de Irlanda"}
         }

@@ -158,9 +158,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            Label* target,
                                            Label::Distance distance) {
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
+    __ AssertMap(map);
   }
   __ CmpInstanceType(map, instance_type);
   __ j(cc, target, distance);
@@ -439,8 +437,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFeedbackCell(feedback_cell);
-  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(weight));
+  __ addl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(weight));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
     __ j(greater_equal, skip_interrupt_label);
@@ -453,8 +452,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFeedbackCell(feedback_cell);
-  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          weight);
+  __ addl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 

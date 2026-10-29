@@ -10,12 +10,10 @@ ar_AE{
         gregorian{
             eras{
                 abbreviated%variant{
-                    "ق.م",
-                    "ب.م",
+                    0{"ق.م"}
                 }
                 wide%variant{
-                    "قبل الميلاد",
-                    "بعد الميلاد",
+                    0{"قبل الميلاد"}
                 }
             }
         }

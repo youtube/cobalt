@@ -9,7 +9,9 @@ dyo{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -143,12 +145,12 @@ dyo{
             }
             eras{
                 abbreviated{
-                    "ArY",
-                    "AtY",
+                    0{"ArY"}
+                    1{"AtY"}
                 }
                 wide{
-                    "Ariŋuu Yeesu",
-                    "Atooŋe Yeesu",
+                    0{"Ariŋuu Yeesu"}
+                    1{"Atooŋe Yeesu"}
                 }
             }
             monthNames{

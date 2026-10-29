@@ -876,7 +876,7 @@ parse	output	breaks
 +12,34,567.8901	1234567.8901
 // With strict digit separators don't have to be the right type
 // JDK doesn't acknowledge space as a separator
-+12 34 567.8901	1234567.8901	K
++12 34 567.8901	12
 // In general the grouping separators have to match their expected
 // location exactly. The only exception is when string being parsed
 // have no separators at all.
@@ -1615,14 +1615,14 @@ pattern	lenient	parse	output	breaks
 0	1	99,.0	99
 0	1	9 9.	9
 0	1	9 99.	9
-#,##0	0	9 9	fail	K
-#,##0	0	9 99	fail	K
-#,##0	0	9 999	9999	K
-#,##0	0	9 9 9	fail	K
+#,##0	0	9 9	9
+#,##0	0	9 99	9
+#,##0	0	9 999	9
+#,##0	0	9 9 9	9
 #,##0	0	,9	fail	K
 #,##0	0	99,.0	fail	K
-#,##0	0	9 9.	fail	K
-#,##0	0	9 99.	fail	K
+#,##0	0	9 9.	9
+#,##0	0	9 99.	9
 0	0	9 9	9
 0	0	9 99	9
 0	0	9 999	9

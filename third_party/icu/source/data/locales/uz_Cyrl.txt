@@ -15,6 +15,10 @@ uz_Cyrl{
             }
         }
         arabext{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
+            }
             symbols{
                 minusSign{"-"}
                 nan{"ҳақиқий сон эмас"}
@@ -26,7 +30,9 @@ uz_Cyrl{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -81,6 +87,56 @@ uz_Cyrl{
                 }
             }
             patternsShort{
+                currencyFormat{
+                    1000{
+                        one{"0минг ¤"}
+                        other{"0минг ¤"}
+                    }
+                    10000{
+                        one{"00минг ¤"}
+                        other{"00минг ¤"}
+                    }
+                    100000{
+                        one{"000минг ¤"}
+                        other{"000минг ¤"}
+                    }
+                    1000000{
+                        one{"0млн ¤"}
+                        other{"0млн ¤"}
+                    }
+                    10000000{
+                        one{"00млн ¤"}
+                        other{"00млн ¤"}
+                    }
+                    100000000{
+                        one{"000млн ¤"}
+                        other{"000млн ¤"}
+                    }
+                    1000000000{
+                        one{"0млрд ¤"}
+                        other{"0млрд ¤"}
+                    }
+                    10000000000{
+                        one{"00млрд ¤"}
+                        other{"00млрд ¤"}
+                    }
+                    100000000000{
+                        one{"000млрд ¤"}
+                        other{"000млрд ¤"}
+                    }
+                    1000000000000{
+                        one{"0трлн ¤"}
+                        other{"0трлн ¤"}
+                    }
+                    10000000000000{
+                        one{"00трлн ¤"}
+                        other{"00трлн ¤"}
+                    }
+                    100000000000000{
+                        one{"000трлн ¤"}
+                        other{"000трлн ¤"}
+                    }
+                }
                 decimalFormat{
                     1000{
                         one{"0минг"}
@@ -300,20 +356,18 @@ uz_Cyrl{
             }
             eras{
                 abbreviated{
-                    "м.а.",
-                    "милодий",
+                    0{"м.а."}
+                    1{"милодий"}
                 }
                 abbreviated%variant{
-                    "э.а.",
-                    "эрамиз",
+                    0{"э.а."}
+                    1{"эрамиз"}
                 }
                 wide{
-                    "милоддан аввалги",
-                    "милодий",
+                    0{"милоддан аввалги"}
                 }
                 wide%variant{
-                    "эрамиздан аввалги",
-                    "эрамиз",
+                    0{"эрамиздан аввалги"}
                 }
             }
             intervalFormats{

@@ -373,7 +373,7 @@ ms{
         }
         MMK{
             "MMK",
-            "Kyat Myanma",
+            "Kyat Myanmar",
         }
         MNT{
             "MNT",
@@ -655,6 +655,10 @@ ms{
             "EC$",
             "Dolar Caribbean Timur",
         }
+        XCG{
+            "Cg.",
+            "Guilder Caribbean",
+        }
         XOF{
             "F CFA",
             "Franc CFA BCEAO",
@@ -687,6 +691,10 @@ ms{
             "ZWD",
             "Dolar Zimbabwe (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "Emas Zimbabwe",
+        }
         ZWL{
             "ZWL",
             "Dolar Zimbabwe (2009)",
@@ -710,8 +718,17 @@ ms{
         ILS{
             other{"Syekel baharu Israel"}
         }
+        MMK{
+            other{"Kyat Myanmar"}
+        }
+        XCG{
+            other{"Guilder Caribbean"}
+        }
         XXX{
             other{"(mata wang tidak diketahui)"}
+        }
+        ZWG{
+            other{"Emas Zimbabwe"}
         }
     }
 }

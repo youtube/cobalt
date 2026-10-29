@@ -22,7 +22,9 @@ hsb{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -227,6 +229,9 @@ hsb{
                     }
                 }
             }
+            rationalFormats{
+                rationalUsage{"druhdy"}
+            }
             symbols{
                 approximatelySign{"≈"}
                 decimal{","}
@@ -281,17 +286,22 @@ hsb{
             }
             availableFormats{
                 Bh{"h 'hodź'. B"}
+                EBh{"E h 'hodź'. B"}
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
+                Eh{"E h 'hodź'. a"}
                 Ehm{"E h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d.M.y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
                 GyMd{"d.M.y GGGGG"}
                 H{"HH 'hodź'."}
+                Hv{"HH 'hodź'. v"}
                 MEd{"E, d.M."}
                 MMMEd{"E, d. MMM"}
                 MMMMd{"d. MMMM"}
@@ -300,6 +310,7 @@ hsb{
                 h{"h 'hodź'. a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"h 'hodź'. a v"}
                 y{"y G"}
                 yyyy{"y G"}
                 yyyyM{"M.y GGGGG"}
@@ -446,6 +457,12 @@ hsb{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'w' {0}",
+                "{1} 'w' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -457,12 +474,16 @@ hsb{
                 "yyMd",
             }
             availableFormats{
+                Bh{"h 'hodź'. B"}
+                EBh{"E, h 'hodź'. B"}
                 EHm{"E, H:mm 'hodź'."}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d.M.y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -472,6 +493,7 @@ hsb{
                 Hms{"H:mm:ss"}
                 Hmsv{"H:mm:ss v"}
                 Hmv{"H:mm v"}
+                Hv{"H 'hodź'. v"}
                 MEd{"E, d.M."}
                 MMMEd{"E, d. MMM"}
                 MMMMW{
@@ -487,6 +509,7 @@ hsb{
                 h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"h 'hodź'. a v"}
                 yM{"M.y"}
                 yMEd{"E, d.M.y"}
                 yMMM{"MMM y"}
@@ -555,20 +578,20 @@ hsb{
             }
             eras{
                 abbreviated{
-                    "př.Chr.n.",
-                    "po Chr.n.",
+                    0{"př.Chr.n."}
+                    1{"po Chr.n."}
                 }
                 abbreviated%variant{
-                    "př.n.l.č.",
-                    "n.l.č.",
+                    0{"př.n.l.č."}
+                    1{"n.l.č."}
                 }
                 wide{
-                    "před Chrystowym narodźenjom",
-                    "po Chrystowym narodźenju",
+                    0{"před Chrystowym narodźenjom"}
+                    1{"po Chrystowym narodźenju"}
                 }
                 wide%variant{
-                    "před našim ličenjom časa",
-                    "našeho ličenja časa",
+                    0{"před našim ličenjom časa"}
+                    1{"našeho ličenja časa"}
                 }
             }
             intervalFormats{

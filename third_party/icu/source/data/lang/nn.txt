@@ -11,7 +11,9 @@ nn{
         colNumeric{"numerisk sortering"}
         colStrength{"sorteringsstyrke"}
         collation{"sorteringsrekkjefølgje"}
+        em{"emojivising"}
         lb{"lineskiftstil"}
+        lw{"lineskift innanfor ord"}
         numbers{"tal"}
     }
     Languages{
@@ -82,7 +84,6 @@ nn{
         tce{"sørleg tutchone"}
         tiv{"tivi"}
         tkl{"tokelau"}
-        tn{"tswana"}
         tog{"tonga (Nyasa)"}
         ttm{"nordleg tutchone"}
         tvl{"tuvalu"}
@@ -138,10 +139,11 @@ nn{
         cf{
             account{"valutaformat for rekneskapsføring"}
         }
+        cf%core{
+            account{"rekneskapsføring"}
+        }
         collation{
-            big5han{"tradisjonell kinesisk sortering"}
             ducet{"standard Unicode-sorteringsrekkjefølgje"}
-            gb2312han{"forenkla kinesisk sortering"}
             pinyin{"pinyin-sortering"}
             standard{"standard sorteringsrekkjefølgje"}
         }
@@ -159,6 +161,13 @@ nn{
             loose{"laus lineskiftstil"}
             normal{"normal lineskiftstil"}
             strict{"streng lineskiftstil"}
+        }
+        lb%core{
+            loose{"laus"}
+        }
+        lw%core{
+            keepall{"behald alle"}
+            phrase{"behald i fraser"}
         }
         numbers{
             arab{"arabisk-indiske siffer"}

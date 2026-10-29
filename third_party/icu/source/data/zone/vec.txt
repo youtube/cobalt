@@ -595,6 +595,9 @@ vec{
         "Pacific:Efate"{
             ec{"Ìzola Efate"}
         }
+        "Pacific:Enderbury"{
+            ec{"Atolo Canton"}
+        }
         "Pacific:Fakaofo"{
             ec{"Atolo Fakaofo"}
         }
@@ -609,9 +612,6 @@ vec{
         }
         "Pacific:Guadalcanal"{
             ec{"Ìzola Guadalcanal"}
-        }
-        "Pacific:Kanton"{
-            ec{"Atolo Canton"}
         }
         "Pacific:Kiritimati"{
             ec{"Atolo Kiritimati"}
@@ -692,9 +692,7 @@ vec{
             ls{"Ora de l’Àfrega meridionale"}
         }
         "meta:Africa_Western"{
-            ld{"Ora d’istà de l’Àfrega osidentale"}
-            lg{"Ora de l’Àfrega osidentale"}
-            ls{"Ora normale de l’Àfrega osidentale"}
+            ls{"Ora de l’Àfrega osidentale"}
         }
         "meta:Alaska"{
             ld{"Ora d’istà de l’Alaska"}
@@ -932,6 +930,9 @@ vec{
         }
         "meta:Guyana"{
             ls{"Ora de la Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Ora normale de Hawai e Aleutine"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Ora d’istà de Hawai e Aleutine"}
@@ -1264,6 +1265,7 @@ vec{
             ls{"Ora de’l Yukon"}
         }
         gmtFormat{"UTC{0}"}
+        gmtUnknownFormat{"UTC+?"}
         gmtZeroFormat{"UTC"}
         regionFormat{"Ora {0}"}
         regionFormatDaylight{"Ora d’istà {0}"}

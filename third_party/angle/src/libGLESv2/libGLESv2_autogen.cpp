@@ -2398,9 +2398,9 @@ void GL_APIENTRY glGetClipPlanex(GLenum plane, GLfixed *equation)
     return GL_GetClipPlanex(plane, equation);
 }
 
-void GL_APIENTRY glGetFixedv(GLenum pname, GLfixed *params)
+void GL_APIENTRY glGetFixedv(GLenum pname, GLfixed *data)
 {
-    return GL_GetFixedv(pname, params);
+    return GL_GetFixedv(pname, data);
 }
 
 void GL_APIENTRY glGetLightfv(GLenum light, GLenum pname, GLfloat *params)
@@ -3141,10 +3141,6 @@ void GL_APIENTRY glRequestExtensionANGLE(const GLchar *name)
     return GL_RequestExtensionANGLE(name);
 }
 
-void GL_APIENTRY glDisableExtensionANGLE(const GLchar *name)
-{
-    return GL_DisableExtensionANGLE(name);
-}
 
 // GL_ANGLE_rgbx_internal_format
 
@@ -3376,67 +3372,6 @@ void GL_APIENTRY glTexSubImage3DRobustANGLE(GLenum target,
 {
     return GL_TexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height,
                                        depth, format, type, bufSize, pixels);
-}
-
-void GL_APIENTRY glCompressedTexImage2DRobustANGLE(GLenum target,
-                                                   GLint level,
-                                                   GLenum internalformat,
-                                                   GLsizei width,
-                                                   GLsizei height,
-                                                   GLint border,
-                                                   GLsizei imageSize,
-                                                   GLsizei bufSize,
-                                                   const void *data)
-{
-    return GL_CompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border,
-                                              imageSize, bufSize, data);
-}
-
-void GL_APIENTRY glCompressedTexSubImage2DRobustANGLE(GLenum target,
-                                                      GLint level,
-                                                      GLsizei xoffset,
-                                                      GLsizei yoffset,
-                                                      GLsizei width,
-                                                      GLsizei height,
-                                                      GLenum format,
-                                                      GLsizei imageSize,
-                                                      GLsizei bufSize,
-                                                      const void *data)
-{
-    return GL_CompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height,
-                                                 format, imageSize, bufSize, data);
-}
-
-void GL_APIENTRY glCompressedTexImage3DRobustANGLE(GLenum target,
-                                                   GLint level,
-                                                   GLenum internalformat,
-                                                   GLsizei width,
-                                                   GLsizei height,
-                                                   GLsizei depth,
-                                                   GLint border,
-                                                   GLsizei imageSize,
-                                                   GLsizei bufSize,
-                                                   const void *data)
-{
-    return GL_CompressedTexImage3DRobustANGLE(target, level, internalformat, width, height, depth,
-                                              border, imageSize, bufSize, data);
-}
-
-void GL_APIENTRY glCompressedTexSubImage3DRobustANGLE(GLenum target,
-                                                      GLint level,
-                                                      GLint xoffset,
-                                                      GLint yoffset,
-                                                      GLint zoffset,
-                                                      GLsizei width,
-                                                      GLsizei height,
-                                                      GLsizei depth,
-                                                      GLenum format,
-                                                      GLsizei imageSize,
-                                                      GLsizei bufSize,
-                                                      const void *data)
-{
-    return GL_CompressedTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width,
-                                                 height, depth, format, imageSize, bufSize, data);
 }
 
 void GL_APIENTRY glGetQueryivRobustANGLE(GLenum target,

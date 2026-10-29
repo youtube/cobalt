@@ -1,7 +1,7 @@
 Name: icu
 URL: https://github.com/unicode-org/icu
-Version: 77-1
-CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:77.1
+Version: 78-2
+CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:78.2
 License: MIT
 License File: LICENSE
 Security Critical: yes
@@ -9,11 +9,11 @@ Update Mechanism: Manual
 Shipped: yes
 
 Description:
-This directory contains the source code of ICU 77.1 for C/C++.
+This directory contains the source code of ICU 78.2 for C/C++.
 
 A. How to update ICU
 
-1. Run "scripts/update.sh <version>" (e.g. 77-1).
+1. Run "scripts/update.sh <version>" (e.g. '78.2').
    This will download ICU from the upstream git repository.
    It does preserve Chrome-specific build files and
    converter files. (see section C)
@@ -162,7 +162,7 @@ D. Local Modifications
    the upstream copy and Google's internal copy for source/data
 
   - patches/chromium-data.patch: Google's internal ICU locale changes, exported
-    for use in Chromium.
+    for use in Chromium. See http://shortn/_IpKvBUaQ4V
 
   - patches/locale1.patch: Minor fixes for Korean
 
@@ -231,42 +231,38 @@ D. Local Modifications
     to reduce performance impact/risk.
   - patches/restrace.patch
 
-7. Patch Arabic date time pattern back to 67 value to avoid test
-   breakage in
-   third_party/blink/web_tests/fast/forms/datetimelocal/datetimelocal-appearance-l10n.html
-  - patches/ardatepattern.patch
-  - https://bugs.chromium.org/p/chromium/issues/detail?id=1139186
-
-8.  Remove explicit std::atomic<NumberRangeFormatterImpl*> template
-    instantiation
-    patches/atomic_template_instantiation.patch
-  - The explicit instantiation was added to silence MSVC C4251 warnings:
-    https://unicode-org.atlassian.net/browse/ICU-20157
-    Small test cases show that it is generally an error to instantiate
-    std::atomic<T*> with an incomplete type T with MSVC, clang, and GCC, so this
-    instantiation never should have worked:
-    https://gcc.godbolt.org/z/34xx8h
-    At this time, it's not clear if this particular instantiation with
-    NumberRangeFormatterImpl* was ever necessary for MSVC. Further testing with
-    MSVC is required to upstream this patch.
-  - https://unicode-org.atlassian.net/browse/ICU-21482
-
-9.  Patch source/common/uposixdefs.h so it compiles on Fuchsia on Macs.
+7. Patch source/common/uposixdefs.h so it compiles on Fuchsia on Macs.
     patches/fuchsia.patch
   - context bug: https://bugs.chromium.org/p/chromium/issues/detail?id=1184527
 
-10. Patch fix of Etc/Unknown being returned for
+8. Patch fix of Etc/Unknown being returned for
     Intl.DateTimeFormat().resolvedOptions().timeZone on macOS 14.
     patches/revert_realpath.patch
   - https://bugs.chromium.org/p/chromium/issues/detail?id=1473422
   - https://unicode-org.atlassian.net/browse/ICU-22541
 
-11. Patch unnecessary uses of the virtual keyword.
-    patches/unnecessary_virtual_specifier.patch
-  - https://issues.chromium.org/issues/403236787
-  - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3489.diff
+9. Patch string storage size to 300000
+    patches/pkgdata_string_storage.patch
+    Patch already landed in upstream an should be included in future releases.
+  - https://unicode-org.atlassian.net/browse/ICU-23276
 
-12. Patch incorrect call to front().
-  - patches/uloc.patch
-  - https://g-issues.chromium.org/issues/451657601
-  - https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/3752.diff
+10. Chromium build fix, casting away implicit sign conversion.
+    patches/cast_implicit_conversion.patch
+    As of 2026-03-02: Not fixed in upstream.
+  - https://unicode-org.atlassian.net/browse/ICU-23125
+
+11. AmPmMarkers compatibility for ICU 78+
+    Since ICU 78, interpretation of `AmPmMarkers` was changed. We patch locale
+    files to keep the behavior.  Firefox and google3 don't have such local
+    changes, and we may remove the patch if we prefer interoperability to
+    backward compatibility.
+  - patches/ampmmarkers.patch
+  - https://unicode-org.atlassian.net/browse/ICU-23332
+
+12. Hv compatibility for "en" locale
+    Since ICU 78, "Hv" time format pattern for "en" locale has an extra 'h',
+    and it was alrady reverted in CLDR.
+  - patches/cldr-hv-en-root.diff
+  - crbug.com/475851786
+  - https://bugzilla.mozilla.org/show_bug.cgi?id=2010411
+  - https://github.com/unicode-org/cldr/pull/5309

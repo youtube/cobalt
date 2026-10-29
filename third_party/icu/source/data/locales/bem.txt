@@ -109,12 +109,12 @@ bem{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Before Yesu",
-                    "After Yesu",
+                    0{"Before Yesu"}
+                    1{"After Yesu"}
                 }
             }
             monthNames{

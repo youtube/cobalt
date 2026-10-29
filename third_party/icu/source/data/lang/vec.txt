@@ -708,6 +708,9 @@ vec{
             persian{"lunaro persian"}
             roc{"lunaro mìnguo"}
         }
+        calendar%core{
+            gregorian{"gregorian"}
+        }
         cf{
             account{"formà moneda contàbile"}
             standard{"formà moneda standard"}
@@ -716,6 +719,9 @@ vec{
             ducet{"òrdane predefenìo Unicode"}
             search{"reserca jenèrega"}
             standard{"òrdane standard"}
+        }
+        collation%core{
+            standard{"standard"}
         }
         hc{
             h11{"sistema a 12 ore (0–11)"}

@@ -22,6 +22,7 @@ class ActorLoginDelegate {
 
   // Asynchronously retrieves credentials.
   virtual void GetCredentials(
+      bool has_sign_in_with_google_button,
       base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
       CredentialsOrErrorReply callback) = 0;
 
@@ -33,7 +34,8 @@ class ActorLoginDelegate {
       bool should_store_permission,
       base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
       base::TimeTicks attempt_login_tool_start_time,
-      LoginStatusResultOrErrorReply callback) = 0;
+      LoginStatusResultOrErrorReply done_callback,
+      LoginStatusResultCallback federated_login_outcome_callback) = 0;
 };
 
 }  // namespace actor_login

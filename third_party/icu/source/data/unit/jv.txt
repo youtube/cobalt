@@ -24,6 +24,10 @@ jv{
                 dnam{"revolusi"}
                 other{"{0} revolusi"}
             }
+            steradian{
+                dnam{"steradian"}
+                other{"{0} steradian"}
+            }
         }
         area{
             hectare{
@@ -96,14 +100,14 @@ jv{
             power2{
                 other{
                     _{
-                        _{"pesagi {0}"}
+                        _{"{0} pesagi"}
                     }
                 }
             }
             power3{
                 other{
                     _{
-                        _{"kubik {0}"}
+                        _{"{0} kubik"}
                     }
                 }
             }
@@ -113,6 +117,10 @@ jv{
             karat{
                 other{"{0} karat"}
             }
+            katal{
+                dnam{"katal"}
+                other{"{0} katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligram saben desiliter"}
                 other{"{0} miligram saben desiliter"}
@@ -121,15 +129,19 @@ jv{
                 dnam{"milimol saben liter"}
                 other{"{0} milimol saben liter"}
             }
+            ofglucose{
+                dnam{"glukosa"}
+                other{"{0} glukosa"}
+            }
+            part-per-1e6{
+                dnam{"bagean saben yuta"}
+                other{"{0} bagean saben yuta"}
+            }
             percent{
                 other{"{0} persen"}
             }
             permille{
                 other{"{0} permil"}
-            }
-            permillion{
-                dnam{"bagean saben yuta"}
-                other{"{0} bagean saben yuta"}
             }
             permyriad{
                 other{"{0} permiriad"}
@@ -225,11 +237,6 @@ jv{
                 dnam{"nanodetik"}
                 other{"{0} nanodetik"}
             }
-            night{
-                dnam{"wengi"}
-                other{"{0} wengi"}
-                per{"{0}/wengi"}
-            }
             second{
                 dnam{"detik"}
                 other{"{0} detik"}
@@ -246,11 +253,27 @@ jv{
             ampere{
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"coulomb"}
+                other{"{0} coulomb"}
+            }
+            farad{
+                dnam{"farad"}
+                other{"{0} farad"}
+            }
+            henry{
+                dnam{"henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 other{"{0} miliamper"}
             }
             ohm{
                 other{"{0} ohm"}
+            }
+            siemens{
+                dnam{"siemens"}
+                other{"{0} siemens"}
             }
             volt{
                 other{"{0} volt"}
@@ -264,6 +287,9 @@ jv{
             calorie{
                 dnam{"kalori"}
                 other{"{0} kalori"}
+            }
+            calorie-it{
+                dnam{"kalori-IT"}
             }
             electronvolt{
                 other{"{0} elektronvolt"}
@@ -285,6 +311,10 @@ jv{
             kilowatt-hour{
                 dnam{"kilowatt-jam"}
                 other{"{0} kilowatt-jam"}
+            }
+            sievert{
+                dnam{"sievert"}
+                other{"{0} sievert"}
             }
         }
         force{
@@ -425,6 +455,16 @@ jv{
                 other{"{0} luminositas srengenge"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"weber"}
+                other{"{0} weber"}
+            }
+        }
         mass{
             dalton{
                 other{"{0} dalton"}
@@ -526,10 +566,6 @@ jv{
                 dnam{"kilometer saben jam"}
                 other{"{0} kilometer saben jam"}
             }
-            light-speed{
-                dnam{"cahya"}
-                other{"{0} cahya"}
-            }
             meter-per-second{
                 dnam{"meter saben detik"}
                 other{"{0} meter saben detik"}
@@ -600,6 +636,9 @@ jv{
                 dnam{"desiliter"}
                 other{"{0} desiliter"}
             }
+            fluid-ounce-metric{
+                other{"{0} fl ons metrik"}
+            }
             gallon{
                 per{"{0} saben galon"}
             }
@@ -622,10 +661,6 @@ jv{
             milliliter{
                 dnam{"mililiter"}
                 other{"{0} mililiter"}
-            }
-            pinch{
-                dnam{"jiwit"}
-                other{"{0} jiwit"}
             }
             tablespoon{
                 dnam{"sendok mangan"}
@@ -657,6 +692,9 @@ jv{
             }
         }
         concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
             percent{
                 dnam{"%"}
             }
@@ -677,14 +715,14 @@ jv{
             millisecond{
                 dnam{"mdtk"}
             }
-            night{
-                dnam{"wengi"}
-            }
             quarter{
                 other{"{0}seprapat"}
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             foodcalorie{
                 other{"{0}Kal"}
             }
@@ -696,6 +734,9 @@ jv{
             kilowatt-hour-per-100-kilometer{
                 other{"{0}kWh/km"}
             }
+            newton{
+                dnam{"N"}
+            }
         }
         graphics{
             dot-per-centimeter{
@@ -703,11 +744,6 @@ jv{
             }
             dot-per-inch{
                 other{"{0}tpi"}
-            }
-        }
-        light{
-            candela{
-                other{"{0} cd"}
             }
         }
         mass{
@@ -718,12 +754,6 @@ jv{
         power{
             horsepower{
                 other{"{0}dj"}
-            }
-        }
-        speed{
-            light-speed{
-                dnam{"cahya"}
-                other{"{0} cahya"}
             }
         }
         torque{
@@ -750,11 +780,7 @@ jv{
             fluid-ounce-imperial{
                 other{"{0}oz lm by"}
             }
-            gallon-imperial{
-                other{"{0}gallm"}
-            }
             pinch{
-                dnam{"jiwit"}
                 other{"{0}jiwit"}
             }
             pint-metric{
@@ -829,15 +855,18 @@ jv{
             karat{
                 dnam{"karat"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
+                dnam{"bagean/yuta"}
+                other{"{0}bpj"}
+            }
             percent{
                 dnam{"persen"}
             }
             permille{
                 dnam{"permil"}
-            }
-            permillion{
-                dnam{"bagean/yuta"}
-                other{"{0}bpj"}
             }
             permyriad{
                 dnam{"permiriad"}
@@ -981,6 +1010,9 @@ jv{
             calorie{
                 dnam{"kal"}
                 other{"{0} kal"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
             }
             electronvolt{
                 dnam{"elektronvolt"}
@@ -1136,7 +1168,6 @@ jv{
             }
             tonne{
                 dnam{"metrik ton"}
-                other{"{0} metrik ton"}
             }
         }
         power{

@@ -1479,8 +1479,7 @@ TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsNotAllowed) {
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(answer, NotNull());
 
-  // Currently SRD succeeds.
-  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  EXPECT_FALSE(caller()->SetRemoteDescription(std::move(answer)));
   // Check the state of the SCTP transport.
   VerifySctpState(caller(), SctpTransportState::kClosed);
 }

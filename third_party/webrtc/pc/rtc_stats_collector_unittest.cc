@@ -68,6 +68,7 @@
 #include "pc/media_stream.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_sender.h"
+#include "pc/rtp_transceiver.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/stream_collection.h"
 #include "pc/test/fake_audio_track.h"
@@ -102,6 +103,9 @@
 #include "test/time_controller/simulated_time_controller.h"
 
 using ::testing::_;
+using ::testing::IsEmpty;
+using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Return;
 
 namespace webrtc {
@@ -898,6 +902,34 @@ TEST_P(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
 
   // A very brief sanity check on the result.
   EXPECT_EQ(report->size(), json_value.size());
+}
+
+TEST_P(RTCStatsCollectorTest, ProduceRTPStreamStatsWithStoppedTransceiver) {
+  const char kTransportName[] = "transport";
+  const char kMid[] = "VideoMid";
+
+  VideoMediaInfo video_media_info;
+  video_media_info.senders.emplace_back();
+  video_media_info.senders[0].add_ssrc(1);
+
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
+  pc_->AddVideoChannel(kMid, kTransportName, video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
+
+  // Get the transceiver and set it to stopped.
+  std::vector<scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>>
+      transceivers = pc_->GetTransceiversInternal();
+  ASSERT_THAT(transceivers, Not(IsEmpty()));
+  scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>> transceiver =
+      transceivers[0];
+  ASSERT_TRUE(transceiver);
+  transceiver->internal()->set_current_direction(
+      RtpTransceiverDirection::kStopped);
+
+  // This should not crash.
+  scoped_refptr<const RTCStatsReport> report =
+      stats_->GetStatsReport(main_thread_);
+  EXPECT_THAT(report, NotNull());
 }
 
 TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {

@@ -56,6 +56,7 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="1594928384848033697">Chromium chce odstrániť vaše údaje Správcu hesiel. Ak to chcete povoliť, zadajte heslo systému Windows.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Správca požaduje nové spustenie prehliadača Chromium, aby sa použila aktualizácia}=1{Správca požaduje nové spustenie prehliadača Chromium, aby sa použila aktualizácia. Vaše okno inkognito sa neotvorí.}few{Správca požaduje nové spustenie prehliadača Chromium, aby sa použila aktualizácia. Vaše # okná inkognito sa neotvoria.}many{Správca požaduje nové spustenie prehliadača Chromium, aby sa použila aktualizácia. Your # Incognito windows won't reopen.}other{Správca požaduje nové spustenie prehliadača Chromium, aby sa použila aktualizácia. Vašich # okien inkognito sa neotvorí.}}</translation>
 <translation id="1625909126243026060">Pozrite si hlavné ovládacie prvky ochrany súkromia a zabezpečenia v prehliadači Chromium</translation>
+<translation id="1639380494700489405">Ak sa chcete režimu AI spýtať na svoju kartu bez opustenia stránky, prihláste sa do prehliadača Chromium. Navyše budete mať k dispozícii heslá a ďalší obsah vo všetkých svojich zariadeniach.</translation>
 <translation id="1640672724030957280">Sťahuje sa…</translation>
 <translation id="1680687534629375545">Spýtať sa vyhľadávania podľa obrázkov otázku o tejto stránke</translation>
 <translation id="1709772298389099340">Poskytuje vyššie oprávnenia pre <ph name="BROWSER_NAME" />.</translation>
@@ -197,6 +198,7 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="3045032126857188731">Preložený jazyk: <ph name="LANGUAGE" /></translation>
 <translation id="3047590466164881923">Zavrieť dialógové okno spätnej väzby</translation>
 <translation id="3068187312562070417">Ďalšie profily prehliadača Chromium</translation>
+<translation id="3068290154869370196">Rozšírenia sú doplnky umožňujúce prispôsobiť si Chromium. Rozšírenia vám pomôžu prispôsobiť si Chromium, či už chcete mať prehľad alebo zjednodušiť každodenné úlohy.</translation>
 <translation id="3068515742935458733">Pomôcť zlepšiť prehliadač Chromium odosielaním správ o zlyhaní a <ph name="UMA_LINK" /> spoločnosti Google</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{K 1 zariadeniu USB malo prístup jedno alebo viac rozšírení pre prehliadač Chromium}=1{K 1 zariadeniu USB má prístup jedno alebo viac rozšírení pre prehliadač Chromium}few{K # zariadeniam USB má prístup jedno alebo viacero rozšírení pre prehliadač Chromium}many{# USB devices are being accessed by one or more Chromium extensions}other{K # zariadeniam USB má prístup jedno alebo viacero rozšírení pre prehliadač Chromium}}</translation>
 <translation id="3095811995836568724">História prehliadača Chromium</translation>
@@ -431,6 +433,7 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="5821520528363214608">Ak chcete používať a ukladať údaje prehliadača Chromium vo svojom účte Google, aktualizujte Chromium</translation>
 <translation id="5824893331272123205">Tento panel sa nepodarilo načítať, skúste to znova</translation>
 <translation id="5862307444128926510">Vitajte v prehliadači Chromium</translation>
+<translation id="5867606647614813312">Zapne ďalšie funkcie, ktoré poskytujú najsilnejšiu ochranu prehliadača Chromium</translation>
 <translation id="5871205389137001634">Kliknutím ukončíte vyhľadávanie podľa obrázkov</translation>
 <translation id="5883558403894052917">Prehliadač Chromium zistil, že tieto položky obsahujú malvér:</translation>
 <translation id="5889361821821684993">Chromium vykonáva pravidelné kontroly s cieľom uistiť sa, že v prehliadači máte najbezpečnejšie nastavenia. Ak bude treba, aby ste niečo skontrolovali, oznámime vám to.</translation>

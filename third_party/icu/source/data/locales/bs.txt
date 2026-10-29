@@ -13,106 +13,148 @@ bs{
     NumberElements{
         adlm{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         arabext{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         bali{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         beng{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         brah{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         cakm{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         cham{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         deva{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         fullwide{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         gong{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         gonm{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         gujr{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         guru{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         hanidec{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         java{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         kali{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         khmr{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         knda{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         lana{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         lanatham{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         laoo{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
@@ -122,7 +164,9 @@ bs{
                 range{"{0} – {1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -310,11 +354,15 @@ bs{
         }
         lepc{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         limb{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
@@ -330,106 +378,148 @@ bs{
         }
         mlym{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         mong{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         mtei{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         mymr{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         mymrshan{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         nkoo{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         olck{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         orya{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         osma{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         rohg{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         saur{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         shrd{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         sora{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         sund{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         takr{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         talu{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         tamldec{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         telu{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         thai{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         tibt{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
         vaii{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
         }
@@ -544,31 +634,6 @@ bs{
         }
         dangi{
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
-                MEd{
-                    M{"MM-dd, E – MM-dd, E"}
-                    d{"MM-dd, E – MM-dd, E"}
-                }
-                MMMEd{
-                    M{"MMM d, E – MMM d, E"}
-                    d{"MMM d, E – MMM d, E"}
-                }
-                MMMd{
-                    M{"MMM d – MMM d"}
-                }
-                Md{
-                    M{"MM-dd – MM-dd"}
-                    d{"MM-dd – MM-dd"}
-                }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
-                }
                 hm{
                     a{"h:mm a – h:mm a"}
                     h{"h:mm–h:mm a"}
@@ -578,39 +643,6 @@ bs{
                     a{"h:mm a – h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
-                }
-                yM{
-                    M{"y-MM – y-MM"}
-                    y{"y-MM – y-MM"}
-                }
-                yMEd{
-                    M{"y-MM-dd, E – y-MM-dd, E"}
-                    d{"y-MM-dd, E – y-MM-dd, E"}
-                    y{"y-MM-dd, E – y-MM-dd, E"}
-                }
-                yMMM{
-                    y{"U MMM – U MMM"}
-                }
-                yMMMEd{
-                    M{"U MMM d, E – MMM d, E"}
-                    d{"U MMM d, E – MMM d, E"}
-                    y{"U MMM d, E – U MMM d, E"}
-                }
-                yMMMM{
-                    y{"U MMMM – U MMMM"}
-                }
-                yMMMd{
-                    M{"U MMM d – MMM d"}
-                    y{"U MMM d – U MMM d"}
-                }
-                yMd{
-                    M{"y-MM-dd – y-MM-dd"}
-                    d{"y-MM-dd – y-MM-dd"}
-                    y{"y-MM-dd – y-MM-dd"}
                 }
             }
         }
@@ -631,6 +663,12 @@ bs{
                 "{1}, {0}",
             }
             DateTimePatterns%atTime{
+                "{1} 'u' {0}",
+                "{1} 'u' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
                 "{1} 'u' {0}",
                 "{1} 'u' {0}",
                 "{1}, {0}",
@@ -662,7 +700,6 @@ bs{
                 MMMMd{"d. MMMM"}
                 MMMd{"d. MMM"}
                 Md{"d.M."}
-                h{"h a"}
                 hm{"hh:mm a"}
                 hms{"hh:mm:ss a"}
                 y{"y. G"}
@@ -677,48 +714,11 @@ bs{
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
-                }
-                Gy{
-                    G{"G y – G y"}
-                }
-                GyM{
-                    G{"GGGGG y-MM – GGGGG y-MM"}
-                    M{"GGGGG y-MM – y-MM"}
-                    y{"GGGGG y-MM – y-MM"}
-                }
-                GyMEd{
-                    G{"GGGGG y-MM-dd, E – GGGGG y-MM-dd, E"}
-                    M{"GGGGG y-MM-dd, E – y-MM-dd, E"}
-                    d{"GGGGG y-MM-dd, E – y-MM-dd, E"}
-                    y{"GGGGG y-MM-dd, E – y-MM-dd, E"}
-                }
-                GyMMM{
-                    G{"G y MMM – G y MMM"}
-                    y{"G y MMM – y MMM"}
-                }
-                GyMMMEd{
-                    G{"G y MMM d, E – G y MMM d, E"}
-                    M{"G y MMM d, E – MMM d, E"}
-                    d{"G y MMM d, E – MMM d, E"}
-                    y{"G y MMM d, E – y MMM d, E"}
-                }
-                GyMMMd{
-                    G{"G y MMM d – G y MMM d"}
-                    M{"G y MMM d – MMM d"}
-                    y{"G y MMM d – y MMM d"}
-                }
-                GyMd{
-                    G{"GGGGG y-MM-dd – GGGGG y-MM-dd"}
-                    M{"GGGGG y-MM-dd – y-MM-dd"}
-                    d{"GGGGG y-MM-dd – y-MM-dd"}
-                    y{"GGGGG y-MM-dd – y-MM-dd"}
                 }
                 H{
                     H{"HH – HH'h'"}
@@ -749,7 +749,6 @@ bs{
                     d{"d. – d."}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h'h' a"}
                 }
                 hm{
@@ -763,7 +762,6 @@ bs{
                     m{"h:mm–h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h 'h' a v"}
                 }
                 y{
@@ -794,7 +792,6 @@ bs{
                 yMMMd{
                     M{"d. MMM – d. MMM y. G"}
                     d{"d. – d. MMM y. G"}
-                    y{"G y MMM d – y MMM d"}
                 }
                 yMd{
                     M{"d.M.y. – d.M.y. G"}
@@ -809,10 +806,6 @@ bs{
                 "popodne",
             }
             AmPmMarkersAbbr{
-                "a. m.",
-                "p. m.",
-            }
-            AmPmMarkersNarrow{
                 "a. m.",
                 "p. m.",
             }
@@ -836,6 +829,12 @@ bs{
                 "{1} 'u' {0}",
                 "{1} 'u' {0}",
                 "{1} 'u' {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'u' {0}",
+                "{1} 'u' {0}",
+                "{1} {0}",
+                "{1} {0}",
             }
             DateTimeSkeletons{
                 "HHmmsszzzz",
@@ -871,7 +870,6 @@ bs{
                 MMdd{"d. M."}
                 Md{"d. M."}
                 d{"d."}
-                h{"h a"}
                 hm{"hh:mm a"}
                 hms{"hh:mm:ss a"}
                 hmsv{"h:mm:ss a (v)"}
@@ -947,10 +945,6 @@ bs{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        am{"a. m."}
-                        pm{"p. m."}
-                    }
                     narrow{
                         am{"prijepodne"}
                         pm{"popodne"}
@@ -963,29 +957,25 @@ bs{
             }
             eras{
                 abbreviated{
-                    "p. n. e.",
-                    "n. e.",
+                    0{"p. n. e."}
+                    1{"n. e."}
                 }
                 narrow{
-                    "p.n.e.",
-                    "n. e.",
+                    0{"p.n.e."}
                 }
                 wide{
-                    "prije nove ere",
-                    "nove ere",
+                    0{"prije nove ere"}
+                    1{"nove ere"}
                 }
                 wide%variant{
-                    "p. n. e.",
-                    "nove ere",
+                    1{"nove ere"}
                 }
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -1010,10 +1000,7 @@ bs{
                     y{"MMM y – MMM y. G"}
                 }
                 GyMMMEd{
-                    G{"G y MMM d, E – G y MMM d, E"}
-                    M{"G y MMM d, E – MMM d, E"}
                     d{"E, d. MMM – E, d. MMM y. G"}
-                    y{"G y MMM d, E – y MMM d, E"}
                 }
                 GyMMMd{
                     G{"d. MMM y. G – d. MMM y. G"}
@@ -1063,9 +1050,6 @@ bs{
                 d{
                     d{"d–d."}
                 }
-                h{
-                    a{"h a – h a"}
-                }
                 hm{
                     a{"h:mm a – h:mm a"}
                     h{"h:mm – h:mm a"}
@@ -1077,7 +1061,6 @@ bs{
                     m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h 'h' a v"}
                 }
                 yM{
@@ -1121,6 +1104,20 @@ bs{
                         "mar",
                         "apr",
                         "maj",
+                        "jun",
+                        "jul",
+                        "aug",
+                        "sep",
+                        "okt",
+                        "nov",
+                        "dec",
+                    }
+                    narrow{
+                        "jan",
+                        "feb",
+                        "mar",
+                        "apr",
+                        "may",
                         "jun",
                         "jul",
                         "aug",
@@ -1282,8 +1279,7 @@ bs{
             }
             eras{
                 abbreviated{
-                    "prije R.O.C.",
-                    "R.O.C.",
+                    0{"prije R.O.C."}
                 }
             }
         }
@@ -1399,17 +1395,17 @@ bs{
                 }
             }
         }
-        day-short{
+        day-narrow{
             relativeTime{
                 future{
-                    few{"za {0} d."}
-                    one{"za {0} d."}
-                    other{"za {0} d."}
+                    few{"za {0} dana"}
+                    one{"za {0} dan"}
+                    other{"za {0} dana"}
                 }
                 past{
-                    few{"prije {0} d."}
-                    one{"prije {0} d."}
-                    other{"prije {0} d."}
+                    few{"prije {0} dana"}
+                    one{"prije {0} dan"}
+                    other{"prije {0} dana"}
                 }
             }
         }
@@ -1447,11 +1443,42 @@ bs{
                 }
             }
         }
+        fri-narrow{
+            relative{
+                "-1"{"prošli pet"}
+                "0"{"ovaj pet"}
+                "1"{"sljedeći pet"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} pet"}
+                    one{"za {0} pet"}
+                    other{"za {0} pet"}
+                }
+                past{
+                    few{"prije {0} pet"}
+                    one{"prije {0} pet"}
+                    other{"prije {0} pet"}
+                }
+            }
+        }
         fri-short{
             relative{
-                "-1"{"prošli pet."}
-                "0"{"ovaj pet."}
-                "1"{"sljedeći pet."}
+                "-1"{"prošli pet"}
+                "0"{"ovaj pet"}
+                "1"{"sljedeći pet"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} pet"}
+                    one{"za {0} pet"}
+                    other{"za {0} pet"}
+                }
+                past{
+                    few{"prije {0} pet"}
+                    one{"prije {0} pet"}
+                    other{"prije {0} pet"}
+                }
             }
         }
         hour{
@@ -1493,18 +1520,32 @@ bs{
                 }
             }
         }
+        minute-narrow{
+            relativeTime{
+                future{
+                    few{"za {0} min"}
+                    one{"za {0} min"}
+                    other{"za {0} min"}
+                }
+                past{
+                    few{"prije {0} min"}
+                    one{"prije {0} min"}
+                    other{"prije {0} min"}
+                }
+            }
+        }
         minute-short{
             dn{"min"}
             relativeTime{
                 future{
-                    few{"za {0} min."}
+                    few{"za {0} min"}
                     one{"za {0} min"}
-                    other{"za {0} min."}
+                    other{"za {0} min"}
                 }
                 past{
-                    few{"prije {0} min."}
-                    one{"prije {0} min."}
-                    other{"prije {0} min."}
+                    few{"prije {0} min"}
+                    one{"prije {0} min"}
+                    other{"prije {0} min"}
                 }
             }
         }
@@ -1527,28 +1568,9 @@ bs{
                 }
             }
         }
-        mon-narrow{
-            relative{
-                "-1"{"prošli pon."}
-                "0"{"ovaj pon."}
-                "1"{"sljedeći pon."}
-            }
-            relativeTime{
-                future{
-                    few{"za {0} pon"}
-                    one{"za {0} pon"}
-                    other{"za {0} pon"}
-                }
-                past{
-                    few{"prije {0} pon"}
-                    one{"prije {0} pon"}
-                    other{"prije {0} pon"}
-                }
-            }
-        }
         mon-short{
             relative{
-                "-1"{"prošli pon."}
+                "-1"{"prošli pon"}
                 "0"{"ovaj pon."}
                 "1"{"sljedeći pon"}
             }
@@ -1587,6 +1609,11 @@ bs{
         }
         month-short{
             dn{"mj."}
+            relative{
+                "-1"{"prošli mj."}
+                "0"{"ovaj mj."}
+                "1"{"sljedeći mj."}
+            }
             relativeTime{
                 future{
                     few{"za {0} mj."}
@@ -1654,11 +1681,42 @@ bs{
                 }
             }
         }
+        sat-narrow{
+            relative{
+                "-1"{"prošla sub"}
+                "0"{"ova sub"}
+                "1"{"sljedeća sub"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} sub"}
+                    one{"za {0} sub"}
+                    other{"za {0} sub"}
+                }
+                past{
+                    few{"prije {0} sub"}
+                    one{"prije {0} sub"}
+                    other{"prije {0} sub"}
+                }
+            }
+        }
         sat-short{
             relative{
-                "-1"{"prošla sub."}
-                "0"{"ova sub."}
-                "1"{"sljedeća sub."}
+                "-1"{"prošla sub"}
+                "0"{"ova sub"}
+                "1"{"sljedeća sub"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} sub"}
+                    one{"za {0} sub"}
+                    other{"za {0} sub"}
+                }
+                past{
+                    few{"prije {0} sub"}
+                    one{"prije {0} sub"}
+                    other{"prije {0} sub"}
+                }
             }
         }
         second{
@@ -1678,9 +1736,6 @@ bs{
                     other{"prije {0} sekundi"}
                 }
             }
-        }
-        second-narrow{
-            dn{"s"}
         }
         second-short{
             dn{"s"}
@@ -1716,11 +1771,42 @@ bs{
                 }
             }
         }
+        sun-narrow{
+            relative{
+                "-1"{"prošla ned"}
+                "0"{"ova ned"}
+                "1"{"sljedeća ned"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} ned"}
+                    one{"za {0} ned"}
+                    other{"za {0} ned"}
+                }
+                past{
+                    few{"prije {0} ned"}
+                    one{"prije {0} ned"}
+                    other{"prije {0} ned"}
+                }
+            }
+        }
         sun-short{
             relative{
-                "-1"{"prošla ned."}
-                "0"{"ova ned."}
-                "1"{"sljedeća ned."}
+                "-1"{"prošla ned"}
+                "0"{"ova ned"}
+                "1"{"sljedeća ned"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} ned"}
+                    one{"za {0} ned"}
+                    other{"za {0} ned"}
+                }
+                past{
+                    few{"prije {0} ned"}
+                    one{"prije {0} ned"}
+                    other{"prije {0} ned"}
+                }
             }
         }
         thu{
@@ -1748,12 +1834,36 @@ bs{
                 "0"{"ovaj čet"}
                 "1"{"sljedeći čet"}
             }
+            relativeTime{
+                future{
+                    few{"za {0} čet"}
+                    one{"za {0} čet"}
+                    other{"za {0} čet"}
+                }
+                past{
+                    few{"prije {0} čet"}
+                    one{"prije {0} čet"}
+                    other{"prije {0} čet"}
+                }
+            }
         }
         thu-short{
             relative{
-                "-1"{"prošli čet."}
-                "0"{"ovaj čet."}
-                "1"{"sljedeći čet."}
+                "-1"{"prošli čet"}
+                "0"{"ovaj čet"}
+                "1"{"sljedeći čet"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} čet"}
+                    one{"za {0} čet"}
+                    other{"za {0} čet"}
+                }
+                past{
+                    few{"prije {0} čet"}
+                    one{"prije {0} čet"}
+                    other{"prije {0} čet"}
+                }
             }
         }
         tue{
@@ -1781,12 +1891,36 @@ bs{
                 "0"{"ovaj uto"}
                 "1"{"sljedeći uto"}
             }
+            relativeTime{
+                future{
+                    few{"za {0} uto"}
+                    one{"za {0} uto"}
+                    other{"za {0} uto"}
+                }
+                past{
+                    few{"prije {0} uto"}
+                    one{"prije {0} uto"}
+                    other{"prije {0} uto"}
+                }
+            }
         }
         tue-short{
             relative{
-                "-1"{"prošli uto."}
-                "0"{"ovaj uto."}
-                "1"{"sljedeći uto."}
+                "-1"{"prošli uto"}
+                "0"{"ovaj uto"}
+                "1"{"sljedeći uto"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} uto"}
+                    one{"za {0} uto"}
+                    other{"za {0} uto"}
+                }
+                past{
+                    few{"prije {0} uto"}
+                    one{"prije {0} uto"}
+                    other{"prije {0} uto"}
+                }
             }
         }
         wed{
@@ -1814,12 +1948,36 @@ bs{
                 "0"{"ova sri"}
                 "1"{"sljedeća sri"}
             }
+            relativeTime{
+                future{
+                    few{"za {0} sri"}
+                    one{"za {0} sri"}
+                    other{"za {0} sri"}
+                }
+                past{
+                    few{"prije {0} sri"}
+                    one{"prije {0} sri"}
+                    other{"prije {0} sri"}
+                }
+            }
         }
         wed-short{
             relative{
-                "-1"{"prošla sri."}
-                "0"{"ova sri."}
-                "1"{"sljedeća sri."}
+                "-1"{"prošla sri"}
+                "0"{"ova sri"}
+                "1"{"sljedeća sri"}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} sri"}
+                    one{"za {0} sri"}
+                    other{"za {0} sri"}
+                }
+                past{
+                    few{"prije {0} sri"}
+                    one{"prije {0} sri"}
+                    other{"prije {0} sri"}
+                }
             }
         }
         week{
@@ -1843,18 +2001,43 @@ bs{
                 }
             }
         }
-        week-short{
-            dn{"sed."}
+        week-narrow{
+            dn{"sedm."}
+            relative{
+                "-1"{"prošle sedm."}
+                "0"{"ove sedm."}
+                "1"{"sljedeće sedm."}
+            }
             relativeTime{
                 future{
-                    few{"za {0} sed."}
-                    one{"za {0} sed."}
-                    other{"za {0} sed."}
+                    few{"za {0} sedm."}
+                    one{"za {0} sedm."}
+                    other{"za {0} sedm."}
                 }
                 past{
-                    few{"prije {0} sed."}
-                    one{"prije {0} sed."}
-                    other{"prije {0} sed."}
+                    few{"prije {0} sedm."}
+                    one{"prije {0} sedm."}
+                    other{"prije {0} sedm."}
+                }
+            }
+        }
+        week-short{
+            dn{"sedm."}
+            relative{
+                "-1"{"prošle sedm."}
+                "0"{"ove sedm."}
+                "1"{"sljedeće sedm."}
+            }
+            relativeTime{
+                future{
+                    few{"za {0} sedm."}
+                    one{"za {0} sedm."}
+                    other{"za {0} sedm."}
+                }
+                past{
+                    few{"prije {0} sedm."}
+                    one{"prije {0} sedm."}
+                    other{"prije {0} sedm."}
                 }
             }
         }
@@ -1862,10 +2045,10 @@ bs{
             dn{"sedmica u mjesecu"}
         }
         weekOfMonth-narrow{
-            dn{"s. u mj."}
+            dn{"sedm. u mj."}
         }
         weekOfMonth-short{
-            dn{"sed. u mj."}
+            dn{"sedm. u mj."}
         }
         weekday{
             dn{"dan u sedmici"}
@@ -1875,9 +2058,6 @@ bs{
         }
         weekdayOfMonth{
             dn{"dan u mjesecu"}
-        }
-        weekdayOfMonth-narrow{
-            dn{"d. u mj."}
         }
         weekdayOfMonth-short{
             dn{"dan u mj."}

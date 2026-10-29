@@ -14,10 +14,13 @@ ca{
         colStrength{"força de l’ordre"}
         collation{"ordre"}
         currency{"moneda"}
+        em{"presentació de l’emoji"}
         hc{"sistema horari (12 h o 24 h)"}
         lb{"estil de salt de línia"}
+        lw{"salt de línia entre paraules"}
         ms{"sistema de mesures"}
         numbers{"xifres"}
+        ss{"pausa després de les abreviatures"}
         timezone{"zona horària"}
         va{"variant local"}
         x{"ús privat"}
@@ -632,6 +635,12 @@ ca{
         zxx{"sense contingut lingüístic"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurd"}
+    }
+    Languages%extension{
+        ku{"kurmanji"}
+    }
     Languages%long{
         zh_Hans{"xinès mandarí (simplificat)"}
         zh_Hant{"xinès mandarí (tradicional)"}
@@ -855,9 +864,29 @@ ca{
             persian{"calendari persa"}
             roc{"calendari de la República de Xina"}
         }
+        calendar%core{
+            buddhist{"budista"}
+            chinese{"xinès"}
+            coptic{"copte"}
+            dangi{"dangi"}
+            ethiopic{"etíop"}
+            ethiopic-amete-alem{"etíop amete-alem"}
+            gregorian{"gregorià"}
+            hebrew{"hebreu"}
+            islamic{"civil islàmic"}
+            islamic-civil{"civil islàmic"}
+            islamic-umalqura{"islàmic (Umm al-Qura)"}
+            japanese{"japonès"}
+            persian{"persa"}
+            roc{"de la República de Xina"}
+        }
         cf{
             account{"format de moneda comptable"}
             standard{"format de moneda estàndard"}
+        }
+        cf%core{
+            account{"comptable"}
+            standard{"estàndard"}
         }
         colAlternate{
             non-ignorable{"Ordena els símbols"}
@@ -892,12 +921,10 @@ ca{
             tertiary{"Ordena per accent/majúscules/amplada"}
         }
         collation{
-            big5han{"ordre del xinès tradicional - Big5"}
             compat{"ordre anterior, per a compatibilitat"}
             dictionary{"ordre de diccionari"}
             ducet{"ordre Unicode predeterminat"}
             eor{"normes europees d’ordenació"}
-            gb2312han{"ordre del xinès simplificat - GB2312"}
             phonebook{"ordre de la guia telefònica"}
             phonetic{"ordre fonètic"}
             pinyin{"ordre pinyin"}
@@ -909,10 +936,29 @@ ca{
             unihan{"ordre de traços radicals"}
             zhuyin{"ordre zhuyin"}
         }
+        collation%core{
+            compat{"compatibilitat"}
+            dictionary{"diccionari"}
+            ducet{"unicode predeterminat"}
+            phonebook{"guia telefònica"}
+            phonetic{"fonètic"}
+            pinyin{"pinyin"}
+            search{"cerca"}
+            standard{"estàndard"}
+            stroke{"traços"}
+            traditional{"tradicional"}
+            unihan{"traços radicals"}
+            zhuyin{"zhuyin"}
+        }
         d0{
             fwidth{"amplada completa"}
             hwidth{"amplada mitjana"}
             npinyin{"Numèric"}
+        }
+        em%core{
+            default{"predeterminada"}
+            emoji{"emoji"}
+            text{"text"}
         }
         hc{
             h11{"sistema de 12 hores (0–11)"}
@@ -920,10 +966,27 @@ ca{
             h23{"sistema de 24 hores (0–23)"}
             h24{"sistema de 24 hores (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"salt de línia flexible"}
             normal{"salt de línia normal"}
             strict{"salt de línia estricte"}
+        }
+        lb%core{
+            loose{"flexible"}
+            normal{"normal"}
+            strict{"estricte"}
+        }
+        lw%core{
+            breakall{"divideix-ho tot"}
+            keepall{"conserva-ho tot"}
+            normal{"normal"}
+            phrase{"conserva en sintagmes"}
         }
         m0{
             bgn{"sistema de transliteració BGN"}
@@ -933,6 +996,11 @@ ca{
             metric{"sistema mètric"}
             uksystem{"sistema imperial d’unitats"}
             ussystem{"sistema d’unitats dels EUA"}
+        }
+        ms%core{
+            metric{"mètric"}
+            uksystem{"imperial"}
+            ussystem{"EUA"}
         }
         numbers{
             arab{"xifres indoaràbigues"}
@@ -991,6 +1059,10 @@ ca{
             tibt{"dígits tibetans"}
             traditional{"Numerals tradicionals"}
             vaii{"dígits vai"}
+        }
+        ss%core{
+            none{"desactivada"}
+            standard{"activada"}
         }
     }
     Variants{

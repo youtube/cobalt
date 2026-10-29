@@ -144,12 +144,12 @@ mfe{
             }
             eras{
                 abbreviated{
-                    "av. Z-K",
-                    "ap. Z-K",
+                    0{"av. Z-K"}
+                    1{"ap. Z-K"}
                 }
                 wide{
-                    "avan Zezi-Krist",
-                    "apre Zezi-Krist",
+                    0{"avan Zezi-Krist"}
+                    1{"apre Zezi-Krist"}
                 }
             }
             monthNames{

@@ -52,6 +52,60 @@ bool IsSameNan(double expected, double actual) {
          ((expected_bits | 0x0008000000000000) == actual_bits);
 }
 
+Tagged<WasmDispatchTable> GetDispatchTable(
+    DirectHandle<WasmTrustedInstanceData> instance, uint32_t table_index) {
+  Tagged<Object> table = instance->dispatch_tables()->get(table_index);
+  return TrustedCast<WasmDispatchTable>(table);
+}
+
+class FunctionTargetAndImplicitArg {
+ public:
+  FunctionTargetAndImplicitArg(
+      Isolate* isolate,
+      DirectHandle<WasmTrustedInstanceData> target_instance_data,
+      int target_func_index) {
+    implicit_arg_ = target_instance_data;
+    if (target_func_index <
+        static_cast<int>(
+            target_instance_data->module()->num_imported_functions)) {
+      // The function in the target instance was imported. Load the ref from the
+      // dispatch table for imports.
+      implicit_arg_ = direct_handle(
+          TrustedCast<TrustedObject>(
+              target_instance_data->dispatch_table_for_imports()->implicit_arg(
+                  target_func_index)),
+          isolate);
+#if V8_ENABLE_DRUMBRAKE
+      target_func_index_ =
+          target_instance_data->imported_function_indices()->get(
+              target_func_index);
+#endif  // V8_ENABLE_DRUMBRAKE
+    } else {
+      // The function in the target instance was not imported.
+#if V8_ENABLE_DRUMBRAKE
+      target_func_index_ = target_func_index;
+#endif  // V8_ENABLE_DRUMBRAKE
+    }
+    call_target_ = target_instance_data->GetCallTarget(target_func_index);
+  }
+
+  // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
+  DirectHandle<TrustedObject> implicit_arg() { return implicit_arg_; }
+  WasmCodePointer call_target() { return call_target_; }
+
+#if V8_ENABLE_DRUMBRAKE
+  int target_func_index() { return target_func_index_; }
+#endif  // V8_ENABLE_DRUMBRAKE
+
+ private:
+  DirectHandle<TrustedObject> implicit_arg_;
+  WasmCodePointer call_target_;
+
+#if V8_ENABLE_DRUMBRAKE
+  int target_func_index_;
+#endif  // V8_ENABLE_DRUMBRAKE
+};
+
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, Isolate* isolate)
@@ -92,7 +146,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
     const wasm::CanonicalValueType type = wasm::CanonicalValueType::Ref(
-        sig_index, wasm::kNotShared, wasm::RefTypeKind::kFunction);
+        sig_index, SharedFlag::kNo, wasm::RefTypeKind::kFunction);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, type, sig,
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
@@ -306,7 +360,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
               : std::nullopt;
 
       if (maybe_wrapper) {
-        trusted_instance_data_->dispatch_table(table_index)
+        GetDispatchTable(trusted_instance_data_, table_index)
             ->SetForWrapper(i,
                             TrustedCast<WasmImportData>(*entry.implicit_arg()),
                             std::move(*maybe_wrapper), sig_id,
@@ -315,7 +369,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
 #endif  // !V8_ENABLE_DRUMBRAKE
                             WasmDispatchTable::kNewEntry);
       } else {
-        trusted_instance_data_->dispatch_table(table_index)
+        GetDispatchTable(trusted_instance_data_, table_index)
             ->SetForNonWrapper(
                 i, TrustedCast<WasmTrustedInstanceData>(*entry.implicit_arg()),
                 entry.call_target(), sig_id,
@@ -410,7 +464,7 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   // space.
   module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
-      {type, true, {}, {global_offset_}, false, false, false});
+      {type, true, {}, {global_offset_}, SharedFlag::kNo, false, false});
   global_offset_ += size;
   // limit number of globals.
   CHECK_LT(global_offset_, kMaxGlobalsSize);
@@ -452,7 +506,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       WasmTrustedInstanceData::New(isolate_, module_object,
-                                   std::move(native_module), false);
+                                   std::move(native_module), SharedFlag::kNo);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(trusted_data->has_instance_object());
   DirectHandle<WasmInstanceObject> instance_object(
@@ -494,11 +548,11 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
       base::OwnedVector<uint8_t>::NewForOverwrite(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.size());
-  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
+  // TODO(14616): Extend this to shared functions.
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end(),
-                         kIsShared};
+                         SharedFlag::kNo};
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

@@ -108,7 +108,6 @@ class StackMemory;
 }  // namespace wasm
 #endif
 
-enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
 
 enum FunctionMode {
@@ -494,7 +493,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSAny> receiver_or_instance,
       DirectHandle<UnionOf<Smi, JSFunction>> function,
       DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
-      int flags, DirectHandle<FixedArray> parameters);
+      int flags);
   DirectHandle<StackFrameInfo> NewStackFrameInfo(
       DirectHandle<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
       int bytecode_offset_or_source_position,
@@ -516,7 +515,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
-  Handle<TrustedForeign> NewTrustedForeign(Address addr, bool shared);
+  Handle<TrustedForeign> NewTrustedForeign(Address addr, SharedFlag shared);
 
   Handle<Cell> NewCell(Tagged<Smi> value);
   Handle<Cell> NewCell();
@@ -611,7 +610,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> NewWeakArrayList(
-      int capacity, AllocationType allocation = AllocationType::kYoung);
+      uint32_t capacity, AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakFixedArray> CopyWeakFixedArray(
       DirectHandle<WeakFixedArray> array);
@@ -620,11 +619,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WeakFixedArray> array, uint32_t grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
-      DirectHandle<WeakArrayList> array, int grow_by,
+      DirectHandle<WeakArrayList> array, uint32_t grow_by,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> CompactWeakArrayList(
-      DirectHandle<WeakArrayList> array, int new_capacity,
+      DirectHandle<WeakArrayList> array, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<PropertyArray> CopyPropertyArrayAndGrow(
@@ -762,20 +761,21 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> map);
 
 #if V8_ENABLE_WEBASSEMBLY
-  DirectHandle<WasmTrustedInstanceData> NewWasmTrustedInstanceData(bool shared);
+  DirectHandle<WasmTrustedInstanceData> NewWasmTrustedInstanceData(
+      SharedFlag shared);
   DirectHandle<WasmDispatchTable> NewWasmDispatchTable(
-      int length, wasm::CanonicalValueType table_type, bool shared);
+      int length, wasm::CanonicalValueType table_type, SharedFlag shared);
   DirectHandle<WasmDispatchTableForImports> NewWasmDispatchTableForImports(
-      int length, bool shared);
+      int length, SharedFlag shared);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
       wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
-      DirectHandle<Map> opt_parent, int num_supertypes, bool shared);
+      DirectHandle<Map> opt_parent, int num_supertypes, SharedFlag shared);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<TrustedObject> ref, int function_index, bool shared,
+      DirectHandle<TrustedObject> ref, int function_index, SharedFlag shared,
       WasmCodePointer call_target, const wasm::CanonicalSig* sig);
   DirectHandle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,
-      DirectHandle<Map> rtt, bool shared);
+      DirectHandle<Map> rtt, SharedFlag shared);
   DirectHandle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
@@ -789,9 +789,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
-      const wasm::CanonicalSig* sig, bool shared);
+      const wasm::CanonicalSig* sig, SharedFlag shared);
   DirectHandle<WasmImportData> NewWasmImportData(
-      DirectHandle<WasmImportData> ref, bool shared);
+      DirectHandle<WasmImportData> ref, SharedFlag shared);
 
   DirectHandle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);
@@ -1437,7 +1437,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
-      int capacity, AllocationType allocation = AllocationType::kYoung);
+      uint32_t capacity, AllocationType allocation = AllocationType::kYoung);
 
 #if V8_ENABLE_WEBASSEMBLY
   // The resulting array will be uninitialized, which means GC might fail for

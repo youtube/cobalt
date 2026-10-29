@@ -502,7 +502,7 @@ generateToUTable(CnvExtData *extData, UCMTable *table,
     subLimit=UCNV_EXT_TO_U_GET_VALUE(section[0]);
     for(j=0; j<count; ++j) {
         subStart=subLimit;
-        subLimit= (j+1)<count ? UCNV_EXT_TO_U_GET_VALUE(section[j+1]) : limit;
+        subLimit= (j+1)<count ? (int32_t)UCNV_EXT_TO_U_GET_VALUE(section[j+1]) : limit;
 
         /* remove the subStart temporary value */
         section[j]&=~UCNV_EXT_TO_U_VALUE_MASK;
@@ -661,8 +661,10 @@ getFromUBytesValue(CnvExtData *extData, UCMTable *table, UCMapping *m) {
         /* 1..3: store the bytes in the value word */
     case 3:
         value=((uint32_t)*bytes++)<<16;
+        U_FALLTHROUGH;
     case 2:
         value|=((uint32_t)*bytes++)<<8;
+        U_FALLTHROUGH;
     case 1:
         value|=*bytes;
         break;

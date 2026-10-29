@@ -257,6 +257,11 @@ typedef struct asn1_null_st ASN1_NULL;
 // It is used in function parameters that must be NULL.
 typedef struct crypto_must_be_null_st CRYPTO_MUST_BE_NULL;
 
+// OSSL_PARAM is an opaque type defined only for OpenSSL compatiblity. It is
+// never returned from BoringSSL and must be NULL when passed as function
+// parameters.
+typedef struct ossl_param_st OSSL_PARAM;
+
 typedef int ASN1_BOOLEAN;
 typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct asn1_object_st ASN1_OBJECT;
@@ -338,6 +343,7 @@ typedef struct evp_hpke_ctx_st EVP_HPKE_CTX;
 typedef struct evp_hpke_kdf_st EVP_HPKE_KDF;
 typedef struct evp_hpke_kem_st EVP_HPKE_KEM;
 typedef struct evp_hpke_key_st EVP_HPKE_KEY;
+typedef struct evp_kem_st EVP_KEM;
 typedef struct evp_pkey_alg_st EVP_PKEY_ALG;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 typedef struct evp_pkey_st EVP_PKEY;

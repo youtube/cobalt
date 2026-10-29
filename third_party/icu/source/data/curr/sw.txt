@@ -651,6 +651,10 @@ sw{
             "EC$",
             "Dola ya Karibi Mashariki",
         }
+        XCG{
+            "Cg.",
+            "Guilder ya Karibe",
+        }
         XOF{
             "F CFA",
             "Faranga ya Afrika Magharibi CFA",
@@ -682,6 +686,10 @@ sw{
         ZWD{
             "ZWD",
             "Dola ya Zimbabwe",
+        }
+        ZWG{
+            "ZWG",
+            "Dhahabu ya Zimbabwe",
         }
     }
     Currencies%narrow{
@@ -1329,6 +1337,10 @@ sw{
             one{"dola ya Karibi Mashariki"}
             other{"dola za Karibi Mashariki"}
         }
+        XCG{
+            one{"Guilder ya Karibe"}
+            other{"Guilder ya Karibe"}
+        }
         XOF{
             one{"faranga ya Afrika Magharibi CFA"}
             other{"faranga za Afrika Magharibi CFA"}
@@ -1352,6 +1364,10 @@ sw{
         ZMW{
             one{"kwacha ya Zambia"}
             other{"kwacha za Zambia"}
+        }
+        ZWG{
+            one{"Dhahabu ya Zimbabwe"}
+            other{"Dhahabu ya Zimbabwe"}
         }
     }
     CurrencyUnitPatterns{

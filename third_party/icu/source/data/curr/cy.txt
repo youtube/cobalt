@@ -975,6 +975,10 @@ cy{
             "EC$",
             "Doler Dwyrain y Caribî",
         }
+        XCG{
+            "Cg.",
+            "guilder Caribïaidd",
+        }
         XEU{
             "XEU",
             "Uned Arian Cyfred Ewropeaidd",
@@ -1038,6 +1042,10 @@ cy{
         ZWD{
             "ZWD",
             "Doler Zimbabwe (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwean Gold",
         }
         ZWL{
             "ZWL",
@@ -2978,6 +2986,14 @@ cy{
             two{"ddoler Dwyrain y Caribî"}
             zero{"doler Dwyrain y Caribî"}
         }
+        XCG{
+            few{"guilder Caribïaidd"}
+            many{"guilder Caribïaidd"}
+            one{"guilder Caribïaidd"}
+            other{"guilder Caribïaidd"}
+            two{"guilder Caribïaidd"}
+            zero{"guilder Caribïaidd"}
+        }
         XEU{
             few{"uned arian cyfred Ewropeaidd"}
             many{"uned arian cyfred Ewropeaidd"}
@@ -3089,6 +3105,14 @@ cy{
             other{"doler Zimbabwe (1980–2008)"}
             two{"ddoler Zimbabwe (1980–2008)"}
             zero{"doler Zimbabwe (1980–2008)"}
+        }
+        ZWG{
+            few{"Zimbabwean Gold"}
+            many{"Zimbabwean Gold"}
+            one{"Zimbabwean Gold"}
+            other{"Zimbabwean Gold"}
+            two{"Zimbabwean Gold"}
+            zero{"Zimbabwean Gold"}
         }
         ZWL{
             few{"doler Zimbabwe (2009)"}

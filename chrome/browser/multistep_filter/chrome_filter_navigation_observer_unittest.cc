@@ -11,8 +11,10 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/multistep_filter/core/annotation_index/mock_annotation_index_client.h"
 #include "components/multistep_filter/core/features.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
+#include "components/multistep_filter/core/storage/filter_store.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
@@ -23,24 +25,26 @@
 
 namespace multistep_filter {
 
+using ::testing::_;
+
 namespace {
 
 class MockMultistepFilterService : public MultistepFilterService {
  public:
-  MockMultistepFilterService()
-      : MultistepFilterService(/*annotation_index_client=*/nullptr,
-                               /*filter_store=*/nullptr,
-                               /*filter_suggestion_generator=*/nullptr,
+  MockMultistepFilterService(
+      std::unique_ptr<AnnotationIndexClient> annotation_index_client,
+      std::unique_ptr<FilterStore> filter_store)
+      : MultistepFilterService(std::move(annotation_index_client),
+                               std::move(filter_store),
                                /*identity_manager=*/nullptr) {}
 
-  MOCK_METHOD(void, GenerateFilterSuggestions, (const GURL& url));
-
-  void GenerateFilterSuggestions(
-      const GURL& url,
-      base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback)
-      override {
-    GenerateFilterSuggestions(url);
-  }
+  MOCK_METHOD(void, ExtractAnnotation, (const GURL& url), (override));
+  MOCK_METHOD(
+      void,
+      GenerateFilterSuggestions,
+      (const GURL& url,
+       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback),
+      (override));
 };
 
 // Helper class for ChromeFilterNavigationObserverTest.
@@ -64,7 +68,9 @@ class ChromeFilterNavigationObserverTest
         profile(), base::BindRepeating([](content::BrowserContext* context)
                                            -> std::unique_ptr<KeyedService> {
           return std::make_unique<
-              testing::NiceMock<MockMultistepFilterService>>();
+              testing::NiceMock<MockMultistepFilterService>>(
+              std::make_unique<MockAnnotationIndexClient>(),
+              std::make_unique<FilterStore>());
         }));
 
     mock_tab_ = std::make_unique<tabs::MockTabInterface>();
@@ -134,7 +140,8 @@ TEST_F(ChromeFilterNavigationObserverTest, NavigationWithController) {
   filter_ui_controller.emplace(*mock_tab_);
 
   const GURL url("https://www.example.com");
-  EXPECT_CALL(*mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(*mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(*mock_service(), GenerateFilterSuggestions(url, _));
 
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
@@ -142,7 +149,8 @@ TEST_F(ChromeFilterNavigationObserverTest, NavigationWithController) {
 
 TEST_F(ChromeFilterNavigationObserverTest, NavigationWithNullController) {
   const GURL url("https://www.example.com");
-  EXPECT_CALL(*mock_service(), GenerateFilterSuggestions(url));
+  EXPECT_CALL(*mock_service(), ExtractAnnotation(url));
+  EXPECT_CALL(*mock_service(), GenerateFilterSuggestions(url, _));
 
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);

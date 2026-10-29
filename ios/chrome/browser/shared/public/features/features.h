@@ -159,20 +159,6 @@ BASE_DECLARE_FEATURE(kLensOverlayCustomBottomSheet);
 // Feature flag to check headers for lens searches.
 BASE_DECLARE_FEATURE(kLensSearchHeadersCheckEnabled);
 
-// Variations of MIA NTP entrypoint.
-extern const char kNTPMIAEntrypointParam[];
-extern const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[];
-extern const char kNTPMIAEntrypointParamOmniboxContainedInline[];
-extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
-extern const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[];
-extern const char kNTPMIAEntrypointParamAIMInQuickActions[];
-
-// Feature flag to change the MIA entrypoint in NTP. Applies to en-US locales
-// only.
-BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
-// Like above, but applies regardless of client's locale.
-BASE_DECLARE_FEATURE(kNTPMIAEntrypointAllLocales);
-
 // Used to gate the immersive SRP in the Composebox.
 BASE_DECLARE_FEATURE(kComposeboxImmersiveSRP);
 
@@ -982,5 +968,36 @@ BASE_DECLARE_FEATURE(kAskAboutThisPage);
 
 // Returns true if the AskAboutThisPage feature is enabled.
 bool IsAskAboutThisPageEnabled();
+
+// Enables the PageToolsFeatureUnavailability feature.
+BASE_DECLARE_FEATURE(kPageToolsFeatureUnavailability);
+
+// Returns true if the PageToolsFeatureUnavailability feature is enabled.
+bool IsPageToolsFeatureUnavailabilityEnabled();
+
+// Feature flag to guard against snapshot updates in the grid mediator during
+// batch operations.
+BASE_DECLARE_FEATURE(kGridMediatorSnapshotUpdateBatchGuard);
+
+// Whether the grid mediator snapshot update batch guard is enabled.
+bool IsGridMediatorSnapshotUpdateBatchGuardEnabled();
+
+// Enables the AssistantSidePanel feature.
+BASE_DECLARE_FEATURE(kAssistantSidePanel);
+
+// Returns true if the AssistantSidePanel feature is enabled.
+bool IsAssistantSidePanelEnabled();
+
+// Enables the YourSavedInfoSettingsPageIos feature.
+BASE_DECLARE_FEATURE(kYourSavedInfoSettingsPageIos);
+
+// Returns true if the YourSavedInfoSettingsPageIos feature is enabled.
+bool IsYourSavedInfoSettingsPageIosEnabled();
+
+// Enables the OpenEditGroupViewByTappingTitle feature.
+BASE_DECLARE_FEATURE(kOpenEditGroupViewByTappingTitle);
+
+// Returns true if the OpenEditGroupViewByTappingTitle feature is enabled.
+bool IsOpenEditGroupViewByTappingTitleEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

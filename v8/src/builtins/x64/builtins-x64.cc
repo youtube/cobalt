@@ -1832,8 +1832,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // Load the feedback cell and vector from the closure.
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   __ AssertFeedbackVector(feedback_vector, kScratchRegister);
 
 
@@ -4028,8 +4029,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // If the stack has not been started yet, switching to it is invalid as it
   // does not have a stack entry frame. Instead, retire it and throw the
   // exception from the current stack.
-  // Both blocks exit with the arguments of the runtime call pushed on the
-  // stack.
+  // Both blocks exit with the exnref pushed on the stack.
   __ cmpq(Operand(target_stack, wasm::kStackFpOffset), Immediate(kNullAddress));
   Label throw_;
   Label retire_and_throw;
@@ -4052,9 +4052,11 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
     __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
   }
   __ bind(&throw_);
-  // Throw the exnref.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmReThrow);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
   __ Trap();
   __ bind(&return_);
   __ endbr64();
@@ -5429,8 +5431,9 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   Register feedback_vector = r11;
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

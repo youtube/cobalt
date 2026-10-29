@@ -58,7 +58,7 @@ ALWAYS_INLINE size_t LengthOfNonCharacter(int character) {
   return -character;
 }
 
-constexpr std::array<uint8_t, 256> kNonASCIISequenceLength = {
+constexpr std::array<uint8_t, 256> kNonAsciiSequenceLength = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -71,8 +71,8 @@ constexpr std::array<uint8_t, 256> kNonASCIISequenceLength = {
     2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
     4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-inline int DecodeNonASCIISequence(base::span<const uint8_t> sequence) {
-  DCHECK(!IsASCII(sequence[0]));
+inline int DecodeNonAsciiSequence(base::span<const uint8_t> sequence) {
+  DCHECK(!IsAscii(sequence[0]));
 
   const size_t length = sequence.size();
   if (length == 2) {
@@ -241,7 +241,7 @@ void TextCodecUtf8::FillPartialSequenceBytes(
     partial_sequence_size_ += additional_bytes;
   }
   // If we still don't have `sequence_length` bytes, fill the rest with zeros
-  // (any other lead byte would do), so we can run `DecodeNonASCIISequence` to
+  // (any other lead byte would do), so we can run `DecodeNonAsciiSequence` to
   // tell if the chunk that we have is valid. These bytes are not part of the
   // partial sequence, so don't increment `partial_sequence_size`.
   if (sequence_length > partial_sequence_size_) {
@@ -275,12 +275,12 @@ bool TextCodecUtf8::HandlePartialSequence(base::span<LChar>& destination,
                                           bool flush) {
   DCHECK(partial_sequence_size_);
   do {
-    if (IsASCII(partial_sequence_[0])) {
+    if (IsAscii(partial_sequence_[0])) {
       destination.take_first<1u>()[0] = partial_sequence_[0];
       ConsumePartialSequenceBytes(1);
       continue;
     }
-    size_t count = kNonASCIISequenceLength[partial_sequence_[0]];
+    size_t count = kNonAsciiSequenceLength[partial_sequence_[0]];
     int character;
     if (!count) {
       character = kNonCharacter1;
@@ -289,7 +289,7 @@ bool TextCodecUtf8::HandlePartialSequence(base::span<LChar>& destination,
         FillPartialSequenceBytes(count, source);
       }
       character =
-          DecodeNonASCIISequence(base::span(partial_sequence_).first(count));
+          DecodeNonAsciiSequence(base::span(partial_sequence_).first(count));
       if (NeedMoreData(count, character, flush)) {
         return false;
       }
@@ -320,12 +320,12 @@ bool TextCodecUtf8::HandlePartialSequence(base::span<UChar>& destination,
                                           bool& saw_error) {
   DCHECK(partial_sequence_size_);
   do {
-    if (IsASCII(partial_sequence_[0])) {
+    if (IsAscii(partial_sequence_[0])) {
       destination.take_first<1u>()[0] = partial_sequence_[0];
       ConsumePartialSequenceBytes(1);
       continue;
     }
-    size_t count = kNonASCIISequenceLength[partial_sequence_[0]];
+    size_t count = kNonAsciiSequenceLength[partial_sequence_[0]];
     int character;
     if (!count) {
       character = kNonCharacter1;
@@ -334,7 +334,7 @@ bool TextCodecUtf8::HandlePartialSequence(base::span<UChar>& destination,
         FillPartialSequenceBytes(count, source);
       }
       character =
-          DecodeNonASCIISequence(base::span(partial_sequence_).first(count));
+          DecodeNonAsciiSequence(base::span(partial_sequence_).first(count));
       if (NeedMoreData(count, character, flush)) {
         return false;
       }
@@ -390,7 +390,7 @@ String TextCodecUtf8::Decode(base::span<const uint8_t> bytes,
     }
 
     while (!source.empty()) {
-      if (IsASCII(source[0])) {
+      if (IsAscii(source[0])) {
         // Fast path for ASCII. Most UTF-8 text will be ASCII.
         if (IsAlignedToMachineWord(source.data())) {
           while (source.data() < aligned_end) {
@@ -406,14 +406,14 @@ String TextCodecUtf8::Decode(base::span<const uint8_t> bytes,
           if (source.empty()) {
             break;
           }
-          if (!IsASCII(source[0])) {
+          if (!IsAscii(source[0])) {
             continue;
           }
         }
         destination.take_first<1u>()[0] = source.take_first_elem();
         continue;
       }
-      size_t count = kNonASCIISequenceLength[source[0]];
+      size_t count = kNonAsciiSequenceLength[source[0]];
       int character;
       if (count == 0) {
         character = kNonCharacter1;
@@ -422,7 +422,7 @@ String TextCodecUtf8::Decode(base::span<const uint8_t> bytes,
           SavePartialSequenceBytes(source);
           break;
         }
-        character = DecodeNonASCIISequence(source.first(count));
+        character = DecodeNonAsciiSequence(source.first(count));
       }
       if (IsNonCharacter(character)) {
         saw_error = true;
@@ -473,7 +473,7 @@ upConvertTo16Bit:
     }
 
     while (!source.empty()) {
-      if (IsASCII(source[0])) {
+      if (IsAscii(source[0])) {
         // Fast path for ASCII. Most UTF-8 text will be ASCII.
         if (IsAlignedToMachineWord(source.data())) {
           while (source.data() < aligned_end) {
@@ -491,14 +491,14 @@ upConvertTo16Bit:
           if (source.empty()) {
             break;
           }
-          if (!IsASCII(source[0])) {
+          if (!IsAscii(source[0])) {
             continue;
           }
         }
         destination16.take_first<1u>()[0] = source.take_first_elem();
         continue;
       }
-      size_t count = kNonASCIISequenceLength[source[0]];
+      size_t count = kNonAsciiSequenceLength[source[0]];
       int character;
       if (count == 0) {
         character = kNonCharacter1;
@@ -507,7 +507,7 @@ upConvertTo16Bit:
           SavePartialSequenceBytes(source);
           break;
         }
-        character = DecodeNonASCIISequence(source.first(count));
+        character = DecodeNonAsciiSequence(source.first(count));
       }
       if (IsNonCharacter(character)) {
         saw_error = true;

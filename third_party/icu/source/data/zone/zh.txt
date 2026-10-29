@@ -270,6 +270,9 @@ zh{
         "America:Costa_Rica"{
             ec{"哥斯达黎加"}
         }
+        "America:Coyhaique"{
+            ec{"科伊艾克"}
+        }
         "America:Creston"{
             ec{"克雷斯顿"}
         }
@@ -598,7 +601,7 @@ zh{
             ec{"迪蒙·迪维尔"}
         }
         "Antarctica:Macquarie"{
-            ec{"麦格理"}
+            ec{"麦夸里岛"}
         }
         "Antarctica:Mawson"{
             ec{"莫森"}
@@ -859,7 +862,7 @@ zh{
             ec{"万象"}
         }
         "Asia:Vladivostok"{
-            ec{"符拉迪沃斯托克"}
+            ec{"海参崴"}
         }
         "Asia:Yakutsk"{
             ec{"雅库茨克"}
@@ -937,7 +940,7 @@ zh{
             ls{"协调世界时"}
         }
         "Etc:Unknown"{
-            ec{"未知城市"}
+            ec{"未知地点"}
         }
         "Europe:Amsterdam"{
             ec{"阿姆斯特丹"}
@@ -1167,7 +1170,7 @@ zh{
             ec{"埃法特"}
         }
         "Pacific:Enderbury"{
-            ec{"恩德伯里"}
+            ec{"坎顿岛"}
         }
         "Pacific:Fakaofo"{
             ec{"法考福"}
@@ -1192,9 +1195,6 @@ zh{
         }
         "Pacific:Honolulu"{
             ec{"檀香山"}
-        }
-        "Pacific:Kanton"{
-            ec{"坎顿岛"}
         }
         "Pacific:Kiritimati"{
             ec{"基里地马地岛"}
@@ -1283,9 +1283,7 @@ zh{
             ls{"南非标准时间"}
         }
         "meta:Africa_Western"{
-            ld{"西部非洲夏令时间"}
-            lg{"西部非洲时间"}
-            ls{"西部非洲标准时间"}
+            ls{"西部非洲时间"}
         }
         "meta:Alaska"{
             ld{"阿拉斯加夏令时间"}
@@ -1549,6 +1547,9 @@ zh{
         }
         "meta:Guyana"{
             ls{"圭亚那时间"}
+        }
+        "meta:Hawaii"{
+            ls{"夏威夷-阿留申标准时间"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"夏威夷-阿留申夏令时间"}
@@ -1847,6 +1848,11 @@ zh{
         }
         "meta:Truk"{
             ls{"楚克时间"}
+        }
+        "meta:Turkey"{
+            ld{"土耳其夏令时间"}
+            lg{"土耳其时间"}
+            ls{"土耳其标准时间"}
         }
         "meta:Turkmenistan"{
             ld{"土库曼斯坦夏令时间"}

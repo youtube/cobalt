@@ -13,7 +13,9 @@ yav{
         latn{
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -151,12 +153,12 @@ yav{
             }
             eras{
                 abbreviated{
-                    "k.Y.",
-                    "+J.C.",
+                    0{"k.Y."}
+                    1{"+J.C."}
                 }
                 wide{
-                    "katikupíen Yésuse",
-                    "ékélémkúnupíén n",
+                    0{"katikupíen Yésuse"}
+                    1{"ékélémkúnupíén n"}
                 }
             }
             monthNames{

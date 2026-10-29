@@ -80,8 +80,8 @@ VideoCodec VideoCodecInitializer::SetupCodec(
       config.legacy_conference_mode;
 
   video_codec.SetFrameDropEnabled(config.frame_drop_enabled);
-  video_codec.numberOfSimulcastStreams =
-      static_cast<unsigned char>(streams.size());
+  video_codec.numberOfSimulcastStreams = static_cast<unsigned char>(
+      std::min(streams.size(), static_cast<size_t>(kMaxSimulcastStreams)));
   video_codec.minBitrate = streams[0].min_bitrate_bps / 1000;
   bool codec_active = false;
   // Active configuration might not be fully copied to `streams` for SVC yet.
@@ -104,7 +104,9 @@ VideoCodec VideoCodecInitializer::SetupCodec(
   int max_framerate = 0;
 
   std::optional<ScalabilityMode> scalability_mode = streams[0].scalability_mode;
-  for (size_t i = 0; i < streams.size(); ++i) {
+  const size_t num_streams =
+      std::min(streams.size(), static_cast<size_t>(kMaxSimulcastStreams));
+  for (size_t i = 0; i < num_streams; ++i) {
     SimulcastStream* sim_stream = &video_codec.simulcastStream[i];
     RTC_DCHECK_GT(streams[i].width, 0);
     RTC_DCHECK_GT(streams[i].height, 0);

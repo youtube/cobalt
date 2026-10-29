@@ -18,6 +18,11 @@ sw{
                 one{"mzunguko {0}"}
                 other{"mizunguko {0}"}
             }
+            steradian{
+                dnam{"steradian"}
+                one{"steradian {0}"}
+                other{"steradian {0}"}
+            }
         }
         area{
             square-centimeter{
@@ -83,6 +88,11 @@ sw{
             }
         }
         concentr{
+            katal{
+                dnam{"katal"}
+                one{"katal {0}"}
+                other{"katal {0}"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligramu kwa kila desilita"}
                 one{"miligramu {0} kwa kila desilita"}
@@ -92,22 +102,32 @@ sw{
                 one{"milimoli {0} kwa kila lita"}
                 other{"milimoli {0} kwa kila lita"}
             }
+            ofglucose{
+                dnam{"ya glukosi"}
+                one{"{0} ya glukosi"}
+                other{"{0} ya glukosi"}
+            }
+            part{
+                dnam{"vipande"}
+                one{"kipande {0}"}
+                other{"vipande {0}"}
+            }
+            part-per-1e6{
+                one{"sehemu {0} kwa kila milioni"}
+                other{"sehemu {0} kwa kila milioni"}
+            }
+            part-per-1e9{
+                dnam{"sehemu kwa kila bilioni"}
+                one{"sehemu {0} kwa kila bilioni"}
+                other{"sehemu {0} kwa kila bilioni"}
+            }
             permille{
                 one{"{0} kwa kila elfu"}
                 other{"{0} kwa kila elfu"}
             }
-            permillion{
-                one{"sehemu {0} kwa kila milioni"}
-                other{"sehemu {0} kwa kila milioni"}
-            }
             permyriad{
                 one{"permyriadi {0}"}
                 other{"permyriadi {0}"}
-            }
-            portion-per-1e9{
-                dnam{"sehemu kwa kila bilioni"}
-                one{"sehemu {0} kwa kila bilioni"}
-                other{"sehemu {0} kwa kila bilioni"}
             }
         }
         consumption{
@@ -153,31 +173,68 @@ sw{
                 other{"millisekunde {0}"}
             }
             night{
-                dnam{"usiku"}
-                one{"usiku {0}"}
-                other{"usiku {0}"}
                 per{"{0} kila usiku"}
             }
         }
         electric{
+            coulomb{
+                dnam{"coulomb"}
+                one{"coulomb {0}"}
+                other{"coulomb {0}"}
+            }
+            farad{
+                dnam{"farad"}
+                one{"farad {0}"}
+                other{"farad {0}"}
+            }
+            henry{
+                dnam{"henry"}
+                one{"henry {0}"}
+                other{"henry {0}"}
+            }
             milliampere{
                 one{"miliampea {0}"}
                 other{"miliampea {0}"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"siemens {0}"}
+                other{"siemens {0}"}
+            }
         }
         energy{
+            becquerel{
+                dnam{"bekereli"}
+                one{"bekereli {0}"}
+                other{"bekereli {0}"}
+            }
             british-thermal-unit{
                 dnam{"vipimo vya joto vya Uingereza"}
                 one{"kipimo {0} cha joto cha Uingereza"}
                 other{"vipimo {0} vya joto vya Uingereza"}
             }
+            calorie-it{
+                dnam{"calorie [IT]"}
+                one{"calorie [IT] {0}"}
+                other{"calorie [IT] {0}"}
+            }
             electronvolt{
                 one{"elektrovolti {0}"}
                 other{"elektrovolti {0}"}
             }
+            gray{
+                dnam{"grei"}
+                one{"grei {0}"}
+                other{"grei {0}"}
+            }
             kilowatt-hour{
                 one{"kilowati {0} kwa saa"}
                 other{"kilowati {0} kwa saa"}
+            }
+            sievert{
+                dnam{"sievert"}
+                one{"sievert {0}"}
+                other{"sievert {0}"}
             }
             therm-us{
                 dnam{"vipimo vya gesi, Marekani"}
@@ -186,6 +243,11 @@ sw{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramu za kani"}
+                one{"kilogramu za kani {0}"}
+                other{"kilogramu za kani {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kilowati saa kwa kilomita 100"}
                 one{"kilowati saa {0} kwa kilomita 100"}
@@ -295,6 +357,18 @@ sw{
                 other{"ung'avu wa jua {0}"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"tesla {0}"}
+                other{"tesla {0}"}
+            }
+            weber{
+                dnam{"weber"}
+                one{"weber {0}"}
+                other{"weber {0}"}
+            }
+        }
         mass{
             dalton{
                 one{"daltoni {0}"}
@@ -366,6 +440,11 @@ sw{
                 one{"milimita {0} ya zebaki"}
                 other{"milimita {0} za zebaki"}
             }
+            ofhg{
+                dnam{"ya zebaki"}
+                one{"{0} ya zebaki"}
+                other{"{0} ya zebaki"}
+            }
             pascal{
                 dnam{"paskali"}
                 one{"paskali {0}"}
@@ -380,11 +459,6 @@ sw{
             kilometer-per-hour{
                 one{"kilomita {0} kwa saa"}
                 other{"kilomita {0} kwa saa"}
-            }
-            light-speed{
-                dnam{"mwanga"}
-                one{"mwanga {0}"}
-                other{"mianga {0}"}
             }
             meter-per-second{
                 one{"mita {0} kwa sekunde"}
@@ -524,6 +598,10 @@ sw{
                 one{"{0}°"}
                 other{"{0}°"}
             }
+            steradian{
+                one{"sr {0}"}
+                other{"sr {0}"}
+            }
         }
         area{
             acre{
@@ -543,15 +621,29 @@ sw{
             10p1{"deka{0}"}
         }
         concentr{
+            katal{
+                one{"kat {0}"}
+                other{"kat {0}"}
+            }
             millimole-per-liter{
                 dnam{"mmol/L"}
                 one{"mmol {0}/L"}
                 other{"mmol {0}/L"}
             }
-            permillion{
+            ofglucose{
+                dnam{"Glc"}
+                one{"Glc {0}"}
+                other{"Glc {0}"}
+            }
+            part{
+                dnam{"kipande"}
+                one{"kipande {0}"}
+                other{"kipande {0}"}
+            }
+            part-per-1e6{
                 dnam{"ppm"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"sehemu kwa kila bilioni"}
             }
         }
@@ -572,12 +664,6 @@ sw{
             month{
                 dnam{"mwezi"}
             }
-            night{
-                dnam{"usiku"}
-                one{"usiku {0}"}
-                other{"usiku {0}"}
-                per{"{0}/usiku"}
-            }
             second{
                 one{"sek {0}"}
                 other{"sek {0}"}
@@ -587,7 +673,48 @@ sw{
                 dnam{"mwaka"}
             }
         }
+        electric{
+            coulomb{
+                one{"C {0}"}
+                other{"C {0}"}
+            }
+            farad{
+                one{"F {0}"}
+                other{"F {0}"}
+            }
+            henry{
+                one{"H {0}"}
+                other{"H {0}"}
+            }
+            siemens{
+                one{"S {0}"}
+                other{"S {0}"}
+            }
+        }
+        energy{
+            becquerel{
+                one{"Bq {0}"}
+                other{"Bq {0}"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"cal-IT {0}"}
+                other{"cal-IT {0}"}
+            }
+            gray{
+                one{"Gy {0}"}
+                other{"Gy {0}"}
+            }
+            sievert{
+                one{"Sv {0}"}
+                other{"Sv {0}"}
+            }
+        }
         force{
+            kilogram-force{
+                one{"kgf {0}"}
+                other{"kgf {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"kWh {0} kwa km 100"}
                 other{"kWh {0} kwa km 100"}
@@ -629,6 +756,16 @@ sw{
                 dnam{"L☉"}
             }
         }
+        magnetic{
+            tesla{
+                one{"T{0}"}
+                other{"T{0}"}
+            }
+            weber{
+                one{"Wb{0}"}
+                other{"Wb{0}"}
+            }
+        }
         mass{
             ounce{
                 one{"Aunsi {0}"}
@@ -654,13 +791,12 @@ sw{
                 one{"{0} inHg"}
                 other{"{0} inHg"}
             }
+            ofhg{
+                one{"Hg {0}"}
+                other{"{0} za Hg"}
+            }
         }
         speed{
-            light-speed{
-                dnam{"mwanga"}
-                one{"mwanga {0}"}
-                other{"mianga {0}"}
-            }
             meter-per-second{
                 one{"m {0}/s"}
                 other{"m {0}/s"}
@@ -714,6 +850,10 @@ sw{
                 dnam{"mzunguko"}
                 one{"raundi {0}"}
                 other{"raundi {0}"}
+            }
+            steradian{
+                one{"sr {0}"}
+                other{"sr {0}"}
             }
         }
         area{
@@ -809,6 +949,10 @@ sw{
                 one{"karati {0}"}
                 other{"karati {0}"}
             }
+            katal{
+                one{"kat {0}"}
+                other{"kat {0}"}
+            }
             millimole-per-liter{
                 dnam{"milimoli kwa kila lita"}
                 one{"mmol {0}/lita"}
@@ -818,6 +962,24 @@ sw{
                 dnam{"moli"}
                 one{"moli {0}"}
                 other{"moli {0}"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                one{"Glc {0}"}
+                other{"Glc {0}"}
+            }
+            part{
+                dnam{"kipande"}
+                one{"kipande {0}"}
+                other{"kipande {0}"}
+            }
+            part-per-1e6{
+                dnam{"sehemu kwa kila milioni"}
+                one{"ppm {0}"}
+                other{"ppm {0}"}
+            }
+            part-per-1e9{
+                dnam{"sehemu kwa bilioni"}
             }
             percent{
                 dnam{"asilimia"}
@@ -829,16 +991,8 @@ sw{
                 one{"{0} kwa elfu"}
                 other{"{0} kwa elfu"}
             }
-            permillion{
-                dnam{"sehemu kwa kila milioni"}
-                one{"ppm {0}"}
-                other{"ppm {0}"}
-            }
             permyriad{
                 dnam{"permyriadi"}
-            }
-            portion-per-1e9{
-                dnam{"sehemu kwa bilioni"}
             }
         }
         consumption{
@@ -1010,10 +1164,26 @@ sw{
                 one{"ampea {0}"}
                 other{"ampea {0}"}
             }
+            coulomb{
+                one{"C {0}"}
+                other{"C {0}"}
+            }
+            farad{
+                one{"F {0}"}
+                other{"F {0}"}
+            }
+            henry{
+                one{"H {0}"}
+                other{"H {0}"}
+            }
             milliampere{
                 dnam{"miliampea"}
                 one{"mA {0}"}
                 other{"mA {0}"}
+            }
+            siemens{
+                one{"S {0}"}
+                other{"S {0}"}
             }
             volt{
                 dnam{"volti"}
@@ -1022,6 +1192,10 @@ sw{
             }
         }
         energy{
+            becquerel{
+                one{"Bq {0}"}
+                other{"Bq {0}"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
                 one{"Btu {0}"}
@@ -1032,6 +1206,11 @@ sw{
                 one{"kalori {0}"}
                 other{"kalori {0}"}
             }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"cal-IT {0}"}
+                other{"cal-IT {0}"}
+            }
             electronvolt{
                 dnam{"elektrovolti"}
                 one{"eV {0}"}
@@ -1041,6 +1220,10 @@ sw{
                 dnam{"kalori"}
                 one{"kalori {0}"}
                 other{"kalori {0}"}
+            }
+            gray{
+                one{"Gy {0}"}
+                other{"Gy {0}"}
             }
             joule{
                 dnam{"jouli"}
@@ -1062,6 +1245,10 @@ sw{
                 one{"kWh {0}"}
                 other{"kWh {0}"}
             }
+            sievert{
+                one{"Sv {0}"}
+                other{"Sv {0}"}
+            }
             therm-us{
                 dnam{"kipimo cha gesi, Marekani"}
                 one{"kipimo {0} cha gesi, US"}
@@ -1069,6 +1256,10 @@ sw{
             }
         }
         force{
+            kilogram-force{
+                one{"kgf {0}"}
+                other{"kgf {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/km 100"}
                 one{"kWh {0} /km 100"}
@@ -1278,6 +1469,16 @@ sw{
                 other{"L☉ {0}"}
             }
         }
+        magnetic{
+            tesla{
+                one{"T {0}"}
+                other{"T {0}"}
+            }
+            weber{
+                one{"Wb {0}"}
+                other{"Wb {0}"}
+            }
+        }
         mass{
             carat{
                 dnam{"karati"}
@@ -1425,6 +1626,10 @@ sw{
                 dnam{"milimita za zebaki"}
                 one{"mmHg {0}"}
                 other{"mmHg {0}"}
+            }
+            ofhg{
+                one{"{0} ya Hg"}
+                other{"{0} za Hg"}
             }
             pascal{
                 one{"Pa {0}"}

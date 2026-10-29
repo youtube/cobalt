@@ -96,30 +96,6 @@ try_.builder(
 )
 
 try_.builder(
-    name = "linux-afl-asan-rel",
-    branch_selector = branches.selector.LINUX_BRANCHES,
-    executable = "recipe:chromium/fuzz",
-    gn_args = gn_args.config(
-        configs = [
-            "afl",
-            "asan",
-            "shared",
-            "release",
-            "remoteexec",
-            "no_symbols",
-            "dcheck_always_on",
-            "chromeos_codecs",
-            "pdf_xfa",
-            "optimize_for_fuzzing",
-            "mojo_fuzzer",
-            "skip_generate_fuzzer_owners",
-            "linux",
-            "x64",
-        ],
-    ),
-)
-
-try_.builder(
     name = "linux-structured-test-ids-rel-fyi",
     mirrors = ["ci/linux-structured-test-ids-rel-fyi"],
     gn_args = gn_args.config(
@@ -132,6 +108,19 @@ try_.builder(
     experiments = {
         "chromium_tests.resultdb_module": 100,
     },
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
+    name = "linux-arm64-rel-fyi",
+    mirrors = ["ci/linux-arm64-rel-fyi"],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/linux-arm64-rel-fyi",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "chrome-linux-engprod@google.com",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 

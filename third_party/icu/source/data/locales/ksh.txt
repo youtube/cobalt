@@ -13,7 +13,9 @@ ksh{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -345,28 +347,28 @@ ksh{
             }
             eras{
                 abbreviated{
-                    "v. Chr.",
-                    "n. Chr.",
+                    0{"v. Chr."}
+                    1{"n. Chr."}
                 }
                 abbreviated%variant{
-                    "v. Kr.",
-                    "n. K.",
+                    0{"v. Kr."}
+                    1{"n. K."}
                 }
                 narrow{
-                    "vC",
-                    "nC",
+                    0{"vC"}
+                    1{"nC"}
                 }
                 narrow%variant{
-                    "vdZ",
-                    "dZ",
+                    0{"vdZ"}
+                    1{"dZ"}
                 }
                 wide{
-                    "vür Krestos",
-                    "noh Krestos",
+                    0{"vür Krestos"}
+                    1{"noh Krestos"}
                 }
                 wide%variant{
-                    "vür de jewöhnlejje Ziggrääschnong",
-                    "en de jewöhnlejje Ziggrääschnong",
+                    0{"vür de jewöhnlejje Ziggrääschnong"}
+                    1{"en de jewöhnlejje Ziggrääschnong"}
                 }
             }
             intervalFormats{

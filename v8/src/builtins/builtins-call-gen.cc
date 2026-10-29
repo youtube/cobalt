@@ -642,7 +642,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       var_template = CAST(constructor);
       TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
       GotoIf(IsJSFunctionInstanceType(template_type), &template_from_closure);
-      Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
+      Branch(IsMapInstanceType(template_type), &template_map_loop,
              &template_loop);
     }
 
@@ -678,7 +678,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
           current, FunctionTemplateInfo::kRareDataOffset);
       GotoIf(IsUndefined(current_rare), &holder_next);
       var_template = LoadObjectField<HeapObject>(
-          current_rare, FunctionTemplateRareData::kParentTemplateOffset);
+          current_rare, offsetof(FunctionTemplateRareData, parent_template_));
       Goto(&template_loop);
     }
 

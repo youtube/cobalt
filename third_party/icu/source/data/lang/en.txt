@@ -17,15 +17,15 @@ en{
         currency{"Currency"}
         d0{"Transform Destination"}
         dx{"Dictionary Break Exclusions"}
-        em{"Emoji Presentation Style"}
+        em{"Emoji Presentation"}
         fw{"First day of week"}
         h0{"Mixed-in"}
         hc{"Hour Cycle (12 vs 24)"}
         i0{"Input Method"}
         k0{"Keyboard"}
         kv{"Highest Ignored"}
-        lb{"Line Break Style"}
-        lw{"Line Breaks In Words Setting"}
+        lb{"CJK Line Break"}
+        lw{"Line Breaks within Words"}
         m0{"Transform Rules"}
         ms{"Measurement System"}
         mu{"Measurement Unit"}
@@ -33,7 +33,7 @@ en{
         rg{"Region For Supplemental Data"}
         s0{"Transform Source"}
         sd{"Region Subdivision"}
-        ss{"Sentence Break Suppressions Type"}
+        ss{"Sentence Break After Abbr."}
         t{"Transform"}
         t0{"Machine Translated"}
         timezone{"Time Zone"}
@@ -324,6 +324,7 @@ en{
         kcg{"Tyap"}
         kde{"Makonde"}
         kea{"Kabuverdianu"}
+        kek{"Qʼeqchiʼ"}
         ken{"Kenyang"}
         kfo{"Koro"}
         kg{"Kongo"}
@@ -618,7 +619,7 @@ en{
         tig{"Tigre"}
         tiv{"Tiv"}
         tk{"Turkmen"}
-        tkl{"Tokelau"}
+        tkl{"Tokelauan"}
         tkr{"Tsakhur"}
         tl{"Tagalog"}
         tlh{"Klingon"}
@@ -702,6 +703,16 @@ en{
         zxx{"No linguistic content"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ckb{"Kurdish"}
+        ku{"Kurdish"}
+        sdh{"Kurdish"}
+    }
+    Languages%extension{
+        ckb{"Central"}
+        ku{"Kurmanji"}
+        sdh{"Southern"}
+    }
     Languages%long{
         cr{"Woods Cree"}
         zh{"Mandarin Chinese"}
@@ -728,10 +739,13 @@ en{
         en_US{"US English"}
     }
     Languages%variant{
+        bqi{"Luri Bakhtiari"}
         ckb{"Kurdish, Sorani"}
         hi_Latn{"Hinglish"}
         ky{"Kirghiz"}
         my{"Myanmar Language"}
+        oka{"Colville Salish"}
+        pi{"Pāli"}
         ps{"Pushto"}
         ug{"Uighur"}
     }
@@ -750,6 +764,7 @@ en{
         Bass{"Bassa Vah"}
         Batk{"Batak"}
         Beng{"Bangla"}
+        Berf{"Beria Erfe"}
         Bhks{"Bhaiksuki"}
         Blis{"Blissymbols"}
         Bopo{"Bopomofo"}
@@ -894,6 +909,7 @@ en{
         Shaw{"Shavian"}
         Shrd{"Sharada"}
         Sidd{"Siddham"}
+        Sidt{"Sidetic"}
         Sind{"Khudawadi"}
         Sinh{"Sinhala"}
         Sogd{"Sogdian"}
@@ -914,6 +930,7 @@ en{
         Taml{"Tamil"}
         Tang{"Tangut"}
         Tavt{"Tai Viet"}
+        Tayo{"Tai Yo"}
         Telu{"Telugu"}
         Teng{"Tengwar"}
         Tfng{"Tifinagh"}
@@ -924,6 +941,7 @@ en{
         Tirh{"Tirhuta"}
         Tnsa{"Tangsa"}
         Todr{"Todhri"}
+        Tols{"Tolong Siki"}
         Toto{"Toto"}
         Tutg{"Tulu-Tigalari"}
         Ugar{"Ugaritic"}
@@ -974,14 +992,38 @@ en{
             islamic-rgsa{"Hijri Calendar (Saudi Arabia, sighting)"}
             islamic-tbla{"Hijri Calendar (tabular, astronomical epoch)"}
             islamic-umalqura{"Hijri Calendar (Umm al-Qura)"}
-            iso8601{"ISO-8601 Calendar"}
+            iso8601{"Gregorian Calendar (ISO 8601 Weeks)"}
             japanese{"Japanese Calendar"}
             persian{"Persian Calendar"}
             roc{"Minguo Calendar"}
         }
+        calendar%core{
+            buddhist{"Buddhist"}
+            chinese{"Chinese"}
+            coptic{"Coptic"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopic"}
+            ethiopic-amete-alem{"Ethiopic Amete Alem"}
+            gregorian{"Gregorian"}
+            hebrew{"Hebrew"}
+            indian{"Indian National"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (tabular, civil epoch)"}
+            islamic-rgsa{"Hijri, Saudi Arabia sighting"}
+            islamic-tbla{"Hijri (tabular, astronomical epoch)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            iso8601{"Gregorian"}
+            japanese{"Japanese"}
+            persian{"Persian"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Accounting Currency Format"}
             standard{"Standard Currency Format"}
+        }
+        cf%core{
+            account{"Accounting"}
+            standard{"Standard"}
         }
         colAlternate{
             non-ignorable{"Sort Symbols"}
@@ -1023,13 +1065,11 @@ en{
             tertiary{"Sort Accents/Case/Width"}
         }
         collation{
-            big5han{"Traditional Chinese Sort Order - Big5"}
             compat{"Previous Sort Order, for compatibility"}
             dictionary{"Dictionary Sort Order"}
             ducet{"Default Unicode Sort Order"}
             emoji{"Emoji Sort Order"}
             eor{"European Ordering Rules"}
-            gb2312han{"Simplified Chinese Sort Order - GB2312"}
             phonebook{"Phonebook Sort Order"}
             phonetic{"Phonetic Sort Order"}
             pinyin{"Pinyin Sort Order"}
@@ -1040,6 +1080,23 @@ en{
             traditional{"Traditional Sort Order"}
             unihan{"Radical-Stroke Sort Order"}
             zhuyin{"Zhuyin Sort Order"}
+        }
+        collation%core{
+            compat{"Compatibility"}
+            dictionary{"Dictionary"}
+            ducet{"Default Unicode"}
+            emoji{"Emoji"}
+            eor{"European rules"}
+            phonebook{"Phonebook"}
+            phonetic{"Phonetic"}
+            pinyin{"Pinyin"}
+            search{"Search"}
+            searchjl{"Korean initial consonant"}
+            standard{"Standard"}
+            stroke{"Stroke"}
+            traditional{"Traditional"}
+            unihan{"Radical-Stroke"}
+            zhuyin{"Zhuyin"}
         }
         d0{
             accents{"To Accented Characters From ASCII Sequence"}
@@ -1067,18 +1124,23 @@ en{
             zawgyi{"To Zawgyi Myanmar Encoding"}
         }
         em{
-            default{"Use Default Presentation For Emoji Characters"}
-            emoji{"Prefer Emoji Presentation For Emoji Characters"}
-            text{"Prefer Text Presentation For Emoji Characters"}
+            default{"Default Presentation For Emoji"}
+            emoji{"Emoji Presentation For Emoji"}
+            text{"Text Presentation For Emoji"}
+        }
+        em%core{
+            default{"Default"}
+            emoji{"Emoji"}
+            text{"Text"}
         }
         fw{
-            fri{"First Day of Week Is Friday"}
-            mon{"First Day of Week Is Monday"}
-            sat{"First Day of Week Is Saturday"}
-            sun{"First Day of Week Is Sunday"}
-            thu{"First Day of Week Is Thursday"}
-            tue{"First Day of Week Is Tuesday"}
-            wed{"First Day of Week Is Wednesday"}
+            fri{"First day of week: Friday"}
+            mon{"First day of week: Monday"}
+            sat{"First day of week: Saturday"}
+            sun{"First day of week: Sunday"}
+            thu{"First day of week: Thursday"}
+            tue{"First day of week: Tuesday"}
+            wed{"First day of week: Wednesday"}
         }
         h0{
             hybrid{"Hybrid"}
@@ -1088,6 +1150,12 @@ en{
             h12{"12 Hour System (1–12)"}
             h23{"24 Hour System (0–23)"}
             h24{"24 Hour System (1–24)"}
+        }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
         }
         i0{
             handwrit{"Handwriting Input Method"}
@@ -1132,16 +1200,33 @@ en{
             space{"Ignore Symbols affects spaces only"}
             symbol{"Ignore Symbols affects spaces, punctuation, non-currency symbols"}
         }
+        kv%core{
+            currency{"Shift Spaces, punctuation, all symbols"}
+            punct{"Shift spaces, punctuation"}
+            space{"Shift spaces, punctuation"}
+            symbol{"Shift spaces, punctuation, non-currency symbols"}
+        }
         lb{
             loose{"Loose Line Break Style"}
             normal{"Normal Line Break Style"}
             strict{"Strict Line Break Style"}
+        }
+        lb%core{
+            loose{"Loose"}
+            normal{"Normal"}
+            strict{"Strict"}
         }
         lw{
             breakall{"Allow Line Breaks In All Words"}
             keepall{"Prevent Line Breaks In All Words"}
             normal{"Normal Line Breaks For Words"}
             phrase{"Prevent Line Breaks In Phrases"}
+        }
+        lw%core{
+            breakall{"Break all"}
+            keepall{"Keep all"}
+            normal{"Normal"}
+            phrase{"Keep in phrases"}
         }
         m0{
             aethiopi{"Encylopedia Aethiopica Transliteration"}
@@ -1184,6 +1269,11 @@ en{
             metric{"Metric System"}
             uksystem{"Imperial Measurement System"}
             ussystem{"US Measurement System"}
+        }
+        ms%core{
+            metric{"Metric"}
+            uksystem{"UK"}
+            ussystem{"US"}
         }
         mu{
             celsius{"Celsius"}
@@ -1286,10 +1376,41 @@ en{
             tibt{"Tibetan Digits"}
             tirh{"Tirhuta Digits"}
             tnsa{"Tangsa Digits"}
+            tols{"Tolong Siki Digits"}
             traditional{"Traditional Numerals"}
             vaii{"Vai Digits"}
             wara{"Warang Citi Digits"}
             wcho{"Wancho Digits"}
+        }
+        numbers%core{
+            arabext{"Extended Arabic-Indic"}
+            armnlow{"Armenian lowercase"}
+            finance{"Financial"}
+            fullwide{"Full-width"}
+            greklow{"Greek lowercase"}
+            hanidays{"Han-character day-of-month numbering for traditional calendars"}
+            hanidec{"Positional decimal system using Chinese number ideographs as digits"}
+            hansfin{"Simplified Chinese financial"}
+            hantfin{"Traditional Chinese financial"}
+            jpanfin{"Japanese financial"}
+            jpanyear{"Japanese first-year Gannen numbering"}
+            lanatham{"Tai Tham Tham (ecclesiastical)"}
+            mathbold{"Mathematical bold"}
+            mathdbl{"Mathematical double-struck"}
+            mathmono{"Mathematical monospace"}
+            mathsanb{"Mathematical sans-serif bold"}
+            mathsans{"Mathematical sans-serif"}
+            mymrepka{"Myanmar Eastern Pwo Karen"}
+            mymrpao{"Myanmar Pao"}
+            mymrshan{"Myanmar Shan"}
+            mymrtlng{"Myanmar Tai Laing"}
+            native{"Native digits"}
+            outlined{"Outlined"}
+            roman{"Roman uppercase"}
+            romanlow{"Roman lowercase"}
+            segment{"Segmented"}
+            tamldec{"Modern Tamil"}
+            traditional{"Traditional numerals"}
         }
         s0{
             accents{"From Accented Characters To ASCII Sequence"}
@@ -1304,16 +1425,28 @@ en{
             none{"Sentence Breaks Without Abbreviation Handling"}
             standard{"Suppress Sentence Breaks After Standard Abbreviations"}
         }
+        ss%core{
+            none{"Off"}
+            standard{"On"}
+        }
         t0{
             und{"Unspecified Machine Translation"}
         }
         va{
             posix{"POSIX Compliant Locale"}
         }
+        va%core{
+            posix{"POSIX variant"}
+        }
     }
     Types%short{
         numbers{
             arabext{"X Arabic-Indic Digits"}
+        }
+    }
+    Types%variant{
+        calendar{
+            iso8601{"ISO 8601 Weeks"}
         }
     }
     Variants{
@@ -1355,7 +1488,7 @@ en{
         OSOJS{"Oseacco/Osojane dialect"}
         OXENDICT{"Oxford English Dictionary spelling"}
         PAMAKA{"Pamaka dialect"}
-        PINYIN{"Pinyin Romanization"}
+        PINYIN{"Pinyin romanization"}
         POLYTON{"Polytonic"}
         POSIX{"Computer"}
         REVISED{"Revised Orthography"}
@@ -1371,7 +1504,7 @@ en{
         UCRCOR{"Unified Revised Orthography"}
         UNIFON{"Unifon phonetic alphabet"}
         VALENCIA{"Valencian"}
-        WADEGILE{"Wade-Giles Romanization"}
+        WADEGILE{"Wade-Giles romanization"}
     }
     characterLabelPattern{
         all{"{0} — all"}

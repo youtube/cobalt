@@ -23,7 +23,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
 #endif  // BUILDFLAG(IS_COBALT)
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
 // When enabled, the scheduler will allow deferring impl invalidation frames
 // for N frames (default 1) to reduce contention with main frames, allowing
@@ -281,9 +280,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kUnlockDuringGpuImageOperations);
 // own state. When disabled, ProxyMain will rely on state change callbacks from
 // the scheduler.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMainIdleBypassScheduler);
-
-// When enabled, UKM will be reported for compositor frames.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kReportUkm);
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsSmoothScroll);
 

@@ -28,6 +28,10 @@ my{
                 dnam{"လည်ပတ်ခြင်း"}
                 other{"{0} လည်ပတ်ခြင်း"}
             }
+            steradian{
+                dnam{"စတယ်ရေဒီယန်"}
+                other{"{0} စတယ်ရေဒီယန်"}
+            }
         }
         area{
             acre{
@@ -116,6 +120,10 @@ my{
             karat{
                 other{"{0} ကာရက်"}
             }
+            katal{
+                dnam{"ကတ်တဲလ်"}
+                other{"{0} ကတ်တဲလ်"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"တစ်ဒက်စီလီတာရှိ မီလီဂရမ်"}
                 other{"တစ်ဒက်စီလီတာရှိ {0} မီလီဂရမ်"}
@@ -123,6 +131,23 @@ my{
             millimole-per-liter{
                 dnam{"တစ်လီတာရှိ မီလီမိုးလ်"}
                 other{"တစ်လီတာရှိ {0} မီလီမိုးလ်"}
+            }
+            mole{
+                dnam{"မိုး"}
+            }
+            ofglucose{
+                dnam{"ဂလူးကို့စ်"}
+                other{"{0} ဂလူးကို့စ်"}
+            }
+            part{
+                dnam{"ပတ်"}
+                other{"{0} ပတ်"}
+            }
+            part-per-1e6{
+                other{"တစ်သန်းပုံ {0} ပုံ"}
+            }
+            part-per-1e9{
+                other{"သန်းတစ်ထောင်ပုံ {0} ပုံ"}
             }
             percent{
                 dnam{"ရာခိုင်နှုန်း"}
@@ -132,15 +157,8 @@ my{
                 dnam{"ထောင်လီစိတ်"}
                 other{"{0} ထောင်လီစိတ်"}
             }
-            permillion{
-                other{"တစ်သန်းပုံ {0} ပုံ"}
-            }
             permyriad{
                 other{"{0} ပါမီရိတ်"}
-            }
-            portion-per-1e9{
-                dnam{"သန်းတစ်ထောင်ပုံ တစ်ပုံ"}
-                other{"သန်းတစ်ထောင်ပုံ {0} ပုံ"}
             }
         }
         consumption{
@@ -229,11 +247,6 @@ my{
             nanosecond{
                 other{"{0} နာနိုစက္ကန့်"}
             }
-            night{
-                dnam{"ည"}
-                other{"{0} ည"}
-                per{"{0}/ည"}
-            }
             quarter{
                 dnam{"ကွာတား"}
                 other{"{0} ကွာတား"}
@@ -254,12 +267,24 @@ my{
             ampere{
                 other{"{0} အမ်ပီယာ"}
             }
+            farad{
+                dnam{"ဖာရက်ဒ်"}
+                other{"{0} ဖာရက်ဒ်"}
+            }
+            henry{
+                dnam{"ဟင်နရီ"}
+                other{"{0} ဟင်နရီ"}
+            }
             milliampere{
                 dnam{"မီလီအမ်ပီယာ"}
                 other{"{0} မီလီအမ်ပီယာ"}
             }
             ohm{
                 other{"{0} အုမ်း"}
+            }
+            siemens{
+                dnam{"စီးမန်"}
+                other{"{0} စီးမန်"}
             }
             volt{
                 other{"{0} ဗို့"}
@@ -273,11 +298,19 @@ my{
             calorie{
                 other{"{0} ကယ်လိုရီ"}
             }
+            calorie-it{
+                dnam{"ကယ်လိုရီ [IT]"}
+                other{"{0} ကယ်လိုရီ [IT]"}
+            }
             electronvolt{
                 other{"{0} အီလက်ထရွန်ဗို့"}
             }
             foodcalorie{
                 other{"{0} ကယ်လိုရီ"}
+            }
+            gray{
+                dnam{"ဂရေးစ်"}
+                other{"{0} ဂရေးစ်"}
             }
             joule{
                 other{"{0} ဂျူးလ်"}
@@ -296,6 +329,10 @@ my{
             }
         }
         force{
+            kilogram-force{
+                dnam{"ကီလိုဂရမ်စွမ်းအင်"}
+                other{"{0} ကီလိုဂရမ်စွမ်းအင်"}
+            }
             newton{
                 other{"{0} နယူတန်"}
             }
@@ -437,6 +474,12 @@ my{
                 other{"{0} ဆိုလာ လူမီနိုစီးတီးစ်"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"တက်စလာ"}
+                other{"{0} တက်စလာ"}
+            }
+        }
         mass{
             carat{
                 other{"{0} ကာရက်"}
@@ -532,6 +575,10 @@ my{
                 dnam{"ပြဒါးမီလီမီတာ"}
                 other{"{0} ပြဒါးမီလီမီတာ"}
             }
+            ofhg{
+                dnam{"ပြဒါး"}
+                other{"{0} ပြဒါး"}
+            }
             pound-force-per-square-inch{
                 other{"တစ်စတုရန်းလက်မလျှင် {0} ပေါင်"}
             }
@@ -547,10 +594,6 @@ my{
             knot{
                 dnam{"နော့တီကယ်မိုင်"}
                 other{"{0} နော့တီကယ်မိုင်"}
-            }
-            light-speed{
-                dnam{"အလင်း"}
-                other{"{0} အလင်း"}
             }
             meter-per-second{
                 other{"တစ်စက္ကန့်လျှင် {0} မီတာ"}
@@ -633,6 +676,10 @@ my{
             fluid-ounce-imperial{
                 other{"{0} Imp. fl oz"}
             }
+            fluid-ounce-metric{
+                dnam{"မက်ထရစ် အရည် အောင်စ"}
+                other{"{0} မက်ထရစ် အရည် အောင်စ"}
+            }
             gallon{
                 per{"တစ်ဂါလံလျှင် {0}"}
             }
@@ -677,13 +724,15 @@ my{
                 other{"{0}°"}
             }
         }
-        area{
-            square-centimeter{
-                dnam{"cm²"}
-            }
-        }
         concentr{
-            portion-per-1e9{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"ပတ်"}
+                other{"{0} ပတ်"}
+            }
+            part-per-1e9{
                 other{"{0}ppb"}
             }
         }
@@ -718,11 +767,6 @@ my{
             millisecond{
                 other{"{0} ms"}
             }
-            night{
-                dnam{"ည"}
-                other{"{0} ည"}
-                per{"{0}/ည"}
-            }
             second{
                 other{"{0} s"}
             }
@@ -733,6 +777,10 @@ my{
             }
         }
         energy{
+            calorie-it{
+                dnam{"ကယ်လိုရီ-IT"}
+                other{"{0} ကယ်လိုရီ-IT"}
+            }
             therm-us{
                 other{"{0}US therms"}
             }
@@ -814,7 +862,6 @@ my{
         }
         speed{
             light-speed{
-                dnam{"အလင်း"}
                 other{"{0}အလင်း"}
             }
         }
@@ -908,14 +955,22 @@ my{
             karat{
                 dnam{"ကာရက်"}
             }
-            permillion{
+            ofglucose{
+                dnam{"ဂလူးကို့စ်"}
+                other{"{0} ဂလူးကို့စ်"}
+            }
+            part{
+                dnam{"ပတ်"}
+                other{"{0} ပတ်"}
+            }
+            part-per-1e6{
                 dnam{"တစ်သန်းပုံ တစ်ပုံ"}
+            }
+            part-per-1e9{
+                dnam{"သန်းတစ်ထောင်ပုံ တစ်ပုံ"}
             }
             permyriad{
                 dnam{"ပါမီရိတ်"}
-            }
-            portion-per-1e9{
-                dnam{"သန်းတစ်ထောင်ပုံ တစ်ပုံ"}
             }
         }
         consumption{
@@ -1049,6 +1104,10 @@ my{
             }
             calorie{
                 dnam{"ကယ်လိုရီ"}
+            }
+            calorie-it{
+                dnam{"ကယ်လိုရီ-IT"}
+                other{"{0} ကယ်လိုရီ-IT"}
             }
             electronvolt{
                 dnam{"အီလက်ထရွန်ဗို့"}

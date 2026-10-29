@@ -14,8 +14,10 @@ fo{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -211,6 +213,12 @@ fo{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'kl'. {0}",
+                "{1} 'kl'. {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -226,6 +234,8 @@ fo{
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM.y GGGGG"}
+                GyMEd{"dd.MM.y GGGGG, E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -403,6 +413,12 @@ fo{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'kl'. {0}",
+                "{1} 'kl'. {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -418,6 +434,8 @@ fo{
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM.y G"}
+                GyMEd{"dd.MM.y G, E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -514,28 +532,28 @@ fo{
             }
             eras{
                 abbreviated{
-                    "f.Kr.",
-                    "e.Kr.",
+                    0{"f.Kr."}
+                    1{"e.Kr."}
                 }
                 abbreviated%variant{
-                    "f.o.tíðr.",
-                    "o.tíðr.",
+                    0{"f.o.tíðr."}
+                    1{"o.tíðr."}
                 }
                 narrow{
-                    "fKr",
-                    "eKr",
+                    0{"fKr"}
+                    1{"eKr"}
                 }
                 narrow%variant{
-                    "flt",
-                    "lt",
+                    0{"flt"}
+                    1{"lt"}
                 }
                 wide{
-                    "fyri Krist",
-                    "eftir Krist",
+                    0{"fyri Krist"}
+                    1{"eftir Krist"}
                 }
                 wide%variant{
-                    "fyri okkara tíðarrokning",
-                    "okkara tíðarrokning",
+                    0{"fyri okkara tíðarrokning"}
+                    1{"okkara tíðarrokning"}
                 }
             }
             intervalFormats{

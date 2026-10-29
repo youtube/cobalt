@@ -153,6 +153,12 @@ hr{
                 one{"{0} okretaj"}
                 other{"{0} okretaja"}
             }
+            steradian{
+                dnam{"steradijani"}
+                few{"{0} steradijana"}
+                one{"{0} steradijan"}
+                other{"{0} steradijana"}
+            }
         }
         area{
             acre{
@@ -326,10 +332,10 @@ hr{
                         instrumental{"četvorna {0}"}
                     }
                     feminine{
-                        _{"četvorna {0}"}
-                        accusative{"četvorna {0}"}
-                        genitive{"četvorna {0}"}
-                        instrumental{"četvorna {0}"}
+                        _{"četvorne {0}"}
+                        accusative{"četvorne {0}"}
+                        genitive{"četvorne {0}"}
+                        instrumental{"četvorne {0}"}
                     }
                     inanimate{
                         _{"četvorna {0}"}
@@ -346,8 +352,8 @@ hr{
                         instrumental{"četvornim {0}"}
                     }
                     feminine{
-                        _{"četvorni {0}"}
-                        accusative{"četvorni {0}"}
+                        _{"četvorna {0}"}
+                        accusative{"četvornu {0}"}
                         genitive{"četvorne {0}"}
                         instrumental{"četvornom {0}"}
                     }
@@ -389,9 +395,9 @@ hr{
                     }
                     feminine{
                         _{"kubne {0}"}
-                        accusative{"kubna {0}"}
-                        genitive{"kubna {0}"}
-                        instrumental{"kubna {0}"}
+                        accusative{"kubne {0}"}
+                        genitive{"kubne {0}"}
+                        instrumental{"kubne {0}"}
                     }
                     inanimate{
                         _{"kubna {0}"}
@@ -408,8 +414,8 @@ hr{
                         instrumental{"kubnim {0}"}
                     }
                     feminine{
-                        _{"kubni {0}"}
-                        accusative{"kubni {0}"}
+                        _{"kubne {0}"}
+                        accusative{"{0} kubnu"}
                         genitive{"kubne {0}"}
                         instrumental{"kubnom {0}"}
                     }
@@ -492,6 +498,12 @@ hr{
                 one{"{0} karat"}
                 other{"{0} karata"}
             }
+            katal{
+                dnam{"katali"}
+                few{"{0} katala"}
+                one{"{0} katal"}
+                other{"{0} katala"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -564,6 +576,66 @@ hr{
                 one{"{0} mola"}
                 other{"{0} mola"}
             }
+            ofglucose{
+                dnam{"glukoze"}
+                few{"{0} glukoze"}
+                one{"{0} glukoze"}
+                other{"{0} glukoze"}
+            }
+            part{
+                dnam{"dijelovi"}
+                few{"{0} dijela"}
+                one{"{0} dio"}
+                other{"{0} dijelova"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        few{"{0} dijela na milijun"}
+                        one{"{0} dio na milijun"}
+                        other{"{0} dijelova na milijun"}
+                    }
+                    genitive{
+                        few{"{0} dijela na milijun"}
+                        one{"{0} dijela na milijun"}
+                        other{"{0} dijelova na milijun"}
+                    }
+                    instrumental{
+                        few{"{0} dijela na milijun"}
+                        one{"{0} dijelom na milijun"}
+                        other{"{0} dijelova na milijun"}
+                    }
+                }
+                dnam{"dijelovi na milijun"}
+                few{"{0} dijela na milijun"}
+                gender{"inanimate"}
+                one{"{0} dio na milijun"}
+                other{"{0} dijelova na milijun"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        few{"{0} dijela na milijardu"}
+                        one{"{0} dio na milijardu"}
+                        other{"{0} dijelova na milijardu"}
+                    }
+                    genitive{
+                        few{"{0} dijela na milijardu"}
+                        one{"{0} dijela na milijardu"}
+                        other{"{0} dijelova na milijardu"}
+                    }
+                    instrumental{
+                        few{"{0} dijela na milijardu"}
+                        one{"{0} dijelom na milijardu"}
+                        other{"{0} dijelova na milijardu"}
+                    }
+                }
+                dnam{"dijelovi na milijardu"}
+                few{"{0} dijela na milijardu"}
+                gender{"inanimate"}
+                one{"{0} dio na milijardu"}
+                other{"{0} dijelova na milijardu"}
+            }
             percent{
                 case{
                     accusative{
@@ -612,30 +684,6 @@ hr{
                 one{"{0} promil"}
                 other{"{0} promila"}
             }
-            permillion{
-                case{
-                    accusative{
-                        few{"{0} dijela na milijun"}
-                        one{"{0} dio na milijun"}
-                        other{"{0} dijelova na milijun"}
-                    }
-                    genitive{
-                        few{"{0} dijela na milijun"}
-                        one{"{0} dijela na milijun"}
-                        other{"{0} dijelova na milijun"}
-                    }
-                    instrumental{
-                        few{"{0} dijela na milijun"}
-                        one{"{0} dijelom na milijun"}
-                        other{"{0} dijelova na milijun"}
-                    }
-                }
-                dnam{"dijelovi na milijun"}
-                few{"{0} dijela na milijun"}
-                gender{"inanimate"}
-                one{"{0} dio na milijun"}
-                other{"{0} dijelova na milijun"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -659,30 +707,6 @@ hr{
                 gender{"inanimate"}
                 one{"{0} permyriad"}
                 other{"{0} permyriada"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        few{"{0} dijela na milijardu"}
-                        one{"{0} dio na milijardu"}
-                        other{"{0} dijelova na milijardu"}
-                    }
-                    genitive{
-                        few{"{0} dijela na milijardu"}
-                        one{"{0} dijela na milijardu"}
-                        other{"{0} dijelova na milijardu"}
-                    }
-                    instrumental{
-                        few{"{0} dijela na milijardu"}
-                        one{"{0} dijelom na milijardu"}
-                        other{"{0} dijelova na milijardu"}
-                    }
-                }
-                dnam{"dijelovi na milijardu"}
-                few{"{0} dijela na milijardu"}
-                gender{"inanimate"}
-                one{"{0} dio na milijardu"}
-                other{"{0} dijelova na milijardu"}
             }
         }
         consumption{
@@ -1284,7 +1308,6 @@ hr{
                 gender{"feminine"}
                 one{"{0} noć"}
                 other{"{0} noći"}
-                per{"{0}/noć"}
             }
             quarter{
                 case{
@@ -1410,6 +1433,24 @@ hr{
                 one{"{0} amper"}
                 other{"{0} ampera"}
             }
+            coulomb{
+                dnam{"kuloni"}
+                few{"{0} kulona"}
+                one{"{0} kulon"}
+                other{"{0} kulona"}
+            }
+            farad{
+                dnam{"faradi"}
+                few{"{0} farada"}
+                one{"{0} farad"}
+                other{"{0} farada"}
+            }
+            henry{
+                dnam{"henriji"}
+                few{"{0} henrija"}
+                one{"{0} henri"}
+                other{"{0} henrija"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -1458,6 +1499,12 @@ hr{
                 one{"{0} om"}
                 other{"{0} oma"}
             }
+            siemens{
+                dnam{"simensi"}
+                few{"{0} S"}
+                one{"{0} S"}
+                other{"{0} S"}
+            }
             volt{
                 case{
                     accusative{
@@ -1484,6 +1531,12 @@ hr{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekereli"}
+                few{"{0} bekerela"}
+                one{"{0} bekerel"}
+                other{"{0} bekerela"}
+            }
             british-thermal-unit{
                 dnam{"britanske termalne jedinice"}
                 few{"{0} britanske termalne jedinice"}
@@ -1514,6 +1567,12 @@ hr{
                 one{"{0} kalorija"}
                 other{"{0} kalorija"}
             }
+            calorie-it{
+                dnam{"kalorije [IT]"}
+                few{"{0} kalorije [IT]"}
+                one{"{0} kalorija [IT]"}
+                other{"{0} kalorija [IT]"}
+            }
             electronvolt{
                 dnam{"elektronvolti"}
                 few{"{0} elektronvolta"}
@@ -1525,6 +1584,12 @@ hr{
                 few{"{0} kilokalorije"}
                 one{"{0} kilokalorija"}
                 other{"{0} kilokalorija"}
+            }
+            gray{
+                dnam{"greji"}
+                few{"{0} greja"}
+                one{"{0} grej"}
+                other{"{0} grejeva"}
             }
             joule{
                 case{
@@ -1622,8 +1687,20 @@ hr{
                 one{"{0} kilovatsat"}
                 other{"{0} kilovatsati"}
             }
+            sievert{
+                dnam{"siverti"}
+                few{"{0} siverta"}
+                one{"{0} sivert"}
+                other{"{0} siverta"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilogram-sila"}
+                few{"{0} kilogram-sile"}
+                one{"{0} kilogram-sila"}
+                other{"{0} kilogram-sila"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -2288,6 +2365,20 @@ hr{
                 other{"{0} sjaja Sunca"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesle"}
+                few{"{0} tesle"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"veberi"}
+                few{"{0} vebera"}
+                one{"{0} veber"}
+                other{"{0} vebera"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -2780,7 +2871,7 @@ hr{
                     }
                     instrumental{
                         few{"{0} milimetra živina stupca"}
-                        one{"{0} milimetar živina stupca"}
+                        one{"{0} milimetrom živina stupca"}
                         other{"{0} milimetara živina stupca"}
                     }
                 }
@@ -2789,6 +2880,12 @@ hr{
                 gender{"inanimate"}
                 one{"{0} milimetar živina stupca"}
                 other{"{0} milimetara živina stupca"}
+            }
+            ofhg{
+                dnam{"žive"}
+                few{"{0} žive"}
+                one{"{0} žive"}
+                other{"{0} žive"}
             }
             pascal{
                 case{
@@ -2873,7 +2970,6 @@ hr{
                         other{"{0} svjetala"}
                     }
                 }
-                dnam{"svjetlo"}
                 few{"{0} svjetla"}
                 gender{"neuter"}
                 one{"{0} svjetlo"}
@@ -3224,6 +3320,12 @@ hr{
                 one{"{0} imp. tekuća unca"}
                 other{"{0} imp. tekućih unci"}
             }
+            fluid-ounce-metric{
+                dnam{"tekuće unce"}
+                few{"{0} tekuće unce"}
+                one{"{0} tekuća unca"}
+                other{"{0} tekućih unci"}
+            }
             gallon{
                 dnam{"galoni"}
                 few{"{0} galona"}
@@ -3400,6 +3502,11 @@ hr{
                 one{"{0}′"}
                 other{"{0}′"}
             }
+            steradian{
+                few{"{0} sr"}
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             dunam{
@@ -3407,13 +3514,27 @@ hr{
             }
         }
         concentr{
+            katal{
+                few{"{0} kat"}
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             mole{
                 few{"{0} mola"}
                 one{"{0} mol"}
                 other{"{0} mola"}
             }
-            portion-per-1e9{
-                dnam{"dijelovi/milijarda"}
+            ofglucose{
+                dnam{"Glc"}
+                few{"{0} Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"dio"}
+                few{"{0} dijela"}
+                one{"{0} dio"}
+                other{"{0} dijelova"}
             }
         }
         consumption{
@@ -3441,15 +3562,58 @@ hr{
                 one{"{0} m"}
                 other{"{0} m"}
             }
-            night{
-                dnam{"noć"}
-                few{"{0} noći"}
-                one{"{0} noć"}
-                other{"{0} noći"}
-                per{"{0}/noć"}
+        }
+        electric{
+            coulomb{
+                few{"{0} C"}
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                few{"{0} F"}
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                few{"{0} H"}
+                one{"{0} H"}
+                other{"{0} H"}
+            }
+            siemens{
+                few{"{0} S"}
+                one{"{0} S"}
+                other{"{0} S"}
+            }
+        }
+        energy{
+            becquerel{
+                few{"{0} Bq"}
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal [IT]"}
+                few{"{0} cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
+            }
+            gray{
+                few{"{0} Gy"}
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+            }
+            sievert{
+                few{"{0} Sv"}
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
         }
         force{
+            kilogram-force{
+                few{"{0} kgf"}
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100km"}
             }
@@ -3485,6 +3649,18 @@ hr{
                 dnam{"yd"}
             }
         }
+        magnetic{
+            tesla{
+                few{"{0} T"}
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                few{"{0} Wb"}
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             dalton{
                 dnam{"Da"}
@@ -3496,13 +3672,10 @@ hr{
                 one{"{0} mb"}
                 other{"{0} mb"}
             }
-        }
-        speed{
-            light-speed{
-                dnam{"svjetlo"}
-                few{"{0} svjetla"}
-                one{"{0} svjetlo"}
-                other{"{0} svjetala"}
+            ofhg{
+                few{"{0} Hg"}
+                one{"{0} Hg"}
+                other{"{0} Hg"}
             }
         }
         volume{
@@ -3565,6 +3738,11 @@ hr{
                 one{"{0} okr."}
                 other{"{0} okr."}
             }
+            steradian{
+                few{"{0} sr"}
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -3590,6 +3768,11 @@ hr{
                 one{"{0} stavka"}
                 other{"{0} stavki"}
             }
+            katal{
+                few{"{0} kat"}
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dl"}
                 few{"{0} mg/dl"}
@@ -3607,6 +3790,21 @@ hr{
                 one{"{0} mola"}
                 other{"{0} mola"}
             }
+            ofglucose{
+                dnam{"Glc"}
+                few{"{0} Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"dio"}
+                few{"{0} dijela"}
+                one{"{0} dio"}
+                other{"{0} dijelova"}
+            }
+            part-per-1e9{
+                dnam{"dijelovi/milijarda"}
+            }
             percent{
                 few{"{0} %"}
                 one{"{0} %"}
@@ -3621,9 +3819,6 @@ hr{
                 few{"{0} ‱"}
                 one{"{0} ‱"}
                 other{"{0} ‱"}
-            }
-            portion-per-1e9{
-                dnam{"dijelovi/milijarda"}
             }
         }
         consumption{
@@ -3738,22 +3933,63 @@ hr{
             ampere{
                 dnam{"A"}
             }
+            coulomb{
+                few{"{0} C"}
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                few{"{0} F"}
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                few{"{0} H"}
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             ohm{
                 dnam{"Ω"}
+            }
+            siemens{
+                few{"{0} S"}
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 dnam{"V"}
             }
         }
         energy{
+            becquerel{
+                few{"{0} Bq"}
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
                 few{"{0} BTU"}
                 one{"{0} BTU"}
                 other{"{0} BTU"}
             }
+            calorie-it{
+                dnam{"cal [IT]"}
+                few{"{0} cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
+            }
+            gray{
+                few{"{0} Gy"}
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+            }
             joule{
                 dnam{"J"}
+            }
+            sievert{
+                few{"{0} Sv"}
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
             therm-us{
                 dnam{"SAD therm"}
@@ -3763,6 +3999,11 @@ hr{
             }
         }
         force{
+            kilogram-force{
+                few{"{0} kgf"}
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 few{"{0} kWh/100 km"}
@@ -3824,6 +4065,18 @@ hr{
                 dnam{"jardi"}
             }
         }
+        magnetic{
+            tesla{
+                few{"{0} T"}
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                few{"{0} Wb"}
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"ct"}
@@ -3860,6 +4113,11 @@ hr{
                 few{"{0} bara"}
                 one{"{0} bar"}
                 other{"{0} bara"}
+            }
+            ofhg{
+                few{"{0} Hg"}
+                one{"{0} Hg"}
+                other{"{0} Hg"}
             }
         }
         speed{

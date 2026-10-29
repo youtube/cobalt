@@ -147,9 +147,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ GetObjectType(map, type, type);
-    __ Assert(eq, AbortReason::kUnexpectedValue, type, Operand(MAP_TYPE));
+    __ AssertMap(map);
   }
   __ Lhu(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(target, cc, type, Operand(instance_type), distance);
@@ -438,11 +436,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
   __ Lw(interrupt_budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+        FieldMemOperand(feedback_cell,
+                        offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Add32(interrupt_budget, interrupt_budget, weight);
   __ Sw(interrupt_budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+        FieldMemOperand(feedback_cell,
+                        offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
     __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
@@ -458,11 +458,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
   __ Lw(interrupt_budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+        FieldMemOperand(feedback_cell,
+                        offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Add32(interrupt_budget, interrupt_budget, weight);
   __ Sw(interrupt_budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+        FieldMemOperand(feedback_cell,
+                        offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) {
     __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
   }

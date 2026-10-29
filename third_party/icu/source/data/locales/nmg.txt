@@ -12,7 +12,9 @@ nmg{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -150,12 +152,12 @@ nmg{
             }
             eras{
                 abbreviated{
-                    "BL",
-                    "PB",
+                    0{"BL"}
+                    1{"PB"}
                 }
                 wide{
-                    "Bó Lahlɛ̄",
-                    "Pfiɛ Burī",
+                    0{"Bó Lahlɛ̄"}
+                    1{"Pfiɛ Burī"}
                 }
             }
             monthNames{

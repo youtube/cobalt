@@ -304,7 +304,7 @@ kn{
                 "G y MMMM d, EEEE",
                 "G y MMMM d",
                 "G y MMM d",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -317,8 +317,15 @@ kn{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0}",
+                "{1} {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"d E"}
+                GyMEd{"E, M/d/y G"}
                 MEd{"E, d/M"}
                 MMMEd{"E, d MMM"}
                 MMMMd{"d MMMM"}
@@ -367,10 +374,6 @@ kn{
             }
         }
         gregorian{
-            AmPmMarkers{
-                "AM",
-                "PM",
-            }
             AmPmMarkersNarrow{
                 "a",
                 "p",
@@ -395,6 +398,12 @@ kn{
                 "{1} ರಂದು {0} ಸಮಯಕ್ಕೆ",
                 "{1}, {0}",
                 "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} {0} ಸಮಯಕ್ಕೆ",
+                "{1} {0} ಸಮಯಕ್ಕೆ",
+                "{1} {0}",
+                "{1}, {0} ಗೆ",
             }
             DateTimeSkeletons{
                 "ahhmmsszzzz",
@@ -477,32 +486,22 @@ kn{
                 }
                 stand-alone{
                     abbreviated{
-                        am{"AM"}
                         midnight{"ಮಧ್ಯರಾತ್ರಿ"}
-                        pm{"PM"}
-                    }
-                    narrow{
-                        am{"AM"}
-                        pm{"PM"}
-                    }
-                    wide{
-                        am{"AM"}
-                        pm{"PM"}
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "ಕ್ರಿ.ಪೂ",
-                    "ಕ್ರಿ.ಶ",
+                    0{"ಕ್ರಿ.ಪೂ"}
+                    1{"ಕ್ರಿ.ಶ"}
                 }
                 abbreviated%variant{
-                    "ಕ್ರಿ.ಪೂ.ಕಾಲ",
-                    "ಪ್ರಸಕ್ತ ಶಕ",
+                    0{"ಕ್ರಿ.ಪೂ.ಕಾಲ"}
+                    1{"ಪ್ರಸಕ್ತ ಶಕ"}
                 }
                 wide{
-                    "ಕ್ರಿಸ್ತ ಪೂರ್ವ",
-                    "ಕ್ರಿಸ್ತ ಶಕ",
+                    0{"ಕ್ರಿಸ್ತ ಪೂರ್ವ"}
+                    1{"ಕ್ರಿಸ್ತ ಶಕ"}
                 }
             }
             intervalFormats{
@@ -608,20 +607,6 @@ kn{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        "ಜನ",
-                        "ಫೆಬ್ರ",
-                        "ಮಾರ್ಚ್",
-                        "ಏಪ್ರಿ",
-                        "ಮೇ",
-                        "ಜೂನ್",
-                        "ಜುಲೈ",
-                        "ಆಗ",
-                        "ಸೆಪ್ಟೆಂ",
-                        "ಅಕ್ಟೋ",
-                        "ನವೆಂ",
-                        "ಡಿಸೆಂ",
-                    }
                     narrow{
                         "ಜ",
                         "ಫೆ",
@@ -680,7 +665,7 @@ kn{
         indian{
             eras{
                 abbreviated{
-                    "ಶಕ",
+                    0{"ಶಕ"}
                 }
             }
             monthNames{
@@ -759,8 +744,8 @@ kn{
         roc{
             eras{
                 abbreviated{
-                    "ಆರ್.ಓ.ಸಿ.ಗೆ ಮುಂಚೆ",
-                    "ಮಿಂಗೋ",
+                    0{"ಆರ್.ಓ.ಸಿ.ಗೆ ಮುಂಚೆ"}
+                    1{"ಮಿಂಗೋ"}
                 }
             }
         }
@@ -880,9 +865,6 @@ kn{
         dayperiod{
             dn{"AM/PM"}
         }
-        dayperiod-narrow{
-            dn{"AM/PM"}
-        }
         era{
             dn{"ಯುಗ"}
         }
@@ -897,14 +879,6 @@ kn{
                     one{"{0} ಶುಕ್ರವಾರದಂದು"}
                     other{"{0} ಶುಕ್ರವಾರಗಳಲ್ಲಿ"}
                 }
-                past{
-                    one{"{0} ಶುಕ್ರವಾರದ ಹಿಂದೆ"}
-                    other{"{0} ಶುಕ್ರವಾರಗಳ ಹಿಂದೆ"}
-                }
-            }
-        }
-        fri-narrow{
-            relativeTime{
                 past{
                     one{"{0} ಶುಕ್ರವಾರದ ಹಿಂದೆ"}
                     other{"{0} ಶುಕ್ರವಾರಗಳ ಹಿಂದೆ"}
@@ -1238,17 +1212,6 @@ kn{
                 "[¥￥]",
                 "[₩￦]",
                 "[₹ {ರೂ}]",
-            }
-        }
-        number{
-            lenient{
-                "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",
-                "[,，﹐︐ ، ٫ 、﹑､︑]",
-                "[+＋﬩﹢⁺₊ ➕]",
-            }
-            stricter{
-                "[,，﹐︐ ٫]",
-                "[.．․﹒ ｡]",
             }
         }
     }

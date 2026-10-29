@@ -20,6 +20,10 @@ ps{
             }
         }
         arabext{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
+            }
             symbols{
                 timeSeparator{":"}
             }
@@ -31,6 +35,8 @@ ps{
             }
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyPatternAppendISO{"{0} ¤¤"}
             }
             patternsLong{
@@ -52,62 +58,52 @@ ps{
             patternsShort{
                 currencyFormat{
                     1000{
-                        one{"0K ¤"}
-                        other{"0K ¤"}
+                        one{"¤ 0K"}
+                        other{"¤ 0K"}
                     }
                     10000{
-                        one{"00K ¤"}
-                        other{"00K ¤"}
+                        one{"¤ 00K"}
+                        other{"¤ 00K"}
                     }
                     100000{
-                        one{"000K ¤"}
-                        other{"000K ¤"}
+                        one{"¤ 000K"}
+                        other{"¤ 000K"}
                     }
                     1000000{
-                        one{"0M ¤"}
-                        other{"0M ¤"}
+                        one{"¤ 0M"}
+                        other{"¤ 0M"}
                     }
                     10000000{
-                        one{"00M ¤"}
-                        other{"00M ¤"}
+                        one{"¤ 00M"}
+                        other{"¤ 00M"}
                     }
                     100000000{
-                        one{"000M ¤"}
-                        other{"000M ¤"}
+                        one{"¤ 000M"}
+                        other{"¤ 000M"}
                     }
                     1000000000{
-                        one{"0G ¤"}
-                        other{"0G ¤"}
+                        one{"¤ 0B"}
+                        other{"¤ 0B"}
                     }
-                    10000000000{
-                        one{"00G ¤"}
-                        other{"¤00B"}
-                    }
-                    100000000000{
-                        one{"¤000B"}
-                        other{"¤000B"}
-                    }
-                    1000000000000{
-                        one{"0T ¤"}
-                        other{"0T ¤"}
-                    }
-                    10000000000000{
-                        one{"00T ¤"}
-                        other{"00T ¤"}
-                    }
-                    100000000000000{
-                        one{"000T ¤"}
-                        other{"000T ¤"}
-                    }
-                }
-                currencyFormat%alphaNextToNumber{
                     10000000000{
                         one{"¤ 00B"}
-                        other{"¤00B"}
+                        other{"¤ 00B"}
                     }
                     100000000000{
-                        one{"¤ 000B"}
+                        one{"¤ 000G"}
                         other{"¤ 000B"}
+                    }
+                    1000000000000{
+                        one{"¤ 0T"}
+                        other{"¤ 0T"}
+                    }
+                    10000000000000{
+                        one{"¤ 00T"}
+                        other{"¤ 00T"}
+                    }
+                    100000000000000{
+                        one{"¤ 000T"}
+                        other{"¤ 000T"}
                     }
                 }
                 decimalFormat{
@@ -151,8 +147,8 @@ ps{
                 "H:mm:ss (z)",
                 "H:mm:ss",
                 "H:mm",
-                "EEEE د G y د MMMM d",
-                "د G y د MMMM d",
+                "G y MMMM d, EEEE",
+                "G y MMMM d",
                 "G y MMM d",
                 "GGGGG y/M/d",
                 "{1} {0}",
@@ -249,6 +245,18 @@ ps{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%atTime{
+                "{1} په {0}",
+                "{1} په {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} په {0}",
+                "{1} په {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -294,20 +302,19 @@ ps{
             }
             eras{
                 abbreviated{
-                    "له میلاد وړاندې",
-                    "م.",
+                    0{"له میلاد وړاندې"}
+                    1{"م."}
                 }
                 abbreviated%variant{
-                    "له میلاد وړاندې",
-                    "ع.پ",
+                    1{"ع.پ"}
                 }
                 wide{
-                    "له میلاد څخه وړاندې",
-                    "له میلاد څخه وروسته",
+                    0{"له میلاد څخه وړاندې"}
+                    1{"له میلاد څخه وروسته"}
                 }
                 wide%variant{
-                    "له عام پېر دمخه",
-                    "عام پېر",
+                    0{"له عام پېر دمخه"}
+                    1{"عام پېر"}
                 }
             }
             intervalFormats{
@@ -365,6 +372,20 @@ ps{
                         "نومبر",
                         "دسمبر",
                     }
+                    narrow{
+                        "ج",
+                        "ف",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9",
+                        "10",
+                        "11",
+                        "12",
+                    }
                     wide{
                         "جنوري",
                         "فېبروري",
@@ -395,7 +416,7 @@ ps{
         indian{
             eras{
                 abbreviated{
-                    "ساکا",
+                    0{"ساکا"}
                 }
             }
             monthNames{
@@ -418,8 +439,28 @@ ps{
             }
         }
         islamic{
+            DateTimePatterns{
+                "H:mm:ss (zzzz)",
+                "H:mm:ss (z)",
+                "H:mm:ss",
+                "H:mm",
+                "G y MMMM d, EEEE",
+                "G y MMMM d",
+                "G y MMM d",
+                "GGGGG y/M/d",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             availableFormats{
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMd{"M/d/y GGGGG"}
+                yyyyM{"GGGGG y-MM"}
+                yyyyMEd{"GGGGG y-MM-dd, E"}
+                yyyyMd{"GGGGG y-MM-dd"}
             }
             monthNames{
                 format{
@@ -428,7 +469,7 @@ ps{
                         "صفر",
                         "ربيع",
                         "ربيع II",
-                        "جماد",
+                        "جماد I",
                         "جماد ۲",
                         "رجب",
                         "شعبان",
@@ -440,9 +481,39 @@ ps{
                     wide{
                         "محرم",
                         "صفر",
+                        "ربیع اول",
+                        "ربيع II",
+                        "جمادي اول",
+                        "جماعه II",
+                        "رجب",
+                        "شعبان",
+                        "رمضان",
+                        "شوال",
+                        "ذي القعده",
+                        "ذي الحج",
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        "محرم",
+                        "صفر",
                         "ربيع",
                         "ربيع II",
-                        "جماعه",
+                        "جماد I",
+                        "جماد ۲",
+                        "رجب",
+                        "شعبان",
+                        "رمضان",
+                        "شوال",
+                        "دالقاعده",
+                        "ذي الحج",
+                    }
+                    wide{
+                        "محرم",
+                        "صفر",
+                        "ربیع اول",
+                        "ربيع II",
+                        "جمادي اول",
                         "جماعه II",
                         "رجب",
                         "شعبان",
@@ -605,12 +676,6 @@ ps{
             dn{"ورځ شېبه"}
         }
         era{
-            dn{"دور"}
-        }
-        era-narrow{
-            dn{"دور"}
-        }
-        era-short{
             dn{"دور"}
         }
         fri{
@@ -1087,19 +1152,6 @@ ps{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

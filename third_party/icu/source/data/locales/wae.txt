@@ -10,7 +10,7 @@ wae{
         latn{
             symbols{
                 decimal{","}
-                group{"’"}
+                group{"'"}
             }
         }
     }
@@ -134,7 +134,7 @@ wae{
                 "EEEE, d. MMMM y G",
                 "d. MMMM y G",
                 "d. MMM y G",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -368,8 +368,8 @@ wae{
             }
             eras{
                 abbreviated{
-                    "v. Chr.",
-                    "n. Chr",
+                    0{"v. Chr."}
+                    1{"n. Chr"}
                 }
             }
             intervalFormats{

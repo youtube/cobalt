@@ -635,6 +635,10 @@ sq{
             "EC$",
             "Dollari i Karaibeve Lindore",
         }
+        XCG{
+            "ANG",
+            "gilder karaibian",
+        }
         XOF{
             "F CFA",
             "Franga e Bregut të Fildishtë",
@@ -657,7 +661,11 @@ sq{
         }
         ZMW{
             "ZMW",
-            "Kuaça e Zambikut",
+            "Kuaça e Zambisë",
+        }
+        ZWG{
+            "ZWG",
+            "Ari i Zimbabves",
         }
     }
     Currencies%narrow{
@@ -1392,6 +1400,10 @@ sq{
             one{"dollar i Karaibeve Lindore"}
             other{"dollarë të Karaibeve Lindore"}
         }
+        XCG{
+            one{"gilder karaibian"}
+            other{"gilderë karaibianë"}
+        }
         XOF{
             one{"frangë e Bregut të Fildishtë"}
             other{"franga të Bregut të Fildishtë"}
@@ -1413,8 +1425,12 @@ sq{
             other{"randë afrikano-jugorë"}
         }
         ZMW{
-            one{"kuaçë zambiku"}
-            other{"kuaça zambiku"}
+            one{"kuaçë zambie"}
+            other{"kuaça zambie"}
+        }
+        ZWG{
+            one{"ar i Zimbabves"}
+            other{"arë të Zimbabves"}
         }
     }
 }

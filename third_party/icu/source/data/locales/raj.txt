@@ -17,7 +17,7 @@ raj{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "सबेरे",
                 "सांम",
             }

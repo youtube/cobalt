@@ -33,8 +33,11 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "base/scoped_observation.h"
 #include "chrome/browser/profiles/delete_profile_helper.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+
+class GlobalBrowserCollection;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -122,12 +125,21 @@ class ProfileManager : public Profile::Delegate {
   //
   // DEPRECATED on ChromeOS because of known issues that it may return non User
   // Profile instance. Please use:
-  //   ash::BrowserContextHelper::Get()->GetBrowserContextByUser(
-  //       user_manager::UserManager::Get()->GetPrimaryUser())
+  //   ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+  //       session_manager::SessionManager::Get()->GetPrimarySession()
+  //           ->account_id());
   // or even simpler code if you need only limited parts of Profile.
   // E.g., if you need only PrefService of the Profile, you can take it from
   // user_manager::User::GetProfilePrefs(), e.g.:
-  //   user_manager::UserManager::Get()->GetPrimaryUser()->GetProfilePrefs().
+  //   user_manager::UserManager::Get()->FindUser(
+  //       session_manager::SessionManager::Get()->GetPrimarySession()
+  //           ->account_id())->GetProfilePrefs();
+  // Note that, due to the current implementation, despite of its name, this
+  // may return non-user profile or null depending on the current session
+  // state. For migration, we must take care of when this is called from the
+  // callers. Specifically, if this may be called before login or during login
+  // process, the extra check is needed. Otherwise, we may want CHECK for
+  // the session state.
   // For the safer migration, we record the callers of unexpected use via
   // location. It should be always called FROM_HERE as default value.
   // TODO(crbug.com/40227502): Remove this.
@@ -142,12 +154,21 @@ class ProfileManager : public Profile::Delegate {
   //
   // DEPRECATED on ChromeOS because of known issues that it may return non User
   // Profile instance. Please use:
-  //   ash::BrowserContextHelper::Get()->GetBrowserContextByUser(
-  //       user_manager::UserManager::Get()->GetActiveUser())
+  //   ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+  //       session_manager::SessionManager::Get()->GetActiveSession()
+  //           ->account_id());
   // or simpler code if you need only limited parts of Profile.
   // E.g., if you need only PrefService of the Profile, you can take it from
   // user_manager::User::GetProfilePrefs(), e.g.:
-  //   user_manager::UserManager::Get()->GetActiveUser()->GetProfilePrefs().
+  //   user_manager::UserManager::Get()->FindUser(
+  //       session_manager::SessionManager::Get()->GetActiveSession()
+  //           ->account_id())->GetProfilePrefs();
+  // Note that, due to the current implementation, despite of its name, this
+  // may return non-user profile or null depending on the current session
+  // state. For migration, we must take care of when this is called from the
+  // callers. Specifically, if this may be called before login or during login
+  // process, the extra check is needed. Otherwise, we may want CHECK for
+  // the session state.
   // For the safer migration, we record the callers of unexpected use via
   // location. It should be always called FROM_HERE as default value.
   // TODO(crbug.com/40227502): Remove this.
@@ -568,23 +589,27 @@ class ProfileManager : public Profile::Delegate {
   void OnProfileDestructionComplete(const base::FilePath& profile_path);
 
 #if !BUILDFLAG(IS_ANDROID)
-  void OnBrowserOpened(Browser* browser);
-  void OnBrowserClosed(Browser* browser);
+  void OnBrowserOpened(BrowserWindowInterface* browser);
+  void OnBrowserClosed(BrowserWindowInterface* browser);
 
-  class BrowserListObserver : public ::BrowserListObserver {
+  class BrowserCollectionObserver : public ::BrowserCollectionObserver {
    public:
-    explicit BrowserListObserver(ProfileManager* manager);
-    BrowserListObserver(const BrowserListObserver&) = delete;
-    BrowserListObserver& operator=(const BrowserListObserver&) = delete;
-    ~BrowserListObserver() override;
+    explicit BrowserCollectionObserver(ProfileManager* manager);
+    BrowserCollectionObserver(const BrowserCollectionObserver&) = delete;
+    BrowserCollectionObserver& operator=(const BrowserCollectionObserver&) =
+        delete;
+    ~BrowserCollectionObserver() override;
 
-    // ::BrowserListObserver implementation.
-    void OnBrowserAdded(Browser* browser) override;
-    void OnBrowserRemoved(Browser* browser) override;
-    void OnBrowserSetLastActive(Browser* browser) override;
+    // ::BrowserCollectionObserver implementation.
+    void OnBrowserCreated(BrowserWindowInterface* browser) override;
+    void OnBrowserClosed(BrowserWindowInterface* browser) override;
+    void OnBrowserActivated(BrowserWindowInterface* browser) override;
 
    private:
     raw_ptr<ProfileManager> profile_manager_;
+    base::ScopedObservation<GlobalBrowserCollection,
+                            ::BrowserCollectionObserver>
+        browser_collection_observer_{this};
   };
 
   void OnClosingAllBrowsersChanged(bool closing);
@@ -623,7 +648,7 @@ class ProfileManager : public Profile::Delegate {
   bool logged_in_ = false;
 
 #if !BUILDFLAG(IS_ANDROID)
-  BrowserListObserver browser_list_observer_{this};
+  BrowserCollectionObserver browser_collection_observer_{this};
 
   std::unique_ptr<DeleteProfileHelper> delete_profile_helper_;
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -645,7 +670,7 @@ class ProfileManager : public Profile::Delegate {
   std::vector<raw_ptr<Profile, VectorExperimental>> active_profiles_;
   bool closing_all_browsers_ = false;
 
-  // Tracks whether the the list of last opened Profiles has been updated for
+  // Tracks whether the list of last opened Profiles has been updated for
   // the current session. If this is false `GetLastOpenedProfiles()` will return
   // the list of Profiles that were open the last time Chrome was running.
   bool has_updated_last_opened_profiles_ = false;

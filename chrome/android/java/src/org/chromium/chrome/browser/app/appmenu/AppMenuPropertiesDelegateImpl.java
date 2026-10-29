@@ -596,9 +596,8 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     @VisibleForTesting
-    public boolean instanceSwitcherWithMultiInstanceEnabled() {
-        return MultiWindowUtils.instanceSwitcherEnabled()
-                && MultiWindowUtils.isMultiInstanceApi31Enabled();
+    public boolean isMultiInstanceEnabled() {
+        return MultiWindowUtils.isMultiInstanceApi31Enabled();
     }
 
     @VisibleForTesting
@@ -697,6 +696,19 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     @Contract("null -> false")
     protected boolean shouldShowDownloadPageMenuItem(@Nullable Tab currentTab) {
         return isTabletSizeScreen() && shouldEnableDownloadPage(currentTab);
+    }
+
+    /** Build the PropertyModel for the backward navigation action. */
+    protected PropertyModel buildBackwardActionModel(@Nullable Tab currentTab) {
+        PropertyModel backwardButton =
+                buildModelForIcon(
+                        R.id.back_menu_id,
+                        R.string.accessibility_menu_back,
+                        R.string.menu_back,
+                        R.drawable.btn_back);
+        backwardButton.set(
+                AppMenuItemProperties.ENABLED, currentTab != null && currentTab.canGoBack());
+        return backwardButton;
     }
 
     /** Build the PropertyModel for the forward navigation action. */

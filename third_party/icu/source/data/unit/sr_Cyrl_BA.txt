@@ -17,7 +17,7 @@ sr_Cyrl_BA{
             10p30{"Q{0}"}
         }
         concentr{
-            portion-per-1e9{
+            part-per-1e9{
                 case{
                     accusative{
                         few{"{0} дијела на милијарду"}
@@ -197,7 +197,7 @@ sr_Cyrl_BA{
     }
     unitsNarrow{
         concentr{
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"дијелови/милијарда"}
             }
         }
@@ -233,9 +233,6 @@ sr_Cyrl_BA{
         speed{
             beaufort{
                 dnam{"Bft"}
-                few{"B {0}"}
-                one{"B {0}"}
-                other{"B {0}"}
             }
             light-speed{
                 dnam{"свјетло"}
@@ -271,7 +268,7 @@ sr_Cyrl_BA{
     }
     unitsShort{
         concentr{
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"дијелови/милијарда"}
             }
         }
@@ -297,11 +294,6 @@ sr_Cyrl_BA{
             }
         }
         speed{
-            beaufort{
-                few{"B {0}"}
-                one{"B {0}"}
-                other{"Б {0}"}
-            }
             light-speed{
                 dnam{"свјетло"}
                 few{"{0} свјетла"}

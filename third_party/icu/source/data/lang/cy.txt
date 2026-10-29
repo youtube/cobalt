@@ -7,10 +7,13 @@ cy{
         cf{"Fformat Arian"}
         collation{"Trefn"}
         currency{"Math o Arian"}
+        em{"Cyflwyniad Emoji"}
         hc{"Cylched Awr (12 vs 24)"}
         lb{"Arddull Toriad Llinell"}
+        lw{"Toriadau Llinell o fewn Geiriau"}
         ms{"System Fesur"}
         numbers{"Rhifau"}
+        ss{"Toriad Brawddeg ar ôl Byrfodd"}
     }
     Languages{
         aa{"Affareg"}
@@ -594,6 +597,12 @@ cy{
         zxx{"Dim cynnwys ieithyddol"}
         zza{"Sasäeg"}
     }
+    Languages%core{
+        ku{"Cwrdeg"}
+    }
+    Languages%extension{
+        ku{"Cwrmanjeg"}
+    }
     Languages%long{
         zh_Hans{"Tsieinëeg Mandarin Symledig"}
         zh_Hant{"Tsieinëeg Mandarin Traddodiadol"}
@@ -675,7 +684,7 @@ cy{
     Types{
         calendar{
             buddhist{"Calendr Bwdaidd"}
-            chinese{"Calendr Tseina"}
+            chinese{"Calendr Tsieineaidd"}
             coptic{"Calendr y Coptiaid"}
             dangi{"Calendr Dangi"}
             ethiopic{"Calendr Ethiopia"}
@@ -691,16 +700,34 @@ cy{
             persian{"Calendr Persia"}
             roc{"Calendr Gweriniaeth Tseina"}
         }
+        calendar%core{
+            buddhist{"Bwdaidd"}
+            chinese{"Tsieineaidd"}
+            coptic{"Coptaidd"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopaidd"}
+            ethiopic-amete-alem{"Amete Alem Ethiopia"}
+            gregorian{"Gregoraidd"}
+            hebrew{"Hebreaidd"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (tabl, cyfnod sifil)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            japanese{"Japaneaidd"}
+            persian{"Persiaidd"}
+            roc{"Gweriniaeth Tseina"}
+        }
         cf{
             account{"Fformat Arian Cyfrifeg"}
             standard{"Fformat Arian Safonol"}
         }
+        cf%core{
+            account{"Cyfrifeg"}
+            standard{"Safonol"}
+        }
         collation{
-            big5han{"Trefn Traddodiadol Tsieina - Big5"}
             dictionary{"Trefn Geiriadur"}
             ducet{"Trefn Rhagosodedig Unicode"}
             eor{"Rheolau trefnu Ewropeaidd"}
-            gb2312han{"Trefn Symledig Tsieina - GB2312"}
             phonebook{"Trefn Llyfr Ffôn"}
             pinyin{"Trefn Pinyin"}
             search{"Chwilio at Ddibenion Cyffredinol"}
@@ -708,21 +735,53 @@ cy{
             traditional{"Trefn Traddodiadol"}
             zhuyin{"Trefn Zhuyin"}
         }
+        collation%core{
+            ducet{"Unicode Rhagosodedig"}
+            search{"Chwilio"}
+            standard{"Safonol"}
+        }
+        em%core{
+            default{"Rhagosodedig"}
+            emoji{"Emoji"}
+            text{"Testun"}
+        }
         hc{
             h11{"System 12 Awr (0–11)"}
             h12{"System 12 Awr (1–12)"}
             h23{"System 24 Awr (0–23)"}
             h24{"System 24 Awr (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Arddull Toriad Llinell Rhydd"}
             normal{"Arddull Toriad Llinell Arferol"}
             strict{"Arddull Torriad Llinell Caeth"}
         }
+        lb%core{
+            loose{"Rhydd"}
+            normal{"Arferol"}
+            strict{"Caeth"}
+        }
+        lw%core{
+            breakall{"Torri’r cyfan"}
+            keepall{"Cadw’r cyfan"}
+            normal{"Normal"}
+            phrase{"Cadw mewn brawddegau"}
+        }
         ms{
             metric{"System Fetrig"}
             uksystem{"System Fesur Imperialaidd"}
             ussystem{"System Fesur UDA"}
+        }
+        ms%core{
+            metric{"Metrig"}
+            uksystem{"DU"}
+            ussystem{"UDA"}
         }
         numbers{
             arab{"Digidau Arabig-Indig"}
@@ -767,6 +826,10 @@ cy{
             thai{"Digidau Thai"}
             tibt{"Digidau Tibetaidd"}
             vaii{"Digidau Vai"}
+        }
+        ss%core{
+            none{"Wedi’i ddiffodd"}
+            standard{"Ymlaen"}
         }
     }
     Variants{

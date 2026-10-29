@@ -97,7 +97,7 @@ os{
             }
         }
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "ӕмбисбоны размӕ",
                 "ӕмбисбоны фӕстӕ",
             }
@@ -194,8 +194,8 @@ os{
             }
             eras{
                 abbreviated{
-                    "н.д.а.",
-                    "н.д.",
+                    0{"н.д.а."}
+                    1{"н.д."}
                 }
             }
             intervalFormats{

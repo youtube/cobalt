@@ -17,6 +17,10 @@ uz_Arab{
         }
         default{"arabext"}
         latn{
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
+            }
             symbols{
                 decimal{","}
                 group{"."}

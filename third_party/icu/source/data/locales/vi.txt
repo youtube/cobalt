@@ -16,8 +16,10 @@ vi{
                 range{"{0}-{1}"}
             }
             patterns{
-                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -230,6 +232,7 @@ vi{
             }
             availableFormats{
                 Bh{"h 'giờ' B"}
+                EBh{"h 'giờ' B E"}
                 EBhm{"h:mm B E"}
                 EBhms{"h:mm:ss B E"}
                 Ed{"E, 'ngày' d"}
@@ -486,68 +489,13 @@ vi{
         dangi{
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
-                MEd{
-                    M{"MM-dd, E – MM-dd, E"}
-                    d{"MM-dd, E – MM-dd, E"}
-                }
-                MMMEd{
-                    M{"MMM d, E – MMM d, E"}
-                    d{"MMM d, E – MMM d, E"}
-                }
-                MMMd{
-                    M{"MMM d – MMM d"}
-                }
-                Md{
-                    M{"MM-dd – MM-dd"}
-                    d{"MM-dd – MM-dd"}
-                }
-                h{
-                    a{"h a – h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
                 }
                 hmv{
                     a{"h:mm a – h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
-                }
-                yM{
-                    M{"y-MM – y-MM"}
-                    y{"y-MM – y-MM"}
-                }
-                yMEd{
-                    M{"y-MM-dd, E – y-MM-dd, E"}
-                    d{"y-MM-dd, E – y-MM-dd, E"}
-                    y{"y-MM-dd, E – y-MM-dd, E"}
-                }
-                yMMM{
-                    y{"U MMM – U MMM"}
-                }
-                yMMMEd{
-                    M{"U MMM d, E – MMM d, E"}
-                    d{"U MMM d, E – MMM d, E"}
-                    y{"U MMM d, E – U MMM d, E"}
-                }
-                yMMMM{
-                    y{"U MMMM – U MMMM"}
-                }
-                yMMMd{
-                    M{"U MMM d – MMM d"}
-                    y{"U MMM d – U MMM d"}
-                }
-                yMd{
-                    M{"y-MM-dd – y-MM-dd"}
-                    d{"y-MM-dd – y-MM-dd"}
-                    y{"y-MM-dd – y-MM-dd"}
                 }
             }
         }
@@ -593,6 +541,12 @@ vi{
                 "{0} {1}",
                 "{0} {1}",
             }
+            DateTimePatterns%relative{
+                "'lúc' {0} {1}",
+                "'lúc' {0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -605,14 +559,18 @@ vi{
             }
             availableFormats{
                 Bh{"h 'giờ' B"}
+                EBh{"h 'giờ' B E"}
                 EBhm{"h:mm B E"}
                 EBhms{"h:mm:ss B E"}
                 EHm{"HH:mm E"}
                 EHms{"HH:mm:ss E"}
                 Ed{"E, 'ngày' d"}
+                Eh{"h a E"}
                 Ehm{"h:mm a E"}
                 Ehms{"h:mm:ss a E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM, y G"}
                 GyMMMd{"d MMM, y G"}
@@ -625,9 +583,9 @@ vi{
                 MMMd{"d MMM"}
                 MMdd{"dd-MM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"h 'giờ' a v"}
                 y{"y G"}
                 yyyy{"y G"}
                 yyyyM{"M/y GGGGG"}
@@ -647,7 +605,6 @@ vi{
                     h{"h – h 'giờ' B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -802,16 +759,26 @@ vi{
                 "{0} {1}",
                 "{0} {1}",
             }
+            DateTimePatterns%relative{
+                "'lúc' {0} {1}",
+                "'lúc' {0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+            }
             availableFormats{
                 Bh{"h 'giờ' B"}
+                EBh{"h 'giờ' B E"}
                 EBhm{"h:mm B E"}
                 EBhms{"h:mm:ss B E"}
                 EHm{"HH:mm E"}
                 EHms{"HH:mm:ss E"}
                 Ed{"E, 'ngày' d"}
+                Eh{"h 'giờ' a E"}
                 Ehm{"h:mm a E"}
                 Ehms{"h:mm:ss a E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM, y G"}
                 GyMMMd{"d MMM, y G"}
@@ -828,11 +795,11 @@ vi{
                 MMMd{"d MMM"}
                 MMdd{"dd-MM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
                 hmv{"h:mm a v"}
+                hv{"h 'giờ' a v"}
                 mmss{"mm:ss"}
                 yM{"M/y"}
                 yMEd{"E, d/M/y"}
@@ -852,12 +819,12 @@ vi{
                 format{
                     abbreviated{
                         "CN",
-                        "Th 2",
-                        "Th 3",
-                        "Th 4",
-                        "Th 5",
-                        "Th 6",
-                        "Th 7",
+                        "Thứ 2",
+                        "Thứ 3",
+                        "Thứ 4",
+                        "Thứ 5",
+                        "Thứ 6",
+                        "Thứ 7",
                     }
                     short{
                         "CN",
@@ -928,20 +895,19 @@ vi{
             }
             eras{
                 abbreviated{
-                    "TCN",
-                    "SCN",
+                    0{"TCN"}
+                    1{"SCN"}
                 }
                 narrow{
-                    "TCN",
-                    "CN",
+                    1{"CN"}
                 }
                 wide{
-                    "Trước Chúa Giáng Sinh",
-                    "Sau Công Nguyên",
+                    0{"Trước Chúa Giáng Sinh"}
+                    1{"Sau Công Nguyên"}
                 }
                 wide%variant{
-                    "Trước Công Nguyên",
-                    "Sau Công Nguyên",
+                    0{"Trước Công Nguyên"}
+                    1{"Sau Công Nguyên"}
                 }
             }
             intervalFormats{
@@ -1016,10 +982,6 @@ vi{
                 d{
                     d{"d – d"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
-                }
                 hm{
                     a{"h:mm a – h:mm a"}
                     h{"h:mm–h:mm a"}
@@ -1029,10 +991,6 @@ vi{
                     a{"h:mm a – h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"M/y – M/y"}
@@ -1313,8 +1271,7 @@ vi{
             }
             eras{
                 abbreviated{
-                    "Trước R.O.C",
-                    "R.O.C.",
+                    0{"Trước R.O.C"}
                 }
             }
             intervalFormats{
@@ -1357,7 +1314,7 @@ vi{
         downwards_arrows{"mũi tên hướng xuống"}
         downwards_upwards_arrows{"mũi tên lên xuống"}
         east_asian_scripts{"chữ viết Đông Á"}
-        emoji{"biểu tượng"}
+        emoji{"biểu tượng cảm xúc"}
         european_scripts{"chữ viết Châu Âu"}
         female{"nữ"}
         flag{"cờ"}
@@ -1721,19 +1678,6 @@ vi{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

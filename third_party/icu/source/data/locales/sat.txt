@@ -25,7 +25,7 @@ sat{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "ᱥᱮᱛᱟᱜ",
                 "ᱧᱤᱫᱟᱹ",
             }
@@ -89,12 +89,11 @@ sat{
             }
             eras{
                 abbreviated{
-                    "ᱵᱤ ᱥᱤ",
-                    "ᱤᱥᱣᱤ",
+                    0{"ᱵᱤ ᱥᱤ"}
+                    1{"ᱤᱥᱣᱤ"}
                 }
                 abbreviated%variant{
-                    "ᱵᱤ ᱥᱤ ᱤ",
-                    "ᱤᱥᱣᱤ",
+                    0{"ᱵᱤ ᱥᱤ ᱤ"}
                 }
             }
             monthNames{

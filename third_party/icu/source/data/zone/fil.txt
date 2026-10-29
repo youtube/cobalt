@@ -49,7 +49,7 @@ fil{
             ld{"Oras sa Tag-init ng Britain"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Canton Island"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
@@ -67,9 +67,7 @@ fil{
             ls{"Oras sa Timog Africa"}
         }
         "meta:Africa_Western"{
-            ld{"Oras sa Tag-init ng Kanlurang Africa"}
-            lg{"Oras sa Kanlurang Africa"}
-            ls{"Standard na Oras sa Kanlurang Africa"}
+            ls{"Oras sa Kanlurang Africa"}
         }
         "meta:Alaska"{
             ld{"Daylight Time sa Alaska"}
@@ -312,6 +310,9 @@ fil{
         }
         "meta:Guyana"{
             ls{"Oras sa Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Standard na Oras sa Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Oras sa Tag-init ng Hawaii-Aleutian"}

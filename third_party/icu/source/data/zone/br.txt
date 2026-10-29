@@ -18,17 +18,11 @@ br{
         "Africa:El_Aaiun"{
             ec{"LaʼYoun"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Muqdisho"}
         }
         "Africa:Ndjamena"{
             ec{"NʼDjamena"}
-        }
-        "Africa:Sao_Tome"{
-            ec{"São Tomé"}
         }
         "Africa:Tripoli"{
             ec{"Tarabulus (Tripoli)"}
@@ -38,12 +32,6 @@ br{
         }
         "America:Asuncion"{
             ec{"Asunción"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
         }
         "America:El_Salvador"{
             ec{"Salvador"}
@@ -72,11 +60,8 @@ br{
         "America:Panama"{
             ec{"Panamá"}
         }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
-        }
         "America:St_Barthelemy"{
-            ec{"Saint Barthélemy"}
+            ec{"Sant-Bertele"}
         }
         "America:St_Johns"{
             ec{"Saint Johnʼs"}
@@ -88,10 +73,10 @@ br{
             ec{"Saint Lucia"}
         }
         "America:St_Vincent"{
-            ec{"Sant Visant"}
+            ec{"Sant-Visant"}
         }
         "America:Thule"{
-            ec{"Qânâq"}
+            ec{"Qaanaaq"}
         }
         "Asia:Anadyr"{
             ec{"Anadyrʼ"}
@@ -104,9 +89,6 @@ br{
         }
         "Asia:Beirut"{
             ec{"Bayrut"}
-        }
-        "Asia:Calcutta"{
-            ec{"Calcutta"}
         }
         "Asia:Chita"{
             ec{"Tchita"}
@@ -130,7 +112,7 @@ br{
             ec{"Koweit"}
         }
         "Asia:Macau"{
-            ec{"Macau"}
+            ec{"Makao"}
         }
         "Asia:Muscat"{
             ec{"Masqat"}
@@ -141,9 +123,6 @@ br{
         "Asia:Phnom_Penh"{
             ec{"Phnum Pénh"}
         }
-        "Asia:Pyongyang"{
-            ec{"Pʼyongyang"}
-        }
         "Asia:Saigon"{
             ec{"Kêr Hô-Chi-Minh"}
         }
@@ -152,9 +131,6 @@ br{
         }
         "Asia:Tashkent"{
             ec{"Toshkent"}
-        }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
         }
         "Asia:Vientiane"{
             ec{"Viangchan"}
@@ -172,7 +148,7 @@ br{
             ec{"Kanariez"}
         }
         "Atlantic:Cape_Verde"{
-            ec{"Kab Glas"}
+            ec{"Kab-Glas"}
         }
         "Atlantic:Faeroe"{
             ec{"Faero"}
@@ -184,13 +160,13 @@ br{
             ec{"Georgia ar Su"}
         }
         "Atlantic:St_Helena"{
-            ec{"Saint Helena"}
+            ec{"Saint-Helena"}
         }
         "Etc:UTC"{
             ls{"amzer hollvedel kenurzhiet"}
         }
         "Etc:Unknown"{
-            ec{"kêr dianav"}
+            ec{"Lecʼhiadur dianav"}
         }
         "Europe:Athens"{
             ec{"Aten"}
@@ -224,7 +200,7 @@ br{
             ec{"Jerzenez"}
         }
         "Europe:Kiev"{
-            ec{"Kiev"}
+            ec{"Kyyiv"}
         }
         "Europe:Lisbon"{
             ec{"Lisboa"}
@@ -294,7 +270,22 @@ br{
             ec{"Honolulu"}
         }
         "Pacific:Marquesas"{
-            ec{"Markiz"}
+            ec{"Inizi Markiz"}
+        }
+        "Pacific:Midway"{
+            ec{"Inizi Midway"}
+        }
+        "Pacific:Noumea"{
+            ec{"Noumea"}
+        }
+        "Pacific:Pitcairn"{
+            ec{"Inizi Pitcairn"}
+        }
+        "Pacific:Wake"{
+            ec{"Enez Wake"}
+        }
+        "Pacific:Wallis"{
+            ec{"Wallis-ha-Futuna"}
         }
         "meta:Afghanistan"{
             ls{"eur Afghanistan"}
@@ -309,9 +300,7 @@ br{
             ls{"eur cʼhoañv Suafrika"}
         }
         "meta:Africa_Western"{
-            ld{"eur hañv Afrika ar Cʼhornôg"}
-            lg{"eur Afrika ar Cʼhornôg"}
-            ls{"eur cʼhoañv Afrika ar Cʼhornôg"}
+            ls{"eur Afrika ar Cʼhornôg"}
         }
         "meta:Alaska"{
             ld{"eur hañv Alaska"}
@@ -354,9 +343,9 @@ br{
             ls{"eur cʼhoañv Anadyrʼ"}
         }
         "meta:Apia"{
-            ld{"eur hañv Apia"}
-            lg{"eur Apia"}
-            ls{"eur cʼhoañv Apia"}
+            ld{"eur hañv Samoa"}
+            lg{"eur Samoa"}
+            ls{"eur cʼhoañv Samoa"}
         }
         "meta:Arabian"{
             ld{"eur hañv Arabia"}
@@ -430,7 +419,7 @@ br{
             ls{"eur cʼhoañv Brasília"}
         }
         "meta:Brunei"{
-            ls{"eur Brunei Darussalam"}
+            ls{"eur Brunei"}
         }
         "meta:Cape_Verde"{
             ld{"eur hañv ar Cʼhab-Glas"}
@@ -528,7 +517,7 @@ br{
             ls{"eur Douaroù aostral Frañs hag Antarktika"}
         }
         "meta:GMT"{
-            ls{"Amzer keitat Greenwich (AKG)"}
+            ls{"amzer keitat Greenwich (AKG)"}
         }
         "meta:Galapagos"{
             ls{"eur Inizi Galápagos"}
@@ -563,6 +552,9 @@ br{
         "meta:Guyana"{
             ls{"eur Guyana"}
         }
+        "meta:Hawaii"{
+            ls{"eur cʼhoañv Hawaii hag an Aleouted"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"eur hañv Hawaii hag an Aleouted"}
             lg{"eur Hawaii hag an Aleouted"}
@@ -574,9 +566,9 @@ br{
             ls{"eur cʼhoañv Hong Kong"}
         }
         "meta:Hovd"{
-            ld{"eur hañv Hovd"}
-            lg{"eur Hovd"}
-            ls{"eur cʼhoañv Hovd"}
+            ld{"eur hañv Khovd"}
+            lg{"eur Khovd"}
+            ls{"eur cʼhoañv Khovd"}
         }
         "meta:India"{
             ls{"eur cʼhoañv India"}
@@ -615,6 +607,9 @@ br{
             ld{"eur hañv Japan"}
             lg{"eur Japan"}
             ls{"eur cʼhoañv Japan"}
+        }
+        "meta:Kazakhstan"{
+            ls{"eur Kazakstan"}
         }
         "meta:Kazakhstan_Eastern"{
             ls{"eur Kazakstan ar Reter"}
@@ -704,9 +699,9 @@ br{
             ls{"eur Nepal"}
         }
         "meta:New_Caledonia"{
-            ld{"eur hañv Kaledonia Nevez"}
-            lg{"eur Kaledonia Nevez"}
-            ls{"eur cʼhoañv Kaledonia Nevez"}
+            ld{"eur hañv Kaledonia-Nevez"}
+            lg{"eur Kaledonia-Nevez"}
+            ls{"eur cʼhoañv Kaledonia-Nevez"}
         }
         "meta:New_Zealand"{
             ld{"eur hañv Zeland-Nevez"}
@@ -753,7 +748,7 @@ br{
             ls{"eur Palau"}
         }
         "meta:Papua_New_Guinea"{
-            ls{"eur Papoua-Ginea-Nevez"}
+            ls{"eur Papoua Ginea-Nevez"}
         }
         "meta:Paraguay"{
             ld{"eur hañv Paraguay"}
@@ -785,7 +780,7 @@ br{
             ls{"eur Pohnpei"}
         }
         "meta:Pyongyang"{
-            ls{"eur Pʼyongyang"}
+            ls{"eur Norzhkorea"}
         }
         "meta:Reunion"{
             ls{"eur ar Reünion"}
@@ -799,9 +794,9 @@ br{
             ls{"eur cʼhoañv Sakhalin"}
         }
         "meta:Samoa"{
-            ld{"eur hañv Samoa"}
-            lg{"eur Samoa"}
-            ls{"eur cʼhoañv Samoa"}
+            ld{"eur hañv Samoa Amerikan"}
+            lg{"eur Samoa Amerikan"}
+            ls{"eur cʼhoañv Samoa Amerikan"}
         }
         "meta:Seychelles"{
             ls{"eur Sechelez"}
@@ -825,9 +820,9 @@ br{
             ls{"eur Tahiti"}
         }
         "meta:Taipei"{
-            ld{"eur hañv Taipei"}
-            lg{"eur Taipei"}
-            ls{"eur cʼhoañv Taipei"}
+            ld{"eur hañv Taiwan"}
+            lg{"eur Taiwan"}
+            ls{"eur cʼhoañv Taiwan"}
         }
         "meta:Tajikistan"{
             ls{"eur Tadjikistan"}
@@ -883,10 +878,10 @@ br{
             ls{"eur Vostok"}
         }
         "meta:Wake"{
-            ls{"eur Wake Island"}
+            ls{"eur Enez Wake"}
         }
         "meta:Wallis"{
-            ls{"eur Wallis ha Futuna"}
+            ls{"eur Wallis-ha-Futuna"}
         }
         "meta:Yakutsk"{
             ld{"eur hañv Yakutsk"}
@@ -898,6 +893,12 @@ br{
             lg{"eur Yekaterinbourg"}
             ls{"eur cʼhoañv Yekaterinbourg"}
         }
+        "meta:Yukon"{
+            ls{"eur Yukon"}
+        }
+        gmtFormat{"UTC{0}"}
+        gmtUnknownFormat{"UTC+?"}
+        gmtZeroFormat{"UTC"}
         regionFormat{"eur {0}"}
         regionFormatDaylight{"eur hañv {0}"}
         regionFormatStandard{"eur cʼhoañv {0}"}

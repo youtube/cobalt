@@ -12,7 +12,9 @@ se{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -202,16 +204,16 @@ se{
             }
             eras{
                 abbreviated{
-                    "o.Kr.",
-                    "m.Kr.",
+                    0{"o.Kr."}
+                    1{"m.Kr."}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "ovdal Kristtusa",
-                    "maŋŋel Kristtusa",
+                    0{"ovdal Kristtusa"}
+                    1{"maŋŋel Kristtusa"}
                 }
             }
             intervalFormats{

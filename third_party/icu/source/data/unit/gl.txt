@@ -38,6 +38,11 @@ gl{
                 one{"{0} revolución"}
                 other{"{0} revolucións"}
             }
+            steradian{
+                dnam{"estereorradiáns"}
+                one{"{0} estereorradián"}
+                other{"{0} estereorradiáns"}
+            }
         }
         area{
             hectare{
@@ -154,6 +159,11 @@ gl{
                 one{"{0} quilate"}
                 other{"{0} quilates"}
             }
+            katal{
+                dnam{"katais"}
+                one{"{0} katal"}
+                other{"{0} katais"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligramos por decilitro"}
                 one{"{0} miligramo por decilitro"}
@@ -169,24 +179,34 @@ gl{
                 one{"{0} mol"}
                 other{"{0} moles"}
             }
+            ofglucose{
+                dnam{"de glicosa"}
+                one{"{0} de glicosa"}
+                other{"{0} de glicosa"}
+            }
+            part{
+                dnam{"partes"}
+                one{"{0} parte"}
+                other{"{0} partes"}
+            }
+            part-per-1e6{
+                dnam{"partes por millón"}
+                one{"{0} parte por millón"}
+                other{"{0} partes por millón"}
+            }
+            part-per-1e9{
+                dnam{"partes por mil millóns"}
+                one{"{0} parte por mil millóns"}
+                other{"{0} partes por mil millóns"}
+            }
             percent{
                 dnam{"tanto por cento"}
             }
             permille{
                 dnam{"tanto por mil"}
             }
-            permillion{
-                dnam{"partes por millón"}
-                one{"{0} parte por millón"}
-                other{"{0} partes por millón"}
-            }
             permyriad{
                 dnam{"tanto por dez mil"}
-            }
-            portion-per-1e9{
-                dnam{"partes por mil millóns"}
-                one{"{0} parte por mil millóns"}
-                other{"{0} partes por mil millóns"}
             }
         }
         consumption{
@@ -320,9 +340,6 @@ gl{
                 other{"{0} nanosegundos"}
             }
             night{
-                dnam{"noites"}
-                one{"{0} noite"}
-                other{"{0} noites"}
                 per{"{0} por noite"}
             }
             quarter{
@@ -353,6 +370,21 @@ gl{
                 one{"{0} ampere"}
                 other{"{0} amperes"}
             }
+            coulomb{
+                dnam{"coulombs"}
+                one{"{0} coulomb"}
+                other{"{0} coulombs"}
+            }
+            farad{
+                dnam{"farads"}
+                one{"{0} farad"}
+                other{"{0} farads"}
+            }
+            henry{
+                dnam{"henrys"}
+                one{"{0} henry"}
+                other{"{0} henrys"}
+            }
             milliampere{
                 dnam{"miliamperes"}
                 one{"{0} miliampere"}
@@ -362,12 +394,22 @@ gl{
                 one{"{0} ohm"}
                 other{"{0} ohms"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} volts"}
             }
         }
         energy{
+            becquerel{
+                dnam{"becquereis"}
+                one{"{0} becquerel"}
+                other{"{0} becquereis"}
+            }
             british-thermal-unit{
                 dnam{"unidades térmicas británicas"}
                 one{"{0} unidade térmica británica"}
@@ -378,6 +420,11 @@ gl{
                 one{"{0} caloría"}
                 other{"{0} calorías"}
             }
+            calorie-it{
+                dnam{"calorías internacionais"}
+                one{"{0} caloría internacional"}
+                other{"{0} calorías internacionais"}
+            }
             electronvolt{
                 dnam{"electronvolts"}
                 one{"{0} electronvolt"}
@@ -387,6 +434,11 @@ gl{
                 dnam{"quilocalorías"}
                 one{"{0} quilocaloría"}
                 other{"{0} quilocalorías"}
+            }
+            gray{
+                dnam{"grays"}
+                one{"{0} gray"}
+                other{"{0} grays"}
             }
             joule{
                 one{"{0} joule"}
@@ -407,6 +459,11 @@ gl{
                 one{"{0} quilowatt hora"}
                 other{"{0} quilowatts hora"}
             }
+            sievert{
+                dnam{"sieverts"}
+                one{"{0} sievert"}
+                other{"{0} sieverts"}
+            }
             therm-us{
                 dnam{"therms estadounidenses"}
                 one{"{0} therm estadounidense"}
@@ -414,6 +471,11 @@ gl{
             }
         }
         force{
+            kilogram-force{
+                dnam{"quilogramos forza"}
+                one{"{0} quilogramo forza"}
+                other{"{0} quilogramos forza"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"quilowatts/hora por cen quilómetros"}
                 one{"{0} quilowatt/hora por cen quilómetros"}
@@ -623,6 +685,18 @@ gl{
                 other{"{0} luminosidades solares"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"teslas"}
+                one{"{0} tesla"}
+                other{"{0} teslas"}
+            }
+            weber{
+                dnam{"wébers"}
+                one{"{0} wéber"}
+                other{"{0} wébers"}
+            }
+        }
         mass{
             carat{
                 one{"{0} quilate"}
@@ -765,6 +839,11 @@ gl{
                 one{"{0} milímetro de mercurio"}
                 other{"{0} milímetros de mercurio"}
             }
+            ofhg{
+                dnam{"de mercurio"}
+                one{"{0} de mercurio"}
+                other{"{0} de mercurio"}
+            }
             pascal{
                 dnam{"pascais"}
                 one{"{0} pascal"}
@@ -790,11 +869,6 @@ gl{
             knot{
                 one{"{0} nó"}
                 other{"{0} nós"}
-            }
-            light-speed{
-                dnam{"luz"}
-                one{"{0} luz"}
-                other{"{0} luz"}
             }
             meter-per-second{
                 dnam{"metros por segundo"}
@@ -939,6 +1013,11 @@ gl{
                 one{"{0} onza líquida imperial"}
                 other{"{0} onzas líquidas imperiais"}
             }
+            fluid-ounce-metric{
+                dnam{"onzas líquidas métricas"}
+                one{"{0} onza líquida métrica"}
+                other{"{0} onzas líquidas métricas"}
+            }
             gallon{
                 dnam{"galóns estadounidenses"}
                 one{"{0} galón estadounidense"}
@@ -1025,6 +1104,10 @@ gl{
             radian{
                 dnam{"rad"}
             }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -1041,10 +1124,22 @@ gl{
             karat{
                 dnam{"kt"}
             }
-            portion-per-1e9{
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"parte"}
+                one{"{0} parte"}
+                other{"{0} partes"}
+            }
+            part-per-1e9{
                 dnam{"ppmm"}
-                one{"{0} ppmm"}
-                other{"{0} ppmm"}
             }
         }
         consumption{
@@ -1064,21 +1159,15 @@ gl{
         duration{
             day{
                 dnam{"día"}
-                one{"{0} d"}
-                other{"{0} d"}
-                per{"{0}/d"}
+                one{"{0} d."}
+                other{"{0} d."}
+                per{"{0}/d."}
             }
             month{
                 dnam{"mes"}
                 one{"{0} m."}
                 other{"{0} m."}
                 per{"{0}/m."}
-            }
-            night{
-                dnam{"noites"}
-                one{"{0} noite"}
-                other{"{0} noites"}
-                per{"{0}/noite"}
             }
             quarter{
                 one{"{0} tr."}
@@ -1093,22 +1182,59 @@ gl{
             }
         }
         electric{
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             ohm{
                 dnam{"Ω"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 dnam{"V"}
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal IT"}
+                one{"{0} cal IT"}
+                other{"{0} cal IT"}
+            }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+            }
             joule{
                 dnam{"J"}
             }
             kilojoule{
                 dnam{"kJ"}
             }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+            }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             newton{
                 dnam{"N"}
             }
@@ -1155,6 +1281,16 @@ gl{
                 dnam{"L☉"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"ct"}
@@ -1180,6 +1316,12 @@ gl{
                 dnam{"W"}
             }
         }
+        pressure{
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
+        }
         speed{
             beaufort{
                 dnam{"B"}
@@ -1189,11 +1331,6 @@ gl{
             knot{
                 one{"{0} nó"}
                 other{"{0} nós"}
-            }
-            light-speed{
-                dnam{"luz"}
-                one{"{0} luz"}
-                other{"{0} luz"}
             }
             mile-per-hour{
                 dnam{"mi/h"}
@@ -1217,6 +1354,10 @@ gl{
             }
             cup{
                 dnam{"c"}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m."}
+                other{"{0} fl oz m."}
             }
             liter{
                 dnam{"l"}
@@ -1253,6 +1394,10 @@ gl{
             radian{
                 dnam{"radiáns"}
             }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -1278,6 +1423,10 @@ gl{
             karat{
                 dnam{"quilates"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dl"}
                 one{"{0} mg/dl"}
@@ -1287,6 +1436,24 @@ gl{
                 dnam{"mmol/l"}
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"parte"}
+                one{"{0} parte"}
+                other{"{0} partes"}
+            }
+            part-per-1e6{
+                dnam{"partes/millón"}
+            }
+            part-per-1e9{
+                dnam{"partes/mil millóns"}
+                one{"{0} ppmm"}
+                other{"{0} ppmm"}
             }
             percent{
                 one{"{0} %"}
@@ -1299,11 +1466,6 @@ gl{
             permyriad{
                 one{"{0} ‱"}
                 other{"{0} ‱"}
-            }
-            portion-per-1e9{
-                dnam{"partes/mil millóns"}
-                one{"{0} ppmm"}
-                other{"{0} ppmm"}
             }
         }
         consumption{
@@ -1405,24 +1567,57 @@ gl{
             ampere{
                 dnam{"A"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             ohm{
                 dnam{"ohms"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 dnam{"volts"}
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
                 one{"{0} BTU"}
                 other{"{0} BTU"}
+            }
+            calorie-it{
+                dnam{"cal IT"}
+                one{"{0} cal IT"}
+                other{"{0} cal IT"}
+            }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
             }
             joule{
                 dnam{"joules"}
             }
             kilojoule{
                 dnam{"quilojoule"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
             therm-us{
                 dnam{"thm U.S."}
@@ -1431,6 +1626,10 @@ gl{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 one{"{0} kWh/100 km"}
@@ -1532,6 +1731,16 @@ gl{
                 dnam{"luminosidades solares"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"quilates"}
@@ -1574,6 +1783,10 @@ gl{
                 dnam{"mmHg"}
                 one{"{0} mmHg"}
                 other{"{0} mmHg"}
+            }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
             }
         }
         speed{
@@ -1667,6 +1880,10 @@ gl{
                 dnam{"fl oz imp."}
                 one{"{0} fl oz imp."}
                 other{"{0} fl oz imp."}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m."}
+                other{"{0} fl oz m."}
             }
             gallon{
                 dnam{"gal EUA"}

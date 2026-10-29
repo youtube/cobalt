@@ -395,8 +395,7 @@ class LayerTreeHostTestReadyToActivateEmpty : public LayerTreeHostTest {
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   void CommitCompleteOnThread(LayerTreeHostImpl* impl) override {
-    const std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>& layers =
-        impl->sync_tree()->picture_layers();
+    auto layers = impl->sync_tree()->picture_layers();
     required_for_activation_count_ = 0;
     for (PictureLayerImpl* layer : layers) {
       FakePictureLayerImpl* fake_layer =
@@ -472,8 +471,7 @@ class LayerTreeHostTestReadyToDrawEmpty : public LayerTreeHostTest {
 
   void NotifyReadyToDrawOnThread(LayerTreeHostImpl* impl) override {
     did_notify_ready_to_draw_ = true;
-    const std::vector<raw_ptr<PictureLayerImpl, VectorExperimental>>& layers =
-        impl->active_tree()->picture_layers();
+    const auto layers = impl->active_tree()->picture_layers();
     all_tiles_required_for_draw_are_ready_to_draw_ =
         impl->tile_manager()->IsReadyToDraw();
     for (PictureLayerImpl* layer : layers) {
@@ -3525,6 +3523,41 @@ class LayerTreeHostTestStartPageScaleAnimation : public LayerTreeHostTest {
 
 // Single thread proxy does not support impl-side page scale changes.
 MULTI_THREAD_TEST_F(LayerTreeHostTestStartPageScaleAnimation);
+
+class LayerTreeHostTestSetPageScaleFactorAndLimits : public LayerTreeHostTest {
+ protected:
+  void BeginTest() override {
+    const LayerTreeHost* host = layer_tree_host();
+
+    // Case 1: page_scale_factor <= 0, min_page_scale_factor <= 0
+    layer_tree_host()->SetPageScaleFactorAndLimits(0.f, 0.f, 2.f);
+    EXPECT_EQ(1.f, host->pending_commit_state()->page_scale_factor);
+    EXPECT_EQ(1.f, host->pending_commit_state()->min_page_scale_factor);
+    EXPECT_EQ(2.f, host->pending_commit_state()->max_page_scale_factor);
+
+    // Case 2: page_scale_factor > 0, min_page_scale_factor <= 0
+    layer_tree_host()->SetPageScaleFactorAndLimits(1.5f, -1.f, 2.f);
+    EXPECT_EQ(1.5f, host->pending_commit_state()->page_scale_factor);
+    EXPECT_EQ(1.5f, host->pending_commit_state()->min_page_scale_factor);
+    EXPECT_EQ(2.f, host->pending_commit_state()->max_page_scale_factor);
+
+    // Case 3: valid parameters
+    layer_tree_host()->SetPageScaleFactorAndLimits(0.8f, 0.5f, 2.f);
+    EXPECT_EQ(0.8f, host->pending_commit_state()->page_scale_factor);
+    EXPECT_EQ(0.5f, host->pending_commit_state()->min_page_scale_factor);
+    EXPECT_EQ(2.f, host->pending_commit_state()->max_page_scale_factor);
+
+    // Case 4: page_scale_factor <= 0, min_page_scale_factor > 0
+    layer_tree_host()->SetPageScaleFactorAndLimits(0.f, 0.5f, 2.f);
+    EXPECT_EQ(1.f, host->pending_commit_state()->page_scale_factor);
+    EXPECT_EQ(0.5f, host->pending_commit_state()->min_page_scale_factor);
+    EXPECT_EQ(2.f, host->pending_commit_state()->max_page_scale_factor);
+
+    EndTest();
+  }
+};
+
+SINGLE_THREAD_TEST_F(LayerTreeHostTestSetPageScaleFactorAndLimits);
 
 class ViewportDeltasAppliedDuringPinch : public LayerTreeHostTest,
                                          public ScrollCallbacks {
@@ -11948,7 +11981,7 @@ class LayerTreeHostTestTextureLayerOffscreenScroll : public LayerTreeTest {
 // This macro registers the test to be run.
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestTextureLayerOffscreenScroll);
 
-class LayerTreeHostTestTrackedElementBounds
+class LayerTreeHostTestTrackedElementRects
     : public LayerTreeHostTest,
       public RenderFrameMetadataObserver {
  public:
@@ -11980,8 +12013,10 @@ class LayerTreeHostTestTrackedElementBounds
 
   const base::Token kId1 = base::Token(1, 2);
   const base::Token kId2 = base::Token(2, 3);
+  const viz::TrackedElementFeature kFeature =
+      static_cast<viz::TrackedElementFeature>(1);
 
-  LayerTreeHostTestTrackedElementBounds() { SetUseLayerLists(); }
+  LayerTreeHostTestTrackedElementRects() { SetUseLayerLists(); }
 
   void SetupTree() override {
     SetInitialRootBounds(gfx::Size(50, 50));
@@ -11996,9 +12031,11 @@ class LayerTreeHostTestTrackedElementBounds
     child_a_->SetIsDrawable(true);
     CopyProperties(root_, child_a_.get());
     CreateEffectNode(child_a_.get());
-    TrackedElementBounds trackedElementBound1;
-    trackedElementBound1[kId1] = {gfx::Rect(0, 0, 50, 50)};
-    child_a_->SetTrackedElementBounds(trackedElementBound1);
+    std::vector<viz::TrackedElementRect> rect_data_list1 = {
+        viz::TrackedElementRect(kId1, gfx::Rect(0, 0, 50, 50))};
+    viz::TrackedElementRects trackedElementRects1 = {
+        {kFeature, std::move(rect_data_list1)}};
+    child_a_->SetTrackedElementRects(trackedElementRects1);
     root_->AddChild(child_a_);
 
     child_b_ = Layer::Create();
@@ -12006,9 +12043,11 @@ class LayerTreeHostTestTrackedElementBounds
     child_b_->SetIsDrawable(true);
     CopyProperties(root_, child_b_.get());
     CreateEffectNode(child_b_.get());
-    TrackedElementBounds trackedElementBound2;
-    trackedElementBound2[kId2] = {gfx::Rect(0, 0, 10, 20)};
-    child_b_->SetTrackedElementBounds(trackedElementBound2);
+    std::vector<viz::TrackedElementRect> rect_data_list2 = {
+        viz::TrackedElementRect(kId2, gfx::Rect(0, 0, 10, 20))};
+    viz::TrackedElementRects trackedElementRects2 = {
+        {kFeature, std::move(rect_data_list2)}};
+    child_b_->SetTrackedElementRects(trackedElementRects2);
     root_->AddChild(child_b_);
   }
 
@@ -12020,10 +12059,17 @@ class LayerTreeHostTestTrackedElementBounds
     PostSetNeedsCommitToMainThread();
   }
 
-  void ExpectBoundsOnThread(const TrackedElementBounds& actual_bounds) {
-    EXPECT_EQ(actual_bounds.size(), 2u);
-    EXPECT_EQ(actual_bounds.at(kId1).visible_bounds, gfx::Rect(0, 0, 30, 20));
-    EXPECT_EQ(actual_bounds.at(kId2).visible_bounds, gfx::Rect(0, 0, 10, 5));
+  void ExpectRectsOnThread(const viz::TrackedElementRects& actual_rects) {
+    EXPECT_EQ(actual_rects.size(), 1u);
+    ASSERT_TRUE(actual_rects.contains(kFeature));
+    const auto& element_list = actual_rects.at(kFeature);
+    base::flat_map<viz::TrackedElementId, viz::TrackedElementRect> element_map;
+    for (const auto& tracked_element_rect : element_list) {
+      element_map.insert({tracked_element_rect.id, tracked_element_rect});
+    }
+    EXPECT_EQ(element_map.size(), 2u);
+    EXPECT_EQ(element_map.at(kId1).visible_bounds, gfx::Rect(0, 0, 30, 20));
+    EXPECT_EQ(element_map.at(kId2).visible_bounds, gfx::Rect(0, 0, 10, 5));
     EndTest();
   }
 
@@ -12033,13 +12079,13 @@ class LayerTreeHostTestTrackedElementBounds
       const RenderFrameMetadata& render_frame_metadata,
       viz::CompositorFrameMetadata* compositor_frame_metadata,
       bool force_send) override {
-    ExpectBoundsOnThread(render_frame_metadata.tracked_element_bounds);
+    ExpectRectsOnThread(render_frame_metadata.tracked_element_rects);
   }
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   void DidEndScroll() override {}
 #endif
 };
-SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestTrackedElementBounds);
+SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestTrackedElementRects);
 
 }  // namespace
 }  // namespace cc

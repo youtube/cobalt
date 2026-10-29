@@ -779,6 +779,10 @@ lv{
             "EC$",
             "Austrumkarību dolārs",
         }
+        XCG{
+            "Cg.",
+            "Karību guldenis",
+        }
         XDR{
             "XDR",
             "Speciālās aizņēmuma tiesības",
@@ -838,6 +842,10 @@ lv{
         ZWD{
             "ZWD",
             "Zimbabves dolārs",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabves zelts",
         }
         ZWL{
             "ZWL",
@@ -1585,6 +1593,11 @@ lv{
             other{"Austrumkarību dolāri"}
             zero{"Austrumkarību dolāri"}
         }
+        XCG{
+            one{"Karību guldenis"}
+            other{"Karību guldenis"}
+            zero{"Karību guldenis"}
+        }
         XOF{
             one{"Rietumāfrikas CFA franks"}
             other{"Rietumāfrikas CFA franki"}
@@ -1624,6 +1637,11 @@ lv{
             one{"Zambijas kvača"}
             other{"Zambijas kvačas"}
             zero{"Zambijas kvačas"}
+        }
+        ZWG{
+            one{"Zimbabves zelts"}
+            other{"Zimbabves zelts"}
+            zero{"Zimbabves zelts"}
         }
         ZWL{
             one{"Zimbabves dollārs (2009)"}

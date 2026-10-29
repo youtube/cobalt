@@ -100,9 +100,7 @@ gfx::Rect SafeIntersectRects(const gfx::Rect& one, const gfx::Rect& two) {
 }  // namespace
 
 PictureLayerImpl::PictureLayerImpl(LayerTreeImpl* tree_impl, int id)
-    : TileBasedLayerImpl(tree_impl, id) {
-  layer_tree_impl()->RegisterPictureLayerImpl(this);
-}
+    : TileBasedLayerImpl(tree_impl, id) {}
 
 PictureLayerImpl::~PictureLayerImpl() {
   if (twin_layer_)
@@ -121,8 +119,6 @@ PictureLayerImpl::~PictureLayerImpl() {
         .UpdatePaintWorkletInputProperties({}, this);
   }
 
-  layer_tree_impl()->UnregisterPictureLayerImpl(this);
-
   // Unregister for all images on the current raster source.
   UnregisterAnimatedImages();
 }
@@ -136,25 +132,47 @@ std::unique_ptr<LayerImpl> PictureLayerImpl::CreateLayerImpl(
   return PictureLayerImpl::Create(tree_impl, id());
 }
 
-void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
+void PictureLayerImpl::CopyPropertiesTo(LayerImpl* base_layer) const {
   PictureLayerImpl* layer_impl = static_cast<PictureLayerImpl*>(base_layer);
 
   layer_impl->has_animated_image_update_rect_ = has_animated_image_update_rect_;
   layer_impl->has_non_animated_image_update_rect_ =
       has_non_animated_image_update_rect_;
 
-  // This has to be cached before calling LayerImpl::PushPropertiesTo because it
-  // reset the flag.
-  bool changed_other_props = GetChangeFlag(kChangedGeneralProperty);
-  bool changed_tiles = GetChangeFlag(kChangedTile);
+  LayerImpl::CopyPropertiesTo(base_layer);
 
-  LayerImpl::PushPropertiesTo(base_layer);
+  bool changed_other_props = GetChangeFlag(kChangedGeneralProperty);
+  if (changed_other_props) {
+    layer_impl->SetIsBackdropFilterMask(is_backdrop_filter_mask());
+
+    // Solid color layers have no tilings.
+    DCHECK(!solid_color() || tilings_->num_tilings() == 0);
+
+    // The pending tree should have at most a single tiling.
+    DCHECK_LE(tilings_->num_tilings(), 1u);
+
+    layer_impl->set_gpu_raster_max_texture_size(gpu_raster_max_texture_size_);
+
+    layer_impl->raster_page_scale_ = raster_page_scale_;
+    layer_impl->raster_device_scale_ = raster_device_scale_;
+    layer_impl->raster_source_scale_ = raster_source_scale_;
+    layer_impl->raster_contents_scale_ = raster_contents_scale_;
+    // Simply push the value to the active tree without any extra invalidations,
+    // since the pending tree tiles would have this handled. This is here to
+    // ensure the state is consistent for future raster.
+    layer_impl->lcd_text_disallowed_reason_ = lcd_text_disallowed_reason_;
+  }
+}
+
+void PictureLayerImpl::MovePropertiesToActiveLayer(LayerImpl* active_layer) {
+  LayerImpl::MovePropertiesToActiveLayer(active_layer);
+  PictureLayerImpl* layer_impl = static_cast<PictureLayerImpl*>(active_layer);
 
   // Twin relationships should never change once established.
   DCHECK(!twin_layer_ || twin_layer_ == layer_impl);
   DCHECK(!twin_layer_ || layer_impl->twin_layer_ == this);
   // The twin relationship does not need to exist before the first
-  // PushPropertiesTo from pending to active layer since before that the active
+  // CopyPropertiesTo from pending to active layer since before that the active
   // layer can not have a pile or tilings, it has only been created and inserted
   // into the tree at that point.
   twin_layer_ = layer_impl;
@@ -164,6 +182,7 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
     // Move tile updates over to the active layer so they get pushed to the
     // display tree. Note that the active layer after this point can also
     // accumulate their own tile updates into its |updated_tiles_|.
+    bool changed_tiles = GetChangeFlag(kChangedTile);
     if (changed_tiles) {
       // Deep merge logic.
       auto& dst = layer_impl->updated_tiles_;
@@ -190,33 +209,16 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
     layer_impl->should_batch_updated_tiles_ = true;
   }
 
+  bool changed_other_props = GetChangeFlag(kChangedGeneralProperty);
   if (changed_other_props) {
-    layer_impl->SetIsBackdropFilterMask(is_backdrop_filter_mask());
-
-    // Solid color layers have no tilings.
-    DCHECK(!solid_color() || tilings_->num_tilings() == 0);
-
-    // The pending tree should have at most a single tiling.
-    DCHECK_LE(tilings_->num_tilings(), 1u);
-
-    layer_impl->set_gpu_raster_max_texture_size(gpu_raster_max_texture_size_);
     layer_impl->UpdateRasterSourceInternal(
         raster_source_, &invalidation_, tilings_.get(), &paint_worklet_records_,
         discardable_image_map_.get());
     DCHECK(invalidation_.IsEmpty());
-
-    // After syncing a solid color layer, the active layer has no tilings.
-    DCHECK(!solid_color() || layer_impl->tilings_->num_tilings() == 0);
-
-    layer_impl->raster_page_scale_ = raster_page_scale_;
-    layer_impl->raster_device_scale_ = raster_device_scale_;
-    layer_impl->raster_source_scale_ = raster_source_scale_;
-    layer_impl->raster_contents_scale_ = raster_contents_scale_;
-    // Simply push the value to the active tree without any extra invalidations,
-    // since the pending tree tiles would have this handled. This is here to
-    // ensure the state is consistent for future raster.
-    layer_impl->lcd_text_disallowed_reason_ = lcd_text_disallowed_reason_;
   }
+
+  // After syncing a solid color layer, the active layer has no tilings.
+  DCHECK(!solid_color() || layer_impl->tilings_->num_tilings() == 0);
 
   layer_impl->SanityCheckTilingState();
 }
@@ -264,14 +266,15 @@ void PictureLayerImpl::AppendQuadsForResourcelessSoftwareDraw(
                                                       : WhichTree::ACTIVE_TREE;
   for (const auto& image_data :
        discardable_image_map_->animated_images_metadata()) {
-    image_animation_map[image_data.paint_image_id] =
-        controller->GetFrameIndexForImage(image_data.paint_image_id, tree);
+    image_animation_map[image_data.second.paint_image_id] =
+        controller->GetFrameIndexForImage(image_data.second.paint_image_id,
+                                          tree);
   }
 
   auto* quad = render_pass->CreateAndAppendDrawQuad<viz::PictureDrawQuad>();
   quad->SetNew(
       shared_quad_state, geometry_rect, visible_geometry_rect, needs_blending,
-      texture_rect, nearest_neighbor_, quad_content_rect, max_contents_scale,
+      texture_rect, GetNearestNeighbor(), quad_content_rect, max_contents_scale,
       std::move(image_animation_map), raster_source_->GetDisplayItemList(),
       GetRasterInducingScrollOffsets());
   ValidateQuadResources(quad);
@@ -754,7 +757,7 @@ void PictureLayerImpl::NotifyTileStateChanged(const Tile* tile,
                                               bool update_damage) {
   if (update_damage) {
     if (layer_tree_impl()->IsActiveTree()) {
-      damage_rect_.Union(tile->enclosing_layer_rect());
+      UnionWithExistingDamage(tile->enclosing_layer_rect());
     }
     if (tile->draw_info().NeedsRaster()) {
       PictureLayerTiling* tiling =
@@ -790,10 +793,6 @@ void PictureLayerImpl::NotifyTileStateChanged(const Tile* tile,
   }
 }
 
-gfx::Rect PictureLayerImpl::GetDamageRect() const {
-  return damage_rect_;
-}
-
 void PictureLayerImpl::DidDraw(viz::ClientResourceProvider* resource_provider) {
   LayerImpl::DidDraw(resource_provider);
 
@@ -806,8 +805,7 @@ void PictureLayerImpl::DidDraw(viz::ClientResourceProvider* resource_provider) {
 }
 
 void PictureLayerImpl::ResetChangeTracking() {
-  LayerImpl::ResetChangeTracking();
-  damage_rect_.SetRect(0, 0, 0, 0);
+  TileBasedLayerImpl<PictureLayerTiling>::ResetChangeTracking();
   has_animated_image_update_rect_ = false;
   has_non_animated_image_update_rect_ = false;
 }
@@ -903,10 +901,6 @@ gfx::Rect PictureLayerImpl::RecordedBounds() const {
   return raster_source_ ? raster_source_->recorded_bounds() : gfx::Rect();
 }
 
-bool PictureLayerImpl::GetNearestNeighbor() const {
-  return nearest_neighbor_;
-}
-
 std::vector<const DrawImage*> PictureLayerImpl::GetDiscardableImagesInRect(
     const gfx::Rect& rect) const {
   return discardable_image_map_->GetDiscardableImagesInRect(rect);
@@ -967,6 +961,14 @@ bool PictureLayerImpl::ShouldAnimate(PaintImage::Id paint_image_id) const {
   //  paused once they are not visible.
   if (!HasValidTilePriorities())
     return false;
+
+  if (auto it = discardable_image_map_->animated_images_metadata().find(
+          paint_image_id);
+      it != discardable_image_map_->animated_images_metadata().end()) {
+    if (it->second.repetition_count == kAnimationPaused) {
+      return false;
+    }
+  }
 
   const auto& rects = discardable_image_map_->GetRectsForImage(paint_image_id);
   for (const auto& r : rects) {
@@ -1045,10 +1047,10 @@ void PictureLayerImpl::UpdateDirectlyCompositedImageFromRasterSource() {
       new_default_raster_scale !=
       directly_composited_image_default_raster_scale_;
 
-  if (new_nearest_neighbor != nearest_neighbor_ ||
+  if (new_nearest_neighbor != GetNearestNeighbor() ||
       directly_composited_image_default_raster_scale_changed_) {
     directly_composited_image_default_raster_scale_ = new_default_raster_scale;
-    nearest_neighbor_ = new_nearest_neighbor;
+    SetNearestNeighbor(new_nearest_neighbor);
     NoteLayerPropertyChanged();
   }
 }
@@ -2008,8 +2010,8 @@ void PictureLayerImpl::RegisterAnimatedImages() {
   for (const auto& data : discardable_image_map_->animated_images_metadata()) {
     // Only update the metadata from updated recordings received from a commit.
     if (layer_tree_impl()->IsSyncTree())
-      controller->UpdateAnimatedImage(data);
-    controller->RegisterAnimationDriver(data.paint_image_id, this);
+      controller->UpdateAnimatedImage(data.second);
+    controller->RegisterAnimationDriver(data.second.paint_image_id, this);
   }
 }
 
@@ -2020,7 +2022,7 @@ void PictureLayerImpl::UnregisterAnimatedImages() {
 
   auto* controller = layer_tree_impl()->image_animation_controller();
   for (const auto& data : discardable_image_map_->animated_images_metadata()) {
-    controller->UnregisterAnimationDriver(data.paint_image_id, this);
+    controller->UnregisterAnimationDriver(data.second.paint_image_id, this);
   }
 }
 
@@ -2142,7 +2144,7 @@ DamageReasonSet PictureLayerImpl::GetDamageReasons() const {
   if (has_animated_image_update_rect_) {
     reasons.Put(DamageReason::kAnimatedImage);
   }
-  if (has_non_animated_image_update_rect_ || !damage_rect_.IsEmpty()) {
+  if (has_non_animated_image_update_rect_ || !GetDamageRect().IsEmpty()) {
     reasons.Put(DamageReason::kUntracked);
   }
   return reasons;

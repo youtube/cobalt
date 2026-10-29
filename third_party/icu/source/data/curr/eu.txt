@@ -1116,6 +1116,10 @@ eu{
             "EC$",
             "dolar ekikaribearra",
         }
+        XCG{
+            "Cg.",
+            "florin karibetarra",
+        }
         XDR{
             "XDR",
             "igorpen-eskubide berezia",
@@ -1219,6 +1223,10 @@ eu{
         ZWD{
             "ZWD",
             "dolar zimbabwetarra (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "urre zimbabwetarra",
         }
         ZWL{
             "ZWL",
@@ -2310,6 +2318,10 @@ eu{
             one{"dolar ekikaribear"}
             other{"dolar ekikaribear"}
         }
+        XCG{
+            one{"florin karibetarra"}
+            other{"florin karibetarra"}
+        }
         XDR{
             one{"igorpen-eskubide berezi"}
             other{"igorpen-eskubide berezi"}
@@ -2405,6 +2417,10 @@ eu{
         ZWD{
             one{"dolar zimbabwetar (1980–2008)"}
             other{"dolar zimbabwetar (1980–2008)"}
+        }
+        ZWG{
+            one{"urre zimbabwetarra"}
+            other{"urre zimbabwetarra"}
         }
         ZWL{
             one{"dolar zimbabwetar (2009)"}

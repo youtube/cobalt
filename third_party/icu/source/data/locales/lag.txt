@@ -106,12 +106,12 @@ lag{
             }
             eras{
                 abbreviated{
-                    "KSA",
-                    "KA",
+                    0{"KSA"}
+                    1{"KA"}
                 }
                 wide{
-                    "Kɨrɨsitʉ sɨ anavyaal",
-                    "Kɨrɨsitʉ akavyaalwe",
+                    0{"Kɨrɨsitʉ sɨ anavyaal"}
+                    1{"Kɨrɨsitʉ akavyaalwe"}
                 }
             }
             monthNames{

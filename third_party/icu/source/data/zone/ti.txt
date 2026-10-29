@@ -270,6 +270,9 @@ ti{
         "America:Costa_Rica"{
             ec{"ኮስታ ሪካ"}
         }
+        "America:Coyhaique"{
+            ec{"ኮሃይክ"}
+        }
         "America:Creston"{
             ec{"ክረስተን"}
         }
@@ -1167,7 +1170,7 @@ ti{
             ec{"ኤፋቴ"}
         }
         "Pacific:Enderbury"{
-            ec{"ኤንደርበሪ"}
+            ec{"ካንቶን"}
         }
         "Pacific:Fakaofo"{
             ec{"ፋካኦፎ"}
@@ -1192,9 +1195,6 @@ ti{
         }
         "Pacific:Honolulu"{
             ec{"ሆኖሉሉ"}
-        }
-        "Pacific:Kanton"{
-            ec{"ካንቶን"}
         }
         "Pacific:Kiritimati"{
             ec{"ኪሪቲማቲ"}
@@ -1283,9 +1283,7 @@ ti{
             ls{"ግዜ ደቡብ ኣፍሪቃ"}
         }
         "meta:Africa_Western"{
-            ld{"ግዜ ክረምቲ ምዕራብ ኣፍሪቃ"}
-            lg{"ግዜ ምዕራብ ኣፍሪቃ"}
-            ls{"ናይ መደበኛ ግዘ ምዕራብ ኣፍሪቃ"}
+            ls{"ግዜ ምዕራብ ኣፍሪቃ"}
         }
         "meta:Alaska"{
             ld{"ናይ መዓልቲ ግዘ አላስካ"}
@@ -1523,6 +1521,9 @@ ti{
         }
         "meta:Guyana"{
             ls{"ግዜ ጉያና"}
+        }
+        "meta:Hawaii"{
+            ls{"ናይ መደበኛ ሃዋይ-ኣሌውቲያን ግዘ"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ናይ መዓልቲ ሃዋይ-ኣሌውቲያን ግዘ"}

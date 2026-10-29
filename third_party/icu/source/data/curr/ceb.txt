@@ -611,6 +611,10 @@ ceb{
             "EC$",
             "East Caribbean Dollar",
         }
+        XCG{
+            "Cg.",
+            "Carribean guilder",
+        }
         XOF{
             "F CFA",
             "West African CFA Franc",
@@ -634,6 +638,10 @@ ceb{
         ZMW{
             "ZMW",
             "Zambian Kwacha",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwean Gold",
         }
     }
     CurrencyPlurals{
@@ -767,7 +775,7 @@ ceb{
         }
         CRC{
             one{"Costa Rican colon"}
-            other{"Costa Rican colóns"}
+            other{"Costa Rican colons"}
         }
         CUC{
             one{"Cuban convertible peso"}
@@ -1039,7 +1047,7 @@ ceb{
         }
         NIO{
             one{"Nicaraguan cordoba"}
-            other{"Nicaraguan córdobas"}
+            other{"Nicaraguan cordobas"}
         }
         NOK{
             one{"Norwegian krone"}
@@ -1155,7 +1163,7 @@ ceb{
         }
         STN{
             one{"Sao Tome & Principe dobra"}
-            other{"São Tomé & Príncipe dobras"}
+            other{"Sao Tome & Principe dobras"}
         }
         SYP{
             one{"Syrian pound"}
@@ -1223,7 +1231,7 @@ ceb{
         }
         VES{
             one{"Venezuelan bolivar"}
-            other{"Venezuelan bolívars"}
+            other{"Venezuelan bolivars"}
         }
         VND{
             one{"Vietnamese dong"}
@@ -1244,6 +1252,10 @@ ceb{
         XCD{
             one{"East Caribbean dollar"}
             other{"East Caribbean dollars"}
+        }
+        XCG{
+            one{"Carribean guilder"}
+            other{"Carribean guilder"}
         }
         XOF{
             one{"West African CFA franc"}
@@ -1268,6 +1280,10 @@ ceb{
         ZMW{
             one{"Zambian kwacha"}
             other{"Zambian kwachas"}
+        }
+        ZWG{
+            one{"Zimbabwean Gold"}
+            other{"Zimbabwean Gold"}
         }
     }
     CurrencyUnitPatterns{

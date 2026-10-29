@@ -39,8 +39,6 @@ class ExtensionsToolbarViewModel
         const ToolbarActionsModel::ActionId& action_id,
         ExtensionsContainer* extensions_container) = 0;
     // Hides any actively showing popups.
-    // TODO(crbug.com/473701535): Determine whether this method belongs in the
-    // delegate or the observer.
     virtual void HideActivePopup() = 0;
 
     // Closes the overflow menu, if it was open. Returns whether or not the
@@ -85,7 +83,9 @@ class ExtensionsToolbarViewModel
     // Called when the active WebContents is changed (e.g. tab change or page
     // navigation). `is_same_document` is true if the change was due to a
     // same-document navigation.
-    virtual void OnActiveWebContentsChanged(bool is_same_document) = 0;
+    virtual void OnActiveWebContentsChanged(
+        bool is_same_document,
+        content::WebContents* web_contents) = 0;
 
     // Called when the extensions that should be displayed in the request
     // access button to be recomputed.
@@ -129,6 +129,9 @@ class ExtensionsToolbarViewModel
   // Returns the view model of the action if it exists, else a nullptr.
   ToolbarActionViewModel* GetActionModelForId(
       const ToolbarActionsModel::ActionId& action_id) const;
+
+  // Returns whether a drag can be started on an action.
+  bool IsActionDraggable(const ToolbarActionsModel::ActionId& action_id) const;
 
   // Move the pinned action `action_id` to `target_index`.
   void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,

@@ -342,11 +342,19 @@ cy{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'am' {0}",
+                "{1} 'am' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E, d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -356,7 +364,6 @@ cy{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y G"}
@@ -495,6 +502,12 @@ cy{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'am' {0}",
+                "{1} 'am' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -511,6 +524,8 @@ cy{
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -527,7 +542,6 @@ cy{
                 }
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -639,24 +653,24 @@ cy{
             }
             eras{
                 abbreviated{
-                    "CC",
-                    "OC",
+                    0{"CC"}
+                    1{"OC"}
                 }
                 abbreviated%variant{
-                    "CCC",
-                    "CYCY",
+                    0{"CCC"}
+                    1{"CYCY"}
                 }
                 narrow{
-                    "C",
-                    "O",
+                    0{"C"}
+                    1{"O"}
                 }
                 wide{
-                    "Cyn Crist",
-                    "Oed Crist",
+                    0{"Cyn Crist"}
+                    1{"Oed Crist"}
                 }
                 wide%variant{
-                    "Cyn Cyfnod Cyffredin",
-                    "Cyfnod Cyffredin",
+                    0{"Cyn Cyfnod Cyffredin"}
+                    1{"Cyfnod Cyffredin"}
                 }
             }
             intervalFormats{
@@ -700,7 +714,6 @@ cy{
                     d{"d/M – d/M"}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h a"}
                 }
                 hm{
@@ -714,7 +727,6 @@ cy{
                     m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h a v"}
                 }
                 yM{

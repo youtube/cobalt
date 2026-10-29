@@ -8,9 +8,6 @@ de_LU{
                 "vorm.",
                 "nachm.",
             }
-            availableFormats{
-                h{"h a"}
-            }
         }
     }
 }

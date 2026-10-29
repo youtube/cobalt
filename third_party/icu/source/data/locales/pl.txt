@@ -18,8 +18,10 @@ pl{
         latn{
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -259,7 +261,7 @@ pl{
         buddhist{
             eras{
                 abbreviated{
-                    "e.b.",
+                    0{"e.b."}
                 }
             }
         }
@@ -353,6 +355,8 @@ pl{
             availableFormats{
                 Ed{"E, d"}
                 Gy{"y G"}
+                GyM{"M.y G"}
+                GyMEd{"E, M.d.y G"}
                 GyMMM{"LLL y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -377,12 +381,6 @@ pl{
                 yyyyQQQQ{"QQQQ y G"}
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
                     G{"y G – y G"}
                     y{"y–y G"}
@@ -512,6 +510,12 @@ pl{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
@@ -519,6 +523,8 @@ pl{
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM.y G"}
+                GyMEd{"E, d.MM.y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMM{"LLLL y G"}
@@ -538,7 +544,6 @@ pl{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d.MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -658,29 +663,23 @@ pl{
             }
             eras{
                 abbreviated{
-                    "p.n.e.",
-                    "n.e.",
+                    0{"p.n.e."}
+                    1{"n.e."}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "przed naszą erą",
-                    "naszej ery",
+                    0{"przed naszą erą"}
+                    1{"naszej ery"}
                 }
                 wide%variant{
-                    "p.n.e.",
-                    "n.e.",
+                    0{"p.n.e."}
+                    1{"n.e."}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
                     G{"y G – y G"}
                     y{"y–y G"}
@@ -745,7 +744,6 @@ pl{
                 }
                 h{
                     a{"h a–h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a–h:mm a"}
@@ -756,10 +754,6 @@ pl{
                     a{"h:mm a–h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"MM.y–MM.y"}
@@ -996,16 +990,14 @@ pl{
         roc{
             eras{
                 abbreviated{
-                    "Przed ROC",
-                    "ROC",
+                    0{"Przed ROC"}
+                    1{"ROC"}
                 }
                 narrow{
-                    "przed ROC",
-                    "ROC",
+                    0{"przed ROC"}
                 }
                 wide{
-                    "przed ROC",
-                    "ROC",
+                    0{"przed ROC"}
                 }
             }
         }
@@ -1579,9 +1571,6 @@ pl{
                 }
             }
         }
-        week-narrow{
-            relativePeriod{"tydz. {0}"}
-        }
         week-short{
             dn{"tydz."}
             relative{
@@ -1684,19 +1673,6 @@ pl{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

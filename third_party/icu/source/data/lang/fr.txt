@@ -14,10 +14,13 @@ fr{
         colStrength{"priorité du tri"}
         collation{"ordre de tri"}
         currency{"devise"}
+        em{"Présentation des Emoji"}
         hc{"système horaire (12 ou 24 heures)"}
         lb{"style de saut de ligne"}
+        lw{"Sauts de ligne dans les mots"}
         ms{"système de mesure"}
         numbers{"nombres"}
+        ss{"Saut de phrase après une abréviation"}
         timezone{"fuseau horaire"}
         va{"variante locale"}
         x{"usage privé"}
@@ -676,6 +679,12 @@ fr{
         zxx{"sans contenu linguistique"}
         zza{"zazaki"}
     }
+    Languages%core{
+        ku{"kurde"}
+    }
+    Languages%extension{
+        ku{"kurmandji"}
+    }
     Languages%long{
         zh_Hans{"mandarin simplifié"}
         zh_Hant{"mandarin traditionnel"}
@@ -863,9 +872,30 @@ fr{
             persian{"calendrier persan"}
             roc{"calendrier républicain chinois"}
         }
+        calendar%core{
+            buddhist{"bouddhiste"}
+            chinese{"chinois"}
+            coptic{"copte"}
+            dangi{"dangi"}
+            ethiopic{"éthiopien"}
+            ethiopic-amete-alem{"éthiopien Amete Alem"}
+            gregorian{"grégorien"}
+            hebrew{"hébraïque"}
+            islamic{"hégirien"}
+            islamic-civil{"hégirien (tabulaire, époque civile)"}
+            islamic-tbla{"hégirien (tabulaire, époque astronomique)"}
+            islamic-umalqura{"hégirien (Umm al-Qura)"}
+            japanese{"japonais"}
+            persian{"persan"}
+            roc{"républicain chinois"}
+        }
         cf{
             account{"format de devise comptable"}
             standard{"format de devise standard"}
+        }
+        cf%core{
+            account{"comptable"}
+            standard{"standard"}
         }
         colAlternate{
             non-ignorable{"Trier les symboles"}
@@ -906,12 +936,10 @@ fr{
             }
         }
         collation{
-            big5han{"ordre chinois traditionnel - Big5"}
             compat{"ancien ordre de tri pour compatibilité"}
             dictionary{"ordre du dictionnaire"}
             ducet{"ordre de tri Unicode par défaut"}
             eor{"règles de classement européen"}
-            gb2312han{"ordre chinois simplifié - GB2312"}
             phonebook{"ordre de l’annuaire"}
             phonetic{"ordre de tri phonétique"}
             pinyin{"ordre pinyin"}
@@ -923,10 +951,29 @@ fr{
             unihan{"ordre de tri radical-traits"}
             zhuyin{"ordre zhuyin"}
         }
+        collation%core{
+            compat{"compatibilité"}
+            dictionary{"dictionnaire"}
+            ducet{"Unicode par défaut"}
+            phonebook{"annuaire"}
+            phonetic{"phonétique"}
+            pinyin{"pinyin"}
+            search{"recherche"}
+            standard{"standard"}
+            stroke{"traits"}
+            traditional{"traditionnel"}
+            unihan{"radical-traits"}
+            zhuyin{"zhuyin"}
+        }
         d0{
             fwidth{"en pleine chasse"}
             hwidth{"en demi-chasse"}
             npinyin{"Numérique"}
+        }
+        em%core{
+            default{"par défaut"}
+            emoji{"Emoji"}
+            text{"texte"}
         }
         hc{
             h11{"système horaire de 12 heures (0–11)"}
@@ -934,10 +981,27 @@ fr{
             h23{"système horaire de 24 heures (0–23)"}
             h24{"système horaire de 24 heures (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"style de saut de ligne permissif"}
             normal{"style de saut de ligne normal"}
             strict{"style de saut de ligne strict"}
+        }
+        lb%core{
+            loose{"permissif"}
+            normal{"normal"}
+            strict{"strict"}
+        }
+        lw%core{
+            breakall{"Couper n’importe où"}
+            keepall{"Ne pas couper"}
+            normal{"Normal"}
+            phrase{"Ne pas couper dans les phrases"}
         }
         m0{
             bgn{"BGN"}
@@ -947,6 +1011,11 @@ fr{
             metric{"système métrique"}
             uksystem{"système impérial"}
             ussystem{"système américain"}
+        }
+        ms%core{
+            metric{"métrique"}
+            uksystem{"impérial"}
+            ussystem{"américain"}
         }
         numbers{
             arab{"chiffres arabes"}
@@ -973,16 +1042,16 @@ fr{
             hmnp{"chiffres nyiakeng puachue hmong"}
             java{"chiffres javanais"}
             jpan{"chiffres japonais"}
-            jpanfin{"chiffres japonais financiers"}
+            jpanfin{"chiffres financiers japonais"}
             khmr{"chiffres khmers"}
-            knda{"chiffres en kannada"}
+            knda{"chiffres kannadas"}
             laoo{"chiffres laotiens"}
             latn{"chiffres occidentaux"}
             mlym{"chiffres malayâlams"}
             mong{"chiffres mongols"}
             mtei{"chiffres meitei-mayeks"}
             mymr{"chiffres birmans"}
-            native{"chiffres natifs"}
+            native{"chiffres locaux"}
             olck{"chiffres ol-chikis"}
             orya{"chiffres oriyas"}
             roman{"chiffres romains"}
@@ -995,6 +1064,10 @@ fr{
             traditional{"Chiffres traditionnels"}
             vaii{"chiffres en vaï"}
             wcho{"chiffres wantcho"}
+        }
+        ss%core{
+            none{"Désactivé"}
+            standard{"Activé"}
         }
     }
     Variants{

@@ -115,7 +115,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Factory* factory = reinterpret_cast<Isolate*>(isolate)->factory();
   std::unique_ptr<BackingStore> memory = BackingStore::WrapAllocation(
       reinterpret_cast<void*>(sandbox->base() + offset), size,
-      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNotShared);
+      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNo);
   if (!memory) {
     isolate->ThrowError("Out of memory: MemoryView backing store");
     return;
@@ -1270,7 +1270,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSPromise::kReactionsOrResultOffset;
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
-    fields[FEEDBACK_CELL_TYPE]["value"] = FeedbackCell::kValueOffset;
+    fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         JSSegments::kIcuIteratorWithTextOffset;

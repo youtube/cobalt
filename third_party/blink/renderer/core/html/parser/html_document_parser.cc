@@ -366,12 +366,13 @@ HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
 }
 
 HTMLDocumentParser::HTMLDocumentParser(
-    ContainerNode* fragment_target,
+    DocumentFragment* fragment_target,
     Element* context_element,
     ParserContentPolicy parser_content_policy,
     ParserPrefetchPolicy parser_prefetch_policy,
     CustomElementRegistry* registry,
-    StreamingSanitizer* sanitizer)
+    StreamingSanitizer* sanitizer,
+    ParserRootInsertionPoint* root_insertion_point)
     : HTMLDocumentParser(fragment_target->GetDocument(),
                          parser_content_policy,
                          kForceSynchronousParsing,
@@ -395,7 +396,7 @@ HTMLDocumentParser::HTMLDocumentParser(
 
   tree_builder_ = MakeGarbageCollected<HTMLTreeBuilder>(
       this, fragment_target, context_element, parser_content_policy, options_,
-      include_shadow_roots, registry, sanitizer);
+      include_shadow_roots, registry, sanitizer, root_insertion_point);
 }
 
 HTMLDocumentParser::HTMLDocumentParser(Document& document,

@@ -393,10 +393,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand(instance, offset));
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  StoreU64(instance, liftoff::GetInstanceDataOperand());
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
@@ -1676,12 +1672,14 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   MoveChar(MemOperand(ip), MemOperand(r1), Operand(length));
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   mov(dst, src);
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind == kF32) {
     ler(dst, src);

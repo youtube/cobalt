@@ -180,6 +180,9 @@ sq{
         "America:Costa_Rica"{
             ec{"Kosta-Rikë"}
         }
+        "America:Coyhaique"{
+            ec{"Koihaiku"}
+        }
         "America:Creston"{
             ec{"Kreston"}
         }
@@ -815,7 +818,7 @@ sq{
             ec{"Pashkë"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbur"}
+            ec{"Ishulli i Kantonit"}
         }
         "Pacific:Fiji"{
             ec{"Fixhi"}
@@ -889,9 +892,7 @@ sq{
             ls{"Ora standarde e Afrikës Jugore"}
         }
         "meta:Africa_Western"{
-            ld{"Ora verore e Afrikës Perëndimore"}
-            lg{"Ora e Afrikës Perëndimore"}
-            ls{"Ora standarde e Afrikës Perëndimore"}
+            ls{"Ora e Afrikës Perëndimore"}
         }
         "meta:Alaska"{
             ld{"Ora verore e Alaskës"}
@@ -1155,6 +1156,9 @@ sq{
         }
         "meta:Guyana"{
             ls{"Ora e Guajanës"}
+        }
+        "meta:Hawaii"{
+            ls{"Ora standarde e Ishujve Hauai-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Ora verore e Ishujve Hauai-Aleutian"}

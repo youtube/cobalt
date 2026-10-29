@@ -37,6 +37,11 @@ uz{
                 one{"{0} marta aylanish"}
                 other{"{0} marta aylanish"}
             }
+            steradian{
+                dnam{"steradian"}
+                one{"{0} steradian"}
+                other{"{0} steradian"}
+            }
         }
         area{
             hectare{
@@ -148,6 +153,11 @@ uz{
                 one{"{0} karat"}
                 other{"{0} karat"}
             }
+            katal{
+                dnam{"katal"}
+                one{"{0} katal"}
+                other{"{0} katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"milligramm/detsilitr"}
                 one{"{0} milligramm/detsilitr"}
@@ -156,6 +166,25 @@ uz{
             millimole-per-liter{
                 one{"{0} millimol/litr"}
                 other{"{0} millimol/litr"}
+            }
+            ofglucose{
+                dnam{"glyukoza"}
+                one{"{0} glyukoza"}
+                other{"{0} glyukoza"}
+            }
+            part{
+                dnam{"qism"}
+                one{"{0} qismi"}
+                other{"{0} qismi"}
+            }
+            part-per-1e6{
+                one{"{0} milliondan ulush"}
+                other{"{0} milliondan ulush"}
+            }
+            part-per-1e9{
+                dnam{"milliarddan ulush"}
+                one{"{0} milliarddan ulush"}
+                other{"{0} milliarddan ulush"}
             }
             percent{
                 one{"{0} foiz"}
@@ -168,11 +197,6 @@ uz{
             permyriad{
                 one{"{0} promiriada"}
                 other{"{0} promiriada"}
-            }
-            portion-per-1e9{
-                dnam{"qism/milliard"}
-                one{"{0} ta qism/milliard"}
-                other{"{0} ta qism/milliard"}
             }
         }
         consumption{
@@ -269,12 +293,6 @@ uz{
                 one{"{0} nanosoniya"}
                 other{"{0} nanosoniya"}
             }
-            night{
-                dnam{"kecha"}
-                one{"{0} kecha"}
-                other{"{0} kecha"}
-                per{"{0}/kecha"}
-            }
             second{
                 dnam{"soniya"}
                 one{"{0} soniya"}
@@ -287,6 +305,21 @@ uz{
                 one{"{0} amper"}
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"kulon"}
+                one{"{0} kulon"}
+                other{"{0} kulon"}
+            }
+            farad{
+                dnam{"farad"}
+                one{"{0} farad"}
+                other{"{0} farad"}
+            }
+            henry{
+                dnam{"genri"}
+                one{"{0} genri"}
+                other{"{0} genri"}
+            }
             milliampere{
                 dnam{"milliamper"}
                 one{"{0} milliamper"}
@@ -296,12 +329,22 @@ uz{
                 one{"{0} om"}
                 other{"{0} om"}
             }
+            siemens{
+                dnam{"simens"}
+                one{"{0} simens"}
+                other{"{0} simens"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} volt"}
             }
         }
         energy{
+            becquerel{
+                dnam{"bekkerel"}
+                one{"{0} bekkerel"}
+                other{"{0} bekkerel"}
+            }
             british-thermal-unit{
                 dnam{"Britaniya issiqlik birligi"}
                 one{"{0} Britaniya issiqlik birligi"}
@@ -312,6 +355,11 @@ uz{
                 one{"kaloriya"}
                 other{"{0} kaloriya"}
             }
+            calorie-it{
+                dnam{"kaloriya-IT"}
+                one{"{0} kaloriya-IT"}
+                other{"{0} kaloriya-IT"}
+            }
             electronvolt{
                 one{"{0} elektronvolt"}
                 other{"{0} elektronvolt"}
@@ -320,6 +368,11 @@ uz{
                 dnam{"kaloriya"}
                 one{"{0} kaloriya"}
                 other{"{0} kaloriya"}
+            }
+            gray{
+                dnam{"Grey"}
+                one{"{0} grey"}
+                other{"{0} grey"}
             }
             joule{
                 one{"{0} joul"}
@@ -339,8 +392,18 @@ uz{
                 one{"{0} kilovatt-soat"}
                 other{"{0} kilovatt-soat"}
             }
+            sievert{
+                dnam{"zivert"}
+                one{"{0} zivert"}
+                other{"{0} zivert"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramm-kuch"}
+                one{"{0} kilogramm-kuch"}
+                other{"{0} kilogramm-kuch"}
+            }
             newton{
                 one{"{0} nyuton"}
                 other{"{0} nyuton"}
@@ -487,6 +550,18 @@ uz{
                 other{"{0} quyosh nuri kuchi"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"veber"}
+                one{"{0} veber"}
+                other{"{0} veber"}
+            }
+        }
         mass{
             carat{
                 one{"{0} karat"}
@@ -604,6 +679,11 @@ uz{
                 one{"{0} mm simob ustuni"}
                 other{"{0} mm simob ustuni"}
             }
+            ofhg{
+                dnam{"simob"}
+                one{"{0} simob"}
+                other{"{0} simob"}
+            }
             pascal{
                 dnam{"paskal"}
                 one{"{0} paskal"}
@@ -620,6 +700,11 @@ uz{
                 dnam{"Bofort"}
                 one{"Bofort {0}"}
                 other{"Bofort {0}"}
+            }
+            light-speed{
+                dnam{"yorug‘lik"}
+                one{"{0} yorug‘lik tezligi"}
+                other{"{0} yorug‘lik tezligi"}
             }
             meter-per-second{
                 dnam{"metr/soniya"}
@@ -688,11 +773,6 @@ uz{
                 one{"{0} detsilitr"}
                 other{"{0} detsilitr"}
             }
-            dessert-spoon-imperial{
-                dnam{"imp. desert qoshiq"}
-                one{"{0} imp. desert qoshiq"}
-                other{"{0} imp. desert qoshiq"}
-            }
             dram{
                 dnam{"draxma"}
                 one{"{0} draxma"}
@@ -701,6 +781,11 @@ uz{
             fluid-ounce-imperial{
                 one{"{0} ingliz suyuq unsiyasi"}
                 other{"{0} ingliz suyuq unsiyasi"}
+            }
+            fluid-ounce-metric{
+                dnam{"metrik suyuqlik unsiyasi"}
+                one{"{0} metrik suyuqlik unsiyasi"}
+                other{"{0} metrik suyuqlik unsiyasi"}
             }
             gallon{
                 dnam{"gallon"}
@@ -739,9 +824,6 @@ uz{
                 one{"{0} metrik pint"}
                 other{"{0} metrik pint"}
             }
-            quart-imperial{
-                dnam{"imp.kvarta"}
-            }
         }
     }
     unitsNarrow{
@@ -774,18 +856,28 @@ uz{
             }
         }
         concentr{
-            percent{
-                dnam{"%"}
+            ofglucose{
+                dnam{"Glk"}
+                one{"{0} Glk"}
+                other{"{0} Glk"}
             }
-            permillion{
+            part{
+                dnam{"qism"}
+                one{"{0} qismi"}
+                other{"{0} qismi"}
+            }
+            part-per-1e6{
                 dnam{"ppm"}
                 one{"{0}ppm"}
                 other{"{0}ppm"}
             }
-            portion-per-1e9{
-                dnam{"qism/milliard"}
-                one{"{0} ta qism/mlrd"}
-                other{"{0} ta qism/mlrd"}
+            part-per-1e9{
+                dnam{"ppb"}
+                one{"{0}ppb"}
+                other{"{0}ppb"}
+            }
+            percent{
+                dnam{"%"}
             }
         }
         consumption{
@@ -799,9 +891,6 @@ uz{
                 dnam{"mson"}
             }
             night{
-                dnam{"kecha"}
-                one{"{0} kecha"}
-                other{"{0} kecha"}
                 per{"{0}/nkecha"}
             }
             quarter{
@@ -810,6 +899,18 @@ uz{
             second{
                 one{"{0} s"}
                 other{"{0} s"}
+            }
+        }
+        energy{
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
+            }
+            gray{
+                dnam{"Gr"}
+                one{"{0} Gr"}
+                other{"{0} Gr"}
             }
         }
         graphics{
@@ -855,7 +956,18 @@ uz{
                 other{"{0} hp"}
             }
         }
+        pressure{
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
+        }
         speed{
+            light-speed{
+                dnam{"yorug‘lik"}
+                one{"{0} yorug‘lik"}
+                other{"{0} yorug‘lik"}
+            }
             mile-per-hour{
                 one{"{0} mi/h"}
                 other{"{0} mi/h"}
@@ -872,16 +984,9 @@ uz{
                 one{"{0} mi³"}
                 other{"{0} mi³"}
             }
-            dessert-spoon-imperial{
-                one{"{0} imp. desert qoshiq"}
-                other{"{0} imp. desert qoshiq"}
-            }
             liter{
                 one{"{0}L"}
                 other{"{0}L"}
-            }
-            quart-imperial{
-                dnam{"imp.kvarta"}
             }
         }
     }
@@ -914,6 +1019,10 @@ uz{
                 dnam{"aylanish"}
                 one{"{0} marta ayl."}
                 other{"{0} marta ayl."}
+            }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
             }
         }
         area{
@@ -971,8 +1080,30 @@ uz{
             karat{
                 dnam{"karat"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             millimole-per-liter{
                 dnam{"millimol/litr"}
+            }
+            ofglucose{
+                dnam{"Glk"}
+                one{"{0} Glk"}
+                other{"{0} Glk"}
+            }
+            part{
+                dnam{"qism"}
+                one{"{0} qismi"}
+                other{"{0} qismi"}
+            }
+            part-per-1e6{
+                dnam{"milliondan ulush"}
+            }
+            part-per-1e9{
+                dnam{"milliarddan ulush"}
+                one{"{0} ppb"}
+                other{"{0} ppb"}
             }
             percent{
                 dnam{"foiz"}
@@ -980,16 +1111,8 @@ uz{
             permille{
                 dnam{"promille"}
             }
-            permillion{
-                dnam{"milliondan ulush"}
-            }
             permyriad{
                 dnam{"promiriada"}
-            }
-            portion-per-1e9{
-                dnam{"qism/milliard"}
-                one{"{0} ta qism/mlrd"}
-                other{"{0} ta qism/mlrd"}
             }
         }
         consumption{
@@ -1126,11 +1249,31 @@ uz{
             ampere{
                 dnam{"amper"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             ohm{
                 dnam{"om"}
             }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+            }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
                 one{"{0} BTU"}
@@ -1141,6 +1284,11 @@ uz{
                 one{"{0} kal"}
                 other{"{0} kal"}
             }
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
+            }
             electronvolt{
                 dnam{"elektronvolt"}
             }
@@ -1148,6 +1296,11 @@ uz{
                 dnam{"kal"}
                 one{"{0} kal"}
                 other{"{0} kal"}
+            }
+            gray{
+                dnam{"Gr"}
+                one{"{0} Gr"}
+                other{"{0} Gr"}
             }
             joule{
                 dnam{"joul"}
@@ -1165,6 +1318,10 @@ uz{
                 one{"{0} kVt-soat"}
                 other{"{0} kVt-soat"}
             }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+            }
             therm-us{
                 dnam{"AQSH termi"}
                 one{"{0} AQSH termi"}
@@ -1172,6 +1329,10 @@ uz{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             newton{
                 dnam{"nyuton"}
             }
@@ -1334,6 +1495,16 @@ uz{
                 dnam{"quyosh nuri kuchi"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"karat"}
@@ -1427,6 +1598,10 @@ uz{
                 one{"{0} mmHg"}
                 other{"{0} mmHg"}
             }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
             pound-force-per-square-inch{
                 dnam{"funt/dy.kv"}
                 one{"{0} funt/dy.kv"}
@@ -1443,6 +1618,11 @@ uz{
                 dnam{"uzel"}
                 one{"{0} uzel"}
                 other{"{0} uzel"}
+            }
+            light-speed{
+                dnam{"yorug‘lik"}
+                one{"{0} yorug‘lik"}
+                other{"{0} yorug‘lik"}
             }
             mile-per-hour{
                 dnam{"mil/soat"}

@@ -8,7 +8,9 @@ gsw{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -166,7 +168,7 @@ gsw{
                 }
             }
             symbols{
-                group{"’"}
+                group{"'"}
                 minusSign{"−"}
             }
         }
@@ -447,8 +449,8 @@ gsw{
             }
             eras{
                 abbreviated{
-                    "v. Chr.",
-                    "n. Chr.",
+                    0{"v. Chr."}
+                    1{"n. Chr."}
                 }
             }
             intervalFormats{

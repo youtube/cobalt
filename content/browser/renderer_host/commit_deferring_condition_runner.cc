@@ -11,6 +11,7 @@
 #include "content/browser/preloading/prerender/prerender_commit_deferring_condition.h"
 #include "content/browser/preloading/prerender/prerender_no_vary_search_commit_deferring_condition.h"
 #include "content/browser/preloading/prerender/prerender_no_vary_search_hint_commit_deferring_condition.h"
+#include "content/browser/renderer_host/async_before_unload_commit_deferring_condition.h"
 #include "content/browser/renderer_host/back_forward_cache_commit_deferring_condition.h"
 #include "content/browser/renderer_host/concurrent_navigations_commit_deferring_condition.h"
 #include "content/browser/renderer_host/navigation_api_commit_deferring_condition.h"
@@ -105,6 +106,8 @@ void CommitDeferringConditionRunner::ResumeProcessing() {
 
 void CommitDeferringConditionRunner::RegisterDeferringConditions(
     NavigationRequest& navigation_request) {
+  TRACE_EVENT("navigation",
+              "CommitDeferringConditionRunner::RegisterDeferringConditions");
   // Initial WebUI navigations shouldn't run CommitDeferringConditions.
   CHECK(!navigation_request.IsInitialWebUINavigation() ||
         !base::FeatureList::IsEnabled(
@@ -137,6 +140,12 @@ void CommitDeferringConditionRunner::RegisterDeferringConditions(
     AddCondition(std::move(condition));
   }
 
+  // If beforeunload handlers were run asynchronously (to avoid blocking the
+  // navigation start), we must ensure they complete before the navigation is
+  // allowed to commit.
+  AddCondition(AsyncBeforeUnloadCommitDeferringCondition::MaybeCreate(
+      navigation_request));
+
   // PrerenderNoVarySearchHintCommitDeferringCondition should run before
   // PrerenderCommitDeferringCondition as it needs to defer until headers
   // are received. Headers are a required prerequisite for the correctness of
@@ -164,10 +173,8 @@ void CommitDeferringConditionRunner::RegisterDeferringConditions(
   AddCondition(
       ViewTransitionCommitDeferringCondition::MaybeCreate(navigation_request));
 
-  if (ShouldAvoidRedundantNavigationCancellations()) {
-    AddCondition(ConcurrentNavigationsCommitDeferringCondition::MaybeCreate(
-        navigation_request, navigation_type_));
-  }
+  AddCondition(ConcurrentNavigationsCommitDeferringCondition::MaybeCreate(
+      navigation_request, navigation_type_));
 
   // The BFCache deferring condition should run after all other conditions
   // since it'll disable eviction on a cached renderer.

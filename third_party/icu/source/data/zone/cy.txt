@@ -6,26 +6,11 @@ cy{
         "Africa:Algiers"{
             ec{"Alger"}
         }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bae Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cambridge_Bay"{
             ec{"Bae Cambridge"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:Indiana:Tell_City"{
             ec{"Dinas Tell, Indiana"}
@@ -134,9 +119,6 @@ cy{
         "Pacific:Easter"{
             ec{"Ynys y Pasg"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
@@ -153,9 +135,7 @@ cy{
             ls{"Amser Safonol De Affrica"}
         }
         "meta:Africa_Western"{
-            ld{"Amser Haf Gorllewin Affrica"}
-            lg{"Amser Gorllewin Affrica"}
-            ls{"Amser Safonol Gorllewin Affrica"}
+            ls{"Amser Gorllewin Affrica"}
         }
         "meta:Alaska"{
             ld{"Amser Haf Alaska"}
@@ -403,6 +383,9 @@ cy{
         }
         "meta:Guyana"{
             ls{"Amser Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Amser Safonol Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Amser Haf Hawaii-Aleutian"}

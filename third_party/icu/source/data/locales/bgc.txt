@@ -17,7 +17,7 @@ bgc{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "तडके",
                 "सांझ",
             }

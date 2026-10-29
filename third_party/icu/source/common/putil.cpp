@@ -1166,16 +1166,31 @@ uprv_tzname(int n)
         because the tzfile contents is underspecified.
         This isn't guaranteed to work because it may not be a symlink.
         */
-        int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer, sizeof(gTimeZoneBuffer)-1);
-        if (0 < ret) {
+        char *ret = realpath(TZDEFAULT, gTimeZoneBuffer);
+        if (ret != nullptr && uprv_strcmp(TZDEFAULT, gTimeZoneBuffer) != 0) {
             int32_t tzZoneInfoTailLen = uprv_strlen(TZZONEINFOTAIL);
-            gTimeZoneBuffer[ret] = 0;
-            char *  tzZoneInfoTailPtr = uprv_strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
-
-            if (tzZoneInfoTailPtr != NULL
-                && isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen))
-            {
-                return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
+            const char *tzZoneInfoTailPtr = uprv_strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+            // MacOS14 has the realpath as something like
+            // /usr/share/zoneinfo.default/Australia/Melbourne
+            // which will not have "/zoneinfo/" in the path.
+            // Therefore if we fail, we fall back to read the link which is
+            // /var/db/timezone/zoneinfo/Australia/Melbourne
+            // We also fall back to reading the link if the realpath leads to something like
+            // /usr/share/zoneinfo/posixrules
+            if (tzZoneInfoTailPtr == nullptr ||
+                    uprv_strcmp(tzZoneInfoTailPtr + tzZoneInfoTailLen, "posixrules") == 0) {
+                ssize_t size = readlink(TZDEFAULT, gTimeZoneBuffer, sizeof(gTimeZoneBuffer)-1);
+                if (size > 0) {
+                    gTimeZoneBuffer[size] = 0;
+                    tzZoneInfoTailPtr = uprv_strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+                }
+            }
+            if (tzZoneInfoTailPtr != nullptr) {
+                tzZoneInfoTailPtr += tzZoneInfoTailLen;
+                skipZoneIDPrefix(&tzZoneInfoTailPtr);
+                if (isValidOlsonID(tzZoneInfoTailPtr)) {
+                    return (gTimeZoneBufferPtr = tzZoneInfoTailPtr);
+                }
             }
         } else {
 #if defined(SEARCH_TZFILE)

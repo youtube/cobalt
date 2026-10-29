@@ -217,8 +217,8 @@ fur{
             }
             eras{
                 abbreviated{
-                    "pdC",
-                    "ddC",
+                    0{"pdC"}
+                    1{"ddC"}
                 }
             }
             intervalFormats{

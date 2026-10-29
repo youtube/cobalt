@@ -136,16 +136,16 @@ DirectHandle<WasmModuleObject> WasmModuleObject::New(
 
 DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    wasm::WireBytesRef ref, InternalizeString internalize, bool shared) {
+    wasm::WireBytesRef ref, InternalizeString internalize, SharedFlag shared) {
   base::Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.size()));
   auto* factory = isolate->factory();
-  DCHECK_IMPLIES(shared, !internalize);
+  DCHECK_IMPLIES(shared == SharedFlag::kYes, !internalize);
   return internalize ? factory->InternalizeUtf8String(
                            base::Vector<const char>::cast(name_vec))
-         : shared
+         : shared == SharedFlag::kYes
              ? factory
                    ->NewSharedStringFromUtf8(
                        base::Vector<const char>::cast(name_vec))
@@ -206,10 +206,9 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     entries->set(i, *initial_value);
   }
   bool is_function_table = canonical_type.IsFunctionType();
-  const bool shared = false;
   DirectHandle<WasmDispatchTable> dispatch_table =
       is_function_table ? isolate->factory()->NewWasmDispatchTable(
-                              initial, canonical_type, shared)
+                              initial, canonical_type, SharedFlag::kNo)
                         : DirectHandle<WasmDispatchTable>{};
 
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
@@ -523,7 +522,8 @@ void WasmTableObject::Fill(Isolate* isolate,
 bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
                              wasm::CanonicalValueType table_type) {
   DCHECK(table_type.is_ref());
-  DCHECK(!table_type.is_shared());  // This code will need updating.
+  // This code will need updating.
+  DCHECK_EQ(table_type.is_shared(), SharedFlag::kNo);
   // When in-sandbox data is corrupted, we can't trust the statically
   // checked types; to prevent sandbox escapes, we have to verify actual
   // types before installing the dispatch table entry. There are three
@@ -581,9 +581,8 @@ void WasmTableObject::UpdateDispatchTable(
 
   if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
     auto import_data = TrustedCast<WasmImportData>(implicit_arg);
-    constexpr bool kShared = false;
     DirectHandle<WasmImportData> new_import_data =
-        isolate->factory()->NewWasmImportData(import_data, kShared);
+        isolate->factory()->NewWasmImportData(import_data, SharedFlag::kNo);
     new_import_data->set_call_origin(*dispatch_table);
     new_import_data->set_table_slot(entry_index);
     implicit_arg = new_import_data;
@@ -671,11 +670,10 @@ void WasmTableObject::UpdateDispatchTable(
                Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm) ||
            call_target ==
                Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperInvalidSig));
-    constexpr bool kShared = false;
     wasm::Suspend suspend = function_data->GetSuspend();
     import_data = isolate->factory()->NewWasmImportData(
         function, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig,
-        kShared);
+        SharedFlag::kNo);
     import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
   }
 
@@ -762,60 +760,6 @@ void WasmTableObject::SetFunctionTablePlaceholder(
       direct_handle(trusted_instance_data->instance_object(), isolate),
       direct_handle(Smi::FromInt(func_index), isolate), AllocationType::kOld);
   table->entries()->set(entry_index, *tuple);
-}
-
-// static
-void WasmTableObject::GetFunctionTableEntry(
-    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-    bool* is_valid, bool* is_null,
-    MaybeDirectHandle<WasmTrustedInstanceData>* instance_data,
-    int* function_index, MaybeDirectHandle<WasmJSFunction>* maybe_js_function) {
-#if DEBUG
-  if (table->has_trusted_data()) {
-    const wasm::WasmModule* module = table->trusted_data(isolate)->module();
-    DCHECK(wasm::IsSubtypeOf(table->type(module), wasm::kWasmFuncRef, module));
-  } else {
-    // A function table defined outside a module may only have type exactly
-    // {funcref}.
-    DCHECK(table->unsafe_type() == wasm::kWasmFuncRef);
-  }
-  DCHECK_LT(entry_index, table->current_length());
-#endif
-  // We initialize {is_valid} with {true}. We may change it later.
-  *is_valid = true;
-  DirectHandle<Object> element(table->entries()->get(entry_index), isolate);
-
-  *is_null = IsWasmNull(*element, isolate);
-  if (*is_null) return;
-
-  if (IsWasmFuncRef(*element)) {
-    DirectHandle<WasmInternalFunction> internal{
-        Cast<WasmFuncRef>(*element)->internal(isolate), isolate};
-    element = WasmInternalFunction::GetOrCreateExternal(internal);
-  }
-  if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
-    auto target_func = Cast<WasmExportedFunction>(element);
-    auto func_data = target_func->shared()->wasm_exported_function_data();
-    *instance_data = direct_handle(func_data->instance_data(), isolate);
-    *function_index = func_data->function_index();
-    *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
-    return;
-  }
-  if (WasmJSFunction::IsWasmJSFunction(*element)) {
-    *instance_data = MaybeDirectHandle<WasmTrustedInstanceData>();
-    *maybe_js_function = Cast<WasmJSFunction>(element);
-    return;
-  }
-  if (IsTuple2(*element)) {
-    auto tuple = Cast<Tuple2>(element);
-    *instance_data = direct_handle(
-        Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
-        isolate);
-    *function_index = Cast<Smi>(tuple->value2()).value();
-    *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
-    return;
-  }
-  *is_valid = false;
 }
 
 DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
@@ -964,7 +908,7 @@ MaybeDirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     // We try to reserve the maximum, but at most the allocation_maximum to
     // avoid OOMs.
     heuristic_maximum = std::min(maximum, allocation_maximum);
-  } else if (shared == SharedFlag::kShared) {
+  } else if (shared == SharedFlag::kYes) {
     // If shared memory has no maximum, we use the allocation_maximum as an
     // implicit maximum.
     heuristic_maximum = allocation_maximum;
@@ -1043,7 +987,8 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   Tagged<WeakArrayList> instances = this->instances();
-  for (int i = 0, len = instances->length(); i < len; ++i) {
+  const uint32_t instances_len = instances->length().value();
+  for (uint32_t i = 0; i < instances_len; ++i) {
     Tagged<MaybeObject> elem = instances->Get(i);
     if (elem.IsCleared()) continue;
     Tagged<WasmInstanceObject> instance_object =
@@ -1403,6 +1348,10 @@ bool WasmMemoryMapDescriptor::UnmapDescriptor() {
   CHECK(v8_flags.experimental_wasm_memory_control);
   DisallowGarbageCollection no_gc;
 
+  if (this->memory().IsCleared()) {
+    return false;
+  }
+
   i::Tagged<i::WasmMemoryObject> memory =
       Cast<i::WasmMemoryObject>(MakeStrong(this->memory()));
   if (memory.is_null()) {
@@ -1488,34 +1437,6 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
   return global_obj;
 }
 
-FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
-    Isolate* isolate,
-    DirectHandle<WasmTrustedInstanceData> target_instance_data,
-    int target_func_index) {
-  implicit_arg_ = target_instance_data;
-  if (target_func_index <
-      static_cast<int>(
-          target_instance_data->module()->num_imported_functions)) {
-    // The function in the target instance was imported. Load the ref from the
-    // dispatch table for imports.
-    implicit_arg_ = direct_handle(
-        TrustedCast<TrustedObject>(
-            target_instance_data->dispatch_table_for_imports()->implicit_arg(
-                target_func_index)),
-        isolate);
-#if V8_ENABLE_DRUMBRAKE
-    target_func_index_ = target_instance_data->imported_function_indices()->get(
-        target_func_index);
-#endif  // V8_ENABLE_DRUMBRAKE
-  } else {
-    // The function in the target instance was not imported.
-#if V8_ENABLE_DRUMBRAKE
-    target_func_index_ = target_func_index;
-#endif  // V8_ENABLE_DRUMBRAKE
-  }
-  call_target_ = target_instance_data->GetCallTarget(target_func_index);
-}
-
 void ImportedFunctionEntry::SetWasmToWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
@@ -1525,7 +1446,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
     // Ignores wrapper_handle.
     DirectHandle<WasmImportData> import_data =
         isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
-                                              sig, false /*kShared*/);
+                                              sig, SharedFlag::kNo);
     {
       DisallowGarbageCollection no_gc;
       instance_data_->dispatch_table_for_imports()->SetForWrapper(
@@ -1553,10 +1474,9 @@ void ImportedFunctionEntry::SetWasmToWrapper(
   }
 #endif  // DEBUG
 
-  constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
-                                            sig, kShared);
+                                            sig, SharedFlag::kNo);
 
   if (!wrapper_handle->has_code()) {
     import_data->SetIndexInTableAsCallOrigin(
@@ -1692,7 +1612,7 @@ DirectHandle<Tuple2> WasmTrustedInstanceData::GetInterpreterObject(
 
 DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
-    std::shared_ptr<wasm::NativeModule> native_module, bool shared) {
+    std::shared_ptr<wasm::NativeModule> native_module, SharedFlag shared) {
   // We don't read the NativeModule from the WasmModuleObject here to guard
   // against swapping attacks.
   DCHECK_EQ(native_module.get(), module_object->native_module());
@@ -1702,10 +1622,12 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   // initialized yet, which can lead to heap verification errors.
   const WasmModule* module = native_module->module();
 
-  AllocationType allocation =
-      shared ? AllocationType::kSharedOld : AllocationType::kYoung;
-  AllocationType trusted_allocation =
-      shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted;
+  AllocationType allocation = shared == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kYoung;
+  AllocationType trusted_allocation = shared == SharedFlag::kYes
+                                          ? AllocationType::kSharedTrusted
+                                          : AllocationType::kTrusted;
 
   uint32_t num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports =
@@ -1788,7 +1710,9 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 #if V8_ENABLE_DRUMBRAKE
     trusted_data->set_imported_function_indices(*imported_function_indices);
 #endif  // V8_ENABLE_DRUMBRAKE
-    if (!shared) trusted_data->set_native_context(*isolate->native_context());
+    if (shared == SharedFlag::kNo) {
+      trusted_data->set_native_context(*isolate->native_context());
+    }
     trusted_data->set_jump_table_start(native_module->jump_table_start());
     trusted_data->set_hook_on_function_call_address(
         isolate->debug()->hook_on_function_call_address());
@@ -1820,7 +1744,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
   DirectHandle<WasmInstanceObject> instance_object;
 
-  if (!shared) {
+  if (shared == SharedFlag::kNo) {
     // Allocate the WasmInstanceObject (JS wrapper).
     DirectHandle<JSFunction> instance_cons(
         isolate->native_context()->wasm_instance_constructor(), isolate);
@@ -1931,12 +1855,13 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
     uint32_t count) {
   const WasmModule* module = trusted_instance_data->module();
 
-  bool table_is_shared = module->tables[table_index].shared;
-  bool segment_is_shared = module->elem_segments[segment_index].shared;
+  SharedFlag table_is_shared = module->tables[table_index].shared;
+  SharedFlag segment_is_shared = module->elem_segments[segment_index].shared;
 
   DirectHandle<WasmTableObject> table_object(
-      Cast<WasmTableObject>((table_is_shared ? shared_trusted_instance_data
-                                             : trusted_instance_data)
+      Cast<WasmTableObject>((table_is_shared == SharedFlag::kYes
+                                 ? shared_trusted_instance_data
+                                 : trusted_instance_data)
                                 ->tables()
                                 ->get(table_index)),
       isolate);
@@ -1948,8 +1873,9 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
   if (opt_error.has_value()) return opt_error;
 
   DirectHandle<FixedArray> elem_segment(
-      Cast<FixedArray>((segment_is_shared ? shared_trusted_instance_data
-                                          : trusted_instance_data)
+      Cast<FixedArray>((segment_is_shared == SharedFlag::kYes
+                            ? shared_trusted_instance_data
+                            : trusted_instance_data)
                            ->element_segments()
                            ->get(segment_index)),
       isolate);
@@ -2008,7 +1934,8 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     int function_index, wasm::PrecreateExternal precreate_external) {
-  bool shared = HeapLayout::InAnySharedSpace(*trusted_instance_data);
+  SharedFlag shared =
+      SharedFlag(HeapLayout::InAnySharedSpace(*trusted_instance_data));
   Tagged<WasmFuncRef> existing_func_ref;
   if (trusted_instance_data->try_get_func_ref(function_index,
                                               &existing_func_ref)) {
@@ -2258,7 +2185,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   const wasm::TypeDefinition& type = module->type(index);
   DCHECK(type.is_descriptor());
   // TODO(jkummerow): Figure out support for shared objects.
-  if (type.is_shared) UNIMPLEMENTED();
+  if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
   wasm::CanonicalTypeIndex described_index =
       module->canonical_type_id(type.describes);
   DirectHandle<Map> rtt_parent{
@@ -2624,11 +2551,6 @@ void WasmDispatchTableForImports::Clear(
 }
 
 std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
-WasmDispatchTable::MaybeGetWrapperHandle(int index) {
-  return offheap_data()->MaybeGetWrapperHandle(index);
-}
-
-std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
 WasmDispatchTableForImports::MaybeGetWrapperHandle(int index) {
   return offheap_data()->MaybeGetWrapperHandle(index);
 }
@@ -2749,7 +2671,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   DirectHandle<WasmDispatchTable> new_table =
       isolate->factory()->NewWasmDispatchTable(
           new_capacity, old_table->table_type(),
-          HeapLayout::InAnySharedSpace(*old_table));
+          SharedFlag(HeapLayout::InAnySharedSpace(*old_table)));
 
   DisallowGarbageCollection no_gc;
   // Writing non-atomically is fine here because this is a freshly allocated
@@ -3174,7 +3096,8 @@ DirectHandle<Map> CreateStructMap(
     DirectHandle<NativeContext> opt_native_context) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
-  const bool shared = wasm::GetTypeCanonicalizer()->IsShared(struct_index);
+  const SharedFlag shared =
+      SharedFlag(wasm::GetTypeCanonicalizer()->IsShared(struct_index));
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
   // stored directly in a Map is capped at 255 pointer sizes.
@@ -3190,7 +3113,7 @@ DirectHandle<Map> CreateStructMap(
       heaptype, no_array_element, opt_rtt_parent, num_supertypes, shared);
   DirectHandle<Map> map;
   // TODO(manoskouk): Combine `shared` with contextful maps.
-  if (shared) {
+  if (shared == SharedFlag::kYes) {
     map = isolate->factory()->NewMapWithMetaMap(
         isolate->factory()->meta_map(), instance_type, map_instance_size,
         elements_kind, inobject_properties, AllocationType::kSharedMap);
@@ -3216,7 +3139,8 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   const wasm::CanonicalArrayType* type =
       wasm::GetTypeCanonicalizer()->LookupArray(array_index);
   wasm::CanonicalValueType element_type = type->element_type();
-  const bool shared = wasm::GetTypeCanonicalizer()->IsShared(array_index);
+  const SharedFlag shared =
+      SharedFlag(wasm::GetTypeCanonicalizer()->IsShared(array_index));
   const int inobject_properties = 0;
   const int map_instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
@@ -3227,13 +3151,14 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
       heaptype, element_type, opt_rtt_parent, num_supertypes, shared);
 
   DirectHandle<Map> map =
-      shared ? isolate->factory()->NewMapWithMetaMap(
-                   isolate->factory()->meta_map(), instance_type,
-                   map_instance_size, elements_kind, inobject_properties,
-                   AllocationType::kSharedMap)
-             : isolate->factory()->NewContextlessMap(
-                   instance_type, map_instance_size, elements_kind,
-                   inobject_properties);
+      shared == SharedFlag::kYes
+          ? isolate->factory()->NewMapWithMetaMap(
+                isolate->factory()->meta_map(), instance_type,
+                map_instance_size, elements_kind, inobject_properties,
+                AllocationType::kSharedMap)
+          : isolate->factory()->NewContextlessMap(
+                instance_type, map_instance_size, elements_kind,
+                inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0,
@@ -3246,7 +3171,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   int num_supertypes, bool shared) {
+                                   int num_supertypes, SharedFlag shared) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
@@ -3261,7 +3186,8 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
       Cast<Map>(isolate->root(RootIndex::kWasmFuncRefMap))->instance_size());
   DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, kInstanceSize, elements_kind, inobject_properties,
-      shared ? AllocationType::kSharedMap : AllocationType::kMap);
+      shared == SharedFlag::kYes ? AllocationType::kSharedMap
+                                 : AllocationType::kMap);
   map->set_wasm_type_info(*type_info);
   return map;
 }
@@ -3272,10 +3198,10 @@ DirectHandle<Map> CreateContRefMap(Isolate* isolate,
   const InstanceType instance_type = WASM_CONTINUATION_OBJECT_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
-  wasm::CanonicalValueType heaptype =
-      wasm::CanonicalValueType::Ref(type, false, wasm::RefTypeKind::kCont);
+  wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
+      type, SharedFlag::kNo, wasm::RefTypeKind::kCont);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, {}, 0, false);
+      heaptype, no_array_element, {}, 0, SharedFlag::kNo);
   constexpr int kInstanceSize = WasmContinuationObject::kSize;
   DCHECK_EQ(kInstanceSize,
             Cast<Map>(isolate->root(RootIndex::kWasmContinuationObjectMap))
@@ -3315,7 +3241,8 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     rtt = direct_handle(
         Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
-    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), 0, false);
+    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), 0,
+                           SharedFlag::kNo);
     canonical_rtts->set(sig_id.index, MakeWeak(*rtt));
   }
 
@@ -3435,7 +3362,8 @@ constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
 // Tries to canonicalize a HeapNumber to an i31ref Smi. Returns the original
 // HeapNumber if it fails.
 DirectHandle<Object> CanonicalizeHeapNumber(DirectHandle<Object> number,
-                                            Isolate* isolate, bool is_shared) {
+                                            Isolate* isolate,
+                                            SharedFlag is_shared) {
   auto heap_number = Cast<HeapNumber>(number);
   double double_value = heap_number->value();
   if (double_value >= kInt31MinValue && double_value <= kInt31MaxValue &&
@@ -3443,7 +3371,8 @@ DirectHandle<Object> CanonicalizeHeapNumber(DirectHandle<Object> number,
       double_value == FastI2D(FastD2I(double_value))) {
     return direct_handle(Smi::FromInt(FastD2I(double_value)), isolate);
   }
-  if (is_shared && !HeapLayout::InWritableSharedSpace(*heap_number)) {
+  if (is_shared == SharedFlag::kYes &&
+      !HeapLayout::InWritableSharedSpace(*heap_number)) {
     return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(
         double_value);
   }
@@ -3453,14 +3382,14 @@ DirectHandle<Object> CanonicalizeHeapNumber(DirectHandle<Object> number,
 // Tries to canonicalize a Smi into an i31 Smi. Returns a HeapNumber if it
 // fails.
 DirectHandle<Object> CanonicalizeSmi(DirectHandle<Object> smi, Isolate* isolate,
-                                     bool is_shared) {
+                                     SharedFlag is_shared) {
   if constexpr (SmiValuesAre31Bits()) return smi;
 
   int32_t value = Cast<Smi>(*smi).value();
 
   if (value <= kInt31MaxValue && value >= kInt31MinValue) {
     return smi;
-  } else if (is_shared) {
+  } else if (is_shared == SharedFlag::kYes) {
     return isolate->factory()->NewHeapNumber<AllocationType::kSharedOld>(value);
   } else {
     return isolate->factory()->NewHeapNumber(value);
@@ -3476,11 +3405,13 @@ inline bool CheckExpectedSharedness(Isolate* isolate,
                                     const char** error_message) {
   if (v8_flags.experimental_wasm_shared && (*value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (*value).cast<HeapObject>();
-    if (expected.is_shared() != HeapLayout::InWritableSharedSpace(heap_obj)) {
-      *error_message =
-          expected.is_shared()
-              ? "unshared object is not allowed for shared heap types"
-              : "shared object is not allowed for unshared heap types";
+    if (expected.is_shared() == SharedFlag::kYes &&
+        !HeapLayout::InAnySharedSpace(heap_obj)) {
+      *error_message = "unshared object is not allowed for shared heap types";
+      return false;
+    } else if (expected.is_shared() == SharedFlag::kNo &&
+               HeapLayout::InWritableSharedSpace(heap_obj)) {
+      *error_message = "shared object is not allowed for unshared heap types";
       return false;
     }
   }
@@ -3491,10 +3422,10 @@ inline bool ConvertToSharedIfExpected(Isolate* isolate,
                                       DirectHandle<Object>* value,
                                       CanonicalValueType expected,
                                       const char** error_message) {
-  if (v8_flags.experimental_wasm_shared && expected.is_shared() &&
-      (**value).IsHeapObject()) {
+  if (v8_flags.experimental_wasm_shared &&
+      expected.is_shared() == SharedFlag::kYes && (**value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (**value).cast<HeapObject>();
-    if (!HeapLayout::InWritableSharedSpace(heap_obj)) {
+    if (!HeapLayout::InAnySharedSpace(heap_obj)) {
       if (!Object::Share(isolate, *value, ShouldThrow::kDontThrow)
                .ToHandle(value)) {
         *error_message = "unshared object is not allowed for shared heap types";

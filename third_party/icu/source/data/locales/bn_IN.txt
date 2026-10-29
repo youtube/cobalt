@@ -19,6 +19,7 @@ bn_IN{
                 accountingFormat{"¤#,##,##0.00;(¤#,##,##0.00)"}
                 accountingFormat%alphaNextToNumber{"¤ #,##,##0.00;(¤ #,##,##0.00)"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
             }
         }
         minimalPairs{
@@ -63,12 +64,11 @@ bn_IN{
             }
             eras{
                 abbreviated{
-                    "খ্রিঃপূঃ",
-                    "খ্রিঃ",
+                    0{"খ্রিঃপূঃ"}
+                    1{"খ্রিঃ"}
                 }
                 wide{
-                    "খ্রিঃপূঃ",
-                    "খ্রিষ্টাব্দ",
+                    1{"খ্রিষ্টাব্দ"}
                 }
             }
             monthNames{

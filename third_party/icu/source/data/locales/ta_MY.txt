@@ -6,6 +6,8 @@ ta_MY{
         latn{
             patterns{
                 currencyFormat{"¤ #,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00"}
+                currencyFormat%noCurrency{"#,##0.00"}
                 decimalFormat{"#,##0.###"}
                 percentFormat{"#,##0%"}
             }

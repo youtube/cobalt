@@ -86,6 +86,11 @@ no{
                 one{"{0} omdreining"}
                 other{"{0} omdreininger"}
             }
+            steradian{
+                dnam{"steradianer"}
+                one{"{0} steradian"}
+                other{"{0} steradianer"}
+            }
         }
         area{
             acre{
@@ -285,6 +290,11 @@ no{
                 one{"{0} karat"}
                 other{"{0} karat"}
             }
+            katal{
+                dnam{"katal"}
+                one{"{0} katal"}
+                other{"{0} katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     genitive{
@@ -320,6 +330,40 @@ no{
                 one{"{0} mol"}
                 other{"{0} mol"}
             }
+            ofglucose{
+                dnam{"glukose"}
+                one{"{0} glukose"}
+                other{"{0} glukose"}
+            }
+            part{
+                dnam{"deler"}
+                one{"{0} del"}
+                other{"{0} deler"}
+            }
+            part-per-1e6{
+                case{
+                    genitive{
+                        one{"{0} del per millions"}
+                        other{"{0} deler per millions"}
+                    }
+                }
+                dnam{"deler per million"}
+                gender{"masculine"}
+                one{"{0} del per million"}
+                other{"{0} deler per million"}
+            }
+            part-per-1e9{
+                case{
+                    genitive{
+                        one{"{0} del per milliards"}
+                        other{"{0} deler per milliards"}
+                    }
+                }
+                dnam{"deler per milliard"}
+                gender{"masculine"}
+                one{"{0} del per milliard"}
+                other{"{0} deler per milliard"}
+            }
             percent{
                 case{
                     genitive{
@@ -342,18 +386,6 @@ no{
                 one{"{0} promille"}
                 other{"{0} promille"}
             }
-            permillion{
-                case{
-                    genitive{
-                        one{"{0} del per millions"}
-                        other{"{0} deler per millions"}
-                    }
-                }
-                dnam{"deler per million"}
-                gender{"masculine"}
-                one{"{0} del per million"}
-                other{"{0} deler per million"}
-            }
             permyriad{
                 case{
                     genitive{
@@ -364,18 +396,6 @@ no{
                 gender{"masculine"}
                 one{"{0} promyriade"}
                 other{"{0} promyriade"}
-            }
-            portion-per-1e9{
-                case{
-                    genitive{
-                        one{"{0} del per milliards"}
-                        other{"{0} deler per milliards"}
-                    }
-                }
-                dnam{"deler per milliard"}
-                gender{"masculine"}
-                one{"{0} del per milliard"}
-                other{"{0} deler per milliard"}
             }
         }
         consumption{
@@ -671,7 +691,6 @@ no{
                         other{"{0} netters"}
                     }
                 }
-                dnam{"netter"}
                 gender{"masculine"}
                 one{"{0} natt"}
                 other{"{0} netter"}
@@ -740,6 +759,21 @@ no{
                 one{"{0} ampere"}
                 other{"{0} ampere"}
             }
+            coulomb{
+                dnam{"coulomb"}
+                one{"{0} coulomb"}
+                other{"{0} coulomb"}
+            }
+            farad{
+                dnam{"farad"}
+                one{"{0} farad"}
+                other{"{0} farad"}
+            }
+            henry{
+                dnam{"henry"}
+                one{"{0} henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 case{
                     genitive{
@@ -762,6 +796,11 @@ no{
                 one{"{0} ohm"}
                 other{"{0} ohm"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 case{
                     genitive{
@@ -775,6 +814,11 @@ no{
             }
         }
         energy{
+            becquerel{
+                dnam{"becquerel"}
+                one{"{0} becquerel"}
+                other{"{0} becquerel"}
+            }
             british-thermal-unit{
                 dnam{"British thermal unit"}
             }
@@ -790,6 +834,11 @@ no{
                 one{"{0} kalori"}
                 other{"{0} kalorier"}
             }
+            calorie-it{
+                dnam{"kalorier [IT]"}
+                one{"{0} kalori [IT]"}
+                other{"{0} kalorier [IT]"}
+            }
             electronvolt{
                 one{"{0} elektronvolt"}
                 other{"{0} elektronvolt"}
@@ -799,6 +848,11 @@ no{
                 gender{"masculine"}
                 one{"{0} kilokalori"}
                 other{"{0} kilokalorier"}
+            }
+            gray{
+                dnam{"gray"}
+                one{"{0} gray"}
+                other{"{0} gray"}
             }
             joule{
                 case{
@@ -846,8 +900,18 @@ no{
                 one{"{0} kilowattime"}
                 other{"{0} kilowattimer"}
             }
+            sievert{
+                dnam{"sievert"}
+                one{"{0} sievert"}
+                other{"{0} sievert"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilopond"}
+                one{"{0} kilopond"}
+                other{"{0} kilopond"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     genitive{
@@ -1208,6 +1272,18 @@ no{
                 gender{"masculine"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"weber"}
+                one{"{0} weber"}
+                other{"{0} weber"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -1477,6 +1553,11 @@ no{
                 one{"{0} millimeter kvikksølv"}
                 other{"{0} millimeter kvikksølv"}
             }
+            ofhg{
+                dnam{"kvikksølv"}
+                one{"{0} kvikksølv"}
+                other{"{0} kvikksølv"}
+            }
             pascal{
                 case{
                     genitive{
@@ -1525,7 +1606,6 @@ no{
                         other{"{0} lys'"}
                     }
                 }
-                dnam{"lys"}
                 gender{"neuter"}
                 one{"{0} lys"}
                 other{"{0} lys"}
@@ -1761,6 +1841,11 @@ no{
                 one{"{0} britisk væskeunse"}
                 other{"{0} britiske væskeunser"}
             }
+            fluid-ounce-metric{
+                dnam{"metriske væskeunser"}
+                one{"{0} metrisk væskeunse"}
+                other{"{0} metriske væskeunser"}
+            }
             gallon{
                 dnam{"gallon"}
                 gender{"masculine"}
@@ -1828,7 +1913,7 @@ no{
             }
             pinch{
                 gender{"masculine"}
-                one{"{0} klyper"}
+                one{"{0} klype"}
                 other{"{0} klyper"}
             }
             pint{
@@ -1951,6 +2036,25 @@ no{
                 one{"{0}mol"}
                 other{"{0}mol"}
             }
+            ofglucose{
+                dnam{"Glk"}
+                one{"{0} Glk"}
+                other{"{0} Glk"}
+            }
+            part{
+                dnam{"del"}
+                one{"{0} del"}
+                other{"{0} del"}
+            }
+            part-per-1e6{
+                one{"{0}ppm"}
+                other{"{0}ppm"}
+            }
+            part-per-1e9{
+                dnam{"ppb"}
+                one{"{0}ppb"}
+                other{"{0}ppb"}
+            }
             percent{
                 dnam{"%"}
                 one{"{0}%"}
@@ -1961,18 +2065,10 @@ no{
                 one{"{0}‰"}
                 other{"{0}‰"}
             }
-            permillion{
-                one{"{0}ppm"}
-                other{"{0}ppm"}
-            }
             permyriad{
                 dnam{"‱"}
                 one{"{0}‱"}
                 other{"{0}‱"}
-            }
-            portion-per-1e9{
-                one{"{0}ppb"}
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -2084,12 +2180,6 @@ no{
                 one{"{0}ns"}
                 other{"{0}ns"}
             }
-            night{
-                dnam{"netter"}
-                one{"{0} natt"}
-                other{"{0} netter"}
-                per{"{0}/natt"}
-            }
             quarter{
                 dnam{"kv"}
                 one{"{0} kv"}
@@ -2119,6 +2209,9 @@ no{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -2127,6 +2220,11 @@ no{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kp"}
+                one{"{0} kp"}
+                other{"{0} kp"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0}kWh/100km"}
                 other{"{0}kWh/100km"}
@@ -2346,7 +2444,6 @@ no{
                 other{"{0}kn"}
             }
             light-speed{
-                dnam{"lys"}
                 one{"{0}lys"}
                 other{"{0}lys"}
             }
@@ -2519,6 +2616,16 @@ no{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"Glk"}
+                one{"{0} Glk"}
+                other{"{0} Glk"}
+            }
+            part{
+                dnam{"del"}
+                one{"{0} del"}
+                other{"{0} del"}
+            }
             percent{
                 dnam{"prosent"}
                 one{"{0} %"}
@@ -2533,9 +2640,6 @@ no{
                 dnam{"promyriade"}
                 one{"{0} ‱"}
                 other{"{0} ‱"}
-            }
-            portion-per-1e9{
-                dnam{"deler/milliard"}
             }
         }
         consumption{
@@ -2650,6 +2754,9 @@ no{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"elektronvolt"}
             }
@@ -2663,6 +2770,11 @@ no{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kp"}
+                one{"{0} kp"}
+                other{"{0} kp"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 one{"{0} kWh/100 km"}
@@ -2970,7 +3082,7 @@ no{
             }
             pinch{
                 dnam{"klype"}
-                one{"{0} klyper"}
+                one{"{0} klype"}
                 other{"{0} klyper"}
             }
             pint{

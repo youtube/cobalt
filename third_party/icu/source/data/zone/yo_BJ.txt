@@ -79,9 +79,7 @@ yo_BJ{
             ld{"Àkókò Sɔmà Gɛɛsi"}
         }
         "meta:Africa_Western"{
-            ld{"Àkókò Ìwɔ̀-Oòrùn Ooru Afírikà"}
-            lg{"Àkókò Ìwɔ̀-Oòrùn Afírikà"}
-            ls{"Àkókò Ìwɔ̀-Oòrùn Àfɛnukò Afírikà"}
+            ls{"Àkókò Ìwɔ̀-Oòrùn Afírikà"}
         }
         "meta:Alaska"{
             ld{"Àkókò Ojúmɔ́ Alásíkà"}
@@ -259,6 +257,9 @@ yo_BJ{
         }
         "meta:Gulf"{
             ls{"Àkókò Àfɛnukò Gulf"}
+        }
+        "meta:Hawaii"{
+            ls{"Àkókò Àfɛnukò Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Àkókò Ojúmɔmɔ Hawaii-Aleutian"}

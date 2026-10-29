@@ -3,7 +3,7 @@
 // Generated using tools/cldr/cldr-to-icu/
 ceb{
     Countries{
-        001{"kalibutan"}
+        001{"kalibotan"}
         002{"Africa"}
         003{"North America"}
         005{"South America"}
@@ -85,6 +85,7 @@ ceb{
         CN{"China"}
         CO{"Colombia"}
         CP{"Clipperton Island"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Cuba"}
         CV{"Cape Verde"}
@@ -217,7 +218,7 @@ ceb{
         PE{"Peru"}
         PF{"French Polynesia"}
         PG{"Papua New Guinea"}
-        PH{"Pilipinas"}
+        PH{"Philippines"}
         PK{"Pakistan"}
         PL{"Poland"}
         PM{"St. Pierre & Miquelon"}
@@ -275,8 +276,8 @@ ceb{
         UA{"Ukraine"}
         UG{"Uganda"}
         UM{"U.S. Outlying Islands"}
-        UN{"Hiniusang Kanasoran"}
-        US{"Estados Unidos"}
+        UN{"United Nations"}
+        US{"United States"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
         VA{"Vatican City"}
@@ -313,5 +314,6 @@ ceb{
         NZ{"Aotearoa New Zealand"}
         SZ{"Swaziland"}
         TL{"East Timor"}
+        TR{"Turkey"}
     }
 }

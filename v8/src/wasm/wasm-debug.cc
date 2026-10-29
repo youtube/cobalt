@@ -236,7 +236,7 @@ class DebugInfoImpl {
     CompilationEnv env = CompilationEnv::ForModule(native_module_);
     const WasmFunction* function = &env.module->functions[func_index];
     base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
-    bool is_shared = env.module->type(function->sig_index).is_shared;
+    SharedFlag is_shared = env.module->type(function->sig_index).is_shared;
     FunctionBody body{function->sig, function->code.offset(),
                       wire_bytes.begin() + function->code.offset(),
                       wire_bytes.begin() + function->code.end_offset(),
@@ -933,7 +933,8 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
   i::Tagged<i::WeakArrayList> weak_instance_list =
       script->wasm_weak_instance_list();
   i::Isolate* isolate = Isolate::Current();
-  for (int i = 0; i < weak_instance_list->length(); ++i) {
+  const uint32_t weak_instance_len = weak_instance_list->length().value();
+  for (uint32_t i = 0; i < weak_instance_len; ++i) {
     if (weak_instance_list->Get(i).IsCleared()) continue;
     i::Tagged<i::WasmInstanceObject> instance = i::Cast<i::WasmInstanceObject>(
         weak_instance_list->Get(i).GetHeapObject());

@@ -27,6 +27,11 @@ ka{
                 one{"{0} ბრუნვა"}
                 other{"{0} ბრუნვა"}
             }
+            steradian{
+                dnam{"სტერადიანი"}
+                one{"{0} სტერადიანი"}
+                other{"{0} სტერადიანი"}
+            }
         }
         area{
             hectare{
@@ -137,6 +142,11 @@ ka{
                 one{"{0} კარატი"}
                 other{"{0} კარატი"}
             }
+            katal{
+                dnam{"კატალი"}
+                one{"{0} კატალი"}
+                other{"{0} კატალი"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"მილიგრამი დეცილიტრზე"}
                 one{"{0} მილიგრამი დეცილიტრზე"}
@@ -147,6 +157,31 @@ ka{
                 one{"{0} მილიმოლი ლიტრზე"}
                 other{"{0} მილიმოლი ლიტრზე"}
             }
+            mole{
+                dnam{"მოლი"}
+                one{"{0} მოლი"}
+                other{"{0} მოლი"}
+            }
+            ofglucose{
+                dnam{"გლუკოზის"}
+                one{"გლუკოზის {0}"}
+                other{"გლუკოზის {0}"}
+            }
+            part{
+                dnam{"წილი"}
+                one{"{0} წილი"}
+                other{"{0} წილი"}
+            }
+            part-per-1e6{
+                dnam{"ნაწილი მილიონზე"}
+                one{"{0} ნაწილი მილიონზე"}
+                other{"{0} ნაწილი მილიონზე"}
+            }
+            part-per-1e9{
+                dnam{"ნაწილი მილიარდზე"}
+                one{"{0} ნაწილი მილიარდზე"}
+                other{"{0} ნაწილი მილიარდზე"}
+            }
             percent{
                 dnam{"პროცენტი"}
                 one{"{0} პროცენტი"}
@@ -156,16 +191,6 @@ ka{
                 dnam{"პრომილე"}
                 one{"{0} პრომილე"}
                 other{"{0} პრომილე"}
-            }
-            permillion{
-                dnam{"ნაწილი მილიონზე"}
-                one{"{0} ნაწილი მილიონზე"}
-                other{"{0} ნაწილი მილიონზე"}
-            }
-            portion-per-1e9{
-                dnam{"ნაწილი მილიარდზე"}
-                one{"{0} ნაწილი მილიარდზე"}
-                other{"{0} ნაწილი მილიარდზე"}
             }
         }
         consumption{
@@ -281,12 +306,6 @@ ka{
                 one{"{0} ნანოწამი"}
                 other{"{0} ნანოწამი"}
             }
-            night{
-                dnam{"ღამე"}
-                one{"{0} ღამე"}
-                other{"{0} ღამე"}
-                per{"{0}/ღამე"}
-            }
             quarter{
                 dnam{"კვარტალი"}
                 one{"{0} კვარტალი"}
@@ -316,6 +335,21 @@ ka{
             ampere{
                 dnam{"ამპერი"}
             }
+            coulomb{
+                dnam{"კულონი"}
+                one{"{0} კულონი"}
+                other{"{0} კულონი"}
+            }
+            farad{
+                dnam{"ფარადა"}
+                one{"{0} ფარადა"}
+                other{"{0} ფარადა"}
+            }
+            henry{
+                dnam{"ჰენრი"}
+                one{"{0} ჰენრი"}
+                other{"{0} ჰენრი"}
+            }
             milliampere{
                 dnam{"მილიამპერი"}
                 one{"{0} მილიამპერი"}
@@ -325,12 +359,22 @@ ka{
                 one{"{0} ომი"}
                 other{"{0} ომი"}
             }
+            siemens{
+                dnam{"სიმენსი"}
+                one{"{0} სიმენსი"}
+                other{"{0} სიმენსი"}
+            }
             volt{
                 one{"{0} ვოლტი"}
                 other{"{0} ვოლტი"}
             }
         }
         energy{
+            becquerel{
+                dnam{"ბეკერელი"}
+                one{"{0} ბეკერელი"}
+                other{"{0} ბეკერელი"}
+            }
             british-thermal-unit{
                 dnam{"ბრიტანული სითბური ერთეული"}
                 one{"{0} ბრიტანული სითბური ერთეული"}
@@ -341,6 +385,11 @@ ka{
                 one{"{0} კალორია"}
                 other{"{0} კალორია"}
             }
+            calorie-it{
+                dnam{"კალორია [IT]"}
+                one{"{0} კალორია [IT]"}
+                other{"{0} კალორია [IT]"}
+            }
             electronvolt{
                 dnam{"ელექტრონვოლტი"}
                 one{"{0} ელექტრონვოლტი"}
@@ -350,6 +399,11 @@ ka{
                 dnam{"კალორია"}
                 one{"{0} კალორია"}
                 other{"{0} კალორია"}
+            }
+            gray{
+                dnam{"გრეი"}
+                one{"{0} გრეი"}
+                other{"{0} გრეი"}
             }
             joule{
                 one{"{0} ჯოული"}
@@ -369,6 +423,23 @@ ka{
                 dnam{"კილოვატ-საათი"}
                 one{"{0} კილოვატ-საათი"}
                 other{"{0} კილოვატ-საათი"}
+            }
+            sievert{
+                dnam{"ზივერტი"}
+                one{"{0} ზივერტი"}
+                other{"{0} ზივერტი"}
+            }
+        }
+        force{
+            kilogram-force{
+                dnam{"კილოგრამძალა"}
+                one{"{0} კილოგრამძალა"}
+                other{"{0} კილოგრამძალა"}
+            }
+            newton{
+                dnam{"ნიუტონი"}
+                one{"{0} ნიუტონი"}
+                other{"{0} ნიუტონი"}
             }
         }
         frequency{
@@ -543,6 +614,18 @@ ka{
                 other{"{0} მზის სხივიერობა"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ტესლა"}
+                one{"{0} ტესლა"}
+                other{"{0} ტესლა"}
+            }
+            weber{
+                dnam{"ვებერი"}
+                one{"{0} ვებერი"}
+                other{"{0} ვებერი"}
+            }
+        }
         mass{
             carat{
                 one{"{0} კარატი"}
@@ -597,8 +680,9 @@ ka{
                 other{"{0} მზის მასა"}
             }
             ton{
-                one{"{0} ტონა"}
-                other{"{0} ტ"}
+                dnam{"აშშ მოკლე ტონა"}
+                one{"{0} აშშ მოკლე ტონა"}
+                other{"{0} აშშ მოკლე ტონა"}
             }
             tonne{
                 dnam{"მეტრული ტონა"}
@@ -650,9 +734,9 @@ ka{
                 other{"{0} ჰექტოპასკალი"}
             }
             inch-ofhg{
-                dnam{"ვერცხლისწყლის დუიმი"}
-                one{"{0} ვერცხლისწყლის დუიმი"}
-                other{"{0} ვერცხლისწყლის დუიმი"}
+                dnam{"დუიმი ვერცხლისწყალი"}
+                one{"{0} დუიმი ვერცხლისწყალი"}
+                other{"{0} დუიმი ვერცხლისწყალი"}
             }
             kilopascal{
                 dnam{"კილოპასკალი"}
@@ -670,9 +754,14 @@ ka{
                 other{"{0} მილიბარი"}
             }
             millimeter-ofhg{
-                dnam{"მილიმეტრი ვერცხლისწყლის სვეტისა"}
-                one{"{0} მილიმეტრი ვერცხლისწყლის სვეტისა"}
-                other{"{0} მილიმეტრი ვერცხლისწყლის სვეტისა"}
+                dnam{"მილიმეტრი ვერცხლისწყლის სვეტი"}
+                one{"{0} მილიმეტრი ვერცხლისწყლის სვეტი"}
+                other{"{0} მილიმეტრი ვერცხლისწყლის სვეტი"}
+            }
+            ofhg{
+                dnam{"ვერცხლისწყალი"}
+                one{"{0} ვერცხლისწყალი"}
+                other{"{0} ვერცხლისწყალი"}
             }
             pascal{
                 dnam{"პასკალი"}
@@ -700,6 +789,11 @@ ka{
                 dnam{"კვანძი"}
                 one{"{0} კვანძი"}
                 other{"{0} კვანძი"}
+            }
+            light-speed{
+                dnam{"სინათლის სიჩქარე"}
+                one{"{0} სინათლის სიჩქარე"}
+                other{"{0}-მაგი სინათლის სიჩქარე"}
             }
             meter-per-second{
                 dnam{"მეტრი წამში"}
@@ -815,6 +909,11 @@ ka{
                 one{"{0} ბრიტ. თხევადი უნცია"}
                 other{"{0} ბრიტ. თხევადი უნცია"}
             }
+            fluid-ounce-metric{
+                dnam{"მეტრული თხევადი უნცია"}
+                one{"{0} მეტრული თხევადი უნცია"}
+                other{"{0} მეტრული თხევადი უნცია"}
+            }
             gallon{
                 per{"{0} გალონში"}
             }
@@ -866,6 +965,11 @@ ka{
         }
     }
     unitsNarrow{
+        acceleration{
+            g-force{
+                dnam{"ინერციის ძალა"}
+            }
+        }
         angle{
             arc-minute{
                 one{"{0} წთ"}
@@ -875,9 +979,34 @@ ka{
                 one{"{0} წმ"}
                 other{"{0} წმ"}
             }
+            steradian{
+                dnam{"სრ"}
+                one{"{0} სრ"}
+                other{"{0} სრ"}
+            }
         }
         concentr{
-            portion-per-1e9{
+            katal{
+                dnam{"კატ"}
+                one{"{0} კატ"}
+                other{"{0} კატ"}
+            }
+            mole{
+                dnam{"მოლ"}
+                one{"{0} მოლ"}
+                other{"{0} მოლ"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"წ."}
+                one{"{0} წ."}
+                other{"{0} წ."}
+            }
+            part-per-1e9{
                 dnam{"ნ/მ"}
             }
         }
@@ -885,6 +1014,18 @@ ka{
             liter-per-100-kilometer{
                 one{"{0}ლ/100კმ"}
                 other{"{0}ლ/100კმ"}
+            }
+        }
+        digital{
+            gigabyte{
+                dnam{"გბაიტი"}
+                one{"{0} გბაიტი"}
+                other{"{0} გბაიტი"}
+            }
+            megabyte{
+                dnam{"მეგაბაიტი"}
+                one{"{0} მეგაბაიტი"}
+                other{"{0} მეგაბაიტი"}
             }
         }
         duration{
@@ -900,15 +1041,85 @@ ka{
             month{
                 per{"{0}/თ."}
             }
-            night{
-                dnam{"ღამე"}
-                one{"{0} ღამე"}
-                other{"{0} ღამე"}
-                per{"{0}/ღამე"}
-            }
             second{
                 one{"{0}წმ"}
                 other{"{0}წმ"}
+            }
+        }
+        electric{
+            coulomb{
+                dnam{"კულ"}
+                one{"{0} კულ"}
+                other{"{0} კულ"}
+            }
+            farad{
+                dnam{"ფ"}
+                one{"{0} ფ"}
+                other{"{0} ფ"}
+            }
+            henry{
+                dnam{"ჰ"}
+                one{"{0} ჰ"}
+                other{"{0} ჰ"}
+            }
+            milliampere{
+                dnam{"მილიამპერი"}
+                one{"{0} მილიამპერი"}
+                other{"{0} მილიამპერი"}
+            }
+            ohm{
+                one{"{0} ომი"}
+                other{"{0} ომი"}
+            }
+            siemens{
+                dnam{"სიმ"}
+                one{"{0} სიმ"}
+                other{"{0} სიმ"}
+            }
+        }
+        energy{
+            becquerel{
+                dnam{"ბკ"}
+                one{"{0} ბკ"}
+                other{"{0} ბკ"}
+            }
+            calorie-it{
+                dnam{"კალ-IT"}
+                one{"{0} კალ-IT"}
+                other{"{0} კალ-IT"}
+            }
+            gray{
+                dnam{"გრ"}
+                one{"{0} გრ"}
+                other{"{0} გრ"}
+            }
+            kilowatt-hour{
+                dnam{"კვტ.სთ"}
+                one{"{0} კვტ.სთ"}
+                other{"{0} კვტ.სთ"}
+            }
+            sievert{
+                dnam{"ზვ"}
+                one{"{0} ზვ"}
+                other{"{0} ზვ"}
+            }
+        }
+        force{
+            kilogram-force{
+                dnam{"კგძ"}
+                one{"{0} კგძ"}
+                other{"{0} კგძ"}
+            }
+            newton{
+                dnam{"ნ"}
+                one{"{0} ნ"}
+                other{"{0} ნ"}
+            }
+        }
+        graphics{
+            pixel-per-inch{
+                one{"{0} პიქს/დუიმი"}
+                other{"{0} პიქს/დუიმი"}
             }
         }
         length{
@@ -921,7 +1132,22 @@ ka{
                 other{"{0}მ"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ტლ"}
+                one{"{0} ტლ"}
+                other{"{0} ტლ"}
+            }
+            weber{
+                dnam{"ვბ"}
+                one{"{0} ვბ"}
+                other{"{0} ვბ"}
+            }
+        }
         mass{
+            carat{
+                dnam{"კარ"}
+            }
             gram{
                 one{"{0}გ"}
                 other{"{0}გ"}
@@ -939,9 +1165,18 @@ ka{
                 one{"{0}მგ"}
                 other{"{0}მგ"}
             }
+            pound{
+                dnam{"ფნტ"}
+            }
             ton{
-                one{"{0}ტ"}
-                other{"{0}ტ"}
+                dnam{"მ.ტონა"}
+                one{"{0}მ.ტონა"}
+                other{"{0}მ.ტონა"}
+            }
+            tonne{
+                dnam{"ტ"}
+                one{"{0} ტ"}
+                other{"{0} ტ"}
             }
         }
         power{
@@ -951,15 +1186,72 @@ ka{
             }
         }
         pressure{
+            inch-ofhg{
+                dnam{"დუიმი ვერცხლისწყალი"}
+                one{"{0} დუიმი ვერცხლისწყალი"}
+                other{"{0} დუიმი ვერცხლისწყალი"}
+            }
             millibar{
                 one{"{0} მბრ"}
                 other{"{0} მბრ"}
             }
+            millimeter-ofhg{
+                dnam{"მმ.ვწყ. სვ."}
+                one{"{0} მმ.ვწყ. სვ."}
+                other{"{0} მმ.ვწყ. სვ."}
+            }
+            pound-force-per-square-inch{
+                dnam{"ფუნტი კვადრატულ დუიმზე"}
+                one{"{0} ფუნტი კვადრატულ დუიმზე"}
+                other{"{0} ფუნტი კვადრატულ დუიმზე"}
+            }
+        }
+        speed{
+            beaufort{
+                dnam{"ბოფორტი"}
+            }
+            light-speed{
+                dnam{"c"}
+                one{"{0} სინათლის სიჩქ."}
+                other{"{0}-მაგი სინათლის სიჩქ."}
+            }
         }
         volume{
+            barrel{
+                one{"{0} ბარელი"}
+                other{"{0} ბარელი"}
+            }
+            cubic-mile{
+                dnam{"მილი³"}
+            }
+            dram{
+                dnam{"ბრიტანული თხევადი დრაქმა"}
+                one{"{0} ბრიტანული თხევადი დრაქმა"}
+                other{"{0} ბრიტანული თხევადი დრაქმა"}
+            }
+            fluid-ounce-imperial{
+                dnam{"ბრიტანული თხევადი უნცია"}
+                one{"{0} ბრიტანული თხევადი უნცია"}
+                other{"{0} ბრიტანული თხევადი უნცია"}
+            }
+            fluid-ounce-metric{
+                dnam{"მეტრული თხევადი უნცია"}
+                one{"{0} მეტრული თხევადი უნცია"}
+                other{"{0} მეტრული თხევადი უნცია"}
+            }
             liter{
                 one{"{0}ლ"}
                 other{"{0}ლ"}
+            }
+            tablespoon{
+                dnam{"ს.კ."}
+                one{"{0} ს.კ."}
+                other{"{0} ს.კ."}
+            }
+            teaspoon{
+                dnam{"ჩ.კ."}
+                one{"{0} ჩ.კ."}
+                other{"{0} ჩ.კ."}
             }
         }
     }
@@ -999,6 +1291,11 @@ ka{
                 dnam{"ბრნ."}
                 one{"{0} ბრნ."}
                 other{"{0} ბრნ."}
+            }
+            steradian{
+                dnam{"სრ"}
+                one{"{0} სრ"}
+                other{"{0} სრ"}
             }
         }
         area{
@@ -1102,6 +1399,11 @@ ka{
                 one{"{0} კარ."}
                 other{"{0} კარ."}
             }
+            katal{
+                dnam{"კატ"}
+                one{"{0} კატ"}
+                other{"{0} კატ"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"მგ/დლ"}
                 one{"{0} მგ/დლ"}
@@ -1112,10 +1414,25 @@ ka{
                 one{"{0} მმოლ/ლ"}
                 other{"{0} მმოლ/ლ"}
             }
-            permillion{
+            mole{
+                dnam{"მოლ"}
+                one{"{0} მოლ"}
+                other{"{0} მოლ"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"წ."}
+                one{"{0} წ."}
+                other{"{0} წ."}
+            }
+            part-per-1e6{
                 dnam{"ნაწილი/მილიონზე"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"ნაწილი/მილიარდზე"}
                 one{"{0} ნ/მ"}
                 other{"{0} ნ/მ"}
@@ -1166,6 +1483,11 @@ ka{
                 one{"{0} გბიტი"}
                 other{"{0} გბიტი"}
             }
+            gigabyte{
+                dnam{"გიგაბაიტი"}
+                one{"{0} გიგაბაიტი"}
+                other{"{0} გიგაბაიტი"}
+            }
             kilobit{
                 dnam{"კბიტი"}
                 one{"{0} კბიტი"}
@@ -1180,6 +1502,11 @@ ka{
                 dnam{"მბიტი"}
                 one{"{0} მბიტი"}
                 other{"{0} მბიტი"}
+            }
+            megabyte{
+                dnam{"მეგაბაიტი"}
+                one{"{0} მეგაბაიტი"}
+                other{"{0} მეგაბაიტი"}
             }
             petabyte{
                 dnam{"პბაიტი"}
@@ -1284,6 +1611,21 @@ ka{
                 one{"{0} ა"}
                 other{"{0} ა"}
             }
+            coulomb{
+                dnam{"კულ"}
+                one{"{0} კულ"}
+                other{"{0} კულ"}
+            }
+            farad{
+                dnam{"ფ"}
+                one{"{0} ფ"}
+                other{"{0} ფ"}
+            }
+            henry{
+                dnam{"ჰ"}
+                one{"{0} ჰ"}
+                other{"{0} ჰ"}
+            }
             milliampere{
                 dnam{"მილიამპ."}
                 one{"{0} მამპ."}
@@ -1294,6 +1636,11 @@ ka{
                 one{"{0} ომ"}
                 other{"{0} ომ"}
             }
+            siemens{
+                dnam{"სიმ"}
+                one{"{0} სიმ"}
+                other{"{0} სიმ"}
+            }
             volt{
                 dnam{"ვოლტი"}
                 one{"{0} ვ"}
@@ -1301,6 +1648,11 @@ ka{
             }
         }
         energy{
+            becquerel{
+                dnam{"ბკ"}
+                one{"{0} ბკ"}
+                other{"{0} ბკ"}
+            }
             british-thermal-unit{
                 dnam{"ბსე"}
                 one{"{0} ბსე"}
@@ -1311,6 +1663,11 @@ ka{
                 one{"{0} კალ"}
                 other{"{0} კალ"}
             }
+            calorie-it{
+                dnam{"კალ-IT"}
+                one{"{0} კალ-IT"}
+                other{"{0} კალ-IT"}
+            }
             electronvolt{
                 dnam{"ევ"}
                 one{"{0} ევ"}
@@ -1320,6 +1677,11 @@ ka{
                 dnam{"კალ"}
                 one{"{0} კალ"}
                 other{"{0} კალ"}
+            }
+            gray{
+                dnam{"გრ"}
+                one{"{0} გრ"}
+                other{"{0} გრ"}
             }
             joule{
                 dnam{"ჯოული"}
@@ -1341,6 +1703,11 @@ ka{
                 one{"{0} კვტსთ"}
                 other{"{0} კვტსთ"}
             }
+            sievert{
+                dnam{"ზვ"}
+                one{"{0} ზვ"}
+                other{"{0} ზვ"}
+            }
             therm-us{
                 dnam{"აშშ თერმი"}
                 one{"{0} აშშ თერმი"}
@@ -1348,10 +1715,20 @@ ka{
             }
         }
         force{
+            kilogram-force{
+                dnam{"კგძ"}
+                one{"{0} კგძ"}
+                other{"{0} კგძ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"კვტსთ/100კმ"}
                 one{"{0} კვტსთ/100კმ"}
                 other{"{0} კვტსთ/100კმ"}
+            }
+            newton{
+                dnam{"ნ"}
+                one{"{0} ნ"}
+                other{"{0} ნ"}
             }
         }
         frequency{
@@ -1557,6 +1934,18 @@ ka{
                 other{"{0} ☉ სხივიერობა"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ტლ"}
+                one{"{0} ტლ"}
+                other{"{0} ტლ"}
+            }
+            weber{
+                dnam{"ვბ"}
+                one{"{0} ვბ"}
+                other{"{0} ვბ"}
+            }
+        }
         mass{
             carat{
                 dnam{"კარატი"}
@@ -1618,14 +2007,14 @@ ka{
                 other{"{0} სტოუნი"}
             }
             ton{
-                dnam{"ტონა"}
-                one{"{0} ტ"}
-                other{"{0} ტ"}
+                dnam{"მოკ. ტონა"}
+                one{"{0} მოკ. ტონა"}
+                other{"{0} მოკ. ტონა"}
             }
             tonne{
-                dnam{"მტ"}
-                one{"{0} მტ"}
-                other{"{0} მტ"}
+                dnam{"ტ"}
+                one{"{0} ტონა"}
+                other{"{0} ტონა"}
             }
         }
         power{
@@ -1677,9 +2066,9 @@ ka{
                 other{"{0} ჰპა"}
             }
             inch-ofhg{
-                dnam{"ვრც. დმ."}
-                one{"{0} ვრც. დმ."}
-                other{"{0} ვრც. დმ."}
+                dnam{"დუიმი ვერცხლისწყალი"}
+                one{"{0} დუიმი ვერცხლისწყალი"}
+                other{"{0} დუიმი ვერცხლისწყალი"}
             }
             kilopascal{
                 dnam{"კპა"}
@@ -1697,9 +2086,9 @@ ka{
                 other{"{0} მბარი"}
             }
             millimeter-ofhg{
-                dnam{"მმ ვწყ. სვ."}
-                one{"{0} მმ ვწყ. სვ."}
-                other{"{0} მმ ვწყ. სვ."}
+                dnam{"მმ.ვწყ. სვ."}
+                one{"{0} მმ.ვწყ. სვ."}
+                other{"{0} მმ.ვწყ. სვ."}
             }
             pascal{
                 dnam{"პა"}
@@ -1713,6 +2102,9 @@ ka{
             }
         }
         speed{
+            beaufort{
+                dnam{"ბოფორტი"}
+            }
             kilometer-per-hour{
                 dnam{"კმ/სთ"}
                 one{"{0} კმ/სთ"}
@@ -1722,6 +2114,11 @@ ka{
                 dnam{"კვძ."}
                 one{"{0} კვძ."}
                 other{"{0} კვძ."}
+            }
+            light-speed{
+                dnam{"სინათლის სიჩქ."}
+                one{"{0} სინათლის სიჩქ."}
+                other{"{0}-მაგი სინათლის სიჩქ."}
             }
             meter-per-second{
                 dnam{"მ/წმ"}
@@ -1848,6 +2245,11 @@ ka{
                 dnam{"ბრიტ. თხევ. უნც."}
                 one{"{0} ბრიტ. თხევ. უნც."}
                 other{"{0} ბრიტ. თხევ. უნც."}
+            }
+            fluid-ounce-metric{
+                dnam{"მეტრული თხევადი უნცია"}
+                one{"{0} მეტრული თხევადი უნცია"}
+                other{"{0} მეტრული თხევადი უნცია"}
             }
             gallon{
                 dnam{"გალონი"}

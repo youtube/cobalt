@@ -26,7 +26,7 @@
 
 // Version number for shader translation API.
 // It is incremented every time the API changes.
-#define ANGLE_SH_VERSION 404
+#define ANGLE_SH_VERSION 406
 
 enum ShShaderSpec
 {
@@ -50,10 +50,6 @@ enum ShShaderOutput
     SH_ESSL_OUTPUT,
 
     // GLSL output only supported in some configurations.
-    SH_GLSL_COMPATIBILITY_OUTPUT,
-    // Note: GL introduced core profiles in 1.5.
-    SH_GLSL_130_OUTPUT,
-    SH_GLSL_140_OUTPUT,
     SH_GLSL_150_CORE_OUTPUT,
     SH_GLSL_330_CORE_OUTPUT,
     SH_GLSL_400_CORE_OUTPUT,
@@ -470,8 +466,10 @@ struct ShCompileOptions
     // Whether to preserve denorm floats in the lexer or convert to zero
     uint64_t preserveDenorms : 1;
 
-    // Whether inactive shader variables from the output.
+    // Whether inactive shader variables should be removed from the output.  For some backends,
+    // inactive fragment outputs should still be retained.
     uint64_t removeInactiveVariables : 1;
+    uint64_t retainInactiveFragmentOutputs : 1;
 
     // Ensure all loops execute side-effects or terminate.
     uint64_t ensureLoopForwardProgress : 1;

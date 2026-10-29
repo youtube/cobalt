@@ -348,6 +348,7 @@
 <translation id="2496180316473517155">ବ୍ରାଉଜିଂ ଇତିବୃତ୍ତି</translation>
 <translation id="2497852260688568942">ଆପଣଙ୍କର ବ୍ୟବସ୍ଥାପକଙ୍କ ଦ୍ୱାରା ସିଙ୍କ ଅକ୍ଷମ କରାଯାଇଛି</translation>
 <translation id="250020030759455918">ଆପଣ <ph name="SITE_NAME" />ରେ ଆପଣଙ୍କ ସାଇନ୍-ଇନ୍ ସ୍ଥିତି, ବ୍ରାଉଜିଂ ଡାଟା ଏବଂ ସାଇଟ୍ ଡାଟା, Chromeରେ ଦେଖିବେ</translation>
+<translation id="2501278716633472235">ଫେରନ୍ତୁ</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" />କୁ ଇନଷ୍ଟଲ କରାଯାଉଛି...</translation>
 <translation id="2512234228327349533">କ୍ରୟ ବିକଳ୍ପ ସର୍ଚ୍ଚ କରନ୍ତୁ</translation>
 <translation id="2513403576141822879">ଗୋପନୀୟତା, ସୁରକ୍ଷା ଏବଂ ଡାଟା ସଂଗ୍ରହ ସହ ସମ୍ବନ୍ଧିତ ଅଧିକ ସେଟିଂସ ପାଇଁ <ph name="BEGIN_LINK" />ସିଙ୍କ ଓ Google ସେବା<ph name="END_LINK" /> ଦେଖନ୍ତୁ</translation>
@@ -797,6 +798,7 @@
 <translation id="4384468725000734951">ସର୍ଚ୍ଚ ପାଇଁ Sogou ବ୍ୟବହାର କରାଯାଉଛି</translation>
 <translation id="4387647248986092471">ଏକ କାର ପ୍ରୋଫାଇଲ ଲକ ତିଆରି କରନ୍ତୁ</translation>
 <translation id="4387817230000841154">ଡାଉନଲୋଡ ଖୋଲନ୍ତୁ</translation>
+<translation id="4394049700291259645">ଅକ୍ଷମ କରନ୍ତୁ</translation>
 <translation id="4395046795145457714">Chrome Finds ଅପ୍ଟ-ଇନ ସମ୍ପୂର୍ଣ୍ଣ ଭାବେ ଖୋଲାଯାଇଛି</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, ରେକର୍ଡ କରାଯାଉଥିବା ଚୟନିତ ପିନ କରାଯାଇଥିବା ଇନକଗ୍ନିଟୋ ଟାବ</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - ଡାଉନଲୋଡ୍ ହେଉଛି…</translation>
@@ -821,7 +823,6 @@
 <translation id="4478161224666880173">ଏହି ସାଇଟରେ ଆପଣ ଆପଣଙ୍କ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ଆକାଉଣ୍ଟ ବ୍ୟବହାର କରିପାରିବେ। ଜାରି ରଖିବାକୁ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />ରେ ସାଇନ ଇନ କରନ୍ତୁ।</translation>
 <translation id="4479972344484327217">Chrome ପାଇଁ <ph name="MODULE" /> ଇନ୍‍ଷ୍ଟଲ୍‍ କରାଯାଉଛି …</translation>
 <translation id="4487967297491345095">Chromeର ସମସ୍ତ ଆପ୍ ଡାଟା ସ୍ଥାୟୀ ଭାବରେ ଡିଲିଟ୍ ହୋଇଯିବ। ଏଥିରେ ସମସ୍ତ ଫାଇଲ୍, ସେଟିଂସ୍, ଡାଟାବେସ୍, ଇତ୍ୟାଦି ଅନ୍ତର୍ଭୁକ୍ତ ଅଛି।</translation>
-<translation id="4494315997125191493">ସମସ୍ତ ୱିଣ୍ଡୋକୁ ଦେଖିବା ପାଇଁ ପରିଚାଳନା କରନ୍ତୁକୁ ଚୟନ କରନ୍ତୁ</translation>
 <translation id="4494806687727322324">ଆପଣଙ୍କ ଆଡମିନିଷ୍ଟ୍ରେଟରଙ୍କ ଦ୍ୱାରା ପାସୱାର୍ଡ ସେଭ କରିବା ଚାଲୁ କରାଯାଇଛି</translation>
 <translation id="4508528996305412043">ଫିଡ୍ କାର୍ଡ ମେନୁ ଖୋଲା ଅଛି</translation>
 <translation id="4509741852167209430">ସାଇଟଗୁଡ଼ିକର ବିଜ୍ଞାପନର ପରଫରମାନ୍ସ ମାପିବା ପାଇଁ ସେଗୁଡ଼ିକ ମଧ୍ୟରେ ସୀମିତ ପ୍ରକାରର ଡାଟା ସେୟାର କରାଯାଏ, ଯେପରି ଆପଣ ଏକ ସାଇଟକୁ ଭିଜିଟ କରିବା ପରେ କୌଣସି କ୍ରୟ କରିଛନ୍ତି ନା ନାହିଁ</translation>
@@ -869,7 +870,6 @@
 <translation id="4673702426794876519">ଇନକଗ୍ନିଟୋ ୱିଣ୍ଡୋ</translation>
 <translation id="4675298276894277358">ଏହି ସାଇଟ ପୁଣି ଦେଖାଯିବ ନାହିଁ</translation>
 <translation id="4678082183394354975">Chromeରେ ସାଇଟଗୁଡ଼ିକ ପାଇଁ ଗାଢ଼ା ଥିମ ଚାଲୁ ଅଛି</translation>
-<translation id="4682306524980568490">କେବଳ <ph name="MAX_INSTANCE_COUNT" /> ୱିଣ୍ଡୋକୁ ଦେଖାଯାଇପାରିବ</translation>
 <translation id="4684427112815847243">ସବୁକିଛି ସିଙ୍କ୍‌ କରନ୍ତୁ</translation>
 <translation id="4685741273709472646">ଡ୍ରପଡାଉନ ତାଲିକାରୁ ଚୟନ କରନ୍ତୁ</translation>
 <translation id="4687718960473379118">ସାଇଟ ଦ୍ୱାରା-ପରାମର୍ଶ ଦିଆଯାଇଥିବା ବିଜ୍ଞାପନଗୁଡ଼ିକ</translation>
@@ -1492,7 +1492,6 @@
 <translation id="7057969023583258980">ସମ୍ପୂର୍ଣ୍ଣ Chrome ଇତିହାସ ଖୋଲନ୍ତୁ</translation>
 <translation id="7063006564040364415">ସିଙ୍କ ସର୍ଭର ସହ ସଂଯୋଗ କରାଯାଇପାରିଲା ନାହିଁ।</translation>
 <translation id="7063106218165698546">ଟାବ ଗ୍ରୁପକୁ କଷ୍ଟମାଇଜ କରି ହୋଇଗଲାରେ ହିଟ କରନ୍ତୁ</translation>
-<translation id="7071521146534760487">ଆକାଉଣ୍ଟ ପରିଚାଳନା କରନ୍ତୁ</translation>
 <translation id="707155805709242880">କଣ ସିଙ୍କ୍ କରିବେ ତାହା ତଳେ ବାଛନ୍ତୁ</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, ମଲ୍ଟିସିଲେକ୍ଟେଡ ପିନ ହୋଇଥିବା ପିକଚର-ଇନ-ପିକଚର ଇନକଗ୍ନିଟୋ ଟାବ</translation>
 <translation id="7077143737582773186">SD କାର୍ଡ</translation>
@@ -1821,6 +1820,7 @@
 <translation id="8282950411412455249">ସୁରକ୍ଷା ସେଟିଂସକୁ ଯାଆନ୍ତୁ</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 ଇନକଗ୍ନିଟୋ ୱିଣ୍ଡୋ ବନ୍ଦ କରନ୍ତୁ}other{# ଇନକଗ୍ନିଟୋ ୱିଣ୍ଡୋ ବନ୍ଦ କରନ୍ତୁ}}</translation>
 <translation id="831192587911042850">ଆପଣ ଅନୁସରଣ କରୁଥିବା ୱେବସାଇଟଗୁଡ଼ିକର ତାଲିକାରେ ବର୍ତ୍ତମାନର ୱେବସାଇଟକୁ ଯୋଗ କରେ।</translation>
+<translation id="8313599942510782709">ଆପଣଙ୍କ ଟାସ୍କ ଏବେ ବି ଚାଲିଛି</translation>
 <translation id="8317318757008452355">ପ୍ରିଣ୍ଟ କରିବାର ବିକଳ୍ପଗୁଡ଼ିକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="8320212361750431956">ବର୍ତ୍ତମାନର କାର୍ଯ୍ୟକଳାପ</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />ନୂଆ<ph name="END_NEW" /></translation>

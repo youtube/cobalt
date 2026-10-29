@@ -14,10 +14,13 @@ id{
         colStrength{"Kekuatan Pengurutan"}
         collation{"Aturan Pengurutan"}
         currency{"Mata Uang"}
+        em{"Tampilan Emoji"}
         hc{"Siklus Jam (12 vs 24)"}
         lb{"Gaya Pemisah Baris"}
+        lw{"Pemisah Baris di antara Kata"}
         ms{"Sistem Pengukuran"}
         numbers{"Angka"}
+        ss{"Pemisah Kalimat Setelah Singkatan"}
         timezone{"Zona Waktu"}
         va{"Varian Lokal"}
         x{"Penggunaan Pribadi"}
@@ -608,6 +611,12 @@ id{
         zxx{"Tidak ada konten linguistik"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Kurdi"}
+    }
+    Languages%extension{
+        ku{"Kurmanji"}
+    }
     Languages%long{
         zh_Hans{"Tionghoa Mandarin (Sederhana)"}
         zh_Hant{"Tionghoa Mandarin (Tradisional)"}
@@ -848,9 +857,30 @@ id{
             persian{"Kalender Persia"}
             roc{"Kalender Min-guo"}
         }
+        calendar%core{
+            buddhist{"Buddha"}
+            chinese{"Tiongkok"}
+            coptic{"Koptik"}
+            dangi{"Dangi"}
+            ethiopic{"Etiopia"}
+            ethiopic-amete-alem{"Amete Alem Etiopia"}
+            gregorian{"Gregorian"}
+            hebrew{"Ibrani"}
+            islamic{"Hijriah"}
+            islamic-civil{"Hijri (tabular, epoch sipil)"}
+            islamic-tbla{"Hijriah (tabular, epoch astronomi)"}
+            islamic-umalqura{"Hijriah (tabular, Umm al-Qura)"}
+            japanese{"Jepang"}
+            persian{"Persia"}
+            roc{"Min-guo"}
+        }
         cf{
             account{"Format Mata Uang Akuntansi"}
             standard{"Format Mata Uang Standar"}
+        }
+        cf%core{
+            account{"Akuntansi"}
+            standard{"Standar"}
         }
         colAlternate{
             non-ignorable{"Sortir Simbol"}
@@ -885,13 +915,11 @@ id{
             tertiary{"Sortir Aksen/Ukuran Huruf/Lebar"}
         }
         collation{
-            big5han{"Aturan Pengurutan Tionghoa Tradisional - Big5"}
             compat{"Aturan Pengurutan Sebelumnya, untuk kompatibilitas"}
             dictionary{"Aturan Pengurutan Kamus"}
             ducet{"Aturan Pengurutan Unicode Default"}
             emoji{"Urutan Sortir Emoji"}
             eor{"Aturan Pengurutan Eropa"}
-            gb2312han{"Aturan Pengurutan Tionghoa (Sederhana) - GB2312"}
             phonebook{"Aturan Pengurutan Buku Telepon"}
             phonetic{"Aturan Pengurutan Fonetik"}
             pinyin{"Aturan Pengurutan Pinyin"}
@@ -903,10 +931,29 @@ id{
             unihan{"Aturan Pengurutan Guratan Radikal"}
             zhuyin{"Aturan Pengurutan Zhuyin"}
         }
+        collation%core{
+            compat{"Kompatibilitas"}
+            dictionary{"Kamus"}
+            ducet{"Unicode Default"}
+            phonebook{"Buku Telepon"}
+            phonetic{"Fonetik"}
+            pinyin{"Pinyin"}
+            search{"Pencarian"}
+            standard{"Standar"}
+            stroke{"Guratan"}
+            traditional{"Tradisional"}
+            unihan{"Guratan Tradisional"}
+            zhuyin{"Zhuyin"}
+        }
         d0{
             fwidth{"Lebar penuh"}
             hwidth{"Lebar separuh"}
             npinyin{"Angka"}
+        }
+        em%core{
+            default{"Bawaan"}
+            emoji{"Emoji"}
+            text{"Teks"}
         }
         hc{
             h11{"Sistem 12 Jam (0–11)"}
@@ -914,10 +961,27 @@ id{
             h23{"Sistem 24 Jam (0–23)"}
             h24{"Sistem 24 Jam (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Gaya Pemisah Baris Renggang"}
             normal{"Gaya Pemisah Baris Normal"}
             strict{"Gaya Pemisah Baris Rapat"}
+        }
+        lb%core{
+            loose{"Renggang"}
+            normal{"Normal"}
+            strict{"Rapat"}
+        }
+        lw%core{
+            breakall{"Pisah semua"}
+            keepall{"Pertahankan semua"}
+            normal{"Normal"}
+            phrase{"Pertahankan frasa"}
         }
         m0{
             bgn{"Transliterasi BGN AS"}
@@ -927,6 +991,11 @@ id{
             metric{"Sistem Metrik"}
             uksystem{"Sistem Pengukuran Imperial"}
             ussystem{"Sistem Pengukuran AS"}
+        }
+        ms%core{
+            metric{"Metrik"}
+            uksystem{"UK"}
+            ussystem{"AS"}
         }
         numbers{
             ahom{"Angka Ahom"}
@@ -1011,6 +1080,10 @@ id{
             vaii{"Angka Vai"}
             wara{"Angka Warang Citi"}
             wcho{"Angka Wancho"}
+        }
+        ss%core{
+            none{"Nonaktif"}
+            standard{"Aktif"}
         }
     }
     Variants{

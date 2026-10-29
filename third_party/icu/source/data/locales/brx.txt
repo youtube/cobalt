@@ -13,14 +13,22 @@ brx{
     }
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+            }
+        }
         latn{
             miscPatterns{
                 atLeast{"{0}+"}
             }
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"¤ #,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
@@ -79,45 +87,53 @@ brx{
             }
             patternsShort{
                 currencyFormat{
+                    1000{
+                        one{"¤ 0के"}
+                        other{"¤ 0के"}
+                    }
+                    10000{
+                        one{"¤ 00के"}
+                        other{"¤ 00के"}
+                    }
                     100000{
-                        one{"¤000K"}
-                        other{"¤000K"}
+                        one{"¤ 000के"}
+                        other{"¤ 000के"}
                     }
                     1000000{
-                        one{"¤0M"}
-                        other{"¤0M"}
+                        one{"¤ 0एम"}
+                        other{"¤ 0एम"}
                     }
                     10000000{
-                        one{"¤00M"}
-                        other{"¤00M"}
+                        one{"¤ 00एम"}
+                        other{"¤ 00एम"}
                     }
                     100000000{
-                        one{"¤000M"}
-                        other{"¤000M"}
+                        one{"¤ 000एम"}
+                        other{"¤ 000एम"}
                     }
                     1000000000{
-                        one{"¤0B"}
-                        other{"¤0B"}
+                        one{"¤ 0बि"}
+                        other{"¤ 0बि"}
                     }
                     10000000000{
-                        one{"¤00B"}
-                        other{"¤00B"}
+                        one{"¤ 00बि"}
+                        other{"¤ 00बि"}
                     }
                     100000000000{
-                        one{"¤000B"}
-                        other{"¤000B"}
+                        one{"¤ 000बि"}
+                        other{"¤ 000बि"}
                     }
                     1000000000000{
-                        one{"¤0T"}
-                        other{"¤0T"}
+                        one{"¤ 0ति"}
+                        other{"¤ 0ति"}
                     }
                     10000000000000{
-                        one{"¤00T"}
-                        other{"¤00T"}
+                        one{"¤ 00ति"}
+                        other{"¤ 00ति"}
                     }
                     100000000000000{
-                        one{"¤000T"}
-                        other{"¤000T"}
+                        one{"¤ 000ति"}
+                        other{"¤ 000ति"}
                     }
                 }
                 decimalFormat{
@@ -404,11 +420,9 @@ brx{
                 MEd{"E, M/d"}
                 MMMEd{"E, MMM d"}
                 MMMMEd{"E, MMMM d"}
-                MMMMd{"MMMM d"}
                 MMMd{"d-MMM"}
                 Md{"M/d"}
                 h{"a नि h"}
-                hmsv{"a नि h:mm:ss v"}
                 hmv{"a h:mm v"}
                 yM{"M/y"}
                 yMEd{"E, M/d/y"}
@@ -464,20 +478,20 @@ brx{
             }
             eras{
                 abbreviated{
-                    "बि.सि.",
-                    "ए.दि",
+                    0{"बि.सि."}
+                    1{"ए.दि"}
                 }
                 abbreviated%variant{
-                    "बि.सि.इ",
-                    "सि.इ.",
+                    0{"बि.सि.इ"}
+                    1{"सि.इ."}
                 }
                 wide{
-                    "ख्राइष्तनि सिगां",
-                    "आन्न’ दामिनि",
+                    0{"ख्राइष्तनि सिगां"}
+                    1{"आन्न’ दामिनि"}
                 }
                 wide%variant{
-                    "सादारन मुगानि सिगां",
-                    "सादारन मुगा",
+                    0{"सादारन मुगानि सिगां"}
+                    1{"सादारन मुगा"}
                 }
             }
             intervalFormats{
@@ -555,7 +569,7 @@ brx{
                     d{"d–d MMM"}
                 }
                 Md{
-                    M{"d/M –/dM"}
+                    M{"d/M – d/M"}
                     d{"d/M – d/M"}
                 }
                 h{
@@ -669,7 +683,7 @@ brx{
         indian{
             eras{
                 abbreviated{
-                    "साका",
+                    0{"साका"}
                 }
             }
             monthNames{

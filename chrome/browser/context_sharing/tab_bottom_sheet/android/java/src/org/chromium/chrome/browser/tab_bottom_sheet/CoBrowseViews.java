@@ -18,7 +18,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.content_public.browser.WebContents;
 
-/** Class responsible for holding the co-browse view and its respective components. */
+/**
+ * Class responsible for holding the co-browse view and its respective components. NOTE: Owner is
+ * responsible for destroying this object.
+ */
 @NullMarked
 public class CoBrowseViews {
     private final @Nullable TabBottomSheetToolbar mToolbar;
@@ -63,7 +66,9 @@ public class CoBrowseViews {
         return mView;
     }
 
-    public void destroy() {
+    /** Destroys the co-browse view and its components. */
+    @CalledByNative
+    private void destroy() {
         ViewGroup toolbarContainer = mView.findViewById(R.id.toolbar_container);
         ViewGroup webUiContainer = mView.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = mView.findViewById(R.id.fusebox_container);
@@ -102,6 +107,17 @@ public class CoBrowseViews {
 
     @Nullable WebContents getWebContents() {
         return mWebUi != null ? mWebUi.getWebContents() : null;
+    }
+
+    /** Sets the sheet's height. */
+    public void setSheetHeight(int height) {
+        ViewGroup sheetContent = mView.findViewById(R.id.expanded_content_group);
+        ViewGroup.LayoutParams sheetContentParams = sheetContent.getLayoutParams();
+
+        if (sheetContentParams.height != height) {
+            sheetContentParams.height = height;
+            sheetContent.setLayoutParams(sheetContentParams);
+        }
     }
 
     int getToolbarHeight() {

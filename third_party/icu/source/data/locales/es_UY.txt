@@ -7,6 +7,7 @@ es_UY{
         latn{
             patterns{
                 accountingFormat{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 currencyFormat{"¤ #,##0.00"}
             }
             symbols{

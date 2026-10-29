@@ -25,9 +25,7 @@ om{
             ls{"Sa’aatii Istaandaardii Afrikaa Kibbaa"}
         }
         "meta:Africa_Western"{
-            ld{"Sa’aatii Bonaa Afrikaa Dhihaa"}
-            lg{"Sa’aatii Afrikaa Dhihaa"}
-            ls{"Sa’aatii Istaandaardii Afrikaa Dhihaa"}
+            ls{"Sa’aatii Afrikaa Dhihaa"}
         }
         "meta:Alaska"{
             ld{"Sa’aatii Guyyaa Alaaskaa"}
@@ -289,6 +287,10 @@ om{
         }
         "meta:Guyana"{
             ls{"Sa’aatii Guyaanaa"}
+        }
+        "meta:Hawaii"{
+            ls{"Sa’aatii Istaandaardii Haawayi-Alewutiyan"}
+            ss{"HAS"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Sa’aatii Guyyaa Haawayi-Alewutiyan"}

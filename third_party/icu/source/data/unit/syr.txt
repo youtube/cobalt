@@ -158,6 +158,11 @@ syr{
                 one{"{0} ܡܘܠ"}
                 other{"{0} ܡܘܠ"}
             }
+            part-per-1e6{
+                dnam{"ܡܢܘ̈ܬܐ ܒܡܠܝܘܢ"}
+                one{"{0} ܡܢܬܐ ܒܡܠܝܘܢ"}
+                other{"{0} ܡܢܘ̈ܬܐ ܒܡܠܝܘܢ"}
+            }
             percent{
                 dnam{"ܒܡܐܐ"}
             }
@@ -165,11 +170,6 @@ syr{
                 dnam{"ܒܐܠܦܐ"}
                 one{"{0} ܒܐܠܦܐ"}
                 other{"{0} ܒܐܠܦܐ"}
-            }
-            permillion{
-                dnam{"ܡܢܘ̈ܬܐ ܒܡܠܝܘܢ"}
-                one{"{0} ܡܢܬܐ ܒܡܠܝܘܢ"}
-                other{"{0} ܡܢܘ̈ܬܐ ܒܡܠܝܘܢ"}
             }
         }
         consumption{
@@ -198,7 +198,7 @@ syr{
             east{"{0} ܡܕܢܚܐ"}
             north{"{0} ܓܪܒܝܐ"}
             south{"{0} ܬܝܡܢܐ"}
-            west{"{0} ܡܥܪܒ݂ܐ"}
+            west{"{0} ܡܥܪܒܐ"}
         }
         digital{
             bit{
@@ -815,10 +815,11 @@ syr{
             }
         }
         coordinate{
-            east{"{0} ܡܕܢܚܐ"}
-            north{"{0} ܓܪܒܝܐ"}
-            south{"{0} ܬܝܡܢܐ"}
-            west{"{0} ܡܥܪܒ݂ܐ"}
+            dnam{"ܦܢܝܬܐ"}
+            east{"{0} ܏ܡܕܢܚ"}
+            north{"{0} ܏ܓܪܒܝ"}
+            south{"{0} ܏ܬܝܡܢ"}
+            west{"{0} ܏ܡܥܪܒ"}
         }
         duration{
             century{
@@ -934,7 +935,11 @@ syr{
             }
         }
         coordinate{
-            dnam{"ܦܢܝܬܐ ܫܪܫܢܝܬܐ"}
+            dnam{"ܦܢܝܬܐ"}
+            east{"{0} ܏ܡܕܢ"}
+            north{"{0} ܏ܓܪܒ"}
+            south{"{0} ܏ܬܝܡ"}
+            west{"{0} ܏ܡܥܪ"}
         }
         duration{
             century{

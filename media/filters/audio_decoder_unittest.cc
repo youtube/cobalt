@@ -36,6 +36,7 @@
 #include "media/filters/audio_file_reader.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/filters/in_memory_url_protocol.h"
+#include "media/filters/opus_audio_decoder.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/services/gpu_mojo_media_client_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -120,8 +121,9 @@ void SetDiscardPadding(AVPacket* packet,
   const uint32_t* skip_samples_ptr =
       reinterpret_cast<const uint32_t*>(av_packet_get_side_data(
           packet, AV_PKT_DATA_SKIP_SAMPLES, &skip_samples_size));
-  if (skip_samples_size < 4)
+  if (skip_samples_size < 4) {
     return;
+  }
   buffer->set_discard_padding(
       std::make_pair(base::Seconds(*skip_samples_ptr / samples_per_second),
                      base::TimeDelta()));
@@ -144,13 +146,14 @@ class AudioDecoderTest
         decoder_ = std::make_unique<FFmpegAudioDecoder>(
             task_environment_.GetMainThreadTaskRunner(), &media_log_);
         break;
-
+      case AudioDecoderType::kOpus:
+        decoder_ = std::make_unique<OpusAudioDecoder>();
+        break;
 #if BUILDFLAG(ENABLE_SYMPHONIA)
       case AudioDecoderType::kSymphonia:
         decoder_ = std::make_unique<SymphoniaAudioDecoder>(
             task_environment_.GetMainThreadTaskRunner(), &media_log_);
         break;
-
 #endif
 #if BUILDFLAG(IS_ANDROID)
       case AudioDecoderType::kMediaCodec:
@@ -183,12 +186,22 @@ class AudioDecoderTest
 
   void SetUp() override {
 #if BUILDFLAG(ENABLE_SYMPHONIA)
-    scoped_feature_list_.InitWithFeatures(
-        {kSymphoniaAudioDecoding, kSymphoniaMp3Decoding},
-        {} /*disabled_features=*/);
+    std::vector<base::test::FeatureRef> features = {
+        { kSymphoniaAudioDecoding,
+          kSymphoniaMp3Decoding,
+          kSymphoniaPcmDecoding,
+          kSymphoniaVorbisDecoding }};
+
+    if (decoder_type_ == AudioDecoderType::kSymphonia) {
+      scoped_feature_list_.InitWithFeatures(features,
+                                            /*disabled_features=*/{});
+    } else {
+      scoped_feature_list_.InitWithFeatures(/*enabled_features=*/{}, features);
+    }
 #endif
-    if (!IsSupported())
+    if (!IsSupported()) {
       GTEST_SKIP() << "Unsupported platform.";
+    }
   }
 
  protected:
@@ -309,8 +322,9 @@ class AudioDecoderTest
         reader_->GetAVStreamForTesting()->time_base, packet->pts));
     buffer->set_duration(ConvertFromTimeBase(
         reader_->GetAVStreamForTesting()->time_base, packet->duration));
-    if (packet->flags & AV_PKT_FLAG_KEY)
+    if (packet->flags & AV_PKT_FLAG_KEY) {
       buffer->set_is_key_frame(true);
+    }
 
     // Don't set discard padding for Opus, it already has discard behavior set
     // based on the codec delay in the AudioDecoderConfig.
@@ -414,8 +428,9 @@ class AudioDecoderTest
 
       // Verify different hashes are being generated.  None of our test data
       // files have audio that hashes out exactly the same.
-      if (i > 0)
+      if (i > 0) {
         EXPECT_NE(exact_hash, GetDecodedAudioSHA256(i - 1));
+      }
     }
   }
 
@@ -462,16 +477,31 @@ constexpr DataExpectations kBearOpusExpectations = {{
     {14000, 10000, "0.10,0.24,0.23,0.04,-0.14,-0.23,"},
 }};
 
-// Test params to test decoder reinitialization. Choose opus because it is
-// supported on all platforms we test on.
-constexpr TestParams kReinitializeTestParams = {
+constexpr TestParams kSfxOpusParams = {
+    AudioCodec::kOpus,
+    "sfx-opus.ogg",
+    {{
+        {0, 13500, "-2.70,-1.41,-0.78,-1.27,-2.56,-3.73,"},
+        {13500, 20000, "5.48,5.93,6.05,5.83,5.54,5.46,"},
+        {33500, 20000, "-3.44,-3.34,-3.57,-4.11,-4.74,-5.13,"},
+    }},
+    -312,
+    48000,
+    CHANNEL_LAYOUT_MONO};
+
+constexpr TestParams kBearOpusParams = {
     AudioCodec::kOpus,    "bear-opus.ogg", kBearOpusExpectations, 24, 48000,
     CHANNEL_LAYOUT_STEREO};
 
+constexpr TestParams kOpusTestParams[] = {kSfxOpusParams, kBearOpusParams};
+
+// Test params to test decoder reinitialization. Choose opus because it is
+// supported on all platforms we test on.
+constexpr const TestParams& kReinitializeTestParams = kBearOpusParams;
+
 #if BUILDFLAG(IS_ANDROID)
 constexpr TestParams kMediaCodecTestParams[] = {
-    {AudioCodec::kOpus, "bear-opus.ogg", kBearOpusExpectations, 24, 48000,
-     CHANNEL_LAYOUT_STEREO},
+    kBearOpusParams,
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
     {AudioCodec::kAAC,
      "sfx.adts",
@@ -617,18 +647,8 @@ constexpr TestParams kFFmpegTestParams[] = {
      -704,
      44100,
      CHANNEL_LAYOUT_STEREO},
-    {AudioCodec::kOpus,
-     "sfx-opus.ogg",
-     {{
-         {0, 13500, "-2.70,-1.41,-0.78,-1.27,-2.56,-3.73,"},
-         {13500, 20000, "5.48,5.93,6.05,5.83,5.54,5.46,"},
-         {33500, 20000, "-3.44,-3.34,-3.57,-4.11,-4.74,-5.13,"},
-     }},
-     -312,
-     48000,
-     CHANNEL_LAYOUT_MONO},
-    {AudioCodec::kOpus, "bear-opus.ogg", kBearOpusExpectations, 24, 48000,
-     CHANNEL_LAYOUT_STEREO},
+    kSfxOpusParams,
+    kBearOpusParams,
 };
 
 #if BUILDFLAG(ENABLE_SYMPHONIA)
@@ -726,8 +746,9 @@ TEST_P(AudioDecoderTest, ProduceAudioSamples) {
 
     // On the first pass record the exact SHA-256 hash for each decoded buffer.
     if (i == 0) {
-      for (size_t j = 0; j < kDecodeRuns; ++j)
+      for (size_t j = 0; j < kDecodeRuns; ++j) {
         decoded_audio_sha256_hashes.push_back(GetDecodedAudioSHA256(j));
+      }
     }
 
     // On the first pass verify the basic audio hash and sample info.  On the
@@ -791,6 +812,11 @@ INSTANTIATE_TEST_SUITE_P(FFmpeg,
                          AudioDecoderTest,
                          Combine(Values(AudioDecoderType::kFFmpeg),
                                  ValuesIn(kFFmpegTestParams)));
+
+INSTANTIATE_TEST_SUITE_P(Opus,
+                         AudioDecoderTest,
+                         Combine(Values(AudioDecoderType::kOpus),
+                                 ValuesIn(kOpusTestParams)));
 
 #if BUILDFLAG(ENABLE_SYMPHONIA)
 INSTANTIATE_TEST_SUITE_P(Symphonia,

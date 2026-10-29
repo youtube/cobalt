@@ -260,4 +260,8 @@ fr_CA{
             other{"rials yéménites"}
         }
     }
+    CurrencyUnitPatterns{
+        one{"{0} {1}"}
+        other{"{0} {1}"}
+    }
 }

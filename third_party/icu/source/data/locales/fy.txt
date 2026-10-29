@@ -14,7 +14,10 @@ fy{
             }
             patterns{
                 accountingFormat{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 currencyFormat{"¤ #,##0.00;¤ #,##0.00-"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00;¤ #,##0.00-"}
+                currencyFormat%noCurrency{"#,##0.00;#,##0.00-"}
             }
             patternsLong{
                 decimalFormat{
@@ -453,28 +456,28 @@ fy{
             }
             eras{
                 abbreviated{
-                    "f.Kr.",
-                    "n.Kr.",
+                    0{"f.Kr."}
+                    1{"n.Kr."}
                 }
                 abbreviated%variant{
-                    "f.g.j.",
-                    "g.j.",
+                    0{"f.g.j."}
+                    1{"g.j."}
                 }
                 narrow{
-                    "f.K.",
-                    "n.K.",
+                    0{"f.K."}
+                    1{"n.K."}
                 }
                 narrow%variant{
-                    "fgj",
-                    "gj",
+                    0{"fgj"}
+                    1{"gj"}
                 }
                 wide{
-                    "Foar Kristus",
-                    "nei Kristus",
+                    0{"Foar Kristus"}
+                    1{"nei Kristus"}
                 }
                 wide%variant{
-                    "foar gewoane jiertelling",
-                    "gewoane jiertelling",
+                    0{"foar gewoane jiertelling"}
+                    1{"gewoane jiertelling"}
                 }
             }
             intervalFormats{
@@ -644,7 +647,7 @@ fy{
         indian{
             eras{
                 abbreviated{
-                    "SAKA",
+                    0{"SAKA"}
                 }
             }
             monthNames{
@@ -669,7 +672,7 @@ fy{
         islamic{
             eras{
                 abbreviated{
-                    "Saʻna Hizjria",
+                    0{"Saʻna Hizjria"}
                 }
             }
             monthNames{
@@ -708,8 +711,7 @@ fy{
         roc{
             eras{
                 abbreviated{
-                    "Before R.O.C.",
-                    "Minguo",
+                    1{"Minguo"}
                 }
             }
         }

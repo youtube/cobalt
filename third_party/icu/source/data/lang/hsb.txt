@@ -7,10 +7,13 @@ hsb{
         cf{"format měny"}
         collation{"rjadowanski slěd"}
         currency{"měna"}
+        em{"předstajenje emojija"}
         hc{"hodźinowy cyklus (12 vs 24)"}
         lb{"system łamanja linkow"}
+        lw{"łamanje linki w słowje"}
         ms{"system měrow"}
         numbers{"ličby"}
+        ss{"přetorhnjenje sady po skrótšence"}
     }
     Languages{
         aa{"afaršćina"}
@@ -43,6 +46,7 @@ hsb{
         ay{"aymaršćina"}
         az{"azerbajdźanšćina"}
         ba{"baškiršćina"}
+        bal{"balučišćina"}
         ban{"balinezišćina"}
         bas{"basaa"}
         be{"běłorušćina"}
@@ -468,6 +472,12 @@ hsb{
         zxx{"žadyn rěčny wobsah"}
         zza{"zazašćina"}
     }
+    Languages%core{
+        ku{"kurdišćina"}
+    }
+    Languages%extension{
+        ku{"kurmandźišćina"}
+    }
     Languages%menu{
         yue{"chinšćina (kantonšćina)"}
         zh{"chinšćina (mandarin)"}
@@ -561,14 +571,44 @@ hsb{
             persian{"persiska protyka"}
             roc{"protyka republiki China"}
         }
+        calendar%core{
+            buddhist{"buddhistiska"}
+            chinese{"chinska"}
+            coptic{"koptiska"}
+            dangi{"dangiska"}
+            ethiopic{"etiopiska"}
+            ethiopic-amete-alem{"etiopiska Amete-Alem"}
+            gregorian{"gregorianiska"}
+            hebrew{"hebrejska"}
+            islamic{"hijri"}
+            islamic-civil{"islamska ciwilna"}
+            islamic-umalqura{"islamska Umm al-Qura"}
+            japanese{"japanska"}
+            persian{"persiska"}
+            roc{"minguo"}
+        }
         cf{
             account{"knihiwjedniski format měny"}
             standard{"standardny format měny"}
+        }
+        cf%core{
+            account{"knihiwjednistwo"}
+            standard{"standard"}
         }
         collation{
             ducet{"rjadowanski slěd po Unicode"}
             search{"powšitkowne pytanje"}
             standard{"standardowy rjadowanski slěd"}
+        }
+        collation%core{
+            ducet{"standardne unicode-rjadowanje"}
+            search{"pytaj"}
+            standard{"standardne"}
+        }
+        em%core{
+            default{"default"}
+            emoji{"emoji"}
+            text{"tekst"}
         }
         hc{
             h11{"12-hodźinowy cyklus (0-11)"}
@@ -576,15 +616,37 @@ hsb{
             h23{"24-hodźinowy cyklus (0-23)"}
             h24{"24-hodźinowy cyklus (1-24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"swobodny stil łamanja linkow"}
             normal{"běžny stil łamanja linkow"}
             strict{"kruty stil łamanja linkow"}
         }
+        lb%core{
+            loose{"wólny"}
+            normal{"běžny"}
+            strict{"kruty"}
+        }
+        lw%core{
+            breakall{"łamaj wšitko"}
+            keepall{"zdźerž wšitko"}
+            normal{"normalne"}
+            phrase{"w sadach"}
+        }
         ms{
             metric{"metriski system"}
             uksystem{"britiski system měrow"}
             ussystem{"ameriski system měrow"}
+        }
+        ms%core{
+            metric{"metriski"}
+            uksystem{"britiski"}
+            ussystem{"ameriski"}
         }
         numbers{
             arab{"arabsko-indiske cyfry"}
@@ -627,6 +689,10 @@ hsb{
             thai{"thailandske cyfry"}
             tibt{"tibetske cyfry"}
             vaii{"vaiske cyfry"}
+        }
+        ss%core{
+            none{"ně"}
+            standard{"haj"}
         }
     }
     characterLabelPattern{

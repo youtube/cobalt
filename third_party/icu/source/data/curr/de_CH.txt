@@ -36,5 +36,9 @@ de_CH{
             one{"São-toméischer Dobra (2018)"}
             other{"São-toméischer Dobra (2018)"}
         }
+        XCG{
+            one{"Karibischer Gulden"}
+            other{"Karibischer Gulden"}
+        }
     }
 }

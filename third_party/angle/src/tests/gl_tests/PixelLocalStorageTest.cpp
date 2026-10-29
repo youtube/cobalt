@@ -4932,54 +4932,6 @@ static void do_implicitly_enabled_extensions_test(const char *plsExtensionToRequ
         EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage_coherent"));
     }
     EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage"));
-
-    if (hasDrawBuffersIndexedOES)
-    {
-        // If OES_draw_buffers_indexed ever becomes disablable, it will have to implicitly disable
-        // ANGLE_shader_pixel_local_storage.
-        glDisableExtensionANGLE("GL_OES_draw_buffers_indexed");
-        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage"));
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_draw_buffers_indexed"));
-    }
-
-    if (hasDrawBuffersIndexedEXT)
-    {
-        // If EXT_draw_buffers_indexed ever becomes disablable, it will have to implicitly disable
-        // ANGLE_shader_pixel_local_storage.
-        glDisableExtensionANGLE("GL_EXT_draw_buffers_indexed");
-        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage"));
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_draw_buffers_indexed"));
-    }
-
-    if (hasCoherent)
-    {
-        // ANGLE_shader_pixel_local_storage_coherent is not disablable.
-        glDisableExtensionANGLE("GL_ANGLE_shader_pixel_local_storage_coherent");
-        EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage"));
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage_coherent"));
-    }
-
-    // ANGLE_shader_pixel_local_storage is not disablable.
-    glDisableExtensionANGLE("GL_ANGLE_shader_pixel_local_storage");
-    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
-
-    // All dependency extensions should have remained enabled.
-    if (hasDrawBuffersIndexedOES)
-    {
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_OES_draw_buffers_indexed"));
-    }
-    if (hasDrawBuffersIndexedEXT)
-    {
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_EXT_draw_buffers_indexed"));
-    }
-    if (hasCoherent)
-    {
-        EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage_coherent"));
-    }
-    EXPECT_TRUE(IsGLExtensionEnabled("GL_ANGLE_shader_pixel_local_storage"));
 }
 
 // Check that ANGLE_shader_pixel_local_storage implicitly enables its dependency extensions.
@@ -6980,8 +6932,7 @@ TEST_P(PixelLocalStorageValidationTest, InterruptMechanism)
 // specified.
 TEST_P(PixelLocalStorageValidationTest, GetFramebufferPixelLocalStorageParametersANGLE)
 {
-    // The "Get.*Robust" variants require ANGLE_robust_client_memory. ANGLE_robust_client_memory is
-    // not disableable and is therefore supported in every ANGLE context.
+    // The "Get.*Robust" variants require ANGLE_robust_client_memory.
     //
     // If ANGLE ever does find itself in a situation where ANGLE_robust_client_memory is not
     // supported, we will need to hide the "Get.*Robust" variants in order to be spec compliant.
@@ -7097,19 +7048,19 @@ TEST_P(PixelLocalStorageValidationTest, GetFramebufferPixelLocalStorageParameter
     glGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
         1, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, 1, &length, floats);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_ENUM);
-    EXPECT_GL_SINGLE_ERROR_MSG("Enum 0x8CD3 is currently not supported.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <pname> is unknown.");
     glGetFramebufferPixelLocalStorageParameterfvANGLE(
         1, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, floats);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_ENUM);
-    EXPECT_GL_SINGLE_ERROR_MSG("Enum 0x8CD3 is currently not supported.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <pname> is unknown.");
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(
         1, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, 1, &length, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_ENUM);
-    EXPECT_GL_SINGLE_ERROR_MSG("Enum 0x8CD3 is currently not supported.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <pname> is unknown.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(
         1, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE, ints);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_ENUM);
-    EXPECT_GL_SINGLE_ERROR_MSG("Enum 0x8CD3 is currently not supported.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <pname> is unknown.");
 
     // INVALID_OPERATION is generated if <bufSize> is not large enough to receive the requested
     // parameter.
@@ -7212,56 +7163,56 @@ TEST_P(PixelLocalStorageValidationTest, GetFramebufferPixelLocalStorageParameter
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE,
                                                             5, &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(0, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE, 5,
                                                             &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(0, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE,
                                                             5, &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE,
                                                             5, &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(0, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 
     glGetFramebufferPixelLocalStorageParameterivRobustANGLE(0, GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE,
                                                             5, &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterivANGLE(0, GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 
     glGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
         0, GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE, 5, &length, nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
     glGetFramebufferPixelLocalStorageParameterfvANGLE(0, GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE,
                                                       nullptr);
     EXPECT_GL_SINGLE_ERROR(GL_INVALID_VALUE);
-    EXPECT_GL_SINGLE_ERROR_MSG("<params> cannot be null.");
+    EXPECT_GL_SINGLE_ERROR_MSG("The <params> is null.");
 }
 
 // Check command-specific errors that go into effect when PLS is active, as well as commands
@@ -8193,6 +8144,15 @@ TEST_P(PixelLocalStorageValidationTest, ReadPixels)
         EXPECT_GL_NO_ERROR();
         EXPECT_GL_INTEGER(GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE, 0);
         beginPLS();
+        if (IsGLExtensionEnabled("GL_ANGLE_robust_client_memory"))
+        {
+            glReadPixelsRobustANGLE(0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE,
+                                    static_cast<GLsizei>(pixelData.size()), nullptr, nullptr,
+                                    nullptr, pixelData.data());
+            EXPECT_GL_NO_ERROR();
+            EXPECT_GL_INTEGER(GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE, 0);
+            beginPLS();
+        }
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, W, H, 0);
         EXPECT_GL_NO_ERROR();
         EXPECT_GL_INTEGER(GL_PIXEL_LOCAL_STORAGE_ACTIVE_PLANES_ANGLE, 0);

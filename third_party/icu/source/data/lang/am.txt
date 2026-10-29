@@ -14,10 +14,13 @@ am{
         colStrength{"የድርደራ አቅም"}
         collation{"አቀማመጥ ደርድር"}
         currency{"ምንዛሪ"}
+        em{"ስሜት ገላጭ ምስል አቀራረብ"}
         hc{"የሰዓት ዑደት (12 ወይም 24)"}
         lb{"መስመር መስበሪያ ቅጥ"}
+        lw{"የመስመር መሰባበር በቃላት ውስጥ"}
         ms{"የመለኪያ ስርዓት"}
         numbers{"ቁጥሮች"}
+        ss{"ከአህጽሮተ ቃል በኋላ የዐረፍተ ነገር መቋረጥ"}
         timezone{"የሰዓት ሰቅ"}
         va{"የአካባቢ አይነት"}
         x{"ለግል ጥቅም"}
@@ -217,7 +220,6 @@ am{
         hax{"ደቡባዊ ሃይዳ"}
         he{"ዕብራይስጥ"}
         hi{"ሕንድኛ"}
-        hi_Latn{"ሕንድኛ (ላቲን)"}
         hil{"ሂሊጋይኖን"}
         hmn{"ህሞንግ"}
         hr{"ክሮሽያንኛ"}
@@ -540,6 +542,12 @@ am{
         zxx{"ቋንቋዊ ይዘት የለውም"}
         zza{"ዛዛ"}
     }
+    Languages%core{
+        ku{"ኩርድሽ"}
+    }
+    Languages%extension{
+        ku{"ኩርድሽ"}
+    }
     Languages%long{
         zh_Hans{"ቀለል ያለ ማንድሪን ቻይንኛ"}
         zh_Hant{"ባህላዊ ማንድሪን ቻይንኛ"}
@@ -661,9 +669,29 @@ am{
             persian{"የፐርሽያ የቀን አቆጣጠር"}
             roc{"የሚንጉ የቀን አቆጣጠር"}
         }
+        calendar%core{
+            buddhist{"ቡዲስት"}
+            chinese{"ቻይንኛ"}
+            coptic{"ኮፕቲክ"}
+            dangi{"ዳንጊ"}
+            ethiopic{"ኢትዮፒክ"}
+            ethiopic-amete-alem{"ኢትዮፒክ ዓመተ ዓለም"}
+            gregorian{"ግሪጎሪያን"}
+            hebrew{"ሂብሩ"}
+            islamic{"ሂጅራ"}
+            islamic-civil{"ሂጅራ (ታቡላር፣ የሲቪል ዘመን)"}
+            islamic-umalqura{"ሂጅራ (ኡሙ አል-ቁራ)"}
+            japanese{"ጃፓንኛ"}
+            persian{"ፐርሽያን"}
+            roc{"ሚንጉ"}
+        }
         cf{
             account{"የሂሳብ ምንዛሪ ቅርጸት"}
             standard{"መደበኛ የምንዛሪ ቅርጸት"}
+        }
+        cf%core{
+            account{"የሂሳብ አያያዝ"}
+            standard{"መደበኛ"}
         }
         colAlternate{
             non-ignorable{"ምልክቶችን ደርድር"}
@@ -698,10 +726,8 @@ am{
             tertiary{"የፊደል ጭረቶች/መልከፊደል/ስፋት ደርድር"}
         }
         collation{
-            big5han{"የባህላዊ ቻይንኛ የድርድር ቅደም ተከተል - ትልቅ5"}
             dictionary{"የመዝገበ ቃላት የድርድር ቅደም ተከተል"}
             ducet{"የነባሪ ዩኒኮድ የድርድር ቅደም ተከተል"}
-            gb2312han{"የቀለለ የቻይንኛ የድርደራ ቅደም ተከተል - GB2312"}
             phonebook{"የስልክ ደብተር ድርድር ቅደም ተከተል"}
             phonetic{"የፎነቲክ ድርደራ ቅደም ተከተል"}
             pinyin{"ፒንይን የድርድር ቅደም ተከተል"}
@@ -712,10 +738,20 @@ am{
             traditional{"ባህላዊ የድርድር ቅደም ተከተል"}
             unihan{"የመሰረታዊ በትር ድርድር ቅደም ተከተል"}
         }
+        collation%core{
+            ducet{"ነባሪ ዩኒኮድ"}
+            search{"ፍለጋ"}
+            standard{"መደበኛ"}
+        }
         d0{
             fwidth{"ሙሉ ወርድ"}
             hwidth{"ግማሽ ወርድ"}
             npinyin{"አሃዛዊ"}
+        }
+        em%core{
+            default{"ነባሪ"}
+            emoji{"ስሜት ገላጭ ምስል"}
+            text{"ጽሑፍ"}
         }
         hc{
             h11{"የ12 ሰዓት ስርዓት (0–11)"}
@@ -723,10 +759,27 @@ am{
             h23{"የ24 ሰዓት ስርዓት (0–23)"}
             h24{"የ24 ሰዓት ስርዓት (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"ላላ ያለ መስመር መስበሪያ ቅጥ"}
             normal{"መደበኛ መስመር መስበሪያ ቅጥ"}
             strict{"ጠበቅ ያለ መስመር መስበሪያ ቅጥ"}
+        }
+        lb%core{
+            loose{"ልቅ"}
+            normal{"መደበኛ"}
+            strict{"ጥብቅ"}
+        }
+        lw%core{
+            breakall{"ሁሉንም ሰብረው"}
+            keepall{"ሁሉንም አቆይ"}
+            normal{"መደበኛ"}
+            phrase{"በዓረፍተ ነገሮች ውስጥ ያስቀምጡ"}
         }
         m0{
             bgn{"ዩኤስ ቢጂኤን ትራንስሊትሬሽን"}
@@ -736,6 +789,11 @@ am{
             metric{"ሜትሪክ ስርዓት"}
             uksystem{"ኢምፔሪያል የመለኪያ ስርዓት"}
             ussystem{"የአሜሪካ መለኪያ ስርዓት"}
+        }
+        ms%core{
+            metric{"መለኪያ"}
+            uksystem{"ዩኬ"}
+            ussystem{"ዩኤስ"}
         }
         numbers{
             arab{"የአረቢክ-ኢንዲክ አሃዞች"}
@@ -782,6 +840,10 @@ am{
             tibt{"የቲቤት አሃዞች"}
             traditional{"ተለምዷዊ ቁጥሮች"}
             vaii{"የቫይ አሃዞች"}
+        }
+        ss%core{
+            none{"ጠፍቷል"}
+            standard{"በርቷል"}
         }
     }
     characterLabelPattern{

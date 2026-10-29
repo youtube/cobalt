@@ -62,6 +62,9 @@ es_US{
         wal{"wolayta"}
         xnr{"dogrí"}
     }
+    Languages%extension{
+        ku{"kurdo kurmanyi"}
+    }
     Languages%variant{
         ug{"uigur variante"}
     }
@@ -72,12 +75,40 @@ es_US{
         Zzzz{"letra desconocida"}
     }
     Types{
+        calendar{
+            dangi{"calendario coreano"}
+        }
+        calendar%core{
+            dangi{"coreano"}
+            roc{"chino"}
+        }
+        collation%core{
+            ducet{"predeterminado Unicode"}
+            phonetic{"fonético"}
+            pinyin{"sistema piyin"}
+            stroke{"trazos"}
+            unihan{"trazos radicales"}
+            zhuyin{"sistema zhuyin"}
+        }
+        em%core{
+            emoji{"emoticón"}
+        }
+        lw%core{
+            breakall{"dividir todo"}
+            keepall{"mantener todo"}
+            normal{"regular"}
+            phrase{"mantener en frases"}
+        }
         numbers{
             cakm{"dígitos chakma"}
             gujr{"dígitos en gujarati"}
             java{"dígitos javaneses"}
             mtei{"dígitos meetei mayek"}
             olck{"dígitos ol chiki"}
+        }
+        ss%core{
+            none{"desactivado"}
+            standard{"activado"}
         }
     }
     characterLabelPattern{

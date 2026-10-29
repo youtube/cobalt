@@ -7,10 +7,13 @@ chr{
         cf{"ᎠᏕᎳ ᏱᎬᏁᎸᎯ"}
         collation{"ᏗᎦᏅᏃᏙᏗ ᏕᎦᏅᏃᏛᎢ"}
         currency{"ᎠᏕᎳ"}
+        em{"ᎢᎼᏥ ᏓᎾᏓᏁᎲᎢ"}
         hc{"ᏑᏟᎶᏓ ᎠᏓᏁᏟᏴᏎᎬ (12 vs 24)"}
         lb{"ᎠᏍᏓᏅᏅ ᎠᏲᏍᏔᏅᎩ ᏂᏚᏍᏛ"}
+        lw{"ᎠᏍᏓᏅᏅ ᎠᏍᏆᎵᏍᏗ ᎪᏪᎵ"}
         ms{"ᎠᏟᎶᏛ ᏄᏍᏗᏓᏅᎢ"}
         numbers{"ᏗᏎᏍᏗ"}
+        ss{"ᏗᏒᏍᏙᏗ ᎠᏍᏆᎵᏍᏗ ᎠᏂᏬ"}
     }
     Languages{
         aa{"ᎠᏩᎳ"}
@@ -42,6 +45,7 @@ chr{
         ay{"ᎠᏱᎹᎳ"}
         az{"ᎠᏎᏆᏣᏂ"}
         ba{"ᏆᏍᎯᎩᎠ"}
+        bal{"ᏆᎷᏥ"}
         ban{"ᏆᎵᏁᏏ"}
         bas{"ᏆᏌᎠ"}
         be{"ᏇᎳᎷᏏ"}
@@ -464,6 +468,12 @@ chr{
         zxx{"Ꮭ ᎦᏬᏂᎯᏍᏗ ᎦᎸᏛᎢ ᏱᎩ"}
         zza{"ᏌᏌ"}
     }
+    Languages%core{
+        ku{"ᎫᏗᏍᎯ"}
+    }
+    Languages%extension{
+        ku{"ᎫᎹᏥ"}
+    }
     Languages%long{
         zh_Hans{"ᎠᎯᏗᎨ ᎹᏓᏈᏂ ᏓᎶᏂᎨ"}
         zh_Hant{"ᎤᏦᏍᏗ ᎹᏓᏈᏂ ᏓᎶᏂᎨ"}
@@ -562,14 +572,44 @@ chr{
             persian{"ᏇᏏᎠᏂ ᏅᏙ ᏗᏎᏍᏗ"}
             roc{"ᏍᎦᏚᎩ ᎾᎿ ᏓᎶᏂᎨᏍᏛ ᏅᏙ ᏗᏎᏍᏗ"}
         }
+        calendar%core{
+            buddhist{"ᏊᏗᏍᏘ"}
+            chinese{"ᏓᎶᏂᎨᏍᏛ"}
+            coptic{"ᎧᏘ"}
+            dangi{"ᏓᏂᎩ"}
+            ethiopic{"ᎡᏘᎣᏈᎠ"}
+            ethiopic-amete-alem{"ᎡᏘᎣᏈᎠ ᎠᎺᏖ ᎠᎴᎻ"}
+            gregorian{"ᎩᎴᎪᎵᎠᏂ"}
+            hebrew{"ᎠᏂᏈᎷ"}
+            islamic{"ᎢᏌᎳᎻᎩ"}
+            islamic-civil{"ᎢᏌᎳᎻᎩ (ᏴᏫ ᎡᏆᎩ)"}
+            islamic-umalqura{"ᎢᏌᎳᎻᎩ (ᎥᎻ ᎠᎵ-ᏊᎳ)"}
+            japanese{"ᏣᏆᏂᏏ"}
+            persian{"ᏇᏏᎠᏂ"}
+            roc{"ᏍᎦᏚᎩ ᎾᎿ ᏓᎶᏂᎨᏍᏛ"}
+        }
         cf{
             account{"ᎠᏕᎳ ᏗᏎᎯᎯ ᎠᏕᎳ ᏱᎬᏁᎸᎯ"}
             standard{"ᎠᏟᎶᏍᏗ ᎠᏕᎳ ᏱᎬᏁᎸᎯ"}
+        }
+        cf%core{
+            account{"ᎠᏕᎳ ᏗᏎᎯᎯ"}
+            standard{"ᎠᏟᎶᏍᏗ"}
         }
         collation{
             ducet{"ᎠᏓᏁᏟᏴᏗᏍᎩ Unicode ᏗᎦᏅᏃᏙᏗ ᏕᎦᏅᏃᏛᎢ"}
             search{"ᏂᎦᎥ-ᎢᏳᏱᎸᏗ ᎠᏱᏍᏗ"}
             standard{"ᎠᏟᎶᏍᏗ ᏗᎦᏅᏃᏙᏗ ᏕᎦᏅᏃᏛᎢ"}
+        }
+        collation%core{
+            ducet{"ᎠᏓᏁᏟᏴᏗᏍᎩ Unicode"}
+            search{"ᎠᏱᏍᏗ"}
+            standard{"ᎠᏟᎶᏍᏗ"}
+        }
+        em%core{
+            default{"ᎠᏓᏁᏟᏴᏗᏍᎩ"}
+            emoji{"ᎢᎼᏥ"}
+            text{"ᏕᎪᏪᎸ"}
         }
         hc{
             h11{"12 ᎢᏳᏟᎶᏓ ᏄᏍᏗᏓᏅᎢ (0–11)"}
@@ -577,15 +617,37 @@ chr{
             h23{"24 ᎢᏳᏟᎶᏓ ᏄᏍᏗᏓᏅᎢ (0–23)"}
             h24{"24 ᎢᏳᏟᎶᏓ ᏄᏍᏗᏓᏅᎢ (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"ᏩᎾᎢ ᎠᏍᏓᏅᏅ ᎠᏲᏍᏔᏅᎩ ᏂᏚᏍᏛ"}
             normal{"ᏱᎬᏍᏗᎭᏊ ᎠᏍᏓᏅᏅ ᎠᏲᏍᏔᏅᎩ ᏂᏚᏍᏛ"}
             strict{"ᎤᎶᏒᏍᏔᏅᎯ ᎠᏍᏓᏅᏅ ᎠᏲᏍᏔᏅᎩ ᏂᏚᏍᏛ"}
         }
+        lb%core{
+            loose{"ᏩᎾᎢ ᎠᏍᏓᏅᏅ"}
+            normal{"ᏱᎬᏍᏗᎭᏊ"}
+            strict{"ᎤᎶᏒᏍᏔᏅᎯ"}
+        }
+        lw%core{
+            breakall{"ᎠᏍᏆᎵᏍᏗ ᏂᎦᏓ"}
+            keepall{"ᎠᏍᏆᏂᎪᏙᏗ ᏂᎦᏓ"}
+            normal{"ᏱᎬᏍᏗᎭᏊ"}
+            phrase{"ᎠᏍᏆᏂᎪᏙᏗ ᎾᎿ ᎪᏪᎵ"}
+        }
         ms{
             metric{"ᎠᏂᎩᎸᏥ ᏂᏓᏳᏓᎴᏅᎯ ᏗᏎᏍᏗ ᏄᏍᏗᏓᏅᎢ"}
             uksystem{"ᏂᎬᎾᏛᎢ ᎤᏓᏤᎵᎦᏯ ᎠᏟᎶᏛ ᏄᏍᏗᏓᏅᎢ"}
             ussystem{"US ᎠᏟᎶᏛ ᏄᏍᏗᏓᏅᎢ"}
+        }
+        ms%core{
+            metric{"ᎠᏂᎩᎸᏥ ᏂᏓᏳᏓᎴᏅᎯ ᏗᏎᏍᏗ"}
+            uksystem{"UK"}
+            ussystem{"US"}
         }
         numbers{
             arab{"ᎠᎳᏈ-ᎡᏂᏗᎩ ᏗᏎᏍᏗ"}
@@ -628,6 +690,10 @@ chr{
             thai{"ᏔᏱ ᏗᏎᏍᏗ"}
             tibt{"ᏘᏇᏔᏂ ᏗᏎᏍᏗ"}
             vaii{"ᏩᏱ ᏗᏎᏍᏗ"}
+        }
+        ss%core{
+            none{"ᎤᏣᏘᎾ"}
+            standard{"ᎾᎿ"}
         }
     }
     characterLabelPattern{

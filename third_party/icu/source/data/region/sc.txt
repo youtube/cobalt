@@ -228,7 +228,7 @@ sc{
         PT{"Portogallu"}
         PW{"Palau"}
         PY{"Paraguày"}
-        QA{"Catar"}
+        QA{"Catàr"}
         QO{"Otzeània perifèrica"}
         RE{"Riunione"}
         RO{"Romania"}
@@ -309,7 +309,6 @@ sc{
     Countries%variant{
         CD{"Congo (RDC)"}
         CG{"Congo (Repùblica)"}
-        CI{"Côte d’Ivoire"}
         CZ{"Repùblica Tzeca"}
         NZ{"Aotearoa Zelanda Noa"}
         SZ{"Swàziland"}

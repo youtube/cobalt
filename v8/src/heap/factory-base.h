@@ -154,8 +154,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(uint32_t length,
-                                                     bool shared = false);
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(
+      uint32_t length, SharedFlag shared = SharedFlag::kNo);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
@@ -433,7 +433,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationAlignment alignment = kTaggedAligned);
   Tagged<HeapObject> AllocateRawFixedArray(int length,
                                            AllocationType allocation);
-  Tagged<HeapObject> AllocateRawWeakArrayList(int length,
+  Tagged<HeapObject> AllocateRawWeakArrayList(uint32_t length,
                                               AllocationType allocation);
 
   template <typename StructType>

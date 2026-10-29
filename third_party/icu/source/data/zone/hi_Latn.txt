@@ -63,7 +63,6 @@ hi_Latn{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sg{"HST"}
         }
         "Pacific:Ponape"{
             ec{"Ponape"}

@@ -1761,14 +1761,11 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK(!is_inline());
 
-  // Neither closure nor receiver should be an InlinedAllocation or a Phi at the
-  // entry stack check. See AddMaterializedDeoptUse for context.
+  // Neither closure nor receiver should be an InlinedAllocation at the entry
+  // stack check. See AddMaterializedDeoptUse for context.
   DCHECK(!GetClosure()->Is<InlinedAllocation>());
-  DCHECK(!GetClosure()->Is<Phi>());
   DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
               ->Is<InlinedAllocation>());
-  DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
-              ->Is<Phi>());
 
   entry_stack_check_frame_ = zone()->New<InterpretedDeoptFrame>(
       *compilation_unit_,
@@ -1784,7 +1781,6 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       *compilation_unit_,
       [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
   AddDeoptUse(entry_stack_check_frame_->closure());
-
   return entry_stack_check_frame_;
 }
 
@@ -3603,46 +3599,10 @@ ReduceResult MaglevGraphBuilder::VisitTestReferenceEqual() {
 }
 
 ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
-  if (value->properties().value_representation() ==
-      ValueRepresentation::kHoleyFloat64) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    return AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>({value});
-#else
-    return AddNewNodeNoInputConversion<HoleyFloat64IsHole>({value});
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-  } else if (value->properties().value_representation() !=
-             ValueRepresentation::kTagged) {
-    return GetBooleanConstant(false);
-  }
-
-  if (auto maybe_constant = TryGetConstant<HeapObject>(value)) {
-    auto map = maybe_constant.value().map(broker());
-    return GetBooleanConstant(map.is_undetectable());
-  }
+  RETURN_IF_DONE(reducer_.TryFoldTestUndetectable(value));
 
   NodeType node_type;
-  if (CheckType(value, NodeType::kSmi, &node_type)) {
-    return GetBooleanConstant(false);
-  }
-
-  MapInference inference(this, value);
-  if (auto possible_maps = inference.TryGetPossibleMaps()) {
-    // We check if all the possible maps have the same undetectable bit value.
-    DCHECK_GT(possible_maps->size(), 0);
-    bool first_is_undetectable = possible_maps->at(0).is_undetectable();
-    bool all_the_same_value =
-        std::all_of(possible_maps->begin(), possible_maps->end(),
-                    [first_is_undetectable](compiler::MapRef map) {
-                      bool is_undetectable = map.is_undetectable();
-                      return (first_is_undetectable && is_undetectable) ||
-                             (!first_is_undetectable && !is_undetectable);
-                    });
-    if (all_the_same_value) {
-      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
-      return GetBooleanConstant(first_is_undetectable);
-    }
-  }
-
+  CheckType(value, NodeType::kSmi, &node_type);
   enum CheckType type = GetCheckType(node_type, value);
   return AddNewNode<TestUndetectable>({value}, type);
 }
@@ -4361,43 +4321,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
   }
   return AddNewNode<CheckJSReceiverOrNullOrUndefined>(
       {object}, GetCheckType(known_type, object));
-}
-
-ReduceResult MaglevGraphBuilder::BuildCheckMaps(
-    ValueNode* object, base::Vector<const compiler::MapRef> maps,
-    std::optional<ValueNode*> map,
-    bool has_deprecated_map_without_migration_target,
-    bool migration_done_outside) {
-  KnownMapsMerger<base::Vector<const compiler::MapRef>> merger(broker(), zone(),
-                                                               maps);
-  RETURN_IF_DONE(reducer_.TryFoldCheckMaps(object, nullptr, maps, merger));
-
-  NodeInfo* known_info = GetOrCreateInfoFor(object);
-
-  // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
-  // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
-
-  // Emit checks.
-  if (merger.emit_check_with_migration() && !migration_done_outside) {
-    RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
-        {object}, merger.intersect_set(),
-        GetCheckType(known_info->type(), object)));
-  } else if (has_deprecated_map_without_migration_target &&
-             !migration_done_outside) {
-    RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigrationAndDeopt>(
-        {object}, merger.intersect_set(),
-        GetCheckType(known_info->type(), object)));
-  } else if (map) {
-    RETURN_IF_ABORT(AddNewNode<CheckMapsWithAlreadyLoadedMap>(
-        {object, *map}, merger.intersect_set()));
-  } else {
-    RETURN_IF_ABORT(
-        AddNewNode<CheckMaps>({object}, merger.intersect_set(),
-                              GetCheckType(known_info->type(), object)));
-  }
-
-  merger.UpdateKnownNodeAspects(object, known_node_aspects());
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
@@ -7952,7 +7875,6 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
   }
 
   ValueNode* object = LoadRegister(3);
-  ValueNode* value = GetAccumulator();
   FeedbackSlot slot = GetSlotOperand(4);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -7960,34 +7882,16 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kStore, std::nullopt);
 
-  auto build_generic_access = [this, object, name, value, &feedback_source]() {
-    ValueNode* current_context = GetContext();
-    return AddNewNode<SetKeyedGeneric>(
-        {current_context, object, name.value(), value}, feedback_source);
+  auto build_generic_access = [this, object, name, &feedback_source]() {
+    ValueNode* context = GetContext();
+    ValueNode* value = GetAccumulator();
+    return AddNewNode<SetKeyedGeneric>({context, object, name.value(), value},
+                                       feedback_source);
   };
 
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          name.value(),
-          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
-          DeoptimizeReason::kKeyedAccessChanged));
-
-      MaybeReduceResult result = TryBuildNamedAccess(
-          object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kStore, build_generic_access);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-      break;
-    }
-    default:
-      break;
-  }
-
-  return SetAccumulator(build_generic_access());
+  return BuildSetKeyedProperty(object, name.value(),
+                               compiler::AccessMode::kStore, feedback_source,
+                               processed_feedback, build_generic_access);
 }
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
@@ -13864,109 +13768,9 @@ ReduceResult MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
   return VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
-MaglevGraphBuilder::InferHasInPrototypeChainResult
-MaglevGraphBuilder::InferHasInPrototypeChain(
-    ValueNode* receiver, compiler::HeapObjectRef prototype) {
-  MapInference inference(this, receiver);
-  auto possible_maps = inference.TryGetPossibleMaps();
-  // If the map set is not found, then we don't know anything about the map of
-  // the receiver, so bail.
-  if (!possible_maps) {
-    return kMayBeInPrototypeChain;
-  }
-
-  // If the set of possible maps is empty, then there's no possible map for this
-  // receiver, therefore this path is unreachable at runtime. We're unlikely to
-  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
-  // but check it in case another checking operation fails to statically
-  // unconditionally deopt.
-  if (possible_maps->is_empty()) {
-    // TODO(leszeks): Add an unreachable assert here.
-    return kIsNotInPrototypeChain;
-  }
-
-  // Since we only consider fresh maps, it is not necessary to emit map checks.
-  const bool all_maps_are_fresh = inference.all_maps_are_fresh();
-
-  ZoneVector<compiler::MapRef> receiver_map_refs(zone());
-
-  // Try to determine either that all of the {receiver_maps} have the given
-  // {prototype} in their chain, or that none do. If we can't tell, return
-  // kMayBeInPrototypeChain.
-  bool all = true;
-  bool none = true;
-  for (compiler::MapRef map : *possible_maps) {
-    receiver_map_refs.push_back(map);
-    if (!all_maps_are_fresh && !map.is_stable()) {
-      return kMayBeInPrototypeChain;
-    }
-    while (true) {
-      if (IsSpecialReceiverInstanceType(map.instance_type())) {
-        return kMayBeInPrototypeChain;
-      }
-      if (!map.IsJSObjectMap()) {
-        all = false;
-        break;
-      }
-      compiler::HeapObjectRef map_prototype = map.prototype(broker());
-      if (map_prototype.equals(prototype)) {
-        none = false;
-        break;
-      }
-      map = map_prototype.map(broker());
-      // TODO(v8:11457) Support dictionary mode protoypes here.
-      if (!map.is_stable() || map.is_dictionary_map()) {
-        return kMayBeInPrototypeChain;
-      }
-      if (map.oddball_type(broker()) == compiler::OddballType::kNull) {
-        all = false;
-        break;
-      }
-    }
-  }
-  DCHECK(!receiver_map_refs.empty());
-  DCHECK_IMPLIES(all, !none);
-  if (!all && !none) return kMayBeInPrototypeChain;
-
-  {
-    compiler::OptionalJSObjectRef last_prototype;
-    if (all) {
-      // We don't need to protect the full chain if we found the prototype, we
-      // can stop at {prototype}.  In fact we could stop at the one before
-      // {prototype} but since we're dealing with multiple receiver maps this
-      // might be a different object each time, so it's much simpler to include
-      // {prototype}. That does, however, mean that we must check {prototype}'s
-      // map stability.
-      if (!prototype.IsJSObject() || !prototype.map(broker()).is_stable()) {
-        return kMayBeInPrototypeChain;
-      }
-      last_prototype = prototype.AsJSObject();
-    }
-    // TODO(jgruber): Investigate whether it's possible for all_maps_are_fresh
-    // to be false here, considering we bail out on unstable maps above. For
-    // now, match TurboFan behavior in
-    // JSNativeContextSpecialization::InferHasInPrototypeChain.
-    WhereToStart start =
-        all_maps_are_fresh ? kStartAtPrototype : kStartAtReceiver;
-    broker()->dependencies()->DependOnStablePrototypeChains(
-        receiver_map_refs, start, last_prototype);
-  }
-
-  DCHECK_EQ(all, !none);
-  return all ? kIsInPrototypeChain : kIsNotInPrototypeChain;
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryBuildFastHasInPrototypeChain(
-    ValueNode* object, compiler::HeapObjectRef prototype) {
-  auto in_prototype_chain = InferHasInPrototypeChain(object, prototype);
-  if (in_prototype_chain == kMayBeInPrototypeChain) return {};
-
-  return GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain);
-}
-
 ReduceResult MaglevGraphBuilder::BuildHasInPrototypeChain(
     ValueNode* object, compiler::HeapObjectRef prototype) {
-  RETURN_IF_DONE(TryBuildFastHasInPrototypeChain(object, prototype));
+  RETURN_IF_DONE(reducer_.TryBuildFastHasInPrototypeChain(object, prototype));
   return AddNewNode<HasInPrototypeChain>({object}, prototype);
 }
 
@@ -14149,83 +13953,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 
 template <bool flip>
 ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
-  if (IsConstantNode(value->opcode())) {
-    return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
-                              flip);
-  }
+  RETURN_IF_DONE(reducer_.TryFoldToBoolean<flip>(value));
 
-  switch (value->value_representation()) {
-    case ValueRepresentation::kHoleyFloat64:
-      value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
-      [[fallthrough]];
-    case ValueRepresentation::kFloat64:
-      // The ToBoolean of both the_hole and NaN is false, so we can use the
-      // same operation for HoleyFloat64 and Float64.
-      return AddNewNodeNoInputConversion<Float64ToBoolean>({value}, flip);
-
-    case ValueRepresentation::kUint32:
-      // Uint32 has the same logic as Int32 when converting ToBoolean, namely
-      // comparison against zero, so we can cast it and ignore the signedness.
-      value = AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
-      [[fallthrough]];
-    case ValueRepresentation::kInt32:
-      return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
-
-    case ValueRepresentation::kIntPtr:
-      return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
-
-    case ValueRepresentation::kTagged:
-      break;
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-
-  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
-  if (node_info) {
-    if (ValueNode* as_int32 = node_info->alternative().int32()) {
-      return AddNewNodeNoInputConversion<Int32ToBoolean>({as_int32}, flip);
-    }
-    if (ValueNode* as_float64 = node_info->alternative().float64()) {
-      return AddNewNodeNoInputConversion<Float64ToBoolean>({as_float64}, flip);
-    }
-  }
-
-  NodeType value_type;
-  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
-    ValueNode* result;
-    GET_VALUE_OR_ABORT(result, BuildTestUndetectable(value));
-    // TODO(victorgomes): Check if it is worth to create
-    // TestUndetectableLogicalNot or to remove ToBooleanLogicalNot, since we
-    // already optimize LogicalNots by swapping the branches.
-    if constexpr (!flip) {
-      GET_VALUE_OR_ABORT(result, BuildLogicalNot(result));
-    }
-    return result;
-  }
-  ValueNode* falsy_value = nullptr;
-  if (CheckType(value, NodeType::kString)) {
-    falsy_value = GetRootConstant(RootIndex::kempty_string);
-  } else if (CheckType(value, NodeType::kSmi)) {
-    falsy_value = GetSmiConstant(0);
-  }
-  if (falsy_value != nullptr) {
-    return AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
-        {value, falsy_value});
-  }
-  if (CheckType(value, NodeType::kBoolean)) {
-    if constexpr (flip) {
-      GET_VALUE_OR_ABORT(value, BuildLogicalNot(value));
-    }
-    return value;
-  }
   // Note that we don't pass {value} to GetCheckType since
   // PhiRepresentationSelection has a special-case to optimize
   // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
   // don't need to preserve HeapObjectness here.
   constexpr ValueNode* kTargetForCheckType = nullptr;
   return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-      {value}, GetCheckType(value_type, kTargetForCheckType));
+      {value}, GetCheckType(GetType(value), kTargetForCheckType));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
@@ -18406,9 +18142,6 @@ void MaglevGraphBuilder::AddMaterializedDeoptUse(ValueNode* node) {
   AddDeoptUse(node);
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
     alloc->ForceEscaping();
-  }
-  if (Phi* phi = node->TryCast<Phi>()) {
-    phi->set_cannot_be_untagged();
   }
 }
 

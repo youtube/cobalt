@@ -176,10 +176,10 @@ kgp{
         buddhist{
             eras{
                 narrow{
-                    "EB",
+                    0{"EB"}
                 }
                 wide{
-                    "EB",
+                    0{"EB"}
                 }
             }
         }
@@ -539,20 +539,20 @@ kgp{
             }
             eras{
                 abbreviated{
-                    "C.j.",
-                    "C.kk.",
+                    0{"C.j."}
+                    1{"C.kk."}
                 }
                 abbreviated%variant{
-                    "VKJ",
-                    "VK",
+                    0{"VKJ"}
+                    1{"VK"}
                 }
                 wide{
-                    "Cristo jo",
-                    "Cristo kar kỹ",
+                    0{"Cristo jo"}
+                    1{"Cristo kar kỹ"}
                 }
                 wide%variant{
-                    "vãsỹ Kórég ju",
-                    "vãsỹ Kórég kã",
+                    0{"vãsỹ Kórég ju"}
+                    1{"vãsỹ Kórég kã"}
                 }
             }
             intervalFormats{

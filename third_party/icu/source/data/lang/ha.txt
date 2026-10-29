@@ -7,17 +7,20 @@ ha{
         cf{"Yanayin Kudi"}
         collation{"Tsarin Rabewa"}
         currency{"Kudin Kasa"}
+        em{"Gabatar da Imoji"}
         hc{"Zagayen Awowi (12 da 24)"}
         lb{"Salo na Raba Layi"}
+        lw{"Layi Zai Karye tsakanin Kalmomi"}
         ms{"Tsarin Awo"}
         numbers{"Lambobi"}
+        ss{"Jimlar ta Karye Bayan Gajarcewa."}
     }
     Languages{
         ab{"Abkhazian"}
         ace{"Achinese"}
         ada{"Adangme"}
         ady{"Adyghe"}
-        af{"Afirkanci"}
+        af{"Afrikaans"}
         agq{"Aghem"}
         ain{"Ainu"}
         ak{"Akan"}
@@ -41,6 +44,7 @@ ha{
         ay{"Aymaranci"}
         az{"Azerbaijanci"}
         ba{"Bashkir"}
+        bal{"Baluchi"}
         ban{"Balenesanci"}
         bas{"Basaa"}
         be{"Belarusanci"}
@@ -292,6 +296,7 @@ ha{
         nia{"Nias"}
         niu{"Niuean"}
         nl{"Holanci"}
+        nl_BE{"Flemish"}
         nmg{"Kwasio"}
         nn{"Norwegian Nynorsk"}
         nnh{"Ngiemboon"}
@@ -322,7 +327,7 @@ ha{
         pis{"Pijin"}
         pl{"Harshen Polan"}
         pqm{"Maliseet-Passamaquoddy"}
-        prg{"Ferusawa"}
+        prg{"Yaren Prussia"}
         ps{"Pashtanci"}
         pt{"Harshen Potugis"}
         pt_BR{"Harshen Potugis na Birazil"}
@@ -372,7 +377,7 @@ ha{
         sr{"Sabiyan"}
         srn{"Sranan Tongo"}
         ss{"Swati"}
-        st{"Sesotanci"}
+        st{"Kudancin Sotho"}
         str{"Straits Salish"}
         su{"Harshen Sundanese"}
         suk{"Sukuma"}
@@ -452,17 +457,18 @@ ha{
         zxx{"Babu abun cikin yare"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Kurdanci"}
+    }
+    Languages%extension{
+        ku{"Kurmanji"}
+    }
     Languages%menu{
         yue{"Sinanci, Cantonese"}
         zh{"Harshen, Sinanci"}
     }
     Languages%short{
         az{"Azeri"}
-        en_GB{"Turanci (Biritaniya)"}
-        en_US{"Turanci (Amurka)"}
-    }
-    Languages%variant{
-        hi_Latn{"Harshen Hindi (Latin)"}
     }
     Scripts{
         Adlm{"Adlam"}
@@ -545,14 +551,45 @@ ha{
             persian{"Kalandar Farisa"}
             roc{"Kalandar kasar Sin"}
         }
+        calendar%core{
+            buddhist{"Mabiyin addinin Buddha"}
+            chinese{"Ɗan ƙasar Sin"}
+            coptic{"Coptic"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopic"}
+            ethiopic-amete-alem{"Ethiopic Amete Alem"}
+            gregorian{"Gregori"}
+            hebrew{"Yaren Hebrew"}
+            islamic{"Kaladar Musulunci"}
+            islamic-civil{"Kaladar Musulunci (ta ciki teburi, shekarar jamaʼa)"}
+            islamic-tbla{"Kalandar Musulunci (ta cikin teburi, shekarar taurari)"}
+            islamic-umalqura{"Kalandar Musulunci (Ummu al-Qura"}
+            japanese{"Ta ƙasar Japan"}
+            persian{"Ta ƙasar Fasha"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Tsarin Kudi na Kididdiga"}
             standard{"Tsarin Kudi Nagartacce"}
+        }
+        cf%core{
+            account{"Lissafin kuɗi"}
+            standard{"Daidaitacce"}
         }
         collation{
             ducet{"Tsarin Rabewa na Dan-maƙalu na Asali"}
             search{"Bincike na Dalilai-Gamagari"}
             standard{"Daidaitaccen Kasawa"}
+        }
+        collation%core{
+            ducet{"Tsararren Unicode"}
+            search{"Bincike"}
+            standard{"Daidaitacce"}
+        }
+        em%core{
+            default{"Tsararre"}
+            emoji{"Emoji"}
+            text{"Rubutu"}
         }
         hc{
             h11{"Tsarin Awowi 12 (0–11)"}
@@ -560,15 +597,37 @@ ha{
             h23{"Tsarin Awowi 24(0–23)"}
             h24{"Tsarin Awowi 24(1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Salo na Raba Layi Sakakke"}
             normal{"Salo na Raba Layi na Kodayaushe"}
             strict{"Salo na Raba Layi mai Tsauri"}
         }
+        lb%core{
+            loose{"Sakakke"}
+            normal{"Na kodayaushe"}
+            strict{"Mai tsauri"}
+        }
+        lw%core{
+            breakall{"Raba duka"}
+            keepall{"A bar duka"}
+            normal{"Na kodayaushe"}
+            phrase{"A bari cikin magana"}
+        }
         ms{
             metric{"Tsarin Awo na Metric"}
             uksystem{"Tsarin Awo na Imperial"}
             ussystem{"Tsarin Awo na Amurka"}
+        }
+        ms%core{
+            metric{"Awo"}
+            uksystem{"Turai"}
+            ussystem{"Amurka"}
         }
         numbers{
             arab{"Lambobi na Larabawan a Gabas"}
@@ -611,6 +670,10 @@ ha{
             thai{"Lambobin yaren Thai"}
             tibt{"Lambobin yaren Tibet"}
             vaii{"Lambobin Vai"}
+        }
+        ss%core{
+            none{"Kashe"}
+            standard{"Kunna"}
         }
     }
     characterLabelPattern{

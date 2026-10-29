@@ -85,6 +85,7 @@ xh{
         CN{"ETshayina"}
         CO{"EColombia"}
         CP{"EClipperton Island"}
+        CQ{"ESark"}
         CR{"ECosta Rica"}
         CU{"ECuba"}
         CV{"ECape Verde"}

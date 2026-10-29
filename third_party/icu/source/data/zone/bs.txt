@@ -343,9 +343,6 @@ bs{
         "Europe:Tallinn"{
             ec{"Talin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Vatican"{
             ec{"Vatikan"}
         }
@@ -369,9 +366,6 @@ bs{
         }
         "Indian:Mauritius"{
             ec{"Mauricijus"}
-        }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
@@ -403,9 +397,7 @@ bs{
             ls{"Južnoafričko standardno vrijeme"}
         }
         "meta:Africa_Western"{
-            ld{"Zapadnoafričko ljetno vrijeme"}
-            lg{"Zapadnoafričko vrijeme"}
-            ls{"Zapadnoafričko standardno vrijeme"}
+            ls{"Zapadnoafričko vrijeme"}
         }
         "meta:Alaska"{
             ld{"Aljaskansko ljetno vrijeme"}
@@ -676,6 +668,9 @@ bs{
         }
         "meta:Guyana"{
             ls{"Gvajansko vrijeme"}
+        }
+        "meta:Hawaii"{
+            ls{"Havajsko-aleućansko standardno vrijeme"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havajsko-aleućansko ljetno vrijeme"}
@@ -974,6 +969,11 @@ bs{
         }
         "meta:Truk"{
             ls{"Čučko vrijeme"}
+        }
+        "meta:Turkey"{
+            ld{"Turska letnje računanje vremena"}
+            lg{"Turska vreme"}
+            ls{"Turska standardno vreme"}
         }
         "meta:Turkmenistan"{
             ld{"turkmenistansko ljetno vrijeme"}

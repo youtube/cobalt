@@ -1087,6 +1087,10 @@ vi{
             "EC$",
             "Đô la Đông Caribê",
         }
+        XCG{
+            "Cg.",
+            "Guilder Caribe",
+        }
         XDR{
             "XDR",
             "Quyền Rút vốn Đặc biệt",
@@ -1182,6 +1186,10 @@ vi{
         ZWD{
             "ZWD",
             "Đồng Đô la Zimbabwe (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwean Gold",
         }
         ZWL{
             "ZWL",
@@ -1455,9 +1463,6 @@ vi{
         MUR{
             other{"rupee Mauritius"}
         }
-        MVP{
-            other{"Rupee Maldives (1947–1981)"}
-        }
         MWK{
             other{"kwacha Malawi"}
         }
@@ -1620,6 +1625,9 @@ vi{
         XCD{
             other{"đô la Đông Caribê"}
         }
+        XCG{
+            other{"Guilder Caribe"}
+        }
         XOF{
             other{"franc CFA Tây Phi"}
         }
@@ -1637,6 +1645,9 @@ vi{
         }
         ZMW{
             other{"kwacha Zambia"}
+        }
+        ZWG{
+            other{"Zimbabwean Gold"}
         }
     }
 }

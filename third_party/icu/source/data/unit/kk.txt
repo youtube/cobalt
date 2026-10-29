@@ -34,6 +34,11 @@ kk{
                 one{"{0} айналым"}
                 other{"{0} айналым"}
             }
+            steradian{
+                dnam{"стерадиан"}
+                one{"{0} стерадиан"}
+                other{"{0} стерадиан"}
+            }
         }
         area{
             hectare{
@@ -142,6 +147,11 @@ kk{
                 one{"{0} карат"}
                 other{"{0} карат"}
             }
+            katal{
+                dnam{"катал"}
+                one{"{0} катал"}
+                other{"{0} катал"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"миллиграмм/децилитр"}
                 one{"{0} миллиграмм/децилитр"}
@@ -152,6 +162,24 @@ kk{
                 one{"{0} миллимоль/литр"}
                 other{"{0} миллимоль/литр"}
             }
+            ofglucose{
+                dnam{"глюкоза"}
+                one{"{0} глюкоза"}
+                other{"{0} глюкоза"}
+            }
+            part{
+                dnam{"бөлік"}
+                one{"{0} бөлік"}
+                other{"{0} бөлік"}
+            }
+            part-per-1e6{
+                dnam{"миллиондағы бөлік"}
+                one{"{0} б/млн"}
+                other{"{0} б/млн"}
+            }
+            part-per-1e9{
+                dnam{"миллиардтағы бөлік"}
+            }
             percent{
                 one{"{0} пайыз"}
                 other{"{0} пайыз"}
@@ -160,19 +188,9 @@ kk{
                 one{"{0} промилле"}
                 other{"{0} промилле"}
             }
-            permillion{
-                dnam{"миллиондық үлес"}
-                one{"{0} миллиондық үлес"}
-                other{"{0} миллиондық үлес"}
-            }
             permyriad{
                 one{"{0} промириад"}
                 other{"{0} промириад"}
-            }
-            portion-per-1e9{
-                dnam{"миллиардтағы бөлік"}
-                one{"{0} б/млрд"}
-                other{"{0} б/млрд"}
             }
         }
         consumption{
@@ -288,12 +306,6 @@ kk{
                 one{"{0} наносекунд"}
                 other{"{0} наносекунд"}
             }
-            night{
-                dnam{"түн"}
-                one{"{0} түн"}
-                other{"{0} түн"}
-                per{"{0}/түн"}
-            }
             second{
                 dnam{"секунд"}
                 one{"{0} секунд"}
@@ -317,9 +329,29 @@ kk{
                 one{"{0} aмпер"}
                 other{"{0} aмпер"}
             }
+            coulomb{
+                dnam{"кулон"}
+                one{"{0} кулон"}
+                other{"{0} кулон"}
+            }
+            farad{
+                dnam{"фарад"}
+                one{"{0} фарад"}
+                other{"{0} фарад"}
+            }
+            henry{
+                dnam{"генри"}
+                one{"{0} генри"}
+                other{"{0} генри"}
+            }
             milliampere{
                 one{"{0} миллиампер"}
                 other{"{0} миллиампер"}
+            }
+            siemens{
+                dnam{"сименс"}
+                one{"{0} сименс"}
+                other{"{0} сименс"}
             }
             volt{
                 one{"{0} вольт"}
@@ -327,6 +359,11 @@ kk{
             }
         }
         energy{
+            becquerel{
+                dnam{"беккерель"}
+                one{"{0} беккерель"}
+                other{"{0} Бк"}
+            }
             british-thermal-unit{
                 dnam{"британдық жылу бірлігі"}
                 one{"{0} британдық жылу бірлігі"}
@@ -337,6 +374,11 @@ kk{
                 one{"{0} калория"}
                 other{"{0} калория"}
             }
+            calorie-it{
+                dnam{"калория [халықаралық]"}
+                one{"{0} калория [халықаралық]"}
+                other{"{0} калория [халықаралық]"}
+            }
             electronvolt{
                 dnam{"электронвольт"}
                 one{"{0} электронвольт"}
@@ -346,6 +388,11 @@ kk{
                 dnam{"калория"}
                 one{"{0} калория"}
                 other{"{0} калория"}
+            }
+            gray{
+                dnam{"Гр"}
+                one{"{0} Гр"}
+                other{"{0} Гр"}
             }
             joule{
                 one{"{0} джоуль"}
@@ -365,8 +412,18 @@ kk{
                 one{"{0} киловатт-сағат"}
                 other{"{0} киловатт-сағат"}
             }
+            sievert{
+                dnam{"зиверт"}
+                one{"{0} Зв"}
+                other{"{0} Зв"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"килограмм-күш"}
+                one{"{0} кг-күш"}
+                other{"{0} кг-күш"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"киловатт-сағат/100 километр"}
                 one{"{0} киловатт-сағат/100 километр"}
@@ -520,6 +577,18 @@ kk{
                 other{"{0} Күн жарықтығы"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"тесла"}
+                one{"{0} тесла"}
+                other{"{0} тесла"}
+            }
+            weber{
+                dnam{"вебер"}
+                one{"{0} вебер"}
+                other{"{0} вебер"}
+            }
+        }
         mass{
             carat{
                 one{"{0} карат"}
@@ -647,6 +716,11 @@ kk{
                 one{"{0} миллиметр сынап бағанасы"}
                 other{"{0} миллиметр сынап бағанасы"}
             }
+            ofhg{
+                dnam{"сынап бағанасы"}
+                one{"{0} сынап бағанасы"}
+                other{"{0} с. б."}
+            }
             pascal{
                 dnam{"паскаль"}
                 one{"{0} паскаль"}
@@ -669,11 +743,6 @@ kk{
             }
             knot{
                 dnam{"түйін"}
-            }
-            light-speed{
-                dnam{"жарық"}
-                one{"{0} жарық"}
-                other{"{0} жарық"}
             }
             meter-per-second{
                 one{"{0} метр/секунд"}
@@ -801,6 +870,11 @@ kk{
                 one{"{0} имп. сұйық унция"}
                 other{"{0} имп. сұйық унция"}
             }
+            fluid-ounce-metric{
+                dnam{"метрлік сұйық унция"}
+                one{"{0} метрлік сұйық унция"}
+                other{"{0} метрлік сұйық унция"}
+            }
             gallon{
                 dnam{"галлон"}
                 one{"{0} галлон"}
@@ -882,6 +956,11 @@ kk{
             radian{
                 dnam{"рад"}
             }
+            steradian{
+                dnam{"ср"}
+                one{"{0} ср"}
+                other{"{0} ср"}
+            }
         }
         area{
             square-foot{
@@ -892,16 +971,34 @@ kk{
             }
         }
         concentr{
+            katal{
+                dnam{"кат"}
+                one{"{0} кат"}
+                other{"{0} кат"}
+            }
+            ofglucose{
+                dnam{"глюкоза"}
+                one{"{0} Глк"}
+                other{"{0} Глк"}
+            }
+            part{
+                dnam{"бөлік"}
+                one{"{0} бөлік"}
+                other{"{0} бөлік"}
+            }
+            part-per-1e6{
+                dnam{"б/млн"}
+                one{"{0} б/млн"}
+                other{"{0} б/млн"}
+            }
+            part-per-1e9{
+                dnam{"б/млрд"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
-            }
-            portion-per-1e9{
-                dnam{"б/млрд"}
-                one{"{0} б/млрд"}
-                other{"{0} б/млрд"}
             }
         }
         consumption{
@@ -947,10 +1044,8 @@ kk{
                 dnam{"сағ"}
             }
             night{
-                dnam{"түн"}
                 one{"{0}түн"}
                 other{"{0}түн"}
-                per{"{0}/түн"}
             }
             week{
                 dnam{"ап."}
@@ -961,13 +1056,60 @@ kk{
             }
         }
         electric{
+            coulomb{
+                dnam{"Кл"}
+                one{"{0} Кл"}
+                other{"{0} Кл"}
+            }
+            farad{
+                dnam{"Ф"}
+                one{"{0} Ф"}
+                other{"{0} Ф"}
+            }
+            henry{
+                dnam{"Г"}
+                one{"{0} Г"}
+                other{"{0} Г"}
+            }
             milliampere{
                 dnam{"мА"}
             }
+            siemens{
+                dnam{"Си"}
+                one{"{0} Си"}
+                other{"{0} Си"}
+            }
         }
         energy{
+            becquerel{
+                dnam{"Бк"}
+                one{"{0} Бк"}
+                other{"{0} Бк"}
+            }
+            calorie-it{
+                dnam{"халықаралық калория"}
+                one{"{0} халықаралық калория"}
+                other{"{0} халықаралық калория"}
+            }
+            gray{
+                dnam{"Гр"}
+                one{"{0} Гр"}
+                other{"{0} Гр"}
+            }
             kilojoule{
                 dnam{"кДж"}
+            }
+            sievert{
+                dnam{"Зв"}
+                one{"{0} Зв"}
+                other{"{0} Зв"}
+            }
+        }
+        force{
+            kilogram-force{
+                dnam{"кг-күш"}
+                one{"{0} кг-күш"}
+                other{"{0} кг-күш"}
             }
         }
         length{
@@ -989,6 +1131,18 @@ kk{
                 other{"{0} теңіз милі"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"Тл"}
+                one{"{0} Т"}
+                other{"{0} Т"}
+            }
+            weber{
+                dnam{"Вб"}
+                one{"{0} Вб"}
+                other{"{0} Вб"}
+            }
+        }
         mass{
             ounce{
                 one{"{0} унция"}
@@ -1003,15 +1157,15 @@ kk{
                 one{"{0} мб"}
                 other{"{0} мб"}
             }
+            ofhg{
+                dnam{"с. б."}
+                one{"{0} с. б."}
+                other{"{0} с. б."}
+            }
         }
         speed{
             knot{
                 dnam{"түйін"}
-            }
-            light-speed{
-                dnam{"жарық"}
-                one{"{0} жарық"}
-                other{"{0} жарық"}
             }
             meter-per-second{
                 dnam{"м/с"}
@@ -1035,6 +1189,11 @@ kk{
                 dnam{"имп. сұй. унц."}
                 one{"{0} имп. сұй. унц."}
                 other{"{0} имп. сұй. унц."}
+            }
+            fluid-ounce-metric{
+                dnam{"метрлік сұйық унция"}
+                one{"{0} метрлік сұйық унция"}
+                other{"{0} метрлік сұйық унция"}
             }
         }
     }
@@ -1074,6 +1233,11 @@ kk{
                 dnam{"айн."}
                 one{"{0} айн."}
                 other{"{0} айн."}
+            }
+            steradian{
+                dnam{"ср"}
+                one{"{0} ср"}
+                other{"{0} ср"}
             }
         }
         area{
@@ -1178,6 +1342,11 @@ kk{
                 one{"{0} кар."}
                 other{"{0} кар."}
             }
+            katal{
+                dnam{"кат"}
+                one{"{0} кат"}
+                other{"{0} кат"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"мг/дл"}
                 one{"{0} мг/дл"}
@@ -1193,6 +1362,26 @@ kk{
                 one{"{0} моль"}
                 other{"{0} моль"}
             }
+            ofglucose{
+                dnam{"глюкоза"}
+                one{"{0} Глк"}
+                other{"{0} Глк"}
+            }
+            part{
+                dnam{"бөлік"}
+                one{"{0} бөлік"}
+                other{"{0} бөлік"}
+            }
+            part-per-1e6{
+                dnam{"бөлік/миллион"}
+                one{"{0} б/млн"}
+                other{"{0} б/млн"}
+            }
+            part-per-1e9{
+                dnam{"бөлік/миллиард"}
+                one{"{0} б/млрд"}
+                other{"{0} б/млрд"}
+            }
             percent{
                 dnam{"пайыз"}
             }
@@ -1201,11 +1390,6 @@ kk{
             }
             permyriad{
                 dnam{"промириад"}
-            }
-            portion-per-1e9{
-                dnam{"бөлік/миллиард"}
-                one{"{0} б/млрд"}
-                other{"{0} б/млрд"}
             }
         }
         consumption{
@@ -1379,6 +1563,21 @@ kk{
             ampere{
                 dnam{"А"}
             }
+            coulomb{
+                dnam{"Кл"}
+                one{"{0} Кл"}
+                other{"{0} Кл"}
+            }
+            farad{
+                dnam{"Ф"}
+                one{"{0} Ф"}
+                other{"{0} Ф"}
+            }
+            henry{
+                dnam{"Г"}
+                one{"{0} Г"}
+                other{"{0} Г"}
+            }
             milliampere{
                 dnam{"миллиампер"}
                 one{"{0} мA"}
@@ -1389,6 +1588,11 @@ kk{
                 one{"{0} Ом"}
                 other{"{0} Ом"}
             }
+            siemens{
+                dnam{"Си"}
+                one{"{0} Си"}
+                other{"{0} Си"}
+            }
             volt{
                 dnam{"вольт"}
                 one{"{0} В"}
@@ -1396,6 +1600,11 @@ kk{
             }
         }
         energy{
+            becquerel{
+                dnam{"Бк"}
+                one{"{0} Бк"}
+                other{"{0} Бк"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
             }
@@ -1403,6 +1612,11 @@ kk{
                 dnam{"кал"}
                 one{"{0} кал"}
                 other{"{0} кал"}
+            }
+            calorie-it{
+                dnam{"халықаралық калория"}
+                one{"{0} халықаралық калория"}
+                other{"{0} халықаралық калория"}
             }
             electronvolt{
                 dnam{"эВ"}
@@ -1413,6 +1627,11 @@ kk{
                 dnam{"кал"}
                 one{"{0} кал"}
                 other{"{0} кал"}
+            }
+            gray{
+                dnam{"Гр"}
+                one{"{0} Гр"}
+                other{"{0} Гр"}
             }
             joule{
                 dnam{"джоуль"}
@@ -1434,6 +1653,11 @@ kk{
                 one{"{0} кВт-сағ"}
                 other{"{0} кВт-сағ"}
             }
+            sievert{
+                dnam{"Зв"}
+                one{"{0} Зв"}
+                other{"{0} Зв"}
+            }
             therm-us{
                 dnam{"АҚШ термі"}
                 one{"{0} АҚШ термі"}
@@ -1441,6 +1665,11 @@ kk{
             }
         }
         force{
+            kilogram-force{
+                dnam{"кг-күш"}
+                one{"{0} кг-күш"}
+                other{"{0} кг-күш"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"кВт-сағ/100 км"}
                 one{"{0} кВт-сағ/100 км"}
@@ -1639,6 +1868,18 @@ kk{
                 dnam{"Күн жарықтығы"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"Тл"}
+                one{"{0} Т"}
+                other{"{0} Т"}
+            }
+            weber{
+                dnam{"Вб"}
+                one{"{0} Вб"}
+                other{"{0} Вб"}
+            }
+        }
         mass{
             carat{
                 dnam{"карат"}
@@ -1785,6 +2026,11 @@ kk{
                 dnam{"мм с.б."}
                 one{"{0} мм с.б."}
                 other{"{0} мм с.б."}
+            }
+            ofhg{
+                dnam{"с. б."}
+                one{"{0} с. б."}
+                other{"{0} с. б."}
             }
             pascal{
                 dnam{"Па"}
@@ -1945,6 +2191,11 @@ kk{
                 dnam{"имп. сұй. унция"}
                 one{"{0} имп. сұй. унция"}
                 other{"{0} имп. сұй. унция"}
+            }
+            fluid-ounce-metric{
+                dnam{"метрлік сұйық унция"}
+                one{"{0} метрлік сұйық унция"}
+                other{"{0} метрлік сұйық унция"}
             }
             gallon{
                 dnam{"гал."}

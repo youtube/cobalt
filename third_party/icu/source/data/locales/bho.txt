@@ -19,7 +19,7 @@ bho{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "भोर",
                 "सांझ",
             }

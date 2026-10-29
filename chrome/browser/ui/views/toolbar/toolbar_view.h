@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/overflow_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
+#include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
 #include "components/prefs/pref_member.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -182,8 +183,8 @@ class ToolbarView : public views::AccessiblePaneView,
     return performance_intervention_button_;
   }
   ToolbarButton* GetCastButton() const;
-  PinnedToolbarActionsContainer* pinned_toolbar_actions_container() const {
-    return pinned_toolbar_actions_container_;
+  PinnedToolbarActions* pinned_toolbar_actions() const {
+    return pinned_toolbar_actions_;
   }
   MediaToolbarButtonView* media_button() const { return media_button_; }
   BrowserAppMenuButton* app_menu_button() const { return app_menu_button_; }
@@ -233,6 +234,11 @@ class ToolbarView : public views::AccessiblePaneView,
   // Called when the glic nudge UI needs to be triggered. `label' holds the
   // nudge label.
   void OnTriggerGlicNudgeUI(std::string label) override;
+  // Show an anchored message bubble via the page action framework.
+  void OnTriggerAnchoredMessage(
+      std::string label,
+      std::string anchored_message_text,
+      std::optional<std::string> prompt_suggestion) override;
   // Called when the glic nudge UI needs to be hidden.
   void OnHideGlicNudgeUI() override;
   // Called when we want to check if the UI is currently showing.
@@ -276,7 +282,7 @@ class ToolbarView : public views::AccessiblePaneView,
 
   // ToolbarButtonProvider:
   ExtensionsToolbarDesktop* GetExtensionsToolbarDesktop() override;
-  PinnedToolbarActionsContainer* GetPinnedToolbarActionsContainer() override;
+  PinnedToolbarActions* GetPinnedToolbarActions() override;
   gfx::Size GetToolbarButtonSize() const override;
   views::View* GetDefaultExtensionDialogAnchorView() override;
   PageActionIconView* GetPageActionIconView(PageActionIconType type) override;
@@ -381,6 +387,10 @@ class ToolbarView : public views::AccessiblePaneView,
       nullptr;
   raw_ptr<PinnedToolbarActionsContainer> pinned_toolbar_actions_container_ =
       nullptr;
+
+  // An alias for `pinned_toolbar_actions_container_` or
+  // `toolbar_webview_->GetPinnedActionsContainer()`.
+  raw_ptr<PinnedToolbarActions> pinned_toolbar_actions_ = nullptr;
   raw_ptr<AvatarToolbarButton> avatar_ = nullptr;
   raw_ptr<MediaToolbarButtonView> media_button_ = nullptr;
   raw_ptr<BrowserAppMenuButton> app_menu_button_ = nullptr;

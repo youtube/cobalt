@@ -114,12 +114,12 @@ luo{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Kapok Kristo obiro",
-                    "Ka Kristo osebiro",
+                    0{"Kapok Kristo obiro"}
+                    1{"Ka Kristo osebiro"}
                 }
             }
             monthNames{

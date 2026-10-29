@@ -49,7 +49,7 @@ sl{
         AT{"Avstrija"}
         AU{"Avstralija"}
         AW{"Aruba"}
-        AX{"Ålandski otoki"}
+        AX{"Alandski otoki"}
         AZ{"Azerbajdžan"}
         BA{"Bosna in Hercegovina"}
         BB{"Barbados"}
@@ -60,7 +60,7 @@ sl{
         BH{"Bahrajn"}
         BI{"Burundi"}
         BJ{"Benin"}
-        BL{"Saint Barthélemy"}
+        BL{"Sveti Bartolomej"}
         BM{"Bermudi"}
         BN{"Brunej"}
         BO{"Bolivija"}
@@ -85,6 +85,7 @@ sl{
         CN{"Kitajska"}
         CO{"Kolumbija"}
         CP{"Otok Clipperton"}
+        CQ{"Sark"}
         CR{"Kostarika"}
         CU{"Kuba"}
         CV{"Zelenortski otoki"}
@@ -126,12 +127,12 @@ sl{
         GL{"Grenlandija"}
         GM{"Gambija"}
         GN{"Gvineja"}
-        GP{"Guadeloupe"}
+        GP{"Gvadelup"}
         GQ{"Ekvatorialna Gvineja"}
         GR{"Grčija"}
         GS{"Južna Georgia in Južni Sandwichevi otoki"}
         GT{"Gvatemala"}
-        GU{"Guam"}
+        GU{"Gvam"}
         GW{"Gvineja Bissau"}
         GY{"Gvajana"}
         HK{"Hongkong"}
@@ -160,15 +161,15 @@ sl{
         KH{"Kambodža"}
         KI{"Kiribati"}
         KM{"Komori"}
-        KN{"Saint Kitts in Nevis"}
+        KN{"Sveti Krištof in Nevis"}
         KP{"Severna Koreja"}
         KR{"Južna Koreja"}
         KW{"Kuvajt"}
-        KY{"Kajmanski otoki"}
+        KY{"Kajmanji otoki"}
         KZ{"Kazahstan"}
         LA{"Laos"}
         LB{"Libanon"}
-        LC{"Saint Lucia"}
+        LC{"Sveta Lucija"}
         LI{"Lihtenštajn"}
         LK{"Šrilanka"}
         LR{"Liberija"}
@@ -181,20 +182,20 @@ sl{
         MC{"Monako"}
         MD{"Moldavija"}
         ME{"Črna gora"}
-        MF{"Saint Martin"}
+        MF{"Francoski Sveti Martin"}
         MG{"Madagaskar"}
         MH{"Marshallovi otoki"}
         MK{"Severna Makedonija"}
         ML{"Mali"}
         MM{"Mjanmar (Burma)"}
         MN{"Mongolija"}
-        MO{"Macao"}
+        MO{"Makav"}
         MP{"Severni Marianski otoki"}
         MQ{"Martinik"}
         MR{"Mavretanija"}
         MS{"Montserrat"}
         MT{"Malta"}
-        MU{"Mauritius"}
+        MU{"Mavricij"}
         MV{"Maldivi"}
         MW{"Malavi"}
         MX{"Mehika"}
@@ -220,12 +221,12 @@ sl{
         PH{"Filipini"}
         PK{"Pakistan"}
         PL{"Poljska"}
-        PM{"Saint Pierre in Miquelon"}
+        PM{"Sveta Peter in Mihael"}
         PN{"Pitcairn"}
         PR{"Portoriko"}
         PS{"Palestina"}
         PT{"Portugalska"}
-        PW{"Palau"}
+        PW{"Palav"}
         PY{"Paragvaj"}
         QA{"Katar"}
         QO{"Ostala oceanija"}
@@ -250,9 +251,9 @@ sl{
         SO{"Somalija"}
         SR{"Surinam"}
         SS{"Južni Sudan"}
-        ST{"Sao Tome in Principe"}
+        ST{"Sveti Tomaž in Princ"}
         SV{"Salvador"}
-        SX{"Sint Maarten"}
+        SX{"Nizozemski Sveti Martin"}
         SY{"Sirija"}
         SZ{"Esvatini"}
         TA{"Tristan da Cunha"}
@@ -262,7 +263,7 @@ sl{
         TG{"Togo"}
         TH{"Tajska"}
         TJ{"Tadžikistan"}
-        TK{"Tokelau"}
+        TK{"Tokelav"}
         TL{"Timor-Leste"}
         TM{"Turkmenistan"}
         TN{"Tunizija"}
@@ -280,7 +281,7 @@ sl{
         UY{"Urugvaj"}
         UZ{"Uzbekistan"}
         VA{"Vatikan"}
-        VC{"Saint Vincent in Grenadine"}
+        VC{"Sveti Vincencij in Grenadine"}
         VE{"Venezuela"}
         VG{"Britanski Deviški otoki"}
         VI{"Ameriški Deviški otoki"}

@@ -77,7 +77,7 @@ yo{
         CD{"Kóńgò – Kinshasa"}
         CF{"Àrin gùngun Áfíríkà"}
         CG{"Kóńgò – Brazaville"}
-        CH{"switiṣilandi"}
+        CH{"Súwísìlanìdì"}
         CI{"Kóútè forà"}
         CK{"Etíokun Kùúkù"}
         CL{"Ṣílè"}
@@ -85,6 +85,7 @@ yo{
         CN{"Ṣáínà"}
         CO{"Kòlómíbìa"}
         CP{"Erékùsù Clipperston"}
+        CQ{"Sáàkì"}
         CR{"Kuusita Ríkà"}
         CU{"Kúbà"}
         CV{"Etíokun Kápé féndè"}
@@ -247,7 +248,7 @@ yo{
         SL{"Siria looni"}
         SM{"Sani Marino"}
         SN{"Sẹnẹga"}
-        SO{"Somalia"}
+        SO{"Sòmálíà"}
         SR{"Surinami"}
         SS{"Gúúsù Sudan"}
         ST{"Sao tomi ati piriiṣipi"}

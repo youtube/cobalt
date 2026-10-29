@@ -16,8 +16,10 @@ sl{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -41,13 +43,13 @@ sl{
                         two{"000 tisoč"}
                     }
                     1000000{
-                        few{"0 milijone"}
+                        few{"0 milijoni"}
                         one{"0 milijon"}
                         other{"0 milijonov"}
                         two{"0 milijona"}
                     }
                     10000000{
-                        few{"00 milijoni"}
+                        few{"00 milijona"}
                         one{"00 milijon"}
                         other{"00 milijonov"}
                         two{"00 milijona"}
@@ -259,13 +261,13 @@ sl{
         buddhist{
             eras{
                 abbreviated{
-                    "bud. kol.",
+                    0{"bud. kol."}
                 }
                 narrow{
-                    "BK",
+                    0{"BK"}
                 }
                 wide{
-                    "budistični koledar",
+                    0{"budistični koledar"}
                 }
             }
         }
@@ -291,6 +293,12 @@ sl{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'ob' {0}",
+                "{1} 'ob' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -302,15 +310,18 @@ sl{
                 "GGGGGyyMMd",
             }
             availableFormats{
+                EBh{"E, h B"}
                 EBhm{"E, h:mm B"}
                 EBhms{"E, h:mm:ss B"}
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
+                Eh{"E, h a"}
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
                 GyM{"M/y G"}
+                GyMEd{"E, d. M. y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -320,7 +331,6 @@ sl{
                 MMMMd{"d. MMMM"}
                 MMMd{"d. MMM"}
                 Md{"d. M."}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y"}
@@ -478,7 +488,7 @@ sl{
                 "EEEE, d. MMMM y",
                 "d. MMMM y",
                 "d. MMM y",
-                "d. M. yy",
+                "d. M. y",
                 "{1}, {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -486,6 +496,12 @@ sl{
                 "{1}, {0}",
             }
             DateTimePatterns%atTime{
+                "{1} 'ob' {0}",
+                "{1} 'ob' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
                 "{1} 'ob' {0}",
                 "{1} 'ob' {0}",
                 "{1}, {0}",
@@ -502,18 +518,20 @@ sl{
                 "yyMMd",
             }
             availableFormats{
+                EBh{"E, h B"}
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
+                Eh{"E, h a"}
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
                 GyM{"MMM y G"}
+                GyMEd{"E, d. M. y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
                 GyMd{"d. M. y GGGGG"}
-                H{"HH'h'"}
                 MEd{"E, d. M."}
                 MMMEd{"E, d. MMM"}
                 MMMMW{
@@ -526,7 +544,6 @@ sl{
                 MMMd{"d. MMM"}
                 Md{"d. M."}
                 d{"d."}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -613,7 +630,7 @@ sl{
                 stand-alone{
                     abbreviated{
                         afternoon1{"pop."}
-                        evening1{"zveč."}
+                        evening1{"več."}
                         midnight{"poln."}
                         morning1{"jut."}
                         morning2{"dop."}
@@ -646,20 +663,20 @@ sl{
             }
             eras{
                 abbreviated{
-                    "pr. Kr.",
-                    "po Kr.",
+                    0{"pr. Kr."}
+                    1{"po Kr."}
                 }
                 abbreviated%variant{
-                    "pr. n. št.",
-                    "po n. št.",
+                    0{"pr. n. št."}
+                    1{"po n. št."}
                 }
                 wide{
-                    "pred Kristusom",
-                    "po Kristusu",
+                    0{"pred Kristusom"}
+                    1{"po Kristusu"}
                 }
                 wide%variant{
-                    "pred našim štetjem",
-                    "po našem štetju",
+                    0{"pred našim štetjem"}
+                    1{"po našem štetju"}
                 }
             }
             intervalFormats{
@@ -679,10 +696,10 @@ sl{
                     y{"MM. y–MM. y GGGGG"}
                 }
                 GyMEd{
-                    G{"E, d. MM. y GGGGG–E, d. MM. y GGGGG"}
-                    M{"E, d. MM. y–E, d. MM. y GGGGG"}
-                    d{"E, d. MM. y–E, d. MM. y GGGGG"}
-                    y{"E, d. MM. y–E, d. MM. y GGGGG"}
+                    G{"E, d. M. y GGGGG–E, d. M. y GGGGG"}
+                    M{"E, d. M. y–E, d. M. y GGGGG"}
+                    d{"E, d. M. y–E, d. M. y GGGGG"}
+                    y{"E, d. M. y–E, d. M. y GGGGG"}
                 }
                 GyMMM{
                     G{"MMM y G–MMM y G"}
@@ -702,10 +719,10 @@ sl{
                     y{"d. MMM y–d. MMM y G"}
                 }
                 GyMd{
-                    G{"d. MM. y GGGGG–d. MM. y GGGGG"}
-                    M{"d. MM. y–d. MM. y GGGGG"}
-                    d{"d. MM. y–d. MM. y GGGGG"}
-                    y{"d. MM. y–d. MM. y GGGGG"}
+                    G{"d. M. y GGGGG–d. M. y GGGGG"}
+                    M{"d. M. y–d. M. y GGGGG"}
+                    d{"d.–d. M. y GGGGG"}
+                    y{"d. M. y–d. M. y GGGGG"}
                 }
                 H{
                     H{"H–H"}
@@ -749,7 +766,6 @@ sl{
                 fallback{"{0}–{1}"}
                 h{
                     a{"h a–h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
@@ -760,10 +776,6 @@ sl{
                     a{"h:mm a – h:mm a v"}
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"M.–M. y"}
@@ -780,7 +792,7 @@ sl{
                 }
                 yMMMEd{
                     M{"E, d. MMM–E, d. MMM y"}
-                    d{"E, d. MMM–E, d. MMM y"}
+                    d{"E, d.–E, d. MMM y"}
                     y{"E, d. MMM y–E, d. MMM y"}
                 }
                 yMMMM{
@@ -794,7 +806,7 @@ sl{
                 }
                 yMd{
                     M{"d. M.–d. M. y"}
-                    d{"d. M. y–d. M. y"}
+                    d{"d.–d. M. y"}
                     y{"d. M. y–d. M. y"}
                 }
             }
@@ -874,8 +886,8 @@ sl{
         roc{
             eras{
                 abbreviated{
-                    "pred RK",
-                    "Minguo koledar",
+                    0{"pred RK"}
+                    1{"Minguo koledar"}
                 }
             }
         }

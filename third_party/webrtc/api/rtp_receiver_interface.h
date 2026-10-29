@@ -25,9 +25,13 @@
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/ref_count.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
+#include "api/sframe/sframe_decrypter_interface.h"
+#include "api/sframe/sframe_types.h"
 #include "api/transport/rtp/rtp_source.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -130,6 +134,17 @@ class RTC_EXPORT RtpReceiverInterface : public RefCountInterface,
   // TODO: bugs.webrtc.org/15929 - Make pure virtual.
   void SetFrameTransformer(
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
+
+  // Creates an internal Sframe decrypter and returns a handle for key
+  // management.
+  // Default implementation of CreateSframeDecrypterOrError.
+  // TODO: issues.webrtc.org/479862368 - make pure virtual when all
+  // implementations are updated
+  virtual RTCErrorOr<scoped_refptr<SframeDecrypterInterface>>
+  CreateSframeDecrypterOrError(SframeCipherSuite cipher_suite) {
+    RTC_DCHECK_NOTREACHED();
+    return RTCError();
+  }
 
  protected:
   ~RtpReceiverInterface() override = default;

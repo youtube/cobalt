@@ -6,7 +6,6 @@ wo{
         af{"Afrikaans"}
         am{"Amharik"}
         ar{"Arabic"}
-        ar_001{"Araab"}
         as{"Asame"}
         az{"Aserbayjane"}
         ba{"Baskir"}
@@ -196,8 +195,14 @@ wo{
             gregorian{"Arminaatu Gregoriyee"}
             iso8601{"ISO-8601 Calendar"}
         }
+        calendar%core{
+            gregorian{"Gregorian"}
+        }
         collation{
             standard{"SSO (Toftalin wiñ gën a xam)"}
+        }
+        collation%core{
+            standard{"Njàng miir"}
         }
         numbers{
             latn{"Siifari Tugal"}

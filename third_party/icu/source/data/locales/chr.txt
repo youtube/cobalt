@@ -235,6 +235,8 @@ chr{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -398,6 +400,12 @@ chr{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} ᎤᎾᎢ {0}",
+                "{1} ᎤᎾᎢ {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -411,6 +419,8 @@ chr{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -500,20 +510,20 @@ chr{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "ᏧᏓᎷᎸ ᎤᎷᎯᏍᏗ ᎦᎶᏁᏛ",
-                    "ᎠᏃ ᏙᎻᏂ",
+                    0{"ᏧᏓᎷᎸ ᎤᎷᎯᏍᏗ ᎦᎶᏁᏛ"}
+                    1{"ᎠᏃ ᏙᎻᏂ"}
                 }
                 wide%variant{
-                    "ᏧᏓᎷᎸ ᏯᏃᏉ ᏱᎬᏍᏛᏭ ᎠᏓᎴᏂᏍᎬ",
-                    "ᏯᏃᏉ ᏱᎬᏍᏛᏭ ᎠᏓᎴᏂᏍᎬ",
+                    0{"ᏧᏓᎷᎸ ᏯᏃᏉ ᏱᎬᏍᏛᏭ ᎠᏓᎴᏂᏍᎬ"}
+                    1{"ᏯᏃᏉ ᏱᎬᏍᏛᏭ ᎠᏓᎴᏂᏍᎬ"}
                 }
             }
             intervalFormats{
@@ -1487,19 +1497,6 @@ chr{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

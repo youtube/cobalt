@@ -404,12 +404,14 @@ set(
   crypto/evp/evp.cc
   crypto/evp/evp_asn1.cc
   crypto/evp/evp_ctx.cc
+  crypto/evp/evp_kem.cc
   crypto/evp/p_dh.cc
   crypto/evp/p_dsa.cc
   crypto/evp/p_ec.cc
   crypto/evp/p_ed25519.cc
   crypto/evp/p_hkdf.cc
   crypto/evp/p_mldsa.cc
+  crypto/evp/p_mlkem.cc
   crypto/evp/p_rsa.cc
   crypto/evp/p_x25519.cc
   crypto/evp/pbkdf.cc
@@ -895,6 +897,7 @@ set(
   crypto/evp/test/ed25519_tests.txt
   crypto/evp/test/evp_tests.txt
   crypto/evp/test/mldsa_tests.txt
+  crypto/evp/test/mlkem_tests.txt
   crypto/evp/test/rsa_tests.txt
   crypto/evp/test/scrypt_tests.txt
   crypto/evp/test/x25519_tests.txt

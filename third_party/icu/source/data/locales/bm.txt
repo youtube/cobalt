@@ -147,12 +147,12 @@ bm{
             }
             eras{
                 abbreviated{
-                    "J.-C. ɲɛ",
-                    "ni J.-C.",
+                    0{"J.-C. ɲɛ"}
+                    1{"ni J.-C."}
                 }
                 wide{
-                    "jezu krisiti ɲɛ",
-                    "jezu krisiti minkɛ",
+                    0{"jezu krisiti ɲɛ"}
+                    1{"jezu krisiti minkɛ"}
                 }
             }
             monthNames{

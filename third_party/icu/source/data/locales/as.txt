@@ -19,7 +19,15 @@ as{
     NumberElements{
         beng{
             patterns{
-                currencyFormat%noCurrency{"#,##0.00"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
+            }
+            rationalFormats{
+                rationalUsage{"never"}
+            }
+            symbols{
+                timeSeparator{":"}
             }
         }
         default{"beng"}
@@ -29,8 +37,11 @@ as{
             }
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"¤ #,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
@@ -98,8 +109,8 @@ as{
                         other{"¤ 00 হাজাৰ"}
                     }
                     100000{
-                        one{"¤ 000 লাখ"}
-                        other{"¤ 000 লাখ"}
+                        one{"¤ 0 লাখ"}
+                        other{"¤ 0 লাখ"}
                     }
                     1000000{
                         one{"¤ 0 নিযুত"}
@@ -110,32 +121,32 @@ as{
                         other{"¤ 00 নিযুত"}
                     }
                     100000000{
-                        one{"¤ 000 নিযুত"}
-                        other{"¤ 000 নিযুত"}
+                        one{"¤ 0 নিঃ"}
+                        other{"¤ 0 নিঃ"}
                     }
                     1000000000{
-                        one{"¤ 0 শত কোটি"}
-                        other{"¤ 0 শত কোটি"}
+                        one{"¤ 0 শঃ কোঃ"}
+                        other{"¤ 0 শঃ কোঃ"}
                     }
                     10000000000{
-                        one{"¤ 00 শত কোটি"}
-                        other{"¤ 00 শত কোটি"}
+                        one{"¤ 00 শঃ কোঃ"}
+                        other{"¤ 00 শঃ কোঃ"}
                     }
                     100000000000{
-                        one{"¤ 000 শত কোটি"}
-                        other{"¤ 000 শত কোটি"}
+                        one{"¤ 000 শঃ কঃ"}
+                        other{"¤ 000 শঃ কঃ"}
                     }
                     1000000000000{
-                        one{"¤ 0 শত পৰাৰ্দ্ধ"}
-                        other{"¤ 0 শত পৰাৰ্দ্ধ"}
+                        one{"¤ 0 শঃ পঃ"}
+                        other{"¤ 0 শঃ পঃ"}
                     }
                     10000000000000{
-                        one{"¤ 00 শত পৰাৰ্দ্ধ"}
-                        other{"¤ 00 শত পৰাৰ্দ্ধ"}
+                        one{"¤ 00 শঃ পঃ"}
+                        other{"¤ 00 শঃ পঃ"}
                     }
                     100000000000000{
-                        one{"¤ 000 শত পৰাৰ্দ্ধ"}
-                        other{"¤ 000 শত পৰাৰ্দ্ধ"}
+                        one{"¤ 000 শঃ পঃ"}
+                        other{"¤ 000 শঃ পঃ"}
                     }
                 }
                 decimalFormat{
@@ -160,8 +171,8 @@ as{
                         other{"00 নিযুত"}
                     }
                     100000000{
-                        one{"000 নিঃ"}
-                        other{"000 নিঃ"}
+                        one{"0 নিঃ"}
+                        other{"0 নিঃ"}
                     }
                     1000000000{
                         one{"0 শঃ কোঃ"}
@@ -211,7 +222,7 @@ as{
                 "G y MMMM d, EEEE",
                 "G y MMMM d",
                 "G y MMM d",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1} {0}",
                 "{1} {0} বজাত",
                 "{1} {0} বজাত",
@@ -219,7 +230,7 @@ as{
                 "{1} {0}",
             }
             DateTimePatterns%atTime{
-                "{1} 'at' {0}",
+                "{1} {0} বজাত",
                 "{1} 'at' {0}",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -298,13 +309,9 @@ as{
             }
         }
         gregorian{
-            AmPmMarkers{
-                "AM",
-                "PM",
-            }
-            AmPmMarkersNarrow{
-                "am",
-                "pm",
+            AmPmMarkersAbbr{
+                "পূৰ্বাহ্ন",
+                "অপৰাহ্ন",
             }
             DateTimePatterns{
                 "a h.mm.ss zzzz",
@@ -408,38 +415,20 @@ as{
                     }
                 }
             }
-            dayPeriod{
-                stand-alone{
-                    abbreviated{
-                        am{"AM"}
-                        pm{"PM"}
-                    }
-                    narrow{
-                        am{"AM"}
-                        pm{"PM"}
-                    }
-                    wide{
-                        am{"AM"}
-                        pm{"PM"}
-                    }
-                }
-            }
             eras{
                 abbreviated{
-                    "খ্ৰীঃ পূঃ",
-                    "খ্ৰীঃ",
+                    0{"খ্ৰীঃ পূঃ"}
+                    1{"খ্ৰীঃ"}
                 }
                 abbreviated%variant{
-                    "খ্ৰীঃ পূঃ",
-                    "চি. ই.",
+                    1{"চি. ই."}
                 }
                 wide{
-                    "খ্ৰীষ্টপূৰ্ব",
-                    "খ্ৰীষ্টাব্দ",
+                    0{"খ্ৰীষ্টপূৰ্ব"}
+                    1{"খ্ৰীষ্টাব্দ"}
                 }
                 wide%variant{
-                    "খ্ৰীষ্টপূৰ্ব",
-                    "চি. ই.",
+                    0{"খ্ৰীষ্টপূৰ্ব"}
                 }
             }
             intervalFormats{
@@ -631,7 +620,7 @@ as{
         indian{
             eras{
                 abbreviated{
-                    "শক",
+                    0{"শক"}
                 }
             }
             monthNames{

@@ -57,6 +57,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="1594928384848033697">Chromium želi izbrisati podatke upravitelja gesel. Če želite to omogočiti, vnesite geslo za Windows.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium.}=1{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium. Anonimno okno se ne bo znova odprlo.}one{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium. # anonimno okno se ne bo znova odprlo.}two{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium. # anonimni okni se ne bosta znova odprli.}few{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium. # anonimna okna se ne bodo znova odprla.}other{Skrbnik zahteva, da za uveljavitev te posodobitve znova zaženete Chromium. # anonimnih oken se ne bo znova odprlo.}}</translation>
 <translation id="1625909126243026060">Oglejte si ključne kontrolnike zasebnosti in varnosti v Chromiumu.</translation>
+<translation id="1639380494700489405">Če želite v načinu umetne inteligence postaviti vprašanje o zavihku, ne da bi zapustili stran, se prijavite v Chromium. V vseh svojih napravah boste imeli na voljo tudi gesla in drugo.</translation>
 <translation id="1640672724030957280">Prenos ...</translation>
 <translation id="1680687534629375545">Vprašajte slikovno iskanje o tej strani</translation>
 <translation id="1709772298389099340">Zagotovi povečane pravice za brskalnik <ph name="BROWSER_NAME" />.</translation>
@@ -198,6 +199,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="3045032126857188731">Jezik prevoda: <ph name="LANGUAGE" /></translation>
 <translation id="3047590466164881923">Zapiranje pogovornega okna za povratne informacije</translation>
 <translation id="3068187312562070417">Drugi profili v Chromiumu</translation>
+<translation id="3068290154869370196">Razširitve so dodatki, s katerimi lahko prilagodite Chromium. Razširitve vam pomagajo, da Chromium prilagodite svojim potrebam, od organiziranja do poenostavljanja vsakodnevnih opravil.</translation>
 <translation id="3068515742935458733">Pomagajte izboljšati Chromium – Googlu pošiljajte poročila o zrušitvah in ta dokument: <ph name="UMA_LINK" />.</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{Najmanj ena razširitev za Chromium je dostopala do 1 naprave USB}=1{Najmanj ena razširitev za Chromium dostopa do 1 naprave USB}one{Najmanj ena razširitev za Chromium dostopa do # naprave USB}two{Najmanj ena razširitev za Chromium dostopa do # naprav USB}few{Najmanj ena razširitev za Chromium dostopa do # naprav USB}other{Najmanj ena razširitev za Chromium dostopa do # naprav USB}}</translation>
 <translation id="3095811995836568724">Zgodovina v Chromiumu</translation>
@@ -432,6 +434,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="5821520528363214608">Če želite v računu Google uporabljati in shranjevati podatke iz Chromiuma, posodobite Chromium</translation>
 <translation id="5824893331272123205">Tega podokna ni bilo mogoče naložiti. Poskusite znova.</translation>
 <translation id="5862307444128926510">Pozdravljeni v Chromiumu</translation>
+<translation id="5867606647614813312">Vklopi dodatne funkcije, ki zagotavljajo Chromiumovo najmočnejšo zaščito</translation>
 <translation id="5871205389137001634">Kliknite, če želite zapreti slikovno iskanje</translation>
 <translation id="5883558403894052917">Chromium je ugotovil, da ti elementi vsebujejo zlonamerno programsko opremo:</translation>
 <translation id="5889361821821684993">Chromium redno preverja, ali so v brskalniku na voljo najvarnejše nastavitve Če boste morali kaj pregledati, vam bomo sporočili.</translation>

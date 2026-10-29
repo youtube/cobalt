@@ -611,6 +611,9 @@ fo{
             persian{"persiskur kalendari"}
             roc{"minguo kalendari"}
         }
+        calendar%core{
+            gregorian{"gregorianskur"}
+        }
         cf{
             account{"gjaldoyras roknskaparførsla format"}
             standard{"vanlig gjaldoyra format"}
@@ -623,6 +626,9 @@ fo{
             standard{"vanlig raðskipan"}
             traditional{"siðbundin raðskipan"}
             zhuyin{"zhuyin raðskipan"}
+        }
+        collation%core{
+            standard{"vanlig"}
         }
         hc{
             h11{"12 tímar klokkuskipan (0–11)"}

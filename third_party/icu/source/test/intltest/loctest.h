@@ -91,6 +91,7 @@ public:
    void TestGetUnicodeKeywordValueStdString();
 
    /* Test setting keyword values */
+   void TestSetKeywordValueImp();
    void TestSetKeywordValue();
    void TestSetKeywordValueStringPiece();
    void TestSetUnicodeKeywordValueStringPiece();
@@ -165,6 +166,7 @@ public:
     void TestLongLocaleSetKeywordAssign();
     void TestLongLocaleSetKeywordMoveAssign();
     void TestSierraLeoneCurrency21997();
+    void TestPayload();
 
 private:
     void _checklocs(const char* label,

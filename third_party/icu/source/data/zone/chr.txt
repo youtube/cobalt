@@ -270,6 +270,9 @@ chr{
         "America:Costa_Rica"{
             ec{"ᎪᏍᏓᎵᎧ"}
         }
+        "America:Coyhaique"{
+            ec{"ᎪᎭᎢᏇ"}
+        }
         "America:Creston"{
             ec{"ᏞᏍᏔᏂ"}
         }
@@ -1167,7 +1170,7 @@ chr{
             ec{"ᎡᏩᏖ"}
         }
         "Pacific:Enderbury"{
-            ec{"ᎡᏂᏇᎵ"}
+            ec{"ᎧᏛᏂ"}
         }
         "Pacific:Fakaofo"{
             ec{"ᏩᎧᎣᏬ"}
@@ -1192,12 +1195,6 @@ chr{
         }
         "Pacific:Honolulu"{
             ec{"ᎭᏃᎷᎷ"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
-        }
-        "Pacific:Kanton"{
-            ec{"ᎧᏛᏂ"}
         }
         "Pacific:Kiritimati"{
             ec{"ᎩᎵᏘᎹᏘ"}
@@ -1281,9 +1278,7 @@ chr{
             ls{"ᏧᎦᎾᏮ ᎬᎿᎨᏍᏛ ᎠᏟᎶᏍᏗ ᎠᏟᎢᎵᏒ"}
         }
         "meta:Africa_Western"{
-            ld{"ᏭᏕᎵᎬ ᎬᎿᎨᏍᏛ ᎪᎩ ᎠᏟᎢᎵᏒ"}
-            lg{"ᏭᏕᎵᎬ ᎬᎿᎨᏍᏛ ᎠᏟᎢᎵᏒ"}
-            ls{"ᏭᏕᎵᎬ ᎬᎿᎨᏍᏛ ᎠᏟᎶᏍᏗ ᎠᏟᎢᎵᏒ"}
+            ls{"ᏭᏕᎵᎬ ᎬᎿᎨᏍᏛ ᎠᏟᎢᎵᏒ"}
         }
         "meta:Alaska"{
             ld{"ᎠᎳᏍᎦ ᎪᎯ ᎢᎦ ᎠᏟᎢᎵᏒ"}
@@ -1539,6 +1534,10 @@ chr{
         }
         "meta:Guyana"{
             ls{"ᎦᏯᎾ ᎠᏟᎢᎵᏒ"}
+        }
+        "meta:Hawaii"{
+            ls{"ᎭᏩᏱ-ᎠᎵᏳᏏᎠᏂ ᎠᏟᎶᏍᏗ ᎠᏟᎢᎵᏒ"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ᎭᏩᏱ-ᎠᎵᏳᏏᎠᏂ ᎪᎯ ᎢᎦ ᎠᏟᎢᎵᏒ"}

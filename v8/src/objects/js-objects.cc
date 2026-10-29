@@ -2563,6 +2563,9 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSGlobalObject::kHeaderSize;
     case JS_BOUND_FUNCTION_TYPE:
       return JSBoundFunction::kHeaderSize;
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
+      DCHECK(!function_has_prototype_slot);
+      return JSFunctionWithoutPrototype::kHeaderSize;
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -2572,7 +2575,8 @@ int JSObject::GetHeaderSize(InstanceType type,
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-      return JSFunction::GetHeaderSize(function_has_prototype_slot);
+      DCHECK(function_has_prototype_slot);
+      return JSFunctionWithPrototype::kHeaderSize;
     case JS_PRIMITIVE_WRAPPER_TYPE:
       return JSPrimitiveWrapper::kHeaderSize;
     case JS_DATE_TYPE:
@@ -2950,6 +2954,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
     case JS_CLASS_CONSTRUCTOR_TYPE:
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE: {
       Tagged<JSFunction> function = Cast<JSFunction>(*this);
       std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
@@ -5245,7 +5250,8 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
                                          isolate);
   DirectHandle<WeakArrayList> prototype_users(
       Cast<WeakArrayList>(proto_info->prototype_users()), isolate);
-  DCHECK_EQ(prototype_users->Get(slot), MakeWeak(*user));
+  DCHECK_GE(slot, 0);
+  DCHECK_EQ(prototype_users->Get(static_cast<uint32_t>(slot)), MakeWeak(*user));
   PrototypeUsers::MarkSlotEmpty(*prototype_users, slot);
   if (v8_flags.trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",
@@ -5324,8 +5330,9 @@ void InvalidatePrototypeChainsInternal(Tagged<Map> map) {
     }
     Tagged<WeakArrayList> prototype_users =
         Cast<WeakArrayList>(proto_info->prototype_users());
+    const uint32_t prototype_users_len = prototype_users->length().value();
     // For now, only maps register themselves as users.
-    for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
+    for (uint32_t i = PrototypeUsers::kFirstIndex; i < prototype_users_len;
          ++i) {
       Tagged<HeapObject> heap_object;
       if (prototype_users->Get(i).GetHeapObjectIfWeak(&heap_object) &&

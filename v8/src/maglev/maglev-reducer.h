@@ -281,6 +281,12 @@ class MaglevReducer {
     }
   }
 
+  ReduceResult BuildCheckMaps(
+      ValueNode* object, base::Vector<const compiler::MapRef> maps,
+      std::optional<ValueNode*> map = std::nullopt,
+      bool has_deprecated_map_without_migration_target = false,
+      bool migration_done_outside = false);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
@@ -344,6 +350,20 @@ class MaglevReducer {
   MaybeReduceResult TryFoldCheckMaps(ValueNode* object, ValueNode* object_map,
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
+  MaybeReduceResult TryFoldTestUndetectable(ValueNode* value);
+  template <bool flip>
+  MaybeReduceResult TryFoldToBoolean(ValueNode* value);
+
+  enum InferHasInPrototypeChainResult {
+    kMayBeInPrototypeChain,
+    kIsInPrototypeChain,
+    kIsNotInPrototypeChain
+  };
+  InferHasInPrototypeChainResult InferHasInPrototypeChain(
+      ValueNode* receiver, compiler::HeapObjectRef prototype);
+  MaybeReduceResult TryBuildFastHasInPrototypeChain(
+      ValueNode* object, compiler::HeapObjectRef prototype);
+
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
                            AllowWideningSmiToInt32::kDontAllow);
@@ -608,9 +628,18 @@ class MaglevReducer {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
-      ReduceResult result = AddNewNode<CheckMaglevType>(
-          {node}, type, allow_widening_smi_to_int32);
-      USE(result);
+      if (type == NodeType::kNone) {
+        // We're generating code which should never be executed.
+        ReduceResult result = AddNewNode<Trap>({});
+        CHECK(result.IsDoneWithPayload());
+      } else {
+        // TODO(marja): Consider adding different CheckMaglevType variants
+        // based on node->value_representation(). Then we wouldn't need to
+        // convert the value to tagged.
+        ReduceResult result = AddNewNode<CheckMaglevType>(
+            {node}, type, allow_widening_smi_to_int32);
+        CHECK(result.IsDoneWithPayload());
+      }
     }
     return type;
   }
@@ -687,6 +716,9 @@ class MaglevReducer {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
+
+  template <typename T>
+  friend class MapInference;
 
  private:
   BaseT* base_;

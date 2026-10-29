@@ -1562,7 +1562,7 @@ public:
      * @return        The number of fields into which the input string was split.
      * @stable ICU 2.6
      */
-    int32_t  split(const UnicodeString &input,
+     int32_t  split(const UnicodeString &input,
         UnicodeString    dest[],
         int32_t          destCapacity,
         UErrorCode       &status);
@@ -1591,7 +1591,7 @@ public:
      *
      * @stable ICU 4.6
      */
-    int32_t  split(UText *input,
+     int32_t  split(UText *input,
         UText           *dest[],
         int32_t          destCapacity,
         UErrorCode       &status);
@@ -1674,8 +1674,8 @@ public:
     *  @stable ICU 4.0
     */
     void setMatchCallback(URegexMatchCallback     *callback,
-                                  const void              *context,
-                                  UErrorCode              &status);
+                          const void              *context,
+                          UErrorCode              &status);
 
 
   /**
@@ -1689,8 +1689,8 @@ public:
     *    @stable ICU 4.0
     */
     void getMatchCallback(URegexMatchCallback     *&callback,
-                                  const void              *&context,
-                                  UErrorCode              &status);
+                          const void              *&context,
+                          UErrorCode              &status);
 
 
   /**
@@ -1707,8 +1707,8 @@ public:
     *    @stable ICU 4.6
     */
     void setFindProgressCallback(URegexFindProgressCallback      *callback,
-                                              const void                              *context,
-                                              UErrorCode                              &status);
+                                 const void                              *context,
+                                 UErrorCode                              &status);
 
 
   /**
@@ -1722,8 +1722,8 @@ public:
     *    @stable ICU 4.6
     */
     void getFindProgressCallback(URegexFindProgressCallback      *&callback,
-                                              const void                      *&context,
-                                              UErrorCode                      &status);
+                                 const void                      *&context,
+                                 UErrorCode                      &status);
 
 #ifndef U_HIDE_INTERNAL_API
    /**

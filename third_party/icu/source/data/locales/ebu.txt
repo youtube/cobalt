@@ -118,12 +118,12 @@ ebu{
             }
             eras{
                 abbreviated{
-                    "MK",
-                    "TK",
+                    0{"MK"}
+                    1{"TK"}
                 }
                 wide{
-                    "Mbere ya Kristo",
-                    "Thutha wa Kristo",
+                    0{"Mbere ya Kristo"}
+                    1{"Thutha wa Kristo"}
                 }
             }
             monthNames{

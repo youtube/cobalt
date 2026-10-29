@@ -86,6 +86,7 @@
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
 #include "pc/rtp_transmission_manager.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sdp_munging_detector.h"
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
@@ -112,38 +113,6 @@
 namespace webrtc {
 namespace {
 
-class ScopedOperationsBatcher {
- public:
-  explicit ScopedOperationsBatcher(Thread* worker_thread)
-      : worker_thread_(worker_thread) {
-    RTC_DCHECK(worker_thread_);
-  }
-
-  ~ScopedOperationsBatcher() { Run(); }
-
-  void Run() {
-    if (!tasks_.empty()) {
-      worker_thread_->BlockingCall([tasks = std::move(tasks_)]() mutable {
-        for (auto& task : tasks) {
-          std::move(task)();
-        }
-      });
-      RTC_DCHECK(tasks_.empty());
-    }
-  }
-
-  // Queues non-nullptr tasks to be executed on the worker when the
-  // ScopedOperationsBatcher goes out of scope.
-  void push_back(absl::AnyInvocable<void() &&> task) {
-    if (task) {
-      tasks_.push_back(std::move(task));
-    }
-  }
-
- private:
-  Thread* const worker_thread_;
-  std::vector<absl::AnyInvocable<void() &&>> tasks_;
-};
 
 struct DtlsTransportAndName {
   scoped_refptr<DtlsTransport> transport;
@@ -737,6 +706,12 @@ std::vector<RtpEncodingParameters> GetSendEncodingsFromRemoteDescription(
   // This is a remote description, the parameters we are after should appear
   // as receive streams.
   for (const auto& alternatives : simulcast.receive_layers()) {
+    if (result.size() >= kMaxSimulcastStreams) {
+      RTC_LOG(LS_WARNING)
+          << "Excessive simulcast layers in remote description. Clamping to "
+          << kMaxSimulcastStreams;
+      break;
+    }
     RTC_DCHECK(!alternatives.empty());
     // There is currently no way to specify or choose from alternatives.
     // We will always use the first alternative, which is the most preferred.
@@ -5258,13 +5233,12 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     // - crbug.com/1157227
     // - crbug.com/1187289
     for (const auto& [transceiver, content] : channels) {
-      std::string error;
-      bool success =
+      RTCError error =
           (source == CS_LOCAL)
-              ? transceiver->SetChannelLocalContent(content, type, error)
-              : transceiver->SetChannelRemoteContent(content, type, error);
-      if (!success) {
-        return LOG_ERROR(RTCError::InvalidParameter() << error);
+              ? transceiver->SetChannelLocalContent(content, type)
+              : transceiver->SetChannelRemoteContent(content, type);
+      if (!error.ok()) {
+        return error;
       }
     }
     // If local and remote are both set, we assume that it's safe to trigger

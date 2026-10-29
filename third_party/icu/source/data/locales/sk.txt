@@ -18,8 +18,10 @@ sk{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -344,6 +346,7 @@ sk{
                 H{"H"}
                 Hm{"H:mm"}
                 Hms{"H:mm:ss"}
+                Hv{"HH 'h', v"}
                 M{"M."}
                 MEd{"E d. M."}
                 MMMEd{"E d. M."}
@@ -352,9 +355,9 @@ sk{
                 MMMd{"d. M."}
                 Md{"d. M."}
                 d{"d."}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"h a, v"}
                 mmss{"mm:ss"}
                 y{"y G"}
                 yyyy{"y G"}
@@ -573,7 +576,6 @@ sk{
                 MMMd{"d. M."}
                 Md{"d. M."}
                 d{"d."}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -689,20 +691,20 @@ sk{
             }
             eras{
                 abbreviated{
-                    "pred Kr.",
-                    "po Kr.",
+                    0{"pred Kr."}
+                    1{"po Kr."}
                 }
                 abbreviated%variant{
-                    "pred n. l.",
-                    "n. l.",
+                    0{"pred n. l."}
+                    1{"n. l."}
                 }
                 wide{
-                    "pred Kristom",
-                    "po Kristovi",
+                    0{"pred Kristom"}
+                    1{"po Kristovi"}
                 }
                 wide%variant{
-                    "pred naším letopočtom",
-                    "nášho letopočtu",
+                    0{"pred naším letopočtom"}
+                    1{"nášho letopočtu"}
                 }
             }
             intervalFormats{
@@ -794,7 +796,6 @@ sk{
                     d{"d. – d."}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h a"}
                 }
                 hm{
@@ -808,7 +809,6 @@ sk{
                     m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h a v"}
                 }
                 y{
@@ -951,7 +951,7 @@ sk{
         indian{
             eras{
                 abbreviated{
-                    "Šaka",
+                    0{"Šaka"}
                 }
             }
             monthNames{
@@ -1030,8 +1030,8 @@ sk{
         roc{
             eras{
                 abbreviated{
-                    "pred ROC",
-                    "ROC",
+                    0{"pred ROC"}
+                    1{"ROC"}
                 }
             }
         }
@@ -1919,19 +1919,6 @@ sk{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

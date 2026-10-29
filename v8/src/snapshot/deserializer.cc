@@ -103,7 +103,7 @@ class SlotAccessorForHeapObject {
         TrustedCast<ExposedTrustedObject>(value);
 
     InstanceType instance_type = value->map()->instance_type();
-    bool shared = HeapLayout::InAnySharedSpace(value);
+    SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(value));
     IndirectPointerTag tag =
         IndirectPointerTagFromInstanceType(instance_type, shared);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
@@ -573,8 +573,7 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
                                 EmptyBackingStoreBuffer());
     } else {
       auto bs = backing_store(store_index);
-      SharedFlag shared =
-          bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
+      SharedFlag shared = SharedFlag(bs && bs->is_shared());
       DCHECK_IMPLIES(bs,
                      buffer->is_resizable_by_js() == bs->is_resizable_by_js());
       ResizableFlag resizable = bs && bs->is_resizable_by_js()
@@ -900,8 +899,10 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const int size_in_bytes = Map::kSize;
-  const int size_in_tagged = size_in_bytes / kTaggedSize;
+  const int size_in_tagged = source_.GetUint30();
+  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const InstanceType instance_type =
+      static_cast<InstanceType>(source_.GetUint30());
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
@@ -918,7 +919,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   }
 
   // Set the instance-type manually, to allow backrefs to read it.
-  UncheckedCast<Map>(*obj)->set_instance_type(MAP_TYPE);
+  DCHECK(InstanceTypeChecker::IsMap(instance_type));
+  UncheckedCast<Map>(*obj)->set_instance_type(instance_type);
 
   ReadData(obj, 1, size_in_tagged);
   PostProcessNewObject(Cast<Map>(obj), obj, space);
@@ -1397,7 +1399,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
   std::unique_ptr<BackingStore> backing_store;
   if (data == kOffHeapBackingStore) {
     backing_store = BackingStore::Allocate(main_thread_isolate(), byte_length,
-                                           SharedFlag::kNotShared,
+                                           SharedFlag::kNo,
                                            InitializedFlag::kUninitialized);
   } else {
     uint32_t max_byte_length = source_.GetUint32();
@@ -1410,8 +1412,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     USE(result);
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
         main_thread_isolate(), byte_length, max_byte_length, page_size,
-        initial_pages, max_pages, WasmMemoryFlag::kNotWasm,
-        SharedFlag::kNotShared);
+        initial_pages, max_pages, WasmMemoryFlag::kNotWasm, SharedFlag::kNo);
   }
   CHECK_NOT_NULL(backing_store);
   source_.CopyRaw(backing_store->buffer_start(), byte_length);

@@ -3,6 +3,7 @@
 // Generated using tools/cldr/cldr-to-icu/
 st{
     Languages{
+        cy{"Sewelsh"}
         en{"Senyesemane"}
         st{"Sesotho"}
     }

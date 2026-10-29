@@ -7,7 +7,11 @@ luy{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;¤- #,##0.00"}
+                accountingFormat%noCurrency{"#,##0.00;- #,##0.00"}
                 currencyFormat{"¤#,##0.00;¤- #,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00;¤- #,##0.00"}
+                currencyFormat%noCurrency{"#,##0.00;- #,##0.00"}
             }
         }
     }
@@ -102,12 +106,12 @@ luy{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Imberi ya Kuuza Kwa",
-                    "Muhiga Kuvita Kuuza",
+                    0{"Imberi ya Kuuza Kwa"}
+                    1{"Muhiga Kuvita Kuuza"}
                 }
             }
             monthNames{

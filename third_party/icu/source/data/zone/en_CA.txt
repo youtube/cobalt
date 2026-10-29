@@ -21,174 +21,27 @@ en_CA{
         "America:St_Vincent"{
             ec{"Saint Vincent"}
         }
-        "Asia:Rangoon"{
-            ec{"Rangoon"}
-        }
         "Atlantic:St_Helena"{
             ec{"Saint Helena"}
         }
-        "meta:Afghanistan"{
-            ss{"AFT"}
-        }
-        "meta:Alaska"{
-            ld{"Alaska Daylight Saving Time"}
-            lg{"Alaska Time"}
-            ls{"Alaska Standard Time"}
-        }
-        "meta:America_Central"{
-            ld{"Central Daylight Saving Time"}
-            lg{"Central Time"}
-            ls{"Central Standard Time"}
-        }
-        "meta:America_Eastern"{
-            ld{"Eastern Daylight Saving Time"}
-            lg{"Eastern Time"}
-            ls{"Eastern Standard Time"}
-        }
-        "meta:Argentina"{
-            sg{"ART"}
-        }
-        "meta:Australia_CentralWestern"{
-            sd{"ACWDT"}
-            sg{"ACWT"}
-            ss{"ACWST"}
-        }
-        "meta:Australia_Eastern"{
-            sd{"AEDT"}
-            sg{"AET"}
-            ss{"AEST"}
-        }
-        "meta:Australia_Western"{
-            sd{"AWDT"}
-            ss{"AWST"}
-        }
-        "meta:Bangladesh"{
-            ss{"BST"}
-        }
-        "meta:Bhutan"{
-            ss{"BTT"}
-        }
-        "meta:Brasilia"{
-            sd{"BRST"}
-            sg{"BRT"}
-        }
-        "meta:Brunei"{
-            ss{"BNT"}
-        }
-        "meta:Chatham"{
-            sd{"CHADT"}
-            ss{"CHAST"}
-        }
-        "meta:Christmas"{
-            ss{"CXT"}
-        }
-        "meta:Cocos"{
-            ss{"CCT"}
-        }
-        "meta:Colombia"{
-            sd{"COST"}
-        }
-        "meta:East_Timor"{
-            ss{"TLT"}
-        }
-        "meta:Easter"{
-            sd{"EASST"}
-            ss{"EAST"}
-        }
-        "meta:Ecuador"{
-            ss{"ECT"}
-        }
-        "meta:Falkland"{
-            sd{"FKST"}
-            sg{"FKT"}
-        }
         "meta:French_Southern"{
             ls{"French Southern and Antarctic Time"}
-        }
-        "meta:Galapagos"{
-            ss{"GALT"}
-        }
-        "meta:Greenland_Eastern"{
-            sg{"EGT"}
-        }
-        "meta:Gulf"{
-            ss{"Gulf Time"}
-        }
-        "meta:Guyana"{
-            ss{"GYT"}
-        }
-        "meta:India"{
-            ss{"IST"}
-        }
-        "meta:Indochina"{
-            ss{"ICT"}
-        }
-        "meta:Indonesia_Central"{
-            ss{"WITA"}
-        }
-        "meta:Indonesia_Eastern"{
-            ss{"WIT"}
-        }
-        "meta:Indonesia_Western"{
-            ss{"WIB"}
-        }
-        "meta:Iran"{
-            ld{"Iran Daylight Saving Time"}
-            lg{"Iran Time"}
-            ls{"Iran Standard Time"}
-            sd{"IRDT"}
-            ss{"IRST"}
-        }
-        "meta:Malaysia"{
-            ss{"MYT"}
-        }
-        "meta:Maldives"{
-            ss{"MVT"}
-        }
-        "meta:Nepal"{
-            ss{"NPT"}
         }
         "meta:Newfoundland"{
             sd{"NDT"}
             sg{"NT"}
             ss{"NST"}
         }
-        "meta:Noronha"{
-            sg{"FNT"}
-        }
-        "meta:Pakistan"{
-            ss{"PKT"}
-        }
-        "meta:Paraguay"{
-            sd{"PYST"}
-            sg{"PYT"}
-        }
-        "meta:Peru"{
-            sg{"PET"}
-        }
         "meta:Pierre_Miquelon"{
-            ld{"Saint-Pierre-et-Miquelon Daylight Saving Time"}
+            ld{"Saint-Pierre-et-Miquelon Daylight Time"}
             lg{"Saint-Pierre-et-Miquelon Time"}
             ls{"Saint-Pierre-et-Miquelon Standard Time"}
             sd{"PMDT"}
             sg{"PMT"}
             ss{"PMST"}
         }
-        "meta:Samoa"{
-            ld{"Samoan Time"}
-            lg{"American Samoa Time"}
-            ls{"American Samoa Standard Time"}
-        }
-        "meta:Uruguay"{
-            sd{"UYST"}
-            ss{"UYT"}
-        }
-        "meta:Venezuela"{
-            ss{"VET"}
-        }
         "meta:Wallis"{
             ls{"Wallis and Futuna Time"}
         }
-        regionFormatDaylight{"{0} Daylight Saving Time"}
     }
 }

@@ -1028,6 +1028,10 @@ et{
             "EC$",
             "Ida-Kariibi dollar",
         }
+        XCG{
+            "Cg.",
+            "Kariibi kulden",
+        }
         XDR{
             "XDR",
             "Rahvusvahelise Valuutafondi arvestusühik",
@@ -1111,6 +1115,10 @@ et{
         ZWD{
             "ZWD",
             "Zimbabwe dollar (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwe kuld",
         }
         ZWL{
             "ZWL",
@@ -1523,7 +1531,7 @@ et{
         }
         ILR{
             one{"Iisraeli seekel (1980–1985)"}
-            other{"Iisraeli seekelit (1980–1985)"}
+            other{"Iisraeli seeklit (1980–1985)"}
         }
         ILS{
             one{"Iisraeli uus seekel"}
@@ -2061,6 +2069,10 @@ et{
             one{"Ida-Kariibi dollar"}
             other{"Ida-Kariibi dollarit"}
         }
+        XCG{
+            one{"Kariibi kulden"}
+            other{"Kariibi kuldnat"}
+        }
         XEU{
             one{"eküü"}
             other{"eküüd"}
@@ -2097,10 +2109,6 @@ et{
             one{"Jeemeni riaal"}
             other{"Jeemeni riaali"}
         }
-        YUD{
-            one{"Jugoslaavia kõva dinaar (1966–1990)"}
-            other{"Jugoslaavia kõva dinaar (1966–1990)"}
-        }
         YUM{
             one{"Jugoslaavia uus dinaar (1994–2002)"}
             other{"Jugoslaavia uut dinaari (1994–2002)"}
@@ -2128,6 +2136,10 @@ et{
         ZWD{
             one{"Zimbabwe dollar (1980–2008)"}
             other{"Zimbabwe dollarit (1980–2008)"}
+        }
+        ZWG{
+            one{"Zimbabwe kuld"}
+            other{"Zimbabwe kulda"}
         }
         ZWL{
             one{"Zimbabwe dollar (2009)"}

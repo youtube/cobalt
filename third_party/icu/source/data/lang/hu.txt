@@ -14,10 +14,13 @@ hu{
         colStrength{"Rendezés erőssége"}
         collation{"Rendezési sorrend"}
         currency{"Pénznem"}
+        em{"Emoji megjelenítése"}
         hc{"Óraformátum (12 – 24)"}
         lb{"Sortörés stílusa"}
+        lw{"Szavakon belüli sortörések"}
         ms{"Mértékegységrendszer"}
         numbers{"Számok"}
+        ss{"Mondattörés rövidítés után"}
         timezone{"Időzóna"}
         va{"Földrajzi helyvariáns"}
         x{"Privát használatra"}
@@ -368,7 +371,7 @@ hu{
         ms{"maláj"}
         mt{"máltai"}
         mua{"mundang"}
-        mul{"többszörös nyelvek"}
+        mul{"több nyelv"}
         mus{"krík"}
         mwl{"mirandéz"}
         mwr{"márvári"}
@@ -600,6 +603,12 @@ hu{
         zxx{"nincs nyelvészeti tartalom"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurd"}
+    }
+    Languages%extension{
+        ku{"kurmandzsi"}
+    }
     Languages%long{
         zh_Hans{"kínai (egyszerűsített)"}
         zh_Hant{"kínai (hagyományos)"}
@@ -786,9 +795,29 @@ hu{
             persian{"Perzsa naptár"}
             roc{"Kínai köztársasági naptár"}
         }
+        calendar%core{
+            buddhist{"Buddhista"}
+            chinese{"Kínai"}
+            coptic{"Kopt"}
+            dangi{"Dangi"}
+            ethiopic{"Etióp"}
+            ethiopic-amete-alem{"Etióp amete alem"}
+            gregorian{"Gergely"}
+            hebrew{"Héber"}
+            islamic{"Hidzsra"}
+            islamic-civil{"Hidzsra (táblázatos, polgári)"}
+            islamic-umalqura{"Hidzsra (Umm al-Qura)"}
+            japanese{"Japán"}
+            persian{"Perzsa"}
+            roc{"Kínai köztársasági"}
+        }
         cf{
             account{"Könyvelési pénznemformátum"}
             standard{"Normál pénznemformátum"}
+        }
+        cf%core{
+            account{"Könyvelési"}
+            standard{"Normál"}
         }
         colAlternate{
             non-ignorable{"Szimbólumok rendezése"}
@@ -823,13 +852,11 @@ hu{
             tertiary{"Ékezetek/kisbetű-nagybetű/szélesség rendezése"}
         }
         collation{
-            big5han{"Hagyományos kínai sorrend - Big5"}
             compat{"Előző rendezési sorrend a kompatibilitás érdekében"}
             dictionary{"Szótári rendezési sorrend"}
             ducet{"Alapértelmezett Unicode rendezési sorrend"}
             emoji{"Emodzsi rendezési sorrend"}
             eor{"Európai rendezési szabályok"}
-            gb2312han{"Egyszerűsített kínai sorrend - GB2312"}
             phonebook{"Telefonkönyv sorrend"}
             phonetic{"Fonetikus rendezési sorrend"}
             pinyin{"Pinyin sorrend"}
@@ -837,14 +864,33 @@ hu{
             searchjl{"Keresés hangul kezdő mássalhangzó szerint"}
             standard{"Normál rendezési sorrend"}
             stroke{"Vonássorrend"}
-            traditional{"Hagyományos"}
+            traditional{"Hagyományos sorrend"}
             unihan{"Szótővonás rendezési sorrend"}
             zhuyin{"Zujin rendezési sorrend"}
+        }
+        collation%core{
+            compat{"Kompatibilitás"}
+            dictionary{"Szótári"}
+            ducet{"Alapértelmezett Unicode"}
+            phonebook{"Telefonkönyv"}
+            phonetic{"Fonetikus"}
+            pinyin{"Pinyin"}
+            search{"Keresés"}
+            standard{"Normál"}
+            stroke{"Vonás"}
+            traditional{"Hagyományos"}
+            unihan{"Szótővonás"}
+            zhuyin{"Zujin"}
         }
         d0{
             fwidth{"Teljes szélesség"}
             hwidth{"Fél szélesség"}
             npinyin{"Szám"}
+        }
+        em%core{
+            default{"Alapértelmezett"}
+            emoji{"Emoji"}
+            text{"Szöveg"}
         }
         hc{
             h11{"12 órás rendszer (0–11)"}
@@ -852,10 +898,27 @@ hu{
             h23{"24 órás rendszer (0–23)"}
             h24{"24 órás rendszer (0–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Tág stílusú sortörés"}
             normal{"Normál stílusú sortörés"}
             strict{"Szűk stílusú sortörés"}
+        }
+        lb%core{
+            loose{"Tág"}
+            normal{"Normál"}
+            strict{"Szűk"}
+        }
+        lw%core{
+            breakall{"Az összes törése"}
+            keepall{"Az összes megtartása"}
+            normal{"Normál"}
+            phrase{"Megtartás a kifejezéseknél"}
         }
         m0{
             bgn{"BGN"}
@@ -865,6 +928,11 @@ hu{
             metric{"Méterrendszer"}
             uksystem{"Angolszász mértékegységrendszer"}
             ussystem{"Amerikai mértékegységrendszer"}
+        }
+        ms%core{
+            metric{"Méter"}
+            uksystem{"Angolszász"}
+            ussystem{"Amerikai"}
         }
         numbers{
             arab{"Arab-indiai számjegyek"}
@@ -911,6 +979,10 @@ hu{
             tibt{"Tibeti számjegyek"}
             traditional{"Hagyományos számok"}
             vaii{"Vai számjegyek"}
+        }
+        ss%core{
+            none{"Ki"}
+            standard{"Be"}
         }
     }
     Variants{

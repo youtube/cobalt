@@ -222,6 +222,9 @@ lv{
         "America:Costa_Rica"{
             ec{"Kostarika"}
         }
+        "America:Coyhaique"{
+            ec{"Kojhaika"}
+        }
         "America:Creston"{
             ec{"Krestona"}
         }
@@ -1035,7 +1038,7 @@ lv{
             ec{"Lieldienu sala"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderberija"}
+            ec{"Kantona"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
@@ -1054,9 +1057,6 @@ lv{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Kanton"{
-            ec{"Kantona"}
         }
         "Pacific:Kiritimati"{
             ec{"Kirisimasi"}
@@ -1125,9 +1125,7 @@ lv{
             ls{"Dienvidāfrikas ziemas laiks"}
         }
         "meta:Africa_Western"{
-            ld{"Rietumāfrikas vasaras laiks"}
-            lg{"Rietumāfrikas laiks"}
-            ls{"Rietumāfrikas ziemas laiks"}
+            ls{"Rietumāfrikas laiks"}
         }
         "meta:Alaska"{
             ld{"Aļaskas vasaras laiks"}
@@ -1379,6 +1377,9 @@ lv{
         }
         "meta:Guyana"{
             ls{"Gajānas laiks"}
+        }
+        "meta:Hawaii"{
+            ls{"Havaju–Aleutu ziemas laiks"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havaju–Aleutu vasaras laiks"}
@@ -1661,6 +1662,11 @@ lv{
         }
         "meta:Truk"{
             ls{"Čūkas laiks"}
+        }
+        "meta:Turkey"{
+            ld{"Turcijas vasaras laiks"}
+            lg{"Turcijas laiks"}
+            ls{"Turcijas ziemas laiks"}
         }
         "meta:Turkmenistan"{
             ld{"Turkmenistānas vasaras laiks"}

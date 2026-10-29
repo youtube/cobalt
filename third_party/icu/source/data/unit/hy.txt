@@ -71,7 +71,6 @@ hy{
                         other{"{0} րոպեում"}
                     }
                 }
-                dnam{"րոպե"}
                 one{"{0} րոպե"}
                 other{"{0} րոպե"}
             }
@@ -94,7 +93,6 @@ hy{
                         other{"{0} վայրկյանում"}
                     }
                 }
-                dnam{"վայրկյան"}
                 one{"{0} վայրկյան"}
                 other{"{0} վայրկյան"}
             }
@@ -165,6 +163,11 @@ hy{
                 dnam{"պտույտ"}
                 one{"{0} պտույտ"}
                 other{"{0} պտույտ"}
+            }
+            steradian{
+                dnam{"ստեռադիան"}
+                one{"{0} ստեռադիան"}
+                other{"{0} ստեռադիան"}
             }
         }
         area{
@@ -390,6 +393,11 @@ hy{
                 one{"{0} կարատ"}
                 other{"{0} կարատ"}
             }
+            katal{
+                dnam{"կատալ"}
+                one{"{0} կատալ"}
+                other{"{0} կատալ"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     ablative{
@@ -458,6 +466,62 @@ hy{
                 one{"{0} մոլ"}
                 other{"{0} մոլ"}
             }
+            ofglucose{
+                dnam{"գլյուկոզ"}
+                one{"{0} գլյուկոզ"}
+                other{"{0} գլյուկոզ"}
+            }
+            part{
+                dnam{"մաս"}
+                one{"{0} մաս"}
+                other{"{0} մաս"}
+            }
+            part-per-1e6{
+                case{
+                    ablative{
+                        one{"{0} մասից միլիոնի վրա"}
+                        other{"{0} մասից միլիոնի վրա"}
+                    }
+                    dative{
+                        one{"{0} մասին միլիոնի վրա"}
+                        other{"{0} մասին միլիոնի վրա"}
+                    }
+                    instrumental{
+                        one{"{0} մասով միլիոնի վրա"}
+                        other{"{0} մասով միլիոնի վրա"}
+                    }
+                    locative{
+                        one{"{0} մասում միլիոնի վրա"}
+                        other{"{0} մասում միլիոնի վրա"}
+                    }
+                }
+                dnam{"մաս միլիոնի վրա"}
+                one{"{0} մաս միլիոնի վրա"}
+                other{"{0} մաս միլիոնի վրա"}
+            }
+            part-per-1e9{
+                case{
+                    ablative{
+                        one{"{0} մասից միլիարդի վրա"}
+                        other{"{0} մասից միլիարդի վրա"}
+                    }
+                    dative{
+                        one{"{0} մասին միլիարդի վրա"}
+                        other{"{0} մասին միլիարդի վրա"}
+                    }
+                    instrumental{
+                        one{"{0} մասով միլիարդի վրա"}
+                        other{"{0} մասով միլիարդի վրա"}
+                    }
+                    locative{
+                        one{"{0} մասում միլիարդի վրա"}
+                        other{"{0} մասում միլիարդի վրա"}
+                    }
+                }
+                dnam{"մաս միլիարդի վրա"}
+                one{"{0} մաս միլիարդի վրա"}
+                other{"{0} մաս միլիարդի վրա"}
+            }
             percent{
                 case{
                     ablative{
@@ -502,29 +566,6 @@ hy{
                 one{"{0} պրոմիլ"}
                 other{"{0} պրոմիլ"}
             }
-            permillion{
-                case{
-                    ablative{
-                        one{"{0} մասից միլիոնի վրա"}
-                        other{"{0} մասից միլիոնի վրա"}
-                    }
-                    dative{
-                        one{"{0} մասին միլիոնի վրա"}
-                        other{"{0} մասին միլիոնի վրա"}
-                    }
-                    instrumental{
-                        one{"{0} մասով միլիոնի վրա"}
-                        other{"{0} մասով միլիոնի վրա"}
-                    }
-                    locative{
-                        one{"{0} մասում միլիոնի վրա"}
-                        other{"{0} մասում միլիոնի վրա"}
-                    }
-                }
-                dnam{"մաս միլիոնի վրա"}
-                one{"{0} մաս միլիոնի վրա"}
-                other{"{0} մաս միլիոնի վրա"}
-            }
             permyriad{
                 case{
                     ablative{
@@ -547,29 +588,6 @@ hy{
                 dnam{"պերմիրիադ"}
                 one{"{0} պերմիրիադ"}
                 other{"{0} պերմիրիադ"}
-            }
-            portion-per-1e9{
-                case{
-                    ablative{
-                        one{"{0} մասից միլիարդի վրա"}
-                        other{"{0} մասից միլիարդի վրա"}
-                    }
-                    dative{
-                        one{"{0} մասին միլիարդի վրա"}
-                        other{"{0} մասին միլիարդի վրա"}
-                    }
-                    instrumental{
-                        one{"{0} մասով միլիարդի վրա"}
-                        other{"{0} մասով միլիարդի վրա"}
-                    }
-                    locative{
-                        one{"{0} մասում միլիարդի վրա"}
-                        other{"{0} մասում միլիարդի վրա"}
-                    }
-                }
-                dnam{"մաս միլիարդի վրա"}
-                one{"{0} մաս միլիարդի վրա"}
-                other{"{0} մաս միլիարդի վրա"}
             }
         }
         consumption{
@@ -979,7 +997,6 @@ hy{
                         other{"{0} ժամում"}
                     }
                 }
-                dnam{"ժամ"}
                 one{"{0} ժամ"}
                 other{"{0} ժամ"}
                 per{"{0} ժամում"}
@@ -1120,7 +1137,6 @@ hy{
                         other{"{0} գիշերում"}
                     }
                 }
-                dnam{"գիշեր"}
                 one{"{0} գիշեր"}
                 other{"{0} գիշեր"}
                 per{"գիշերը {0}"}
@@ -1215,7 +1231,6 @@ hy{
                         other{"{0} տարում"}
                     }
                 }
-                dnam{"տարի"}
                 one{"{0} տարի"}
                 other{"{0} տարի"}
                 per{"տարեկան {0}"}
@@ -1244,6 +1259,21 @@ hy{
                 dnam{"ամպեր"}
                 one{"{0} ամպեր"}
                 other{"{0} ամպեր"}
+            }
+            coulomb{
+                dnam{"կուլոն"}
+                one{"{0} կուլոն"}
+                other{"{0} կուլոն"}
+            }
+            farad{
+                dnam{"ֆարադ"}
+                one{"{0} ֆարադ"}
+                other{"{0} ֆարադ"}
+            }
+            henry{
+                dnam{"հենրի"}
+                one{"{0} հենրի"}
+                other{"{0} հենրի"}
             }
             milliampere{
                 case{
@@ -1287,9 +1317,13 @@ hy{
                         other{"{0} օհմում"}
                     }
                 }
-                dnam{"օհմ"}
                 one{"{0} օհմ"}
                 other{"{0} օհմ"}
+            }
+            siemens{
+                dnam{"սիմենս"}
+                one{"{0} սիմենս"}
+                other{"{0} սիմենս"}
             }
             volt{
                 case{
@@ -1316,6 +1350,11 @@ hy{
             }
         }
         energy{
+            becquerel{
+                dnam{"բեքերել"}
+                one{"{0} բեքերել"}
+                other{"{0} բեքերել"}
+            }
             british-thermal-unit{
                 dnam{"բրիտանական ջերմային միավոր"}
                 one{"{0} բրիտանական ջերմային միավոր"}
@@ -1344,6 +1383,11 @@ hy{
                 one{"{0} կալորիա"}
                 other{"{0} կալորիա"}
             }
+            calorie-it{
+                dnam{"միջազգային կալորիա"}
+                one{"{0} միջազգային կալորիա"}
+                other{"{0} միջազգային կալորիա"}
+            }
             electronvolt{
                 dnam{"էլեկտրոն-վոլտ"}
                 one{"{0} էլեկտրոն-վոլտ"}
@@ -1353,6 +1397,11 @@ hy{
                 dnam{"կալորիա"}
                 one{"{0} կալորիա"}
                 other{"{0} կալորիա"}
+            }
+            gray{
+                dnam{"գրեյ"}
+                one{"{0} գրեյ"}
+                other{"{0} գրեյ"}
             }
             joule{
                 case{
@@ -1446,8 +1495,18 @@ hy{
                 one{"{0} կիլովատտ-ժամ"}
                 other{"{0} կիլովատտ-ժամ"}
             }
+            sievert{
+                dnam{"զիվերտ"}
+                one{"{0} զիվերտ"}
+                other{"{0} զիվերտ"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"կիլոգրամ-ուժ"}
+                one{"{0} կիլոգրամ-ուժ"}
+                other{"{0} կիլոգրամ-ուժ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     ablative{
@@ -1670,7 +1729,6 @@ hy{
                         other{"{0} փիքսելում"}
                     }
                 }
-                dnam{"փիքսել"}
                 one{"{0} փիքսել"}
                 other{"{0} փիքսել"}
             }
@@ -1983,7 +2041,6 @@ hy{
                         other{"{0} կտ"}
                     }
                 }
-                dnam{"կտ"}
                 one{"{0} կտ"}
                 other{"{0} կտ"}
             }
@@ -1993,7 +2050,6 @@ hy{
                 other{"{0} արեգակնային շառավիղ"}
             }
             yard{
-                dnam{"յարդ"}
                 one{"{0} յարդ"}
                 other{"{0} յարդ"}
             }
@@ -2072,6 +2128,18 @@ hy{
                 dnam{"արեգակնային լուսատվություն"}
                 one{"{0} արեգակնային լուսատվություն"}
                 other{"{0} արեգակնային լուսատվություն"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"տեսլա"}
+                one{"{0} տեսլա"}
+                other{"{0} տեսլա"}
+            }
+            weber{
+                dnam{"վեբեր"}
+                one{"{0} վեբեր"}
+                other{"{0} վեբեր"}
             }
         }
         mass{
@@ -2518,25 +2586,30 @@ hy{
             millimeter-ofhg{
                 case{
                     ablative{
-                        one{"{0} միլիմետրից՝ սնդիկի սյան"}
-                        other{"{0} միլիմետրից՝ սնդիկի սյան"}
+                        one{"{0} սնդիկի սյան միլիմետրից"}
+                        other{"{0} սնդիկի սյան միլիմետրից"}
                     }
                     dative{
-                        one{"{0} միլիմետրին՝ սնդիկի սյան"}
-                        other{"{0} միլիմետրին՝ սնդիկի սյան"}
+                        one{"{0} սնդիկի սյան միլիմետրին"}
+                        other{"{0} սնդիկի սյան միլիմետրին"}
                     }
                     instrumental{
-                        one{"{0} միլիմետրով՝ սնդիկի սյան"}
-                        other{"{0} միլիմետրով՝ սնդիկի սյան"}
+                        one{"{0} սնդիկի սյան միլիմետրով"}
+                        other{"{0} սնդիկի սյան միլիմետրով"}
                     }
                     locative{
-                        one{"{0} միլիմետրում՝ սնդիկի սյան"}
-                        other{"{0} միլիմետրում՝ սնդիկի սյան"}
+                        one{"{0} սնդիկի սյան միլիմետրում"}
+                        other{"{0} սնդիկի սյան միլիմետրում"}
                     }
                 }
-                dnam{"միլիմետր՝ սնդիկի սյան"}
-                one{"{0} միլիմետր՝ սնդիկի սյան"}
-                other{"{0} միլիմետր՝ սնդիկի սյան"}
+                dnam{"միլիմետր սնդիկի սյուն"}
+                one{"{0} միլիմետր սնդիկի սյուն"}
+                other{"{0} միլիմետր սնդիկի սյուն"}
+            }
+            ofhg{
+                dnam{"սնդիկի սյուն"}
+                one{"{0} սնդիկի սյուն"}
+                other{"{0} սնդիկի սյուն"}
             }
             pascal{
                 case{
@@ -2600,6 +2673,11 @@ hy{
                 dnam{"հանգույց"}
                 one{"{0} հանգույց"}
                 other{"{0} հանգույց"}
+            }
+            light-speed{
+                dnam{"լույսի արագություն"}
+                one{"{0} լույսի արագություն"}
+                other{"{0} լույսի արագություն"}
             }
             meter-per-second{
                 case{
@@ -2747,7 +2825,6 @@ hy{
                 other{"{0} տակառ"}
             }
             bushel{
-                dnam{"բուշել"}
                 one{"{0} բուշել"}
                 other{"{0} բուշել"}
             }
@@ -2866,7 +2943,6 @@ hy{
                 other{"{0} խորանարդ յարդ"}
             }
             cup{
-                dnam{"բաժակ"}
                 one{"{0} բաժակ"}
                 other{"{0} բաժակ"}
             }
@@ -2927,7 +3003,6 @@ hy{
                 other{"{0} անգլիական աղանդերի գդալ"}
             }
             dram{
-                dnam{"դրամ"}
                 one{"{0} դրամ"}
                 other{"{0} դրամ"}
             }
@@ -2940,6 +3015,11 @@ hy{
                 dnam{"անգլիական հեղուկ ունկի"}
                 one{"{0} անգլիական հեղուկ ունկի"}
                 other{"{0} անգլիական հեղուկ ունկի"}
+            }
+            fluid-ounce-metric{
+                dnam{"մետրիկ հեղուկ ունկի"}
+                one{"{0} մետրիկ հեղուկ ունկի"}
+                other{"{0} մետրիկ հեղուկ ունկի"}
             }
             gallon{
                 dnam{"գալոն"}
@@ -3046,9 +3126,6 @@ hy{
                 one{"{0} միլիլիտր"}
                 other{"{0} միլիլիտր"}
             }
-            pint{
-                dnam{"փինթ"}
-            }
             pint-metric{
                 case{
                     ablative{
@@ -3087,18 +3164,11 @@ hy{
     unitsNarrow{
         acceleration{
             g-force{
-                dnam{"g-ուժ"}
                 one{"{0}G"}
                 other{"{0}G"}
             }
         }
         angle{
-            arc-minute{
-                dnam{"րոպե"}
-            }
-            arc-second{
-                dnam{"վայրկյան"}
-            }
             degree{
                 dnam{"աստ"}
             }
@@ -3109,6 +3179,10 @@ hy{
             revolution{
                 one{"{0}պտ"}
                 other{"{0}պտ"}
+            }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
             }
         }
         area{
@@ -3145,7 +3219,6 @@ hy{
                 other{"{0}մղ²"}
             }
             square-yard{
-                dnam{"յդ²"}
                 one{"{0}յդ²"}
                 other{"{0}յդ²"}
             }
@@ -3159,6 +3232,11 @@ hy{
                 one{"{0}կար"}
                 other{"{0}կար"}
             }
+            katal{
+                dnam{"կատ"}
+                one{"{0}կատ"}
+                other{"{0}կատ"}
+            }
             millimole-per-liter{
                 one{"{0}մմոլ/լ"}
                 other{"{0}մմոլ/լ"}
@@ -3167,21 +3245,31 @@ hy{
                 one{"{0}մոլ"}
                 other{"{0}մոլ"}
             }
+            ofglucose{
+                dnam{"գլյուկոզ"}
+                one{"{0} գլյուկոզ"}
+                other{"{0} գլյուկոզ"}
+            }
+            part{
+                dnam{"մ․"}
+                one{"{0} մ․"}
+                other{"{0} մ․"}
+            }
+            part-per-1e6{
+                dnam{"մմվ"}
+                one{"{0}մմվ"}
+                other{"{0}մմվ"}
+            }
+            part-per-1e9{
+                dnam{"մմլրդվ"}
+                one{"{0}մմլրդվ"}
+                other{"{0}մմլրդվ"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
-            }
-            permillion{
-                dnam{"մմվ"}
-                one{"{0}մմվ"}
-                other{"{0}մմվ"}
-            }
-            portion-per-1e9{
-                dnam{"մմլրդվ"}
-                one{"{0}մմլրդվ"}
-                other{"{0}մմլրդվ"}
             }
         }
         consumption{
@@ -3264,7 +3352,6 @@ hy{
                 per{"{0}/ա"}
             }
             night{
-                dnam{"գիշեր"}
                 one{"{0}/գ․"}
                 other{"{0}/գ․"}
                 per{"{0}/գ․"}
@@ -3281,20 +3368,31 @@ hy{
                 other{"{0} շ"}
                 per{"{0}/շ"}
             }
+            year{
+                dnam{"տ"}
+            }
         }
         electric{
             ampere{
                 one{"{0}Ա"}
                 other{"{0}Ա"}
             }
+            farad{
+                dnam{"Ֆ"}
+                one{"{0} Ֆ"}
+                other{"{0} Ֆ"}
+            }
             milliampere{
                 one{"{0}մԱ"}
                 other{"{0}մԱ"}
             }
             ohm{
-                dnam{"օհմ"}
                 one{"{0} Ω"}
                 other{"{0}Ω"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 one{"{0}Վ"}
@@ -3302,9 +3400,19 @@ hy{
             }
         }
         energy{
+            becquerel{
+                dnam{"Բք"}
+                one{"{0}Բք"}
+                other{"{0}Բք"}
+            }
             british-thermal-unit{
                 one{"{0}Բջմ"}
                 other{"{0}Բջմ"}
+            }
+            calorie-it{
+                dnam{"միջազգային կալորիա"}
+                one{"{0} միջազգային կալորիա"}
+                other{"{0} միջազգային կալորիա"}
             }
             electronvolt{
                 one{"{0}էՎ"}
@@ -3314,6 +3422,11 @@ hy{
                 one{"{0} կալ"}
                 other{"{0}կալ"}
             }
+            gray{
+                dnam{"Գր"}
+                one{"{0}Գր"}
+                other{"{0}Գր"}
+            }
             kilocalorie{
                 one{"{0}կկալ"}
                 other{"{0}կկալ"}
@@ -3322,8 +3435,18 @@ hy{
                 one{"{0}կՋ"}
                 other{"{0}կՋ"}
             }
+            sievert{
+                dnam{"Զվ"}
+                one{"{0}Զվ"}
+                other{"{0}Զվ"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"կգ-ուժ"}
+                one{"{0}կգ-ուժ"}
+                other{"{0}կգ-ուժ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0} կՎտժ/100 կմ"}
                 other{"{0} կՎտժ/100 կմ"}
@@ -3355,11 +3478,6 @@ hy{
             pixel{
                 dnam{"կտ"}
             }
-            pixel-per-centimeter{
-                dnam{"կսմվ"}
-                one{"{0}կսմվ"}
-                other{"{0}կսմվ"}
-            }
         }
         length{
             fathom{
@@ -3380,9 +3498,6 @@ hy{
                 one{"{0} լ. տ."}
                 other{"{0} լ. տ."}
             }
-            point{
-                dnam{"կտ"}
-            }
             yard{
                 dnam{"յդ"}
                 one{"{0}յդ"}
@@ -3393,6 +3508,18 @@ hy{
             lux{
                 one{"{0}լք"}
                 other{"{0}լք"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"Տլ"}
+                one{"{0}Տլ"}
+                other{"{0}Տլ"}
+            }
+            weber{
+                dnam{"Վբ"}
+                one{"{0}Վբ"}
+                other{"{0}Վբ"}
             }
         }
         mass{
@@ -3413,10 +3540,8 @@ hy{
                 other{"{0}մգ"}
             }
             ounce{
-                dnam{"ու"}
                 one{"{0}ու"}
                 other{"{0}ու"}
-                per{"{0}/ու"}
             }
             ounce-troy{
                 dnam{"տ․ ու"}
@@ -3446,16 +3571,16 @@ hy{
                 other{"{0}ձ/ու"}
             }
             kilowatt{
-                one{"{0}կՎ"}
-                other{"{0}կՎ"}
+                one{"{0}կՎտ"}
+                other{"{0}կՎտ"}
             }
             milliwatt{
                 one{"{0}մՎտ"}
                 other{"{0}մՎտ"}
             }
             watt{
-                one{"{0}Վ"}
-                other{"{0}Վ"}
+                one{"{0}Վտ"}
+                other{"{0}Վտ"}
             }
         }
         pressure{
@@ -3472,7 +3597,6 @@ hy{
                 other{"{0}հՊա"}
             }
             inch-ofhg{
-                dnam{"մատ. ս.ս."}
                 one{"{0}\u0022 ս.ս."}
                 other{"{0}\u0022 ս. ս."}
             }
@@ -3488,6 +3612,16 @@ hy{
                 one{"{0}մբ"}
                 other{"{0}մբ"}
             }
+            millimeter-ofhg{
+                dnam{"մմսս"}
+                one{"{0} մմսս"}
+                other{"{0} մմսս"}
+            }
+            ofhg{
+                dnam{"ս․ս․"}
+                one{"{0}սս"}
+                other{"{0}սս"}
+            }
             pascal{
                 one{"{0}Պա"}
                 other{"{0}Պա"}
@@ -3497,6 +3631,11 @@ hy{
             beaufort{
                 one{"Բ{0}"}
                 other{"Բ{0}"}
+            }
+            light-speed{
+                dnam{"լ․ա․"}
+                one{"{0} լ․ա․"}
+                other{"{0} լ․ա․"}
             }
             meter-per-second{
                 one{"{0}մ/վ"}
@@ -3519,7 +3658,6 @@ hy{
                 other{"{0}տկռ"}
             }
             bushel{
-                dnam{"բուշել"}
                 one{"{0}բու"}
                 other{"{0}բու"}
             }
@@ -3572,6 +3710,11 @@ hy{
                 one{"{0}հղ.ու"}
                 other{"{0}հղ.ու"}
             }
+            fluid-ounce-metric{
+                dnam{"մետր․ հղ․ ու"}
+                one{"{0} մետր․ հղ․ ու"}
+                other{"{0} մետր․ հղ․ ու"}
+            }
             gallon{
                 one{"{0}գալ"}
                 other{"{0}գալ"}
@@ -3593,7 +3736,6 @@ hy{
                 other{"{0}պտղունց"}
             }
             pint{
-                dnam{"փինթ"}
                 one{"{0}փինթ"}
                 other{"{0}փինթ"}
             }
@@ -3642,6 +3784,11 @@ hy{
                 dnam{"պտ"}
                 one{"{0} պտ"}
                 other{"{0} պտ"}
+            }
+            steradian{
+                dnam{"ստեռ"}
+                one{"{0} ստեռ"}
+                other{"{0} ստեռ"}
             }
         }
         area{
@@ -3746,6 +3893,11 @@ hy{
                 one{"{0} կար"}
                 other{"{0} կար"}
             }
+            katal{
+                dnam{"կատ"}
+                one{"{0} կատ"}
+                other{"{0} կատ"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"մգ/դլ"}
                 one{"{0} մգ/դլ"}
@@ -3761,21 +3913,31 @@ hy{
                 one{"{0} մոլ"}
                 other{"{0} մոլ"}
             }
+            ofglucose{
+                dnam{"գլյուկոզ"}
+                one{"{0} գլյուկոզ"}
+                other{"{0} գլյուկոզ"}
+            }
+            part{
+                dnam{"մաս"}
+                one{"{0} մաս"}
+                other{"{0} մաս"}
+            }
+            part-per-1e6{
+                dnam{"մաս/միլիոն"}
+                one{"{0} մմվ"}
+                other{"{0} մմվ"}
+            }
+            part-per-1e9{
+                dnam{"մաս/միլիարդ"}
+                one{"{0} մմլրդվ"}
+                other{"{0} մմլրդվ"}
+            }
             percent{
                 dnam{"տոկոս"}
             }
             permille{
                 dnam{"պրոմիլ"}
-            }
-            permillion{
-                dnam{"մաս/միլիոն"}
-                one{"{0} մմվ"}
-                other{"{0} մմվ"}
-            }
-            portion-per-1e9{
-                dnam{"մաս/միլիարդ"}
-                one{"{0} մմլրդվ"}
-                other{"{0} մմլրդվ"}
             }
         }
         consumption{
@@ -3951,6 +4113,21 @@ hy{
                 one{"{0} Ա"}
                 other{"{0} Ա"}
             }
+            coulomb{
+                dnam{"Կլ"}
+                one{"{0} Կլ"}
+                other{"{0} Կլ"}
+            }
+            farad{
+                dnam{"ֆարադ"}
+                one{"{0} Ֆ"}
+                other{"{0} Ֆ"}
+            }
+            henry{
+                dnam{"հն"}
+                one{"{0} հն"}
+                other{"{0} հն"}
+            }
             milliampere{
                 dnam{"մԱ"}
                 one{"{0} մԱ"}
@@ -3958,8 +4135,11 @@ hy{
             }
             ohm{
                 dnam{"օհմ"}
-                one{"{0} Ω"}
-                other{"{0} Ω"}
+            }
+            siemens{
+                dnam{"Սմ"}
+                one{"{0} Սմ"}
+                other{"{0} Սմ"}
             }
             volt{
                 dnam{"Վ"}
@@ -3968,6 +4148,11 @@ hy{
             }
         }
         energy{
+            becquerel{
+                dnam{"Բք"}
+                one{"{0} Բք"}
+                other{"{0} Բք"}
+            }
             british-thermal-unit{
                 dnam{"ԲՋՄ"}
                 one{"{0} Բջմ"}
@@ -3978,6 +4163,11 @@ hy{
                 one{"{0} կալ"}
                 other{"{0} կալ"}
             }
+            calorie-it{
+                dnam{"միջազգային կալորիա"}
+                one{"{0} միջազգային կալորիա"}
+                other{"{0} միջազգային կալորիա"}
+            }
             electronvolt{
                 dnam{"էՎ"}
                 one{"{0} էՎ"}
@@ -3987,6 +4177,11 @@ hy{
                 dnam{"կալ"}
                 one{"{0} կալ"}
                 other{"{0} կալ"}
+            }
+            gray{
+                dnam{"Գր"}
+                one{"{0} Գր"}
+                other{"{0} Գր"}
             }
             joule{
                 dnam{"Ջ"}
@@ -4008,6 +4203,11 @@ hy{
                 one{"{0} կՎտ·ժ"}
                 other{"{0} կՎտ·ժ"}
             }
+            sievert{
+                dnam{"Զվ"}
+                one{"{0} Զվ"}
+                other{"{0} Զվ"}
+            }
             therm-us{
                 dnam{"ԱՄՆ ջերմ"}
                 one{"{0} ԱՄՆ ջերմ"}
@@ -4015,6 +4215,11 @@ hy{
             }
         }
         force{
+            kilogram-force{
+                dnam{"կգ-ուժ"}
+                one{"{0} կգ-ուժ"}
+                other{"{0} կգ-ուժ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"կՎտ⋅ժ/100 կմ"}
                 one{"{0} կՎտ⋅ժ/100 կմ"}
@@ -4212,6 +4417,18 @@ hy{
                 other{"{0} լք"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"Տլ"}
+                one{"{0} Տլ"}
+                other{"{0} Տլ"}
+            }
+            weber{
+                dnam{"Վբ"}
+                one{"{0} Վբ"}
+                other{"{0} Վբ"}
+            }
+        }
         mass{
             carat{
                 dnam{"կար"}
@@ -4356,6 +4573,11 @@ hy{
                 one{"{0} մմ ս.ս."}
                 other{"{0} մմ ս.ս."}
             }
+            ofhg{
+                dnam{"ս․ս․"}
+                one{"{0} ս․ս․"}
+                other{"{0} ս․ս․"}
+            }
             pascal{
                 dnam{"Պա"}
                 one{"{0} Պա"}
@@ -4382,6 +4604,11 @@ hy{
                 dnam{"հնգ"}
                 one{"{0} հնգ"}
                 other{"{0} հնգ"}
+            }
+            light-speed{
+                dnam{"լույսի արագ․"}
+                one{"{0} լույսի արագ․"}
+                other{"{0} լույսի արագ․"}
             }
             meter-per-second{
                 dnam{"մ/վ"}
@@ -4519,6 +4746,11 @@ hy{
                 dnam{"ա․ հ․ ու․"}
                 one{"{0} ա․ հ․ ու․"}
                 other{"{0} ա․ հ․ ու․"}
+            }
+            fluid-ounce-metric{
+                dnam{"մետրիկ հղ․ ու"}
+                one{"{0} մետրիկ հղ․ ու"}
+                other{"{0} մետրիկ հղ․ ու"}
             }
             gallon{
                 dnam{"գալ"}

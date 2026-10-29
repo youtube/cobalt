@@ -239,12 +239,15 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         if (shouldShowIconRow()) {
             List<PropertyModel> iconModels = new ArrayList<>();
+            if (ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()) {
+                iconModels.add(buildBackwardActionModel(currentTab));
+            }
             iconModels.add(buildForwardActionModel(currentTab));
             iconModels.add(buildBookmarkActionModel(currentTab));
             iconModels.add(buildDownloadActionModel(currentTab));
             if (ChromeFeatureList.sGlic.isEnabled()) {
                 iconModels.add(buildGlicActionModel(currentTab));
-            } else {
+            } else if (!ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()) {
                 iconModels.add(buildPageInfoModel(currentTab));
             }
 
@@ -1432,7 +1435,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Hide the menu on automotive devices.
         if (DeviceInfo.isAutomotive()) return false;
 
-        if (instanceSwitcherWithMultiInstanceEnabled()) {
+        if (isMultiInstanceEnabled()) {
             // Hide the menu if we already have the maximum number of windows.
             if (MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE)
                     >= MultiWindowUtils.getMaxInstances()) return false;
@@ -1445,9 +1448,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                                     || mMultiWindowModeStateDispatcher.isInMultiDisplayMode()));
         } else {
             if (mMultiWindowModeStateDispatcher.isMultiInstanceRunning()) return false;
-            return (mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
-                            && isTabletSizeScreen())
-                    || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
+            return mMultiWindowModeStateDispatcher.isInMultiWindowMode()
                     || mMultiWindowModeStateDispatcher.isInMultiDisplayMode();
         }
     }
@@ -1476,7 +1477,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
      * @return Whether the "Move to other window" menu item should be displayed.
      */
     protected boolean shouldShowMoveToOtherWindow() {
-        if (!instanceSwitcherWithMultiInstanceEnabled() && shouldShowNewWindow()) return false;
+        if (!isMultiInstanceEnabled() && shouldShowNewWindow()) return false;
         return mMultiWindowModeStateDispatcher.isMoveToOtherWindowSupported(mTabModelSelector);
     }
 

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Enable VLOG level 1.
+#undef ENABLED_VLOG_LEVEL
+#define ENABLED_VLOG_LEVEL 1
+
 #include "components/sync_preferences/synced_set_up/utils.h"
 
 #include <optional>
@@ -146,8 +150,8 @@ DeviceData GetBestMatchDeviceData(
     scored_remote_devices.insert({score, guid});
 
     VLOG_IF(1, debug_logs_enabled)
-        << "XplatSyncedSetup, " << __func__
-        << ": found device with change count " << data.observed_change_count;
+        << "XplatSyncedSetup, " << __func__ << ": found device " << guid
+        << " with change count " << data.observed_change_count;
   }
   if (scored_remote_devices.empty()) {
     VLOG_IF(1, debug_logs_enabled)
@@ -177,6 +181,19 @@ DeviceData GetBestMatchDeviceData(
       return {};
     }
   }
+
+  if (debug_logs_enabled) {
+    const syncer::DeviceInfo* best_device_info =
+        device_info_tracker->GetDeviceInfo(best_guid);
+
+    if (best_device_info) {
+      VLOG(1) << "XplatSyncedSetup, " << __func__ << ": selected device "
+              << best_guid << " with form factor "
+              << static_cast<int>(best_device_info->form_factor()) << " and OS "
+              << static_cast<int>(best_device_info->os_type());
+    }
+  }
+
   return std::move(synced_devices.at(best_guid));
 }
 

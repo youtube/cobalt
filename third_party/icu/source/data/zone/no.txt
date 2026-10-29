@@ -15,38 +15,11 @@ no{
         "Africa:Dar_es_Salaam"{
             ec{"Dar-es-Salaam"}
         }
-        "Africa:El_Aaiun"{
-            ec{"El Aaiún"}
-        }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahía Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cayman"{
             ec{"Caymanøyene"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
         }
         "America:Mexico_City"{
             ec{"Mexico by"}
@@ -59,12 +32,6 @@ no{
         }
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Nord-Dakota"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -135,9 +102,6 @@ no{
         "Asia:Ulaanbaatar"{
             ec{"Ulan Bator"}
         }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
-        }
         "Asia:Yakutsk"{
             ec{"Jakutsk"}
         }
@@ -183,12 +147,6 @@ no{
         "Europe:Bucharest"{
             ec{"București"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
-        "Europe:Chisinau"{
-            ec{"Chișinău"}
-        }
         "Europe:Copenhagen"{
             ec{"København"}
         }
@@ -219,9 +177,6 @@ no{
         "Europe:Rome"{
             ec{"Roma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -246,9 +201,6 @@ no{
         "Indian:Comoro"{
             ec{"Komorene"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldivene"}
         }
@@ -256,25 +208,16 @@ no{
             ec{"Påskeøya"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kantonøya"}
         }
         "Pacific:Galapagos"{
             ec{"Galápagosøyene"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
-        }
-        "Pacific:Kanton"{
-            ec{"Kantonøya"}
         }
         "Pacific:Norfolk"{
             ec{"Norfolkøya"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "meta:Acre"{
             ld{"Acre sommertid"}
@@ -294,9 +237,7 @@ no{
             ls{"sørafrikansk tid"}
         }
         "meta:Africa_Western"{
-            ld{"vestafrikansk sommertid"}
-            lg{"vestafrikansk tid"}
-            ls{"vestafrikansk normaltid"}
+            ls{"vestafrikansk tid"}
         }
         "meta:Alaska"{
             ld{"alaskisk sommertid"}
@@ -588,6 +529,10 @@ no{
         }
         "meta:Guyana"{
             ls{"guyansk tid"}
+        }
+        "meta:Hawaii"{
+            ls{"normaltid for Hawaii og Aleutene"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"sommertid for Hawaii og Aleutene"}

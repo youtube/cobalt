@@ -1099,6 +1099,10 @@ yue{
             "EC$",
             "格瑞那達元",
         }
+        XCG{
+            "Cg.",
+            "加勒比盾",
+        }
         XDR{
             "XDR",
             "特殊提款權",
@@ -1203,6 +1207,10 @@ yue{
             "ZWD",
             "辛巴威元 (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "辛巴威金",
+        }
         ZWL{
             "ZWL",
             "辛巴威元 (2009)",
@@ -1217,8 +1225,14 @@ yue{
         RUR{"р."}
     }
     CurrencyPlurals{
+        XCG{
+            other{"加勒比盾"}
+        }
         XXX{
             other{"(未知貨幣)"}
+        }
+        ZWG{
+            other{"辛巴威金"}
         }
     }
     CurrencyUnitPatterns{

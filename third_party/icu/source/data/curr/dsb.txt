@@ -739,6 +739,10 @@ dsb{
             "EC$",
             "pódzajtšnokaribiski dolar",
         }
+        XCG{
+            "Cg.",
+            "karibiski šesnak",
+        }
         XOF{
             "F CFA",
             "CFA-frank (BCEAO)",
@@ -762,6 +766,10 @@ dsb{
         ZMW{
             "ZMW",
             "sambiska kwacha",
+        }
+        ZWG{
+            "ZWG",
+            "simbabwiske złoto",
         }
     }
     CurrencyPlurals{
@@ -1857,6 +1865,12 @@ dsb{
             other{"pódzajtšnokaribiskich dolarow"}
             two{"pódzajtšnokaribiskej dolara"}
         }
+        XCG{
+            few{"karibiske šesnaki"}
+            one{"karibiski šesnak"}
+            other{"karibiskich šesnakow"}
+            two{"karibiskej šesnaka"}
+        }
         XOF{
             few{"CFA-franki (BCEAO)"}
             one{"CFA-frank (BCEAO)"}
@@ -1892,6 +1906,12 @@ dsb{
             one{"sambiska kwacha"}
             other{"sambiskich kwachow"}
             two{"sambiskej kwaše"}
+        }
+        ZWG{
+            few{"simbabwiske złota"}
+            one{"simbabwiske złoto"}
+            other{"simbabwiskich złotow"}
+            two{"simbabwiskej złośe"}
         }
     }
 }

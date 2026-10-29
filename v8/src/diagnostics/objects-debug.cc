@@ -1014,6 +1014,19 @@ void ArrayList::ArrayListVerify(Isolate* isolate) {
   }
 }
 
+void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
+  CHECK(IsSmi(capacity_.load()));
+  CHECK(IsSmi(length_.load()));
+  const uint32_t len = length().value();
+  const uint32_t cap = capacity().value();
+  CHECK_LE(len, cap);
+  CHECK_IMPLIES(cap == 0,
+                this == ReadOnlyRoots(isolate).empty_weak_array_list());
+  for (uint32_t i = 0; i < cap; ++i) {
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
+  }
+}
+
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);
   const uint32_t len = length().value();
@@ -1405,8 +1418,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
-                8 * kTaggedSize);
+  static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
+  static_assert(JSFunctionWithPrototype::kHeaderSize == 8 * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
@@ -1463,7 +1476,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {
-    VerifyObjectField(isolate, kPrototypeOrInitialMapOffset);
+    VerifyObjectField(isolate,
+                      JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
   }
 
   if (has_prototype_property()) {
@@ -1705,7 +1719,7 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   IndirectPointerTag tag;
   if (IsPublished(isolate)) {
     InstanceType instance_type = map()->instance_type();
-    bool shared = HeapLayout::InAnySharedSpace(*this);
+    SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(*this));
     tag = IndirectPointerTagFromInstanceType(instance_type, shared);
   } else {
     tag = kUnpublishedIndirectPointerTag;
@@ -2113,6 +2127,14 @@ void CallableTask::CallableTaskVerify(Isolate* isolate) {
   MicrotaskVerify(isolate);
   Object::VerifyPointer(isolate, callable());
   Object::VerifyPointer(isolate, context());
+}
+
+void AsyncResumeTask::AsyncResumeTaskVerify(Isolate* isolate) {
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, generator());
+  Object::VerifyPointer(isolate, value());
+  CHECK_LE(0, kind());
+  CHECK_LE(kind(), Kind::kYield);
 }
 
 void Microtask::MicrotaskVerify(Isolate* isolate) {
@@ -2548,7 +2570,11 @@ void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
 }
 
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::AsyncGeneratorRequestVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsAsyncGeneratorRequest(this));
+  Object::VerifyPointer(isolate, next());
+  Object::VerifyPointer(isolate, value());
+  Object::VerifyPointer(isolate, promise());
   CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
   CHECK_LE(resume_mode(), JSGeneratorObject::kThrow);
 }
@@ -2560,8 +2586,11 @@ void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
 
 void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
     Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SourceTextModuleInfoEntryVerify(*this,
-                                                                 isolate);
+  StructVerify(isolate);
+  CHECK(IsSourceTextModuleInfoEntry(this));
+  Object::VerifyPointer(isolate, export_name());
+  Object::VerifyPointer(isolate, local_name());
+  Object::VerifyPointer(isolate, import_name());
   CHECK_IMPLIES(IsString(import_name()), module_request() >= 0);
   CHECK_IMPLIES(IsString(export_name()) && IsString(import_name()),
                 IsUndefined(local_name(), isolate));
@@ -2593,7 +2622,10 @@ void Module::ModuleVerify(Isolate* isolate) {
 }
 
 void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleRequestVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsModuleRequest(this));
+  Object::VerifyPointer(isolate, specifier());
+  Object::VerifyPointer(isolate, import_attributes());
   uint32_t import_attributes_len = import_attributes()->ulength().value();
   CHECK_EQ(0, import_attributes_len % ModuleRequest::kAttributeEntrySize);
 
@@ -2640,12 +2672,6 @@ void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
   }
 }
 
-void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
-    Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PrototypeSharedClosureInfoVerify(*this,
-                                                                  isolate);
-}
-
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PrototypeInfoVerify(*this, isolate);
   if (IsWeakArrayList(prototype_users())) {
@@ -2656,32 +2682,34 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   Tagged<HeapObject> derived = derived_maps(isolate);
   if (!IsUndefined(derived)) {
     auto derived_list = Cast<WeakArrayList>(derived);
-    CHECK_GT(derived_list->length(), 0);
-    for (int i = 0; i < derived_list->length(); ++i) {
+    const uint32_t derived_length = derived_list->length().value();
+    CHECK_GT(derived_length, 0);
+    for (uint32_t i = 0; i < derived_length; ++i) {
       derived_list->Get(i).IsWeakOrCleared();
     }
   }
 }
 
 void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
-  if (array->length() == 0) {
+  const uint32_t array_len = array->length().value();
+  if (array_len == 0) {
     // Allow empty & uninitialized lists.
     return;
   }
   // Verify empty slot chain.
   int empty_slot = Smi::ToInt(empty_slot_index(array));
-  int empty_slots_count = 0;
+  uint32_t empty_slots_count = 0;
   while (empty_slot != kNoEmptySlotsMarker) {
     CHECK_GT(empty_slot, 0);
-    CHECK_LT(empty_slot, array->length());
+    CHECK_LT(empty_slot, array_len);
     empty_slot = array->Get(empty_slot).ToSmi().value();
     ++empty_slots_count;
   }
 
   // Verify that all elements are either weak pointers or SMIs marking empty
   // slots.
-  int weak_maps_count = 0;
-  for (int i = kFirstIndex; i < array->length(); ++i) {
+  uint32_t weak_maps_count = 0;
+  for (uint32_t i = kFirstIndex; i < array_len; ++i) {
     Tagged<HeapObject> heap_object;
     Tagged<MaybeObject> object = array->Get(i);
     if ((object.GetHeapObjectIfWeak(&heap_object) && IsMap(heap_object)) ||
@@ -2692,7 +2720,7 @@ void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
     }
   }
 
-  CHECK_EQ(weak_maps_count + empty_slots_count + 1, array->length());
+  CHECK_EQ(weak_maps_count + empty_slots_count + 1, array_len);
 }
 
 void EnumCache::EnumCacheVerify(Isolate* isolate) {
@@ -2878,11 +2906,42 @@ void StructLayout::StructVerify(Isolate* isolate) {
   Cast<Struct>(this)->StructVerify(isolate);
 }
 
+void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
+    Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsFunctionTemplateRareData(this));
+  Object::VerifyPointer(isolate, prototype_template());
+  Object::VerifyPointer(isolate, prototype_provider_template());
+  Object::VerifyPointer(isolate, parent_template());
+  Object::VerifyPointer(isolate, named_property_handler());
+  Object::VerifyPointer(isolate, indexed_property_handler());
+  Object::VerifyPointer(isolate, instance_template());
+  Object::VerifyPointer(isolate, instance_call_handler());
+  Object::VerifyPointer(isolate, access_check_info());
+  Object::VerifyPointer(isolate, c_function_overloads());
+  CHECK(IsFixedArray(c_function_overloads()) ||
+        IsUndefined(c_function_overloads(), isolate));
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
+    Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsPrototypeSharedClosureInfo(this));
+  Object::VerifyPointer(isolate, boilerplate_description());
+  Object::VerifyPointer(isolate, closure_feedback_cell_array());
+  Object::VerifyPointer(isolate, context());
+}
+
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   StructVerify(isolate);
   CHECK(IsTuple2(this));
   Object::VerifyPointer(isolate, value1_.load());
   Object::VerifyPointer(isolate, value2_.load());
+}
+
+void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAliasedArgumentsEntry(this));
 }
 
 void AccessorPair::AccessorPairVerify(Isolate* isolate) {
@@ -3032,8 +3091,6 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
   CHECK(IsSmi(code_offset_or_source_position_.load()));
   Object::VerifyPointer(isolate, receiver_or_instance_.load());
   Object::VerifyPointer(isolate, function_.load());
-  Object::VerifyPointer(isolate, parameters_.load());
-  CHECK(IsFixedArray(parameters_.load()));
 
   Tagged<Object> code = code_object_.load_maybe_empty(isolate, kAcquireLoad);
   CHECK(IsCode(code) || IsBytecodeArray(code) || code == Smi::zero());
@@ -3046,12 +3103,6 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
-    Isolate* isolate) {
-  CHECK(IsFixedArray(c_function_overloads()) ||
-        IsUndefined(c_function_overloads(), isolate));
 }
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {

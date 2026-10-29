@@ -3,6 +3,9 @@
 // Generated using tools/cldr/cldr-to-icu/
 ar_XB{
     zoneStrings{
+        "America:Mexico_City"{
+            ec{"؜‮Mexico‬؜ ؜‮City‬؜"}
+        }
         "America:St_Barthelemy"{
             ec{"؜‮St‬؜. ؜‮Barthélemy‬؜"}
         }
@@ -21,17 +24,53 @@ ar_XB{
         "America:St_Vincent"{
             ec{"؜‮St‬؜. ؜‮Vincent‬؜"}
         }
+        "Antarctica:Casey"{
+            ec{"؜‮Casey‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:DumontDUrville"{
+            ec{"؜‮Dumont‬؜ ؜‮d‬؜’؜‮Urville‬؜ ؜‮Station‬؜"}
+        }
         "Antarctica:Macquarie"{
             ec{"؜‮Macquarie‬؜ ؜‮Island‬؜"}
         }
+        "Antarctica:Mawson"{
+            ec{"؜‮Mawson‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:McMurdo"{
+            ec{"؜‮McMurdo‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:Palmer"{
+            ec{"؜‮Palmer‬؜ ؜‮Land‬؜"}
+        }
+        "Antarctica:Rothera"{
+            ec{"؜‮Rothera‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:Syowa"{
+            ec{"؜‮Showa‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:Troll"{
+            ec{"؜‮Troll‬؜ ؜‮Station‬؜"}
+        }
+        "Antarctica:Vostok"{
+            ec{"؜‮Vostok‬؜ ؜‮Station‬؜"}
+        }
         "Asia:Aqtau"{
-            ec{"؜‮Aqtau‬؜"}
+            ec{"؜‮Aktau‬؜"}
         }
         "Asia:Qostanay"{
             ec{"؜‮Kostanay‬؜"}
         }
+        "Asia:Qyzylorda"{
+            ec{"؜‮Kyzylorda‬؜"}
+        }
         "Asia:Saigon"{
             ec{"؜‮Ho‬؜ ؜‮Chi‬؜ ؜‮Minh‬؜ ؜‮City‬؜"}
+        }
+        "Atlantic:Canary"{
+            ec{"؜‮Canaries‬؜"}
+        }
+        "Atlantic:Faeroe"{
+            ec{"؜‮Faroes‬؜"}
         }
         "Atlantic:St_Helena"{
             ec{"؜‮St‬؜. ؜‮Helena‬؜"}
@@ -43,7 +82,7 @@ ar_XB{
             ls{"؜‮Coordinated‬؜ ؜‮Universal‬؜ ؜‮Time‬؜"}
         }
         "Etc:Unknown"{
-            ec{"؜‮Unknown‬؜ ؜‮City‬؜"}
+            ec{"؜‮Unknown‬؜ ؜‮Location‬؜"}
         }
         "Europe:Dublin"{
             ld{"؜‮Irish‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
@@ -51,22 +90,47 @@ ar_XB{
         "Europe:London"{
             ld{"؜‮British‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
         }
+        "Indian:Chagos"{
+            ec{"؜‮Chagos‬؜ ؜‮Archipelago‬؜"}
+        }
         "Indian:Christmas"{
             ec{"؜‮Christmas‬؜ ؜‮Island‬؜"}
         }
         "Indian:Cocos"{
             ec{"؜‮Cocos‬؜ ؜‮Islands‬؜"}
         }
+        "Indian:Comoro"{
+            ec{"؜‮Comoros‬؜"}
+        }
+        "Indian:Kerguelen"{
+            ec{"؜‮Kerguelen‬؜ ؜‮Islands‬؜"}
+        }
+        "Pacific:Chatham"{
+            ec{"؜‮Chatham‬؜ ؜‮Islands‬؜"}
+        }
         "Pacific:Easter"{
             ec{"؜‮Easter‬؜ ؜‮Island‬؜"}
         }
-        "Pacific:Honolulu"{
-            sd{"؜‮HDT‬؜"}
-            sg{"؜‮HST‬؜"}
-            ss{"؜‮HST‬؜"}
+        "Pacific:Enderbury"{
+            ec{"؜‮Canton‬؜ ؜‮Island‬؜"}
+        }
+        "Pacific:Galapagos"{
+            ec{"؜‮Galápagos‬؜ ؜‮Islands‬؜"}
+        }
+        "Pacific:Kwajalein"{
+            ec{"؜‮Kwajalein‬؜ ؜‮Atoll‬؜"}
+        }
+        "Pacific:Marquesas"{
+            ec{"؜‮Marquesas‬؜ ؜‮Islands‬؜"}
+        }
+        "Pacific:Midway"{
+            ec{"؜‮Midway‬؜ ؜‮Atoll‬؜"}
         }
         "Pacific:Norfolk"{
             ec{"؜‮Norfolk‬؜ ؜‮Island‬؜"}
+        }
+        "Pacific:Pitcairn"{
+            ec{"؜‮Pitcairn‬؜ ؜‮Islands‬؜"}
         }
         "Pacific:Wake"{
             ec{"؜‮Wake‬؜ ؜‮Island‬؜"}
@@ -89,9 +153,7 @@ ar_XB{
             ls{"؜‮South‬؜ ؜‮Africa‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
         }
         "meta:Africa_Western"{
-            ld{"؜‮West‬؜ ؜‮Africa‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
-            lg{"؜‮West‬؜ ؜‮Africa‬؜ ؜‮Time‬؜"}
-            ls{"؜‮West‬؜ ؜‮Africa‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
+            ls{"؜‮West‬؜ ؜‮Africa‬؜ ؜‮Time‬؜"}
         }
         "meta:Alaska"{
             ld{"؜‮Alaska‬؜ ؜‮Daylight‬؜ ؜‮Time‬؜"}
@@ -380,6 +442,10 @@ ar_XB{
         "meta:Guyana"{
             ls{"؜‮Guyana‬؜ ؜‮Time‬؜"}
         }
+        "meta:Hawaii"{
+            ls{"؜‮Hawaii‬؜-؜‮Aleutian‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
+            ss{"؜‮HST‬؜"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"؜‮Hawaii‬؜-؜‮Aleutian‬؜ ؜‮Daylight‬؜ ؜‮Time‬؜"}
             lg{"؜‮Hawaii‬؜-؜‮Aleutian‬؜ ؜‮Time‬؜"}
@@ -394,9 +460,9 @@ ar_XB{
             ls{"؜‮Hong‬؜ ؜‮Kong‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
         }
         "meta:Hovd"{
-            ld{"؜‮Hovd‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
-            lg{"؜‮Hovd‬؜ ؜‮Time‬؜"}
-            ls{"؜‮Hovd‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
+            ld{"؜‮Khovd‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
+            lg{"؜‮Khovd‬؜ ؜‮Time‬؜"}
+            ls{"؜‮Khovd‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
         }
         "meta:India"{
             ls{"؜‮India‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
@@ -616,9 +682,9 @@ ar_XB{
             ls{"؜‮North‬؜ ؜‮Korea‬؜ ؜‮Time‬؜"}
         }
         "meta:Qyzylorda"{
-            ld{"؜‮Qyzylorda‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
-            lg{"؜‮Qyzylorda‬؜ ؜‮Time‬؜"}
-            ls{"؜‮Qyzylorda‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
+            ld{"؜‮Kyzylorda‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
+            lg{"؜‮Kyzylorda‬؜ ؜‮Time‬؜"}
+            ls{"؜‮Kyzylorda‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
         }
         "meta:Reunion"{
             ls{"؜‮Réunion‬؜ ؜‮Time‬؜"}
@@ -680,6 +746,11 @@ ar_XB{
         }
         "meta:Truk"{
             ls{"؜‮Chuuk‬؜ ؜‮Time‬؜"}
+        }
+        "meta:Turkey"{
+            ld{"؜‮Türkiye‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}
+            lg{"؜‮Türkiye‬؜ ؜‮Time‬؜"}
+            ls{"؜‮Türkiye‬؜ ؜‮Standard‬؜ ؜‮Time‬؜"}
         }
         "meta:Turkmenistan"{
             ld{"؜‮Turkmenistan‬؜ ؜‮Summer‬؜ ؜‮Time‬؜"}

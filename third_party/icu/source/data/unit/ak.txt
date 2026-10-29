@@ -11,22 +11,14 @@ ak{
         }
         angle{
             arc-minute{
-                dnam{"aakesima"}
                 one{"aakesima {0}"}
                 other{"aakesima {0}"}
             }
-            arc-second{
-                dnam{"aakesɛkɛnse"}
-                one{"{0} aakesɛkɛnse"}
-                other{"{0} aakesɛkɛnse"}
-            }
             degree{
-                dnam{"digrii"}
                 one{"digrii {0}"}
                 other{"digrii {0}"}
             }
             radian{
-                dnam{"radian"}
                 one{"{0} radian"}
                 other{"{0} radian"}
             }
@@ -38,7 +30,6 @@ ak{
         }
         area{
             acre{
-                dnam{"Eka"}
                 one{"{0} eka"}
                 other{"{0} eka"}
             }
@@ -48,7 +39,6 @@ ak{
             10p-12{"piko{0}"}
             10p-15{"fɛmtɔ{0}"}
             10p-18{"atto{0}"}
-            10p-2{"sɛnti{0}"}
             10p-3{"mili{0}"}
             10p-6{"mikro{0}"}
             10p-9{"nano{0}"}
@@ -86,13 +76,7 @@ ak{
             times{"{0}-{1}"}
         }
         concentr{
-            item{
-                dnam{"adeɛ"}
-                one{"adeɛ {0}"}
-                other{"adeɛ {0}"}
-            }
             karat{
-                dnam{"karat"}
                 one{"{0} karat"}
                 other{"{0} karat"}
             }
@@ -107,12 +91,18 @@ ak{
                 other{"milimole lita biara {0}"}
             }
             mole{
-                dnam{"mole"}
                 one{"{0} mole"}
                 other{"{0} mole"}
             }
+            part-per-1e6{
+                one{"paat ɔpepem biara {0}"}
+                other{"paat ɔpepem biara {0}"}
+            }
+            part-per-1e9{
+                one{"paat ɔpepepem biara {0}"}
+                other{"paat ɔpepepem biara {0}"}
+            }
             percent{
-                dnam{"ɔha nkyɛmu"}
                 one{"ɔha nkyɛmu {0}"}
                 other{"ɔha nkyɛmu {0}"}
             }
@@ -121,20 +111,9 @@ ak{
                 one{"pɛɛmile {0}"}
                 other{"pɛɛmile {0}"}
             }
-            permillion{
-                dnam{"paat ɔpepem biara"}
-                one{"paat ɔpepem biara {0}"}
-                other{"paat ɔpepem biara {0}"}
-            }
             permyriad{
-                dnam{"pɛɛmiride"}
                 one{"pɛɛmiride {0}"}
                 other{"pɛɛmiride {0}"}
-            }
-            portion-per-1e9{
-                dnam{"paat ɔpepepem biara"}
-                one{"paat ɔpepepem biara {0}"}
-                other{"paat ɔpepepem biara {0}"}
             }
         }
         consumption{
@@ -144,17 +123,14 @@ ak{
                 other{"lita kilomita 100 biara {0}"}
             }
             liter-per-kilometer{
-                dnam{"lita kilomita biara"}
                 one{"lita kilomita biara {0}"}
                 other{"lita kilomita biara {0}"}
             }
             mile-per-gallon{
-                dnam{"mile galɔn biara"}
                 one{"mile galɔn biara {0}"}
-                other{"mile galɔn biara {0}"}
+                other{"{0} mpg US"}
             }
             mile-per-gallon-imperial{
-                dnam{"mile Imp. galɔn biara"}
                 one{"mile Imp. galɔn biara {0}"}
                 other{"mile Imp. galɔn biara {0}"}
             }
@@ -162,7 +138,6 @@ ak{
         coordinate{
             dnam{"kadinaa akwankyerɛ"}
             east{"{0} apueɛ"}
-            north{"{0} atifi"}
             south{"{0} anaafoɔ"}
             west{"{0} atɔeɛ"}
         }
@@ -219,23 +194,16 @@ ak{
                 one{"afeha{0}"}
                 other{"mfeha{0}"}
             }
-            day{
-                dnam{"nna"}
-                one{"da {0}"}
-                other{"nna {0}"}
-            }
             decade{
                 dnam{"mfenhyia du"}
                 one{"mfenhyia du {0}"}
                 other{"{0} dec"}
             }
             hour{
-                dnam{"dɔnhwere"}
                 one{"dɔnhwere {0}"}
                 other{"dɔnhwere {0}"}
             }
             microsecond{
-                dnam{"μsecs"}
                 one{"{0} mikrosɛkɛn"}
                 other{"{0} mikrosɛkɛns"}
             }
@@ -250,18 +218,15 @@ ak{
                 other{"sima {0}"}
             }
             month{
-                dnam{"bosome"}
                 one{"Bosome {0}"}
                 other{"Bosome {0}"}
                 per{"bosome biara {0}"}
             }
             nanosecond{
-                dnam{"nanosɛkɛns"}
                 one{"{0} nanosɛkɛn"}
-                other{"{0} nanosɛkɛns"}
+                other{"{0} ns"}
             }
             night{
-                dnam{"anadwo"}
                 one{"{0} anadwo"}
                 other{"anadwo{0}"}
                 per{"anadwo biara{0}"}
@@ -273,18 +238,15 @@ ak{
             }
             second{
                 dnam{"sima sini"}
-                one{"sima sini {0}"}
+                one{"{0} s"}
                 other{"sima sini {0}"}
-                per{"sima sini biara {0}"}
             }
             week{
-                dnam{"nnawɔtwe"}
                 one{"nnawɔtwe {0}"}
                 other{"nnawɔtwe {0}"}
                 per{"nnawɔtwe biara {0}"}
             }
             year{
-                dnam{"mfeɛ"}
                 one{"mfeɛ {0}"}
                 other{"mfeɛ {0}"}
                 per{"mfeɛ biara {0}"}
@@ -297,12 +259,10 @@ ak{
                 other{"kilowat-nnɔnhwere 100 kilomita biara {0}"}
             }
             newton{
-                dnam{"newton"}
                 one{"{0} newton"}
                 other{"{0} newton"}
             }
             pound-force{
-                dnam{"fɔs mu pɔn"}
                 one{"fɔs mu pɔn {0}"}
                 other{"fɔs mu pɔn {0}"}
             }
@@ -316,7 +276,6 @@ ak{
                 other{"{0} megapixels"}
             }
             pixel{
-                dnam{"pixels"}
                 one{"{0} pixel"}
                 other{"{0} pixels"}
             }
@@ -326,7 +285,6 @@ ak{
                 other{"pixels sɛntimita biara{0}"}
             }
             pixel-per-inch{
-                dnam{"pixels inkye biara"}
                 one{"pixels inkye biara{0}"}
                 other{"pixels inkye biara{0}"}
             }
@@ -334,7 +292,7 @@ ak{
         length{
             astronomical-unit{
                 dnam{"astrɔnɔmikaa winit"}
-                one{"astrɔnɔmikaa winit {0}"}
+                one{"{0} au"}
                 other{"astrɔnɔmikaa winit {0}"}
             }
             centimeter{
@@ -349,7 +307,6 @@ ak{
                 other{"dɛsimita {0}"}
             }
             earth-radius{
-                dnam{"asaase radiɔs"}
                 one{"asaase radiɔs {0}"}
                 other{"asaase radiɔs{0}"}
             }
@@ -359,7 +316,6 @@ ak{
                 other{"fatɔmse {0}"}
             }
             foot{
-                dnam{"ananmɔn"}
                 one{"ananmɔn {0}"}
                 other{"{0} ft"}
                 per{"ananmɔn biara {0}"}
@@ -370,7 +326,6 @@ ak{
                 other{"fɛɛlɔɔne {0}"}
             }
             inch{
-                dnam{"inkyisi"}
                 one{"inkyisi {0}"}
                 other{"inkyisi {0}"}
                 per{"inkyisi biara {0}"}
@@ -382,7 +337,6 @@ ak{
                 per{"kilomita biara{0}"}
             }
             light-year{
-                dnam{"kanea mfeɛ"}
                 one{"kanea mfeɛ {0}"}
                 other{"kanea mfeɛ {0}"}
             }
@@ -398,7 +352,6 @@ ak{
                 other{"mikromita {0}"}
             }
             mile{
-                dnam{"kwansini"}
                 one{"kwansini {0}"}
                 other{"kwansini {0}"}
             }
@@ -410,7 +363,7 @@ ak{
             millimeter{
                 dnam{"milimita"}
                 one{"milimita {0}"}
-                other{"milimita {0}"}
+                other{"{0} mm"}
             }
             nanometer{
                 dnam{"nanomita"}
@@ -423,7 +376,6 @@ ak{
                 other{"nɔtikaa ananmɔn {0}"}
             }
             parsec{
-                dnam{"paasɛk"}
                 one{"paasɛk {0}"}
                 other{"paasɛk {0}"}
             }
@@ -433,59 +385,46 @@ ak{
                 other{"pikomita {0}"}
             }
             point{
-                dnam{"pɔnse"}
                 one{"pɔnse {0}"}
                 other{"pɔnse {0}"}
             }
             solar-radius{
-                dnam{"sola radii"}
                 one{"sola radii {0}"}
                 other{"sola radii {0}"}
             }
             yard{
-                dnam{"yaase"}
                 one{"yaase {0}"}
                 other{"yaase {0}"}
             }
         }
         light{
             candela{
-                dnam{"kandela"}
                 one{"{0} kandela"}
                 other{"{0} kandela"}
             }
-            lumen{
-                dnam{"lumen"}
-            }
             lux{
-                dnam{"lux"}
                 one{"{0} lux"}
                 other{"{0} lux"}
             }
             solar-luminosity{
-                dnam{"sola luminɔsitise"}
                 one{"sola luminɔsitise {0}"}
                 other{"sola luminɔsitise {0}"}
             }
         }
         mass{
             carat{
-                dnam{"karat"}
-                one{"karat {0}"}
+                one{"{0} CD"}
                 other{"karat {0}"}
             }
             dalton{
-                dnam{"daatin"}
                 one{"daatin {0}"}
                 other{"daatin {0}"}
             }
             earth-mass{
-                dnam{"Asaase mass"}
                 one{"Asaase mass {0}"}
                 other{"Asaase mass {0}"}
             }
             gram{
-                dnam{"grame"}
                 one{"grame {0}"}
                 other{"{0} g"}
                 per{"grame biara {0}"}
@@ -499,7 +438,7 @@ ak{
             microgram{
                 dnam{"mikrograme"}
                 one{"mikrograme {0}"}
-                other{"mikrograme {0}"}
+                other{"{0} μg"}
             }
             milligram{
                 dnam{"miligrame"}
@@ -518,13 +457,11 @@ ak{
                 other{"troy awnse {0}"}
             }
             pound{
-                dnam{"pɔns"}
                 one{"pɔns {0}"}
                 other{"pɔns {0}"}
                 per{"pɔns biara {0}"}
             }
             solar-mass{
-                dnam{"sola mass"}
                 one{"sola mass {0}"}
                 other{"sola mass {0}"}
             }
@@ -533,21 +470,28 @@ ak{
                 other{"{0} tons"}
             }
             tonne{
-                dnam{"mɛtreke tons"}
                 one{"mɛtreke tons {0}"}
                 other{"mɛtreke tons {0}"}
             }
         }
+        pressure{
+            bar{
+                dnam{"poma"}
+                one{"{0}poma"}
+                other{"{0}poma"}
+            }
+        }
         speed{
             knot{
-                dnam{"Pɔ"}
-                one{"Pɔ {0}"}
+                one{"{0} kn"}
                 other{"Pɔ {0}"}
             }
-            light-speed{
-                dnam{"kanea"}
-                one{"kanea {0}"}
-                other{"kanea {0}"}
+        }
+        temperature{
+            generic{
+                dnam{"hyew°"}
+                one{"{0} hyew digrii"}
+                other{"{0} hyew digrii"}
             }
         }
         torque{
@@ -564,42 +508,28 @@ ak{
         }
         volume{
             barrel{
-                dnam{"bare"}
                 one{"bare {0}"}
                 other{"bare {0}"}
             }
             cup{
-                dnam{"kuruwa"}
                 one{"kuruwa {0}"}
                 other{"kuruwa {0}"}
             }
             dessert-spoon{
-                dnam{"atere"}
                 one{"atere {0}"}
                 other{"atere {0}"}
             }
             dram{
-                dnam{"drɔm"}
                 one{"drɔm fl {0}"}
                 other{"drɔm fl {0}"}
             }
             drop{
-                dnam{"koko"}
                 one{"ko {0}"}
                 other{"koko {0}"}
             }
-            jigger{
-                dnam{"gyega"}
-                one{"gyega {0}"}
-                other{"gyega {0}"}
-            }
             liter{
-                dnam{"lita"}
                 one{"{0} l"}
                 other{"{0} lita"}
-            }
-            pint{
-                dnam{"pints"}
             }
             tablespoon{
                 dnam{"Atere kɛseɛ"}
@@ -615,62 +545,15 @@ ak{
     }
     unitsNarrow{
         angle{
-            arc-minute{
-                dnam{"aakesima"}
-            }
             arc-second{
-                dnam{"aakesɛkɛnse"}
-            }
-            degree{
-                dnam{"digrii"}
-            }
-            radian{
-                dnam{"radian"}
-            }
-        }
-        area{
-            acre{
-                dnam{"Eka"}
-            }
-        }
-        concentr{
-            item{
-                dnam{"adeɛ"}
-                one{"adeɛ {0}"}
-                other{"adeɛ {0}"}
-            }
-            karat{
-                dnam{"karat"}
-            }
-            millimole-per-liter{
-                dnam{"milimol/lita"}
-            }
-            percent{
-                dnam{"ɔha nkyɛmu"}
-            }
-            permillion{
-                dnam{"paat ɔpepem biara"}
-            }
-            permyriad{
-                dnam{"pɛɛmiride"}
-            }
-            portion-per-1e9{
-                dnam{"paat ɔpepepem biara"}
+                one{"{0}″"}
+                other{"{0}″"}
             }
         }
         consumption{
-            liter-per-kilometer{
-                dnam{"lita kilomita biara"}
-            }
-            mile-per-gallon{
-                dnam{"mile galɔn biara"}
-            }
             mile-per-gallon-imperial{
                 dnam{"mpg UK"}
             }
-        }
-        coordinate{
-            dnam{"akwankyerɛ"}
         }
         digital{
             byte{
@@ -678,163 +561,72 @@ ak{
                 one{"{0}B"}
                 other{"{0}B"}
             }
-            petabyte{
-                dnam{"PByte"}
+            gigabyte{
+                dnam{"GB"}
             }
         }
         duration{
             day{
                 dnam{"da"}
-                one{"da {0}"}
-                other{"nna {0}"}
-            }
-            hour{
-                dnam{"dɔnhwere"}
             }
             microsecond{
                 dnam{"μsec"}
             }
-            month{
-                dnam{"bosome"}
-            }
-            night{
-                dnam{"anadwo"}
-                one{"anadwo{0}"}
-                other{"anadwo{0}"}
-                per{"{0}/anadwo"}
-            }
-            week{
-                dnam{"nnawɔtwe"}
-            }
-            year{
-                dnam{"mfeɛ"}
-            }
-        }
-        force{
-            pound-force{
-                dnam{"fɔs mu pɔn"}
+            second{
+                dnam{"simasini"}
             }
         }
         length{
-            earth-radius{
-                dnam{"asaase radiɔs"}
-            }
             fathom{
                 dnam{"fatɔmse"}
             }
             foot{
-                dnam{"ananmɔn"}
                 one{"{0}′"}
-                other{"{0}′"}
+                other{"{0} ft"}
             }
             furlong{
                 dnam{"fɛɛlɔɔne"}
             }
             inch{
-                dnam{"inkyisi"}
                 one{"{0}″"}
                 other{"{0}″"}
-            }
-            light-year{
-                dnam{"kanea mfeɛ"}
-            }
-            meter{
-                dnam{"m"}
-            }
-            parsec{
-                dnam{"paasɛk"}
             }
             point{
                 dnam{"pts"}
             }
-            solar-radius{
-                dnam{"sola radii"}
-            }
-            yard{
-                dnam{"yaase"}
-            }
-        }
-        light{
-            lux{
-                dnam{"lux"}
-            }
-            solar-luminosity{
-                dnam{"sola luminɔsitise"}
-            }
         }
         mass{
-            carat{
-                dnam{"karat"}
-            }
-            dalton{
-                dnam{"daatin"}
-            }
-            earth-mass{
-                dnam{"Asaase mass"}
-            }
             grain{
                 dnam{"gr"}
                 one{"{0}gr"}
                 other{"{0}gr"}
             }
-            gram{
-                dnam{"grame"}
-            }
-            ounce-troy{
-                dnam{"oz troy"}
-            }
-            pound{
-                dnam{"pɔns"}
-            }
-            solar-mass{
-                dnam{"sola mass"}
-            }
         }
-        speed{
-            light-speed{
-                dnam{"kanea"}
-                one{"kanea {0}"}
-                other{"kanea {0}"}
-            }
-            mile-per-hour{
-                one{"{0} mph"}
-                other{"{0} mph"}
+        pressure{
+            bar{
+                dnam{"poma"}
+                one{"{0}poma"}
+                other{"{0}poma"}
             }
         }
         volume{
-            cup{
-                dnam{"kuruwa"}
-            }
             dessert-spoon{
-                dnam{"dsp"}
-                one{"{0}dsp"}
+                one{"{0} dsp"}
                 other{"{0}dsp"}
             }
             dram{
                 dnam{"fl.dr."}
-                one{"drɔm fl {0}"}
+                one{"drɔm {0}"}
                 other{"drɔm fl {0}"}
             }
             drop{
                 dnam{"dr"}
-                one{"ko {0}"}
-                other{"ko {0}"}
             }
             gallon{
                 per{"{0}/gal"}
             }
-            jigger{
-                dnam{"gyega"}
-                one{"gyega {0}"}
-                other{"gyega {0}"}
-            }
-            liter{
-                dnam{"lita"}
-            }
             pinch{
                 dnam{"pn"}
-                one{"{0} pn"}
-                other{"{0} pn"}
             }
             pint-metric{
                 dnam{"pt"}
@@ -878,20 +670,20 @@ ak{
             mole{
                 dnam{"mole"}
             }
+            part-per-1e6{
+                dnam{"paat ɔpepem biara"}
+            }
+            part-per-1e9{
+                dnam{"paat ɔpepepem biara"}
+            }
             percent{
                 dnam{"ɔha nkyɛmu"}
             }
             permille{
                 dnam{"pɛɛmile"}
             }
-            permillion{
-                dnam{"paat ɔpepem biara"}
-            }
             permyriad{
                 dnam{"pɛɛmiride"}
-            }
-            portion-per-1e9{
-                dnam{"paat ɔpepepem biara"}
             }
         }
         consumption{
@@ -946,9 +738,6 @@ ak{
             hour{
                 dnam{"dɔnhwere"}
             }
-            microsecond{
-                dnam{"μsecs"}
-            }
             month{
                 dnam{"bosome"}
             }
@@ -960,6 +749,9 @@ ak{
                 one{"anadwo{0}"}
                 other{"anadwo{0}"}
                 per{"{0}/anadwo"}
+            }
+            second{
+                dnam{"simasini"}
             }
             week{
                 dnam{"nnawɔtwe"}
@@ -1060,6 +852,13 @@ ak{
                 dnam{"sola mass"}
             }
         }
+        pressure{
+            bar{
+                dnam{"poma"}
+                one{"{0}poma"}
+                other{"{0}poma"}
+            }
+        }
         speed{
             light-speed{
                 dnam{"kanea"}
@@ -1069,6 +868,11 @@ ak{
             mile-per-hour{
                 one{"{0} mph"}
                 other{"{0} mph"}
+            }
+        }
+        temperature{
+            generic{
+                dnam{"hyew°"}
             }
         }
         volume{
@@ -1084,7 +888,6 @@ ak{
                 other{"{0} dsp"}
             }
             dram{
-                dnam{"drɔm"}
                 one{"drɔm {0}"}
                 other{"drɔm {0}"}
             }

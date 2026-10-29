@@ -23,12 +23,30 @@ de_CH{
         zh_Hant{"Hochchinesisch (traditionell)"}
     }
     Types{
+        calendar%core{
+            buddhist{"Buddhistisch"}
+            chinese{"Chinesisch"}
+            coptic{"Koptisch"}
+            ethiopic{"Äthiopisch"}
+            ethiopic-amete-alem{"Äthiopisch Amäta Aläm"}
+            gregorian{"Gregorianisch"}
+            hebrew{"Hebräisch"}
+            japanese{"Japanisch"}
+            persian{"Persisch"}
+        }
         colCaseFirst{
             upper{"Grossbuchstaben zuerst aufführen"}
         }
         colCaseLevel{
             no{"Ohne Gross-/Kleinschreibung sortieren"}
             yes{"Nach Gross-/Kleinschreibung sortieren"}
+        }
+        collation%core{
+            dictionary{"Lexikografisch"}
+            ducet{"Unicode (Standard)"}
+            phonetic{"Phonetisch"}
+            stroke{"Strichfolge"}
+            traditional{"Traditionell"}
         }
         ms{
             uksystem{"britisches Mass-System"}

@@ -44,12 +44,11 @@ om_KE{
             }
             eras{
                 abbreviated{
-                    "KD",
-                    "BA",
+                    0{"KD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "KB",
+                    0{"BCE"}
+                    1{"KB"}
                 }
             }
         }

@@ -269,10 +269,6 @@
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 
   'arbitrary-length-varargs': [PASS, ['(mode == debug and simulator_run) or lower_limits_mode', SKIP]],
-
-  # TODO(493179861): Implement shared custom descriptors.
-  'regress/wasm/regress-475896261': [SKIP],
-  'wasm/custom-descriptors-validity-shared': [SKIP],
 }],  # ALWAYS
 
 ################################################################################
@@ -641,6 +637,7 @@
 
   # --experimental-wasm-memory-control
   'wasm/memory-control': [SKIP],
+  'regress/wasm/regress-493307331': [SKIP],
 
   # exnref
   'regress/wasm/regress-14689': [SKIP],
@@ -1064,12 +1061,16 @@
 
 ##############################################################################
 ['full_debug', {
+  # Slow tests.
+  'regress/regress-crbug-854299': [PASS, SLOW],
+
   # Tests too slow in non-optimized debug mode.
   'es6/super-ic': [SKIP],
   'es6/typedarray-of': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-740784': [SKIP],
+  'regress/regress-7558019': [SKIP],
   'regress/regress-992389': [SKIP],
   'regress/regress-crbug-1276923': [SKIP],
   'wasm/memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
@@ -1824,7 +1825,6 @@
   'harmony/atomics-waitasync-*': [FUZZ_RARE, PASS],
   'harmony/regexp-property-*': [FUZZ_RARE, PASS],
   'harmony/sharedarraybuffer-worker-gc-stress': [FUZZ_RARE, PASS],
-  'regress/regress-1000635': [FUZZ_RARE, PASS],
   'regress/regress-1020031': [FUZZ_RARE, PASS],
   'regress/regress-crbug-632800': [FUZZ_RARE, PASS],
   'regress/regress-crbug-854299': [FUZZ_RARE, PASS],
@@ -2196,6 +2196,7 @@
 
   # WebAssembly memory control is only implemented on Linux so far.
   'wasm/memory-control': [SKIP],
+  'regress/wasm/regress-493307331': [SKIP],
 }],
 
 ##############################################################################
@@ -2660,6 +2661,7 @@
   'regress/regress-463593768': [SKIP],
   'regress/regress-464961493': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
+  'regress/regress-493269623': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],

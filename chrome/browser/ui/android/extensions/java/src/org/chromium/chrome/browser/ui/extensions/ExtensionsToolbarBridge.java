@@ -135,6 +135,17 @@ public class ExtensionsToolbarBridge implements Destroyable {
         return ExtensionsToolbarBridgeJni.get().getPinnedActionIds(mNativeExtensionsToolbarAndroid);
     }
 
+    public boolean isActionDraggable(String actionId) {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return false;
+        }
+        return ExtensionsToolbarBridgeJni.get()
+                .isActionDraggable(mNativeExtensionsToolbarAndroid, actionId);
+    }
+
     public void executeUserAction(String actionId, @InvocationSource int source) {
         if (mProfile.shutdownStarted()) {
             // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
@@ -181,6 +192,14 @@ public class ExtensionsToolbarBridge implements Destroyable {
     }
 
     @CalledByNative
+    void showContextMenu(@JniType("std::string") String actionId) {
+        // {@link mDelegate} should be set in {@code ExtensionActionListMediator}'s constructor.
+        assert mDelegate != null;
+
+        mDelegate.showContextMenu(actionId);
+    }
+
+    @CalledByNative
     public void onRequestAccessButtonParamsChanged() {
         for (Observer observer : mObservers) {
             observer.onRequestAccessButtonParamsChanged();
@@ -192,6 +211,22 @@ public class ExtensionsToolbarBridge implements Destroyable {
         for (Observer observer : mObservers) {
             observer.onToolbarControlStateUpdated();
         }
+    }
+
+    @CalledByNative
+    public boolean hasPoppedOutAction() {
+        // {@link mDelegate} should be set in {@code ExtensionActionListMediator}'s constructor.
+        assert mDelegate != null;
+
+        return mDelegate.hasPoppedOutAction();
+    }
+
+    @CalledByNative
+    public void hideActivePopup() {
+        // {@link mDelegate} should be set in {@code ExtensionActionListMediator}'s constructor.
+        assert mDelegate != null;
+
+        mDelegate.hideActivePopup();
     }
 
     @CalledByNative
@@ -230,9 +265,9 @@ public class ExtensionsToolbarBridge implements Destroyable {
     }
 
     @CalledByNative
-    public void onActiveWebContentsChanged() {
+    public void onActiveWebContentsChanged(WebContents webContents) {
         for (Observer observer : mObservers) {
-            observer.onActiveWebContentsChanged();
+            observer.onActiveWebContentsChanged(webContents);
         }
     }
 
@@ -253,7 +288,7 @@ public class ExtensionsToolbarBridge implements Destroyable {
         default void onPinnedActionsChanged() {}
 
         // Called when the active web contents changes due to e.g. navigation or tab change.
-        default void onActiveWebContentsChanged() {}
+        default void onActiveWebContentsChanged(WebContents webContents) {}
 
         // Called when the request access button parameters have changed.
         default void onRequestAccessButtonParamsChanged() {}
@@ -265,6 +300,15 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public interface Delegate {
         // Called when the popup should be shown.
         void triggerPopup(String actionId, long nativeHostPtr);
+
+        // Called when the context menu should be shown.
+        void showContextMenu(String actionId);
+
+        // Returns whether there is a popped out action.
+        boolean hasPoppedOutAction();
+
+        // Called when active popup should be hidden.
+        void hideActivePopup();
     }
 
     @NativeMethods
@@ -291,6 +335,9 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
         @JniType("std::vector<std::string>")
         String[] getPinnedActionIds(long nativeExtensionsToolbarAndroid);
+
+        boolean isActionDraggable(
+                long nativeExtensionsToolbarAndroid, @JniType("std::string") String actionId);
 
         void executeUserAction(
                 long nativeExtensionsToolbarAndroid,

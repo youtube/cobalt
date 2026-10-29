@@ -14,7 +14,9 @@ vec{
                 range{"{0}-{1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyPatternAppendISO{"{0} ¤¤"}
             }
             patternsLong{
@@ -73,51 +75,51 @@ vec{
                 currencyFormat{
                     1000{
                         one{"0"}
-                        other{"0"}
+                        other{"0 mila ¤"}
                     }
                     10000{
-                        one{"0"}
-                        other{"0"}
+                        one{"00 mila ¤"}
+                        other{"00 mila ¤"}
                     }
                     100000{
-                        one{"0"}
-                        other{"0"}
+                        one{"000 mila ¤"}
+                        other{"000 mila ¤"}
                     }
                     1000000{
-                        one{"0 mln ¤"}
-                        other{"0 mln ¤"}
+                        one{"0 mln ¤"}
+                        other{"0 mln ¤"}
                     }
                     10000000{
-                        one{"00 mln ¤"}
-                        other{"00 mln ¤"}
+                        one{"00 mln ¤"}
+                        other{"00 mln ¤"}
                     }
                     100000000{
-                        one{"000 mln ¤"}
-                        other{"000 mln ¤"}
+                        one{"000 mln ¤"}
+                        other{"000 mln ¤"}
                     }
                     1000000000{
-                        one{"0 mld ¤"}
-                        other{"0 mld ¤"}
+                        one{"0 mld ¤"}
+                        other{"0 mld ¤"}
                     }
                     10000000000{
-                        one{"00 mld ¤"}
-                        other{"00 mld ¤"}
+                        one{"00 mld ¤"}
+                        other{"00 mld ¤"}
                     }
                     100000000000{
-                        one{"000 mld ¤"}
-                        other{"000 mld ¤"}
+                        one{"000 mld ¤"}
+                        other{"000 mld ¤"}
                     }
                     1000000000000{
-                        one{"0 bln ¤"}
-                        other{"0 bln ¤"}
+                        one{"0 bln ¤"}
+                        other{"0 bln ¤"}
                     }
                     10000000000000{
-                        one{"00 bln ¤"}
-                        other{"00 bln ¤"}
+                        one{"00 bln ¤"}
+                        other{"00 bln ¤"}
                     }
                     100000000000000{
-                        one{"000 bln ¤"}
-                        other{"000 bln ¤"}
+                        one{"000 bln ¤"}
+                        other{"000 bln ¤"}
                     }
                 }
                 decimalFormat{
@@ -209,13 +211,22 @@ vec{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' 'le' {0}",
+                "{1} 'a' 'le' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Gy{"y G"}
+                GyM{"MM/y GGGGG"}
+                GyMEd{"E dd/MM/y GGGGG"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"dd/MM/y GGGGG"}
+                Hv{"'h'HH v"}
                 MEd{"E dd/MM"}
                 MMMEd{"E d MMM"}
                 MMMMd{"d MMMM"}
@@ -361,12 +372,15 @@ vec{
             availableFormats{
                 Ed{"E d"}
                 Gy{"y G"}
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"dd/MM/y G"}
                 Hmsv{"HH:mm:ss (v)"}
                 Hmv{"HH:mm (v)"}
+                Hv{"'h'HH v"}
                 MEd{"E dd/MM"}
                 MMMEd{"E d MMM"}
                 MMMMW{
@@ -427,20 +441,20 @@ vec{
             }
             eras{
                 abbreviated{
-                    "v.C.",
-                    "d.C.",
+                    0{"v.C."}
+                    1{"d.C."}
                 }
                 abbreviated%variant{
-                    "v.e.c.",
-                    "e.c.",
+                    0{"v.e.c."}
+                    1{"e.c."}
                 }
                 wide{
-                    "vanti Cristo",
-                    "daspò Cristo",
+                    0{"vanti Cristo"}
+                    1{"daspò Cristo"}
                 }
                 wide%variant{
-                    "vanti era comun",
-                    "era comun",
+                    0{"vanti era comun"}
+                    1{"era comun"}
                 }
             }
             intervalFormats{

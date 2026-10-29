@@ -63,8 +63,6 @@ class WasmTrustedInstanceData;
 class WasmJSFunction;
 class WasmModuleObject;
 
-enum class SharedFlag : uint8_t;
-
 template <typename CppType>
 class Managed;
 template <typename CppType>
@@ -75,29 +73,6 @@ class TrustedManaged;
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   DECL_GETTER(has_##name, bool)             \
   DECL_ACCESSORS(name, type)
-
-class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
- public:
-  FunctionTargetAndImplicitArg(
-      Isolate* isolate,
-      DirectHandle<WasmTrustedInstanceData> target_instance_data,
-      int target_func_index);
-  // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
-  DirectHandle<TrustedObject> implicit_arg() { return implicit_arg_; }
-  WasmCodePointer call_target() { return call_target_; }
-
-#if V8_ENABLE_DRUMBRAKE
-  int target_func_index() { return target_func_index_; }
-#endif  // V8_ENABLE_DRUMBRAKE
-
- private:
-  DirectHandle<TrustedObject> implicit_arg_;
-  WasmCodePointer call_target_;
-
-#if V8_ENABLE_DRUMBRAKE
-  int target_func_index_;
-#endif  // V8_ENABLE_DRUMBRAKE
-};
 
 namespace wasm {
 enum class OnResume : int { kContinue, kThrow };
@@ -203,7 +178,7 @@ class WasmModuleObject
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
-      InternalizeString, bool shared = false);
+      InternalizeString, SharedFlag shared = SharedFlag::kNo);
 
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)
 };
@@ -298,15 +273,6 @@ class WasmTableObject
       Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index);
-
-  // This function reads the content of a function table entry and returns it
-  // through the output parameters.
-  static void GetFunctionTableEntry(
-      Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-      bool* is_valid, bool* is_null,
-      MaybeDirectHandle<WasmTrustedInstanceData>* instance_data,
-      int* function_index,
-      MaybeDirectHandle<WasmJSFunction>* maybe_js_function);
 
  private:
   // {entry} is either {Null} or a {WasmInternalFunction}.
@@ -452,8 +418,6 @@ class WasmGlobalObject
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
       MaybeDirectHandle<BufferType> maybe_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
-
-  inline int unsafe_type_size() const;
 
   inline int32_t GetI32() const;
   inline int64_t GetI64() const;
@@ -689,12 +653,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,
-      std::shared_ptr<wasm::NativeModule>, bool shared);
+      std::shared_ptr<wasm::NativeModule>, SharedFlag shared);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
-
-  inline Tagged<WasmDispatchTable> dispatch_table(uint32_t table_index);
-  inline bool has_dispatch_table(uint32_t table_index);
 
   // Copies table entries. Returns {false} if the ranges are out-of-bounds.
   static bool CopyTableEntries(
@@ -920,9 +881,6 @@ class WasmDispatchTable : public ExposedTrustedObject {
 #endif  // V8_ENABLE_DRUMBRAKE
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
-
-  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
-      int index);
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -1491,10 +1449,6 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
                                                  wasm::CanonicalValueType type,
                                                  uint32_t offset);
 
- private:
-  template <typename ElementType>
-  static ElementType FromNumber(Tagged<Object> value);
-
   TQ_OBJECT_CONSTRUCTORS(WasmObject)
 };
 
@@ -1558,7 +1512,6 @@ int WasmStruct::Size(const wasm::CanonicalStructType* type) {
 
 class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
  public:
-  static inline wasm::CanonicalTypeIndex type_index(Tagged<Map> map);
   static inline const wasm::CanonicalValueType GcSafeElementType(
       Tagged<Map> map);
 
@@ -1704,7 +1657,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   int num_supertypes, bool shared);
+                                   int num_supertypes, SharedFlag shared);
 
 DirectHandle<Map> CreateContRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type);

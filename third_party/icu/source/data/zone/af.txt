@@ -18,9 +18,6 @@ af{
         "Africa:Mogadishu"{
             ec{"Mogadisjoe"}
         }
-        "America:Bahia_Banderas"{
-            ec{"Bahia Banderas"}
-        }
         "America:Cambridge_Bay"{
             ec{"Cambridgebaai"}
         }
@@ -66,8 +63,32 @@ af{
         "America:St_Vincent"{
             ec{"Sint Vincent"}
         }
+        "Antarctica:Casey"{
+            ec{"Casey-stasie"}
+        }
+        "Antarctica:Davis"{
+            ec{"Davis-stasie"}
+        }
+        "Antarctica:DumontDUrville"{
+            ec{"Dumont d’Urville-stasie"}
+        }
+        "Antarctica:Mawson"{
+            ec{"Mawson-stasie"}
+        }
+        "Antarctica:McMurdo"{
+            ec{"McMurdo-stasie"}
+        }
+        "Antarctica:Rothera"{
+            ec{"Rothera-navorsingstasie"}
+        }
+        "Antarctica:Syowa"{
+            ec{"Syowa-stasie"}
+        }
+        "Antarctica:Troll"{
+            ec{"Troll-stasie"}
+        }
         "Antarctica:Vostok"{
-            ec{"Wostok"}
+            ec{"Wostok-stasie"}
         }
         "Asia:Ashgabat"{
             ec{"Asjchabad"}
@@ -181,7 +202,7 @@ af{
             ls{"Gekoördineerde universele tyd"}
         }
         "Etc:Unknown"{
-            ec{"Onbekende stad"}
+            ec{"Onbekende ligging"}
         }
         "Europe:Athens"{
             ec{"Athene"}
@@ -257,10 +278,10 @@ af{
             ec{"Maledive"}
         }
         "Pacific:Easter"{
-            ec{"Paas"}
+            ec{"Paaseiland"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kantoneiland"}
         }
         "Pacific:Fiji"{
             ec{"Fidji"}
@@ -268,11 +289,17 @@ af{
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
+        "Pacific:Kwajalein"{
+            ec{"Kwajalein Atoll"}
         }
-        "Pacific:Wallis"{
-            ec{"Mata-Utu"}
+        "Pacific:Marquesas"{
+            ec{"Marquesas-eilande"}
+        }
+        "Pacific:Pitcairn"{
+            ec{"Pitcairn-eilande"}
+        }
+        "Pacific:Wake"{
+            ec{"Wake-eiland"}
         }
         "meta:Afghanistan"{
             ls{"Afganistan-tyd"}
@@ -290,11 +317,7 @@ af{
             ss{"SAST"}
         }
         "meta:Africa_Western"{
-            ld{"Wes-Afrika-somertyd"}
-            lg{"Wes-Afrika-tyd"}
-            ls{"Wes-Afrika-standaardtyd"}
-            sd{"WAST"}
-            sg{"WAT"}
+            ls{"Wes-Afrika-tyd"}
             ss{"WAT"}
         }
         "meta:Alaska"{
@@ -383,9 +406,9 @@ af{
             ls{"Westelike Australiese standaardtyd"}
         }
         "meta:Azerbaijan"{
-            ld{"Aserbeidjan-somertyd"}
-            lg{"Aserbeidjan-tyd"}
-            ls{"Aserbeidjan-standaardtyd"}
+            ld{"Azerbeidjan-somertyd"}
+            lg{"Azerbeidjan-tyd"}
+            ls{"Azerbeidjan-standaardtyd"}
         }
         "meta:Azores"{
             ld{"Asore-somertyd"}
@@ -459,7 +482,7 @@ af{
             ls{"Davis-tyd"}
         }
         "meta:DumontDUrville"{
-            ls{"Dumont-d’Urville-tyd"}
+            ls{"Dumont d’Urville-tyd"}
         }
         "meta:East_Timor"{
             ls{"Oos-Timor-tyd"}
@@ -538,6 +561,9 @@ af{
         }
         "meta:Guyana"{
             ls{"Guiana-tyd"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleoete-standaardtyd"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleoete-dagligtyd"}

@@ -34,6 +34,11 @@ mn{
                 one{"{0} радиан"}
                 other{"{0} радиан"}
             }
+            steradian{
+                dnam{"стерадиан"}
+                one{"{0} стерадиан"}
+                other{"{0} стерадиан"}
+            }
         }
         area{
             hectare{
@@ -141,10 +146,30 @@ mn{
                 one{"{0} карат"}
                 other{"{0} карат"}
             }
+            katal{
+                dnam{"катал"}
+                one{"{0} катал"}
+                other{"{0} катал"}
+            }
             millimole-per-liter{
                 dnam{"литр тутамд ногдох миллимоль"}
                 one{"литр тутамд {0} миллимоль"}
                 other{"литр тутамд {0} миллимоль"}
+            }
+            ofglucose{
+                dnam{"глюкоз"}
+                one{"{0} глюкоз"}
+                other{"{0} глюкоз"}
+            }
+            part-per-1e6{
+                dnam{"саяны хувь"}
+                one{"саяны {0} хувь"}
+                other{"саяны {0} хувь"}
+            }
+            part-per-1e9{
+                dnam{"мкг/кг"}
+                one{"{0} мкг/кг"}
+                other{"{0} мкг/кг"}
             }
             percent{
                 one{"{0} хувь"}
@@ -154,19 +179,9 @@ mn{
                 one{"мянганы {0} хувь"}
                 other{"мянганы {0} хувь"}
             }
-            permillion{
-                dnam{"саяны хувь"}
-                one{"саяны {0} хувь"}
-                other{"саяны {0} хувь"}
-            }
             permyriad{
                 one{"арван мянганы {0} хувь"}
                 other{"арван мянганы {0} хувь"}
-            }
-            portion-per-1e9{
-                dnam{"мкг/кг"}
-                one{"{0} мкг/кг"}
-                other{"{0} мкг/кг"}
             }
         }
         consumption{
@@ -266,7 +281,6 @@ mn{
                 other{"{0} наносекунд"}
             }
             night{
-                dnam{"шөнө"}
                 one{"{0} шөнө"}
                 other{"{0} шөнө"}
                 per{"{0}/шөнөдөө"}
@@ -291,6 +305,19 @@ mn{
                 one{"{0} Ампер"}
                 other{"{0} Ампер"}
             }
+            coulomb{
+                dnam{"кулон"}
+            }
+            farad{
+                dnam{"фарад"}
+                one{"{0} фарад"}
+                other{"{0} фарад"}
+            }
+            henry{
+                dnam{"генри"}
+                one{"{0} генри"}
+                other{"{0} генри"}
+            }
             milliampere{
                 dnam{"миллиАмпер"}
                 one{"{0} миллиАмпер"}
@@ -300,6 +327,11 @@ mn{
                 dnam{"Ом"}
                 one{"{0} Ом"}
                 other{"{0} Ом"}
+            }
+            siemens{
+                dnam{"зименс"}
+                one{"{0} зименс"}
+                other{"{0} зименс"}
             }
             volt{
                 dnam{"Вольт"}
@@ -317,6 +349,11 @@ mn{
                 dnam{"калори"}
                 one{"{0} калори"}
                 other{"{0} калори"}
+            }
+            calorie-it{
+                dnam{"калори [IT]"}
+                one{"{0} калори [IT]"}
+                other{"{0} калори [IT]"}
             }
             electronvolt{
                 one{"{0} электрон-Вольт"}
@@ -352,6 +389,11 @@ mn{
             }
         }
         force{
+            kilogram-force{
+                dnam{"килограмм-хүч"}
+                one{"{0} килограмм-хүч"}
+                other{"{0} килограмм-хүч"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"киловатт-цаг 100 километрт"}
                 one{"{0} киловатт-цаг 100 километрт"}
@@ -389,11 +431,6 @@ mn{
             }
         }
         graphics{
-            dot-per-inch{
-                dnam{"цэг/инч"}
-                one{"{0} цэг/инч"}
-                other{"{0} цэг/инч"}
-            }
             pixel-per-centimeter{
                 dnam{"пиксель/см"}
                 one{"{0} пиксель/см"}
@@ -500,14 +537,21 @@ mn{
                 one{"{0} кандел"}
                 other{"{0} кандел"}
             }
-            lumen{
-                dnam{"люмен"}
-                one{"{0} люмен"}
-                other{"{0} люмен"}
-            }
             solar-luminosity{
                 one{"{0} нарны гэрлийн урсгал"}
                 other{"{0} нарны гэрлийн урсгал"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"тесла"}
+                one{"{0} тесла"}
+                other{"{0} тесла"}
+            }
+            weber{
+                dnam{"вебер"}
+                one{"{0} вебер"}
+                other{"{0} вебер"}
             }
         }
         mass{
@@ -658,6 +702,11 @@ mn{
             }
             knot{
                 dnam{"зангилаа"}
+            }
+            light-speed{
+                dnam{"гэрэл"}
+                one{"{0} гэрэл"}
+                other{"{0} гэрэл"}
             }
             meter-per-second{
                 dnam{"секундэд ногдох метр"}
@@ -879,24 +928,32 @@ mn{
             }
         }
         concentr{
+            katal{
+                dnam{"кат"}
+                one{"{0} кат"}
+                other{"{0} кат"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+                one{"{0}ppm"}
+                other{"{0}ppm"}
+            }
+            part-per-1e9{
+                dnam{"мкг/кг"}
+                one{"{0} мкг/кг"}
+                other{"{0} мкг/кг"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
             }
-            permillion{
-                dnam{"ppm"}
-                one{"{0}ppm"}
-                other{"{0}ppm"}
-            }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                dnam{"мкг/кг"}
-                one{"{0} мкг/кг"}
-                other{"{0} мкг/кг"}
             }
         }
         consumption{
@@ -939,7 +996,18 @@ mn{
                 other{"{0}ж"}
             }
         }
+        energy{
+            calorie-it{
+                dnam{"кал-IT"}
+                one{"{0} кал-IT"}
+                other{"{0} кал-IT"}
+            }
+        }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0}кВт.ц/100км"}
                 other{"{0}кВт.ц/100км"}
@@ -953,15 +1021,9 @@ mn{
                 one{"{0}цэг"}
                 other{"{0}цэг"}
             }
-            dot-per-inch{
-                dnam{"цэг/инч"}
-                one{"{0} цэг/инч"}
-                other{"{0} цэг/инч"}
-            }
         }
         length{
             astronomical-unit{
-                dnam{"о.о.н"}
                 one{"{0}о.о.н"}
                 other{"{0}о.о.н"}
             }
@@ -997,11 +1059,6 @@ mn{
                 dnam{"кандел"}
                 one{"{0} кандел"}
                 other{"{0} кандел"}
-            }
-            lumen{
-                dnam{"люмен"}
-                one{"{0} люмен"}
-                other{"{0} люмен"}
             }
             solar-luminosity{
                 dnam{"L☉"}
@@ -1045,6 +1102,11 @@ mn{
         speed{
             kilometer-per-hour{
                 dnam{"км/ц"}
+            }
+            light-speed{
+                dnam{"гэрэл"}
+                one{"{0} гэрэл"}
+                other{"{0} гэрэл"}
             }
             meter-per-second{
                 dnam{"м/с"}
@@ -1220,6 +1282,11 @@ mn{
                 one{"{0} кар"}
                 other{"{0} кар"}
             }
+            katal{
+                dnam{"кат"}
+                one{"{0} кат"}
+                other{"{0} кат"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"мг/дл"}
                 one{"{0} мг/дл"}
@@ -1235,24 +1302,27 @@ mn{
                 one{"{0} моль"}
                 other{"{0} моль"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
+                dnam{"хувь/сая"}
+                one{"саяны {0} хувь"}
+                other{"{0}x10⁻⁶"}
+            }
+            part-per-1e9{
+                dnam{"мкг/кг"}
+                one{"{0} мкг/кг"}
+                other{"{0} мкг/кг"}
+            }
             percent{
                 dnam{"хувь"}
             }
             permille{
                 dnam{"мянганы хувь"}
             }
-            permillion{
-                dnam{"хувь/сая"}
-                one{"саяны {0} хувь"}
-                other{"{0}x10⁻⁶"}
-            }
             permyriad{
                 dnam{"арван мянганы хувь"}
-            }
-            portion-per-1e9{
-                dnam{"мкг/кг"}
-                one{"{0} мкг/кг"}
-                other{"{0} мкг/кг"}
             }
         }
         consumption{
@@ -1451,6 +1521,11 @@ mn{
                 one{"{0} кал"}
                 other{"{0} кал"}
             }
+            calorie-it{
+                dnam{"кал-IT"}
+                one{"{0} кал-IT"}
+                other{"{0} кал-IT"}
+            }
             electronvolt{
                 dnam{"электрон-Вольт"}
                 one{"{0} эВ"}
@@ -1488,6 +1563,10 @@ mn{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"кВт.ц/100 км"}
                 one{"{0} кВт.ц/100 км"}
@@ -1833,6 +1912,11 @@ mn{
                 dnam{"занг."}
                 one{"{0} занг."}
                 other{"{0} занг."}
+            }
+            light-speed{
+                dnam{"гэрэл"}
+                one{"{0} гэрэл"}
+                other{"{0} гэрэл"}
             }
             meter-per-second{
                 dnam{"метр/сек"}

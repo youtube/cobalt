@@ -48,8 +48,8 @@ TEST(ScreamControllerTest, OnNetworkAvailabilityUpdatesTargetRateAndPacerRate) {
       DataRate::KilobitsPerSec(456);
   ScreamNetworkController scream_controller(config);
 
-  NetworkControlUpdate update =
-      scream_controller.OnNetworkAvailability({.network_available = true});
+  NetworkControlUpdate update = scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
   ASSERT_TRUE(update.has_updates());
   ASSERT_TRUE(update.target_rate.has_value());
   EXPECT_EQ(update.target_rate->target_rate, config.constraints.starting_rate);
@@ -92,7 +92,8 @@ TEST(ScreamControllerTest,
   config.stream_based_config.max_total_allocated_bitrate =
       DataRate::KilobitsPerSec(1000);
   ScreamNetworkController scream_controller(config);
-  scream_controller.OnNetworkAvailability({.network_available = true});
+  scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
 
   CcFeedbackGenerator feedback_generator({});
   DataRate send_rate = DataRate::KilobitsPerSec(100);
@@ -312,6 +313,8 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   StreamsConfig streams_config;
   streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
   scream_controller.OnStreamsConfig(streams_config);
+  NetworkControlUpdate update = scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
 
   DataRate send_rate = DataRate::KilobitsPerSec(50);
   DataRate target_rate = DataRate::Zero();
@@ -323,8 +326,7 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
         feedback_generator.ProcessUntilNextFeedback(
             send_rate, clock,
             [&](SentPacket packet) { scream_controller.OnSentPacket(packet); });
-    NetworkControlUpdate update =
-        scream_controller.OnTransportPacketsFeedback(feedback);
+    update = scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.pacer_config.has_value()) {
       if (update.pacer_config->pad_rate() != DataRate::Zero()) {
         padding_set = true;
@@ -353,6 +355,35 @@ TEST(ScreamControllerTest, InitiallyPaddingIsAllowedToReachNeededRate) {
   EXPECT_LE(target_rate, 1.5 * (*streams_config.max_total_allocated_bitrate));
   // Padding should stop when target is reached.
   EXPECT_LT(padding_stop - start_time, TimeDelta::Seconds(1));
+}
+
+TEST(ScreamControllerTest, InitialProbingWithoutMaxTotalAllocatedBitrate) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.stream_based_config.enable_repeated_initial_probing = true;
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(100);
+  config.constraints.max_data_rate = DataRate::KilobitsPerSec(1000);
+  // Do not set config.stream_based_config.max_total_allocated_bitrate
+
+  ScreamNetworkController scream_controller(config);
+  NetworkControlUpdate update = scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
+
+  ASSERT_TRUE(update.pacer_config.has_value());
+  // Padding is allowed during the first 6 seconds even if
+  // max_total_allocated_bitrate is zero.
+  EXPECT_EQ(update.pacer_config->pad_rate(), config.constraints.starting_rate);
+
+  // Advance clock past the 6s initial BWE probe window.
+  clock.AdvanceTime(TimeDelta::Seconds(7));
+  update =
+      scream_controller.OnProcessInterval({.at_time = clock.CurrentTime()});
+  // Since max_total_allocated_bitrate is not set, padding should stop after the
+  // initial probe window.
+  if (update.pacer_config.has_value()) {
+    EXPECT_EQ(update.pacer_config->pad_rate(), DataRate::Zero());
+  }
 }
 
 struct PaddingTestResult {
@@ -450,7 +481,7 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   TimeDelta time_between_padding =
       result_2.padding_start - result_1.padding_stop;
   EXPECT_GT(padding_duration, TimeDelta::Millis(2500));
-  EXPECT_LT(padding_duration, TimeDelta::Millis(3100));
+  EXPECT_LT(padding_duration, TimeDelta::Millis(3300));
 
   EXPECT_GT(time_between_padding, TimeDelta::Millis(2500));
   EXPECT_LT(time_between_padding, TimeDelta::Millis(3300));

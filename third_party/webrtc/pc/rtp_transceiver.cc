@@ -1299,33 +1299,31 @@ bool RtpTransceiver::SetChannelRtpTransport(
   return channel_->SetRtpTransport(rtp_transport);
 }
 
-bool RtpTransceiver::SetChannelLocalContent(
+RTCError RtpTransceiver::SetChannelLocalContent(
     const MediaContentDescription* content,
-    SdpType type,
-    std::string& error_desc) {
+    SdpType type) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
   return SetChannelContent([&]() {
     RTC_DCHECK_RUN_ON(context()->worker_thread());
-    return channel_->SetLocalContent(content, type, error_desc);
+    return channel_->SetLocalContent(content, type);
   });
 }
 
-bool RtpTransceiver::SetChannelRemoteContent(
+RTCError RtpTransceiver::SetChannelRemoteContent(
     const MediaContentDescription* content,
-    SdpType type,
-    std::string& error_desc) {
+    SdpType type) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
   return SetChannelContent([&]() {
     RTC_DCHECK_RUN_ON(context()->worker_thread());
-    return channel_->SetRemoteContent(content, type, error_desc);
+    return channel_->SetRemoteContent(content, type);
   });
 }
 
-bool RtpTransceiver::SetChannelContent(
-    absl::AnyInvocable<bool() &&> set_content) {
+RTCError RtpTransceiver::SetChannelContent(
+    absl::AnyInvocable<RTCError() &&> set_content) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
   if (!channel_) {
-    return false;
+    return RTCError::InvalidState() << "No channel";
   }
 
   struct SenderParameters {
@@ -1343,9 +1341,10 @@ bool RtpTransceiver::SetChannelContent(
 
   // Calls the callback on the worker thread, fetches and returns the
   // RtpParameters for the senders.
-  bool result = context()->worker_thread()->BlockingCall([&]() {
-    if (!std::move(set_content)()) {
-      return false;
+  RTCError result = context()->worker_thread()->BlockingCall([&]() {
+    RTCError error = std::move(set_content)();
+    if (!error.ok()) {
+      return error;
     }
     for (auto& entry : sender_parameters) {
       if (entry.ssrc != 0) {
@@ -1353,7 +1352,7 @@ bool RtpTransceiver::SetChannelContent(
             channel_->media_send_channel()->GetRtpSendParameters(entry.ssrc);
       }
     }
-    return true;
+    return RTCError::OK();
   });
 
   for (auto& entry : sender_parameters) {

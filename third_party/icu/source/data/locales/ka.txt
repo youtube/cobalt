@@ -21,7 +21,9 @@ ka{
                 range{"{0}-{1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -454,20 +456,20 @@ ka{
             }
             eras{
                 abbreviated{
-                    "ძვ. წ.",
-                    "ახ. წ.",
+                    0{"ძვ. წ."}
+                    1{"ახ. წ."}
                 }
                 abbreviated%variant{
-                    "ჩვ. ერამდე",
-                    "ჩვ. ერა",
+                    0{"ჩვ. ერამდე"}
+                    1{"ჩვ. ერა"}
                 }
                 wide{
-                    "ძველი წელთაღრიცხვით",
-                    "ახალი წელთაღრიცხვით",
+                    0{"ძველი წელთაღრიცხვით"}
+                    1{"ახალი წელთაღრიცხვით"}
                 }
                 wide%variant{
-                    "ჩვენს ერამდე",
-                    "ჩვენი ერა",
+                    0{"ჩვენს ერამდე"}
+                    1{"ჩვენი ერა"}
                 }
             }
             intervalFormats{

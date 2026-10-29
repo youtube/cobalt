@@ -20,7 +20,9 @@ hy{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -199,6 +201,7 @@ hy{
                 other{"այդ {0} պանակները"}
             }
         }
+        minimumGroupingDigits{"2"}
         traditional{"armn"}
     }
     calendar{
@@ -232,21 +235,22 @@ hy{
                 Bh{"B h-ին"}
                 Bhm{"B h:mm-ին"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm-ին"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"d, ccc"}
                 Gy{"G y թ․"}
+                GyM{"G MM.y"}
+                GyMEd{"G dd.MM.y, E"}
                 GyMMM{"G y թ․ MMM"}
                 GyMMMEd{"G y թ․ MMM d, E"}
                 GyMMMd{"G y թ․ MMM d"}
-                GyMd{"dd.MM.y GGGGG"}
+                GyMd{"GGGGG dd.MM.y"}
                 H{"H"}
                 Hm{"H:mm"}
                 Hms{"H:mm:ss"}
+                Hv{"ժ․ HH v"}
                 MEd{"dd.MM, E"}
-                MMMEd{"d MMM, E"}
-                MMMMd{"d MMMM"}
-                MMMd{"d MMM"}
                 Md{"dd.MM"}
                 y{"y, G"}
                 yyyy{"y, G"}
@@ -377,6 +381,7 @@ hy{
                 Bh{"B h-ին"}
                 Bhm{"B h:mm-ին"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h-ին"}
                 EBhm{"E B h:mm-ին"}
                 EBhms{"E B h:mm:ss"}
                 EHm{"E, HH:mm"}
@@ -385,24 +390,25 @@ hy{
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"G y թ."}
+                GyM{"G MM.y"}
+                GyMEd{"G dd.MM.y, E"}
                 GyMMM{"G y թ. MMM"}
                 GyMMMEd{"G y թ. MMM d, E"}
                 GyMMMd{"G y թ․ MMM d"}
-                GyMd{"dd.MM.y GGGGG"}
+                GyMd{"GGGGG dd.MM.y"}
                 H{"H"}
                 Hm{"H:mm"}
                 Hms{"H:mm:ss"}
+                Hv{"ժ․ HH v"}
                 MEd{"dd.MM, E"}
-                MMMEd{"d MMM, E"}
                 MMMMW{
                     one{"MMMM W-ին շաբաթ"}
                     other{"MMMM W-րդ շաբաթ"}
                 }
-                MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"dd.MM"}
                 yM{"MM.y"}
-                yMEd{"d.MM.y թ., E"}
+                yMEd{"d.MM.y, E"}
                 yMMM{"y թ. LLL"}
                 yMMMEd{"y թ. MMM d, E"}
                 yMMMM{"y թ․ LLLL"}
@@ -495,20 +501,20 @@ hy{
             }
             eras{
                 abbreviated{
-                    "մ.թ.ա.",
-                    "մ.թ.",
+                    0{"մ.թ.ա."}
+                    1{"մ.թ."}
                 }
                 abbreviated%variant{
-                    "մ․թ․ա․",
-                    "մ․թ․",
+                    0{"մ․թ․ա․"}
+                    1{"մ․թ․"}
                 }
                 wide{
-                    "Քրիստոսից առաջ",
-                    "Քրիստոսից հետո",
+                    0{"Քրիստոսից առաջ"}
+                    1{"Քրիստոսից հետո"}
                 }
                 wide%variant{
-                    "մեր թվարկությունից առաջ",
-                    "մեր թվարկության",
+                    0{"մեր թվարկությունից առաջ"}
+                    1{"մեր թվարկության"}
                 }
             }
             intervalFormats{
@@ -522,6 +528,7 @@ hy{
                     m{"B h:mm – h:mm"}
                 }
                 Gy{
+                    G{"G y թ․ – G y թ․"}
                     y{"G y–y թթ․"}
                 }
                 GyM{

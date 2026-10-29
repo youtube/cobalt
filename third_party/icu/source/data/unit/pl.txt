@@ -16,7 +16,6 @@ pl{
                         few{"{0} przyspieszeniom ziemskim"}
                         many{"{0} przyspieszeniami ziemskimi"}
                         one{"przyspieszeniu ziemskiemu"}
-                        other{"{0} przyspieszenia ziemskiego"}
                     }
                     genitive{
                         few{"{0} przyspieszeń ziemskich"}
@@ -28,19 +27,11 @@ pl{
                         few{"{0} przyspieszeniami ziemskimi"}
                         many{"{0} przyspieszeniami ziemskimi"}
                         one{"przyspieszeniem ziemskim"}
-                        other{"{0} przyspieszenia ziemskiego"}
                     }
                     locative{
                         few{"{0} przyspieszeniach ziemskich"}
                         many{"{0} przyspieszeniach ziemskich"}
                         one{"przyspieszeniu ziemskim"}
-                        other{"{0} przyspieszenia ziemskiego"}
-                    }
-                    vocative{
-                        few{"{0} przyspieszenia ziemskie"}
-                        many{"{0} przyspieszeń ziemskich"}
-                        one{"przyspieszenie ziemskie"}
-                        other{"{0} przyspieszenia ziemskiego"}
                     }
                 }
                 dnam{"przyspieszenie ziemskie"}
@@ -200,6 +191,13 @@ pl{
                 many{"{0} obrotów"}
                 one{"{0} obrót"}
                 other{"{0} obrotu"}
+            }
+            steradian{
+                dnam{"steradiany"}
+                few{"{0} steradiany"}
+                many{"{0} steradianów"}
+                one{"{0} steradian"}
+                other{"{0} sr"}
             }
         }
         area{
@@ -737,6 +735,13 @@ pl{
                 one{"{0} karat"}
                 other{"{0} karata"}
             }
+            katal{
+                dnam{"katale"}
+                few{"{0} katale"}
+                many{"{0} katali"}
+                one{"{0} katal"}
+                other{"{0} katala"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -802,6 +807,60 @@ pl{
                 one{"{0} mol"}
                 other{"{0} mola"}
             }
+            ofglucose{
+                dnam{"glukozy"}
+            }
+            part{
+                dnam{"części"}
+                few{"{0} części"}
+                many{"{0} części"}
+                one{"{0} część"}
+                other{"{0} części"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        few{"{0} części na milion"}
+                        many{"{0} części na milion"}
+                        one{"{0} część na milion"}
+                        other{"{0} części na milion"}
+                    }
+                    genitive{
+                        few{"{0} części na milion"}
+                        many{"{0} części na milion"}
+                        one{"{0} części na milion"}
+                        other{"{0} części na milion"}
+                    }
+                }
+                dnam{"części na milion"}
+                few{"{0} części na milion"}
+                gender{"feminine"}
+                many{"{0} części na milion"}
+                one{"{0} część na milion"}
+                other{"{0} części na milion"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        few{"{0} części na miliard"}
+                        many{"{0} części na miliard"}
+                        one{"{0} część na miliard"}
+                        other{"{0} części na miliard"}
+                    }
+                    genitive{
+                        few{"{0} części na miliard"}
+                        many{"{0} części na miliard"}
+                        one{"{0} części na miliard"}
+                        other{"{0} części na miliard"}
+                    }
+                }
+                dnam{"części na miliard"}
+                few{"{0} części na miliard"}
+                gender{"feminine"}
+                many{"{0} części na miliard"}
+                one{"{0} część na miliard"}
+                other{"{0} części na miliard"}
+            }
             percent{
                 case{
                     accusative{
@@ -864,28 +923,6 @@ pl{
                 one{"{0} promil"}
                 other{"{0} promila"}
             }
-            permillion{
-                case{
-                    accusative{
-                        few{"{0} części na milion"}
-                        many{"{0} części na milion"}
-                        one{"{0} część na milion"}
-                        other{"{0} części na milion"}
-                    }
-                    genitive{
-                        few{"{0} części na milion"}
-                        many{"{0} części na milion"}
-                        one{"{0} części na milion"}
-                        other{"{0} części na milion"}
-                    }
-                }
-                dnam{"części na milion"}
-                few{"{0} części na milion"}
-                gender{"feminine"}
-                many{"{0} części na milion"}
-                one{"{0} część na milion"}
-                other{"{0} części na milion"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -907,28 +944,6 @@ pl{
                 many{"{0} punktów bazowych"}
                 one{"{0} punkt bazowy"}
                 other{"{0} punktu bazowego"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        few{"{0} części na miliard"}
-                        many{"{0} części na miliard"}
-                        one{"{0} część na miliard"}
-                        other{"{0} części na miliard"}
-                    }
-                    genitive{
-                        few{"{0} części na miliard"}
-                        many{"{0} części na miliard"}
-                        one{"{0} części na miliard"}
-                        other{"{0} części na miliard"}
-                    }
-                }
-                dnam{"części na miliard"}
-                few{"{0} części na miliard"}
-                gender{"feminine"}
-                many{"{0} części na miliard"}
-                one{"{0} część na miliard"}
-                other{"{0} części na miliard"}
             }
         }
         consumption{
@@ -1094,7 +1109,7 @@ pl{
                     genitive{
                         few{"{0} bitów"}
                         many{"{0} bitów"}
-                        one{"{0} bita"}
+                        one{"{0} bitu"}
                         other{"{0} bita"}
                     }
                 }
@@ -1138,7 +1153,7 @@ pl{
                     genitive{
                         few{"{0} gigabitów"}
                         many{"{0} gigabitów"}
-                        one{"{0} gigabita"}
+                        one{"{0} gigabitu"}
                         other{"{0} gigabita"}
                     }
                 }
@@ -1226,7 +1241,7 @@ pl{
                     genitive{
                         few{"{0} megabitów"}
                         many{"{0} megabitów"}
-                        one{"{0} megabita"}
+                        one{"{0} megabitu"}
                         other{"{0} megabita"}
                     }
                 }
@@ -1292,7 +1307,7 @@ pl{
                     genitive{
                         few{"{0} terabitów"}
                         many{"{0} terabitów"}
-                        one{"{0} terabita"}
+                        one{"{0} terabitu"}
                         other{"{0} terabita"}
                     }
                 }
@@ -1635,13 +1650,11 @@ pl{
                         other{"{0} nocy"}
                     }
                 }
-                dnam{"noce"}
                 few{"{0} noce"}
                 gender{"feminine"}
                 many{"{0} nocy"}
                 one{"{0} noc"}
                 other{"{0} nocy"}
-                per{"{0}/noc"}
             }
             quarter{
                 case{
@@ -1811,6 +1824,27 @@ pl{
                 one{"{0} amper"}
                 other{"{0} ampera"}
             }
+            coulomb{
+                dnam{"kulomby"}
+                few{"{0} kulomby"}
+                many{"{0} kulombów"}
+                one{"{0} kulomb"}
+                other{"{0} kulomba"}
+            }
+            farad{
+                dnam{"farady"}
+                few{"{0} farady"}
+                many{"{0} faradów"}
+                one{"{0} farad"}
+                other{"{0} farada"}
+            }
+            henry{
+                dnam{"henry"}
+                few{"{0} henry"}
+                many{"{0} henrów"}
+                one{"{0} henr"}
+                other{"{0} henra"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -1855,6 +1889,13 @@ pl{
                 one{"{0} om"}
                 other{"{0} oma"}
             }
+            siemens{
+                dnam{"siemensy"}
+                few{"{0} siemensy"}
+                many{"{0} siemensów"}
+                one{"{0} siemens"}
+                other{"{0} siemensa"}
+            }
             volt{
                 case{
                     accusative{
@@ -1879,6 +1920,13 @@ pl{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekerele"}
+                few{"{0} bekerele"}
+                many{"{0} bekereli"}
+                one{"{0} bekerel"}
+                other{"{0} bekerela"}
+            }
             british-thermal-unit{
                 dnam{"brytyjska jednostka ciepła"}
                 few{"{0} brytyjskie jednostki ciepła"}
@@ -1907,6 +1955,13 @@ pl{
                 many{"{0} kalorii"}
                 one{"{0} kaloria"}
                 other{"{0} kalorii"}
+            }
+            calorie-it{
+                dnam{"kalorie [IT]"}
+                few{"{0} kalorie [IT]"}
+                many{"{0} kalorii [IT]"}
+                one{"{0} kaloria [IT]"}
+                other{"{0} kalorii [IT]"}
             }
             electronvolt{
                 dnam{"elektronowolty"}
@@ -1954,6 +2009,13 @@ pl{
                 many{"{0} kilokalorii"}
                 one{"{0} kaloria"}
                 other{"{0} kalorii"}
+            }
+            gray{
+                dnam{"greje"}
+                few{"{0} greje"}
+                many{"{0} grejów"}
+                one{"{0} grej"}
+                other{"{0} greja"}
             }
             joule{
                 case{
@@ -2061,6 +2123,13 @@ pl{
                 one{"{0} kilowatogodzina"}
                 other{"{0} kilowatogodziny"}
             }
+            sievert{
+                dnam{"siwerty"}
+                few{"{0} siwerty"}
+                many{"{0} siwertów"}
+                one{"{0} siwert"}
+                other{"{0} siwerta"}
+            }
             therm-us{
                 dnam{"thermy amerykańskie"}
                 few{"{0} thermy amerykańskie"}
@@ -2070,6 +2139,13 @@ pl{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramy-siła"}
+                few{"{0} kilogramy-siła"}
+                many{"{0} kilogramów-siła"}
+                one{"{0} kilogram-siła"}
+                other{"{0} kilograma-siła"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -2696,7 +2772,7 @@ pl{
                         one{"{0} milimetrze"}
                     }
                     vocative{
-                        one{"{0} milimetrrze"}
+                        one{"{0} milimetrze"}
                     }
                 }
                 dnam{"milimetry"}
@@ -3024,6 +3100,22 @@ pl{
                 many{"{0} jasności Słońca"}
                 one{"{0} jasność Słońca"}
                 other{"{0} jasności Słońca"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"tesle"}
+                few{"{0} tesle"}
+                many{"{0} tesli"}
+                one{"{0} tesla"}
+                other{"{0} tesli"}
+            }
+            weber{
+                dnam{"webery"}
+                few{"{0} webery"}
+                many{"{0} weberów"}
+                one{"{0} weber"}
+                other{"{0} webera"}
             }
         }
         mass{
@@ -3768,6 +3860,13 @@ pl{
                 one{"{0} milimetr słupa rtęci"}
                 other{"{0} milimetra słupa rtęci"}
             }
+            ofhg{
+                dnam{"słupa rtęci"}
+                few{"{0} słupa rtęci"}
+                many{"{0} słupa rtęci"}
+                one{"{0} słupa rtęci"}
+                other{"{0} słupa rtęci"}
+            }
             pascal{
                 case{
                     accusative{
@@ -4414,7 +4513,6 @@ pl{
                     }
                     vocative{
                         one{"{0} ćwierćkwarto amerykańska"}
-                        other{"{0} ćwierćkwarty am."}
                     }
                 }
                 dnam{"ćwierćkwarty amerykańske"}
@@ -5266,6 +5364,18 @@ pl{
                 other{"{0} yd²"}
             }
         }
+        concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"część"}
+                few{"{0} cz."}
+                many{"{0} cz."}
+                one{"{0} cz."}
+                other{"{0} cz."}
+            }
+        }
         duration{
             day{
                 few{"{0} d."}
@@ -5289,14 +5399,6 @@ pl{
                 one{"{0} m-c"}
                 other{"{0} m-ca"}
                 per{"{0}/m-c"}
-            }
-            night{
-                dnam{"noce"}
-                few{"{0} noce"}
-                many{"{0} nocy"}
-                one{"{0} noc"}
-                other{"{0} nocy"}
-                per{"{0}/noc"}
             }
             second{
                 dnam{"s"}
@@ -5322,6 +5424,13 @@ pl{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal [IT]"}
+                few{"{0} cal [IT]"}
+                many{"{0} cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -5363,13 +5472,6 @@ pl{
                 many{"{0} km/h"}
                 one{"{0} km/h"}
                 other{"{0}km/h"}
-            }
-            light-speed{
-                dnam{"św."}
-                few{"{0} św."}
-                many{"{0} św."}
-                one{"{0} św."}
-                other{"{0} św."}
             }
             mile-per-hour{
                 dnam{"mph"}
@@ -5529,6 +5631,16 @@ pl{
                 one{"{0} mol"}
                 other{"{0} mola"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"część"}
+                few{"{0} cz."}
+                many{"{0} cz."}
+                one{"{0} cz."}
+                other{"{0} cz."}
+            }
         }
         consumption{
             liter-per-100-kilometer{
@@ -5676,6 +5788,13 @@ pl{
         energy{
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal [IT]"}
+                few{"{0} cal [IT]"}
+                many{"{0} cal [IT]"}
+                one{"{0} cal [IT]"}
+                other{"{0} cal [IT]"}
             }
             electronvolt{
                 dnam{"elektronowolt"}
@@ -5848,7 +5967,6 @@ pl{
         }
         temperature{
             celsius{
-                dnam{"st. C"}
                 few{"{0} st. C"}
                 many{"{0} st. C"}
                 one{"{0} st. C"}

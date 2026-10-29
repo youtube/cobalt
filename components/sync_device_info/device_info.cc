@@ -7,9 +7,6 @@
 #include <optional>
 #include <utility>
 
-#include "components/sync/protocol/device_info_specifics.pb.h"
-#include "components/sync/protocol/sync_enums.pb.h"
-
 namespace syncer {
 
 bool DeviceInfo::SharingTargetInfo::operator==(
@@ -18,10 +15,9 @@ bool DeviceInfo::SharingTargetInfo::operator==(
          auth_secret == other.auth_secret;
 }
 
-DeviceInfo::SharingInfo::SharingInfo(
-    SharingTargetInfo sender_id_target_info,
-    std::string chime_representative_target_id,
-    std::set<sync_pb::SharingSpecificFields::EnabledFeatures> enabled_features)
+DeviceInfo::SharingInfo::SharingInfo(SharingTargetInfo sender_id_target_info,
+                                     std::string chime_representative_target_id,
+                                     std::set<SharingFeature> enabled_features)
     : sender_id_target_info(std::move(sender_id_target_info)),
       chime_representative_target_id(std::move(chime_representative_target_id)),
       enabled_features(std::move(enabled_features)) {}
@@ -67,7 +63,7 @@ DeviceInfo::DeviceInfo(
     const std::string& client_name,
     const std::string& chrome_version,
     const std::string& sync_user_agent,
-    const sync_pb::SyncEnums::DeviceType device_type,
+    const DeviceType device_type,
     const OsType os_type,
     const FormFactor form_factor,
     const std::string& signin_scoped_device_id,
@@ -77,13 +73,15 @@ DeviceInfo::DeviceInfo(
     base::Time last_updated_timestamp,
     base::TimeDelta pulse_interval,
     bool send_tab_to_self_receiving_enabled,
-    sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type,
+    SendTabReceivingType send_tab_to_self_receiving_type,
     const std::optional<SharingInfo>& sharing_info,
     const std::optional<PhoneAsASecurityKeyInfo>& paask_info,
     const std::string& fcm_registration_token,
     const DataTypeSet& interested_data_types,
     std::optional<base::Time> auto_sign_out_last_signin_timestamp,
-    bool desktop_to_ios_promo_receiving_enabled)
+    bool desktop_to_ios_promo_receiving_enabled,
+    const MobilePromoOnDesktopPromoTypeSet&
+        desktop_to_ios_promo_receiving_types)
     : guid_(guid),
       client_name_(client_name),
       chrome_version_(chrome_version),
@@ -105,7 +103,9 @@ DeviceInfo::DeviceInfo(
       interested_data_types_(interested_data_types),
       auto_sign_out_last_signin_timestamp_(auto_sign_out_last_signin_timestamp),
       desktop_to_ios_promo_receiving_enabled_(
-          desktop_to_ios_promo_receiving_enabled) {}
+          desktop_to_ios_promo_receiving_enabled),
+      desktop_to_ios_promo_receiving_types_(
+          desktop_to_ios_promo_receiving_types) {}
 
 DeviceInfo::~DeviceInfo() = default;
 
@@ -129,7 +129,7 @@ const std::string& DeviceInfo::public_id() const {
   return public_id_;
 }
 
-sync_pb::SyncEnums::DeviceType DeviceInfo::device_type() const {
+DeviceInfo::DeviceType DeviceInfo::device_type() const {
   return device_type_;
 }
 
@@ -169,13 +169,18 @@ bool DeviceInfo::send_tab_to_self_receiving_enabled() const {
   return send_tab_to_self_receiving_enabled_;
 }
 
-sync_pb::SyncEnums_SendTabReceivingType
-DeviceInfo::send_tab_to_self_receiving_type() const {
+DeviceInfo::SendTabReceivingType DeviceInfo::send_tab_to_self_receiving_type()
+    const {
   return send_tab_to_self_receiving_type_;
 }
 
 bool DeviceInfo::desktop_to_ios_promo_receiving_enabled() const {
   return desktop_to_ios_promo_receiving_enabled_;
+}
+
+const MobilePromoOnDesktopPromoTypeSet&
+DeviceInfo::desktop_to_ios_promo_receiving_types() const {
+  return desktop_to_ios_promo_receiving_types_;
 }
 
 const std::optional<DeviceInfo::SharingInfo>& DeviceInfo::sharing_info() const {
@@ -214,12 +219,17 @@ void DeviceInfo::set_send_tab_to_self_receiving_enabled(bool new_value) {
 }
 
 void DeviceInfo::set_send_tab_to_self_receiving_type(
-    sync_pb::SyncEnums_SendTabReceivingType new_value) {
+    SendTabReceivingType new_value) {
   send_tab_to_self_receiving_type_ = new_value;
 }
 
 void DeviceInfo::set_desktop_to_ios_promo_receiving_enabled(bool new_value) {
   desktop_to_ios_promo_receiving_enabled_ = new_value;
+}
+
+void DeviceInfo::set_desktop_to_ios_promo_receiving_types(
+    const MobilePromoOnDesktopPromoTypeSet& new_types) {
+  desktop_to_ios_promo_receiving_types_ = new_types;
 }
 
 void DeviceInfo::set_sharing_info(

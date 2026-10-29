@@ -921,7 +921,11 @@ class SaturatedUint8 {
  private:
   explicit SaturatedUint8(uint8_t val) : val(val) {}
   uint8_t val = 0;
+#ifdef V8_LOWER_LIMITS_MODE
+  static constexpr uint8_t kMax = 5;
+#else
   static constexpr uint8_t kMax = std::numeric_limits<uint8_t>::max();
+#endif
 };
 
 // underlying_operation<> is used to extract the operation type from OpMaskT
@@ -7497,13 +7501,13 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
 };
 
 struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
-  bool is_shared;
+  SharedFlag is_shared;
 
   static constexpr OpEffects effects =
       SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
                            : OpEffects().CanReadMemory().CanAllocate();
 
-  explicit AnyConvertExternOp(V<Object> object, bool is_shared)
+  explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared)
       : Base(object), is_shared(is_shared) {}
 
   V<Object> object() const { return Base::input<Object>(0); }
@@ -7974,11 +7978,11 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
-  bool is_shared;
+  SharedFlag is_shared;
 
   explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
                                const wasm::ArrayType* array_type,
-                               bool is_shared)
+                               SharedFlag is_shared)
       : Base(rtt, length), array_type(array_type), is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
@@ -8003,10 +8007,10 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::StructType* struct_type;
-  bool is_shared;
+  SharedFlag is_shared;
 
   explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type,
-                                bool is_shared)
+                                SharedFlag is_shared)
       : Base(rtt), struct_type(struct_type), is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }

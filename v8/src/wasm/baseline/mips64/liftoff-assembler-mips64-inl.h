@@ -528,10 +528,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   Ld(dst, MemOperand(instance, offset));
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  Sd(instance, liftoff::GetInstanceDataOperand());
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
@@ -1239,20 +1235,28 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   }
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   // TODO(ksreten): Handle different sizes here.
   MacroAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind != kS128) {
     MacroAssembler::Move(dst, src);
   } else {
     MacroAssembler::move_v(dst.toW(), src.toW());
   }
+}
+
+template <>
+inline void LiftoffAssembler::Move(Simd128Register dst, Simd128Register src,
+                                   ValueKind kind) {
+  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {

@@ -66,52 +66,52 @@ sw{
             patternsShort{
                 currencyFormat{
                     1000{
-                        one{"¤ elfu0"}
-                        other{"¤ elfu0"}
+                        one{"¤ elfu 0;¤ elfu -0"}
+                        other{"¤ elfu 0;¤ elfu -0"}
                     }
                     10000{
-                        one{"¤ elfu00;¤elfu -00"}
-                        other{"¤ elfu00;¤elfu -00"}
+                        one{"¤ elfu 00;¤ elfu -00"}
+                        other{"¤ elfu 00;¤ elfu -00"}
                     }
                     100000{
-                        one{"¤ laki000;¤laki -000"}
-                        other{"¤ laki000;¤laki -000"}
+                        one{"¤ elfu 000;¤ elfu -000"}
+                        other{"¤ elfu 000;¤ elfu -000"}
                     }
                     1000000{
-                        one{"¤ 0M;¤-0M"}
+                        one{"¤ 0M;¤ -0M"}
                         other{"¤ 0M"}
                     }
                     10000000{
-                        one{"¤ 00M;¤M-00M"}
-                        other{"¤ 00M;¤-00M"}
+                        one{"¤ 00M;¤ -00M"}
+                        other{"¤ 00M"}
                     }
                     100000000{
-                        one{"¤ 000M;¤Milioni-000"}
+                        one{"¤ 000M;¤ -000M"}
                         other{"¤ 000M"}
                     }
                     1000000000{
-                        one{"¤ 0B;¤-0B"}
-                        other{"¤ 0B;¤-0B"}
+                        one{"¤ 0B;¤ -0B"}
+                        other{"¤ 0B;¤ -0B"}
                     }
                     10000000000{
-                        one{"¤ 00B;¤-00B"}
-                        other{"¤ 00B;¤-00B"}
+                        one{"¤ 00B;¤ -00B"}
+                        other{"¤ 00B;¤ -00B"}
                     }
                     100000000000{
-                        one{"¤ 000B;¤-000B"}
-                        other{"¤ 000B;¤-000B"}
+                        one{"¤ 000B;¤ -000B"}
+                        other{"¤ 000B;¤ -000B"}
                     }
                     1000000000000{
-                        one{"¤ 0T;¤-0T"}
+                        one{"¤ 0T;¤ -0T"}
                         other{"¤ 0T"}
                     }
                     10000000000000{
-                        one{"¤ 00T;¤-00T"}
+                        one{"¤ 00T;¤ -00T"}
                         other{"¤ 00T"}
                     }
                     100000000000000{
-                        one{"¤ 000T;¤-000T"}
-                        other{"¤ 000T;¤-000T"}
+                        one{"¤ 000T;¤ -000T"}
+                        other{"¤ 000T"}
                     }
                 }
                 decimalFormat{
@@ -199,11 +199,19 @@ sw{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'saa' {0}",
+                "{1} 'saa' {0}",
+                "{1}, {0}",
+                "{1} {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -214,7 +222,6 @@ sw{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d-M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y G"}
@@ -393,6 +400,8 @@ sw{
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"G MM-y"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -407,7 +416,6 @@ sw{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -497,16 +505,16 @@ sw{
             }
             eras{
                 abbreviated{
-                    "KK",
-                    "BK",
+                    0{"KK"}
+                    1{"BK"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Kabla ya Kristo",
-                    "Baada ya Kristo",
+                    0{"Kabla ya Kristo"}
+                    1{"Baada ya Kristo"}
                 }
             }
             intervalFormats{
@@ -585,7 +593,6 @@ sw{
                     d{"d – d"}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h a"}
                 }
                 hm{
@@ -599,7 +606,6 @@ sw{
                     m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h a v"}
                 }
                 yM{
@@ -1109,19 +1115,6 @@ sw{
         metric{"Mfumo wa Mita"}
     }
     parse{
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
-            }
-        }
         number{
             lenient{
                 "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",

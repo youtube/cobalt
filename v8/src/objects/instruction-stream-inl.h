@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
-
 uint32_t InstructionStream::body_size() const {
   return ReadField<uint32_t>(kBodySizeOffset);
 }
@@ -159,6 +157,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
     writable_allocation.WriteProtectedPointerHeaderSlot<Code, kCodeOffset>(
         code, kReleaseStore);
   }
+
+  InstructionStream::ValidateJSDispatchHandles(heap, desc);
 
   // Trigger the write barriers after we dropped the JIT write permissions.
   RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,

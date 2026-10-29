@@ -575,6 +575,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
     if (!IsSmi(*value)) {
       // Note: This will leak string views to JS. This should be fine for a
       // debugging function.
+      if (Is<WasmContinuationObject>(value)) {
+        return CrashUnlessFuzzing(isolate);
+      }
       value = wasm::WasmToJSObject(isolate, value);
     }
     externalized_values->set(i, *value);
@@ -588,13 +591,14 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<WasmModuleObject> module_obj = args.at<WasmModuleObject>(0);
-  int instance_count = 0;
+  uint32_t instance_count = 0;
   Tagged<WeakArrayList> weak_instance_list =
       module_obj->script()->wasm_weak_instance_list();
-  for (int i = 0; i < weak_instance_list->length(); ++i) {
+  const uint32_t weak_instance_len = weak_instance_list->length().value();
+  for (uint32_t i = 0; i < weak_instance_len; ++i) {
     if (weak_instance_list->Get(i).IsWeak()) instance_count++;
   }
-  return Smi::FromInt(instance_count);
+  return Smi::FromUInt(instance_count);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
@@ -748,7 +752,7 @@ bool ValidateFunctionNowIfNeeded(Isolate* isolate,
   Zone validation_zone(isolate->allocator(), ZONE_NAME);
   wasm::WasmDetectedFeatures unused_detected_features;
   const wasm::WasmFunction* func = &module->functions[func_index];
-  bool is_shared = module->type(func->sig_index).is_shared;
+  SharedFlag is_shared = module->type(func->sig_index).is_shared;
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   wasm::FunctionBody body{
       func->sig, func->code.offset(), wire_bytes.begin() + func->code.offset(),
@@ -765,6 +769,12 @@ bool ValidateFunctionNowIfNeeded(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   DCHECK(!v8_flags.wasm_jitless);
+
+  if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
+                  v8_flags.trace_wasm_generate_compilation_hints)) {
+    // These flags expect functions to remain compiled with Liftoff.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   HandleScope scope(isolate);
   if (args.length() != 1 ||
@@ -1107,10 +1117,10 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
   const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
   // If we get an invalid type index, make up the additional data; the result
   // may still be useful for fuzzers for causing interesting confusion.
-  wasm::ValueType t =
-      module->has_type(type_index)
-          ? wasm::ValueType::Ref(module->heap_type(type_index))
-          : wasm::ValueType::Ref(type_index, false, wasm::RefTypeKind::kStruct);
+  wasm::ValueType t = module->has_type(type_index)
+                          ? wasm::ValueType::Ref(module->heap_type(type_index))
+                          : wasm::ValueType::Ref(type_index, SharedFlag::kNo,
+                                                 wasm::RefTypeKind::kStruct);
   return Smi::FromInt(t.raw_bit_field());
 }
 

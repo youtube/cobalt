@@ -11,7 +11,7 @@ tn{
                 currencyFormat{"¤#,##0.00"}
             }
             symbols{
-                group{"’"}
+                group{"'"}
             }
         }
     }
@@ -77,20 +77,20 @@ tn{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Pele ga tsalo ya Morena Jeso",
-                    "Morago ga Leso la Morena Jeso",
+                    0{"Pele ga tsalo ya Morena Jeso"}
+                    1{"Morago ga Leso la Morena Jeso"}
                 }
                 wide%variant{
-                    "Pele ga Krestie",
-                    "Morago ga Krestie",
+                    0{"Pele ga Krestie"}
+                    1{"Morago ga Krestie"}
                 }
             }
             intervalFormats{
@@ -214,6 +214,34 @@ tn{
         quotationStart{"‘"}
     }
     fields{
+        day{
+            relative{
+                "-1"{"maabane"}
+                "0"{"gompieno"}
+                "1"{"kamoso"}
+            }
+        }
+        month{
+            relative{
+                "-1"{"kgwedi e fetileng"}
+                "0"{"kgwedi eno"}
+                "1"{"kgwedi e tlang"}
+            }
+        }
+        sun{
+            relative{
+                "-1"{"Tshipi e fetileng"}
+                "0"{"Tshipi eno"}
+                "1"{"Tshipi e tlang"}
+            }
+        }
+        week{
+            relative{
+                "-1"{"beke e fetileng"}
+                "0"{"beke eno"}
+                "1"{"beke e tlang"}
+            }
+        }
         year{
             relative{
                 "-1"{"ngogola"}

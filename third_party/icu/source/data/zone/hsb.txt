@@ -273,9 +273,6 @@ hsb{
         "Pacific:Easter"{
             ec{"Jutrowna kupa"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Fiji"{
             ec{"Fidźi"}
         }
@@ -292,9 +289,7 @@ hsb{
             ls{"južnoafriski čas"}
         }
         "meta:Africa_Western"{
-            ld{"zapadoafriski lětni čas"}
-            lg{"zapadoafriski čas"}
-            ls{"zapadoafriski standardny čas"}
+            ls{"zapadoafriski čas"}
         }
         "meta:Alaska"{
             ld{"alaskaski lětni čas"}
@@ -541,6 +536,9 @@ hsb{
         }
         "meta:Guyana"{
             ls{"guyanski čas"}
+        }
+        "meta:Hawaii"{
+            ls{"hawaiisko-aleutski standardny čas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"hawaiisko-aleutski lětni čas"}

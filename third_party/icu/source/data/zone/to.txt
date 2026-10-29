@@ -83,7 +83,7 @@ to{
             ec{"Lapanui"}
         }
         "Pacific:Enderbury"{
-            ec{"ʻEnitipulī"}
+            ec{"Kanitoni"}
         }
         "Pacific:Fiji"{
             ec{"Fisi"}
@@ -99,9 +99,6 @@ to{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Kanton"{
-            ec{"Kanitoni"}
         }
         "Pacific:Kiritimati"{
             ec{"Kilisimasi"}
@@ -184,9 +181,7 @@ to{
             ls{"houa fakaʻafelika-tonga"}
         }
         "meta:Africa_Western"{
-            ld{"houa fakaʻafelika-hihifo taimi liliu"}
-            lg{"houa fakaʻafelika-hihifo"}
-            ls{"houa fakaʻafelika-hihifo taimi totonu"}
+            ls{"houa fakaʻafelika-hihifo"}
         }
         "meta:Alaska"{
             ld{"houa fakaʻalasika taimi liliu"}
@@ -450,6 +445,9 @@ to{
         }
         "meta:Guyana"{
             ls{"houa fakakuiana"}
+        }
+        "meta:Hawaii"{
+            ls{"houa fakahauaiʻi-aleuti taimi totonu"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"houa fakahauaiʻi-aleuti taimi liliu"}

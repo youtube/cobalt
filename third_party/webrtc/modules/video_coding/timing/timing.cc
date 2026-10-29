@@ -31,6 +31,7 @@
 namespace webrtc {
 namespace {
 
+constexpr TimeDelta kDefaultRenderDelay = TimeDelta::Millis(10);
 // Default pacing that is used for the low-latency renderer path.
 constexpr TimeDelta kZeroPlayoutDelayDefaultMinPacing = TimeDelta::Millis(8);
 constexpr TimeDelta kLowLatencyStreamMaxPlayoutDelayThreshold =
@@ -64,7 +65,6 @@ VCMTiming::VCMTiming(Clock* clock, const FieldTrialsView& field_trials)
       max_playout_delay_(TimeDelta::Seconds(10)),
       jitter_delay_(TimeDelta::Zero()),
       current_delay_(TimeDelta::Zero()),
-      prev_frame_timestamp_(0),
       num_decoded_frames_(0),
       zero_playout_delay_min_pacing_("min_pacing",
                                      kZeroPlayoutDelayDefaultMinPacing),
@@ -81,7 +81,6 @@ void VCMTiming::Reset() {
   min_playout_delay_ = TimeDelta::Zero();
   jitter_delay_ = TimeDelta::Zero();
   current_delay_ = TimeDelta::Zero();
-  prev_frame_timestamp_ = 0;
 }
 
 void VCMTiming::set_render_delay(TimeDelta render_delay) {
@@ -119,47 +118,6 @@ void VCMTiming::SetJitterDelay(TimeDelta jitter_delay) {
       current_delay_ = jitter_delay_;
     }
   }
-}
-
-void VCMTiming::UpdateCurrentDelay(uint32_t frame_timestamp) {
-  MutexLock lock(&mutex_);
-  TimeDelta target_delay = TargetDelayInternal();
-
-  if (current_delay_.IsZero()) {
-    // Not initialized, set current delay to target.
-    current_delay_ = target_delay;
-  } else if (target_delay != current_delay_) {
-    TimeDelta delay_diff = target_delay - current_delay_;
-    // Never change the delay with more than 100 ms every second. If we're
-    // changing the delay in too large steps we will get noticeable freezes. By
-    // limiting the change we can increase the delay in smaller steps, which
-    // will be experienced as the video is played in slow motion. When lowering
-    // the delay the video will be played at a faster pace.
-    TimeDelta max_change = TimeDelta::Zero();
-    if (frame_timestamp < 0x0000ffff && prev_frame_timestamp_ > 0xffff0000) {
-      // wrap
-      max_change =
-          TimeDelta::Millis(kDelayMaxChangeMsPerS *
-                            (frame_timestamp + (static_cast<int64_t>(1) << 32) -
-                             prev_frame_timestamp_) /
-                            90000);
-    } else {
-      max_change =
-          TimeDelta::Millis(kDelayMaxChangeMsPerS *
-                            (frame_timestamp - prev_frame_timestamp_) / 90000);
-    }
-
-    if (max_change <= TimeDelta::Zero()) {
-      // Any changes less than 1 ms are truncated and will be postponed.
-      // Negative change will be due to reordering and should be ignored.
-      return;
-    }
-    delay_diff = std::max(delay_diff, -max_change);
-    delay_diff = std::min(delay_diff, max_change);
-
-    current_delay_ = current_delay_ + delay_diff;
-  }
-  prev_frame_timestamp_ = frame_timestamp;
 }
 
 void VCMTiming::UpdateCurrentDelay(Timestamp render_time,

@@ -14,10 +14,13 @@ fi{
         colStrength{"lajittelun taso"}
         collation{"lajittelujärjestys"}
         currency{"valuutta"}
+        em{"emojin esitys"}
         hc{"tuntijärjestelmä"}
         lb{"rivinvaihtotyyli"}
+        lw{"rivi vaihtuu sanojen sisällä"}
         ms{"mittajärjestelmä"}
         numbers{"numerot"}
+        ss{"lause vaihtuu lyhenteen jälkeen"}
         timezone{"aikavyöhyke"}
         va{"maavalinnan muunnelma"}
         x{"yksityiskäyttö"}
@@ -305,6 +308,7 @@ fi{
         kcg{"tyap"}
         kde{"makonde"}
         kea{"kapverdenkreoli"}
+        kek{"qʼeqchiʼ"}
         ken{"kenyang"}
         kfo{"norsunluurannikonkoro"}
         kg{"kongo"}
@@ -398,6 +402,7 @@ fi{
         mgh{"makua-meetto"}
         mgo{"meta’"}
         mh{"marshall"}
+        mhn{"mócheno"}
         mi{"maori"}
         mic{"micmac"}
         min{"minangkabau"}
@@ -576,6 +581,7 @@ fi{
         suk{"sukuma"}
         sus{"susu"}
         sux{"sumeri"}
+        suz{"sunwar"}
         sv{"ruotsi"}
         sw{"swahili"}
         sw_CD{"kongonswahili"}
@@ -680,6 +686,12 @@ fi{
         zxx{"ei kielellistä sisältöä"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurdi"}
+    }
+    Languages%extension{
+        ku{"kurmandži"}
+    }
     Languages%long{
         zh_Hans{"mandariinikiina (yksinkertaistettu)"}
         zh_Hant{"mandariinikiina (perinteinen)"}
@@ -716,6 +728,7 @@ fi{
         Bass{"bassa"}
         Batk{"batakilainen"}
         Beng{"bengalilainen"}
+        Berf{"beria-aakkosto"}
         Bhks{"sanskritin bhaiksuki-aakkosto"}
         Blis{"bliss-symbolit"}
         Bopo{"bopomofo"}
@@ -746,6 +759,7 @@ fi{
         Elba{"elbasanilainen"}
         Elym{"elymealainen"}
         Ethi{"etiopialainen"}
+        Gara{"garay"}
         Geok{"muinaisgeorgialainen"}
         Geor{"georgialainen"}
         Glag{"glagoliittinen"}
@@ -755,6 +769,7 @@ fi{
         Gran{"grantha"}
         Grek{"kreikkalainen"}
         Gujr{"gudžaratilainen"}
+        Gukh{"gurung khema -aakkosto"}
         Guru{"gurmukhi"}
         Hanb{"kiinan han ja bopomofo"}
         Hang{"hangul"}
@@ -786,6 +801,7 @@ fi{
         Knda{"kannadalainen"}
         Kore{"korealainen"}
         Kpel{"kpelle"}
+        Krai{"kirat rai"}
         Kthi{"kaithi"}
         Lana{"lanna"}
         Laoo{"laolainen"}
@@ -828,6 +844,7 @@ fi{
         Nshu{"nüshu"}
         Ogam{"ogam"}
         Olck{"ol chiki"}
+        Onao{"ol onal"}
         Orkh{"orkhon"}
         Orya{"orijalainen"}
         Osge{"osagen aakkosto"}
@@ -940,9 +957,29 @@ fi{
             persian{"persialainen kalenteri"}
             roc{"Kiinan tasavallan kalenteri"}
         }
+        calendar%core{
+            buddhist{"buddhalainen"}
+            chinese{"kiinalainen"}
+            coptic{"koptilainen"}
+            dangi{"dangilainen"}
+            ethiopic{"etiopialainen"}
+            ethiopic-amete-alem{"etiopialainen amete alem"}
+            gregorian{"gregoriaaninen"}
+            hebrew{"juutalainen"}
+            islamic{"hidžra-kalenteri"}
+            islamic-civil{"hidžra-kalenteri (taulukkomuoto, perjantaiepookki)"}
+            islamic-umalqura{"Umm al Qura -kalenteri"}
+            japanese{"japanilainen"}
+            persian{"persialainen"}
+            roc{"Minguo-kalenteri"}
+        }
         cf{
             account{"valuuttojen laskentatoimen esitysmuoto"}
             standard{"valuuttojen vakioesitysmuoto"}
+        }
+        cf%core{
+            account{"laskentatoimi"}
+            standard{"vakio"}
         }
         colAlternate{
             non-ignorable{"symbolit huomioiva lajittelu"}
@@ -980,13 +1017,11 @@ fi{
             tertiary{"painomerkit ja aakkoslajit tai merkkileveydet huomioiva lajittelu"}
         }
         collation{
-            big5han{"perinteinen kiinalainen järjestys Big5"}
             compat{"aiempi lajittelujärjestys yhteensopivuutta varten"}
             dictionary{"sanakirjajärjestys"}
             ducet{"Unicoden oletusjärjestys"}
             emoji{"emojien lajittelujärjestys"}
             eor{"yleiseurooppalainen lajittelujärjestys"}
-            gb2312han{"yksinkertaistettu kiinalainen järjestys GB2312"}
             phonebook{"puhelinluettelojärjestys"}
             phonetic{"äänteellinen järjestys"}
             pinyin{"pinyin-järjestys"}
@@ -998,10 +1033,29 @@ fi{
             unihan{"radikaali- ja piirtojärjestys"}
             zhuyin{"zhuyin-järjestys"}
         }
+        collation%core{
+            compat{"yhteensopivuus"}
+            dictionary{"sanakirja"}
+            ducet{"oletusarvoinen unicode"}
+            phonebook{"puhelinluettelo"}
+            phonetic{"äänteellinen"}
+            pinyin{"pinyin-järjestelmä"}
+            search{"haku"}
+            standard{"normaali"}
+            stroke{"piirto"}
+            traditional{"perinteinen"}
+            unihan{"radikaali piirto"}
+            zhuyin{"zhuyin-järjestelmä"}
+        }
         d0{
             fwidth{"ideogrammin levyinen"}
             hwidth{"ideogrammin puolikkaan levyinen"}
             npinyin{"numeerinen muunnos"}
+        }
+        em%core{
+            default{"oletusarvoinen"}
+            emoji{"emoji"}
+            text{"teksti"}
         }
         hc{
             h11{"12 tunnin järjestelmä (0–11)"}
@@ -1009,10 +1063,27 @@ fi{
             h23{"24 tunnin järjestelmä (0–23)"}
             h24{"24 tunnin järjestelmä (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"väljä rivinvaihto"}
             normal{"normaali rivinvaihto"}
             strict{"tarkka rivinvaihto"}
+        }
+        lb%core{
+            loose{"väljä"}
+            normal{"normaali"}
+            strict{"tarkka"}
+        }
+        lw%core{
+            breakall{"erota kaikki"}
+            keepall{"säilytä kaikki"}
+            normal{"normaali"}
+            phrase{"säilytä lauseet"}
         }
         m0{
             bgn{"BGN-latinaistus"}
@@ -1022,6 +1093,11 @@ fi{
             metric{"metrijärjestelmä"}
             uksystem{"brittiläinen mittajärjestelmä"}
             ussystem{"yhdysvaltalainen mittajärjestelmä"}
+        }
+        ms%core{
+            metric{"metrinen"}
+            uksystem{"brittiläinen"}
+            ussystem{"yhdysvaltalainen"}
         }
         numbers{
             ahom{"ahom-numerot"}
@@ -1109,6 +1185,10 @@ fi{
             vaii{"vai-numerot"}
             wara{"varang kshiti -numerot"}
             wcho{"wancholaiset numerot"}
+        }
+        ss%core{
+            none{"pois"}
+            standard{"päällä"}
         }
     }
     Variants{

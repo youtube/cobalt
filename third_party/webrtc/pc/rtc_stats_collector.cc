@@ -1862,6 +1862,10 @@ void RTCStatsCollector::ProduceRTPStreamStats_s(
       continue;
     }
 
+    if (stats.current_direction == RtpTransceiverDirection::kStopped) {
+      continue;
+    }
+
     if (stats.media_type == MediaType::AUDIO) {
       ProduceAudioRTPStreamStats_s(timestamp, stats, call_stats,
                                    audio_device_stats, report);

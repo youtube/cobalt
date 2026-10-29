@@ -118,12 +118,12 @@ mas{
             }
             eras{
                 abbreviated{
-                    "MY",
-                    "EY",
+                    0{"MY"}
+                    1{"EY"}
                 }
                 wide{
-                    "Meínō Yɛ́sʉ",
-                    "Eínō Yɛ́sʉ",
+                    0{"Meínō Yɛ́sʉ"}
+                    1{"Eínō Yɛ́sʉ"}
                 }
             }
             monthNames{

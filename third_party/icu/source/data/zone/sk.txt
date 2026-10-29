@@ -27,14 +27,8 @@ sk{
         "Africa:Khartoum"{
             ec{"Chartúm"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Mogadišo"}
-        }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
         }
         "Africa:Sao_Tome"{
             ec{"Svätý Tomáš"}
@@ -45,29 +39,14 @@ sk{
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cayman"{
             ec{"Kajmanie ostrovy"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
         }
         "America:Costa_Rica"{
             ec{"Kostarika"}
         }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
         "America:Dominica"{
             ec{"Dominika"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:El_Salvador"{
             ec{"Salvádor"}
@@ -75,14 +54,8 @@ sk{
         "America:Jamaica"{
             ec{"Jamajka"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Martinique"{
             ec{"Martinik"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"México"}
@@ -98,12 +71,6 @@ sk{
         }
         "America:Puerto_Rico"{
             ec{"Portoriko"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Svätý Bartolomej"}
@@ -336,9 +303,6 @@ sk{
         "Europe:Budapest"{
             ec{"Budapešť"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Chisinau"{
             ec{"Kišiňov"}
         }
@@ -391,9 +355,6 @@ sk{
         "Europe:Stockholm"{
             ec{"Štokholm"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uľjanovsk"}
         }
@@ -424,9 +385,6 @@ sk{
         "Indian:Kerguelen"{
             ec{"Kergueleny"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldivy"}
         }
@@ -436,9 +394,6 @@ sk{
         "Pacific:Easter"{
             ec{"Veľkonočný ostrov"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Fiji"{
             ec{"Fidži"}
         }
@@ -447,15 +402,9 @@ sk{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Marquesas"{
             ec{"Markézy"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "meta:Acre"{
             ld{"acrejský letný čas"}
@@ -475,9 +424,7 @@ sk{
             ls{"juhoafrický čas"}
         }
         "meta:Africa_Western"{
-            ld{"západoafrický letný čas"}
-            lg{"západoafrický čas"}
-            ls{"západoafrický štandardný čas"}
+            ls{"západoafrický čas"}
         }
         "meta:Alaska"{
             ld{"aljašský letný čas"}
@@ -744,6 +691,9 @@ sk{
         }
         "meta:Guyana"{
             ls{"guyanský čas"}
+        }
+        "meta:Hawaii"{
+            ls{"havajsko-aleutský štandardný čas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"havajsko-aleutský letný čas"}

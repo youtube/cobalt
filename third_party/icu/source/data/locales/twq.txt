@@ -149,12 +149,12 @@ twq{
             }
             eras{
                 abbreviated{
-                    "IJ",
-                    "IZ",
+                    0{"IJ"}
+                    1{"IZ"}
                 }
                 wide{
-                    "Isaa jine",
-                    "Isaa zamanoo",
+                    0{"Isaa jine"}
+                    1{"Isaa zamanoo"}
                 }
             }
             monthNames{

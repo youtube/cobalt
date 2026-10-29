@@ -183,16 +183,15 @@ def _generate_compile_commands(work_dir: pathlib.Path) -> None:
     by the include cleaner binary.
 
     Args:
-        work_dir: gn out dir where the compile_commands json file exists
+        work_dir: gn out dir
     """
     compile_commands_path = work_dir / "compile_commands.json"
-    if not compile_commands_path.is_file():
-        print("Generating compile commands file...")
-        subprocess.run(
-            ["tools/clang/scripts/generate_compdb.py", "-p", work_dir],
-            stdout=compile_commands_path.open(mode="w+"),
-            check=True,
-        )
+    print("Generating compile commands file...")
+    subprocess.run(
+        ["tools/clang/scripts/generate_compdb.py", "-p", work_dir],
+        stdout=compile_commands_path.open(mode="w+"),
+        check=True,
+    )
 
 
 def _modified_output(output: str, content: str) -> str:

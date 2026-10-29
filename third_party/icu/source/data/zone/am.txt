@@ -1167,7 +1167,7 @@ am{
             ec{"ኢፋቴ"}
         }
         "Pacific:Enderbury"{
-            ec{"ኢንደርበሪ"}
+            ec{"ካንቶን"}
         }
         "Pacific:Fakaofo"{
             ec{"ፋካኦፎ"}
@@ -1192,9 +1192,6 @@ am{
         }
         "Pacific:Honolulu"{
             ec{"ሆኖሉሉ"}
-        }
-        "Pacific:Kanton"{
-            ec{"ካንቶን"}
         }
         "Pacific:Kiritimati"{
             ec{"ኪሪቲማቲ"}
@@ -1278,9 +1275,7 @@ am{
             ls{"የደቡብ አፍሪካ መደበኛ ሰዓት"}
         }
         "meta:Africa_Western"{
-            ld{"የምዕራብ አፍሪካ ክረምት ሰዓት"}
-            lg{"የምዕራብ አፍሪካ ሰዓት"}
-            ls{"የምዕራብ አፍሪካ መደበኛ ሰዓት"}
+            ls{"የምዕራብ አፍሪካ ሰዓት"}
         }
         "meta:Alaska"{
             ld{"የአላስካ የቀን ሰዓት አቆጣጠር"}
@@ -1523,6 +1518,9 @@ am{
         }
         "meta:Guyana"{
             ls{"የጉያና ሰዓት"}
+        }
+        "meta:Hawaii"{
+            ls{"የሃዋይ አሌኡት መደበኛ ሰዓት አቆጣጠር"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"የሃዋይ አሌኡት የቀን ሰዓት አቆጣጠር"}
@@ -1865,6 +1863,7 @@ am{
             ls{"የዩኮን ጊዜ"}
         }
         gmtFormat{"ጂ ኤም ቲ{0}"}
+        gmtUnknownFormat{"ጂ ኤም ቲ+"}
         gmtZeroFormat{"ጂ ኤም ቲ"}
         hourFormat{"+HHmm;-HHmm"}
         regionFormat{"{0} ሰዓት"}

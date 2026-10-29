@@ -460,10 +460,18 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // These are references to entries in the JSDispatchTable, which contain the
   // current code for a function.
+  //
+  // TODO(leszeks): Remove after JSFunction is ported to the new layout.
   template <typename ObjectType>
   static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
-      ObjectType host, size_t offset, Isolate* isolate,
+      DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
       uint16_t parameter_count, DirectHandle<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  template <typename ObjectType>
+  static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
+      DirectHandle<ObjectType> host, JSDispatchHandle* location,
+      Isolate* isolate, uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the field at offset in obj, as a read/write Object reference.
@@ -548,7 +556,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   explicit V8_INLINE constexpr HeapObject(Address ptr,
                                           HeapObject::SkipTypeCheckTag)
       : TaggedImpl(ptr) {}
-  explicit inline HeapObject(Address ptr);
 
   // Static overwrites of TaggedImpl's IsSmi/IsHeapObject, to avoid conflicts
   // with IsSmi(Tagged<HeapObject>) inside HeapObject subclasses' methods.
@@ -577,10 +584,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE void set_map(IsolateT* isolate, Tagged<Map> value,
                          MemoryOrder order, VerificationMode mode);
 };
-
-inline HeapObject::HeapObject(Address ptr) : TaggedImpl(ptr) {
-  IsHeapObject(*this);
-}
 
 template <typename T>
 // static

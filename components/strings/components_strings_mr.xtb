@@ -1073,6 +1073,7 @@
 <translation id="2673968385134502798">गेम</translation>
 <translation id="2674170444375937751">तुमची खात्री आहे की तुम्ही ही पेज आपल्‍या इतिहासातून हटवू इच्छिता?</translation>
 <translation id="2674524144218093528">घराला रंगवणे आणि फिनिशिंग</translation>
+<translation id="2675716371350192683">तुमचा आशय AI मध्ये सुधारणा करण्यासाठी वापरला जाणार नाही. तुमची संस्था ही सेटिंग्ज कधीही बदलू शकते.</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> हे टॅब गट आता उपलब्ध नाहीत</translation>
 <translation id="2677748264148917807">सोडा</translation>
 <translation id="2679216653373462289">तुमचे मोशन आणि लाइट सेन्सर वापरा</translation>
@@ -2656,6 +2657,7 @@
 <translation id="5190835502935405962">बुकमार्क बार</translation>
 <translation id="5191315092027169558">तुमची प्रोफाइल <ph name="DOMAIN" /> द्वारे व्यवस्थापित केली जाते</translation>
 <translation id="51918995459521422"><ph name="ORIGIN" /> ला एकाहून अधिक फाइल डाउनलोड करायच्या आहेत</translation>
+<translation id="519528950056409240">Wallet ला डेटा शेअर करण्याची अनुमती द्या</translation>
 <translation id="5199121357983849992">ओळखपत्र सेव्ह करायचे आहे का?</translation>
 <translation id="5200063972779787617">खात्यामध्ये पत्ता सेव्ह करा</translation>
 <translation id="5201306358585911203">या पेजवरील एंबेड केलेल्‍या पेजचे म्हणणे हे आहे की</translation>
@@ -3103,6 +3105,7 @@
 <translation id="5910140988253729859">ऑटोफिल पहिल्यासारखे करा</translation>
 <translation id="5911020115933784199">इव्हेंट आणि सूची</translation>
 <translation id="5911110632211230665">फाइल उघडणे ब्लॉक केले आहे</translation>
+<translation id="5912796581727968237">Google Wallet उघडा</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> यांनी हा टॅब जोडला आहे</translation>
 <translation id="5915189366813702112">कर्मचाऱ्याच्या सोयीनुसार काम करण्याच्या सुविधा</translation>
 <translation id="59174027418879706">सक्षम</translation>
@@ -3374,6 +3377,7 @@
 <translation id="6326947323444967009">iOS सेटिंग्जमध्ये Chrome ला सिस्टीमचा डीफॉल्ट ब्राउझर म्हणून सेट करा</translation>
 <translation id="6327065120806001832">स्थानिक नेटवर्क अ‍ॅक्सेस</translation>
 <translation id="6328639280570009161">नेटवर्क पूर्वानुमान अक्षम करून पहा</translation>
+<translation id="6329742260390895689">तुमची माहिती ऑटोफिल करण्यासाठी, Wallet सेटिंग्जमध्ये "संपूर्ण Google वर पास वापरा" सुरू करा</translation>
 <translation id="6329815962353376655">&lt;प्रश्न टाइप करा&gt;</translation>
 <translation id="6331597954316706229">सर्वात जास्त पर्सनलाइझ केलेल्या प्रतिसादांसाठी, सर्व थ्रेडना तुमच्या सुसंबद्ध उघडलेल्या टॅबचा संदर्भ घेण्याची अनुमती द्या.</translation>
 <translation id="633348045801643466">चेकआउट करताना <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />नंतर पेमेंट करण्याचे पर्याय<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /> दाखवा</translation>
@@ -3461,6 +3465,7 @@
 <translation id="6436994298828707228">कनेक्शन ब्लॉक केले आहे, कारण ते तुमच्या स्थानिक नेटवर्कवरील डिव्हाइसशी किंवा सर्व्हरशी कनेक्ट करण्यासाठी सार्वजनिक पेजद्वारे सुरू केले होते.</translation>
 <translation id="6437647869369934905">Google Drawings</translation>
 <translation id="643917412048333145">ड्रेस</translation>
+<translation id="6440450906295708112">व्हेरिएशन स्रोत</translation>
 <translation id="6440503408713884761">दुर्लक्ष केले</translation>
 <translation id="6443406338865242315">तुम्ही कोणती एक्स्टेंशन आणि प्लग-इन इंस्टॉल केली आहेत</translation>
 <translation id="6444329331928531170">सेवानिवृत्ती आणि निवृत्तीवेतन</translation>
@@ -4566,6 +4571,7 @@
 <translation id="8175796834047840627">तुम्ही साइन इन केले असल्यामुळे Chrome तुमच्या Google खात्यामध्ये तुमची कार्डे सेव्ह करत आहे. तुम्‍ही हे वर्तन सेटिंग्‍जमध्‍ये बदलू शकता.</translation>
 <translation id="8176440868214972690">या डिव्हाइसच्या अ‍ॅडमिनिस्ट्रेटरने खालील वेबसाइटना सेटिंग्ज किंवा धोरणे यांसारखी काही माहिती पाठवली आहे.</translation>
 <translation id="817820454357658398">महिलांसाठी स्वच्छतेसंबंधित उत्पादने</translation>
+<translation id="8182470873445638343"><ph name="BEGIN_BOLD" />हे पर्याय देण्यासाठी चेकआउट पेजवरील आशय Google सोबत शेअर केला जातो.<ph name="END_BOLD" /> पेमेंट प्लॅन हे पात्रतेच्या अधीन आहेत. नंतर पेमेंट करण्याचे पर्याय लपवण्यासाठी, <ph name="BEGIN_LINK" />पेमेंट सेटिंग्ज<ph name="END_LINK" /> वर जा</translation>
 <translation id="818254048113802060">{0,plural, =1{आशयामुळे <ph name="FILE_NAME" /> फाइल ब्लॉक केली गेली}other{आशयामुळे <ph name="FILE_COUNT" /> फाइल ब्लॉक केल्या गेल्या}}</translation>
 <translation id="8183800802493617952">कुटुंबासाठी गेम आणि अ‍ॅक्टिव्हिटी</translation>
 <translation id="8184538546369750125">सार्वत्रिक डीफॉल्‍ट वापरा (अनुमती द्या)</translation>

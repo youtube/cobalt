@@ -14,7 +14,7 @@ st{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "Hoseng",
                 "Thapama",
             }
@@ -122,7 +122,7 @@ st{
                     abbreviated{
                         "Phe",
                         "Kol",
-                        "Ube",
+                        "Hlb",
                         "Mme",
                         "Mot",
                         "Jan",

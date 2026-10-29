@@ -8,7 +8,9 @@ asa{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
         }
     }
@@ -118,12 +120,12 @@ asa{
             }
             eras{
                 abbreviated{
-                    "KM",
-                    "BM",
+                    0{"KM"}
+                    1{"BM"}
                 }
                 wide{
-                    "Kabla yakwe Yethu",
-                    "Baada yakwe Yethu",
+                    0{"Kabla yakwe Yethu"}
+                    1{"Baada yakwe Yethu"}
                 }
             }
             monthNames{

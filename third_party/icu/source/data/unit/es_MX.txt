@@ -131,6 +131,12 @@ es_MX{
                 other{"{0}V"}
             }
         }
+        energy{
+            calorie-it{
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
+            }
+        }
         frequency{
             gigahertz{
                 one{"{0} GHz"}

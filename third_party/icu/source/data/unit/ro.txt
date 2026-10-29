@@ -7,15 +7,15 @@ ro{
             g-force{
                 case{
                     genitive{
-                        few{"{0} forță g"}
+                        few{"{0} forțe g"}
                         one{"unei forțe g"}
-                        other{"{0} forță g"}
+                        other{"{0} de forțe g"}
                     }
                 }
-                few{"{0} forță g"}
+                few{"{0} forțe g"}
                 gender{"feminine"}
                 one{"{0} forță g"}
-                other{"{0} forță g"}
+                other{"{0} de forțe g"}
             }
             meter-per-square-second{
                 case{
@@ -101,6 +101,12 @@ ro{
                 gender{"feminine"}
                 one{"{0} revoluție"}
                 other{"{0} de revoluții"}
+            }
+            steradian{
+                dnam{"steradieni"}
+                few{"{0} steradieni"}
+                one{"{0} steradian"}
+                other{"{0} de steradieni"}
             }
         }
         area{
@@ -352,6 +358,12 @@ ro{
                 one{"{0} carat"}
                 other{"{0} de carate"}
             }
+            katal{
+                dnam{"katali"}
+                few{"{0} katali"}
+                one{"{0} katal"}
+                other{"{0} de katali"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     genitive{
@@ -394,6 +406,46 @@ ro{
                 one{"{0} mol"}
                 other{"{0} de moli"}
             }
+            ofglucose{
+                dnam{"de glucoză"}
+                few{"{0} de glucoză"}
+                one{"{0} de glucoză"}
+                other{"{0} de glucoză"}
+            }
+            part{
+                dnam{"părți"}
+                few{"{0} părți"}
+                one{"{0} parte"}
+                other{"{0} de părți"}
+            }
+            part-per-1e6{
+                case{
+                    genitive{
+                        few{"{0} părți pe milion"}
+                        one{"unei părți pe milion"}
+                        other{"{0} de părți pe milion"}
+                    }
+                }
+                dnam{"părți pe milion"}
+                few{"{0} părți pe milion"}
+                gender{"feminine"}
+                one{"{0} parte pe milion"}
+                other{"{0} de părți pe milion"}
+            }
+            part-per-1e9{
+                case{
+                    genitive{
+                        few{"{0} părți pe miliard"}
+                        one{"unei părți pe miliard"}
+                        other{"{0} de părți pe miliard"}
+                    }
+                }
+                dnam{"părți pe miliard"}
+                few{"{0} părți pe miliard"}
+                gender{"feminine"}
+                one{"{0} parte pe miliard"}
+                other{"{0} de părți pe miliard"}
+            }
             percent{
                 case{
                     genitive{
@@ -422,20 +474,6 @@ ro{
                 one{"{0} promilă"}
                 other{"{0} de promile"}
             }
-            permillion{
-                case{
-                    genitive{
-                        few{"{0} părți pe milion"}
-                        one{"unei părți pe milion"}
-                        other{"{0} de părți pe milion"}
-                    }
-                }
-                dnam{"părți pe milion"}
-                few{"{0} părți pe milion"}
-                gender{"feminine"}
-                one{"{0} parte pe milion"}
-                other{"{0} de părți pe milion"}
-            }
             permyriad{
                 case{
                     genitive{
@@ -448,20 +486,6 @@ ro{
                 gender{"feminine"}
                 one{"{0} la zece mii"}
                 other{"{0} la zece mii"}
-            }
-            portion-per-1e9{
-                case{
-                    genitive{
-                        few{"{0} părți pe miliard"}
-                        one{"unei părți pe miliard"}
-                        other{"{0} de părți pe miliard"}
-                    }
-                }
-                dnam{"părți pe miliard"}
-                few{"{0} părți pe miliard"}
-                gender{"feminine"}
-                one{"{0} parte pe miliard"}
-                other{"{0} de părți pe miliard"}
             }
         }
         consumption{
@@ -508,10 +532,10 @@ ro{
         }
         coordinate{
             dnam{"punct cardinal"}
-            east{"{0} E"}
-            north{"{0} N"}
-            south{"{0} S"}
-            west{"{0} V"}
+            east{"{0} est"}
+            north{"{0} nord"}
+            south{"{0} sud"}
+            west{"{0} vest"}
         }
         digital{
             bit{
@@ -810,7 +834,6 @@ ro{
                 gender{"feminine"}
                 one{"{0}/noapte"}
                 other{"{0} de nopți"}
-                per{"{0}/noapte"}
             }
             quarter{
                 case{
@@ -885,6 +908,24 @@ ro{
                 one{"{0} amper"}
                 other{"{0} de amperi"}
             }
+            coulomb{
+                dnam{"coulombi"}
+                few{"{0} coulombi"}
+                one{"{0} coulomb"}
+                other{"{0} de coulombi"}
+            }
+            farad{
+                dnam{"farazi"}
+                few{"{0} farazi"}
+                one{"{0} farad"}
+                other{"{0} de farazi"}
+            }
+            henry{
+                dnam{"henry"}
+                few{"{0} henry"}
+                one{"{0} henry"}
+                other{"{0} de henry"}
+            }
             milliampere{
                 case{
                     genitive{
@@ -913,6 +954,12 @@ ro{
                 one{"{0} ohm"}
                 other{"{0} de ohmi"}
             }
+            siemens{
+                dnam{"siemenși"}
+                few{"{0} siemenși"}
+                one{"{0} siemens"}
+                other{"{0} de siemenși"}
+            }
             volt{
                 case{
                     genitive{
@@ -929,6 +976,12 @@ ro{
             }
         }
         energy{
+            becquerel{
+                dnam{"becquereli"}
+                few{"{0} becquereli"}
+                one{"{0} becquerel"}
+                other{"{0} de becquereli"}
+            }
             british-thermal-unit{
                 dnam{"unități termice britanice"}
                 few{"{0} unități termice britanice"}
@@ -949,6 +1002,12 @@ ro{
                 one{"{0} calorie"}
                 other{"{0} de calorii"}
             }
+            calorie-it{
+                dnam{"calorii [IT]"}
+                few{"{0} calorii [IT]"}
+                one{"{0} calorie [IT]"}
+                other{"{0} de calorii [IT]"}
+            }
             electronvolt{
                 dnam{"electronvolți"}
                 few{"{0} electronvolți"}
@@ -960,6 +1019,12 @@ ro{
                 few{"{0} kilocalorii"}
                 one{"{0} kilocalorie"}
                 other{"{0} de kilocalorii"}
+            }
+            gray{
+                dnam{"gray"}
+                few{"{0} gray"}
+                one{"{0} gray"}
+                other{"{0} de gray"}
             }
             joule{
                 case{
@@ -1017,6 +1082,12 @@ ro{
                 one{"kilowatt-oră"}
                 other{"{0} de kilowați-oră"}
             }
+            sievert{
+                dnam{"sievert"}
+                few{"{0} sieverți"}
+                one{"{0} sievert"}
+                other{"{0} de sieverți"}
+            }
             therm-us{
                 dnam{"thermi S.U.A."}
                 few{"{0} thermi S.U.A."}
@@ -1025,6 +1096,12 @@ ro{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilograme-forță"}
+                few{"{0} kilograme-forță"}
+                one{"{0} kilogram-forță"}
+                other{"{0} de kilograme-forță"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     genitive{
@@ -1464,6 +1541,20 @@ ro{
                 other{"{0} de luminozități solare"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                few{"{0} tesla"}
+                one{"{0} tesla"}
+                other{"{0} de tesla"}
+            }
+            weber{
+                dnam{"weberi"}
+                few{"{0} weberi"}
+                one{"{0} weber"}
+                other{"{0} de weberi"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -1788,6 +1879,12 @@ ro{
                 one{"{0} milimetru coloană de mercur"}
                 other{"{0} de milimetri coloană de mercur"}
             }
+            ofhg{
+                dnam{"de mercur"}
+                few{"{0} de mercur"}
+                one{"{0} de mercur"}
+                other{"{0} de mercur"}
+            }
             pascal{
                 case{
                     genitive{
@@ -1811,9 +1908,9 @@ ro{
         }
         speed{
             beaufort{
-                few{"Beaufort {0}"}
-                one{"Beaufort {0}"}
-                other{"Beaufort {0}"}
+                few{"{0} grade Beaufort"}
+                one{"{0} grad Beaufort"}
+                other{"{0} de grade Beaufort"}
             }
             kilometer-per-hour{
                 case{
@@ -1836,18 +1933,7 @@ ro{
                 other{"{0} de noduri"}
             }
             light-speed{
-                case{
-                    genitive{
-                        few{"{0} lumină"}
-                        one{"{0} lumină"}
-                        other{"{0} lumină"}
-                    }
-                }
-                dnam{"lumină"}
-                few{"{0} lumină"}
                 gender{"feminine"}
-                one{"{0} lumină"}
-                other{"{0} lumină"}
             }
             meter-per-second{
                 case{
@@ -2103,6 +2189,12 @@ ro{
                 one{"{0} uncie lichidă imperială"}
                 other{"{0} de uncii lichide imperiale"}
             }
+            fluid-ounce-metric{
+                dnam{"uncii lichide metrice"}
+                few{"{0} uncii lichide metrice"}
+                one{"uncie lichidă metrică"}
+                other{"{0} de uncii lichide metrice"}
+            }
             gallon{
                 dnam{"galoane"}
                 few{"{0} galoane"}
@@ -2271,6 +2363,15 @@ ro{
             karat{
                 dnam{"carat"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"parte"}
+                few{"{0} părți"}
+                one{"{0} parte"}
+                other{"{0} părți"}
+            }
             permille{
                 few{"{0} ‰"}
                 one{"{0} ‰"}
@@ -2280,9 +2381,6 @@ ro{
                 few{"{0} ‱"}
                 one{"{0} ‱"}
                 other{"{0} ‱"}
-            }
-            portion-per-1e9{
-                dnam{"părți/miliard"}
             }
         }
         consumption{
@@ -2318,13 +2416,6 @@ ro{
                 one{"{0} l"}
                 other{"{0} l"}
             }
-            night{
-                dnam{"nopți"}
-                few{"{0} nopți"}
-                one{"{0} noapte"}
-                other{"{0} de nopți"}
-                per{"{0}/noapte"}
-            }
             week{
                 dnam{"săpt."}
             }
@@ -2333,6 +2424,11 @@ ro{
                 few{"{0} a"}
                 one{"{0} a"}
                 other{"{0} a"}
+            }
+        }
+        energy{
+            calorie-it{
+                dnam{"cal-IT"}
             }
         }
         force{
@@ -2380,13 +2476,11 @@ ro{
                 one{"{0} mb"}
                 other{"{0} mb"}
             }
-        }
-        speed{
-            light-speed{
-                dnam{"lumină"}
-                few{"{0} lumină"}
-                one{"{0} lumină"}
-                other{"{0} lumină"}
+            ofhg{
+                dnam{"de Hg"}
+                few{"{0} de Hg"}
+                one{"{0} de Hg"}
+                other{"{0} de Hg"}
             }
         }
         torque{
@@ -2521,7 +2615,16 @@ ro{
                 one{"{0} mol"}
                 other{"{0} moli"}
             }
-            portion-per-1e9{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"parte"}
+                few{"{0} părți"}
+                one{"{0} parte"}
+                other{"{0} de părți"}
+            }
+            part-per-1e9{
                 dnam{"părți/miliard"}
             }
         }
@@ -2553,7 +2656,10 @@ ro{
         }
         coordinate{
             dnam{"direcție"}
-            west{"{0}V"}
+            east{"{0} E"}
+            north{"{0} N"}
+            south{"{0} S"}
+            west{"{0} V"}
         }
         digital{
             bit{
@@ -2658,6 +2764,9 @@ ro{
                 few{"{0} BTU"}
                 one{"{0} BTU"}
                 other{"{0} BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
             }
             joule{
                 dnam{"J"}
@@ -2781,6 +2890,12 @@ ro{
                 few{"{0} in Hg"}
                 one{"{0} in Hg"}
                 other{"{0} in Hg"}
+            }
+            ofhg{
+                dnam{"de Hg"}
+                few{"{0} de Hg"}
+                one{"{0} de Hg"}
+                other{"{0} de Hg"}
             }
         }
         speed{

@@ -7,12 +7,16 @@ sc{
         cf{"formadu de valuta"}
         collation{"ordinamentu"}
         currency{"valuta"}
+        em{"presentatzione emoji"}
         hc{"sistema oràriu (12 o 24 oras)"}
         lb{"casta de truncadura de lìnia"}
+        lw{"truncaduras de lìnia a intro de sas paràulas"}
         ms{"sistema de medida"}
         numbers{"nùmeros"}
+        ss{"truncadura de fràsia a pustis de incurtz."}
     }
     Languages{
+        aa{"afar"}
         ab{"abcasu"}
         ace{"acehnesu"}
         ada{"adangme"}
@@ -42,28 +46,37 @@ sc{
         ay{"aimara"}
         az{"azerbaigianu"}
         ba{"baschiru"}
+        bal{"baluci"}
         ban{"balinesu"}
         bas{"basaa"}
         be{"bielorussu"}
         bem{"bemba"}
+        bew{"betawi"}
         bez{"bena"}
         bg{"bùlgaru"}
         bgc{"haryanvi"}
+        bgn{"baluci otzidentale"}
         bho{"bhojpuri"}
         bi{"bislama"}
         bin{"bini"}
         bla{"pees nieddos"}
         blo{"anii"}
+        blt{"tai dam"}
         bm{"bambara"}
         bn{"bengalesu"}
         bo{"tibetanu"}
+        bqi{"bakhtiari"}
         br{"brètone"}
         brx{"bodo"}
         bs{"bosnìacu"}
+        bss{"akoose"}
+        bua{"buriat"}
         bug{"buginesu"}
         byn{"blin"}
         ca{"catalanu"}
+        cad{"caddo"}
         cay{"cayuga"}
+        cch{"atsam"}
         ccp{"chakma"}
         ce{"cecenu"}
         ceb{"cebuanu"}
@@ -75,9 +88,11 @@ sc{
         chp{"chipewyan"}
         chr{"cherokee"}
         chy{"cheyenne"}
+        cic{"chickasaw"}
         ckb{"curdu tzentrale"}
         clc{"chilcotin"}
         co{"corsicanu"}
+        cop{"coptu"}
         crg{"michif"}
         crj{"cree sud-orientale"}
         crk{"cree de sas campuras"}
@@ -155,11 +170,12 @@ sc{
         hai{"haida"}
         haw{"hawaianu"}
         hax{"haida meridionale"}
-        he{"ebreu"}
+        he{"ebràicu"}
         hi{"hindi"}
         hi_Latn{"hindi (caràteres latinos)"}
         hil{"ilongu"}
         hmn{"hmong"}
+        hnj{"hmong njua"}
         hr{"croatu"}
         hsb{"sòrabu artu"}
         ht{"crèolu haitianu"}
@@ -188,6 +204,7 @@ sc{
         jmc{"machame"}
         jv{"giavanesu"}
         ka{"georgianu"}
+        kaa{"kara-kalpak"}
         kab{"cabilu"}
         kac{"kachin"}
         kaj{"jju"}
@@ -196,6 +213,8 @@ sc{
         kcg{"tyap"}
         kde{"makonde"}
         kea{"cabubirdianu"}
+        kek{"qʼeqchiʼ"}
+        ken{"kenyang"}
         kfo{"koro"}
         kgp{"kaingang"}
         kha{"khasi"}
@@ -237,6 +256,7 @@ sc{
         lij{"lìgure"}
         lil{"lillooet"}
         lkt{"lakota"}
+        lld{"ladinu"}
         lmo{"lombardu"}
         ln{"lingala"}
         lo{"laotianu"}
@@ -245,12 +265,14 @@ sc{
         lrc{"luri setentrionale"}
         lsm{"sàmia"}
         lt{"lituanu"}
+        ltg{"latgalianu"}
         lu{"luba-katanga"}
         lua{"tshiluba"}
         lun{"lunda"}
         lus{"mizo"}
         luy{"luyia"}
         lv{"lètone"}
+        lzz{"laz"}
         mad{"maduresu"}
         mag{"magahi"}
         mai{"maithili"}
@@ -264,6 +286,7 @@ sc{
         mgh{"makhuwa-meetto"}
         mgo{"meta’"}
         mh{"marshallesu"}
+        mhn{"mòchenu"}
         mi{"maori"}
         mic{"micmac"}
         min{"minangkabau"}
@@ -281,10 +304,12 @@ sc{
         mul{"limbas mùltiplas"}
         mus{"muscogee"}
         mwl{"mirandesu"}
+        mww{"hmong daw"}
         my{"burmesu"}
         myv{"erzya"}
         mzn{"mazandarani"}
         na{"nauru"}
+        nan{"min nan"}
         nap{"napoletanu"}
         naq{"nama"}
         nb{"norvegesu bokmål"}
@@ -319,14 +344,17 @@ sc{
         om{"oromo"}
         or{"odia"}
         os{"ossèticu"}
+        osa{"osage"}
         pa{"punjabi"}
         pag{"pangasinan"}
         pam{"pampanga"}
         pap{"papiamentu"}
         pau{"palauanu"}
         pcm{"pidgin nigerianu"}
+        pi{"pali"}
         pis{"pijin"}
         pl{"polacu"}
+        pms{"piemontesu"}
         pqm{"malecite-passamaquoddy"}
         prg{"prussianu"}
         ps{"pashto"}
@@ -334,6 +362,7 @@ sc{
         pt_BR{"portoghesu brasilianu"}
         pt_PT{"portoghesu europeu"}
         qu{"quechua"}
+        quc{"k’iche’"}
         raj{"rajasthani"}
         rap{"rapanui"}
         rar{"rarotonganu"}
@@ -359,17 +388,23 @@ sc{
         scn{"sitzilianu"}
         sco{"scots"}
         sd{"sindhi"}
+        sdh{"curdu meridionale"}
         se{"sami setentrionale"}
         seh{"sena"}
         ses{"koyraboro senni"}
         sg{"sango"}
+        sgs{"samogitianu"}
         shi{"tashelhit"}
         shn{"shan"}
         si{"singalesu"}
+        sid{"sidamo"}
         sk{"islovacu"}
+        skr{"saraiki"}
         sl{"islovenu"}
         slh{"lushootseed meridionale"}
         sm{"samoanu"}
+        sma{"sami meridionale"}
+        smj{"sami de Lule"}
         smn{"sami de sos inari"}
         sms{"sami skolt"}
         sn{"shona"}
@@ -379,10 +414,12 @@ sc{
         sr{"serbu"}
         srn{"sranan tongo"}
         ss{"swati"}
+        ssy{"saho"}
         st{"sotho meridionale"}
         str{"salish de sas astrinturas"}
         su{"sundanesu"}
         suk{"sukuma"}
+        suz{"sunwar"}
         sv{"isvedesu"}
         sw{"swahili"}
         sw_CD{"swahili de su Congo"}
@@ -410,6 +447,7 @@ sc{
         tpi{"tok pisin"}
         tr{"turcu"}
         trv{"taroko"}
+        trw{"torwali"}
         ts{"tsonga"}
         tt{"tàtaru"}
         ttm{"tutchone setentrionale"}
@@ -436,6 +474,7 @@ sc{
         wae{"walser"}
         wal{"wolaita"}
         war{"waray"}
+        wbp{"warlpiri"}
         wo{"wolof"}
         wuu{"wu"}
         xal{"calmucu"}
@@ -457,6 +496,12 @@ sc{
         zun{"zuni"}
         zxx{"perunu cuntenutu linguìsticu"}
         zza{"zazaki"}
+    }
+    Languages%core{
+        ku{"curdu"}
+    }
+    Languages%extension{
+        ku{"curmangi"}
     }
     Languages%long{
         zh_Hans{"tzinesu mandarinu semplificadu"}
@@ -680,18 +725,38 @@ sc{
             persian{"calendàriu persianu"}
             roc{"calendàriu minguo"}
         }
+        calendar%core{
+            buddhist{"buddhista"}
+            chinese{"tzinesu"}
+            coptic{"coptu"}
+            dangi{"dangi"}
+            ethiopic{"etìope"}
+            ethiopic-amete-alem{"etìope Amete Alem"}
+            gregorian{"gregorianu"}
+            hebrew{"ebràicu"}
+            indian{"natzionale indianu"}
+            islamic{"egirianu"}
+            islamic-civil{"egirianu (tabulare, època tzivile)"}
+            islamic-tbla{"islàmicu (tabulare, època astronòmica)"}
+            islamic-umalqura{"egirianu (Umm al-Qura)"}
+            japanese{"giaponesu"}
+            persian{"persianu"}
+            roc{"minguo"}
+        }
         cf{
             account{"formadu de valuta contàbile"}
             standard{"formadu de valuta istandard"}
         }
+        cf%core{
+            account{"contàbile"}
+            standard{"istandard"}
+        }
         collation{
-            big5han{"ordinamentu de su tzinesu traditzionale - Big5"}
-            compat{"ordinamentu antepostu, pro cumpatibilitade"}
+            compat{"ordinamentu antepostu, pro cumpatibilidade"}
             dictionary{"ordinamentu de su ditzionàriu"}
             ducet{"ordinamentu Unicode predefinidu"}
             emoji{"ordinamentu de sas emoji"}
             eor{"règulas de ordinamentu europeas"}
-            gb2312han{"ordinamentu de su tzinesu semplificadu - GB2312"}
             phonebook{"ordinamentu de s’elencu telefònicu"}
             pinyin{"ordinamentu pinyin"}
             search{"chirca genèrica"}
@@ -702,21 +767,62 @@ sc{
             unihan{"ordinamentu in base a sos radicales"}
             zhuyin{"ordinamentu zhuyin"}
         }
+        collation%core{
+            compat{"cumpatibilidade"}
+            dictionary{"ditzionàriu"}
+            ducet{"Unicode predefinidu"}
+            phonebook{"elencu telefònicu"}
+            phonetic{"fonèticu"}
+            pinyin{"pinyin"}
+            search{"chirca"}
+            standard{"istandard"}
+            stroke{"tratos"}
+            traditional{"traditzionale"}
+            unihan{"in base a sos radicales"}
+            zhuyin{"zhuyin"}
+        }
+        em%core{
+            default{"predefinida"}
+            emoji{"emoji"}
+            text{"testu"}
+        }
         hc{
             h11{"sistema oràriu a 12 oras (0–11)"}
             h12{"sistema oràriu a 12 oras (1–12)"}
             h23{"sistema oràriu a 24 oras (0–23)"}
             h24{"sistema oràriu a 24 oras (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"truncadura de lìnia facoltativa"}
             normal{"truncadura de lìnia normale"}
             strict{"truncadura de lìnia fortzada"}
         }
+        lb%core{
+            loose{"facoltativa"}
+            normal{"normale"}
+            strict{"fortzada"}
+        }
+        lw%core{
+            breakall{"trunca totu"}
+            keepall{"mantene totu"}
+            normal{"normale"}
+            phrase{"mantene in sas fràsias"}
+        }
         ms{
             metric{"sistema mètricu"}
             uksystem{"sistema imperiale britànnicu"}
             ussystem{"sistema consuetudinàriu americanu"}
+        }
+        ms%core{
+            metric{"mètricu"}
+            uksystem{"imperiale britànnicu"}
+            ussystem{"consuetudinàriu americanu"}
         }
         numbers{
             ahom{"tzifras ahom"}
@@ -734,12 +840,14 @@ sc{
             diak{"tzifras dhives akuru"}
             ethi{"nùmeros etìopes"}
             fullwide{"tzifras a largària intrea"}
+            gara{"tzifras garay"}
             geor{"nùmeros georgianos"}
             gong{"tzifras gondi gunjala"}
             gonm{"tzifras gondi masaram"}
             grek{"nùmeros grecos"}
             greklow{"nùmeros grecos minùscolos"}
             gujr{"tzifras gujarati"}
+            gukh{"tzifras gurung khema"}
             guru{"tzifras gurmukhi"}
             hanidec{"nùmeros detzimales tzinesos"}
             hans{"nùmeros in tzinesu semplificadu"}
@@ -756,6 +864,7 @@ sc{
             kawi{"tzifras kawi"}
             khmr{"tzifras khmer"}
             knda{"tzifras kannada"}
+            krai{"tzifras kirat rai"}
             lana{"tzifras tai tham hora"}
             lanatham{"tzifras tai tham tham"}
             laoo{"tzifras laotianas"}
@@ -773,13 +882,17 @@ sc{
             mroo{"tzifras mro"}
             mtei{"tzifras meitei mayek"}
             mymr{"tzifras birmanas"}
+            mymrepka{"tzifras birmanas de su pwo karen orientale"}
+            mymrpao{"tzifras birmanas pao"}
             mymrshan{"tzifras shan birmanas"}
             mymrtlng{"tzifras tai lang birmanas"}
             nagm{"tzifras nag mundari"}
             nkoo{"tzifras n’ko"}
             olck{"tzifras ol chiki"}
+            onao{"tzifras ol onal"}
             orya{"tzifras odia"}
             osma{"tzifras osmanya"}
+            outlined{"tzifras deliniadas"}
             rohg{"tzifras rohingya hanifi"}
             roman{"nùmeros romanos"}
             romanlow{"nùmeros romanos minùscolos"}
@@ -789,6 +902,7 @@ sc{
             sinh{"tzifras lith singalesas"}
             sora{"tzifras sora sompeng"}
             sund{"tzifras sundanesas"}
+            sunu{"tzifras sunuwar"}
             takr{"tzifras takri"}
             talu{"tzifras tai lue noas"}
             taml{"nùmeros tamil traditzionales"}
@@ -798,9 +912,14 @@ sc{
             tibt{"tzifras tibetanas"}
             tirh{"tzifras tirhuta"}
             tnsa{"tzifras tangsa"}
+            tols{"tzifras tolong siki"}
             vaii{"tzifras vai"}
             wara{"tzifras warang citi"}
             wcho{"tzifras wancho"}
+        }
+        ss%core{
+            none{"alluta"}
+            standard{"istudada"}
         }
     }
     Variants{

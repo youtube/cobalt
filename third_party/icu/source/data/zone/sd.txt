@@ -270,6 +270,9 @@ sd{
         "America:Costa_Rica"{
             ec{"ڪوسٽا ريڪا"}
         }
+        "America:Coyhaique"{
+            ec{"ڪوئيئيڪي"}
+        }
         "America:Creston"{
             ec{"ڪريسٽن"}
         }
@@ -1099,7 +1102,7 @@ sd{
             ec{"وئٽيڪن"}
         }
         "Europe:Vienna"{
-            ec{"وينا"}
+            ec{"ويئينا"}
         }
         "Europe:Vilnius"{
             ec{"ويلنيس"}
@@ -1168,7 +1171,7 @@ sd{
             ec{"افاتي"}
         }
         "Pacific:Enderbury"{
-            ec{"اينڊربري"}
+            ec{"ڪانٽن ٻيٽ"}
         }
         "Pacific:Fakaofo"{
             ec{"فڪائوفو"}
@@ -1193,9 +1196,6 @@ sd{
         }
         "Pacific:Honolulu"{
             ec{"هونو لولو"}
-        }
-        "Pacific:Kanton"{
-            ec{"ڪانٽن"}
         }
         "Pacific:Kiritimati"{
             ec{"ڪريٽمٽي"}
@@ -1279,9 +1279,7 @@ sd{
             ls{"ڏکڻ آفريڪا جو معياري وقت"}
         }
         "meta:Africa_Western"{
-            ld{"اولهه آفريقا جي اونهاري جو وقت"}
-            lg{"اولهه آفريقا جو وقت"}
-            ls{"اولهه آفريقا جو معياري وقت"}
+            ls{"اولهه آفريقا جو وقت"}
         }
         "meta:Alaska"{
             ld{"الاسڪا جي ڏينهن جو وقت"}
@@ -1519,6 +1517,9 @@ sd{
         }
         "meta:Guyana"{
             ls{"گيانائي وقت"}
+        }
+        "meta:Hawaii"{
+            ls{"هوائي اليوٽين جو معياري وقت"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"هوائي اليوٽين جي ڏينهن جو وقت"}
@@ -1850,6 +1851,7 @@ sd{
         "meta:Yukon"{
             ls{"يڪون جو وقت"}
         }
+        gmtUnknownFormat{"GMT+؟"}
         regionFormat{"{0} وقت"}
         regionFormatDaylight{"{0} ڏينهن جو وقت"}
         regionFormatStandard{"{0} معياري وقت"}

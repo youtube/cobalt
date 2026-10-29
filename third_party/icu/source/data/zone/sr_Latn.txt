@@ -271,6 +271,9 @@ sr_Latn{
         "America:Costa_Rica"{
             ec{"Kostarika"}
         }
+        "America:Coyhaique"{
+            ec{"Kojajke"}
+        }
         "America:Creston"{
             ec{"Kreston"}
         }
@@ -1168,7 +1171,7 @@ sr_Latn{
             ec{"Efat"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderberi"}
+            ec{"Kanton"}
         }
         "Pacific:Fakaofo"{
             ec{"Fakaofo"}
@@ -1193,9 +1196,6 @@ sr_Latn{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Kanton"{
-            ec{"Kanton"}
         }
         "Pacific:Kiritimati"{
             ec{"Kiritimati"}
@@ -1284,9 +1284,7 @@ sr_Latn{
             ls{"Južno-afričko vreme"}
         }
         "meta:Africa_Western"{
-            ld{"Zapadno-afričko letnje vreme"}
-            lg{"Zapadno-afričko vreme"}
-            ls{"Zapadno-afričko standardno vreme"}
+            ls{"Zapadno-afričko vreme"}
         }
         "meta:Alaska"{
             ld{"Aljaska, letnje vreme"}
@@ -1557,6 +1555,9 @@ sr_Latn{
         }
         "meta:Guyana"{
             ls{"Gvajana vreme"}
+        }
+        "meta:Hawaii"{
+            ls{"Havajsko-aleutsko standardno vreme"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havajsko-aleutsko letnje vreme"}
@@ -1855,6 +1856,11 @@ sr_Latn{
         }
         "meta:Truk"{
             ls{"Čuuk vreme"}
+        }
+        "meta:Turkey"{
+            ld{"Turska letnje računanje vremena"}
+            lg{"Turska vreme"}
+            ls{"Turska standardno vreme"}
         }
         "meta:Turkmenistan"{
             ld{"Turkmenistan, letnje vreme"}

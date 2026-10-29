@@ -721,6 +721,8 @@ class NetworkContextTest : public testing::Test {
       const base::UnguessableToken& nonce) {
     auto nonce_and_allowlisted_urls = mojom::NonceAndAllowlistedPatterns::New();
     nonce_and_allowlisted_urls->nonce = nonce;
+    nonce_and_allowlisted_urls->allowlists.enforced =
+        network::ConnectionAllowlist();
     return nonce_and_allowlisted_urls;
   }
 
@@ -3356,7 +3358,8 @@ bool SetCookieHelper(NetworkContext* network_context,
       *net::CanonicalCookie::CreateUnsafeCookieForTesting(
           key, value, url.GetHost(), "/", base::Time(), base::Time(),
           base::Time(), base::Time(), true, false,
-          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_LOW),
+          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_LOW,
+          net::CookieSourceType::kOther),
       url, net::CookieOptions::MakeAllInclusive(),
       base::BindOnce(&SetCookieCallback, &run_loop, &result));
   run_loop.Run();
@@ -3377,7 +3380,7 @@ TEST_F(NetworkContextTest, CookieManager) {
   auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "TestCookie", "1", "www.test.com", "/", base::Time(), base::Time(),
       base::Time(), base::Time(), false, false, net::CookieSameSite::LAX_MODE,
-      net::COOKIE_PRIORITY_LOW);
+      net::COOKIE_PRIORITY_LOW, net::CookieSourceType::kOther);
   cookie_manager_remote->SetCanonicalCookie(
       *cookie, net::cookie_util::SimulatedCookieSource(*cookie, "https"),
       net::CookieOptions::MakeAllInclusive(),
@@ -3910,7 +3913,8 @@ TEST_F(NetworkContextTest, CreateRestrictedUDPSocket) {
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         /*params=*/nullptr, server_socket.BindNewPipeAndPassReceiver(),
         socket_listener_receiver.BindNewPipeAndPassRemote(),
-        /*allow_multicast=*/false, create_future.GetCallback());
+        /*allow_multicast=*/false,
+        /*allow_source_specific_multicast=*/false, create_future.GetCallback());
     ASSERT_EQ(create_future.Get<0>(), net::OK);
     server_addr = *create_future.Get<1>();
   }
@@ -3930,7 +3934,8 @@ TEST_F(NetworkContextTest, CreateRestrictedUDPSocket) {
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
         /*params=*/nullptr, client_socket.BindNewPipeAndPassReceiver(),
         client_listener_receiver.BindNewPipeAndPassRemote(),
-        /*allow_multicast=*/false, create_future.GetCallback());
+        /*allow_multicast=*/false,
+        /*allow_source_specific_multicast=*/false, create_future.GetCallback());
     ASSERT_EQ(create_future.Get<0>(), net::OK);
     client_addr = *create_future.Get<1>();
   }
@@ -4785,7 +4790,7 @@ TEST_F(NetworkContextResolveHostTest,
   base::test::TestFuture<void> revoked;
   mojom::NonceAndAllowlistedPatternsPtr revoked_nonce_pattern =
       CreateNonceAndAllowlistedPatterns(nonce);
-  revoked_nonce_pattern->allowlisted_patterns.push_back(url.spec());
+  revoked_nonce_pattern->allowlists.enforced->allowlist.push_back(url.spec());
   std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
   nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
@@ -4967,7 +4972,7 @@ TEST_F(NetworkContextResolveHostTest,
   base::test::TestFuture<void> revoked;
   mojom::NonceAndAllowlistedPatternsPtr revoked_nonce_pattern =
       CreateNonceAndAllowlistedPatterns(nonce);
-  revoked_nonce_pattern->allowlisted_patterns.push_back(url.spec());
+  revoked_nonce_pattern->allowlists.enforced->allowlist.push_back(url.spec());
   std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
   nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
@@ -5029,7 +5034,7 @@ TEST_F(NetworkContextResolveHostTest,
   base::test::TestFuture<void> revoked;
   mojom::NonceAndAllowlistedPatternsPtr revoked_nonce_pattern =
       CreateNonceAndAllowlistedPatterns(nonce);
-  revoked_nonce_pattern->allowlisted_patterns.push_back(url.spec());
+  revoked_nonce_pattern->allowlists.enforced->allowlist.push_back(url.spec());
   std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
   nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
@@ -5061,6 +5066,9 @@ TEST_F(NetworkContextResolveHostTest,
 
 TEST_F(NetworkContextResolveHostTest,
        ResolveHostWithNetworkRestrictionsIDAndFeatureFlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(network::features::kConnectionAllowlists);
+
   // Common setup. Note the lack of command line flag.
   const GURL url = GURL("https://sync.test");
   auto resolver = std::make_unique<net::MockHostResolver>();
@@ -5090,7 +5098,7 @@ TEST_F(NetworkContextResolveHostTest,
   base::test::TestFuture<void> revoked;
   mojom::NonceAndAllowlistedPatternsPtr revoked_nonce_pattern =
       CreateNonceAndAllowlistedPatterns(nonce);
-  revoked_nonce_pattern->allowlisted_patterns.push_back(url.spec());
+  revoked_nonce_pattern->allowlists.enforced->allowlist.push_back(url.spec());
   std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
   nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
   network_context->RevokeNetworkForNonces(
@@ -5977,7 +5985,7 @@ TEST_F(NetworkContextTest, CanSetCookieFalseIfCookiesBlocked) {
   auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "TestCookie", "1", "www.test.com", "/", base::Time(), base::Time(),
       base::Time(), base::Time(), false, false, net::CookieSameSite::LAX_MODE,
-      net::COOKIE_PRIORITY_LOW);
+      net::COOKIE_PRIORITY_LOW, net::CookieSourceType::kOther);
   EXPECT_TRUE(
       network_context->url_request_context()->network_delegate()->CanSetCookie(
           *request, *cookie, /* options */ nullptr,
@@ -6004,7 +6012,8 @@ TEST_F(NetworkContextTest, CanSetCookieTrueIfCookiesAllowed) {
   auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "TestCookie", "1", "www.test.com", "/", base::Time(), base::Time(),
       base::Time(), base::Time(), false, false,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_LOW);
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_LOW,
+      net::CookieSourceType::kOther);
 
   SetDefaultContentSetting(CONTENT_SETTING_ALLOW, network_context.get());
   net::CookieInclusionStatus status;
@@ -9782,11 +9791,11 @@ TEST_F(NetworkContextTest,
   {
     base::RunLoop run_loop;
     const std::string test_origin = test_server.GetOrigin("a.test").Serialize();
-    const std::string key_commitment =
-        base::ReplaceStringPlaceholders(R"( {"$1": { "PrivateStateTokenV3PMB": {
-          "protocol_version": "PrivateStateTokenV3PMB", "id": 1,
+    const std::string key_commitment = base::ReplaceStringPlaceholders(
+        R"( {"$1": { "PrivateStateTokenV1VOPRF": {
+          "protocol_version": "PrivateStateTokenV1VOPRF", "id": 1,
           "batchsize": 5 } } } )",
-                                        {test_origin}, /*offsets=*/nullptr);
+        {test_origin}, /*offsets=*/nullptr);
     network_service_->SetTrustTokenKeyCommitments(
         key_commitment,
         base::BindLambdaForTesting([&run_loop]() { run_loop.Quit(); }));
@@ -9858,11 +9867,11 @@ TEST_F(NetworkContextTest,
   {
     base::RunLoop run_loop;
     const std::string test_origin = test_server.GetOrigin("a.test").Serialize();
-    const std::string key_commitment =
-        base::ReplaceStringPlaceholders(R"( {"$1": { "PrivateStateTokenV3PMB": {
-          "protocol_version": "PrivateStateTokenV3PMB", "id": 1,
+    const std::string key_commitment = base::ReplaceStringPlaceholders(
+        R"( {"$1": { "PrivateStateTokenV1VOPRF": {
+          "protocol_version": "PrivateStateTokenV1VOPRF", "id": 1,
           "batchsize": 5 } } } )",
-                                        {test_origin}, /*offsets=*/nullptr);
+        {test_origin}, /*offsets=*/nullptr);
     network_service_->SetTrustTokenKeyCommitments(
         key_commitment,
         base::BindLambdaForTesting([&run_loop]() { run_loop.Quit(); }));

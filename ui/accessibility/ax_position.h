@@ -344,12 +344,14 @@ class AXPosition {
   // across thread or process boundaries, just for passing a position to an
   // API that works with positions as opaque objects.
   struct SerializedPosition {
+    static constexpr size_t kMaxTreeIdLength = 32;
+
     AXPositionKind kind;
     AXNodeID anchor_id;
     int child_index;
     int text_offset;
     ax::mojom::TextAffinity affinity;
-    char tree_id[33];
+    char tree_id[kMaxTreeIdLength + 1];
   };
 
   static_assert(std::is_trivially_copyable<SerializedPosition>::value,
@@ -361,9 +363,10 @@ class AXPosition {
 
     // A tree ID can be serialized as a 32-byte string.
     std::string tree_id_string = tree_id_.ToString();
-    DCHECK_LE(tree_id_string.size(), 32U);
-    UNSAFE_TODO(strncpy(result.tree_id, tree_id_string.c_str(), 32));
-    result.tree_id[32] = 0;
+    DCHECK_LE(tree_id_string.size(), SerializedPosition::kMaxTreeIdLength);
+    UNSAFE_TODO(strncpy(result.tree_id, tree_id_string.c_str(),
+                        SerializedPosition::kMaxTreeIdLength));
+    result.tree_id[SerializedPosition::kMaxTreeIdLength] = 0;
 
     result.anchor_id = anchor_id_;
     result.child_index = child_index_;
@@ -1978,6 +1981,37 @@ class AXPosition {
     return leaf_tree_position;
   }
 
+  // Returns a non-ignored position based on the current position,adjusted for
+  // selection.
+  AXPositionInstance AsUnignoredSelectionPosition(
+      AXPositionAdjustmentBehavior adjustment_behavior) const {
+    if (IsNullPosition() || !IsIgnored()) {
+      return Clone();
+    }
+
+    AXPositionInstance position =
+        AsValidPosition()->AsUnignoredPosition(adjustment_behavior);
+
+    // Moving to an unignored position might have placed the position on a leaf
+    // node. Any selection endpoint that is inside a leaf node is expressed as a
+    // text position in AXTreeData. (Note that in this context "leaf node" means
+    // a node with no children or with only ignored children. This does not
+    // refer to a platform leaf.)
+    if (position->IsLeafTreePosition()) {
+      position = position->AsTextPosition();
+    }
+
+    // We do not expect the selection to have an endpoint on an inline text
+    // box as this will create issues with parts of the code that don't use
+    // inline text boxes.
+    if (position->IsTextPosition() &&
+        position->GetRole() == ax::mojom::Role::kInlineTextBox) {
+      position = position->CreateParentPosition();
+    }
+
+    return position;
+  }
+
   // This method is similar to `AsUnignoredPosition`, but it will never cross
   // an anchor boundary. This means that if the position is at the start or end
   // of the anchor, it will return a position at the start or end of the anchor,
@@ -2921,7 +2955,7 @@ class AXPosition {
   //
   // This is a quirk of the current implementation which cannot easily be fixed,
   // because when object replacement characters are missing from empty objects
-  // (sucha as a checkbox without a label, etc.) any leaf equivalent position
+  // (such as a checkbox without a label, etc.) any leaf equivalent position
   // from one of the objects' ancestors would skip the empty object and create
   // the child position at the first non-empty object. Consequently,
   // CreateParentPosition cannot easily determine the correct affinity when
@@ -5225,16 +5259,15 @@ class AXPosition {
     // exceptions are inline text boxes with CSS highlights or spelling/grammar
     // markers. Therefore, unless the node is an inline text box with such
     // markers, we can assume the node's format starts only at index 0.
+    static const base::NoDestructor<std::vector<int32_t>> default_format_starts{
+        {0}};
+
     if (GetAnchor()->GetRole() != ax::mojom::Role::kInlineTextBox) {
-      static const base::NoDestructor<std::vector<int32_t>>
-          default_format_starts{{0}};
       return *default_format_starts;
     }
 
     AXNode* parent = GetAnchor()->GetUnignoredParent();
     if (!parent) {
-      static const base::NoDestructor<std::vector<int32_t>>
-          default_format_starts{{0}};
       return *default_format_starts;
     }
 
@@ -5243,8 +5276,6 @@ class AXPosition {
 
     // If there are no markers, there are no format boundaries to add.
     if (marker_types.empty()) {
-      static const base::NoDestructor<std::vector<int32_t>>
-          default_format_starts{{0}};
       return *default_format_starts;
     }
 

@@ -672,6 +672,10 @@ pt_PT{
             "EC$",
             "dólar das Caraíbas Orientais",
         }
+        XCG{
+            "Cg.",
+            "florim caribenho",
+        }
         XOF{
             "F CFA",
             "franco CFA (BCEAO)",
@@ -699,6 +703,10 @@ pt_PT{
         ZMW{
             "ZMW",
             "kwacha zambiano",
+        }
+        ZWG{
+            "ZWG",
+            "ouro zimbabuense",
         }
     }
     Currencies%narrow{
@@ -1341,6 +1349,10 @@ pt_PT{
             one{"dólar das Caraíbas Orientais"}
             other{"dólares das Caraíbas Orientais"}
         }
+        XCG{
+            one{"florim caribenho"}
+            other{"florins caribenhos"}
+        }
         XOF{
             one{"franco CFA (BCEAO)"}
             other{"francos CFA (BCEAO)"}
@@ -1368,6 +1380,10 @@ pt_PT{
         ZMW{
             one{"kwacha zambiano"}
             other{"kwachas zambianos"}
+        }
+        ZWG{
+            one{"ouro zimbabuense"}
+            other{"ouros zimbabuenses"}
         }
     }
 }

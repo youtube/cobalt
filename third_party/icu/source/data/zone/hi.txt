@@ -270,6 +270,9 @@ hi{
         "America:Costa_Rica"{
             ec{"कोस्टा रिका"}
         }
+        "America:Coyhaique"{
+            ec{"कॉयहेक"}
+        }
         "America:Creston"{
             ec{"क्रेस्टन"}
         }
@@ -1167,7 +1170,7 @@ hi{
             ec{"एफ़ेट"}
         }
         "Pacific:Enderbury"{
-            ec{"एंडरबरी"}
+            ec{"कैंटन"}
         }
         "Pacific:Fakaofo"{
             ec{"फ़ाकाओफ़ो"}
@@ -1192,12 +1195,6 @@ hi{
         }
         "Pacific:Honolulu"{
             ec{"होनोलुलु"}
-            sd{"HST"}
-            sg{"एचएसटी"}
-            ss{"एचएसटी"}
-        }
-        "Pacific:Kanton"{
-            ec{"कैंटन"}
         }
         "Pacific:Kiritimati"{
             ec{"किरीतिमाति"}
@@ -1281,9 +1278,7 @@ hi{
             ls{"दक्षिण अफ़्रीका मानक समय"}
         }
         "meta:Africa_Western"{
-            ld{"पश्चिम अफ़्रीका ग्रीष्मकालीन समय"}
-            lg{"पश्चिम अफ़्रीका समय"}
-            ls{"पश्चिम अफ़्रीका मानक समय"}
+            ls{"पश्चिम अफ़्रीका समय"}
         }
         "meta:Alaska"{
             ld{"अलास्‍का डेलाइट समय"}
@@ -1526,6 +1521,9 @@ hi{
         }
         "meta:Guyana"{
             ls{"गुयाना समय"}
+        }
+        "meta:Hawaii"{
+            ls{"हवाई–आल्यूशन मानक समय"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"हवाई–आल्यूशन डेलाइट समय"}

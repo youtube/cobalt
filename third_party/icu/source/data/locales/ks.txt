@@ -189,7 +189,7 @@ ks{
             }
         }
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "اے ایم",
                 "پی ایم",
             }
@@ -291,20 +291,20 @@ ks{
             }
             eras{
                 abbreviated{
-                    "بی سی",
-                    "اے ڈی",
+                    0{"بی سی"}
+                    1{"اے ڈی"}
                 }
                 abbreviated%variant{
-                    "بی سی ای",
-                    "سی ای",
+                    0{"بی سی ای"}
+                    1{"سی ای"}
                 }
                 wide{
-                    "قبٕل مسیٖح",
-                    "اینو ڈومنی",
+                    0{"قبٕل مسیٖح"}
+                    1{"اینو ڈومنی"}
                 }
                 wide%variant{
-                    "عام دورٕ برونٹھ",
-                    "عام دور",
+                    0{"عام دورٕ برونٹھ"}
+                    1{"عام دور"}
                 }
             }
             intervalFormats{
@@ -500,7 +500,7 @@ ks{
         indian{
             eras{
                 abbreviated{
-                    "ساکا",
+                    0{"ساکا"}
                 }
             }
             monthNames{

@@ -197,7 +197,7 @@ public class ToolbarTablet extends ToolbarLayout {
 
     @Override
     public CaptureReadinessResult isReadyForTextureCapture() {
-        if (urlHasFocus()) {
+        if (urlHasFocus() || mLocationBar.isUrlBarFocusedWithoutAnimation()) {
             return CaptureReadinessResult.notReady(TopToolbarBlockCaptureReason.URL_BAR_HAS_FOCUS);
         } else if (mIsInTabSwitcherMode) {
             return CaptureReadinessResult.notReady(TopToolbarBlockCaptureReason.TAB_SWITCHER_MODE);
@@ -445,6 +445,8 @@ public class ToolbarTablet extends ToolbarLayout {
     public void setExtensionToolbarCoordinator(
             ExtensionToolbarCoordinator extensionToolbarCoordinator) {
         mExtensionToolbarCoordinator = extensionToolbarCoordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.POPPED_EXTENSION_ACTION] =
+                mExtensionToolbarCoordinator.getPoppedOutActionWidthConsumer();
         mToolbarWidthConsumers[ToolbarComponentId.EXTENSIONS_MENU_BUTTON] =
                 mExtensionToolbarCoordinator.getMenuButtonWidthConsumer();
         mToolbarWidthConsumers[ToolbarComponentId.EXTENSION_ACTION_LIST] =

@@ -14,10 +14,13 @@ sk{
         colStrength{"sila radenia"}
         collation{"zoradenie"}
         currency{"mena"}
+        em{"prezentácia emodži"}
         hc{"hodinový cyklus (12 vs 24)"}
         lb{"štýl koncov riadka"}
+        lw{"zlom riadka v slovách"}
         ms{"merná sústava"}
         numbers{"čísla"}
+        ss{"veta po skrat."}
         timezone{"časové pásmo"}
         va{"variant miestneho nastavenia"}
         x{"súkromné použitie"}
@@ -594,6 +597,12 @@ sk{
         zxx{"bez jazykového obsahu"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurdčina"}
+    }
+    Languages%extension{
+        ku{"kurmandži"}
+    }
     Languages%long{
         zh_Hans{"čínština (mandarínska zjednodušená)"}
         zh_Hant{"čínština (mandarínska tradičná)"}
@@ -685,7 +694,7 @@ sk{
     }
     Types{
         calendar{
-            buddhist{"buddhistický kalendár"}
+            buddhist{"budhistický kalendár"}
             chinese{"čínsky kalendár"}
             coptic{"koptský kalendár"}
             dangi{"kórejský kalendár"}
@@ -702,9 +711,29 @@ sk{
             persian{"perzský kalendár"}
             roc{"čínsky republikánsky kalendár"}
         }
+        calendar%core{
+            buddhist{"budhistický"}
+            chinese{"čínsky"}
+            coptic{"koptský"}
+            dangi{"kórejský"}
+            ethiopic{"etiópsky"}
+            ethiopic-amete-alem{"etiópsky Amete Alem"}
+            gregorian{"gregoriánsky"}
+            hebrew{"židovský"}
+            islamic{"podľa hidžry"}
+            islamic-civil{"podľa hidžry (občiansky)"}
+            islamic-umalqura{"podľa hidžry (Umm al-Qura)"}
+            japanese{"japonský"}
+            persian{"perzský"}
+            roc{"čínsky republikánsky"}
+        }
         cf{
             account{"účtovný formát meny"}
             standard{"štandardný formát meny"}
+        }
+        cf%core{
+            account{"účtovný"}
+            standard{"štandardný"}
         }
         colAlternate{
             non-ignorable{"Radiť symboly"}
@@ -739,12 +768,10 @@ sk{
             tertiary{"Radiť akcenty/veľké a malé písmená/šírku"}
         }
         collation{
-            big5han{"tradičné čínske zoradenie – Big5"}
             compat{"predchádzajúce zoradenie, kompatibilita"}
             dictionary{"slovníkové zoradenie"}
             ducet{"predvolené zoradenie unicode"}
             eor{"európske zoradenie"}
-            gb2312han{"zjednodušené čínske zoradenie – GB2312"}
             phonebook{"lexikografické zoradenie"}
             phonetic{"fonetické zoradenie"}
             pinyin{"zoradenie pchin-jin"}
@@ -756,10 +783,29 @@ sk{
             unihan{"zoradenie podľa znakov radikál"}
             zhuyin{"zoradenie zhuyin"}
         }
+        collation%core{
+            compat{"kompatibilita"}
+            dictionary{"slovníkové"}
+            ducet{"predvolené, unicode"}
+            phonebook{"lexikografické"}
+            phonetic{"fonetické"}
+            pinyin{"pchin-jin"}
+            search{"vyhľadávanie"}
+            standard{"štandardné"}
+            stroke{"podľa ťahov"}
+            traditional{"tradičné"}
+            unihan{"podľa znakov radikál"}
+            zhuyin{"zhuyin"}
+        }
         d0{
             fwidth{"celá šírka"}
             hwidth{"polovičná šírka"}
             npinyin{"Číslice"}
+        }
+        em%core{
+            default{"predvolené"}
+            emoji{"emodži"}
+            text{"text"}
         }
         hc{
             h11{"12-hodinový cyklus (0 – 11)"}
@@ -767,10 +813,27 @@ sk{
             h23{"24-hodinový cyklus (0 – 23)"}
             h24{"24-hodinový cyklus (1 – 24)"}
         }
+        hc%core{
+            h11{"12 (0 – 11)"}
+            h12{"12 (1 – 12)"}
+            h23{"24 (0 – 23)"}
+            h24{"24 (1 – 24)"}
+        }
         lb{
             loose{"voľný štýl koncov riadka"}
             normal{"bežný štýl koncov riadka"}
             strict{"presný štýl koncov riadka"}
+        }
+        lb%core{
+            loose{"voľný"}
+            normal{"bežný"}
+            strict{"presný"}
+        }
+        lw%core{
+            breakall{"zalomiť všetko"}
+            keepall{"ponechať všetko"}
+            normal{"bežné"}
+            phrase{"ponechať vo frázach"}
         }
         m0{
             bgn{"americká transliterácia BGN"}
@@ -780,6 +843,11 @@ sk{
             metric{"metrická sústava"}
             uksystem{"britská merná sústava"}
             ussystem{"americká merná sústava"}
+        }
+        ms%core{
+            metric{"metrická"}
+            uksystem{"britská"}
+            ussystem{"americká"}
         }
         numbers{
             arab{"arabsko-indické číslice"}
@@ -826,6 +894,10 @@ sk{
             tibt{"tibetské číslice"}
             traditional{"Tradičné číslovky"}
             vaii{"vaiské číslice"}
+        }
+        ss%core{
+            none{"vypnuté"}
+            standard{"zapnuté"}
         }
     }
     Variants{

@@ -4,13 +4,12 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/autofill/account_setting_service_factory.h"
+#include "chrome/browser/account_settings/account_setting_service_factory.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "components/autofill/core/browser/webdata/account_settings/account_setting_service.h"
-#include "components/autofill/core/browser/webdata/account_settings/account_setting_sync_util.h"
-#include "components/sync/base/client_tag_hash.h"
+#include "components/account_settings/account_setting_service.h"
+#include "components/account_settings/account_setting_sync_util.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/engine/loopback_server/persistent_unique_client_entity.h"
@@ -26,8 +25,8 @@ namespace {
 constexpr std::string_view kWalletPrivacyContextualSurfacingSetting =
     "WALLET_PRIVACY_CONTEXTUAL_SURFACING";
 
-using autofill::AccountSettingService;
-using autofill::CreateSettingSpecifics;
+using account_settings::AccountSettingService;
+using account_settings::CreateSettingSpecifics;
 
 // Waits until
 // `AccountSettingService::IsWalletPrivacyContextualSurfacingEnabled()` has the
@@ -77,8 +76,7 @@ class SingleClientAccountSettingSyncTest
   }
 
   AccountSettingService* GetAccountSettingService() {
-    return autofill::AccountSettingServiceFactory::GetForBrowserContext(
-        GetProfile(0));
+    return AccountSettingServiceFactory::GetForBrowserContext(GetProfile(0));
   }
 
   void InjectSpecificsToServer(
@@ -141,15 +139,9 @@ IN_PROC_BROWSER_TEST_P(SingleClientAccountSettingSyncTest,
   ASSERT_TRUE(SetupSync());
   ASSERT_TRUE(WaitForWalletSurfacingState(true));
   // Simulate removing the `kIsEnabledSettingName` setting on the server.
-  const std::string client_tag_hash =
-      syncer::ClientTagHash::FromUnhashed(
-          syncer::ACCOUNT_SETTING, kWalletPrivacyContextualSurfacingSetting)
-          .value();
   GetFakeServer()->InjectEntity(
-      syncer::PersistentTombstoneEntity::PersistentTombstoneEntity::CreateNew(
-          syncer::LoopbackServerEntity::CreateId(syncer::ACCOUNT_SETTING,
-                                                 client_tag_hash),
-          client_tag_hash));
+      syncer::PersistentTombstoneEntity::CreateNewForTest(
+          syncer::ACCOUNT_SETTING, kWalletPrivacyContextualSurfacingSetting));
   // Non-existing settings behave as if they have their default value.
   EXPECT_TRUE(WaitForWalletSurfacingState(false));
 }

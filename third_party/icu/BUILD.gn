@@ -138,6 +138,9 @@ config("icu_code") {
       # putil.cpp contains unused variables when building for iOS simulators.
       "-Wno-unused-variable",
 
+      # Required for uversion.h putting a using namespace directive in the header.
+      "-Wno-header-hygiene",
+
       # ICU has decided not to fix this warning as doing so would break its
       # stable API.
       "-Wno-ambiguous-reversed-operator",

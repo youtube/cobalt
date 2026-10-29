@@ -9,7 +9,11 @@ sc{
     NumberElements{
         latn{
             patterns{
+                accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -182,44 +186,63 @@ sc{
     }
     calendar{
         buddhist{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "E.B.",
+                    0{"E.B."}
                 }
                 narrow{
-                    "EB",
+                    0{"EB"}
                 }
                 wide{
-                    "era buddhista",
+                    0{"era buddhista"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
         }
@@ -245,6 +268,12 @@ sc{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Gy{"r (U)"}
@@ -254,6 +283,7 @@ sc{
                 GyMMMMEd{"E d 'de' MMMM 'de' 'su' r (U)"}
                 GyMMMMd{"d 'de' MMMM 'de' 'su' r (U)"}
                 GyMMMd{"d MMM r"}
+                Hv{"HH'o' v"}
                 MEd{"E d/M"}
                 MMMEd{"E d MMM"}
                 MMMMd{"d MMMM"}
@@ -422,43 +452,59 @@ sc{
             }
         }
         coptic{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "a.D.",
-                    "a.M.",
+                    1{"a.M."}
                 }
                 wide{
-                    "in antis de Diocletzianu",
-                    "annu de sos màrtires",
+                    1{"annu de sos màrtires"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
             monthNames{
@@ -482,44 +528,29 @@ sc{
             }
         }
         dangi{
-            intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
-                }
-                hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
-                }
-                hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
-                }
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE dd 'de' MMMM 'de' 'su' r (U)",
+                "dd 'de' MMMM 'de' 'su' r (U)",
+                "dd MMM r",
+                "dd-MM-r",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "a.Inc.",
-                    "p.Inc.",
-                }
-                wide{
-                    "in antis de s’Incarnatzione",
-                    "a pustis de s’Incarnatzione",
-                }
-            }
             intervalFormats{
                 Bh{
                     B{"h B – h B"}
@@ -587,10 +618,10 @@ sc{
         ethiopic-amete-alem{
             eras{
                 abbreviated{
-                    "a.m.",
+                    0{"a.m."}
                 }
                 wide{
-                    "annu de su mundu",
+                    0{"annu de su mundu"}
                 }
             }
         }
@@ -616,13 +647,23 @@ sc{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Gy{"y G"}
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"dd/MM/y GGGGG"}
+                H{"HH'o'"}
+                Hv{"HH'o' v"}
                 MEd{"E d/M"}
                 MMMEd{"E d MMM"}
                 MMMMd{"d MMMM"}
@@ -644,6 +685,10 @@ sc{
                 yyyyQQQQ{"QQQQ 'de' 'su' y G"}
             }
             intervalFormats{
+                Gy{
+                    G{"y G – y G"}
+                    y{"y – y G"}
+                }
                 GyM{
                     G{"M/y GGGGG – M/y GGGGG"}
                     M{"M/y – M/y GGGGG"}
@@ -678,6 +723,9 @@ sc{
                     d{"d/M/y – d/M/y GGGGG"}
                     y{"d/M/y – d/M/y GGGGG"}
                 }
+                H{
+                    H{"HH–HH'o'"}
+                }
                 M{
                     M{"M–M"}
                 }
@@ -699,6 +747,20 @@ sc{
                 Md{
                     M{"dd/MM – dd/MM"}
                     d{"dd/MM – dd/MM"}
+                }
+                hm{
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
+                }
+                hmv{
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
+                }
+                hv{
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
                 y{
                     y{"y–y G"}
@@ -763,9 +825,17 @@ sc{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Gy{"y G"}
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d 'de' MMM 'de' 'su' y G"}
                 GyMMMd{"d 'de' MMM 'de' 'su' y G"}
@@ -773,8 +843,8 @@ sc{
                 MEd{"E dd/MM"}
                 MMMEd{"E d 'de' MMM"}
                 MMMMW{
-                    one{"'chida' W 'de' MMMM"}
-                    other{"'chida' W 'de' MMMM"}
+                    one{"W'a' 'chida' 'de' MMMM"}
+                    other{"W'a' 'chida' 'de' MMMM"}
                 }
                 MMMMd{"d 'de' MMMM"}
                 MMMd{"d 'de' MMM"}
@@ -789,8 +859,8 @@ sc{
                 yQQQ{"QQQ y"}
                 yQQQQ{"QQQQ 'de' 'su' y"}
                 yw{
-                    one{"'chida' w 'de' 'su' Y"}
-                    other{"'chida' w 'de' 'su' Y"}
+                    one{"w'a' 'chida' 'de' 'su' Y"}
+                    other{"w'a' 'chida' 'de' 'su' Y"}
                 }
             }
             dayNames{
@@ -828,20 +898,20 @@ sc{
             }
             eras{
                 abbreviated{
-                    "a.C.",
-                    "p.C.",
+                    0{"a.C."}
+                    1{"p.C."}
                 }
                 abbreviated%variant{
-                    "a.E.C.",
-                    "E.C.",
+                    0{"a.E.C."}
+                    1{"E.C."}
                 }
                 wide{
-                    "in antis de Cristu",
-                    "a pustis de Cristu",
+                    0{"in antis de Cristu"}
+                    1{"a pustis de Cristu"}
                 }
                 wide%variant{
-                    "in antis de s’era comuna",
-                    "era comuna",
+                    0{"in antis de s’era comuna"}
+                    1{"era comuna"}
                 }
             }
             intervalFormats{
@@ -1004,41 +1074,60 @@ sc{
             }
         }
         hebrew{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "a.m.",
+                    0{"a.m."}
                 }
                 wide{
-                    "annu de su mundu",
+                    0{"annu de su mundu"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
             monthNames{
@@ -1079,38 +1168,60 @@ sc{
             }
         }
         indian{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
+                narrow{
+                    0{"S"}
+                }
                 wide{
-                    "era Saka",
+                    0{"era Saka"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
             monthNames{
@@ -1147,44 +1258,66 @@ sc{
             }
         }
         islamic{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "e.E.",
+                    0{"e.E."}
+                    1{"a.E."}
                 }
                 narrow{
-                    "E",
+                    0{"E"}
+                    1{"A"}
                 }
                 wide{
-                    "era de s’Egira",
+                    0{"era de s’ègira"}
+                    1{"in antis de s’ègira"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
             monthNames{
@@ -1221,72 +1354,106 @@ sc{
             }
         }
         japanese{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
-                }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
             }
         }
         persian{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "a.p.",
+                    0{"a.p."}
                 }
                 wide{
-                    "annu persianu",
+                    0{"annu persianu"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
             monthNames{
@@ -1323,43 +1490,62 @@ sc{
             }
         }
         roc{
+            DateTimePatterns{
+                "HH:mm:ss zzzz",
+                "HH:mm:ss z",
+                "HH:mm:ss",
+                "HH:mm",
+                "EEEE d 'de' MMMM 'de' 'su' y G",
+                "d 'de' MMMM 'de' 'su' y G",
+                "dd MMM y G",
+                "dd/MM/y GGGGG",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'a' 'sas' {0}",
+                "{1} 'a' 'sas' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            availableFormats{
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y G"}
+            }
             eras{
                 abbreviated{
-                    "a.R.d.T.",
-                    "R.d.T",
+                    0{"a.R.d.T."}
+                    1{"R.d.T"}
                 }
                 wide{
-                    "in antis de sa R.d.T.",
-                    "R.d.T.",
+                    0{"in antis de sa R.d.T."}
+                    1{"R.d.T."}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
-                Bhm{
-                    B{"h:mm B – h:mm B"}
-                }
                 Gy{
-                    G{"G y – G y"}
+                    G{"y G – y G"}
+                    y{"y – y G"}
                 }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
+                H{
+                    H{"HH–HH'o'"}
                 }
                 hm{
-                    a{"h:mm a – h:mm a"}
-                    h{"h:mm–h:mm a"}
-                    m{"h:mm–h:mm a"}
+                    a{"hh:mm a – hh:mm a"}
+                    h{"hh:mm–hh:mm a"}
+                    m{"hh:mm–hh:mm a"}
                 }
                 hmv{
-                    a{"h:mm a – h:mm a v"}
-                    h{"h:mm–h:mm a v"}
-                    m{"h:mm–h:mm a v"}
+                    a{"hh:mm a – hh:mm a v"}
+                    h{"hh:mm–hh:mm a v"}
+                    m{"hh:mm–hh:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
+                    a{"hh a – hh a v"}
+                    h{"hh–hh a v"}
                 }
             }
         }
@@ -1916,6 +2102,9 @@ sc{
         }
         weekOfMonth{
             dn{"chida de su mese"}
+        }
+        weekOfMonth-narrow{
+            dn{"ch. de mese"}
         }
         weekOfMonth-short{
             dn{"ch. de su mese"}

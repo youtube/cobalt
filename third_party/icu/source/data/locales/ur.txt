@@ -27,9 +27,6 @@ ur{
             }
         }
         arabext{
-            patterns{
-                currencyFormat%alphaNextToNumber{"¤ #,##0.00"}
-            }
             symbols{
                 list{";"}
                 perMille{"‰"}
@@ -98,6 +95,56 @@ ur{
             patternsShort{
                 currencyFormat{
                     1000{
+                        one{"¤0 ہزار"}
+                        other{"¤0 ہزار"}
+                    }
+                    10000{
+                        one{"¤00 ہزار"}
+                        other{"¤00 ہزار"}
+                    }
+                    100000{
+                        one{"¤0 لاکھ"}
+                        other{"¤0 لاکھ"}
+                    }
+                    1000000{
+                        one{"¤00 لاکھ"}
+                        other{"¤00 لاکھ"}
+                    }
+                    10000000{
+                        one{"¤0 کروڑ"}
+                        other{"¤0 کروڑ"}
+                    }
+                    100000000{
+                        one{"¤00 کروڑ"}
+                        other{"¤00 کروڑ"}
+                    }
+                    1000000000{
+                        one{"¤0 ارب"}
+                        other{"¤0 ارب"}
+                    }
+                    10000000000{
+                        one{"¤00 ارب"}
+                        other{"¤00 ارب"}
+                    }
+                    100000000000{
+                        one{"¤0 کھرب"}
+                        other{"¤0 کھرب"}
+                    }
+                    1000000000000{
+                        one{"¤00 کھرب"}
+                        other{"¤00 کھرب"}
+                    }
+                    10000000000000{
+                        one{"¤00 ٹریلین"}
+                        other{"¤00 ٹریلین"}
+                    }
+                    100000000000000{
+                        one{"¤000 ٹریلین"}
+                        other{"¤000 ٹریلین"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
+                    1000{
                         one{"¤ 0 ہزار"}
                         other{"¤ 0 ہزار"}
                     }
@@ -134,8 +181,8 @@ ur{
                         other{"¤ 0 کھرب"}
                     }
                     1000000000000{
-                        one{"¤0 ٹریلین"}
-                        other{"¤0 ٹریلین"}
+                        one{"¤ 00 کھرب"}
+                        other{"¤ 00 کھرب"}
                     }
                     10000000000000{
                         one{"¤ 00 ٹریلین"}
@@ -144,12 +191,6 @@ ur{
                     100000000000000{
                         one{"¤ 000 ٹریلین"}
                         other{"¤ 000 ٹریلین"}
-                    }
-                }
-                currencyFormat%alphaNextToNumber{
-                    1000000000000{
-                        one{"¤ 0 ٹریلین"}
-                        other{"¤ 0 ٹریلین"}
                     }
                 }
                 decimalFormat{
@@ -229,12 +270,6 @@ ur{
     }
     calendar{
         coptic{
-            eras{
-                abbreviated{
-                    "دور0",
-                    "دور1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -256,12 +291,6 @@ ur{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "دور0",
-                    "دور1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -304,6 +333,12 @@ ur{
                 "{1}، {0}",
                 "{1}، {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0} پر",
+                "{1} {0} پر",
+                "{1}، {0}",
+                "{1}، {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -315,8 +350,11 @@ ur{
                 "GGGGGyMd",
             }
             availableFormats{
+                EBh{"h E B"}
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E، d MMM، y G"}
                 GyMMMd{"d MMM، y G"}
@@ -467,6 +505,12 @@ ur{
                 "{1}، {0}",
                 "{1}، {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0} پر",
+                "{1} کو {0}",
+                "{1}، {0}",
+                "{1}، {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -480,6 +524,8 @@ ur{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E، d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E، d MMM، y G"}
                 GyMMMd{"d MMM، y G"}
@@ -530,6 +576,14 @@ ur{
                         morning1{"صبح"}
                         night1{"رات"}
                     }
+                    narrow{
+                        afternoon1{"دوپہر"}
+                        afternoon2{"سہ پہر"}
+                        evening1{"شام"}
+                        midnight{"نصف شب"}
+                        morning1{"صبح"}
+                        night1{"رات"}
+                    }
                     wide{
                         afternoon1{"دوپہر میں"}
                         afternoon2{"سہ پہر"}
@@ -542,16 +596,16 @@ ur{
             }
             eras{
                 abbreviated{
-                    "قبل مسیح",
-                    "عیسوی",
+                    0{"قبل مسیح"}
+                    1{"عیسوی"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide%variant{
-                    "عام دور سے قبل",
-                    "عام دور",
+                    0{"عام دور سے قبل"}
+                    1{"عام دور"}
                 }
             }
             intervalFormats{
@@ -726,7 +780,7 @@ ur{
         indian{
             eras{
                 abbreviated{
-                    "ساکا",
+                    0{"ساکا"}
                 }
             }
             monthNames{
@@ -779,9 +833,13 @@ ur{
             }
         }
         islamic{
+            availableFormats{
+                GyM{"M/y G"}
+                GyMEd{"E، d/M/y G"}
+            }
             eras{
                 abbreviated{
-                    "ہجری",
+                    0{"ہجری"}
                 }
             }
             monthNames{
@@ -856,8 +914,8 @@ ur{
         roc{
             eras{
                 abbreviated{
-                    "قبل از جمہوریہ چین",
-                    "جمہوریہ چین",
+                    0{"قبل از جمہوریہ چین"}
+                    1{"جمہوریہ چین"}
                 }
             }
         }

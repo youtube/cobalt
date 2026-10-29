@@ -22,6 +22,7 @@
 #include "ui/views/controls/separator.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
+#include "ui/views/view_tracker.h"
 
 namespace gfx {
 class Point;
@@ -60,7 +61,8 @@ class ProjectsPanelView : public views::View,
 
  public:
   ProjectsPanelView(BrowserWindowInterface* browser,
-                    actions::ActionItem* root_action_item);
+                    actions::ActionItem* root_action_item,
+                    ProjectsPanelStateController* state_controller);
   ProjectsPanelView(const ProjectsPanelView&) = delete;
   ProjectsPanelView& operator=(const ProjectsPanelView&) = delete;
   ~ProjectsPanelView() override;
@@ -156,7 +158,7 @@ class ProjectsPanelView : public views::View,
     raw_ptr<ProjectsPanelView> owning_view_ = nullptr;
   };
 
-  void ClosePanel();
+  void ClosePanel(bool caused_by_focus_lost = false);
 
   void OnTabGroupButtonPressed(const base::Uuid& group_guid);
   void OnTabGroupMoreButtonPressed(const base::Uuid& group_guid,
@@ -190,6 +192,7 @@ class ProjectsPanelView : public views::View,
 
   std::unique_ptr<views::ActionViewController> action_view_controller_;
   std::unique_ptr<ProjectsPanelController> panel_controller_;
+  const raw_ptr<ProjectsPanelStateController> state_controller_ = nullptr;
 
   // Animation when opening and closing the panel.
   gfx::SlideAnimation resize_animation_;
@@ -227,6 +230,10 @@ class ProjectsPanelView : public views::View,
   // Records the last time the panel was opened. Used for recording how long the
   // panel was open.
   base::TimeTicks last_opened_time_;
+
+  // Tracks the last focused view before opening the panel, so focus can be
+  // restored when the panel is closed.
+  views::ViewTracker last_focused_view_before_opening_;
 
   base::ScopedObservation<ProjectsPanelController,
                           ProjectsPanelController::Observer>

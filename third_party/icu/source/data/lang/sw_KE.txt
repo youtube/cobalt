@@ -164,7 +164,6 @@ sw_KE{
         zh{"Kichina, Kimandarini"}
     }
     Languages%short{
-        en_GB{"Kiingereza cha Uingereza"}
         en_US{"Kiingereza cha Marekani)"}
     }
     Languages%variant{

@@ -137,8 +137,6 @@ class GlicWindowControllerImpl
   gfx::Rect GetInitialBounds(Browser* browser) override;
   void ShowDetachedForTesting() override;
   void SetPreviousPositionForTesting(gfx::Point position) override;
-  std::unique_ptr<views::View> CreateViewForSidePanel(
-      tabs::TabInterface& tab) override;
   void SidePanelShown(BrowserWindowInterface* browser) override;
 
   // views::WidgetObserver implementation, monitoring the glic window widget.
@@ -146,8 +144,8 @@ class GlicWindowControllerImpl
   void OnWidgetDestroyed(views::Widget* widget) override;
   void OnWidgetBoundsChanged(views::Widget* widget,
                              const gfx::Rect& new_bounds) override;
-  void OnWidgetUserResizeStarted() override;
-  void OnWidgetUserResizeEnded() override;
+  void OnWidgetUserResizeStarted(views::Widget* widget) override;
+  void OnWidgetUserResizeEnded(views::Widget* widget) override;
 
   // Host::EmbedderDelegate implementation
   void Resize(const gfx::Size& size,

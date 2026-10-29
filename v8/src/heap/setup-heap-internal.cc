@@ -325,7 +325,7 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
 
 AllocationResult Heap::Allocate(DirectHandle<Map> map,
                                 AllocationType allocation_type) {
-  DCHECK(map->instance_type() != MAP_TYPE);
+  DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
   int size = map->instance_size();
   Tagged<HeapObject> result;
   AllocationResult allocation = AllocateRaw(size, allocation_type);
@@ -681,14 +681,11 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
-                 no_closures_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, sizeof(FeedbackCell), no_closures_cell)
     roots.no_closures_cell_map()->mark_unstable();
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
-                 one_closure_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, sizeof(FeedbackCell), one_closure_cell)
     roots.one_closure_cell_map()->mark_unstable();
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
-                 many_closures_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, sizeof(FeedbackCell), many_closures_cell)
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
@@ -1451,11 +1448,11 @@ void Heap::CreateInitialMutableObjects() {
 
   // Allocate regexp caches.
   set_string_split_cache(*factory->NewFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+      regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_multiple_cache(*factory->NewFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+      regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_match_global_atom_cache(*factory->NewFixedArray(
-      RegExpResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
+      regexp::ResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
 
   set_detached_contexts(roots.empty_weak_array_list());
 

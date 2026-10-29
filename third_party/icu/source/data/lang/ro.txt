@@ -14,10 +14,13 @@ ro{
         colStrength{"puterea sortării"}
         collation{"ordine de sortare"}
         currency{"monedă"}
+        em{"Prezentare emojiuri"}
         hc{"ciclu orar (12 sau 24)"}
-        lb{"stil de întrerupere a liniei"}
+        lb{"stil de întrerupere a rândului (chineză, japoneză, coreeană)"}
+        lw{"întrerupere a rândului în interiorul cuvântului"}
         ms{"sistem de unități de măsură"}
         numbers{"numere"}
+        ss{"întrerupere propoziție după abr."}
         timezone{"fus orar"}
         va{"variantă locală"}
         x{"utilizare privată"}
@@ -587,6 +590,12 @@ ro{
         zxx{"fară conținut lingvistic"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurdă"}
+    }
+    Languages%extension{
+        ku{"kurmangi"}
+    }
     Languages%long{
         zh_Hans{"chineză mandarină simplificată"}
         zh_Hant{"chineză mandarină tradițională"}
@@ -597,7 +606,7 @@ ro{
         zh{"chineză, mandarină"}
     }
     Languages%short{
-        en_US{"engleză (S.U.A)"}
+        en_GB{"engleză (UK)"}
     }
     Languages%variant{
         ckb{"kurdă sorani"}
@@ -819,9 +828,29 @@ ro{
             persian{"calendar persan"}
             roc{"calendarul Republicii Chineze"}
         }
+        calendar%core{
+            buddhist{"budist"}
+            chinese{"chinezesc"}
+            coptic{"copt"}
+            dangi{"dangi"}
+            ethiopic{"etiopian"}
+            ethiopic-amete-alem{"etiopian amete alem"}
+            gregorian{"gregorian"}
+            hebrew{"ebraic"}
+            islamic{"al hegirei"}
+            islamic-civil{"al hegirei (tabular, civil)"}
+            islamic-umalqura{"al hegirei (Umm al-Qura)"}
+            japanese{"japonez"}
+            persian{"persan"}
+            roc{"al Republicii Chineze"}
+        }
         cf{
             account{"Format monedă contabilitate"}
             standard{"Format monedă standard"}
+        }
+        cf%core{
+            account{"contabilitate"}
+            standard{"standard"}
         }
         colAlternate{
             non-ignorable{"Ordonați simbolurile"}
@@ -856,13 +885,11 @@ ro{
             tertiary{"Ordonați după accente/dimensiunea literei/lățime"}
         }
         collation{
-            big5han{"ordine de sortare a chinezei tradiționale - Big5"}
             compat{"ordine de sortare anterioară, pentru compatibilitate"}
             dictionary{"ordine de sortare a dicționarului"}
             ducet{"ordine de sortare Unicode implicită"}
             emoji{"ordine de sortare a emojiurilor"}
             eor{"regulile europene de sortare"}
-            gb2312han{"ordine de sortare a chinezei simplificate - GB2312"}
             phonebook{"ordine de sortare după cartea de telefon"}
             phonetic{"ordine de sortare fonetică"}
             pinyin{"ordine de sortare pinyin"}
@@ -874,10 +901,29 @@ ro{
             unihan{"ordine de sortare după radical și trasare"}
             zhuyin{"ordine de sortare zhuyin"}
         }
+        collation%core{
+            compat{"compatibilitate"}
+            dictionary{"dicționar"}
+            ducet{"Unicode implicită"}
+            phonebook{"carte de telefon"}
+            phonetic{"fonetică"}
+            pinyin{"pinyin"}
+            search{"căutare"}
+            standard{"standard"}
+            stroke{"trasare"}
+            traditional{"tradițională"}
+            unihan{"radical și trasare"}
+            zhuyin{"zhuyin"}
+        }
         d0{
             fwidth{"Cu lățime întreagă"}
             hwidth{"Cu jumătate de lățime"}
             npinyin{"Numeric"}
+        }
+        em%core{
+            default{"implicită"}
+            emoji{"emojiuri"}
+            text{"text"}
         }
         hc{
             h11{"sistem cu 12 ore (0–11)"}
@@ -885,10 +931,27 @@ ro{
             h23{"sistem cu 24 de ore (0–23)"}
             h24{"sistem cu 24 de ore (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"stil liber de întrerupere a liniei"}
-            normal{"stil normal de întrerupere a liniei"}
-            strict{"stil strict de întrerupere a liniei"}
+            normal{"stil de normal întrerupere a rândului"}
+            strict{"stil strict de întrerupere a rândului"}
+        }
+        lb%core{
+            loose{"liber"}
+            normal{"normal"}
+            strict{"strict"}
+        }
+        lw%core{
+            breakall{"întrerupere oriunde"}
+            keepall{"fără întrerupere"}
+            normal{"normal"}
+            phrase{"fără întrerupere în expresii"}
         }
         m0{
             bgn{"transliterare BGN SUA"}
@@ -898,6 +961,11 @@ ro{
             metric{"sistemul metric"}
             uksystem{"sistemul imperial de unități de măsură"}
             ussystem{"sistemul american de unități de măsură"}
+        }
+        ms%core{
+            metric{"metric"}
+            uksystem{"britanic"}
+            ussystem{"american"}
         }
         numbers{
             ahom{"cifre ahom"}
@@ -985,6 +1053,10 @@ ro{
             vaii{"cifre vai"}
             wara{"cifre warang citi"}
             wcho{"cifre wancho"}
+        }
+        ss%core{
+            none{"dezactivată"}
+            standard{"activată"}
         }
     }
     Variants{

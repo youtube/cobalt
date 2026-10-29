@@ -2721,9 +2721,9 @@ void Heap::MarkCompactEpilogue() {
 void Heap::MarkCompactPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->descriptor_lookup_cache()->Clear();
-  RegExpResultsCache::Clear(string_split_cache());
-  RegExpResultsCache::Clear(regexp_multiple_cache());
-  RegExpResultsCache_MatchGlobalAtom::Clear(this);
+  regexp::ResultsCache::Clear(string_split_cache());
+  regexp::ResultsCache::Clear(regexp_multiple_cache());
+  regexp::ResultsCache_MatchGlobalAtom::Clear(this);
 
   // Flush the number to string caches.
   smi_string_cache()->Clear();
@@ -5198,10 +5198,17 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   code_range_size_ = constraints.code_range_size_in_bytes();
 
   heap_profiler_ = std::make_unique<HeapProfiler>(this);
+
   if (cpp_heap) {
     AttachCppHeap(cpp_heap);
     owning_cpp_heap_.reset(CppHeap::From(cpp_heap));
+    auto stack_start_marker = CppHeap::From(cpp_heap)->stack_start_marker();
+    if (stack_start_marker) {
+      stack_start_marker_ = stack_start_marker->stack_start();
+    }
   }
+
+  SetStackStart();
 
   configured_ = true;
 }
@@ -6396,7 +6403,19 @@ void Heap::SetStackStart() {
   // If no main thread local heap has been set up (we're still in the
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
-  stack().SetStackStart(v8::base::Stack::GetStackStart());
+
+  void* actual_stack_start = v8::base::Stack::GetStackStart();
+
+  // Because of v8::Locker an isolate might be migrated between threads. In such
+  // situations the provided stack start marker should only be used on the right
+  // thread.
+  if (stack_start_marker_ && actual_stack_start >= stack_start_marker_ &&
+      reinterpret_cast<uintptr_t>(stack_start_marker_) >=
+          static_cast<uintptr_t>(GetCurrentStackPosition())) {
+    stack().SetStackStart(stack_start_marker_);
+  } else {
+    stack().SetStackStart(actual_stack_start);
+  }
 }
 
 ::heap::base::Stack& Heap::stack() {
@@ -6622,11 +6641,12 @@ namespace {
 Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
                                            Handle<WeakArrayList> array,
                                            AllocationType allocation) {
-  if (array->length() == 0) {
+  const uint32_t array_len = array->length().value();
+  if (array_len == 0) {
     return array;
   }
-  int new_length = array->CountLiveWeakReferences();
-  if (new_length == array->length()) {
+  uint32_t new_length = array->CountLiveWeakReferences();
+  if (new_length == array_len) {
     return array;
   }
 
@@ -6637,8 +6657,8 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live references again and
   // fill in the new array.
-  int copy_to = 0;
-  for (int i = 0; i < array->length(); i++) {
+  uint32_t copy_to = 0;
+  for (uint32_t i = 0; i < array_len; i++) {
     Tagged<MaybeObject> element = array->Get(i);
     if (element.IsCleared()) continue;
     new_array->Set(copy_to++, element);
@@ -6686,11 +6706,14 @@ void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
                            GlobalHandleVector<Map> maps) {
   Handle<WeakArrayList> array(Cast<WeakArrayList>(context->retained_maps()),
                               isolate());
-  int new_maps_size = static_cast<int>(maps.size()) * kRetainMapEntrySize;
-  if (array->length() + new_maps_size > array->capacity()) {
+  const uint32_t array_len = array->length().value();
+  const uint32_t array_cap = array->capacity().value();
+  uint32_t new_maps_size =
+      static_cast<uint32_t>(maps.size()) * kRetainMapEntrySize;
+  if (array_len + new_maps_size > array_cap) {
     CompactRetainedMaps(*array);
   }
-  int cur_length = array->length();
+  uint32_t cur_length = array->length().value();
   array =
       WeakArrayList::EnsureSpace(isolate(), array, cur_length + new_maps_size);
   if (*array != context->retained_maps()) {
@@ -6719,10 +6742,10 @@ void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
 }
 
 void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
-  int length = retained_maps->length();
-  int new_length = 0;
+  const uint32_t length = retained_maps->length().value();
+  uint32_t new_length = 0;
   // This loop compacts the array by removing cleared weak cells.
-  for (int i = 0; i < length; i += kRetainMapEntrySize) {
+  for (uint32_t i = 0; i < length; i += kRetainMapEntrySize) {
     Tagged<MaybeObject> maybe_object = retained_maps->Get(i);
     if (maybe_object.IsCleared()) {
       continue;
@@ -6739,7 +6762,7 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
     new_length += kRetainMapEntrySize;
   }
   Tagged<HeapObject> undefined = ReadOnlyRoots(this).undefined_value();
-  for (int i = new_length; i < length; i++) {
+  for (uint32_t i = new_length; i < length; i++) {
     retained_maps->Set(i, undefined);
   }
   if (new_length != length) retained_maps->set_length(new_length);
@@ -7415,7 +7438,7 @@ std::vector<Tagged<WeakArrayList>> Heap::FindAllRetainedMaps() {
 
 size_t Heap::NumberOfDetachedContexts() {
   // The detached_contexts() array has two entries per detached context.
-  return detached_contexts()->length() / 2;
+  return detached_contexts()->length().value() / 2;
 }
 
 bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,

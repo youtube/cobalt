@@ -10,13 +10,23 @@ xnr{
     ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0० 1१ 2२ 3३ 4४ 5५ 6६ 7७ 8८ 9९]"}
     ExemplarCharactersPunctuation{"[\\- ‑ , ; \\: ! ? . '‘’ \u0022“” ( ) \\[ \\] \\{ \\} ॰]"}
     NumberElements{
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
+            }
+        }
         latn{
             miscPatterns{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 accountingFormat%noCurrency{"#,##,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
             }
@@ -63,10 +73,10 @@ xnr{
             patternsShort{
                 currencyFormat{
                     1000{
-                        other{"¤0 हज़ार"}
+                        other{"¤0 हजार"}
                     }
                     10000{
-                        other{"¤00 हज़ार"}
+                        other{"¤00 हजार"}
                     }
                     100000{
                         other{"¤0 लख"}
@@ -97,6 +107,44 @@ xnr{
                     }
                     100000000000000{
                         other{"¤00 नील"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
+                    1000{
+                        other{"¤ 0 हजार"}
+                    }
+                    10000{
+                        other{"¤ 00 हजार"}
+                    }
+                    100000{
+                        other{"¤ 0 लख"}
+                    }
+                    1000000{
+                        other{"¤ 00 लख"}
+                    }
+                    10000000{
+                        other{"¤ 0 क॰"}
+                    }
+                    100000000{
+                        other{"¤ 00 क॰"}
+                    }
+                    1000000000{
+                        other{"¤ 0 अ॰"}
+                    }
+                    10000000000{
+                        other{"¤ 00 अ॰"}
+                    }
+                    100000000000{
+                        other{"¤ 0 ख॰"}
+                    }
+                    1000000000000{
+                        other{"¤ 00 ख॰"}
+                    }
+                    10000000000000{
+                        other{"¤ 0 नील"}
+                    }
+                    100000000000000{
+                        other{"¤ 00 नील"}
                     }
                 }
                 decimalFormat{
@@ -349,20 +397,17 @@ xnr{
             }
             eras{
                 abbreviated{
-                    "ईसा-पैले",
-                    "ईस्वी",
+                    0{"ईसा-पैले"}
+                    1{"ईस्वी"}
                 }
                 abbreviated%variant{
-                    "ईसा-पैले",
-                    "ईसवी",
+                    1{"ईसवी"}
                 }
                 wide{
-                    "ईसा-पैले",
-                    "ईसवी सन",
+                    1{"ईसवी सन"}
                 }
                 wide%variant{
-                    "ईसवी ते पैले",
-                    "ईसवी",
+                    0{"ईसवी ते पैले"}
                 }
             }
             intervalFormats{
@@ -489,7 +534,7 @@ xnr{
         indian{
             eras{
                 abbreviated{
-                    "सक",
+                    0{"सक"}
                 }
             }
             monthNames{

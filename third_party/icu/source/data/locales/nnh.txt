@@ -104,12 +104,12 @@ nnh{
             }
             eras{
                 abbreviated{
-                    "m.z.Y.",
-                    "m.g.n.Y.",
+                    0{"m.z.Y."}
+                    1{"m.g.n.Y."}
                 }
                 wide{
-                    "mé zyé Yěsô",
-                    "mé gÿo ńzyé Yěsô",
+                    0{"mé zyé Yěsô"}
+                    1{"mé gÿo ńzyé Yěsô"}
                 }
             }
             monthNames{

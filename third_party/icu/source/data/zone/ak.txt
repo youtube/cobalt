@@ -27,11 +27,8 @@ ak{
         "Africa:Cairo"{
             ec{"Kairo"}
         }
-        "Africa:Casablanca"{
-            ec{"Kasablanka"}
-        }
         "Africa:Ceuta"{
-            ec{"Kyuta"}
+            ec{"kiweta"}
         }
         "Africa:Conakry"{
             ec{"Kɔnakri"}
@@ -96,6 +93,9 @@ ak{
         "America:Campo_Grande"{
             ec{"Kampo Grande"}
         }
+        "America:Cancun"{
+            ec{"Kankun"}
+        }
         "America:Caracas"{
             ec{"Karakas"}
         }
@@ -104,9 +104,6 @@ ak{
         }
         "America:Cayenne"{
             ec{"Kayiini"}
-        }
-        "America:Cayman"{
-            ec{"Kemanfo"}
         }
         "America:Chicago"{
             ec{"Kyikago"}
@@ -340,7 +337,7 @@ ak{
             ec{"Aktau"}
         }
         "Asia:Aqtobe"{
-            ec{"Aktopɛ"}
+            ec{"Aatobe"}
         }
         "Asia:Bangkok"{
             ec{"Bankɔk"}
@@ -348,23 +345,20 @@ ak{
         "Asia:Beirut"{
             ec{"Bɛɛrut"}
         }
-        "Asia:Calcutta"{
-            ec{"Kɔɔkata"}
-        }
         "Asia:Chita"{
             ec{"Kyita"}
         }
         "Asia:Colombo"{
             ec{"Kolombo"}
         }
-        "Asia:Damascus"{
-            ec{"Damaskɔso"}
-        }
         "Asia:Dhaka"{
             ec{"Daka"}
         }
         "Asia:Hebron"{
             ec{"Hɛbrɔn"}
+        }
+        "Asia:Irkutsk"{
+            ec{"Yiikusk"}
         }
         "Asia:Jakarta"{
             ec{"Gyakaata"}
@@ -434,6 +428,9 @@ ak{
         }
         "Atlantic:Cape_Verde"{
             ec{"Kepvɛde"}
+        }
+        "Atlantic:Faeroe"{
+            ec{"Farosu"}
         }
         "Atlantic:Reykjavik"{
             ec{"Rɛɛkgyavik"}
@@ -505,7 +502,7 @@ ak{
             ec{"Kyisinau"}
         }
         "Europe:Copenhagen"{
-            ec{"Kɔpɛhangɛne"}
+            ec{"Kopehegan"}
         }
         "Europe:Dublin"{
             ec{"Dɔblin"}
@@ -520,6 +517,9 @@ ak{
         "Europe:Jersey"{
             ec{"Jɛɛsi"}
         }
+        "Europe:Kiev"{
+            ec{"Kiivu"}
+        }
         "Europe:Lisbon"{
             ec{"Lisbɔn"}
         }
@@ -528,7 +528,7 @@ ak{
         }
         "Europe:London"{
             ec{"Lɔndɔn"}
-            ld{"Ingresi Awia Berɛ"}
+            ld{"Engresi Awia Berɛ"}
         }
         "Europe:Luxembourg"{
             ec{"Lɛsembɛg"}
@@ -536,26 +536,20 @@ ak{
         "Europe:Malta"{
             ec{"Mɔɔta"}
         }
-        "Europe:Monaco"{
-            ec{"Monako"}
-        }
         "Europe:Moscow"{
             ec{"Mɔsko"}
         }
         "Europe:Podgorica"{
             ec{"Podgorika"}
         }
-        "Europe:Rome"{
-            ec{"Roma"}
+        "Europe:Prague"{
+            ec{"Prage"}
         }
         "Europe:Sarajevo"{
             ec{"Saragyevo"}
         }
         "Europe:Skopje"{
             ec{"Skɔpgye"}
-        }
-        "Europe:Sofia"{
-            ec{"Sɔfia"}
         }
         "Europe:Stockholm"{
             ec{"Stɔkhɔm"}
@@ -608,17 +602,14 @@ ak{
         "Pacific:Galapagos"{
             ec{"Galapagɔs"}
         }
-        "Pacific:Guadalcanal"{
-            ec{"Guadaakanaa"}
-        }
         "Pacific:Kwajalein"{
             ec{"Kwagyaleene"}
         }
         "Pacific:Majuro"{
-            ec{"Magyuro"}
+            ec{"Madwuro"}
         }
         "Pacific:Marquesas"{
-            ec{"Maakesase"}
+            ec{"Maakesase Supᴐ"}
         }
         "Pacific:Norfolk"{
             ec{"Nɔɔfɔk"}
@@ -635,6 +626,9 @@ ak{
         "Pacific:Truk"{
             ec{"Kyuuk"}
         }
+        "Pacific:Wake"{
+            ec{"Wake Supᴐ"}
+        }
         "meta:Afghanistan"{
             ls{"Afganistan Berɛ"}
         }
@@ -648,9 +642,7 @@ ak{
             ls{"Afrika Anaafoɔ Susudua Berɛ"}
         }
         "meta:Africa_Western"{
-            ld{"Afrika Atɔeɛ Awia Berɛ"}
-            lg{"Afrika Atɔeɛ Berɛ"}
-            ls{"Afrika Atɔeɛ Susudua Berɛ"}
+            ls{"Afrika Atɔeɛ Berɛ"}
         }
         "meta:Alaska"{
             ld{"Alaska Awia Berɛ"}
@@ -759,7 +751,7 @@ ak{
             ls{"Brasilia Susudua Berɛ"}
         }
         "meta:Brunei"{
-            ls{"Brunei Darusalam Berɛ"}
+            ls{"Brunei Berɛ"}
         }
         "meta:Cape_Verde"{
             ld{"Kepvɛde Awia Berɛ"}
@@ -889,6 +881,9 @@ ak{
         "meta:Guyana"{
             ls{"Gayana Berɛ"}
         }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleutian Susudua Berɛ"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleutian Awia Berɛ"}
             lg{"Hawaii-Aleutian Berɛ"}
@@ -928,9 +923,9 @@ ak{
             ls{"Iran Susudua Berɛ"}
         }
         "meta:Irkutsk"{
-            ld{"Irkutsk Awia Berɛ"}
-            lg{"Irkutsk Berɛ"}
-            ls{"Irkutsk Susudua Berɛ"}
+            ld{"Yiikusk Awia Berɛ"}
+            lg{"Yiikusk Berɛ"}
+            ls{"Yiikusk Susudua Berɛ"}
         }
         "meta:Israel"{
             ld{"Israel Awia Berɛ"}

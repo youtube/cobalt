@@ -85,6 +85,7 @@ cy{
         CN{"Tsieina"}
         CO{"Colombia"}
         CP{"Ynys Clipperton"}
+        CQ{"Sarc"}
         CR{"Costa Rica"}
         CU{"Ciwba"}
         CV{"Cabo Verde"}
@@ -218,7 +219,7 @@ cy{
         PF{"Polynesia Ffrengig"}
         PG{"Papua Guinea Newydd"}
         PH{"Y Philipinau"}
-        PK{"Pakistan"}
+        PK{"Pacistan"}
         PL{"Gwlad Pwyl"}
         PM{"Saint-Pierre-et-Miquelon"}
         PN{"Ynysoedd Pitcairn"}

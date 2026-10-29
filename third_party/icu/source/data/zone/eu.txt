@@ -54,26 +54,11 @@ eu{
         "America:Anguilla"{
             ec{"Aingira"}
         }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Cayman"{
             ec{"Kaiman"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
         "America:Dominica"{
             ec{"Dominika"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:Guadeloupe"{
             ec{"Guadalupe"}
@@ -84,14 +69,8 @@ eu{
         "America:Jamaica"{
             ec{"Jamaika"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Martinique"{
             ec{"Martinika"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Mexiko Hiria"}
@@ -110,12 +89,6 @@ eu{
         }
         "America:Port_of_Spain"{
             ec{"Port-of-Spain"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -167,9 +140,6 @@ eu{
         }
         "Asia:Dushanbe"{
             ec{"Duxanbe"}
-        }
-        "Asia:Hovd"{
-            ec{"Khovd"}
         }
         "Asia:Kamchatka"{
             ec{"Kamtxatka"}
@@ -231,9 +201,6 @@ eu{
         "Asia:Ulaanbaatar"{
             ec{"Ulan Bator"}
         }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
-        }
         "Asia:Vientiane"{
             ec{"Vientian"}
         }
@@ -279,9 +246,6 @@ eu{
         "Europe:Bucharest"{
             ec{"Bukarest"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Copenhagen"{
             ec{"Kopenhage"}
         }
@@ -322,9 +286,6 @@ eu{
         "Europe:Rome"{
             ec{"Erroma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
@@ -340,9 +301,6 @@ eu{
         "Europe:Zurich"{
             ec{"Zürich"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldivak"}
         }
@@ -355,17 +313,11 @@ eu{
         "Pacific:Efate"{
             ec{"Éfaté"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Galapagos"{
             ec{"Galapagoak"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Marquesas"{
             ec{"Markesak"}
@@ -391,9 +343,7 @@ eu{
             ls{"Afrikako hegoaldeko ordua"}
         }
         "meta:Africa_Western"{
-            ld{"Afrikako mendebaldeko udako ordua"}
-            lg{"Afrikako mendebaldeko ordua"}
-            ls{"Afrikako mendebaldeko ordu estandarra"}
+            ls{"Afrikako mendebaldeko ordua"}
         }
         "meta:Alaska"{
             ld{"Alaskako udako ordua"}
@@ -685,6 +635,10 @@ eu{
         }
         "meta:Guyana"{
             ls{"Guyanako ordua"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleutiar uharteetako ordu estandarra"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleutiar uharteetako udako ordua"}

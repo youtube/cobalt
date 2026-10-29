@@ -45,6 +45,11 @@ pt{
                 one{"{0} revolução"}
                 other{"{0} revoluções"}
             }
+            steradian{
+                dnam{"esterradianos"}
+                one{"{0} esterradiano"}
+                other{"{0} esterradianos"}
+            }
         }
         area{
             acre{
@@ -185,6 +190,11 @@ pt{
                 one{"{0} kilate"}
                 other{"{0} kilates"}
             }
+            katal{
+                dnam{"katals"}
+                one{"{0} katal"}
+                other{"{0} katals"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligramas por decilitro"}
                 gender{"masculine"}
@@ -203,6 +213,28 @@ pt{
                 one{"{0} mol"}
                 other{"{0} mols"}
             }
+            ofglucose{
+                dnam{"de glicose"}
+                one{"{0} de glicose"}
+                other{"{0} de glicose"}
+            }
+            part{
+                dnam{"partes"}
+                one{"{0} parte"}
+                other{"{0} partes"}
+            }
+            part-per-1e6{
+                dnam{"partes por milhão"}
+                gender{"feminine"}
+                one{"{0} parte por milhão"}
+                other{"{0} partes por milhão"}
+            }
+            part-per-1e9{
+                dnam{"partes por bilhão"}
+                gender{"feminine"}
+                one{"{0} parte por bilhão"}
+                other{"{0} partes por bilhão"}
+            }
             percent{
                 gender{"masculine"}
                 one{"{0} por cento"}
@@ -213,22 +245,10 @@ pt{
                 one{"{0} por mil"}
                 other{"{0} por mil"}
             }
-            permillion{
-                dnam{"partes por milhão"}
-                gender{"feminine"}
-                one{"{0} parte por milhão"}
-                other{"{0} partes por milhão"}
-            }
             permyriad{
                 gender{"masculine"}
                 one{"{0} ponto base"}
                 other{"{0} pontos base"}
-            }
-            portion-per-1e9{
-                dnam{"partes por bilhão"}
-                gender{"feminine"}
-                one{"{0} parte por bilhão"}
-                other{"{0} partes por bilhão"}
             }
         }
         consumption{
@@ -387,10 +407,7 @@ pt{
                 other{"{0} nanossegundos"}
             }
             night{
-                dnam{"noites"}
                 gender{"feminine"}
-                one{"{0} noite"}
-                other{"{0} noites"}
                 per{"{0} por noite"}
             }
             quarter{
@@ -425,6 +442,21 @@ pt{
                 one{"{0} ampere"}
                 other{"{0} amperes"}
             }
+            coulomb{
+                dnam{"coulombs"}
+                one{"{0} coulomb"}
+                other{"{0} coulombs"}
+            }
+            farad{
+                dnam{"farads"}
+                one{"{0} farad"}
+                other{"{0} farads"}
+            }
+            henry{
+                dnam{"henrys"}
+                one{"{0} henry"}
+                other{"{0} henrys"}
+            }
             milliampere{
                 dnam{"miliamperes"}
                 gender{"masculine"}
@@ -436,6 +468,11 @@ pt{
                 one{"{0} ohm"}
                 other{"{0} ohms"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 gender{"masculine"}
                 one{"{0} volt"}
@@ -443,6 +480,11 @@ pt{
             }
         }
         energy{
+            becquerel{
+                dnam{"becqueréis"}
+                one{"{0} becquerel"}
+                other{"{0} becqueréis"}
+            }
             british-thermal-unit{
                 dnam{"unidades térmicas britânicas"}
                 one{"{0} unidade térmica britânica"}
@@ -454,6 +496,11 @@ pt{
                 one{"{0} caloria"}
                 other{"{0} calorias"}
             }
+            calorie-it{
+                dnam{"calorias [IT]"}
+                one{"{0} caloria [IT]"}
+                other{"{0} calorias [IT]"}
+            }
             electronvolt{
                 dnam{"elétrons-volt"}
                 one{"{0} elétron-volt"}
@@ -464,6 +511,11 @@ pt{
                 gender{"feminine"}
                 one{"{0} caloria"}
                 other{"{0} calorias"}
+            }
+            gray{
+                dnam{"grays"}
+                one{"{0} gray"}
+                other{"{0} grays"}
             }
             joule{
                 gender{"masculine"}
@@ -488,6 +540,11 @@ pt{
                 one{"{0} quilowatt-hora"}
                 other{"{0} quilowatts-hora"}
             }
+            sievert{
+                dnam{"sieverts"}
+                one{"{0} sievert"}
+                other{"{0} sieverts"}
+            }
             therm-us{
                 dnam{"unidades térmicas norte-americanas"}
                 one{"{0} unidade térmica norte-americana"}
@@ -495,6 +552,11 @@ pt{
             }
         }
         force{
+            kilogram-force{
+                dnam{"quilogramas-força"}
+                one{"{0} quilograma-força"}
+                other{"{0} quilogramas-força"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"quilowatts-hora por 100 quilômetros"}
                 gender{"masculine"}
@@ -726,6 +788,18 @@ pt{
                 other{"{0} luminosidades solares"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"teslas"}
+                one{"{0} tesla"}
+                other{"{0} teslas"}
+            }
+            weber{
+                dnam{"webers"}
+                one{"{0} weber"}
+                other{"{0} webers"}
+            }
+        }
         mass{
             carat{
                 gender{"masculine"}
@@ -890,6 +964,11 @@ pt{
                 one{"{0} milímetro de mercúrio"}
                 other{"{0} milímetros de mercúrio"}
             }
+            ofhg{
+                dnam{"de mercúrio"}
+                one{"{0} de mercúrio"}
+                other{"{0} de mercúrio"}
+            }
             pascal{
                 dnam{"pascais"}
                 gender{"masculine"}
@@ -919,10 +998,7 @@ pt{
                 dnam{"nós"}
             }
             light-speed{
-                dnam{"luz"}
                 gender{"feminine"}
-                one{"{0} luz"}
-                other{"{0} luzes"}
             }
             meter-per-second{
                 dnam{"metros por segundo"}
@@ -1081,6 +1157,10 @@ pt{
                 one{"{0} onça fluida imperial"}
                 other{"{0} onças fluidas imperiais"}
             }
+            fluid-ounce-metric{
+                one{"{0} onça fluida métrica"}
+                other{"{0} onças fluidas métricas"}
+            }
             gallon{
                 dnam{"galões"}
                 gender{"masculine"}
@@ -1216,14 +1296,25 @@ pt{
             millimole-per-liter{
                 dnam{"mmol/l"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"parte"}
+                one{"{0} parte"}
+                other{"{0} parte"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+            }
+            part-per-1e9{
+                dnam{"ppb"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
-            }
-            permillion{
-                dnam{"ppm"}
             }
             permyriad{
                 dnam{"‱"}
@@ -1292,12 +1383,6 @@ pt{
             month{
                 dnam{"mês"}
             }
-            night{
-                dnam{"noites"}
-                one{"{0} noite"}
-                other{"{0} noites"}
-                per{"{0}/noite"}
-            }
             week{
                 dnam{"sem."}
             }
@@ -1320,6 +1405,9 @@ pt{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -1438,16 +1526,16 @@ pt{
                 one{"{0} mb"}
                 other{"{0} mb"}
             }
+            ofhg{
+                dnam{"de Hg"}
+                one{"{0} de Hg"}
+                other{"{0} de Hg"}
+            }
         }
         speed{
             kilometer-per-hour{
                 one{"{0}km/h"}
                 other{"{0}km/h"}
-            }
-            light-speed{
-                dnam{"luz"}
-                one{"{0} luz"}
-                other{"{0} luzes"}
             }
             meter-per-second{
                 dnam{"m/s"}
@@ -1578,20 +1666,28 @@ pt{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"parte"}
+                one{"{0} parte"}
+                other{"{0} parte"}
+            }
+            part-per-1e6{
+                dnam{"partes/milhão"}
+            }
+            part-per-1e9{
+                dnam{"partes/bilhão"}
+            }
             percent{
                 dnam{"por cento"}
             }
             permille{
                 dnam{"por mil"}
             }
-            permillion{
-                dnam{"partes/milhão"}
-            }
             permyriad{
                 dnam{"ponto base"}
-            }
-            portion-per-1e9{
-                dnam{"partes/bilhão"}
             }
         }
         consumption{
@@ -1736,6 +1832,9 @@ pt{
                 dnam{"BTU"}
                 one{"{0} BTU"}
                 other{"{0} BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
             }
             electronvolt{
                 dnam{"elétron-volt"}
@@ -1901,6 +2000,11 @@ pt{
                 dnam{"mmHg"}
                 one{"{0} mmHg"}
                 other{"{0} mmHg"}
+            }
+            ofhg{
+                dnam{"de Hg"}
+                one{"{0} de Hg"}
+                other{"{0} de Hg"}
             }
         }
         speed{

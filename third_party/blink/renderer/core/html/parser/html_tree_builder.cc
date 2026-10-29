@@ -51,6 +51,7 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/mathml_names.h"
+#include "third_party/blink/renderer/core/sanitizer/sanitizer.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/core/xlink_names.h"
 #include "third_party/blink/renderer/core/xml_names.h"
@@ -288,17 +289,19 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                                  ParserContentPolicy parser_content_policy,
                                  const HTMLParserOptions& options,
                                  bool include_shadow_roots,
-                                 ContainerNode* fragment_target,
+                                 DocumentFragment* fragment_target,
                                  Element* fragment_context_element,
                                  CustomElementRegistry* registry,
-                                 StreamingSanitizer* sanitizer)
+                                 StreamingSanitizer* sanitizer,
+                                 ParserRootInsertionPoint* root_insertion_point)
     : tree_(parser->ReentryPermit(),
             document,
             parser_content_policy,
             fragment_target,
             fragment_context_element,
             registry,
-            sanitizer),
+            sanitizer,
+            root_insertion_point),
       insertion_mode_(kInitialMode),
       original_insertion_mode_(kInitialMode),
       should_skip_leading_newline_(false),
@@ -320,15 +323,17 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                       nullptr,
                       nullptr,
                       nullptr,
+                      nullptr,
                       nullptr) {}
 HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
-                                 ContainerNode* fragment_target,
+                                 DocumentFragment* fragment_target,
                                  Element* context_element,
                                  ParserContentPolicy parser_content_policy,
                                  const HTMLParserOptions& options,
                                  bool include_shadow_roots,
                                  CustomElementRegistry* registry,
-                                 StreamingSanitizer* sanitizer)
+                                 StreamingSanitizer* sanitizer,
+                                 ParserRootInsertionPoint* root_insertion_point)
     : HTMLTreeBuilder(parser,
                       fragment_target->GetDocument(),
                       parser_content_policy,
@@ -337,7 +342,8 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                       fragment_target,
                       context_element,
                       registry,
-                      sanitizer) {
+                      sanitizer,
+                      root_insertion_point) {
   DCHECK(IsMainThread());
   fragment_context_.Init(fragment_target, context_element);
 
@@ -357,15 +363,10 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
 HTMLTreeBuilder::~HTMLTreeBuilder() = default;
 
 void HTMLTreeBuilder::FragmentParsingContext::Init(
-    ContainerNode* fragment_target,
+    DocumentFragment* fragment_target,
     Element* context_element) {
   DCHECK(fragment_target);
-  DCHECK((RuntimeEnabledFeatures::NewHTMLSettingMethodsEnabled() &&
-          ((fragment_target == context_element) ||
-           fragment_target->IsShadowRoot() &&
-               To<ShadowRoot>(fragment_target)->host() == context_element)) ||
-         (fragment_target->IsDocumentFragment() &&
-          !fragment_target->HasChildren()));
+  DCHECK(!fragment_target->HasChildren());
   fragment_target_ = fragment_target;
   context_element_stack_item_ = MakeGarbageCollected<HTMLStackItem>(
       context_element, HTMLStackItem::kItemForContextElement);

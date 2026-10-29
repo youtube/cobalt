@@ -10,9 +10,21 @@ kxv_Deva{
     ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0 १ २ ३ ४ ५ ६ ७ ८ ९]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
+            }
+        }
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
             }
         }
@@ -263,20 +275,20 @@ kxv_Deva{
             }
             eras{
                 abbreviated{
-                    "बिसि",
-                    "ए-डि",
+                    0{"बिसि"}
+                    1{"ए-डि"}
                 }
                 abbreviated%variant{
-                    "बिसि-इ",
-                    "सि-इ",
+                    0{"बिसि-इ"}
+                    1{"सि-इ"}
                 }
                 wide{
-                    "बिफोर क्राइस्ट",
-                    "अन्नो डोमिनी",
+                    0{"बिफोर क्राइस्ट"}
+                    1{"अन्नो डोमिनी"}
                 }
                 wide%variant{
-                    "बिफोर कॉमन एरा",
-                    "कॉमन एरा",
+                    0{"बिफोर कॉमन एरा"}
+                    1{"कॉमन एरा"}
                 }
             }
             intervalFormats{

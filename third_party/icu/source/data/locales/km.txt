@@ -29,6 +29,7 @@ km{
                 accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -73,78 +74,78 @@ km{
             patternsShort{
                 currencyFormat{
                     1000{
-                        other{"¤0 ពាន់"}
+                        other{"0ពាន់¤"}
                     }
                     10000{
-                        other{"¤00 ពាន់"}
+                        other{"00 ពាន់¤"}
                     }
                     100000{
-                        other{"¤000 ពាន់"}
+                        other{"000 ពាន់¤"}
                     }
                     1000000{
-                        other{"¤0 លាន"}
+                        other{"0 លាន¤"}
                     }
                     10000000{
-                        other{"¤00 លាន"}
+                        other{"00 លាន¤"}
                     }
                     100000000{
-                        other{"¤000 លាន"}
+                        other{"000 លាន¤"}
                     }
                     1000000000{
-                        other{"¤0 ប៊ីលាន"}
+                        other{"0 ប៊ីលាន¤"}
                     }
                     10000000000{
-                        other{"¤00 ប៊ីលាន"}
+                        other{"00 ប៊ីលាន¤"}
                     }
                     100000000000{
-                        other{"¤000 ប៊ីលាន"}
+                        other{"000 ប៊ីលាន¤"}
                     }
                     1000000000000{
-                        other{"¤0 ទ្រីលាន"}
+                        other{"0 ទ្រីលាន¤"}
                     }
                     10000000000000{
-                        other{"¤00 ទ្រីលាន"}
+                        other{"00 ទ្រីលាន¤"}
                     }
                     100000000000000{
-                        other{"¤000 ទ្រីលាន"}
+                        other{"000 ទ្រីលាន¤"}
                     }
                 }
                 currencyFormat%alphaNextToNumber{
                     1000{
-                        other{"¤ 0 ពាន់"}
+                        other{"0ពាន់ ¤"}
                     }
                     10000{
-                        other{"¤ 00 ពាន់"}
+                        other{"00 ពាន់ ¤"}
                     }
                     100000{
-                        other{"¤ 000 ពាន់"}
+                        other{"000 ពាន់ ¤"}
                     }
                     1000000{
-                        other{"¤ 0 លាន"}
+                        other{"0 លាន ¤"}
                     }
                     10000000{
-                        other{"¤ 00 លាន"}
+                        other{"00 លាន ¤"}
                     }
                     100000000{
-                        other{"¤ 000 លាន"}
+                        other{"000 លាន ¤"}
                     }
                     1000000000{
-                        other{"¤ 0 ប៊ីលាន"}
+                        other{"0 ប៊ីលាន ¤"}
                     }
                     10000000000{
-                        other{"¤ 00 ប៊ីលាន"}
+                        other{"00 ប៊ីលាន ¤"}
                     }
                     100000000000{
-                        other{"¤ 000 ប៊ីលាន"}
+                        other{"000 ប៊ីលាន ¤"}
                     }
                     1000000000000{
-                        other{"¤ 0 ទ្រីលាន"}
+                        other{"0 ទ្រីលាន ¤"}
                     }
                     10000000000000{
-                        other{"¤ 00 ទ្រីលាន"}
+                        other{"00 ទ្រីលាន ¤"}
                     }
                     100000000000000{
-                        other{"¤ 000 ទ្រីលាន"}
+                        other{"000 ទ្រីលាន ¤"}
                     }
                 }
                 decimalFormat{
@@ -217,8 +218,14 @@ km{
             DateTimePatterns%atTime{
                 "{1} នៅ​ម៉ោង {0}",
                 "{1} នៅ​ម៉ោង {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} នៅម៉ោង {0}",
+                "{1} នៅម៉ោង {0}",
+                "{1} {0}",
+                "{1} {0}",
             }
             DateTimeSkeletons{
                 "ahmmsszzzz",
@@ -233,9 +240,12 @@ km{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
                 GyMMMd{"d MMM y G"}
+                Hv{"ម៉HH v"}
                 MEd{"E d/M"}
                 MMMEd{"E d MMM"}
                 MMMMd{"d MMMM"}
@@ -401,6 +411,12 @@ km{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} នៅម៉ោង {0}",
+                "{1} នៅម៉ោង {0}",
+                "{1} នៅម៉ោង {0}",
+                "{1} នៅម៉ោង {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -414,9 +430,12 @@ km{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
+                Hv{"ម៉HH v"}
                 MEd{"E d/M"}
                 MMMEd{"E d MMM"}
                 MMMMW{
@@ -512,16 +531,16 @@ km{
             }
             eras{
                 abbreviated{
-                    "មុន គ.ស.",
-                    "គ.ស.",
+                    0{"មុន គ.ស."}
+                    1{"គ.ស."}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "មុន​គ្រិស្តសករាជ",
-                    "គ្រិស្តសករាជ",
+                    0{"មុន​គ្រិស្តសករាជ"}
+                    1{"គ្រិស្តសករាជ"}
                 }
             }
             intervalFormats{

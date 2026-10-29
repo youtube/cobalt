@@ -249,6 +249,7 @@ void LocaleTest::runIndexedTest( int32_t index, UBool exec, const char* &name, c
     TESTCASE_AUTO(TestCreateUnicodeKeywordSetWithPrivateUse);
     TESTCASE_AUTO(TestGetKeywordValueStdString);
     TESTCASE_AUTO(TestGetUnicodeKeywordValueStdString);
+    TESTCASE_AUTO(TestSetKeywordValueImp);
     TESTCASE_AUTO(TestSetKeywordValue);
     TESTCASE_AUTO(TestSetKeywordValueStringPiece);
     TESTCASE_AUTO(TestSetUnicodeKeywordValueStringPiece);
@@ -296,6 +297,7 @@ void LocaleTest::runIndexedTest( int32_t index, UBool exec, const char* &name, c
 #if !UCONFIG_NO_FORMATTING
     TESTCASE_AUTO(TestSierraLeoneCurrency21997);
 #endif
+    TESTCASE_AUTO(TestPayload);
     TESTCASE_AUTO_END;
 }
 
@@ -2571,8 +2573,8 @@ LocaleTest::TestAddLikelyAndMinimizeSubtags() {
             "dz"
         }, {
             "und_BY",
-            "be_Cyrl_BY",
-            "be"
+            "ru_Cyrl_BY",
+            "ru_BY"
         }, {
             "und_Beng",
             "bn_Beng_BD",
@@ -4373,7 +4375,7 @@ LocaleTest::TestCreateKeywordSet() {
             status);
     status.errIfFailureAndReset("\"%s\"", l.getName());
 
-    assertEquals("set::size()", 2, static_cast<int32_t>(result.size()));
+    assertEquals("set::size()", 2, result.size());
     assertTrue("set::find(\"calendar\")",
                result.find("calendar") != result.end());
     assertTrue("set::find(\"collation\")",
@@ -4392,7 +4394,7 @@ LocaleTest::TestCreateKeywordSetEmpty() {
             status);
     status.errIfFailureAndReset("\"%s\"", l.getName());
 
-    assertEquals("set::size()", 0, static_cast<int32_t>(result.size()));
+    assertEquals("set::size()", 0, result.size());
 }
 
 void
@@ -4428,7 +4430,7 @@ LocaleTest::TestCreateUnicodeKeywordSet() {
             status);
     status.errIfFailureAndReset("\"%s\"", l.getName());
 
-    assertEquals("set::size()", 2, static_cast<int32_t>(result.size()));
+    assertEquals("set::size()", 2, result.size());
     assertTrue("set::find(\"ca\")",
                result.find("ca") != result.end());
     assertTrue("set::find(\"co\")",
@@ -4452,7 +4454,7 @@ LocaleTest::TestCreateUnicodeKeywordSetEmpty() {
             status);
     status.errIfFailureAndReset("\"%s\"", l.getName());
 
-    assertEquals("set::size()", 0, static_cast<int32_t>(result.size()));
+    assertEquals("set::size()", 0, result.size());
 
     LocalPointer<StringEnumeration> se(l.createUnicodeKeywords(status), status);
     assertTrue("createUnicodeKeywords", se.isNull());
@@ -4477,7 +4479,7 @@ LocaleTest::TestCreateUnicodeKeywordSetWithPrivateUse() {
                result.find("x") == result.end());
     assertTrue("getUnicodeKeywords set::find(\"foo\")",
                result.find("foo") == result.end());
-    assertEquals("set::size()", 1, static_cast<int32_t>(result.size()));
+    assertEquals("set::size()", 1, result.size());
 
     LocalPointer<StringEnumeration> se(l.createUnicodeKeywords(status), status);
     status.errIfFailureAndReset("\"%s\" createUnicodeKeywords()", l.getName());
@@ -4513,6 +4515,35 @@ LocaleTest::TestGetUnicodeKeywordValueStdString() {
     std::string result = l.getUnicodeKeywordValue<std::string>(keyword, status);
     status.errIfFailureAndReset("\"%s\"", keyword);
     assertEquals(keyword, expected, result.c_str());
+}
+
+void
+LocaleTest::TestSetKeywordValueImp() {
+    IcuTestErrorCode status(*this, "TestSetKeywordValueImp()");
+
+    {
+        CharString localeID("aa", status);
+        ulocimp_setKeywordValue("bb", "cc", localeID, status);
+        assertEquals("", "aa@bb=cc", localeID.data());
+    }
+
+    {
+        CharString localeID("aa@bb=cc", status);
+        ulocimp_setKeywordValue("bb", "", localeID, status);
+        assertEquals("", "aa", localeID.data());
+    }
+
+    {
+        CharString localeID("aa", status);
+        ulocimp_setKeywordValue("zz", "", localeID, status);
+        assertEquals("", "aa", localeID.data());
+    }
+
+    {
+        CharString localeID("aa@bb=cc", status);
+        ulocimp_setKeywordValue("zz", "", localeID, status);
+        assertEquals("", "aa@bb=cc", localeID.data());
+    }
 }
 
 void
@@ -7130,3 +7161,151 @@ void LocaleTest::TestSierraLeoneCurrency21997() {
     }
 }
 #endif
+
+void LocaleTest::TestPayload() {
+    IcuTestErrorCode status(*this, "TestPayload");
+
+    // Use the offset from the language field to the baseName field to identify
+    // data that is stored in struct Nest.
+    constexpr size_t baseNameNestOffset = 14;
+
+    {
+        // Maximum lenth of language, script, region for struct Nest.
+        constexpr char tag[] = "aaa_Adlm_001";
+        Locale nest(tag);
+        assertEquals("[1] language", "aaa", nest.getLanguage());
+        assertEquals("[1] script", "Adlm", nest.getScript());
+        assertEquals("[1] region", "001", nest.getCountry());
+        assertEquals("[1] variant", "", nest.getVariant());
+        assertEquals("[1] name", tag, nest.getName());
+        assertEquals("[1] base name", tag, nest.getBaseName());
+        assertTrue("[1] name == base name", nest.getName() == nest.getBaseName());
+        assertTrue("[1] is struct Nest", nest.getLanguage() + baseNameNestOffset == nest.getBaseName());
+    }
+    {
+        // Maximum lenth of baseName for struct Nest.
+        constexpr char tag[] = "aa_Adlm_ZZ_POSIX";
+        Locale nest(tag);
+        assertEquals("[2] language", "aa", nest.getLanguage());
+        assertEquals("[2] script", "Adlm", nest.getScript());
+        assertEquals("[2] region", "ZZ", nest.getCountry());
+        assertEquals("[2] variant", "POSIX", nest.getVariant());
+        assertEquals("[2] name", tag, nest.getName());
+        assertEquals("[2] base name", tag, nest.getBaseName());
+        assertTrue("[2] name == base name", nest.getName() == nest.getBaseName());
+        assertTrue("[2] is struct Nest", nest.getLanguage() + baseNameNestOffset == nest.getBaseName());
+    }
+    {
+        // One char too many for baseName in struct Nest.
+        constexpr char tag[] = "aa_Adlm_001_POSIX";
+        Locale heap(tag);
+        assertEquals("[3] language", "aa", heap.getLanguage());
+        assertEquals("[3] script", "Adlm", heap.getScript());
+        assertEquals("[3] region", "001", heap.getCountry());
+        assertEquals("[3] variant", "POSIX", heap.getVariant());
+        assertEquals("[3] name", tag, heap.getName());
+        assertEquals("[3] base name", tag, heap.getBaseName());
+        assertTrue("[3] name == base name", heap.getName() == heap.getBaseName());
+        assertFalse("[3] is struct Nest", heap.getLanguage() + baseNameNestOffset == heap.getBaseName());
+    }
+    {
+        // One char too many for language in struct Nest.
+        constexpr char tag[] = "fake_Adlm_001";
+        Locale heap(tag);
+        assertEquals("[4] language", "fake", heap.getLanguage());
+        assertEquals("[4] script", "Adlm", heap.getScript());
+        assertEquals("[4] region", "001", heap.getCountry());
+        assertEquals("[4] variant", "", heap.getVariant());
+        assertEquals("[4] name", tag, heap.getName());
+        assertEquals("[4] base name", tag, heap.getBaseName());
+        assertTrue("[4] name == base name", heap.getName() == heap.getBaseName());
+        assertFalse("[4] is struct Nest", heap.getLanguage() + baseNameNestOffset == heap.getBaseName());
+    }
+    {
+        // An extension requires storage in struct Heap.
+        constexpr char tag[] = "aaa_Adlm_001@a=b";
+        Locale l(tag);
+        assertEquals("[5] language", "aaa", l.getLanguage());
+        assertEquals("[5] script", "Adlm", l.getScript());
+        assertEquals("[5] region", "001", l.getCountry());
+        assertEquals("[5] variant", "", l.getVariant());
+        assertEquals("[5] name", tag, l.getName());
+        assertEquals("[5] base name", "aaa_Adlm_001", l.getBaseName());
+        assertFalse("[5] name == base name", l.getName() == l.getBaseName());
+        assertFalse("[5] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+
+        // Removing the extension moves the data into struct Nest.
+        l.setKeywordValue("a", "", status);
+        status.errIfFailureAndReset("setKeywordValue()");
+        assertEquals("[6] language", "aaa", l.getLanguage());
+        assertEquals("[6] script", "Adlm", l.getScript());
+        assertEquals("[6] region", "001", l.getCountry());
+        assertEquals("[6] variant", "", l.getVariant());
+        assertEquals("[6] name", "aaa_Adlm_001", l.getName());
+        assertEquals("[6] base name", "aaa_Adlm_001", l.getBaseName());
+        assertTrue("[6] name == base name", l.getName() == l.getBaseName());
+        assertTrue("[6] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+
+        // Setting an extension moves the data into struct Heap.
+        l.setKeywordValue("x", "y", status);
+        status.errIfFailureAndReset("setKeywordValue()");
+        assertEquals("[7] language", "aaa", l.getLanguage());
+        assertEquals("[7] script", "Adlm", l.getScript());
+        assertEquals("[7] region", "001", l.getCountry());
+        assertEquals("[7] variant", "", l.getVariant());
+        assertEquals("[7] name", "aaa_Adlm_001@x=y", l.getName());
+        assertEquals("[7] base name", "aaa_Adlm_001", l.getBaseName());
+        assertFalse("[7] name == base name", l.getName() == l.getBaseName());
+        assertFalse("[7] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+    }
+    {
+        // One each of language, script, region, variant and an extension.
+        constexpr char tag[] = "aaa_Adlm_001_POSIX@a=b";
+        Locale l(tag);
+        assertEquals("[8] language", "aaa", l.getLanguage());
+        assertEquals("[8] script", "Adlm", l.getScript());
+        assertEquals("[8] region", "001", l.getCountry());
+        assertEquals("[8] variant", "POSIX", l.getVariant());
+        assertEquals("[8] name", tag, l.getName());
+        assertEquals("[8] base name", "aaa_Adlm_001_POSIX", l.getBaseName());
+        assertFalse("[8] name == base name", l.getName() == l.getBaseName());
+        assertFalse("[8] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+    }
+    {
+        // The empty string is a valid locale.
+        constexpr char empty[] = "";
+        Locale l(empty);
+        assertEquals("[9] language", empty, l.getLanguage());
+        assertEquals("[9] script", empty, l.getScript());
+        assertEquals("[9] region", empty, l.getCountry());
+        assertEquals("[9] variant", empty, l.getVariant());
+        assertEquals("[9] name", empty, l.getName());
+        assertEquals("[9] base name", empty, l.getBaseName());
+        assertTrue("[9] name == base name", l.getName() == l.getBaseName());
+        assertTrue("[9] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+
+        // Setting an extension moves the data into struct Heap.
+        l.setKeywordValue("a", "b", status);
+        status.errIfFailureAndReset("setKeywordValue()");
+        assertEquals("[10] language", empty, l.getLanguage());
+        assertEquals("[10] script", empty, l.getScript());
+        assertEquals("[10] region", empty, l.getCountry());
+        assertEquals("[10] variant", "", l.getVariant());
+        assertEquals("[10] name", "@a=b", l.getName());
+        assertEquals("[10] base name", empty, l.getBaseName());
+        assertFalse("[10] name == base name", l.getName() == l.getBaseName());
+        assertFalse("[10] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+
+        // Removing the extension moves the data into struct Nest.
+        l.setKeywordValue("a", "", status);
+        status.errIfFailureAndReset("setKeywordValue()");
+        assertEquals("[11] language", empty, l.getLanguage());
+        assertEquals("[11] script", empty, l.getScript());
+        assertEquals("[11] region", empty, l.getCountry());
+        assertEquals("[11] variant", empty, l.getVariant());
+        assertEquals("[11] name", empty, l.getName());
+        assertEquals("[11] base name", empty, l.getBaseName());
+        assertTrue("[11] name == base name", l.getName() == l.getBaseName());
+        assertTrue("[11] is struct Nest", l.getLanguage() + baseNameNestOffset == l.getBaseName());
+    }
+}

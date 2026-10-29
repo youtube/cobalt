@@ -10,7 +10,9 @@ sah{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -246,16 +248,16 @@ sah{
             }
             eras{
                 abbreviated{
-                    "б. э. и.",
-                    "б. э",
+                    0{"б. э. и."}
+                    1{"б. э"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide%variant{
-                    "биһиги ээрэбит иннинэ",
-                    "биһиги ээрэбит",
+                    0{"биһиги ээрэбит иннинэ"}
+                    1{"биһиги ээрэбит"}
                 }
             }
             intervalFormats{

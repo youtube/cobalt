@@ -34,6 +34,7 @@
 #include "api/video/video_sink_interface.h"
 #include "media/base/media_channel.h"
 #include "pc/media_stream_track_proxy.h"
+#include "pc/rtp_receiver.h"
 #include "pc/video_rtp_track_source.h"
 #include "pc/video_track.h"
 #include "rtc_base/checks.h"
@@ -57,7 +58,7 @@ VideoRtpReceiver::VideoRtpReceiver(
     absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
     VideoMediaReceiveChannelInterface* media_channel)
-    : worker_thread_(worker_thread),
+    : RtpReceiverBase(worker_thread),
       id_(receiver_id),
       media_channel_(media_channel),
       source_(make_ref_counted<VideoRtpTrackSource>(&source_callback_)),

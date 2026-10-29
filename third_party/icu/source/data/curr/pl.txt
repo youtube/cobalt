@@ -809,7 +809,7 @@ pl{
         }
         SLL{
             "SLL",
-            "leone sierraleoński (1964—2022)",
+            "leone sierraleoński (1964–2022)",
         }
         SOS{
             "SOS",
@@ -983,6 +983,10 @@ pl{
             "EC$",
             "dolar wschodniokaraibski",
         }
+        XCG{
+            "XCG",
+            "gulden karaibski",
+        }
         XDR{
             "XDR",
             "specjalne prawa ciągnienia",
@@ -1066,6 +1070,10 @@ pl{
         ZWD{
             "ZWD",
             "dolar Zimbabwe (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "złoto Zimbabwe",
         }
         ZWL{
             "ZWL",
@@ -1976,10 +1984,10 @@ pl{
             other{"leone sierraleońskiego"}
         }
         SLL{
-            few{"leone sierraleońskie (1964—2022)"}
-            many{"leone sierraleońskich (1964—2022)"}
+            few{"leone sierraleońskie (1964–2022)"}
+            many{"leone sierraleońskich (1964–2022)"}
             one{"leone sierraleoński (1964—2022)"}
-            other{"leone sierraleońskiego (1964—2022)"}
+            other{"leone sierraleońskiego (1964–2022)"}
         }
         SOS{
             few{"szylingi somalijskie"}
@@ -2179,6 +2187,12 @@ pl{
             one{"dolar wschodniokaraibski"}
             other{"dolara wschodniokaraibskiego"}
         }
+        XCG{
+            few{"guldeny karaibskie"}
+            many{"guldenów karaibskich"}
+            one{"gulden karaibski"}
+            other{"guldena karaibskiego"}
+        }
         XOF{
             few{"franki CFA"}
             many{"franków CFA"}
@@ -2220,6 +2234,12 @@ pl{
             many{"kwach zambijskich"}
             one{"kwacha zambijska"}
             other{"kwachy zambijskiej"}
+        }
+        ZWG{
+            few{"złota Zimbabwe"}
+            many{"złot Zimbabwe"}
+            one{"złoto Zimbabwe"}
+            other{"złota Zimbabwe"}
         }
     }
 }

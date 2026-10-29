@@ -270,6 +270,9 @@ ja{
         "America:Costa_Rica"{
             ec{"コスタリカ"}
         }
+        "America:Coyhaique"{
+            ec{"コジャイケ"}
+        }
         "America:Creston"{
             ec{"クレストン"}
         }
@@ -1167,7 +1170,7 @@ ja{
             ec{"エフェテ島"}
         }
         "Pacific:Enderbury"{
-            ec{"エンダーベリー島"}
+            ec{"カントン島"}
         }
         "Pacific:Fakaofo"{
             ec{"ファカオフォ"}
@@ -1192,9 +1195,6 @@ ja{
         }
         "Pacific:Honolulu"{
             ec{"ホノルル"}
-        }
-        "Pacific:Kanton"{
-            ec{"カントン島"}
         }
         "Pacific:Kiritimati"{
             ec{"キリスィマスィ島"}
@@ -1283,9 +1283,7 @@ ja{
             ls{"南アフリカ標準時"}
         }
         "meta:Africa_Western"{
-            ld{"西アフリカ夏時間"}
-            lg{"西アフリカ時間"}
-            ls{"西アフリカ標準時"}
+            ls{"西アフリカ時間"}
         }
         "meta:Alaska"{
             ld{"アラスカ夏時間"}
@@ -1303,24 +1301,24 @@ ja{
             ls{"アマゾン標準時"}
         }
         "meta:America_Central"{
-            ld{"アメリカ中部夏時間"}
-            lg{"アメリカ中部時間"}
-            ls{"アメリカ中部標準時"}
+            ld{"米国中部夏時間"}
+            lg{"米国中部時間"}
+            ls{"米国中部標準時"}
         }
         "meta:America_Eastern"{
-            ld{"アメリカ東部夏時間"}
-            lg{"アメリカ東部時間"}
-            ls{"アメリカ東部標準時"}
+            ld{"米国東部夏時間"}
+            lg{"米国東部時間"}
+            ls{"米国東部標準時"}
         }
         "meta:America_Mountain"{
-            ld{"アメリカ山地夏時間"}
-            lg{"アメリカ山地時間"}
-            ls{"アメリカ山地標準時"}
+            ld{"米国山岳夏時間"}
+            lg{"米国山岳部時間"}
+            ls{"米国山岳標準時"}
         }
         "meta:America_Pacific"{
-            ld{"アメリカ太平洋夏時間"}
-            lg{"アメリカ太平洋時間"}
-            ls{"アメリカ太平洋標準時"}
+            ld{"米国太平洋夏時間"}
+            lg{"米国太平洋時間"}
+            ls{"米国太平洋標準時"}
         }
         "meta:Anadyr"{
             ld{"アナディリ夏時間"}
@@ -1328,9 +1326,9 @@ ja{
             ls{"アナディリ標準時"}
         }
         "meta:Apia"{
-            ld{"アピア夏時間"}
-            lg{"アピア時間"}
-            ls{"アピア標準時"}
+            ld{"サモア夏時間"}
+            lg{"サモア時間"}
+            ls{"サモア標準時"}
         }
         "meta:Aqtau"{
             ld{"アクタウ夏時間"}
@@ -1414,7 +1412,7 @@ ja{
             ls{"ブラジリア標準時"}
         }
         "meta:Brunei"{
-            ls{"ブルネイ・ダルサラーム時間"}
+            ls{"ブルネイ時間"}
         }
         "meta:Cape_Verde"{
             ld{"カーボベルデ夏時間"}
@@ -1549,6 +1547,9 @@ ja{
         }
         "meta:Guyana"{
             ls{"ガイアナ時間"}
+        }
+        "meta:Hawaii"{
+            ls{"ハワイ・アリューシャン標準時"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ハワイ・アリューシャン夏時間"}
@@ -1780,10 +1781,10 @@ ja{
             ls{"ピトケアン時間"}
         }
         "meta:Ponape"{
-            ls{"ポナペ時間"}
+            ls{"ポンペイ時間"}
         }
         "meta:Pyongyang"{
-            ls{"平壌時間"}
+            ls{"北朝鮮時間"}
         }
         "meta:Qyzylorda"{
             ld{"クズロルダ夏時間"}
@@ -1807,9 +1808,9 @@ ja{
             ls{"サマラ標準時"}
         }
         "meta:Samoa"{
-            ld{"サモア夏時間"}
-            lg{"サモア時間"}
-            ls{"サモア標準時"}
+            ld{"米領サモア夏時間"}
+            lg{"米領サモア時間"}
+            ls{"米領サモア標準時"}
         }
         "meta:Seychelles"{
             ls{"セーシェル時間"}
@@ -1833,9 +1834,9 @@ ja{
             ls{"タヒチ時間"}
         }
         "meta:Taipei"{
-            ld{"台北夏時間"}
-            lg{"台北時間"}
-            ls{"台北標準時"}
+            ld{"台湾夏時間"}
+            lg{"台湾時間"}
+            ls{"台湾標準時"}
         }
         "meta:Tajikistan"{
             ls{"タジキスタン時間"}
@@ -1850,6 +1851,11 @@ ja{
         }
         "meta:Truk"{
             ls{"チューク時間"}
+        }
+        "meta:Turkey"{
+            ld{"トルコ夏時間"}
+            lg{"トルコ時間"}
+            ls{"トルコ標準時"}
         }
         "meta:Turkmenistan"{
             ld{"トルクメニスタン夏時間"}

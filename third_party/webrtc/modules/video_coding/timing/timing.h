@@ -56,33 +56,25 @@ class VCMTiming {
     TimeDelta current_delay;
   };
 
-  static constexpr TimeDelta kDefaultRenderDelay = TimeDelta::Millis(10);
-  static constexpr int kDelayMaxChangeMsPerS = 100;
-
   VCMTiming(Clock* clock, const FieldTrialsView& field_trials);
   virtual ~VCMTiming() = default;
 
   // Resets the timing to the initial state.
   void Reset();
 
-  // Set the amount of time needed to render an image. Defaults to 10 ms.
+  // Sets the amount of time needed to render an image. Defaults to 10 ms.
   void set_render_delay(TimeDelta render_delay);
 
-  // Set the minimum time the video must be delayed on the receiver to
+  // Sets the minimum time the video must be delayed on the receiver to
   // get the desired jitter buffer level.
   void SetJitterDelay(TimeDelta required_delay);
 
-  // Set/get the minimum playout delay from capture to render.
+  // Sets/gets the minimum playout delay from capture to render.
   TimeDelta min_playout_delay() const;
   void set_min_playout_delay(TimeDelta min_playout_delay);
 
-  // Set the minimum and maximum playout delay from capture to render.
+  // Sets the minimum and maximum playout delay from capture to render.
   void set_playout_delay(const VideoPlayoutDelay& playout_delay);
-
-  // Increases or decreases the current delay to get closer to the target delay.
-  // Calculates how long it has been since the previous call to this function,
-  // and increases/decreases the delay in proportion to the time difference.
-  void UpdateCurrentDelay(uint32_t frame_timestamp);
 
   // Increases or decreases the current delay to get closer to the target delay.
   // Given the actual decode time in ms and the render time in ms for a frame,
@@ -119,7 +111,7 @@ class VCMTiming {
   // render delay.
   TimeDelta TargetVideoDelay() const;
 
-  // Return current timing information.
+  // Returns current timing information.
   VideoDelayTimings GetTimings() const;
 
   void SetTimingFrameInfo(const TimingFrameInfo& info);
@@ -158,7 +150,6 @@ class VCMTiming {
   TimeDelta max_playout_delay_ RTC_GUARDED_BY(mutex_);
   TimeDelta jitter_delay_ RTC_GUARDED_BY(mutex_);
   TimeDelta current_delay_ RTC_GUARDED_BY(mutex_);
-  uint32_t prev_frame_timestamp_ RTC_GUARDED_BY(mutex_);
   std::optional<TimingFrameInfo> timing_frame_info_ RTC_GUARDED_BY(mutex_);
   size_t num_decoded_frames_ RTC_GUARDED_BY(mutex_);
   std::optional<int> max_composition_delay_in_frames_ RTC_GUARDED_BY(mutex_);

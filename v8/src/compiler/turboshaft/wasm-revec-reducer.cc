@@ -259,7 +259,7 @@ ZoneVector<PackNode*>* SLPTree::GetIntersectPackNodes(OpIndex node) {
   if (it != node_to_intersect_packnodes_.end()) {
     return &(it->second);
   }
-  return nullptr;
+  return analyzer_->GetIntersectPackNodes(node);
 }
 
 template <typename FunctionType>
@@ -353,6 +353,14 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         result = true;
         break;
       } else if (input > start) {
+        // Check whether the input is already a force-packing node.
+        PackNode* pnode = GetPackNode(input);
+        if ((pnode && pnode->IsForcePackNode()) ||
+            GetIntersectPackNodes(input)) {
+          result = true;
+          break;
+        }
+
         // Check side effect from input to start's previous node to simplify
         // reducing of force-packing nodes.
         OpIndex start_prev = graph().PreviousIndex(start);

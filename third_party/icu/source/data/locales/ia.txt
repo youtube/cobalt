@@ -13,6 +13,7 @@ ia{
             }
             patterns{
                 accountingFormat{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
             }
             patternsLong{
@@ -208,11 +209,19 @@ ia{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' {0}",
+                "{1} 'a' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM-y GGGGG"}
+                GyMEd{"E dd-MM-y GGGGG"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -225,6 +234,7 @@ ia{
                 h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"h v"}
                 y{"y G"}
                 yyyy{"y G"}
                 yyyyM{"MM-y GGGGG"}
@@ -360,11 +370,19 @@ ia{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'a' {0}",
+                "{1} 'a' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM-y G"}
+                GyMEd{"E dd-MM-y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
@@ -383,6 +401,7 @@ ia{
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
                 hmv{"h:mm a v"}
+                hv{"h v"}
                 yM{"MM-y"}
                 yMEd{"E dd-MM-y"}
                 yMMM{"MMM y"}
@@ -441,20 +460,20 @@ ia{
             }
             eras{
                 abbreviated{
-                    "a.Chr.",
-                    "p.Chr.",
+                    0{"a.Chr."}
+                    1{"p.Chr."}
                 }
                 abbreviated%variant{
-                    "aEC",
-                    "EC",
+                    0{"aEC"}
+                    1{"EC"}
                 }
                 wide{
-                    "ante Christo",
-                    "post Christo",
+                    0{"ante Christo"}
+                    1{"post Christo"}
                 }
                 wide%variant{
-                    "ante era commun",
-                    "era commun",
+                    0{"ante era commun"}
+                    1{"era commun"}
                 }
             }
             intervalFormats{

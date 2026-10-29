@@ -14,10 +14,13 @@ pl{
         colStrength{"siła sortowania"}
         collation{"kolejność sortowania"}
         currency{"waluta"}
+        em{"prezentacja emoji"}
         hc{"cykl (12- lub 24-godzinny)"}
         lb{"styl podziału wiersza"}
+        lw{"podział wierszy wewnątrz wyrazów"}
         ms{"system miar"}
         numbers{"cyfry"}
+        ss{"koniec zdania po skrócie"}
         timezone{"strefa czasowa"}
         va{"wariant regionalny"}
         x{"do użytku prywatnego"}
@@ -677,6 +680,12 @@ pl{
         zxx{"brak treści o charakterze językowym"}
         zza{"zazaki"}
     }
+    Languages%core{
+        ku{"kurdyjski"}
+    }
+    Languages%extension{
+        ku{"kurmandżi"}
+    }
     Languages%long{
         zh_Hans{"standardowy chiński uproszczony"}
         zh_Hant{"standardowy chiński tradycyjny"}
@@ -863,9 +872,29 @@ pl{
             persian{"kalendarz perski"}
             roc{"kalendarz Republiki Chińskiej"}
         }
+        calendar%core{
+            buddhist{"buddyjski"}
+            chinese{"chiński"}
+            coptic{"koptyjski"}
+            dangi{"koreański"}
+            ethiopic{"etiopski"}
+            ethiopic-amete-alem{"etiopski Amete Alem"}
+            gregorian{"gregoriański"}
+            hebrew{"hebrajski"}
+            islamic{"muzułmański"}
+            islamic-civil{"muzułmański (metoda obliczeniowa)"}
+            islamic-umalqura{"muzułmański (Umm al-Kura)"}
+            japanese{"japoński"}
+            persian{"perski"}
+            roc{"Republiki Chińskiej"}
+        }
         cf{
             account{"księgowy format waluty"}
             standard{"standardowy format waluty"}
+        }
+        cf%core{
+            account{"księgowy"}
+            standard{"standardowy"}
         }
         colAlternate{
             non-ignorable{"Sortowanie symboli"}
@@ -900,12 +929,10 @@ pl{
             tertiary{"Sortowanie znaków akcentowanych/wielkości liter/szerokości"}
         }
         collation{
-            big5han{"chiński tradycyjny porządek sortowania - Big5"}
             compat{"poprzedni porządek sortowania, dla zgodności"}
             dictionary{"sortowanie słownikowe"}
             ducet{"domyślna kolejność sortowania Unicode"}
             eor{"europejskie reguły określania kolejności"}
-            gb2312han{"chiński uproszczony porządek sortowania - GB2312"}
             phonebook{"porządek sortowania książki telefonicznej"}
             phonetic{"sortowanie fonetyczne"}
             pinyin{"porządek sortowania pinyin"}
@@ -915,12 +942,31 @@ pl{
             stroke{"sortowanie wg liczby kresek"}
             traditional{"tradycyjny porządek sortowania"}
             unihan{"sortowanie wg kluczy i ich liczby kresek"}
-            zhuyin{"sortowanie zhuyin"}
+            zhuyin{"sortowanie bopomofo"}
+        }
+        collation%core{
+            compat{"zgodność"}
+            dictionary{"słownikowe"}
+            ducet{"domyślne Unicode"}
+            phonebook{"książka telefoniczna"}
+            phonetic{"fonetyczne"}
+            pinyin{"pinyin"}
+            search{"wyszukiwanie"}
+            standard{"standardowe"}
+            stroke{"liczba kresek"}
+            traditional{"tradycyjne"}
+            unihan{"klucze i liczba kresek"}
+            zhuyin{"bopomofo"}
         }
         d0{
             fwidth{"pełna szerokość"}
             hwidth{"połowa szerokości"}
             npinyin{"Liczbowe"}
+        }
+        em%core{
+            default{"domyślna"}
+            emoji{"emoji"}
+            text{"tekst"}
         }
         hc{
             h11{"system 12-godzinny (0–11)"}
@@ -928,10 +974,27 @@ pl{
             h23{"system 24-godzinny (0–23)"}
             h24{"system 24-godzinny (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"luźny styl podziału wiersza"}
             normal{"normalny styl podziału wiersza"}
             strict{"ścisły styl podziału wiersza"}
+        }
+        lb%core{
+            loose{"luźny"}
+            normal{"normalny"}
+            strict{"ścisły"}
+        }
+        lw%core{
+            breakall{"dowolny podział"}
+            keepall{"bez podziału"}
+            normal{"normalny"}
+            phrase{"bez podziału w wyrażeniach"}
         }
         m0{
             bgn{"transliteracja BGN"}
@@ -941,6 +1004,11 @@ pl{
             metric{"system metryczny"}
             uksystem{"imperialny system miar"}
             ussystem{"amerykański system miar"}
+        }
+        ms%core{
+            metric{"metryczny"}
+            uksystem{"imperialny"}
+            ussystem{"amerykański"}
         }
         numbers{
             arab{"cyfry arabsko-indyjskie"}
@@ -987,6 +1055,10 @@ pl{
             tibt{"cyfry tybetańskie"}
             traditional{"Liczebniki tradycyjne"}
             vaii{"cyfry vai"}
+        }
+        ss%core{
+            none{"wył."}
+            standard{"wł."}
         }
     }
     Variants{

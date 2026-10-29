@@ -946,7 +946,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ ldr(feedback_cell,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector,
-         FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   {
     UseScratchRegisterScope temps(masm);
     Register temporary = temps.Acquire();
@@ -3389,8 +3389,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // If the stack has not been started yet, switching to it is invalid as it
   // does not have a stack entry frame. Instead, retire it and throw the
   // exception from the current stack.
-  // Both blocks exit with the arguments of the runtime call pushed on the
-  // stack.
+  // Both blocks exit with the exnref pushed on the stack.
   Register scratch = r4;
   __ ldr(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
   __ cmp(scratch, Operand(kNullAddress));
@@ -3416,9 +3415,11 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   }
 
   __ bind(&throw_);
-  // Throw the exception.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmReThrow);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
   __ Trap();
   __ bind(&return_);
   // Return the arg buffer.
@@ -4853,7 +4854,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ ldr(feedback_cell,
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector,
-         FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

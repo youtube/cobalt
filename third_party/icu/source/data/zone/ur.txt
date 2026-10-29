@@ -270,6 +270,9 @@ ur{
         "America:Costa_Rica"{
             ec{"کوسٹا ریکا"}
         }
+        "America:Coyhaique"{
+            ec{"کویائیکے"}
+        }
         "America:Creston"{
             ec{"کریسٹون"}
         }
@@ -1167,7 +1170,7 @@ ur{
             ec{"ایفیٹ"}
         }
         "Pacific:Enderbury"{
-            ec{"اینڈربری"}
+            ec{"کانٹن"}
         }
         "Pacific:Fakaofo"{
             ec{"فکاؤفو"}
@@ -1192,9 +1195,6 @@ ur{
         }
         "Pacific:Honolulu"{
             ec{"ہونولولو"}
-        }
-        "Pacific:Kanton"{
-            ec{"کانٹن"}
         }
         "Pacific:Kiritimati"{
             ec{"کریتیماٹی"}
@@ -1278,9 +1278,7 @@ ur{
             ls{"جنوبی افریقہ سٹینڈرڈ ٹائم"}
         }
         "meta:Africa_Western"{
-            ld{"مغربی افریقہ سمر ٹائم"}
-            lg{"مغربی افریقہ ٹائم"}
-            ls{"مغربی افریقہ سٹینڈرڈ ٹائم"}
+            ls{"مغربی افریقہ ٹائم"}
         }
         "meta:Alaska"{
             ld{"الاسکا ڈے لائٹ ٹائم"}
@@ -1523,6 +1521,9 @@ ur{
         }
         "meta:Guyana"{
             ls{"گیانا کا وقت"}
+        }
+        "meta:Hawaii"{
+            ls{"ہوائی الیوٹیئن اسٹینڈرڈ ٹائم"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ہوائی الیوٹیئن ڈے لائٹ ٹائم"}

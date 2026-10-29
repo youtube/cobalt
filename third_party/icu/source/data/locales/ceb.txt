@@ -17,6 +17,174 @@ ceb{
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"¤#,##0.00"}
             }
+            patternsLong{
+                decimalFormat{
+                    1000{
+                        one{"0 ka libo"}
+                        other{"0 ka libo"}
+                    }
+                    10000{
+                        one{"00 ka libo"}
+                        other{"00 ka libo"}
+                    }
+                    100000{
+                        one{"000 ka libo"}
+                        other{"000 ka libo"}
+                    }
+                    1000000{
+                        one{"0 ka milyon"}
+                        other{"0 ka milyon"}
+                    }
+                    10000000{
+                        one{"00 ka milyon"}
+                        other{"00 ka milyon"}
+                    }
+                    100000000{
+                        one{"000 ka milyon"}
+                        other{"000 ka milyon"}
+                    }
+                    1000000000{
+                        one{"0 ka bilyon"}
+                        other{"0 ka bilyon"}
+                    }
+                    10000000000{
+                        one{"00 ka bilyon"}
+                        other{"00 ka bilyon"}
+                    }
+                    100000000000{
+                        one{"000 ka bilyon"}
+                        other{"000 ka bilyon"}
+                    }
+                    1000000000000{
+                        one{"0 ka trilyon"}
+                        other{"0 ka trilyon"}
+                    }
+                    10000000000000{
+                        one{"00 ka trilyon"}
+                        other{"00 ka trilyon"}
+                    }
+                    100000000000000{
+                        one{"000 ka trilyon"}
+                        other{"000 ka trilyon"}
+                    }
+                }
+            }
+            patternsShort{
+                currencyFormat{
+                    1000{
+                        one{"¤0K"}
+                        other{"¤0K"}
+                    }
+                    10000{
+                        one{"¤00K"}
+                        other{"¤00K"}
+                    }
+                    100000{
+                        one{"¤000K"}
+                        other{"¤000K"}
+                    }
+                    1000000{
+                        one{"¤0M"}
+                        other{"¤0M"}
+                    }
+                    10000000{
+                        one{"¤00M"}
+                        other{"¤00M"}
+                    }
+                    100000000{
+                        one{"¤000M"}
+                        other{"¤000M"}
+                    }
+                    1000000000{
+                        one{"¤0B"}
+                        other{"¤0B"}
+                    }
+                    10000000000{
+                        one{"¤00B"}
+                        other{"¤00B"}
+                    }
+                    100000000000{
+                        one{"¤000B"}
+                        other{"¤000B"}
+                    }
+                    1000000000000{
+                        one{"¤0T"}
+                        other{"¤0T"}
+                    }
+                    10000000000000{
+                        one{"¤00T"}
+                        other{"¤00T"}
+                    }
+                    100000000000000{
+                        one{"¤000T"}
+                        other{"¤000T"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
+                    1000{
+                        one{"¤ 0K"}
+                        other{"¤ 0K"}
+                    }
+                    10000{
+                        one{"¤ 00K"}
+                        other{"¤ 00K"}
+                    }
+                    100000{
+                        one{"¤ 000K"}
+                        other{"¤ 000K"}
+                    }
+                    1000000{
+                        one{"¤ 0M"}
+                        other{"¤ 0M"}
+                    }
+                    10000000{
+                        one{"¤ 00M"}
+                        other{"¤ 00M"}
+                    }
+                    100000000{
+                        one{"¤ 000M"}
+                        other{"¤ 000M"}
+                    }
+                    1000000000{
+                        one{"¤ 0B"}
+                        other{"¤ 0B"}
+                    }
+                    10000000000{
+                        one{"¤ 00B"}
+                        other{"¤ 00B"}
+                    }
+                    100000000000{
+                        one{"¤ 000B"}
+                        other{"¤ 000B"}
+                    }
+                    1000000000000{
+                        one{"¤ 0T"}
+                        other{"¤ 0T"}
+                    }
+                    10000000000000{
+                        one{"¤ 00T"}
+                        other{"¤ 00T"}
+                    }
+                    100000000000000{
+                        one{"¤ 000T"}
+                        other{"¤ 000T"}
+                    }
+                }
+                decimalFormat{
+                    1000000000{
+                        one{"0B"}
+                        other{"0B"}
+                    }
+                    10000000000{
+                        one{"00B"}
+                        other{"00B"}
+                    }
+                    100000000000{
+                        one{"000B"}
+                        other{"000B"}
+                    }
+                }
+            }
         }
         minimalPairs{
             ordinal{
@@ -116,6 +284,7 @@ ceb{
                     G{"MMM d, y G – MMM d, y G"}
                     M{"MMM d – MMM d, y G"}
                     d{"MMM d – d, y G"}
+                    y{"MMM d, y – MMM d, y G"}
                 }
                 GyMd{
                     G{"M/d/y GGGGG – M/d/y GGGGG"}
@@ -228,7 +397,7 @@ ceb{
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
-                GyMd{"M/d/y GGGGG"}
+                GyMd{"M/d/y G"}
                 MEd{"E, M/d"}
                 MMMEd{"E, MMM d"}
                 MMMMW{
@@ -236,7 +405,6 @@ ceb{
                     other{"'semana' W 'sa' MMMM"}
                 }
                 Md{"M/d"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -290,20 +458,20 @@ ceb{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Sa Wala Pa Si Kristo",
-                    "Anno Domini",
+                    0{"Sa Wala Pa Si Kristo"}
+                    1{"Anno Domini"}
                 }
                 wide%variant{
-                    "Wala Pa ang Common Era",
-                    "Komong Panahon",
+                    0{"Wala Pa ang Komon nga Panahon"}
+                    1{"Komon nga Panahon"}
                 }
             }
             intervalFormats{
@@ -312,15 +480,15 @@ ceb{
                     y{"y – y G"}
                 }
                 GyM{
-                    G{"M/y GGGGG – M/y GGGGG"}
-                    M{"M/y – M/y GGGGG"}
-                    y{"M/y – M/y GGGGG"}
+                    G{"M/y G – M/y G"}
+                    M{"M/y – M/y G"}
+                    y{"M/y – M/y G"}
                 }
                 GyMEd{
-                    G{"E, M/d/y GGGGG – E, M/d/y GGGGG"}
-                    M{"E, M/d/y – E, M/d/y GGGGG"}
-                    d{"E, M/d/y – E, M/d/y GGGGG"}
-                    y{"E, M/d/y – E, M/d/y GGGGG"}
+                    G{"E, M/d/y G – E, M/d/y G"}
+                    M{"E, M/d/y – E, M/d/y G"}
+                    d{"E, M/d/y – E, M/d/y G"}
+                    y{"E, M/d/y – E, M/d/y G"}
                 }
                 GyMMM{
                     G{"MMM y G – MMM y G"}
@@ -340,10 +508,10 @@ ceb{
                     y{"MMM d, y – MMM d, y G"}
                 }
                 GyMd{
-                    G{"M/d/y GGGGG – M/d/y GGGGG"}
-                    M{"M/d/y – M/d/y GGGGG"}
-                    d{"M/d/y – M/d/y GGGGG"}
-                    y{"M/d/y – M/d/y GGGGG"}
+                    G{"M/d/y G – M/d/y G"}
+                    M{"M/d/y – M/d/y G"}
+                    d{"M/d/y – M/d/y G"}
+                    y{"M/d/y – M/d/y G"}
                 }
                 H{
                     H{"HH – HH"}
@@ -458,7 +626,7 @@ ceb{
                         "Hunyo",
                         "Hulyo",
                         "Agosto",
-                        "Septyembre",
+                        "Septiyembre",
                         "Oktubre",
                         "Nobyembre",
                         "Disyembre",
@@ -488,7 +656,7 @@ ceb{
                         "Hunyo",
                         "Hulyo",
                         "Agosto",
-                        "Septyembre",
+                        "Septiyembre",
                         "Oktubre",
                         "Nobyembre",
                         "Disyembre",
@@ -504,7 +672,15 @@ ceb{
                         "Q4",
                     }
                     wide{
-                        "unang quarter",
+                        "ika-1 nga quarter",
+                        "ika-2 nga quarter",
+                        "ika-3 nga quarter",
+                        "ika-4 nga quarter",
+                    }
+                }
+                stand-alone{
+                    wide{
+                        "ika-1 nga quarter",
                         "ika-2 nga quarter",
                         "ika-3 nga quarter",
                         "ika-4 nga quarter",
@@ -570,7 +746,13 @@ ceb{
                 "0"{"karong semanaha"}
                 "1"{"sunod nga semana"}
             }
-            relativePeriod{"ang semana sa {0}"}
+            relativePeriod{"sa semana sa {0}"}
+        }
+        week-narrow{
+            relativePeriod{"sa seman sa {0}"}
+        }
+        week-short{
+            relativePeriod{"sa semana sa {0}"}
         }
         weekday{
             dn{"adlaw sa semana"}

@@ -1178,7 +1178,9 @@ class ParserBase {
     // i.e. flags().is_module() is false), thus allowing await as an identifier
     // by default, the immediate outer scope is a module scope.
     DCHECK(!IsModule(kind) ||
-           (flags().is_eval() && function_state_->scope() == original_scope_ &&
+           (flags().is_eval() &&
+            function_state_->scope()->IsOuterScopeUpToClosureScopeOf(
+                original_scope_) &&
             IsModule(function_state_->kind())));
     return IsAsyncFunction(kind) ||
            kind == FunctionKind::kClassStaticInitializerFunction;
@@ -1343,9 +1345,9 @@ class ParserBase {
   const AstRawString* GetNextSymbolForRegExpLiteral() const {
     return scanner()->NextSymbol(ast_value_factory());
   }
-  bool ValidateRegExpFlags(RegExpFlags flags);
-  bool ValidateRegExpLiteral(const AstRawString* pattern, RegExpFlags flags,
-                             RegExpError* regexp_error);
+  bool ValidateRegExpFlags(regexp::Flags flags);
+  bool ValidateRegExpLiteral(const AstRawString* pattern, regexp::Flags flags,
+                             regexp::Error* regexp_error);
   ExpressionT ParseRegExpLiteral();
 
   ExpressionT ParseBindingPattern();
@@ -2054,14 +2056,14 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
 }
 
 template <typename Impl>
-bool ParserBase<Impl>::ValidateRegExpFlags(RegExpFlags flags) {
+bool ParserBase<Impl>::ValidateRegExpFlags(regexp::Flags flags) {
   return RegExp::VerifyFlags(flags);
 }
 
 template <typename Impl>
 bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
-                                             RegExpFlags flags,
-                                             RegExpError* regexp_error) {
+                                             regexp::Flags flags,
+                                             regexp::Error* regexp_error) {
   if (this->flags().is_lazy_compile()) {
     // Lazy compilation implies this has already been validated.
     return true;
@@ -2091,7 +2093,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
 
   const AstRawString* pattern = GetNextSymbolForRegExpLiteral();
-  std::optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  std::optional<regexp::Flags> flags = scanner()->ScanRegExpFlags();
   const AstRawString* flags_as_ast_raw_string = GetNextSymbolForRegExpLiteral();
   if (!flags.has_value() || !ValidateRegExpFlags(flags.value())) {
     Next();
@@ -2099,11 +2101,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
     return impl()->FailureExpression();
   }
   Next();
-  RegExpError regexp_error;
+  regexp::Error regexp_error;
   if (!ValidateRegExpLiteral(pattern, flags.value(), &regexp_error)) {
-    if (RegExpErrorIsStackOverflow(regexp_error)) set_stack_overflow();
+    if (regexp::ErrorIsStackOverflow(regexp_error)) set_stack_overflow();
     ReportMessage(MessageTemplate::kMalformedRegExp, pattern,
-                  flags_as_ast_raw_string, RegExpErrorString(regexp_error));
+                  flags_as_ast_raw_string, regexp::ErrorString(regexp_error));
     return impl()->FailureExpression();
   }
   return factory()->NewRegExpLiteral(pattern, flags.value(), pos);
@@ -2657,7 +2659,10 @@ bool ParserBase<Impl>::VerifyCanHaveAutoAccessorOrThrow(
       return true;
     default:
       impl()->ReportUnexpectedTokenAt(
-          Scanner::Location(name_token_position, name_expression->position()),
+          Scanner::Location(name_token_position,
+                            name_expression->position() == -1
+                                ? name_token_position
+                                : name_expression->position()),
           Token::kAccessor);
       return false;
   }
@@ -3314,7 +3319,10 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
 
     if (!impl()->IsIdentifier(expression) && !expression->is_parenthesized()) {
       impl()->ReportMessageAt(
-          Scanner::Location(expression->position(), position()),
+          Scanner::Location(expression->position() == kNoSourcePosition
+                                ? lhs_beg_pos
+                                : expression->position(),
+                            position()),
           MessageTemplate::kMalformedArrowFunParamList);
       return impl()->FailureExpression();
     }

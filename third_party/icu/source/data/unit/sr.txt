@@ -177,6 +177,9 @@ sr{
                 one{"{0} обртај"}
                 other{"{0} обртаја"}
             }
+            steradian{
+                dnam{"стерадианси"}
+            }
         }
         area{
             acre{
@@ -511,6 +514,12 @@ sr{
                 one{"{0} карат"}
                 other{"{0} карата"}
             }
+            katal{
+                dnam{"катали"}
+                few{"{0} катала"}
+                one{"{0} катал"}
+                other{"{0} катала"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -583,6 +592,66 @@ sr{
                 one{"{0} мол"}
                 other{"{0} мола"}
             }
+            ofglucose{
+                dnam{"глукозе"}
+                few{"{0} глукозе"}
+                one{"{0} глукозе"}
+                other{"{0} глукозе"}
+            }
+            part{
+                dnam{"делови"}
+                few{"{0} дела"}
+                one{"{0} део"}
+                other{"{0} делова"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        few{"{0} честице на милион"}
+                        one{"{0} честицу на милион"}
+                        other{"{0} честица на милион"}
+                    }
+                    genitive{
+                        few{"{0} честице на милион"}
+                        one{"{0} честице на милион"}
+                        other{"{0} честица на милион"}
+                    }
+                    instrumental{
+                        few{"{0} честице на милион"}
+                        one{"{0} честицом на милион"}
+                        other{"{0} честица на милион"}
+                    }
+                }
+                dnam{"честица на милион"}
+                few{"{0} честице на милион"}
+                gender{"feminine"}
+                one{"{0} честица на милион"}
+                other{"{0} честица на милион"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        few{"{0} дела на милијарду"}
+                        one{"{0} део на милијарду"}
+                        other{"{0} делова на милијарду"}
+                    }
+                    genitive{
+                        few{"{0} дела на милијарду"}
+                        one{"{0} дела на милијарду"}
+                        other{"{0} делова на милијарду"}
+                    }
+                    instrumental{
+                        few{"{0} дела на милијарду"}
+                        one{"{0} делом на милијарду"}
+                        other{"{0} делова на милијарду"}
+                    }
+                }
+                dnam{"делови на милијарду"}
+                few{"{0} дела на милијарду"}
+                gender{"inanimate"}
+                one{"{0} део на милијарду"}
+                other{"{0} делова на милијарду"}
+            }
             percent{
                 case{
                     accusative{
@@ -629,56 +698,8 @@ sr{
                 one{"{0} промил"}
                 other{"{0} промила"}
             }
-            permillion{
-                case{
-                    accusative{
-                        few{"{0} честице на милион"}
-                        one{"{0} честицу на милион"}
-                        other{"{0} честица на милион"}
-                    }
-                    genitive{
-                        few{"{0} честице на милион"}
-                        one{"{0} честице на милион"}
-                        other{"{0} честица на милион"}
-                    }
-                    instrumental{
-                        few{"{0} честице на милион"}
-                        one{"{0} честицом на милион"}
-                        other{"{0} честица на милион"}
-                    }
-                }
-                dnam{"честица на милион"}
-                few{"{0} честице на милион"}
-                gender{"feminine"}
-                one{"{0} честица на милион"}
-                other{"{0} честица на милион"}
-            }
             permyriad{
                 gender{"inanimate"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        few{"{0} дела на милијарду"}
-                        one{"{0} део на милијарду"}
-                        other{"{0} делова на милијарду"}
-                    }
-                    genitive{
-                        few{"{0} дела на милијарду"}
-                        one{"{0} дела на милијарду"}
-                        other{"{0} делова на милијарду"}
-                    }
-                    instrumental{
-                        few{"{0} дела на милијарду"}
-                        one{"{0} делом на милијарду"}
-                        other{"{0} делова на милијарду"}
-                    }
-                }
-                dnam{"делови на милијарду"}
-                few{"{0} дела на милијарду"}
-                gender{"inanimate"}
-                one{"{0} део на милијарду"}
-                other{"{0} делова на милијарду"}
             }
         }
         consumption{
@@ -745,10 +766,6 @@ sr{
         }
         coordinate{
             dnam{"страна света"}
-            east{"{0} E"}
-            north{"{0} N"}
-            south{"{0} S"}
-            west{"{0} W"}
         }
         digital{
             bit{
@@ -1253,12 +1270,10 @@ sr{
                         other{"{0} ноћи"}
                     }
                 }
-                dnam{"ноћ"}
                 few{"{0} ноћи"}
                 gender{"feminine"}
                 one{"{0} ноћ"}
                 other{"{0} ноћи"}
-                per{"{0}/ноћ"}
             }
             quarter{
                 case{
@@ -1385,6 +1400,24 @@ sr{
                 one{"{0} ампер"}
                 other{"{0} ампера"}
             }
+            coulomb{
+                dnam{"кулони"}
+                few{"{0} кулона"}
+                one{"{0} кулон"}
+                other{"{0} кулона"}
+            }
+            farad{
+                dnam{"фаради"}
+                few{"{0} фарада"}
+                one{"{0} фарад"}
+                other{"{0} фарада"}
+            }
+            henry{
+                dnam{"хенрији"}
+                few{"{0} хенрија"}
+                one{"{0} хенри"}
+                other{"{0} хенрија"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -1433,6 +1466,12 @@ sr{
                 one{"{0} ом"}
                 other{"{0} ома"}
             }
+            siemens{
+                dnam{"сименси"}
+                few{"{0} сименса"}
+                one{"{0} сименс"}
+                other{"{0} сименса"}
+            }
             volt{
                 case{
                     accusative{
@@ -1459,6 +1498,12 @@ sr{
             }
         }
         energy{
+            becquerel{
+                dnam{"бекерели"}
+                few{"{0} бекерела"}
+                one{"{0} бекерел"}
+                other{"{0} бекерела"}
+            }
             british-thermal-unit{
                 dnam{"Британска термална јединица"}
             }
@@ -1486,6 +1531,12 @@ sr{
                 one{"{0} калорија"}
                 other{"{0} калорија"}
             }
+            calorie-it{
+                dnam{"калорије [IT]"}
+                few{"{0} калорије [IT]"}
+                one{"{0} калорија [IT]"}
+                other{"{0} калорија [IT]"}
+            }
             electronvolt{
                 dnam{"електронволти"}
                 few{"{0} електронволта"}
@@ -1497,6 +1548,12 @@ sr{
                 few{"{0} калорије"}
                 one{"{0} калорија"}
                 other{"{0} калорија"}
+            }
+            gray{
+                dnam{"греји"}
+                few{"{0} греја"}
+                one{"{0} греј"}
+                other{"{0} грејева"}
             }
             joule{
                 case{
@@ -1594,11 +1651,23 @@ sr{
                 one{"{0} киловат-сат"}
                 other{"{0} киловат-сати"}
             }
+            sievert{
+                dnam{"сиверти"}
+                few{"{0} сиверта"}
+                one{"{0} сиверт"}
+                other{"{0} сиверта"}
+            }
             therm-us{
                 dnam{"US therms"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"килопонд"}
+                few{"{0} килопонда"}
+                one{"{0} килопонд"}
+                other{"{0} килопонда"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -2135,7 +2204,6 @@ sr{
                         other{"{0} типографских тачака"}
                     }
                 }
-                dnam{"типографске тачке"}
                 few{"{0} типографске тачке"}
                 gender{"feminine"}
                 one{"{0} типографска тачка"}
@@ -2225,6 +2293,20 @@ sr{
                 gender{"inanimate"}
                 one{"{0} лукс"}
                 other{"{0} лукса"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"тесле"}
+                few{"{0} тесле"}
+                one{"{0} тесла"}
+                other{"{0} тесла"}
+            }
+            weber{
+                dnam{"вебери"}
+                few{"{0} вебера"}
+                one{"{0} вебер"}
+                other{"{0} вебера"}
             }
         }
         mass{
@@ -2731,6 +2813,12 @@ sr{
                 one{"{0} милиметар живиног стуба"}
                 other{"{0} милиметара живиног стуба"}
             }
+            ofhg{
+                dnam{"живе"}
+                few{"{0} живе"}
+                one{"{0} живе"}
+                other{"{0} живе"}
+            }
             pascal{
                 case{
                     accusative{
@@ -2765,7 +2853,7 @@ sr{
         speed{
             beaufort{
                 dnam{"Бофор"}
-                few{"Б {0}"}
+                few{"B {0}"}
                 one{"Бофор {0}"}
                 other{"Бофор {0}"}
             }
@@ -2817,7 +2905,6 @@ sr{
                         other{"{0} светала"}
                     }
                 }
-                dnam{"светло"}
                 few{"{0} светла"}
                 gender{"neuter"}
                 one{"{0} светло"}
@@ -3163,6 +3250,12 @@ sr{
                 one{"{0} империјска унца течности"}
                 other{"{0} империјских унци течности"}
             }
+            fluid-ounce-metric{
+                dnam{"течне унце"}
+                few{"{0} течне унце"}
+                one{"{0} течна унца"}
+                other{"{0} течних унци"}
+            }
             gallon{
                 dnam{"галони"}
                 few{"{0} галона"}
@@ -3331,6 +3424,15 @@ sr{
     }
     unitsNarrow{
         concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"део"}
+                few{"{0} дела"}
+                one{"{0} део"}
+                other{"{0} делова"}
+            }
             percent{
                 dnam{"%"}
             }
@@ -3379,13 +3481,6 @@ sr{
                 one{"{0} м"}
                 other{"{0} м"}
             }
-            night{
-                dnam{"ноћ"}
-                few{"{0} ноћи"}
-                one{"{0} ноћ"}
-                other{"{0} ноћи"}
-                per{"{0}/ноћ"}
-            }
             quarter{
                 few{"{0} к"}
                 one{"{0} к"}
@@ -3411,6 +3506,9 @@ sr{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal [IT]"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -3460,11 +3558,10 @@ sr{
             }
         }
         speed{
-            light-speed{
-                dnam{"светло"}
-                few{"{0} светла"}
-                one{"{0} светло"}
-                other{"{0} светала"}
+            beaufort{
+                few{"B {0}"}
+                one{"B {0}"}
+                other{"B {0}"}
             }
         }
         volume{
@@ -3548,14 +3645,23 @@ sr{
                 one{"{0} ставка"}
                 other{"{0} ставки"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"део"}
+                few{"{0} дела"}
+                one{"{0} део"}
+                other{"{0} делова"}
+            }
+            part-per-1e9{
+                dnam{"делови/милијарда"}
+            }
             percent{
                 dnam{"проценат"}
             }
             permille{
                 dnam{"промил"}
-            }
-            portion-per-1e9{
-                dnam{"делови/милијарда"}
             }
         }
         consumption{
@@ -3682,6 +3788,9 @@ sr{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal [IT]"}
+            }
             electronvolt{
                 dnam{"електронволт"}
             }
@@ -3791,9 +3900,9 @@ sr{
         speed{
             beaufort{
                 dnam{"Bf"}
-                few{"Б {0}"}
-                one{"Б {0}"}
-                other{"Б {0}"}
+                few{"B {0}"}
+                one{"B {0}"}
+                other{"B {0}"}
             }
             light-speed{
                 dnam{"светло"}

@@ -415,16 +415,16 @@ ee{
             }
             eras{
                 abbreviated{
-                    "HYV",
-                    "Yŋ",
+                    0{"HYV"}
+                    1{"Yŋ"}
                 }
                 abbreviated%variant{
-                    "Bŋ",
-                    "Eŋ",
+                    0{"Bŋ"}
+                    1{"Eŋ"}
                 }
                 wide{
-                    "Hafi Yesu Va",
-                    "Yesu ŋɔli",
+                    0{"Hafi Yesu Va"}
+                    1{"Yesu ŋɔli"}
                 }
             }
             intervalFormats{

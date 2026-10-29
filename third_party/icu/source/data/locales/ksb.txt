@@ -114,12 +114,12 @@ ksb{
             }
             eras{
                 abbreviated{
-                    "KK",
-                    "BK",
+                    0{"KK"}
+                    1{"BK"}
                 }
                 wide{
-                    "Kabla ya Klisto",
-                    "Baada ya Klisto",
+                    0{"Kabla ya Klisto"}
+                    1{"Baada ya Klisto"}
                 }
             }
             monthNames{

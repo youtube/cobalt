@@ -1055,6 +1055,10 @@ hu{
             "XCD",
             "kelet-karibi dollár",
         }
+        XCG{
+            "Cg.",
+            "karibi forint",
+        }
         XDR{
             "XDR",
             "Special Drawing Rights",
@@ -1151,6 +1155,10 @@ hu{
             "ZWD",
             "Zimbabwei dollár (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "zimbabwei arany",
+        }
         ZWL{
             "ZWL",
             "Zimbabwei dollár (2009)",
@@ -1201,25 +1209,13 @@ hu{
             one{"görög drachma"}
             other{"görög drachma"}
         }
-        HNL{
-            one{"hondurasi lempira"}
-            other{"hondurasi lempira"}
-        }
         HRD{
             one{"horvát dínár"}
             other{"horvát dínár"}
         }
-        IRR{
-            one{"iráni riál"}
-            other{"iráni riál"}
-        }
         ITL{
             one{"olasz líra"}
             other{"olasz líra"}
-        }
-        MKD{
-            one{"macedón dénár"}
-            other{"macedón dénár"}
         }
         MTL{
             one{"máltai líra"}
@@ -1241,10 +1237,6 @@ hu{
             one{"nicaraguai córdoba (1988–1911)"}
             other{"nicaraguai córdoba (1988–1911)"}
         }
-        OMR{
-            one{"ománi riál"}
-            other{"ománi riál"}
-        }
         PLZ{
             one{"lengyel zloty (PLZ)"}
             other{"lengyel zloty (PLZ)"}
@@ -1253,21 +1245,9 @@ hu{
             one{"portugál escudo"}
             other{"portugál escudo"}
         }
-        QAR{
-            one{"katari riál"}
-            other{"katari riál"}
-        }
         RHD{
             one{"Rhodéziai dollár"}
             other{"Rhodéziai dollár"}
-        }
-        RSD{
-            one{"szerb dinár"}
-            other{"szerb dinár"}
-        }
-        SAR{
-            one{"szaúdi riál"}
-            other{"szaúdi riál"}
         }
         SIT{
             one{"szlovén tolár"}
@@ -1276,10 +1256,6 @@ hu{
         SKK{
             one{"szlovák korona"}
             other{"szlovák korona"}
-        }
-        SLL{
-            one{"Sierra Leone-i leone (1964–2022)"}
-            other{"Sierra Leone-i leone (1964–2022)"}
         }
         SUR{
             one{"szovjet rubel"}
@@ -1309,13 +1285,9 @@ hu{
             one{"Uruguayi peso (1975–1993)"}
             other{"Uruguayi peso (1975–1993)"}
         }
-        UYU{
-            one{"uruguayi peso"}
-            other{"uruguayi peso"}
-        }
-        UZS{
-            one{"üzbegisztáni szom"}
-            other{"üzbegisztáni szom"}
+        XCG{
+            one{"karibi forint"}
+            other{"karibi forint"}
         }
         XEU{
             one{"Európai pénznemegység"}
@@ -1333,10 +1305,6 @@ hu{
             one{"(ismeretlen pénznem)"}
             other{"(ismeretlen pénznem)"}
         }
-        YER{
-            one{"jemeni riál"}
-            other{"jemeni riál"}
-        }
         YUD{
             one{"jugoszláv kemény dinár (1966–1990)"}
             other{"jugoszláv kemény dinár (1966–1990)"}
@@ -1348,6 +1316,10 @@ hu{
         YUN{
             one{"jugoszláv konvertibilis dinár (1990–1992)"}
             other{"jugoszláv konvertibilis dinár (1990–1992)"}
+        }
+        ZWG{
+            one{"zimbabwei arany"}
+            other{"zimbabwei arany"}
         }
     }
 }

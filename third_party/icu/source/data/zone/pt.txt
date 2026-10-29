@@ -18,17 +18,11 @@ pt{
         "Africa:Djibouti"{
             ec{"Djibuti"}
         }
-        "Africa:El_Aaiun"{
-            ec{"El Aaiún"}
-        }
         "Africa:Johannesburg"{
             ec{"Joanesburgo"}
         }
         "Africa:Khartoum"{
             ec{"Cartum"}
-        }
-        "Africa:Lome"{
-            ec{"Lomé"}
         }
         "Africa:Mogadishu"{
             ec{"Mogadíscio"}
@@ -38,9 +32,6 @@ pt{
         }
         "Africa:Nairobi"{
             ec{"Nairóbi"}
-        }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
         }
         "Africa:Porto-Novo"{
             ec{"Porto Novo"}
@@ -57,9 +48,6 @@ pt{
         "America:Antigua"{
             ec{"Antígua"}
         }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
         "America:Argentina:Tucuman"{
             ec{"Tucumã"}
         }
@@ -69,23 +57,11 @@ pt{
         "America:Bahia_Banderas"{
             ec{"Bahia de Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cayenne"{
             ec{"Caiena"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
+        "America:Coyhaique"{
+            ec{"Coihaique"}
         }
         "America:Grenada"{
             ec{"Granada"}
@@ -102,9 +78,6 @@ pt{
         "America:Indianapolis"{
             ec{"Indianápolis"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Managua"{
             ec{"Manágua"}
         }
@@ -119,9 +92,6 @@ pt{
         }
         "America:New_York"{
             ec{"Nova York"}
-        }
-        "America:Noronha"{
-            ec{"Fernando de Noronha"}
         }
         "America:North_Dakota:Beulah"{
             ec{"Beulah, Dakota do Norte"}
@@ -140,12 +110,6 @@ pt{
         }
         "America:Puerto_Rico"{
             ec{"Porto Rico"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"São Bartolomeu"}
@@ -315,9 +279,6 @@ pt{
         "Europe:Budapest"{
             ec{"Budapeste"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Copenhagen"{
             ec{"Copenhague"}
         }
@@ -373,9 +334,6 @@ pt{
         "Europe:Stockholm"{
             ec{"Estocolmo"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
@@ -393,12 +351,6 @@ pt{
         }
         "Europe:Zurich"{
             ec{"Zurique"}
-        }
-        "Indian:Comoro"{
-            ec{"Comores"}
-        }
-        "Indian:Mahe"{
-            ec{"Mahé"}
         }
         "Indian:Maldives"{
             ec{"Maldivas"}
@@ -419,16 +371,10 @@ pt{
             ec{"Éfaté"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
+            ec{"Ilha de Canton"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "Pacific:Tahiti"{
             ec{"Taiti"}
@@ -457,9 +403,7 @@ pt{
             ls{"Horário da África do Sul"}
         }
         "meta:Africa_Western"{
-            ld{"Horário de Verão da África Ocidental"}
-            lg{"Horário da África Ocidental"}
-            ls{"Horário Padrão da África Ocidental"}
+            ls{"Horário da África Ocidental"}
         }
         "meta:Alaska"{
             ld{"Horário de Verão do Alasca"}
@@ -726,6 +670,9 @@ pt{
         }
         "meta:Guyana"{
             ls{"Horário da Guiana"}
+        }
+        "meta:Hawaii"{
+            ls{"Horário Padrão do Havaí e Ilhas Aleutas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Horário de Verão do Havaí e Ilhas Aleutas"}
@@ -1024,6 +971,11 @@ pt{
         }
         "meta:Truk"{
             ls{"Horário de Chuuk"}
+        }
+        "meta:Turkey"{
+            ld{"Horário de Verão da Turquia"}
+            lg{"Horário da Turquia"}
+            ls{"Horário Padrão da Turquia"}
         }
         "meta:Turkmenistan"{
             ld{"Horário de Verão do Turcomenistão"}

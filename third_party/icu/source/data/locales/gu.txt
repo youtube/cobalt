@@ -32,6 +32,8 @@ gu{
                 accountingFormat%alphaNextToNumber{"¤ #,##,##0.00;(¤ #,##,##0.00)"}
                 accountingFormat%noCurrency{"#,##,##0.00;(#,##,##0.00)"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
@@ -273,12 +275,6 @@ gu{
     }
     calendar{
         coptic{
-            eras{
-                abbreviated{
-                    "એરા0",
-                    "એરા1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -300,12 +296,6 @@ gu{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "એરા0",
-                    "એરા1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -339,12 +329,6 @@ gu{
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-            }
-            DateTimePatterns%atTime{
-                "{1} એ {0} વાગ્યે",
-                "{1} એ {0} વાગ્યે",
                 "{1} {0}",
                 "{1} {0}",
             }
@@ -482,12 +466,6 @@ gu{
                 "{1} {0}",
                 "{1} {0}",
             }
-            DateTimePatterns%atTime{
-                "{1} એ {0} વાગ્યે",
-                "{1} એ {0} વાગ્યે",
-                "{1} {0}",
-                "{1} {0}",
-            }
             DateTimeSkeletons{
                 "ahhmmsszzzz",
                 "ahhmmssz",
@@ -500,6 +478,7 @@ gu{
             }
             availableFormats{
                 Ed{"E d"}
+                GyM{"M/y G"}
                 GyMMM{"MMM, G y"}
                 GyMMMEd{"E, d MMM, G y"}
                 GyMMMd{"d MMM, G y"}
@@ -596,24 +575,23 @@ gu{
             }
             eras{
                 abbreviated{
-                    "ઈ.સ.પૂર્વે",
-                    "ઈ.સ.",
+                    0{"ઈ.સ.પૂર્વે"}
+                    1{"ઈ.સ."}
                 }
                 abbreviated%variant{
-                    "ઈ.સ.પૂર્વે",
-                    "સા.યુ.",
+                    1{"સા.યુ."}
                 }
                 narrow{
-                    "ઇ સ પુ",
-                    "ઇસ",
+                    0{"ઇ સ પુ"}
+                    1{"ઇસ"}
                 }
                 wide{
-                    "ઈસવીસન પૂર્વે",
-                    "ઇસવીસન",
+                    0{"ઈસવીસન પૂર્વે"}
+                    1{"ઇસવીસન"}
                 }
                 wide%variant{
-                    "સામાન્ય યુગ પહેલા",
-                    "સામાન્ય યુગ",
+                    0{"સામાન્ય યુગ પહેલા"}
+                    1{"સામાન્ય યુગ"}
                 }
             }
             intervalFormats{
@@ -808,10 +786,10 @@ gu{
         indian{
             eras{
                 abbreviated{
-                    "શક",
+                    0{"શક"}
                 }
                 wide{
-                    "સાકા",
+                    0{"સાકા"}
                 }
             }
             monthNames{
@@ -890,8 +868,8 @@ gu{
         roc{
             eras{
                 abbreviated{
-                    "આર.ઓ.સી. પહેલાં",
-                    "આર.ઓ.સી.",
+                    0{"આર.ઓ.સી. પહેલાં"}
+                    1{"આર.ઓ.સી."}
                 }
             }
         }
@@ -1055,8 +1033,11 @@ gu{
                 }
             }
         }
+        hour-narrow{
+            dn{"ક૰"}
+        }
         hour-short{
-            dn{"ક."}
+            dn{"ક૰"}
         }
         minute{
             dn{"મિનિટ"}
@@ -1074,8 +1055,11 @@ gu{
                 }
             }
         }
+        minute-narrow{
+            dn{"મિ૰"}
+        }
         minute-short{
-            dn{"મિ."}
+            dn{"મિ૰"}
         }
         mon{
             relative{
@@ -1170,7 +1154,7 @@ gu{
             }
         }
         second{
-            dn{"સેકન્ડ"}
+            dn{"સેકંડ"}
             relative{
                 "0"{"હમણાં"}
             }

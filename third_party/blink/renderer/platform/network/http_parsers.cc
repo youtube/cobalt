@@ -447,7 +447,7 @@ inline bool SkipWhiteSpace(const String& str,
 
 template <typename CharType>
 inline bool IsASCIILowerAlphaOrDigit(CharType c) {
-  return IsASCIILower(c) || IsAsciiDigit(c);
+  return IsAsciiLower(c) || IsAsciiDigit(c);
 }
 
 template <typename CharType>

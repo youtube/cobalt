@@ -146,6 +146,12 @@ ig{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'na' {0}",
+                "{1} 'na' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 MEd{"E, M/d"}
                 MMMEd{"E, MMM d"}
@@ -176,10 +182,6 @@ ig{
                 "N’ụtụtụ",
                 "N’abalị",
             }
-            AmPmMarkersNarrow{
-                "N’ụtụtụ",
-                "N’abalị",
-            }
             DateTimePatterns{
                 "HH:mm:ss zzzz",
                 "HH:mm:ss z",
@@ -196,6 +198,12 @@ ig{
                 "{1}, {0}",
             }
             DateTimePatterns%atTime{
+                "{1} 'na' {0}",
+                "{1} 'na' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
                 "{1} 'na' {0}",
                 "{1} 'na' {0}",
                 "{1}, {0}",
@@ -259,42 +267,26 @@ ig{
                     }
                 }
             }
-            dayPeriod{
-                stand-alone{
-                    abbreviated{
-                        am{"N’ụtụtụ"}
-                        pm{"N’abalị"}
-                    }
-                    narrow{
-                        am{"N’ụtụtụ"}
-                        pm{"N’abalị"}
-                    }
-                    wide{
-                        am{"N’ụtụtụ"}
-                        pm{"N’abalị"}
-                    }
-                }
-            }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 narrow%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Tupu Kraist",
-                    "Afọ Kraịst",
+                    0{"Tupu Kraist"}
+                    1{"Afọ Kraịst"}
                 }
                 wide%variant{
-                    "Tupu Oge Afọ",
-                    "Oge Afọ",
+                    0{"Tupu Oge Afọ"}
+                    1{"Oge Afọ"}
                 }
             }
             intervalFormats{
@@ -302,26 +294,14 @@ ig{
                     M{"M – M"}
                 }
                 MEd{
-                    M{"MM-dd, E – MM-dd, E"}
                     d{"E, M/d – E, M/d"}
                 }
                 MMM{
                     M{"MMM – MMM"}
                 }
-                MMMEd{
-                    M{"MMM d, E – MMM d, E"}
-                    d{"MMM d, E – MMM d, E"}
-                }
-                MMMd{
-                    M{"MMM d – MMM d"}
-                }
                 Md{
                     M{"M/d – M/d"}
                     d{"M/d – M/d"}
-                }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
@@ -333,38 +313,8 @@ ig{
                     h{"h:mm–h:mm a v"}
                     m{"h:mm–h:mm a v"}
                 }
-                hv{
-                    a{"h a – h a v"}
-                    h{"h–h a v"}
-                }
                 yM{
                     M{"MM/y – MM/y"}
-                    y{"y-MM – y-MM"}
-                }
-                yMEd{
-                    M{"y-MM-dd, E – y-MM-dd, E"}
-                    d{"y-MM-dd, E – y-MM-dd, E"}
-                    y{"y-MM-dd, E – y-MM-dd, E"}
-                }
-                yMMM{
-                    y{"y MMM – y MMM"}
-                }
-                yMMMEd{
-                    M{"y MMM d, E – MMM d, E"}
-                    d{"y MMM d, E – MMM d, E"}
-                    y{"y MMM d, E – y MMM d, E"}
-                }
-                yMMMM{
-                    y{"y MMMM – y MMMM"}
-                }
-                yMMMd{
-                    M{"y MMM d – MMM d"}
-                    y{"y MMM d – y MMM d"}
-                }
-                yMd{
-                    M{"y-MM-dd – y-MM-dd"}
-                    d{"y-MM-dd – y-MM-dd"}
-                    y{"y-MM-dd – y-MM-dd"}
                 }
             }
             monthNames{
@@ -413,20 +363,6 @@ ig{
                         "N",
                         "D",
                     }
-                    wide{
-                        "Jenụwarị",
-                        "Febrụwarị",
-                        "Maachị",
-                        "Epreel",
-                        "Mee",
-                        "Jun",
-                        "Julaị",
-                        "Ọgọọst",
-                        "Septemba",
-                        "Ọktoba",
-                        "Novemba",
-                        "Disemba",
-                    }
                 }
             }
             quarters{
@@ -442,14 +378,6 @@ ig{
                         "Ọkara 2",
                         "Ọkara 3",
                         "Ọkara 4",
-                    }
-                }
-                stand-alone{
-                    abbreviated{
-                        "Q1",
-                        "Q2",
-                        "Q3",
-                        "Q4",
                     }
                 }
             }
@@ -504,16 +432,6 @@ ig{
                 "1"{"Echi"}
             }
         }
-        day-narrow{
-            relativeTime{
-                future{
-                    other{"n’ụbọchị {0}"}
-                }
-                past{
-                    other{"n’ụbọchị {0} gara aga"}
-                }
-            }
-        }
         day-short{
             relative{
                 "-1"{"Ụnyaahụ"}
@@ -541,12 +459,6 @@ ig{
         era{
             dn{"Oge"}
         }
-        era-narrow{
-            dn{"Oge"}
-        }
-        era-short{
-            dn{"Oge"}
-        }
         fri{
             relative{
                 "-1"{"Ụbọchị faraịde gara aga"}
@@ -559,14 +471,6 @@ ig{
                 "-1"{"ụbọchị Faraịde gara aga"}
                 "0"{"ụbọchị Faraịde a"}
                 "1"{"ụọchị Faraịde na abịa"}
-            }
-            relativeTime{
-                future{
-                    other{"n’ụbọchị Faraịde {0}"}
-                }
-                past{
-                    other{"n’ụbọchị Faraịde gara aga {0}"}
-                }
             }
         }
         fri-short{
@@ -625,20 +529,6 @@ ig{
                 "1"{"Ọnwa na-abịa"}
             }
         }
-        month-narrow{
-            relative{
-                "-1"{"Ọnwa gara aga"}
-                "0"{"Ọnwa a"}
-                "1"{"Ọnwa na-abịa"}
-            }
-        }
-        month-short{
-            relative{
-                "-1"{"Ọnwa gara aga"}
-                "0"{"Ọnwa a"}
-                "1"{"Ọnwa na-abịa"}
-            }
-        }
         quarter{
             dn{"Ọnwa atọ n’afọ"}
             relative{
@@ -646,26 +536,6 @@ ig{
                 "0"{"nkejị keanọ a"}
                 "1"{"nkejị keanọ na abịa"}
             }
-            relativeTime{
-                future{
-                    other{"Nkejị keanọ {0}"}
-                }
-                past{
-                    other{"Nkejị keanọ {0} gara aga"}
-                }
-            }
-        }
-        quarter-narrow{
-            relativeTime{
-                future{
-                    other{"Nkejị keanọ {0}"}
-                }
-                past{
-                    other{"Nkejị keanọ {0} gara aga"}
-                }
-            }
-        }
-        quarter-short{
             relativeTime{
                 future{
                     other{"Nkejị keanọ {0}"}
@@ -700,19 +570,11 @@ ig{
                 "0"{"ụbọchị Satụde a"}
                 "1"{"ụbọchị Satụde na abịa"}
             }
-            relativeTime{
-                past{
-                    other{"Ụbọchị Satụde {0} gara aga"}
-                }
-            }
         }
         second{
             relative{
                 "0"{"ụgbụa"}
             }
-        }
-        second-narrow{
-            dn{"sekọnd"}
         }
         second-short{
             dn{"sekọnd"}
@@ -831,11 +693,6 @@ ig{
             }
         }
         year-narrow{
-            relative{
-                "-1"{"Afọ gara aga"}
-                "0"{"Afọ a"}
-                "1"{"afọ na-abịa"}
-            }
             relativeTime{
                 past{
                     other{"Afọ {0} gara aga"}
@@ -858,23 +715,11 @@ ig{
             2{"{0} ma ọ bụ {1}"}
             end{"{0}, ma ọ bụ {1}"}
         }
-        or-narrow{
-            2{"{0} ma ọ bụ {1}"}
-            end{"{0}, ma ọ bụ {1}"}
-        }
-        or-short{
-            2{"{0} ma ọ bụ {1}"}
-            end{"{0}, ma ọ bụ {1}"}
-        }
         standard{
             2{"{0} na {1}"}
             end{"{0}, na {1}"}
         }
         standard-narrow{
-            2{"{0}, {1}"}
-            end{"{0}, {1}"}
-        }
-        unit{
             2{"{0}, {1}"}
             end{"{0}, {1}"}
         }

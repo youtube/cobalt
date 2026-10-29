@@ -17,8 +17,10 @@ pt_PT{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -99,16 +101,16 @@ pt_PT{
                         other{"000 mM ¤"}
                     }
                     1000000000000{
-                        one{"0 B ¤"}
-                        other{"0 B ¤"}
+                        one{"0 Bi ¤"}
+                        other{"0 Bi ¤"}
                     }
                     10000000000000{
-                        one{"00 B ¤"}
-                        other{"00 B ¤"}
+                        one{"00 Bi ¤"}
+                        other{"00 Bi ¤"}
                     }
                     100000000000000{
-                        one{"000 B ¤"}
-                        other{"000 B ¤"}
+                        one{"000 Bi ¤"}
+                        other{"000 Bi ¤"}
                     }
                 }
                 decimalFormat{
@@ -169,10 +171,10 @@ pt_PT{
         buddhist{
             eras{
                 narrow{
-                    "BE",
+                    0{"BE"}
                 }
                 wide{
-                    "BE",
+                    0{"BE"}
                 }
             }
         }
@@ -254,6 +256,7 @@ pt_PT{
                 "GyMd",
             }
             availableFormats{
+                GyMEd{"E, d/M/y G"}
                 yyyyMMM{"MM/y G"}
                 yyyyMMMEEEEd{"EEEE, d/MM/y"}
                 yyyyMMMEd{"E, d/MM/y G"}
@@ -372,6 +375,8 @@ pt_PT{
                 "yyMMdd",
             }
             availableFormats{
+                GyMEd{"E, dd/MM/y G"}
+                GyMd{"dd/MM/y G"}
                 MMMEd{"E, d/MM"}
                 MMMMEd{"ccc, d 'de' MMMM"}
                 MMMMW{
@@ -432,8 +437,8 @@ pt_PT{
             }
             eras{
                 abbreviated%variant{
-                    "a.E.C.",
-                    "E.C.",
+                    0{"a.E.C."}
+                    1{"E.C."}
                 }
             }
             intervalFormats{

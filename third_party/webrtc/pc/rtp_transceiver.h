@@ -377,12 +377,10 @@ class RtpTransceiver : public RtpTransceiverInterface {
   }
 
   bool SetChannelRtpTransport(RtpTransportInternal* rtp_transport);
-  bool SetChannelLocalContent(const MediaContentDescription* content,
-                              SdpType type,
-                              std::string& error_desc);
-  bool SetChannelRemoteContent(const MediaContentDescription* content,
-                               SdpType type,
-                               std::string& error_desc);
+  RTCError SetChannelLocalContent(const MediaContentDescription* content,
+                                  SdpType type);
+  RTCError SetChannelRemoteContent(const MediaContentDescription* content,
+                                   SdpType type);
   bool SetChannelPayloadTypeDemuxingEnabled(bool enabled);
   void EnableChannel(bool enable);
   const std::vector<StreamParams>& channel_local_streams() const;
@@ -433,7 +431,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   GetOfferedAndImplementedHeaderExtensions(
       const MediaContentDescription* content) const;
 
-  bool SetChannelContent(absl::AnyInvocable<bool() &&> set_content);
+  RTCError SetChannelContent(absl::AnyInvocable<RTCError() &&> set_content);
 
   const Environment env_;
   // Enforce that this object is created, used and destroyed on one thread.

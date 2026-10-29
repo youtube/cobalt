@@ -611,6 +611,10 @@ mi{
             "EC$",
             "Tāra Karapīana Rāwhiti",
         }
+        XCG{
+            "Cg.",
+            "Guilder Karapīana",
+        }
         XOF{
             "F CFA",
             "Franc CFA Āwherika ki te Uru",
@@ -634,6 +638,10 @@ mi{
         ZMW{
             "ZMW",
             "Kwacha Tāmipia",
+        }
+        ZWG{
+            "ZWG",
+            "Kōura Timuwawe",
         }
     }
     CurrencyPlurals{
@@ -1078,6 +1086,9 @@ mi{
         XCD{
             other{"tāra Karapīana Rāwhiti"}
         }
+        XCG{
+            other{"Guilder Karapīana"}
+        }
         XOF{
             other{"franc CFA Āwherika ki te Uru"}
         }
@@ -1095,6 +1106,9 @@ mi{
         }
         ZMW{
             other{"kwacha Tāmipia"}
+        }
+        ZWG{
+            other{"Kino Tāone o Timuwawe"}
         }
     }
 }

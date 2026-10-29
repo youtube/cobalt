@@ -3116,14 +3116,16 @@ RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(sctp_mid_s_);
 
-  network_thread()->PostTask(
-      SafeTask(network_thread_safety_, [this, mid = *sctp_mid_s_, options] {
-        scoped_refptr<SctpTransport> sctp_transport =
-            transport_controller_n()->GetSctpTransport(mid);
-        if (sctp_transport)
-          sctp_transport->Start(options);
-      }));
-  return RTCError::OK();
+  return network_thread()->BlockingCall([this, mid = *sctp_mid_s_, options] {
+    scoped_refptr<SctpTransport> sctp_transport =
+        transport_controller_n()->GetSctpTransport(mid);
+    RTC_DCHECK(sctp_transport);
+    if (!sctp_transport || !sctp_transport->Start(options)) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
+                           "Failed to start SCTP transport.");
+    }
+    return RTCError::OK();
+  });
 }
 
 CryptoOptions PeerConnection::GetCryptoOptions() {

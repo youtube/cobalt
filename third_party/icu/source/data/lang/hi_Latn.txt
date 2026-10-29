@@ -19,7 +19,6 @@ hi_Latn{
     Languages{
         af{"Afreeki"}
         bgc{"Hariyaanvi"}
-        bn{"Bangla"}
         bo{"Tibbati"}
         ckb{"Kurdish, Sorani"}
         crh{"Crimean Turkish"}
@@ -36,10 +35,8 @@ hi_Latn{
     }
     Scripts{
         Bali{"Baali"}
-        Beng{"Bangla"}
         Inds{"Sindhu"}
         Mymr{"Burmese"}
-        Orya{"Odia"}
         Talu{"Naya Tai Lue"}
     }
     Types{
@@ -115,6 +112,10 @@ hi_Latn{
             normal{"Words ke liye normal Line Breaks"}
             phrase{"Phrases mein Line Breaks se bachein"}
         }
+        lw%core{
+            keepall{"Sabhi rakhein"}
+            phrase{"Phrases mein rakhein"}
+        }
         numbers{
             beng{"Bangla Digits"}
             hanidec{"Chinese Decimal Numbers"}
@@ -129,6 +130,12 @@ hi_Latn{
             roman{"Roman Numbers"}
             romanlow{"Roman Lowercase Numbers"}
             taml{"Traditional Tamil Numbers"}
+        }
+        numbers%core{
+            hanidec{
+                "Positional decimal system ke liye digits ke taur par Chinese number "
+                "ideographs kaa use"
+            }
         }
     }
     codePatterns{

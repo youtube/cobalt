@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -56,12 +57,12 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
 #endif
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
+      base::ToVector(jebg_hash),
       op_result1,
 #else
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
+      base::ToVector(jebg_hash),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
 #endif
 #if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
@@ -105,13 +106,12 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
   op_result2.response = GetTestFilePath("file_not_found.crx");
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
+      base::ToVector(jebg_hash),
       op_result2, nullptr,
 #else
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
-      GetTestFilePath("file_not_found.crx"), nullptr,
+      base::ToVector(jebg_hash), GetTestFilePath("file_not_found.crx"), nullptr,
 #endif
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
@@ -143,12 +143,12 @@ TEST_F(UnpackerTest, UnpackFileHashMismatch) {
 #endif
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
+      base::ToVector(abag_hash),
       op_result3, nullptr,
 #else
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-      std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
+      base::ToVector(abag_hash),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr,
 #endif
       crx_file::VerifierFormat::CRX3,

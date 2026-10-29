@@ -288,6 +288,13 @@ lt{
                 one{"{0} pilnas apsisukimas"}
                 other{"{0} pilnų apsisukimų"}
             }
+            steradian{
+                dnam{"steradianai"}
+                few{"{0} steradianai"}
+                many{"{0} steradiano"}
+                one{"{0} steradianas"}
+                other{"{0} steradianų"}
+            }
         }
         area{
             acre{
@@ -868,6 +875,100 @@ lt{
                 one{"{0} molis"}
                 other{"{0} molių"}
             }
+            ofglucose{
+                dnam{"gliukozė"}
+                few{"gliukozės kiekis – {0}"}
+                many{"gliukozės kiekis – {0}"}
+                one{"gliukozės kiekis – {0}"}
+                other{"gliukozės kiekis – {0}"}
+            }
+            part{
+                dnam{"dalelė"}
+                few{"{0} dalelės"}
+                many{"{0} dalelės"}
+                one{"{0} dalelė"}
+                other{"{0} dalelių"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        few{"{0} milijonines dalis"}
+                        many{"{0} milijoninės dalies"}
+                        one{"{0} milijoninę dalį"}
+                        other{"{0} milijoninių dalių"}
+                    }
+                    dative{
+                        few{"{0} milijoninėms dalims"}
+                        many{"{0} milijoninės dalies"}
+                        one{"{0} milijoninei daliai"}
+                        other{"{0} milijoninių dalių"}
+                    }
+                    genitive{
+                        few{"{0} milijoninių dalių"}
+                        many{"{0} milijoninės dalies"}
+                        one{"{0} milijoninės dalies"}
+                        other{"{0} milijoninių dalių"}
+                    }
+                    instrumental{
+                        few{"{0} milijoninėmis dalimis"}
+                        many{"{0} milijoninės dalies"}
+                        one{"{0} milijonine dalimi"}
+                        other{"{0} milijoninių dalių"}
+                    }
+                    locative{
+                        few{"{0} milijoninėse dalyse"}
+                        many{"{0} milijoninės dalies"}
+                        one{"{0} milijoninėje dalyje"}
+                        other{"{0} milijoninių dalių"}
+                    }
+                }
+                dnam{"milijoninės dalys"}
+                few{"{0} milijoninės dalys"}
+                gender{"feminine"}
+                many{"{0} milijoninės dalies"}
+                one{"{0} milijoninė dalis"}
+                other{"{0} milijoninių dalių"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        few{"{0} milijardines dalis"}
+                        many{"{0} milijardinės dalies"}
+                        one{"{0} milijardinę dalį"}
+                        other{"{0} milijardinių dalių"}
+                    }
+                    dative{
+                        few{"{0} milijardinėms dalims"}
+                        many{"{0} milijardinės dalies"}
+                        one{"{0} milijardinei daliai"}
+                        other{"{0} milijardinių dalių"}
+                    }
+                    genitive{
+                        few{"{0} milijardinių dalių"}
+                        many{"{0} milijardinės dalies"}
+                        one{"{0} milijardinės dalies"}
+                        other{"{0} milijardinių dalių"}
+                    }
+                    instrumental{
+                        few{"{0} milijardinėmis dalimis"}
+                        many{"{0} milijardinės dalies"}
+                        one{"{0} milijardine dalimi"}
+                        other{"{0} milijardinių dalių"}
+                    }
+                    locative{
+                        few{"{0} milijardinėse dalyse"}
+                        many{"{0} milijardinės dalies"}
+                        one{"{0} milijardinėje dalyje"}
+                        other{"{0} milijardinių dalių"}
+                    }
+                }
+                dnam{"milijardinės dalys"}
+                few{"{0} milijardinės dalys"}
+                gender{"feminine"}
+                many{"{0} milijardinės dalies"}
+                one{"{0} milijardinė dalis"}
+                other{"{0} milijardinių dalių"}
+            }
             percent{
                 case{
                     accusative{
@@ -946,88 +1047,8 @@ lt{
                 one{"{0} promilė"}
                 other{"{0} promilių"}
             }
-            permillion{
-                case{
-                    accusative{
-                        few{"{0} milijonines dalis"}
-                        many{"{0} milijoninės dalies"}
-                        one{"{0} milijoninę dalį"}
-                        other{"{0} milijoninių dalių"}
-                    }
-                    dative{
-                        few{"{0} milijoninėms dalims"}
-                        many{"{0} milijoninės dalies"}
-                        one{"{0} milijoninei daliai"}
-                        other{"{0} milijoninių dalių"}
-                    }
-                    genitive{
-                        few{"{0} milijoninių dalių"}
-                        many{"{0} milijoninės dalies"}
-                        one{"{0} milijoninės dalies"}
-                        other{"{0} milijoninių dalių"}
-                    }
-                    instrumental{
-                        few{"{0} milijoninėmis dalimis"}
-                        many{"{0} milijoninės dalies"}
-                        one{"{0} milijonine dalimi"}
-                        other{"{0} milijoninių dalių"}
-                    }
-                    locative{
-                        few{"{0} milijoninėse dalyse"}
-                        many{"{0} milijoninės dalies"}
-                        one{"{0} milijoninėje dalyje"}
-                        other{"{0} milijoninių dalių"}
-                    }
-                }
-                dnam{"milijoninės dalys"}
-                few{"{0} milijoninės dalys"}
-                gender{"feminine"}
-                many{"{0} milijoninės dalies"}
-                one{"{0} milijoninė dalis"}
-                other{"{0} milijoninių dalių"}
-            }
             permyriad{
                 gender{"masculine"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        few{"{0} milijonines dalelytes"}
-                        many{"{0} milijoninės dalelytės"}
-                        one{"{0} milijoninę dalelytę"}
-                        other{"{0} milijoninių dalelyčių"}
-                    }
-                    dative{
-                        few{"{0} milijoninėms dalelytėms"}
-                        many{"{0} milijoninės dalelytės"}
-                        one{"{0} milijoninei dalelytei"}
-                        other{"{0} milijoninių dalelyčių"}
-                    }
-                    genitive{
-                        few{"{0} milijoninių dalelyčių"}
-                        many{"{0} milijoninės dalelytės"}
-                        one{"{0} milijoninės dalelytės"}
-                        other{"{0} milijoninių dalelyčių"}
-                    }
-                    instrumental{
-                        few{"{0} milijoninėmis dalelytėmis"}
-                        many{"{0} milijoninės dalelytės"}
-                        one{"{0} milijonine dalelyte"}
-                        other{"{0} milijoninių dalelyčių"}
-                    }
-                    locative{
-                        few{"{0} milijoninėse dalelytėse"}
-                        many{"{0} milijoninės dalelytės"}
-                        one{"{0} milijoninėje dalelytėje"}
-                        other{"{0} milijoninių dalelyčių"}
-                    }
-                }
-                dnam{"milijoninės dalelytės"}
-                few{"{0} milijoninės dalelytės"}
-                gender{"feminine"}
-                many{"{0} milijoninės dalelytės"}
-                one{"{0} milijoninė dalelytė"}
-                other{"{0} milijoninių dalelyčių"}
             }
         }
         consumption{
@@ -1973,7 +1994,6 @@ lt{
                 many{"{0} nakties"}
                 one{"{0} naktis"}
                 other{"{0} naktų"}
-                per{"{0}/nakt."}
             }
             quarter{
                 case{
@@ -2177,6 +2197,27 @@ lt{
                 one{"{0} amperas"}
                 other{"{0} amperų"}
             }
+            coulomb{
+                dnam{"kulonai"}
+                few{"{0} kulonai"}
+                many{"{0} kulono"}
+                one{"{0} kulonas"}
+                other{"{0} kulonų"}
+            }
+            farad{
+                dnam{"faradai"}
+                few{"{0} faradai"}
+                many{"{0} farado"}
+                one{"{0} faradas"}
+                other{"{0} faradų"}
+            }
+            henry{
+                dnam{"henriai"}
+                few{"{0} henriai"}
+                many{"{0} henrio"}
+                one{"{0} henris"}
+                other{"{0} henrių"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -2257,6 +2298,13 @@ lt{
                 one{"{0} omas"}
                 other{"{0} omų"}
             }
+            siemens{
+                dnam{"simensai"}
+                few{"{0} simensai"}
+                many{"{0} simenso"}
+                one{"{0} simensas"}
+                other{"{0} simensų"}
+            }
             volt{
                 case{
                     accusative{
@@ -2299,6 +2347,13 @@ lt{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekereliai"}
+                few{"{0} bekereliai"}
+                many{"{0} bekerelio"}
+                one{"{0} < NBTSP>bekerelis"}
+                other{"{0} bekerelių"}
+            }
             british-thermal-unit{
                 dnam{"britiškieji šilumos vienetai"}
             }
@@ -2342,6 +2397,13 @@ lt{
                 one{"{0} kalorija"}
                 other{"{0} kalorijų"}
             }
+            calorie-it{
+                dnam{"kal."}
+                few{"{0} kalorijos"}
+                many{"{0} kalorijos"}
+                one{"{0} kalorija"}
+                other{"{0} kalorijų"}
+            }
             electronvolt{
                 dnam{"elektronvoltai"}
                 few{"{0} elektronvoltai"}
@@ -2355,6 +2417,13 @@ lt{
                 many{"{0} kalorijos"}
                 one{"{0} kalorija"}
                 other{"{0} kalorijų"}
+            }
+            gray{
+                dnam{"grėjai"}
+                few{"{0} grėjai"}
+                many{"{0} grėjaus"}
+                one{"{0} grėjus"}
+                other{"{0} grėjų"}
             }
             joule{
                 case{
@@ -2516,11 +2585,25 @@ lt{
                 one{"{0} kilovatvalandė"}
                 other{"{0} kilovatvalandžių"}
             }
+            sievert{
+                dnam{"sivertai"}
+                few{"{0} sivertai"}
+                many{"{0} siverto"}
+                one{"{0} sivertas"}
+                other{"{0} sivertų"}
+            }
             therm-us{
                 dnam{"JAV termos"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramo jėga"}
+                few{"{0} kilogramo jėgos"}
+                many{"{0} kilogramo jėgos"}
+                one{"{0} kilogramo jėga"}
+                other{"{0} kilogramo jėgų"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -2983,13 +3066,13 @@ lt{
                         other{"{0} centimetrų"}
                     }
                     instrumental{
-                        few{"{0} centimetruose"}
+                        few{"{0} centimetrais"}
                         many{"{0} centimetro"}
                         one{"{0} centimetru"}
                         other{"{0} centimetrų"}
                     }
                     locative{
-                        few{"{0} centimetrai"}
+                        few{"{0} centimetruose"}
                         many{"{0} centimetro"}
                         one{"{0} centimetre"}
                         other{"{0} centimetrų"}
@@ -3469,7 +3552,7 @@ lt{
                     }
                 }
                 dnam{"kandela"}
-                few{"{0} cd"}
+                few{"{0} kandelos"}
                 gender{"feminine"}
                 many{"{0} cd"}
                 one{"{0} kandela"}
@@ -3557,6 +3640,22 @@ lt{
             }
             solar-luminosity{
                 dnam{"saulės šviesis"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                few{"{0} teslos"}
+                many{"{0} teslos"}
+                one{"{0} tesla"}
+                other{"{0} teslų"}
+            }
+            weber{
+                dnam{"vėberis"}
+                few{"{0} vėberiai"}
+                many{"{0} vėberio"}
+                one{"{0} vėberis"}
+                other{"{0} vėberių"}
             }
         }
         mass{
@@ -4445,6 +4544,13 @@ lt{
                 one{"{0} mazgas"}
                 other{"{0} mazgų"}
             }
+            light-speed{
+                dnam{"šviesos greitis"}
+                few{"{0} šm"}
+                many{"{0} šm"}
+                one{"{0} šm"}
+                other{"{0} šm"}
+            }
             meter-per-second{
                 case{
                     accusative{
@@ -4969,6 +5075,9 @@ lt{
                 one{"{0} imp. skysčio uncija"}
                 other{"{0} imp. skysčio uncijų"}
             }
+            fluid-ounce-metric{
+                dnam{"metrinės skysčio uncijos"}
+            }
             gallon{
                 dnam{"galonai"}
                 few{"{0} galonai"}
@@ -5254,15 +5363,25 @@ lt{
             }
         }
         concentr{
+            ofglucose{
+                dnam{"gliukozė"}
+            }
+            part{
+                dnam{"dalelė"}
+                few{"{0} dal."}
+                many{"{0} dal."}
+                one{"{0} dal."}
+                other{"{0} dal."}
+            }
+            part-per-1e9{
+                dnam{"dalis/mlrd."}
+                few{"{0} dal./mlrd."}
+                many{"{0} dal./mlrd."}
+                one{"{0} dal./mlrd."}
+                other{"{0} dal./mlrd."}
+            }
             percent{
                 dnam{"%"}
-            }
-            portion-per-1e9{
-                dnam{"dalelytė/mln."}
-                few{"{0} dalelytės/mln."}
-                many{"{0} dalelytės/mln."}
-                one{"{0} dalelytė/mln."}
-                other{"{0} dalelyčių/mln."}
             }
         }
         consumption{
@@ -5287,14 +5406,6 @@ lt{
             month{
                 dnam{"mėnuo"}
             }
-            night{
-                dnam{"nakt."}
-                few{"{0} nakt."}
-                many{"{0} nakt."}
-                one{"{0} nakt."}
-                other{"{0} nakt."}
-                per{"{0}/nakt."}
-            }
             second{
                 few{"{0} s"}
                 many{"{0} s"}
@@ -5305,6 +5416,15 @@ lt{
                 dnam{"sav."}
             }
         }
+        energy{
+            calorie-it{
+                dnam{"cal"}
+                few{"{0} cal"}
+                many{"{0} cal"}
+                one{"{0} cal"}
+                other{"{0} cal"}
+            }
+        }
         speed{
             kilometer-per-hour{
                 dnam{"km/h"}
@@ -5312,6 +5432,13 @@ lt{
                 many{"{0} km/h"}
                 one{"{0} km/h"}
                 other{"{0} km/h"}
+            }
+            light-speed{
+                dnam{"šm"}
+                few{"{0} šm"}
+                many{"{0} šm"}
+                one{"{0} šm"}
+                other{"{0} šm"}
             }
             meter-per-second{
                 dnam{"m/s"}
@@ -5435,6 +5562,23 @@ lt{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"gliukozė"}
+            }
+            part{
+                dnam{"dalelė"}
+                few{"{0} dalelės"}
+                many{"{0} dalelės"}
+                one{"{0} dalelė"}
+                other{"{0} dalelių"}
+            }
+            part-per-1e9{
+                dnam{"dalis/mlrd."}
+                few{"{0} dal./mlrd."}
+                many{"{0} dal./mlrd."}
+                one{"{0} dal./mlrd."}
+                other{"{0} dal./mlrd."}
+            }
             percent{
                 dnam{"procentas"}
                 few{"{0} %"}
@@ -5448,13 +5592,6 @@ lt{
                 many{"{0} ‰"}
                 one{"{0} ‰"}
                 other{"{0} ‰"}
-            }
-            portion-per-1e9{
-                dnam{"dalelytė/mln."}
-                few{"{0} dalelytės/mln."}
-                many{"{0} dalelytės/mln."}
-                one{"{0} dalelytė/mln."}
-                other{"{0} dalelyčių/mln."}
             }
         }
         consumption{
@@ -5617,6 +5754,16 @@ lt{
             }
         }
         energy{
+            calorie{
+                dnam{"kal."}
+            }
+            calorie-it{
+                dnam{"cal"}
+                few{"{0} cal"}
+                many{"{0} cal"}
+                one{"{0} cal"}
+                other{"{0} cal"}
+            }
             foodcalorie{
                 dnam{"cal"}
                 few{"{0} cal"}
@@ -5700,10 +5847,10 @@ lt{
             }
             light-year{
                 dnam{"šviesmečiai"}
-                few{"{0} šm."}
-                many{"{0} šm."}
-                one{"{0} šm."}
-                other{"{0} šm."}
+                few{"{0} šviesm."}
+                many{"{0} šviesm."}
+                one{"{0} šviesm."}
+                other{"{0} šviesm."}
             }
             meter{
                 dnam{"m"}
@@ -5811,6 +5958,13 @@ lt{
                 many{"{0} KN"}
                 one{"{0} KN"}
                 other{"{0} KN"}
+            }
+            light-speed{
+                dnam{"šm"}
+                few{"{0} šm"}
+                many{"{0} šm"}
+                one{"{0} šm"}
+                other{"{0} šm"}
             }
             meter-per-second{
                 dnam{"m/sek."}

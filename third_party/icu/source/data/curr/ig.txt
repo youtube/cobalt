@@ -611,6 +611,10 @@ ig{
             "EC$",
             "Ego Dollar obodo East Carribbean",
         }
+        XCG{
+            "Cg.",
+            "Ego Guilder Caribbean",
+        }
         XOF{
             "F CFA",
             "Ego CFA Franc obodo West Africa",
@@ -634,6 +638,10 @@ ig{
         ZMW{
             "ZMW",
             "Ego Kwacha Obodo Zambia",
+        }
+        ZWG{
+            "ZWG",
+            "Ego Ọlaọcha Zimbabwe",
         }
     }
     CurrencyPlurals{
@@ -760,6 +768,9 @@ ig{
         XAF{
             other{"Ego francs mba etiti Africa"}
         }
+        XCG{
+            other{"Ego Guilder Caribbean"}
+        }
         XOF{
             other{"Ego CFA francs mba ọdịda anyanwụ Afrịka"}
         }
@@ -774,6 +785,9 @@ ig{
         }
         ZMW{
             other{"Ego kwachas obodo Zambia"}
+        }
+        ZWG{
+            other{"Ego Ọlaọcha Zimbabwe"}
         }
     }
 }

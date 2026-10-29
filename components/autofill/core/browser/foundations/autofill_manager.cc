@@ -35,6 +35,9 @@
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
 #include "components/autofill/core/browser/metrics/quality_metrics.h"
+#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
+#include "components/autofill/core/browser/ml_model/model_predictions.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_data_validation.h"
@@ -46,17 +49,11 @@
 #include "components/autofill/core/common/autofill_switches.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/language_detection/core/constants.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/gfx/geometry/rect_f.h"
-
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
-#include "components/autofill/core/browser/ml_model/model_predictions.h"
-#endif
 
 namespace autofill {
 
@@ -140,10 +137,8 @@ struct AutofillManager::AsyncContext {
 
   std::vector<FormData> forms;
   std::vector<RegexPredictions> regex_predictions;
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::vector<ModelPredictions> autofill_predictions;
   std::vector<ModelPredictions> password_manager_predictions;
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   GeoIpCountryCode country_code;
   LanguageCode current_page_language;
   std::unique_ptr<BufferingLogManager> log_manager;
@@ -485,13 +480,13 @@ void AutofillManager::OnHidePopup() {
   OnHidePopupImpl();
 }
 
-void AutofillManager::OnSuggestionsHidden() {
+void AutofillManager::OnSuggestionsHidden(SuggestionHidingReason reason) {
   // If the unmask prompt is shown, keep showing the preview. The preview
   // will be cleared when the prompt closes.
   if (ShouldClearPreviewedForm()) {
     driver().RendererShouldClearPreviewedForm();
   }
-  NotifyObservers(&Observer::OnSuggestionsHidden);
+  NotifyObservers(&Observer::OnSuggestionsHidden, reason);
 }
 
 void AutofillManager::OnSelectFieldOptionsDidChange(
@@ -768,7 +763,6 @@ void AutofillManager::ParseFormsAsyncCommon(
       std::move(update_cache),
       /*ignore_small_forms=*/!client().IsTabInActorMode());
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // Parsing happens in the following order:
   // (1) Running ML models (Autofill and Password Manager).
   // (2) Running heuristics (this ensures that rationalization and sectioning
@@ -776,13 +770,8 @@ void AutofillManager::ParseFormsAsyncCommon(
   // (3) Updating the form cache.
   RunMlModels(AsyncContext(*this, std::move(forms)),
               std::move(run_heuristics_and_update_cache));
-#else
-  std::move(run_heuristics_and_update_cache)
-      .Run(AsyncContext(*this, std::move(forms)));
-#endif
 }
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 // Applies the Autofill and Password Manager ML models for field classification
 // to `forms`. The model is executed on a background sequence.
 // Calls `done_callback` upon completion on the UI sequence.
@@ -870,7 +859,6 @@ void AutofillManager::RunMlModels(
                                      std::move(done_callback)))),
       std::move(context));
 }
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
 void AutofillManager::PopulateCacheForQueryResponse(
     base::span<const FormData> forms,
@@ -1055,14 +1043,12 @@ void AutofillManager::UpdateFormCache(
 
   auto apply_predictions = [](FormStructure& form_structure,
                               const AsyncContext& context, size_t i) {
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     if (!context.autofill_predictions.empty()) {
       context.autofill_predictions[i].ApplyTo(form_structure.fields());
     }
     if (!context.password_manager_predictions.empty()) {
       context.password_manager_predictions[i].ApplyTo(form_structure.fields());
     }
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     if (!context.regex_predictions.empty()) {
       context.regex_predictions[i].ApplyTo(form_structure.fields());
     }
@@ -1180,7 +1166,6 @@ void AutofillManager::LogCurrentFieldTypes(
 
 void AutofillManager::SubscribeToMlModelChanges(
     FieldClassificationModelHandler& handler) {
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   switch (handler.optimization_target()) {
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
@@ -1201,9 +1186,6 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
-#else
-  NOTREACHED();
-#endif
 }
 
 }  // namespace autofill

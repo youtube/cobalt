@@ -739,6 +739,10 @@ hsb{
             "EC$",
             "wuchodnokaribiski dolar",
         }
+        XCG{
+            "Cg.",
+            "karibiski gulden",
+        }
         XOF{
             "F CFA",
             "CFA-frank (BCEAO)",
@@ -762,6 +766,10 @@ hsb{
         ZMW{
             "ZMW",
             "sambiski kwacha",
+        }
+        ZWG{
+            "ZWG",
+            "simbabwiske złoto",
         }
     }
     CurrencyPlurals{
@@ -1869,6 +1877,12 @@ hsb{
             other{"wuchodnokaribiskich dolarow"}
             two{"wuchodnokaribiskej dolaraj"}
         }
+        XCG{
+            few{"karibiske guldeny"}
+            one{"karibiski gulden"}
+            other{"karibiskich guldenow"}
+            two{"karibiskej guldenaj"}
+        }
         XOF{
             few{"CFA-franki (BCEAO)"}
             one{"CFA-frank (BCEAO)"}
@@ -1904,6 +1918,12 @@ hsb{
             one{"sambiski kwacha"}
             other{"sambiskich kwachow"}
             two{"sambiskej kwachaj"}
+        }
+        ZWG{
+            few{"simbabwiske złota"}
+            one{"simbabwiske złoto"}
+            other{"simbabwiskich złotow"}
+            two{"simbabwiskej złoće"}
         }
     }
 }

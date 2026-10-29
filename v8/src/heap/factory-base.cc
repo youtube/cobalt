@@ -195,7 +195,7 @@ Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
-    uint32_t length, bool shared) {
+    uint32_t length, SharedFlag shared) {
   if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length, shared);
 }
@@ -1359,9 +1359,8 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
 
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWeakArrayList(
-    int capacity, AllocationType allocation) {
-  if (capacity < 0 ||
-      static_cast<uint32_t>(capacity) > WeakArrayList::kMaxCapacity) {
+    uint32_t capacity, AllocationType allocation) {
+  if (capacity > WeakArrayList::kMaxCapacity) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 capacity);
     UNREACHABLE();

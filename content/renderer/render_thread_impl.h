@@ -272,6 +272,12 @@ class CONTENT_EXPORT RenderThreadImpl
   SharedCompositorWorkerContextProvider(
       cc::RasterDarkModeFilter* dark_mode_filter);
 
+  // Returns a worker context provider that will be bound on the media
+  // thread.
+  void SharedMediaContextProvider(
+      base::OnceCallback<void(scoped_refptr<viz::RasterContextProvider>)>
+          callback);
+
   media::GpuVideoAcceleratorFactories* GetGpuFactories();
 
   scoped_refptr<viz::ContextProviderCommandBuffer>
@@ -454,6 +460,14 @@ class CONTENT_EXPORT RenderThreadImpl
   void PopulateFrameRoutingCacheWithItems(
       std::vector<mojom::FrameRoutingInfoPtr> infos);
 
+  scoped_refptr<viz::RasterContextProvider>
+  BindMediaContextProviderOnMediaThread(
+      scoped_refptr<viz::RasterContextProvider> rcp);
+  void SetMediaContextProviderOnMainThread(
+      base::OnceCallback<void(scoped_refptr<viz::RasterContextProvider>)>
+          callback,
+      scoped_refptr<viz::RasterContextProvider> rcp);
+
   scoped_refptr<discardable_memory::ClientDiscardableSharedMemoryManager>
       discardable_memory_allocator_;
 
@@ -523,6 +537,8 @@ class CONTENT_EXPORT RenderThreadImpl
       video_frame_compositor_context_provider_;
 
   scoped_refptr<viz::RasterContextProvider> shared_worker_context_provider_;
+
+  scoped_refptr<viz::RasterContextProvider> shared_media_context_provider_;
 
   scoped_refptr<gpu::SharedImageInterface> shared_image_interface_;
 

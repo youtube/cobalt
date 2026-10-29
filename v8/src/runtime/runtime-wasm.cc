@@ -624,7 +624,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   // We don't need to care about exactness of the import here, because that
   // has already been validated (hence no kLinkError can happen here).
   wasm::CanonicalValueType expected_type = wasm::CanonicalValueType::Ref(
-      sig->index(), wasm::kNotShared, wasm::RefTypeKind::kFunction);
+      sig->index(), SharedFlag::kNo, wasm::RefTypeKind::kFunction);
   wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
@@ -1016,7 +1016,8 @@ bool ExecuteWasmDebugBreaks(
     // Update the "break_on_entry" flag on all live instances.
     i::Tagged<i::WeakArrayList> weak_instance_list =
         script->wasm_weak_instance_list();
-    for (int i = 0; i < weak_instance_list->length(); ++i) {
+    const uint32_t weak_instance_len = weak_instance_list->length().value();
+    for (uint32_t i = 0; i < weak_instance_len; ++i) {
       if (weak_instance_list->Get(i).IsCleared()) continue;
       i::Cast<i::WasmInstanceObject>(weak_instance_list->Get(i).GetHeapObject())
           ->trusted_data(isolate)
@@ -1430,7 +1431,7 @@ class PrototypesSetup : public wasm::Decoder {
               isolate()->factory()->constructor_string()));
           return ReadOnlyRoots(isolate()).exception();
         }
-        DirectHandle<WasmExportedFunction> constructor;
+        DirectHandle<JSFunction> constructor;
         if (!NextFunction().To(&constructor)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
@@ -1449,11 +1450,18 @@ class PrototypesSetup : public wasm::Decoder {
         uint32_t num_statics = consume_u32v("number of statics");
         if (!ok()) break;
         if (num_statics != 0) {
+          if (num_statics > wasm::kMaxConfigureAllStaticProperties) {
+            isolate()->Throw(*isolate()->factory()->NewRangeError(
+                MessageTemplate::kOutOfMemory,
+                isolate()->factory()->NewStringFromAsciiChecked(
+                    "too many constructor properties in configureAll")));
+            return ReadOnlyRoots(isolate()).exception();
+          }
           ToDictionaryMode(wrapped_constructor, num_statics);
           for (uint32_t i = 0; i < num_statics; i++) {
             Method method = NextMethod(true);
             if (!ok()) break;
-            DirectHandle<WasmExportedFunction> function;
+            DirectHandle<JSFunction> function;
             if (!NextFunction().To(&function) ||
                 !InstallMethod(wrapped_constructor, method, function)) {
               DCHECK(isolate()->has_exception());
@@ -1472,6 +1480,13 @@ class PrototypesSetup : public wasm::Decoder {
 
       uint32_t num_methods = consume_u32v("number of methods");
       if (!ok()) break;
+      if (num_methods > wasm::kMaxConfigureAllMethods) {
+        isolate()->Throw(*isolate()->factory()->NewRangeError(
+            MessageTemplate::kOutOfMemory,
+            isolate()->factory()->NewStringFromAsciiChecked(
+                "too many methods in configureAll")));
+        return ReadOnlyRoots(isolate()).exception();
+      }
       DirectHandle<NameDictionary> dictionary;
       if (!prototype_is_null) {
         if (IsJSObject(*prototype)) {
@@ -1642,7 +1657,7 @@ class PrototypesSetup : public wasm::Decoder {
             .name = {name_start, name_length}};
   }
 
-  MaybeDirectHandle<WasmExportedFunction> NextFunction() {
+  MaybeDirectHandle<JSFunction> NextFunction() {
     DirectHandle<Object> maybe_func = NextFunctionInternal();
     if (maybe_func.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1657,7 +1672,7 @@ class PrototypesSetup : public wasm::Decoder {
     DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(maybe_func);
     DirectHandle<WasmInternalFunction> internal_function(
         funcref->internal(isolate_), isolate_);
-    return Cast<WasmExportedFunction>(
+    return Cast<JSFunction>(
         WasmInternalFunction::GetOrCreateExternal(internal_function));
   }
 
@@ -1739,7 +1754,7 @@ class PrototypesSetup : public wasm::Decoder {
   // Returns the wrapped constructor on success.
   DirectHandle<JSFunction> InstallConstructor(
       DirectHandle<JSReceiver> prototype,
-      DirectHandle<WasmExportedFunction> wasm_function,
+      DirectHandle<JSFunction> wasm_function,
       base::Vector<const uint8_t> name_vec,
       DirectHandle<Object> all_constructors) {
     DirectHandle<String> name;
@@ -1765,7 +1780,6 @@ class PrototypesSetup : public wasm::Decoder {
             .set_map(isolate_->strict_function_with_readonly_prototype_map())
             .Build();
     constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
-    prototype->map()->SetConstructor(*constructor);
 
     PropertyDescriptor constructor_prop;
     constructor_prop.set_enumerable(false);
@@ -2253,7 +2267,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
       isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
-    // the string.new_utf8_try instruction should return null.
+    // the string.new_utf8_array_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
       return *isolate->factory()->wasm_null();
     }
@@ -2360,11 +2374,15 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
   MaybeDirectHandle<String> result =
       isolate->factory()->NewStringFromUtf8(source, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_exception());
+    // If the input was invalid, then the decoder has failed silently, and
+    // the string.new_utf8_array_try instruction should return null.
     // Only instructions from the stringref proposal can set variant
     // kUtf8NoTrap, so WasmNull is appropriate here.
-    if (result.is_null()) return *isolate->factory()->wasm_null();
-    return *result.ToHandleChecked();
+    if (result.is_null() && !isolate->has_exception()) {
+      return *isolate->factory()->wasm_null();
+    }
+    // Fall through in case of a valid result, and in case of a pending
+    // exception because the requested string was too large.
   }
   RETURN_RESULT_OR_FAILURE(isolate, result);
 }

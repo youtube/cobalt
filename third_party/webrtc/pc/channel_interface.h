@@ -18,6 +18,7 @@
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtc_error.h"
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
 #include "pc/rtp_transport_internal.h"
@@ -86,12 +87,10 @@ class ChannelInterface {
       absl::AnyInvocable<void(const RtpPacketReceived&)> callback) = 0;
 
   // Channel control
-  virtual bool SetLocalContent(const MediaContentDescription* content,
-                               SdpType type,
-                               std::string& error_desc) = 0;
-  virtual bool SetRemoteContent(const MediaContentDescription* content,
-                                SdpType type,
-                                std::string& error_desc) = 0;
+  virtual RTCError SetLocalContent(const MediaContentDescription* content,
+                                   SdpType type) = 0;
+  virtual RTCError SetRemoteContent(const MediaContentDescription* content,
+                                    SdpType type) = 0;
   virtual bool SetPayloadTypeDemuxingEnabled(bool enabled) = 0;
 
   // Access to the local and remote streams that were set on the channel.

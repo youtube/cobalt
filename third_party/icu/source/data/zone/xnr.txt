@@ -64,7 +64,7 @@ xnr{
             ec{"डूआला"}
         }
         "Africa:El_Aaiun"{
-            ec{"अल आइयून<"}
+            ec{"अल आइयून"}
         }
         "Africa:Freetown"{
             ec{"फ़्रीटाउन"}
@@ -1163,6 +1163,9 @@ xnr{
         "Pacific:Efate"{
             ec{"एफ़ेट"}
         }
+        "Pacific:Enderbury"{
+            ec{"कैंटन"}
+        }
         "Pacific:Fakaofo"{
             ec{"फ़ाकाओफ़ो"}
         }
@@ -1183,9 +1186,6 @@ xnr{
         }
         "Pacific:Guam"{
             ec{"गुआम"}
-        }
-        "Pacific:Kanton"{
-            ec{"कैंटन"}
         }
         "Pacific:Kiritimati"{
             ec{"किरीतिमाति"}
@@ -1269,9 +1269,7 @@ xnr{
             ls{"दखण अफ़्रीका दा मानक टैम"}
         }
         "meta:Africa_Western"{
-            ld{"पश्चिम अफ़्रीका दी तोंदिया दा टैम"}
-            lg{"पश्चिम अफ़्रीका दा टैम"}
-            ls{"पश्चिम अफ़्रीका दा मानक टैम"}
+            ls{"पश्चिम अफ़्रीका दा टैम"}
         }
         "meta:Alaska"{
             ld{"अलास्‍का दे ध्याड़े दे उजाले दा टैम"}
@@ -1509,6 +1507,9 @@ xnr{
         }
         "meta:Guyana"{
             ls{"गुयाना दा टैम"}
+        }
+        "meta:Hawaii"{
+            ls{"हवाई–आल्यूशन दा मानक टैम"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"हवाई–आल्यूशन दे ध्याड़े दे उजाले दा टैम"}

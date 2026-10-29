@@ -1219,6 +1219,10 @@ nl{
             "ZWD",
             "Zimbabwaanse dollar",
         }
+        ZWG{
+            "ZiG",
+            "Zimbabwe Gold",
+        }
         ZWL{
             "ZWL",
             "Zimbabwaanse dollar (2009)",
@@ -1309,6 +1313,10 @@ nl{
         XPT{
             one{"Troy ounce platina"}
             other{"Troy ounces platina"}
+        }
+        ZWG{
+            one{"Zimbabwe Gold"}
+            other{"Zimbabwe Gold"}
         }
     }
 }

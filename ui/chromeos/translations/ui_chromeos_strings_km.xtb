@@ -220,6 +220,7 @@
 <translation id="2708477391501452176">BÉPO បារាំង</translation>
 <translation id="2719020180254996569">បណ្ដាញ <ph name="NETWORK_INDEX" /> នៃ <ph name="NETWORK_COUNT" />, <ph name="NETWORK_NAME" />, <ph name="CONNECTION_STATUS" />, ព័ត៌មាន​លម្អិត</translation>
 <translation id="2724954091494693138">ភាសាតួកគី​ដែលប្រើ​ក្ដារចុច F</translation>
+<translation id="2727633948226935816">កុំរំលឹកខ្ញុំម្តងទៀត</translation>
 <translation id="2728450421877450246">បារាំង</translation>
 <translation id="2732288874651063549">គ្រប់គ្រង​ការចែករំលែក​ជាមួយ <ph name="VM_NAME" /></translation>
 <translation id="2732839045120506979">ភាសាវៀតណាម VNI</translation>
@@ -470,6 +471,7 @@
 <translation id="4788401404269709922"><ph name="NUMBER_OF_KB" /> KB</translation>
 <translation id="4789067489790477934">ផ្ដល់ការអនុញ្ញាតឱ្យ Parallels Desktop ចូលប្រើ​ឯកសារ​នៅក្នុង Google ថាស​របស់អ្នក។ ការផ្លាស់ប្ដូរនឹង​ធ្វើសមកាលកម្ម​ទៅឧបករណ៍​ផ្សេងទៀត​របស់អ្នក។</translation>
 <translation id="4790766916287588578">ភាសា​ហិណ្ឌីដែលប្រើក្ដារចុច InScript</translation>
+<translation id="4798645114741131062">ឧបករណ៍ ChromeOS Flex របស់អ្នក​នឹងលែង​ទទួលបាន​កំណែថ្មី​ក្នុងពេល​ឆាប់ៗនេះ។ សូម​ពិចារណា​ប្ដូរទៅប្រើ​ឧបករណ៍ ChromeOS។</translation>
 <translation id="4801956050125744859">រក្សាទាំងពីរ</translation>
 <translation id="4802185962157240723">ហុងគ្រី</translation>
 <translation id="4804827417948292437">ផ្លែបឺរ</translation>
@@ -619,6 +621,7 @@
 <translation id="5819442873484330149">ហានគុល 3 ឈុត (Final)</translation>
 <translation id="5832976493438355584">បានចាក់សោ</translation>
 <translation id="5833610766403489739">ឯកសារបានវង្វេងបាត់ទៅណាហើយ។ សូមពិនិត្យការកំណត់ទីតាំងទាញយករបស់អ្នក ហើយព្យាយាមម្តងទៀត។</translation>
+<translation id="5833859326857395309">កំណែថ្មី​ចុងក្រោយ</translation>
 <translation id="5838451609423551646">បានលុបធាតុទាំងអស់​ចេញពីការជ្រើសរើស។</translation>
 <translation id="5845721951356578987">គិលានុបដ្ឋាយិកា</translation>
 <translation id="5858478190805449225">មុខងារសន្សំថ្មត្រូវបានបើក។ សូមព្យាយាមម្តងទៀត នៅពេលដែលមុខងារសន្សំថ្មត្រូវបានបិទ។</translation>

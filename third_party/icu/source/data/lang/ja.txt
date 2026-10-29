@@ -6,18 +6,21 @@ ja{
         calendar{"暦法"}
         cf{"通貨フォーマット"}
         colAlternate{"記号を無視した並べ替え"}
-        colBackwards{"アクセント（逆方向）による並べ替え"}
+        colBackwards{"逆順アクセントによる並べ替え"}
         colCaseFirst{"大文字順/小文字順による並べ替え"}
         colCaseLevel{"大文字小文字を区別した並べ替え"}
         colNormalization{"正規化による並べ替え"}
         colNumeric{"数値による並べ替え"}
-        colStrength{"強度による並べ替え"}
+        colStrength{"照合強度"}
         collation{"並べ替え順序"}
         currency{"通貨"}
+        em{"絵文字表示方法"}
         hc{"時間制(12 / 24)"}
         lb{"禁則処理"}
+        lw{"単語途中の改行"}
         ms{"単位系"}
         numbers{"数値書式"}
+        ss{"略語の後の文分割"}
         timezone{"タイムゾーン"}
         va{"ロケールのバリアント"}
         x{"私用"}
@@ -92,7 +95,7 @@ ja{
         bjn{"バンジャル語"}
         bkm{"コム語"}
         bla{"シクシカ語"}
-        blo{"アニ語 (blo)"}
+        blo{"アニ語 (ベナン)"}
         bm{"バンバラ語"}
         bn{"ベンガル語"}
         bo{"チベット語"}
@@ -395,7 +398,7 @@ ja{
         mk{"マケドニア語"}
         ml{"マラヤーラム語"}
         mn{"モンゴル語"}
-        mnc{"満州語"}
+        mnc{"満洲語"}
         mni{"マニプリ語"}
         moe{"イヌー＝アイムン語"}
         moh{"モーホーク語"}
@@ -670,6 +673,12 @@ ja{
         zxx{"言語的内容なし"}
         zza{"ザザ語"}
     }
+    Languages%core{
+        ku{"クルド語"}
+    }
+    Languages%extension{
+        ku{"クルマンジー"}
+    }
     Languages%long{
         zh_Hans{"標準中国語 (簡体字)"}
         zh_Hant{"標準中国語 (繁体字)"}
@@ -889,9 +898,29 @@ ja{
             persian{"ペルシア暦"}
             roc{"中華民国暦"}
         }
+        calendar%core{
+            buddhist{"仏暦"}
+            chinese{"中国暦"}
+            coptic{"コプト暦"}
+            dangi{"ダンギ暦"}
+            ethiopic{"エチオピア暦"}
+            ethiopic-amete-alem{"エチオピア創世紀元暦"}
+            gregorian{"西暦(グレゴリオ暦)"}
+            hebrew{"ユダヤ暦"}
+            islamic{"イスラム暦"}
+            islamic-civil{"イスラム暦(定周期、公民紀元)"}
+            islamic-umalqura{"イスラム暦(ウンム・アルクラー)"}
+            japanese{"和暦"}
+            persian{"ペルシア暦"}
+            roc{"中華民国暦"}
+        }
         cf{
             account{"会計通貨フォーマット"}
             standard{"標準通貨フォーマット"}
+        }
+        cf%core{
+            account{"会計"}
+            standard{"標準"}
         }
         colAlternate{
             non-ignorable{"記号で並べ替え"}
@@ -926,29 +955,52 @@ ja{
             tertiary{"アクセント/大文字小文字/全角半角で並べ替え"}
         }
         collation{
-            big5han{"繁体字中国語順(Big5)"}
             compat{"以前の順序（互換性）"}
             dictionary{"辞書順"}
-            ducet{"ユニコード照合順"}
+            ducet{"デフォルトUnicode照合順"}
             eor{"ヨーロッパ言語文字の並べ替え規則"}
-            gb2312han{"簡体字中国語順(GB2312)"}
             phonebook{"電話帳順"}
-            phonetic{"音声順による並べ替え"}
+            phonetic{"読み順"}
             pinyin{"ピンイン順"}
             search{"汎用検索"}
             searchjl{"ハングル語頭子音による並べ替え"}
             standard{"標準並べ替え順序"}
             stroke{"画数順"}
-            traditional{"トラディッショナル"}
-            unihan{"部首順"}
+            traditional{"伝統的並べ替え順序"}
+            unihan{"部首画数順"}
             zhuyin{"注音順"}
+        }
+        collation%core{
+            compat{"互換性"}
+            dictionary{"辞書"}
+            ducet{"デフォルトUnicode"}
+            phonebook{"電話帳"}
+            phonetic{"読み"}
+            pinyin{"ピンイン"}
+            search{"検索"}
+            standard{"標準"}
+            stroke{"画数"}
+            traditional{"伝統的"}
+            unihan{"部首画数"}
+            zhuyin{"注音"}
         }
         d0{
             fwidth{"全角"}
             hwidth{"半角"}
             npinyin{"数字"}
         }
+        em%core{
+            default{"デフォルト"}
+            emoji{"絵文字"}
+            text{"テキスト"}
+        }
         hc{
+            h11{"12時間制(0〜11)"}
+            h12{"12時間制(1〜12)"}
+            h23{"24時間制(0〜23)"}
+            h24{"24時間制(1〜24)"}
+        }
+        hc%core{
             h11{"12時間制(0〜11)"}
             h12{"12時間制(1〜12)"}
             h23{"24時間制(0〜23)"}
@@ -959,6 +1011,17 @@ ja{
             normal{"禁則処理(標準)"}
             strict{"禁則処理(強)"}
         }
+        lb%core{
+            loose{"弱"}
+            normal{"標準"}
+            strict{"強"}
+        }
+        lw%core{
+            breakall{"強制改行"}
+            keepall{"改行禁止"}
+            normal{"標準"}
+            phrase{"文節単位"}
+        }
         m0{
             bgn{"BGN"}
             ungegn{"UNGEGN"}
@@ -967,6 +1030,11 @@ ja{
             metric{"メートル法"}
             uksystem{"ヤード・ポンド法"}
             ussystem{"米慣習単位"}
+        }
+        ms%core{
+            metric{"メートル"}
+            uksystem{"英国"}
+            ussystem{"米国"}
         }
         numbers{
             arab{"アラビア・インド数字"}
@@ -1030,6 +1098,10 @@ ja{
             tibt{"チベット数字"}
             traditional{"従来の記数法"}
             vaii{"ヴァイ文字の記数法"}
+        }
+        ss%core{
+            none{"オフ"}
+            standard{"オン"}
         }
     }
     Variants{

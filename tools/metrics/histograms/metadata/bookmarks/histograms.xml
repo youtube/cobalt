@@ -25,9 +25,8 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(BookmarksFileType) -->
 
 <variants name="BookmarksFileType">
-  <variant name="Account" summary="JSON file containing account bookmarks."/>
-  <variant name="LocalOrSyncable"
-      summary="JSON file containing local-or-syncable bookmarks."/>
+  <variant name="Account" summary="account node"/>
+  <variant name="LocalOrSyncable" summary="local-or-syncable node"/>
 </variants>
 
 <!-- LINT.ThenChange(//components/bookmarks/common/bookmark_metrics.cc:BookmarksFileType) -->
@@ -35,11 +34,25 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(EncryptionType) -->
 
 <variants name="EncryptionType">
-  <variant name="ClearText" summary="Clear text, no encryption."/>
-  <variant name="Encrypted" summary="Encryption is used."/>
+  <variant name="ClearText" summary="clear text"/>
+  <variant name="Encrypted" summary="encrypted"/>
 </variants>
 
 <!-- LINT.ThenChange(//components/bookmarks/common/bookmark_metrics.cc:EncryptionType) -->
+
+<!-- LINT.IfChange(ImportantFileWriter) -->
+
+<variants name="ImportantFileWriter">
+  <variant name="BookmarkStorage" summary="bookmarks storage for user actions"/>
+  <variant name="BookmarkStorage.Immediate"
+      summary="bookmarks storage for profile load"/>
+  <variant name="BookmarkStorageEncrypted"
+      summary="encrypted bookmarks storage for user actions"/>
+  <variant name="BookmarkStorageEncrypted.Immediate"
+      summary="encrypted bookmarks storage for profile load"/>
+</variants>
+
+<!-- LINT.ThenChange(//components/bookmarks/common/bookmark_metrics.cc:ImportantFileWriter) -->
 
 <histogram name="BookmarkManager.CommandExecuted" enum="BookmarkManagerCommand"
     expires_after="never">
@@ -202,7 +215,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.BookmarkBar.Android.ShownOnStartUpReason"
-    enum="BookmarkBarShownReason" expires_after="2026-05-03">
+    enum="BookmarkBarShownReason" expires_after="2026-09-06">
   <owner>mschillaci@google.com</owner>
   <owner>eleanorlee@google.com</owner>
   <owner>clank-app-team@google.com</owner>
@@ -298,7 +311,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.BookmarkBar.ToggledByKeyboardShortcut"
-    enum="BooleanEnabled" expires_after="2026-07-19">
+    enum="BooleanEnabled" expires_after="2026-09-06">
   <owner>mschillaci@google.com</owner>
   <owner>eleanorlee@google.com</owner>
   <owner>clank-app-team@google.com</owner>
@@ -371,6 +384,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Bookmarks.BookmarksSerializationResult.{ImportantFileWriter}"
+    enum="BookmarksSerializationResult" expires_after="2027-02-24">
+  <owner>plcoirier@google.com</owner>
+  <owner>chrome-collections@google.com</owner>
+  <summary>
+    Records the result of the serialization that occurred when
+    {ImportantFileWriter} saves bookmarks to disk.
+  </summary>
+</histogram>
+
 <histogram name="Bookmarks.Clone.NumCloned" units="bookmarks"
     expires_after="2026-01-15">
   <owner>wylieb@google.com</owner>
@@ -397,6 +420,17 @@ chromium-metrics-reviews@google.com.
     histogram even though guest sessions don't typically allow bookmarks. (The
     value emitted is typically zero.) Under certain enterpise configuration,
     guest sessions can have bookmarks.
+  </summary>
+</histogram>
+
+<histogram name="Bookmarks.DeleteClearTextFile.{BookmarksFileType}"
+    enum="BooleanDeletedOrNot" expires_after="2027-02-24">
+  <owner>plcoirier@google.com</owner>
+  <owner>chrome-collections@google.com</owner>
+  <summary>
+    Records every time we try to delete the clear text file of
+    {BookmarksFileType} bookmarks file and whether or not the deletion was
+    successful. Absence of the file counts as deletion.
   </summary>
 </histogram>
 
@@ -776,7 +810,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.Storage.TimeToLoadAtStartup2" units="ms"
-    expires_after="2026-07-26">
+    expires_after="2027-02-24">
   <owner>wylieb@google.com</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -787,6 +821,21 @@ chromium-metrics-reviews@google.com.
     histogram even though guest sessions don't typically allow bookmarks. (The
     value emitted is typically zero.) Under certain enterpise configuration,
     guest sessions can have bookmarks.
+  </summary>
+</histogram>
+
+<histogram name="Bookmarks.Storage.TimeToSerialize.{ImportantFileWriter}"
+    units="ms" expires_after="2027-02-24">
+  <owner>plcoirier@google.com</owner>
+  <owner>chrome-collections@google.com</owner>
+  <summary>
+    Time it takes {ImportantFileWriter} to serialize the bookmark model to a
+    string that will be saved to disk. This time includes encoding JSON object
+    to a string and encryption (if any). It's only reported if serialization is
+    successful.
+
+    It doesn't include time to write to disk which is reported by
+    ImportantFile.WriteDuration.*
   </summary>
 </histogram>
 
@@ -903,7 +952,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolder.OnProfileLoad.BookmarkBarTopLevelItems"
-    units="items" expires_after="2026-08-09">
+    units="items" expires_after="2026-09-06">
   <owner>yzshen@chromium.org</owner>
   <owner>mschillaci@google.com</owner>
   <owner>eleanorlee@google.com</owner>

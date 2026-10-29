@@ -30,9 +30,6 @@ es_US{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Wake"{
             ec{"Wake"}
@@ -111,6 +108,9 @@ es_US{
         }
         "meta:Gilbert_Islands"{
             ls{"hora de las islas Gilbert"}
+        }
+        "meta:Hawaii"{
+            ss{"HST"}
         }
         "meta:Hawaii_Aleutian"{
             sd{"HADT"}

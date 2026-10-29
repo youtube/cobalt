@@ -14,7 +14,6 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/autofill/autofill_offer_manager_factory.h"
-#include "chrome/browser/autofill/iban_manager_factory.h"
 #include "chrome/browser/autofill/merchant_promo_code_manager_factory.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -62,6 +61,7 @@
 #include "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_view.h"
+#include "components/autofill/core/browser/ui/payments/omnibox_autofill_delegate.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller_impl.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
@@ -130,7 +130,14 @@ ChromePaymentsAutofillClient::ChromePaymentsAutofillClient(
     : content::WebContentsObserver(&client->GetWebContents()),
       client_(CHECK_DEREF(client)),
       save_and_fill_manager_(
-          std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get())) {}
+          std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get()))
+#if !BUILDFLAG(IS_ANDROID)
+      ,
+      omnibox_autofill_delegate_(
+          std::make_unique<OmniboxAutofillDelegate>(&client_.get()))
+#endif  // !BUILDFLAG(IS_ANDROID)
+{
+}
 
 ChromePaymentsAutofillClient::~ChromePaymentsAutofillClient() = default;
 
@@ -844,9 +851,11 @@ void ChromePaymentsAutofillClient::DisablePaymentsAutofill() {
 }
 
 IbanManager* ChromePaymentsAutofillClient::GetIbanManager() {
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  return IbanManagerFactory::GetForProfile(profile);
+  if (!iban_manager_) {
+    iban_manager_ = std::make_unique<IbanManager>(
+        &client_->GetPersonalDataManager().payments_data_manager());
+  }
+  return iban_manager_.get();
 }
 
 IbanAccessManager* ChromePaymentsAutofillClient::GetIbanAccessManager() {
@@ -1224,6 +1233,11 @@ BnplUiDelegate* ChromePaymentsAutofillClient::GetBnplUiDelegate() {
 #endif  // BUILDFLAG(IS_ANDROID)
   }
   return bnpl_ui_delegate_.get();
+}
+
+OmniboxAutofillDelegate*
+ChromePaymentsAutofillClient::GetOmniboxAutofillDelegate() {
+  return omnibox_autofill_delegate_.get();
 }
 
 #if BUILDFLAG(IS_ANDROID)

@@ -611,6 +611,10 @@ qu{
             "EC$",
             "Dólar del Caribe Oriental",
         }
+        XCG{
+            "Cg.",
+            "Caribe guilderkuna",
+        }
         XOF{
             "F CFA",
             "Franco CFA de África Occidental",
@@ -634,6 +638,10 @@ qu{
         ZMW{
             "ZMW",
             "Kwacha Zambiano",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabuemanta quri",
         }
     }
     Currencies%narrow{
@@ -1033,6 +1041,9 @@ qu{
         XCD{
             other{"Dólar del caribe oriental"}
         }
+        XCG{
+            other{"Caribe guilderkuna"}
+        }
         XOF{
             other{"Franco CFA de áfrica occidental"}
         }
@@ -1047,6 +1058,9 @@ qu{
         }
         ZMW{
             other{"Kwacha zambiano"}
+        }
+        ZWG{
+            other{"Zimbabuemanta quri"}
         }
     }
 }

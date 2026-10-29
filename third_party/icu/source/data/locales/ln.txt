@@ -14,7 +14,9 @@ ln{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -152,12 +154,12 @@ ln{
             }
             eras{
                 abbreviated{
-                    "libóso ya",
-                    "nsima ya Y",
+                    0{"libóso ya"}
+                    1{"nsima ya Y"}
                 }
                 wide{
-                    "Yambo ya Yézu Krís",
-                    "Nsima ya Yézu Krís",
+                    0{"Yambo ya Yézu Krís"}
+                    1{"Nsima ya Yézu Krís"}
                 }
             }
             monthNames{

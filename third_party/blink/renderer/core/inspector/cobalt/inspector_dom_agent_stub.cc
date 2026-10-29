@@ -28,7 +28,8 @@ void InspectorDOMAgent::TopLayerElementsChanged() {}
 void InspectorDOMAgent::PseudoElementDestroyed(PseudoElement*) {}
 void InspectorDOMAgent::NodeCreated(Node*) {}
 void InspectorDOMAgent::UpdateScrollableFlag(Node*, std::optional<bool>) {}
-void InspectorDOMAgent::UpdateAdRelatedState(Node&, bool) {}
+void InspectorDOMAgent::UpdateAdRelatedState(Node&,
+                                             std::optional<AdProvenance>) {}
 void InspectorDOMAgent::UpdateAffectedByStartingStylesFlag(
     Node*,
     std::optional<bool>) {}

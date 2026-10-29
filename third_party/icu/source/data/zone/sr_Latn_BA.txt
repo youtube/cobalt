@@ -88,9 +88,7 @@ sr_Latn_BA{
             ls{"Južno-afričko vrijeme"}
         }
         "meta:Africa_Western"{
-            ld{"Zapadno-afričko ljetnje vrijeme"}
-            lg{"Zapadno-afričko vrijeme"}
-            ls{"Zapadno-afričko standardno vrijeme"}
+            ls{"Zapadno-afričko vrijeme"}
         }
         "meta:Alaska"{
             ld{"Aljaska, ljetnje vrijeme"}
@@ -325,6 +323,9 @@ sr_Latn_BA{
         }
         "meta:Guyana"{
             ls{"Gvajana vrijeme"}
+        }
+        "meta:Hawaii"{
+            ls{"Havajsko-aleutsko standardno vrijeme"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havajsko-aleutsko ljetnje vrijeme"}

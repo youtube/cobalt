@@ -149,12 +149,12 @@ lu{
             }
             eras{
                 abbreviated{
-                    "kmp. Y.K.",
-                    "kny. Y. K.",
+                    0{"kmp. Y.K."}
+                    1{"kny. Y. K."}
                 }
                 wide{
-                    "Kumpala kwa Yezu Kli",
-                    "Kunyima kwa Yezu Kli",
+                    0{"Kumpala kwa Yezu Kli"}
+                    1{"Kunyima kwa Yezu Kli"}
                 }
             }
             monthNames{

@@ -10,9 +10,21 @@ kxv_Orya{
     ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0 ୧ ୨ ୩ ୪ ୫ ୬ ୭ ୮ ୯]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
+            }
+        }
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                accountingFormat%noCurrency{"#,##,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
             }
         }
@@ -258,20 +270,20 @@ kxv_Orya{
             }
             eras{
                 abbreviated{
-                    "ବିସି",
-                    "ଏଡି",
+                    0{"ବିସି"}
+                    1{"ଏଡି"}
                 }
                 abbreviated%variant{
-                    "ବିସିଇ",
-                    "ସିଇ",
+                    0{"ବିସିଇ"}
+                    1{"ସିଇ"}
                 }
                 wide{
-                    "ବିଫୋର କ୍ରାଇଷ୍ଟ",
-                    "ଆନ୍ନା ଡୋମିନି",
+                    0{"ବିଫୋର କ୍ରାଇଷ୍ଟ"}
+                    1{"ଆନ୍ନା ଡୋମିନି"}
                 }
                 wide%variant{
-                    "ବିଫୋର କମନ ଏରା",
-                    "କମନ ଏରା",
+                    0{"ବିଫୋର କମନ ଏରା"}
+                    1{"କମନ ଏରା"}
                 }
             }
             intervalFormats{

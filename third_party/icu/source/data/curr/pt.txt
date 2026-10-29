@@ -1099,6 +1099,10 @@ pt{
             "EC$",
             "Dólar do Caribe Oriental",
         }
+        XCG{
+            "Cg.",
+            "Florim do Caribe",
+        }
         XDR{
             "XDR",
             "Direitos Especiais de Giro",
@@ -1194,6 +1198,10 @@ pt{
         ZWD{
             "ZWD",
             "Dólar do Zimbábue (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Ouro zimbabueano",
         }
         ZWL{
             "ZWL",
@@ -2299,6 +2307,10 @@ pt{
             one{"Dólar do Caribe Oriental"}
             other{"Dólares do Caribe Oriental"}
         }
+        XCG{
+            one{"Florim do Caribe"}
+            other{"Florins do Caribe"}
+        }
         XDR{
             one{"Direitos de desenho especiais"}
             other{"Direitos de desenho especiais"}
@@ -2390,6 +2402,10 @@ pt{
         ZWD{
             one{"Dólar do Zimbábue"}
             other{"Dólares do Zimbábue"}
+        }
+        ZWG{
+            one{"Ouro zimbabueano"}
+            other{"Ouros zimbabueanos"}
         }
         ZWL{
             one{"Dólar do Zimbábue (2009)"}

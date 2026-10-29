@@ -36,6 +36,10 @@ es_US{
             "ZMW",
             "kwacha zambiano",
         }
+        ZWG{
+            "ZWG",
+            "oro de Zimbabue",
+        }
     }
     Currencies%narrow{
         FKP{"£"}

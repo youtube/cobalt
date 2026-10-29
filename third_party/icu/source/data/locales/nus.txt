@@ -145,12 +145,12 @@ nus{
             }
             eras{
                 abbreviated{
-                    "AY",
-                    "ƐY",
+                    0{"AY"}
+                    1{"ƐY"}
                 }
                 wide{
-                    "A ka̱n Yecu ni dap",
-                    "Ɛ ca Yecu dap",
+                    0{"A ka̱n Yecu ni dap"}
+                    1{"Ɛ ca Yecu dap"}
                 }
             }
             monthNames{

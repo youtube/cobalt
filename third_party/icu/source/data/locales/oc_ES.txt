@@ -15,6 +15,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -37,6 +39,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
         }
         bali{
@@ -47,6 +51,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -62,6 +68,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -77,6 +85,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -92,6 +102,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -107,6 +119,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -122,6 +136,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -137,6 +153,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -152,6 +170,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -167,6 +187,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -182,6 +204,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -197,6 +221,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -212,6 +238,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -234,6 +262,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -249,6 +279,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -264,6 +296,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -279,6 +313,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -294,6 +330,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -309,6 +347,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -324,6 +364,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -337,6 +379,10 @@ oc_ES{
                 atLeast{"Mès de {0}"}
                 range{"{0}-{1}"}
             }
+            patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
+            }
         }
         lepc{
             miscPatterns{
@@ -346,6 +392,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -361,6 +409,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -376,6 +426,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -391,6 +443,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -406,6 +460,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -421,6 +477,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -436,6 +494,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -451,6 +511,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -466,6 +528,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -481,6 +545,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -496,6 +562,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -511,6 +579,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -526,6 +596,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -541,6 +613,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -556,6 +630,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -571,6 +647,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -586,6 +664,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -601,6 +681,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -616,6 +698,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -631,6 +715,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -646,6 +732,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -661,6 +749,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -676,6 +766,8 @@ oc_ES{
             }
             patterns{
                 accountingFormat{"#,##0.00¤"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                accountingFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{"."}
@@ -688,12 +780,12 @@ oc_ES{
         gregorian{
             eras{
                 narrow{
-                    "a. C.",
-                    "d. C.",
+                    0{"a. C."}
+                    1{"d. C."}
                 }
                 narrow%variant{
-                    "a. e. c.",
-                    "e. c.",
+                    0{"a. e. c."}
+                    1{"e. c."}
                 }
             }
         }

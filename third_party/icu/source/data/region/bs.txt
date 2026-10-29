@@ -85,6 +85,7 @@ bs{
         CN{"Kina"}
         CO{"Kolumbija"}
         CP{"Ostrvo Clipperton"}
+        CQ{"Sark"}
         CR{"Kostarika"}
         CU{"Kuba"}
         CV{"Zelenortska Ostrva"}

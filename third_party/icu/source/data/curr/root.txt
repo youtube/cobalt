@@ -200,12 +200,13 @@ root{
         ZMW{"ZK"}
     }
     Currencies%variant{
+        SAR{"⃁"}
         TRY{"TL"}
     }
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"47"}
+    Version{"48"}
     currencySpacing{
         afterCurrency{
             currencyMatch{"[[:^S:]&[:^Z:]]"}

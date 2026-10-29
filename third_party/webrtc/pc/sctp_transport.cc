@@ -176,7 +176,7 @@ void SctpTransport::Clear() {
   UpdateInformation(SctpTransportState::kClosed);
 }
 
-void SctpTransport::Start(const SctpOptions& options) {
+bool SctpTransport::Start(const SctpOptions& options) {
   RTC_DCHECK_RUN_ON(owner_thread_);
   info_ =
       SctpTransportInformation(info_.state(), info_.dtls_transport(),
@@ -185,7 +185,9 @@ void SctpTransport::Start(const SctpOptions& options) {
   if (!internal()->Start(options)) {
     RTC_LOG(LS_ERROR) << "Failed to push down SCTP parameters, closing.";
     UpdateInformation(SctpTransportState::kClosed);
+    return false;
   }
+  return true;
 }
 
 void SctpTransport::UpdateInformation(SctpTransportState state) {

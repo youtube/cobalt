@@ -85,6 +85,7 @@ it{
         CN{"Cina"}
         CO{"Colombia"}
         CP{"Isola di Clipperton"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Cuba"}
         CV{"Capo Verde"}

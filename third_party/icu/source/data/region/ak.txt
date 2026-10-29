@@ -66,7 +66,7 @@ ak{
         BO{"Bolivia"}
         BQ{"Caribbean Netherlands"}
         BR{"Brazil"}
-        BS{"Bahama"}
+        BS{"Bahamase"}
         BT{"Butan"}
         BV{"Bouvet Island"}
         BW{"Bɔtswana"}
@@ -85,8 +85,9 @@ ak{
         CN{"Kyaena"}
         CO{"Kolombia"}
         CP{"Klepatin Aeland"}
+        CQ{"Sark"}
         CR{"Kɔsta Rika"}
-        CU{"Kuba"}
+        CU{"Kiuba"}
         CV{"Kepvɛdfo Islands"}
         CW{"Kurakaw"}
         CX{"Buronya Supɔ"}
@@ -106,7 +107,7 @@ ak{
         EH{"Sahara Atɔeɛ"}
         ER{"Ɛritrea"}
         ES{"Spain"}
-        ET{"Ithiopia"}
+        ET{"Yitiopia"}
         EU{"Yuropu Nkabomkuo"}
         EZ{"Yuropu Fam"}
         FI{"Finland"}
@@ -141,14 +142,14 @@ ak{
         HT{"Heiti"}
         HU{"Hangari"}
         IC{"Canary Islands"}
-        ID{"Indɔnehyia"}
+        ID{"Ndoniihyia"}
         IE{"Aereland"}
         IL{"Israe"}
         IM{"Isle of Man"}
         IN{"India"}
         IO{"Britenfo Man Wɔ India Po No Mu"}
         IQ{"Irak"}
-        IR{"Iran"}
+        IR{"Yiran"}
         IS{"Aesland"}
         IT{"Itali"}
         JE{"Gyɛsi"}
@@ -160,7 +161,7 @@ ak{
         KH{"Kambodia"}
         KI{"Kiribati"}
         KM{"Kɔmɔrɔs"}
-        KN{"Saint Kitts ne Nɛves"}
+        KN{"Saint Kitts ne Nevis"}
         KP{"Korea Atifi"}
         KR{"Korea Anaafoɔ"}
         KW{"Kuweti"}
@@ -241,7 +242,7 @@ ak{
         SE{"Sweden"}
         SG{"Singapɔ"}
         SH{"Saint Helena"}
-        SI{"Slovinia"}
+        SI{"Slovenia"}
         SJ{"Svalbard ne Jan Mayen"}
         SK{"Slovakia"}
         SL{"Sɛra Liɔn"}

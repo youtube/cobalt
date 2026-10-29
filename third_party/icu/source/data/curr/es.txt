@@ -1127,6 +1127,10 @@ es{
             "ZWD",
             "dólar de Zimbabue",
         }
+        ZWG{
+            "ZWG",
+            "oro zimbabuense",
+        }
         ZWL{
             "ZWL",
             "dólar zimbabuense",
@@ -2134,6 +2138,10 @@ es{
         ZMW{
             one{"kuacha zambiano"}
             other{"kuachas zambianos"}
+        }
+        ZWG{
+            one{"oro zimbabuense"}
+            other{"oro zimbabuense"}
         }
     }
 }

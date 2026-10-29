@@ -135,12 +135,12 @@ rn{
             }
             eras{
                 abbreviated{
-                    "Mb.Y.",
-                    "Ny.Y",
+                    0{"Mb.Y."}
+                    1{"Ny.Y"}
                 }
                 wide{
-                    "Mbere ya Yezu",
-                    "Nyuma ya Yezu",
+                    0{"Mbere ya Yezu"}
+                    1{"Nyuma ya Yezu"}
                 }
             }
             monthNames{

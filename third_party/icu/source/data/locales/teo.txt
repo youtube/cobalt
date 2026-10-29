@@ -115,12 +115,12 @@ teo{
             }
             eras{
                 abbreviated{
-                    "KK",
-                    "BK",
+                    0{"KK"}
+                    1{"BK"}
                 }
                 wide{
-                    "Kabla ya Christo",
-                    "Baada ya Christo",
+                    0{"Kabla ya Christo"}
+                    1{"Baada ya Christo"}
                 }
             }
             monthNames{

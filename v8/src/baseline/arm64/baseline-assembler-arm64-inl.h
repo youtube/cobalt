@@ -156,9 +156,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ CompareObjectType(map, type, type, MAP_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
+    __ AssertMap(map);
   }
   __ Ldrh(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   JumpIf(cc, type, instance_type, target);
@@ -497,11 +495,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch().W();
   __ Ldr(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Adds(interrupt_budget, interrupt_budget, weight);
   __ Str(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) {
     // Use compare flags set by Adds
     DCHECK_LT(weight, 0);
@@ -518,11 +518,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch().W();
   __ Ldr(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Adds(interrupt_budget, interrupt_budget, weight.W());
   __ Str(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) __ B(ge, skip_interrupt_label);
 }
 

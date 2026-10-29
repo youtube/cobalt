@@ -148,9 +148,7 @@ kea{
             ls{"Ora di Sul di Áfrika"}
         }
         "meta:Africa_Western"{
-            ld{"Ora di Veron di Áfrika Osidental"}
-            lg{"Ora di Áfrika Osidental"}
-            ls{"Ora Padron di Áfrika Osidental"}
+            ls{"Ora di Áfrika Osidental"}
         }
         "meta:Alaska"{
             ld{"Ora di Veron di Alaska"}
@@ -239,6 +237,9 @@ kea{
             ld{"Ora di Veron di Gronelándia Osidental"}
             lg{"Ora di Gronelándia Osidental"}
             ls{"Ora Padron di Gronelándia Osidental"}
+        }
+        "meta:Hawaii"{
+            ls{"Ora Padron di Avaí i Aleutas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Ora di Veron di Avaí i Aleutas"}

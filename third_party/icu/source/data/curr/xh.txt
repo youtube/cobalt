@@ -611,6 +611,10 @@ xh{
             "EC$",
             "East Caribbean Dollar",
         }
+        XCG{
+            "ICg.",
+            "ICaribbean guilder",
+        }
         XOF{
             "F CFA",
             "ICFA Franc yaseWest Africa",
@@ -634,6 +638,10 @@ xh{
         ZMW{
             "ZMW",
             "I-Kwacha yaseZambi",
+        }
+        ZWG{
+            "IZWG",
+            "IZimbabwean Gold",
         }
     }
     CurrencyPlurals{
@@ -1245,6 +1253,10 @@ xh{
             one{"East Caribbean dollar"}
             other{"East Caribbean dollars"}
         }
+        XCG{
+            one{"ICaribbean guilder"}
+            other{"ICaribbean guilder"}
+        }
         XOF{
             one{"ICFA franc yaseWest Africa"}
             other{"IiCFA franc zaseWest Africa"}
@@ -1268,6 +1280,10 @@ xh{
         ZMW{
             one{"I-kwacha yaseZambia"}
             other{"I-kwacha yaseZambia"}
+        }
+        ZWG{
+            one{"IZimbabwean gold"}
+            other{"IZimbabwean gold"}
         }
     }
 }

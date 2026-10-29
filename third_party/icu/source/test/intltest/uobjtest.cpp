@@ -507,7 +507,7 @@ void UObjectTest::testIDs()
 
 void UObjectTest::testUMemory() {
     // additional tests for code coverage
-#if U_OVERRIDE_CXX_ALLOCATION && U_HAVE_PLACEMENT_NEW
+#if U_OVERRIDE_CXX_ALLOCATION
     alignas(UnicodeString) char bytes[sizeof(UnicodeString)];
     UnicodeString *p;
     enum { len=20 };

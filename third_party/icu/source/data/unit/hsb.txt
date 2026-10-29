@@ -55,6 +55,13 @@ hsb{
                 other{"{0} wobrotow"}
                 two{"{0} wobrotaj"}
             }
+            steradian{
+                dnam{"steradiany"}
+                few{"{0} steradiany"}
+                one{"{0} steradian"}
+                other{"{0} steradianow"}
+                two{"{0} steradianaj"}
+            }
         }
         area{
             acre{
@@ -228,6 +235,13 @@ hsb{
                 other{"{0} karatow"}
                 two{"{0} karataj"}
             }
+            katal{
+                dnam{"katale"}
+                few{"{0} katale"}
+                one{"{0} katal"}
+                other{"{0} katalow"}
+                two{"{0} katalej"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"miligramy na deciliter"}
                 few{"{0} miligramy na deciliter"}
@@ -249,6 +263,34 @@ hsb{
                 other{"{0} molow"}
                 two{"{0} molej"}
             }
+            ofglucose{
+                dnam{"glukozy"}
+                few{"{0} glukozy"}
+                one{"{0} glukozy"}
+                other{"{0} glukozy"}
+                two{"{0} glukozy"}
+            }
+            part{
+                dnam{"dźěle"}
+                few{"{0} dźěle"}
+                one{"{0} dźěl"}
+                other{"{0} dźělow"}
+                two{"{0} dźělej"}
+            }
+            part-per-1e6{
+                dnam{"milionćiny"}
+                few{"{0} milionćiny"}
+                one{"{0} milionćina"}
+                other{"{0} milionćinow"}
+                two{"{0} milionćinje"}
+            }
+            part-per-1e9{
+                dnam{"miliardćina"}
+                few{"{0} miliardćiny"}
+                one{"{0} miliardćina"}
+                other{"{0} miliardćinow"}
+                two{"{0} miliardćinje"}
+            }
             percent{
                 dnam{"procenty"}
                 few{"{0} procenty"}
@@ -263,26 +305,12 @@ hsb{
                 other{"{0} promilow"}
                 two{"{0} promilej"}
             }
-            permillion{
-                dnam{"milionćiny"}
-                few{"{0} milionćiny"}
-                one{"{0} milionćina"}
-                other{"{0} milionćinow"}
-                two{"{0} milionćinje"}
-            }
             permyriad{
                 dnam{"dźesaćiny promila"}
                 few{"{0} dźesaćiny promila"}
                 one{"{0} dźesaćina promila"}
                 other{"{0} dźesaćinow promila"}
                 two{"{0} dźesaćinje promila"}
-            }
-            portion-per-1e9{
-                dnam{"miliardćina"}
-                few{"{0} miliardćiny"}
-                one{"{0} miliardćina"}
-                other{"{0} miliardćinow"}
-                two{"{0} miliardćinje"}
             }
         }
         consumption{
@@ -517,6 +545,27 @@ hsb{
                 other{"{0} amperow"}
                 two{"{0} amperaj"}
             }
+            coulomb{
+                dnam{"coulomby"}
+                few{"{0} coulomby"}
+                one{"{0} coulomb"}
+                other{"{0} coulombow"}
+                two{"{0} coulombaj"}
+            }
+            farad{
+                dnam{"farady"}
+                few{"{0} farady"}
+                one{"{0} farad"}
+                other{"{0} faradow"}
+                two{"{0} faradaj"}
+            }
+            henry{
+                dnam{"henryje"}
+                few{"{0} henryje"}
+                one{"{0} henry"}
+                other{"{0} henryjow"}
+                two{"{0} henryjej"}
+            }
             milliampere{
                 dnam{"milliampery"}
                 few{"{0} milliampery"}
@@ -531,6 +580,13 @@ hsb{
                 other{"{0} ohmow"}
                 two{"{0} ohmaj"}
             }
+            siemens{
+                dnam{"siemensy"}
+                few{"{0} siemensy"}
+                one{"{0} siemens"}
+                other{"{0} siemensow"}
+                two{"{0} siemensaj"}
+            }
             volt{
                 dnam{"volty"}
                 few{"{0} volty"}
@@ -540,6 +596,13 @@ hsb{
             }
         }
         energy{
+            becquerel{
+                dnam{"bequerele"}
+                few{"{0} bequerele"}
+                one{"{0} bequerel"}
+                other{"{0} bequerelow"}
+                two{"{0} bequerelej"}
+            }
             british-thermal-unit{
                 dnam{"britiske jednotki ćopłoty"}
                 few{"{0} britiske jednotki ćopłoty"}
@@ -554,6 +617,13 @@ hsb{
                 other{"{0} kalorijow"}
                 two{"{0} kaloriji"}
             }
+            calorie-it{
+                dnam{"kalorije [IT]"}
+                few{"{0} kalorije [IT]"}
+                one{"{0} kalorija [IT]"}
+                other{"{0} kalorijow [IT]"}
+                two{"{0} kaloriji [IT]"}
+            }
             electronvolt{
                 dnam{"elektronvolty"}
                 few{"{0} elektronvolty"}
@@ -567,6 +637,13 @@ hsb{
                 one{"{0} kilokalorija"}
                 other{"{0} kilokalorijow"}
                 two{"{0} kilokaloriji"}
+            }
+            gray{
+                dnam{"grayje"}
+                few{"{0} grayje"}
+                one{"{0} gray"}
+                other{"{0} grayjow"}
+                two{"{0} grayjej"}
             }
             joule{
                 dnam{"joule"}
@@ -596,6 +673,13 @@ hsb{
                 other{"{0} kilowattowych hodźin"}
                 two{"{0} kilowattowej hodźinje"}
             }
+            sievert{
+                dnam{"sieverty"}
+                few{"{0} sieverty"}
+                one{"{0} sievert"}
+                other{"{0} sievertow"}
+                two{"{0} sievertaj"}
+            }
             therm-us{
                 dnam{"ameriske jednotki ćopłoty"}
                 few{"{0} ameriske jednotki ćopłoty"}
@@ -605,6 +689,13 @@ hsb{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramy-forcy"}
+                few{"{0} kilogramy-forcy"}
+                one{"{0} kilogram-force"}
+                other{"{0} kilogramow-forcow"}
+                two{"{0} kilogramaj-forcaj"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kilowattowe hodźiny na 100 kilometrow"}
                 few{"{0} kilowattowe hodźiny na 100 kilometrow"}
@@ -885,6 +976,22 @@ hsb{
                 two{"{0} swěćenskej mocy słónca"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesle"}
+                few{"{0} tesle"}
+                one{"{0} tesla"}
+                other{"{0} teslow"}
+                two{"{0} teslej"}
+            }
+            weber{
+                dnam{"webery"}
+                few{"{0} webery"}
+                one{"{0} weber"}
+                other{"{0} weberow"}
+                two{"{0} weberaj"}
+            }
+        }
         mass{
             carat{
                 dnam{"karaty"}
@@ -1089,6 +1196,13 @@ hsb{
                 one{"{0} milimeter žiwoslěbroweho stołpika"}
                 other{"{0} milimetrow žiwoslěbroweho stołpika"}
                 two{"{0} milimetraj žiwoslěbroweho stołpika"}
+            }
+            ofhg{
+                dnam{"žiwoslěbroweho stołpa"}
+                few{"{0} žiwoslěbroweho stołpa"}
+                one{"{0} žiwoslěbroweho stołpa"}
+                other{"{0} žiwoslěbroweho stołpa"}
+                two{"{0} žiwoslěbroweho stołpa"}
             }
             pascal{
                 dnam{"pascale"}
@@ -1337,6 +1451,13 @@ hsb{
                 other{"{0} britiskich běžitych uncow"}
                 two{"{0} britiskej běžitej uncy"}
             }
+            fluid-ounce-metric{
+                dnam{"metriske běžite uncy"}
+                few{"{0} běžite uncy"}
+                one{"{0} běžita unca"}
+                other{"{0} metriskich běžitych uncow"}
+                two{"{0} běžitej uncy"}
+            }
             gallon{
                 dnam{"galony"}
                 few{"{0} galony"}
@@ -1448,7 +1569,7 @@ hsb{
             }
         }
         concentr{
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"n"}
                 few{"{0} n"}
                 one{"{0} n"}
@@ -1593,6 +1714,13 @@ hsb{
                 other{"{0} wobr."}
                 two{"{0} wobr."}
             }
+            steradian{
+                dnam{"steradian"}
+                few{"{0} sr"}
+                one{"{0} sr"}
+                other{"{0} sr"}
+                two{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -1617,6 +1745,12 @@ hsb{
                 other{"{0} kusow"}
                 two{"{0} kusaj"}
             }
+            katal{
+                few{"{0} kat"}
+                one{"{0} kat"}
+                other{"{0} kat"}
+                two{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dl"}
                 few{"{0} mg/dl"}
@@ -1630,6 +1764,27 @@ hsb{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
                 two{"{0} mmol/l"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                few{"{0} Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+                two{"{0} Glc"}
+            }
+            part{
+                dnam{"dźěl"}
+                few{"{0} dźěl"}
+                one{"{0} dźěl"}
+                other{"{0} dźěl"}
+                two{"{0} dźěl"}
+            }
+            part-per-1e9{
+                dnam{"nano"}
+                few{"{0} nano"}
+                one{"{0} nano"}
+                other{"{0} nano"}
+                two{"{0} nano"}
             }
             percent{
                 few{"{0} %"}
@@ -1648,13 +1803,6 @@ hsb{
                 one{"{0} ‱"}
                 other{"{0} ‱"}
                 two{"{0} ‱"}
-            }
-            portion-per-1e9{
-                dnam{"nano"}
-                few{"{0} nano"}
-                one{"{0} nano"}
-                other{"{0} nano"}
-                two{"{0} nano"}
             }
         }
         consumption{
@@ -1784,22 +1932,79 @@ hsb{
             ampere{
                 dnam{"A"}
             }
+            coulomb{
+                few{"{0} C"}
+                one{"{0} C"}
+                other{"{0} C"}
+                two{"{0} C"}
+            }
+            farad{
+                few{"{0} F"}
+                one{"{0} F"}
+                other{"{0} F"}
+                two{"{0} F"}
+            }
+            henry{
+                few{"{0} H"}
+                one{"{0} H"}
+                other{"{0} H"}
+                two{"{0} H"}
+            }
             ohm{
                 dnam{"Ω"}
+            }
+            siemens{
+                few{"{0} S"}
+                one{"{0} S"}
+                other{"{0} S"}
+                two{"{0} S"}
             }
             volt{
                 dnam{"V"}
             }
         }
         energy{
+            becquerel{
+                few{"{0} Bq"}
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+                two{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                few{"{0} cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
+                two{"{0} cal-IT"}
+            }
+            gray{
+                few{"{0} Gy"}
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+                two{"{0} Gy"}
+            }
             joule{
                 dnam{"J"}
+            }
+            sievert{
+                few{"{0} Sv"}
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+                two{"{0} Sv"}
             }
             therm-us{
                 few{"{0} US therms"}
                 one{"{0} US therm"}
                 other{"{0} US therms"}
                 two{"{0} US therms"}
+            }
+        }
+        force{
+            kilogram-force{
+                few{"{0} kgf"}
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+                two{"{0} kgf"}
             }
         }
         length{
@@ -1811,6 +2016,20 @@ hsb{
             }
             meter{
                 dnam{"m"}
+            }
+        }
+        magnetic{
+            tesla{
+                few{"{0} T"}
+                one{"{0} T"}
+                other{"{0} T"}
+                two{"{0} T"}
+            }
+            weber{
+                few{"{0} Wb"}
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+                two{"{0} Wb"}
             }
         }
         mass{
@@ -1851,6 +2070,14 @@ hsb{
             }
             watt{
                 dnam{"W"}
+            }
+        }
+        pressure{
+            ofhg{
+                few{"{0} Hg"}
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+                two{"{0} Hg"}
             }
         }
         speed{
@@ -1957,6 +2184,13 @@ hsb{
                 one{"{0} brit. fl oz"}
                 other{"{0} brit. fl oz"}
                 two{"{0} brit. fl oz"}
+            }
+            fluid-ounce-metric{
+                dnam{"m. fl oz"}
+                few{"{0} m. fl oz"}
+                one{"{0} m. fl oz"}
+                other{"{0} m. fl oz"}
+                two{"{0} m. fl oz"}
             }
             gallon{
                 dnam{"gal"}

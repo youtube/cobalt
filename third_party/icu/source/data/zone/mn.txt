@@ -10,7 +10,7 @@ mn{
             ec{"Аккра"}
         }
         "Africa:Addis_Ababa"{
-            ec{"Аддис-Aбеба"}
+            ec{"Аддис-Абеба"}
         }
         "Africa:Algiers"{
             ec{"Алжир"}
@@ -269,6 +269,9 @@ mn{
         }
         "America:Costa_Rica"{
             ec{"Коста-Рика"}
+        }
+        "America:Coyhaique"{
+            ec{"Койайкэ"}
         }
         "America:Creston"{
             ec{"Крестон"}
@@ -1167,7 +1170,7 @@ mn{
             ec{"Эфате"}
         }
         "Pacific:Enderbury"{
-            ec{"Эндербери"}
+            ec{"Кантон"}
         }
         "Pacific:Fakaofo"{
             ec{"Факаофо"}
@@ -1192,9 +1195,6 @@ mn{
         }
         "Pacific:Honolulu"{
             ec{"Хонолулу"}
-        }
-        "Pacific:Kanton"{
-            ec{"Кантон"}
         }
         "Pacific:Kiritimati"{
             ec{"Киритимати"}
@@ -1278,9 +1278,7 @@ mn{
             ls{"Өмнөд Африкийн стандарт цаг"}
         }
         "meta:Africa_Western"{
-            ld{"Баруун Африкийн зуны цаг"}
-            lg{"Баруун Африкийн цаг"}
-            ls{"Баруун Африкийн стандарт цаг"}
+            ls{"Баруун Африкийн цаг"}
         }
         "meta:Alaska"{
             ld{"Аляскийн зуны цаг"}
@@ -1518,6 +1516,9 @@ mn{
         }
         "meta:Guyana"{
             ls{"Гайанагийн цаг"}
+        }
+        "meta:Hawaii"{
+            ls{"Хавай-Алеутын стандарт цаг"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Хавай-Алеутын зуны цаг"}

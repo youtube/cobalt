@@ -139,12 +139,12 @@ shi_Latn{
             }
             eras{
                 abbreviated{
-                    "daɛ",
-                    "dfɛ",
+                    0{"daɛ"}
+                    1{"dfɛ"}
                 }
                 wide{
-                    "dat n ɛisa",
-                    "dffir n ɛisa",
+                    0{"dat n ɛisa"}
+                    1{"dffir n ɛisa"}
                 }
             }
             monthNames{

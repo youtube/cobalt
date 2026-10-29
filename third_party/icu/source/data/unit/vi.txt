@@ -26,6 +26,10 @@ vi{
                 dnam{"radian"}
                 other{"{0} radian"}
             }
+            steradian{
+                dnam{"steradian"}
+                other{"{0} steradian"}
+            }
         }
         area{
             hectare{
@@ -115,12 +119,26 @@ vi{
                 dnam{"carat"}
                 other{"{0} carat"}
             }
+            katal{
+                dnam{"katal"}
+                other{"{0} katal"}
+            }
+            ofglucose{
+                other{"{0} glucose"}
+            }
+            part{
+                dnam{"phần"}
+                other{"{0} phần"}
+            }
+            part-per-1e6{
+                dnam{"phần triệu"}
+                other{"{0} phần triệu"}
+            }
+            part-per-1e9{
+                other{"{0} phần tỷ"}
+            }
             permyriad{
                 other{"{0} phần vạn"}
-            }
-            portion-per-1e9{
-                dnam{"phần tỷ"}
-                other{"{0} phần tỷ"}
             }
         }
         consumption{
@@ -184,17 +202,22 @@ vi{
                 other{"{0} terabyte"}
             }
         }
-        duration{
-            night{
-                dnam{"đêm"}
-                other{"{0} đêm"}
-                per{"{0}/đêm"}
-            }
-        }
         electric{
             ampere{
                 dnam{"ampe"}
                 other{"{0} ampe"}
+            }
+            coulomb{
+                dnam{"coulomb"}
+                other{"{0} coulomb"}
+            }
+            farad{
+                dnam{"fara"}
+                other{"{0} fara"}
+            }
+            henry{
+                dnam{"henry"}
+                other{"{0} henry"}
             }
             milliampere{
                 dnam{"mili ampe"}
@@ -204,12 +227,20 @@ vi{
                 dnam{"ôm"}
                 other{"{0} ôm"}
             }
+            siemens{
+                dnam{"siemen"}
+                other{"{0} siemen"}
+            }
             volt{
                 dnam{"vôn"}
                 other{"{0} vôn"}
             }
         }
         energy{
+            becquerel{
+                dnam{"becquerel"}
+                other{"{0} becquerel"}
+            }
             british-thermal-unit{
                 dnam{"đơn vị nhiệt Anh"}
                 other{"{0} đơn vị nhiệt Anh"}
@@ -218,12 +249,20 @@ vi{
                 dnam{"calo"}
                 other{"{0} calo"}
             }
+            calorie-it{
+                dnam{"calo [IT]"}
+                other{"{0} calo [IT]"}
+            }
             electronvolt{
                 other{"{0} electronvôn"}
             }
             foodcalorie{
                 dnam{"Calo"}
                 other{"{0} Calo"}
+            }
+            gray{
+                dnam{"gray"}
+                other{"{0} gray"}
             }
             joule{
                 dnam{"jun"}
@@ -241,12 +280,20 @@ vi{
                 dnam{"kilôoát giờ"}
                 other{"{0} kilôoát giờ"}
             }
+            sievert{
+                dnam{"sievert"}
+                other{"{0} sievert"}
+            }
             therm-us{
                 dnam{"đơn vị nhiệt Mỹ"}
                 other{"{0} đơn vị nhiệt Mỹ"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"lực kilôgam"}
+                other{"{0} lực kilôgam"}
+            }
             newton{
                 other{"{0} newton"}
             }
@@ -373,6 +420,16 @@ vi{
                 other{"{0} độ sáng của mặt trời"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"weber"}
+                other{"{0} weber"}
+            }
+        }
         mass{
             carat{
                 dnam{"carat"}
@@ -479,6 +536,10 @@ vi{
                 dnam{"milimét thủy ngân"}
                 other{"{0} milimét thủy ngân"}
             }
+            ofhg{
+                dnam{"thuỷ ngân"}
+                other{"{0} thuỷ ngân"}
+            }
             pound-force-per-square-inch{
                 dnam{"pound/inch vuông"}
                 other{"{0} pound/inch vuông"}
@@ -496,6 +557,10 @@ vi{
             knot{
                 dnam{"hải lý/giờ"}
                 other{"{0} hải lý/giờ"}
+            }
+            light-speed{
+                dnam{"ánh sáng"}
+                other{"{0} ánh sáng"}
             }
             meter-per-second{
                 dnam{"mét/giây"}
@@ -587,6 +652,10 @@ vi{
                 dnam{"Aoxơ chất lỏng theo hệ đo lường Anh"}
                 other{"{0} Aoxơ chất lỏng theo hệ đo lường Anh"}
             }
+            fluid-ounce-metric{
+                dnam{"ao-xơ chất lỏng hệ mét"}
+                other{"{0} ao-xơ chất lỏng hệ mét"}
+            }
             gallon{
                 dnam{"gallon"}
                 other{"{0} gallon"}
@@ -633,17 +702,37 @@ vi{
                 other{"{0}G"}
             }
         }
+        angle{
+            steradian{
+                other{"{0} sr"}
+            }
+        }
         area{
             hectare{
                 other{"{0}ha"}
             }
         }
         concentr{
+            katal{
+                other{"{0} kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"phần"}
+                other{"{0} phần"}
+            }
+            part-per-1e6{
+                dnam{"phần triệu"}
+                other{"{0} phần triệu"}
+            }
+            part-per-1e9{
+                other{"{0} phần tỷ"}
+            }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                other{"{0}ppb"}
             }
         }
         digital{
@@ -655,22 +744,42 @@ vi{
                 dnam{"PB"}
             }
         }
-        duration{
-            millisecond{
-                other{"{0}miligiây"}
+        electric{
+            coulomb{
+                other{"{0} C"}
             }
-            night{
-                dnam{"đêm"}
-                other{"{0} đêm"}
-                per{"{0}/đêm"}
+            farad{
+                other{"{0} F"}
+            }
+            henry{
+                other{"{0} H"}
+            }
+            siemens{
+                other{"{0} S"}
             }
         }
         energy{
+            becquerel{
+                other{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0} cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
+            gray{
+                other{"{0} Gy"}
+            }
+            sievert{
+                other{"{0} Sv"}
+            }
         }
         force{
+            kilogram-force{
+                other{"{0} kgf"}
+            }
             newton{
                 dnam{"N"}
             }
@@ -720,6 +829,14 @@ vi{
                 dnam{"L☉"}
             }
         }
+        magnetic{
+            tesla{
+                other{"{0} T"}
+            }
+            weber{
+                other{"{0} Wb"}
+            }
+        }
         mass{
             dalton{
                 dnam{"Da"}
@@ -750,6 +867,16 @@ vi{
             millibar{
                 other{"{0} mb"}
             }
+            ofhg{
+                dnam{"of Hg"}
+                other{"{0} of Hg"}
+            }
+        }
+        speed{
+            light-speed{
+                dnam{"ánh sáng"}
+                other{"{0} ánh sáng"}
+            }
         }
         volume{
             cubic-kilometer{
@@ -760,6 +887,9 @@ vi{
             }
             fluid-ounce-imperial{
                 other{"{0} fl ozIm"}
+            }
+            fluid-ounce-metric{
+                other{"{0} fl oz m."}
             }
             gallon{
                 per{"{0}/gal"}
@@ -790,6 +920,9 @@ vi{
                 dnam{"vòng"}
                 other{"{0} vòng"}
             }
+            steradian{
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -805,11 +938,27 @@ vi{
                 dnam{"mục"}
                 other{"{0} mục"}
             }
+            katal{
+                other{"{0} kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"phần"}
+                other{"{0} phần"}
+            }
+            part-per-1e6{
+                dnam{"phần triệu"}
+                other{"{0} phần triệu"}
+            }
+            part-per-1e9{
+                dnam{"phần tỷ"}
+                other{"{0} phần tỷ"}
+            }
             permyriad{
                 dnam{"phần vạn"}
-            }
-            portion-per-1e9{
-                dnam{"phần tỷ"}
             }
         }
         consumption{
@@ -909,16 +1058,35 @@ vi{
             ampere{
                 dnam{"A"}
             }
+            coulomb{
+                other{"{0} C"}
+            }
+            farad{
+                other{"{0} F"}
+            }
+            henry{
+                other{"{0} H"}
+            }
             ohm{
                 dnam{"Ω"}
+            }
+            siemens{
+                other{"{0} S"}
             }
             volt{
                 dnam{"v"}
             }
         }
         energy{
+            becquerel{
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"electronvôn"}
@@ -927,8 +1095,14 @@ vi{
                 dnam{"Cal"}
                 other{"{0} Cal"}
             }
+            gray{
+                other{"{0} Gy"}
+            }
             joule{
                 dnam{"J"}
+            }
+            sievert{
+                other{"{0} Sv"}
             }
             therm-us{
                 dnam{"therm Mỹ"}
@@ -936,6 +1110,9 @@ vi{
             }
         }
         force{
+            kilogram-force{
+                other{"{0} kgf"}
+            }
             newton{
                 dnam{"newton"}
             }
@@ -997,6 +1174,14 @@ vi{
                 dnam{"độ sáng của mặt trời"}
             }
         }
+        magnetic{
+            tesla{
+                other{"{0} T"}
+            }
+            weber{
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"cara"}
@@ -1031,7 +1216,17 @@ vi{
                 dnam{"W"}
             }
         }
+        pressure{
+            ofhg{
+                dnam{"of Hg"}
+                other{"{0} of Hg"}
+            }
+        }
         speed{
+            light-speed{
+                dnam{"ánh sáng"}
+                other{"{0} ánh sáng"}
+            }
             mile-per-hour{
                 other{"{0} mph"}
             }
@@ -1067,6 +1262,9 @@ vi{
             fluid-ounce-imperial{
                 dnam{"fl oz Anh"}
                 other{"{0} fl oz Anh"}
+            }
+            fluid-ounce-metric{
+                other{"{0} fl oz m."}
             }
             gallon{
                 dnam{"gal"}

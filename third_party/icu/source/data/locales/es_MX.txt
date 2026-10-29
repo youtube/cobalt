@@ -9,94 +9,14 @@ es_MX{
             patternsShort{
                 currencyFormat{
                     1000{
-                        one{"0 k¤"}
-                        other{"0 k¤"}
-                    }
-                    10000{
-                        one{"00 k¤"}
-                        other{"00 k¤"}
-                    }
-                    100000{
-                        one{"000 k¤"}
-                        other{"000 k¤"}
-                    }
-                    1000000{
-                        one{"0 M¤"}
-                        other{"0 M¤"}
-                    }
-                    10000000{
-                        one{"00 M¤"}
-                        other{"00 M¤"}
-                    }
-                    100000000{
-                        one{"000 M¤"}
-                        other{"000 M¤"}
-                    }
-                    1000000000{
-                        one{"0000 M¤"}
-                        other{"0000 M¤"}
-                    }
-                    10000000000{
-                        one{"00 MRD ¤"}
-                        other{"00 MRD ¤"}
-                    }
-                    100000000000{
-                        one{"000 MRD ¤"}
-                        other{"000 MRD ¤"}
-                    }
-                    1000000000000{
-                        one{"0 B¤"}
-                        other{"0 B¤"}
-                    }
-                    10000000000000{
-                        one{"00 B¤"}
-                        other{"00 B¤"}
-                    }
-                    100000000000000{
-                        one{"000 B¤"}
-                        other{"000 B¤"}
+                        one{"¤0 k"}
+                        other{"¤0 k"}
                     }
                 }
                 currencyFormat%alphaNextToNumber{
                     1000{
-                        one{"0 k ¤"}
-                        other{"0 k ¤"}
-                    }
-                    10000{
-                        one{"00 k ¤"}
-                        other{"00 k ¤"}
-                    }
-                    100000{
-                        one{"000 k ¤"}
-                        other{"000 k ¤"}
-                    }
-                    1000000{
-                        one{"0 M ¤"}
-                        other{"0 M ¤"}
-                    }
-                    10000000{
-                        one{"00 M ¤"}
-                        other{"00 M ¤"}
-                    }
-                    100000000{
-                        one{"000 M ¤"}
-                        other{"000 M ¤"}
-                    }
-                    1000000000{
-                        one{"0000 M ¤"}
-                        other{"0000 M ¤"}
-                    }
-                    1000000000000{
-                        one{"0 B ¤"}
-                        other{"0 B ¤"}
-                    }
-                    10000000000000{
-                        one{"00 B ¤"}
-                        other{"00 B ¤"}
-                    }
-                    100000000000000{
-                        one{"000 B ¤"}
-                        other{"000 B ¤"}
+                        one{"¤ 0 k"}
+                        other{"¤ 0 k"}
                     }
                 }
                 decimalFormat{
@@ -243,9 +163,6 @@ es_MX{
                     h{"h:mm–h:mm a"}
                     m{"h:mm–h:mm a"}
                 }
-                hmv{
-                    a{"h:mm a – h:mm a v"}
-                }
                 hv{
                     a{"h a – h a v"}
                 }
@@ -301,24 +218,10 @@ es_MX{
     }
     characterLabel{
         female{"mujer"}
-        format_whitespace{"Formato y espacio duro"}
         keycap{"tecla"}
-        letterlike_symbols{"Símbolos con letras"}
-        limited_use{"Uso limitado"}
         male{"hombre"}
-        modern_scripts{"Sistemas de escritura modernos"}
-        other{"Otros"}
-        phonetic_alphabet{"Alfabeto fonético"}
-        sign_standard_symbols{"Símbolos de señales/estándar"}
         smiley{"cara sonriente"}
-        southeast_asian_scripts{"Sistemas de escritura de Asia Sudoriental"}
-        symbols{"Símbolos"}
-        tone_marks{"Marcas tonales"}
-        travel_places{"Viajes y destinos"}
-        variant_forms{"Variantes"}
         weather{"tiempo"}
-        western_asian_scripts{"Sistemas de escritura de Asia Occidental"}
-        whitespace{"Espacio duro"}
     }
     fields{
         day-short{
@@ -350,7 +253,7 @@ es_MX{
             relativeTime{
                 future{
                     one{"en {0} h"}
-                    other{"en {0} n"}
+                    other{"en {0} h"}
                 }
             }
         }
@@ -426,12 +329,6 @@ es_MX{
                 "-1"{"el domingo pasado"}
                 "0"{"este domingo"}
                 "1"{"el domingo próximo"}
-            }
-            relativeTime{
-                future{
-                    one{"dentro de {0} domingo"}
-                    other{"dentro de {0} domingos"}
-                }
             }
         }
         thu{

@@ -271,6 +271,9 @@ zh_Hant{
         "America:Costa_Rica"{
             ec{"哥斯大黎加"}
         }
+        "America:Coyhaique"{
+            ec{"科伊艾克"}
+        }
         "America:Creston"{
             ec{"克雷斯頓"}
         }
@@ -1168,7 +1171,7 @@ zh_Hant{
             ec{"埃法特"}
         }
         "Pacific:Enderbury"{
-            ec{"恩得伯理島"}
+            ec{"坎頓島"}
         }
         "Pacific:Fakaofo"{
             ec{"法考福"}
@@ -1193,9 +1196,6 @@ zh_Hant{
         }
         "Pacific:Honolulu"{
             ec{"檀香山"}
-        }
-        "Pacific:Kanton"{
-            ec{"坎頓島"}
         }
         "Pacific:Kiritimati"{
             ec{"基里地馬地島"}
@@ -1284,9 +1284,7 @@ zh_Hant{
             ls{"南非標準時間"}
         }
         "meta:Africa_Western"{
-            ld{"西非夏令時間"}
-            lg{"西非時間"}
-            ls{"西非標準時間"}
+            ls{"西非時間"}
         }
         "meta:Alaska"{
             ld{"阿拉斯加夏令時間"}
@@ -1569,6 +1567,10 @@ zh_Hant{
         }
         "meta:Guyana"{
             ls{"蓋亞那時間"}
+        }
+        "meta:Hawaii"{
+            ls{"夏威夷-阿留申標準時間"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"夏威夷-阿留申夏令時間"}
@@ -1870,6 +1872,11 @@ zh_Hant{
         }
         "meta:Truk"{
             ls{"楚克島時間"}
+        }
+        "meta:Turkey"{
+            ld{"土耳其夏令時間"}
+            lg{"土耳其時間"}
+            ls{"土耳其標準時間"}
         }
         "meta:Turkmenistan"{
             ld{"土庫曼夏令時間"}

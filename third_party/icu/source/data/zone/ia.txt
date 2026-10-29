@@ -81,9 +81,6 @@ ia{
         "Asia:Yekaterinburg"{
             ec{"Ekaterinburg"}
         }
-        "Atlantic:Canary"{
-            ec{"Canarias"}
-        }
         "Atlantic:Cape_Verde"{
             ec{"Capo Verde"}
         }
@@ -94,7 +91,7 @@ ia{
             ls{"Universal Tempore Coordinate"}
         }
         "Etc:Unknown"{
-            ec{"Citate incognite"}
+            ec{"Loco incognite"}
         }
         "Europe:Athens"{
             ec{"Athenas"}
@@ -107,9 +104,6 @@ ia{
         }
         "Europe:Bucharest"{
             ec{"Bucarest"}
-        }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
         }
         "Europe:Dublin"{
             ld{"Hora estive irlandese"}
@@ -138,9 +132,6 @@ ia{
         "Europe:Rome"{
             ec{"Roma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Vatican"{
             ec{"Vaticano"}
         }
@@ -162,8 +153,10 @@ ia{
         "Pacific:Easter"{
             ec{"Pascha"}
         }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
+        "meta:Acre"{
+            ld{"hora estive de Acre"}
+            lg{"hora de Acre"}
+            ls{"hora normal de Acre"}
         }
         "meta:Afghanistan"{
             ls{"hora de Afghanistan"}
@@ -175,12 +168,10 @@ ia{
             ls{"hora de Africa del Est"}
         }
         "meta:Africa_Southern"{
-            ls{"hora standard de Africa del Sud"}
+            ls{"hora normal de Africa del Sud"}
         }
         "meta:Africa_Western"{
-            ld{"hora estive de Africa del West"}
-            lg{"hora de Africa del West"}
-            ls{"hora standard de Africa del West"}
+            ls{"hora de Africa del West"}
         }
         "meta:Alaska"{
             ld{"hora estive de Alaska"}
@@ -190,7 +181,7 @@ ia{
         "meta:Amazon"{
             ld{"hora estive de Amazonia"}
             lg{"hora de Amazonia"}
-            ls{"hora standard de Amazonia"}
+            ls{"hora normal de Amazonia"}
         }
         "meta:America_Central"{
             ld{"hora estive central"}
@@ -213,29 +204,29 @@ ia{
             ls{"hora normal pacific"}
         }
         "meta:Apia"{
-            ld{"hora estive de Apia"}
-            lg{"hora de Apia"}
-            ls{"hora standard de Apia"}
+            ld{"hora estive de Samoa"}
+            lg{"hora de Samoa"}
+            ls{"hora normal de Samoa"}
         }
         "meta:Arabian"{
             ld{"hora estive arabe"}
             lg{"hora arabe"}
-            ls{"hora standard arabe"}
+            ls{"hora normal arabe"}
         }
         "meta:Argentina"{
             ld{"hora estive de Argentina"}
             lg{"hora de Argentina"}
-            ls{"hora standard de Argentina"}
+            ls{"hora normal de Argentina"}
         }
         "meta:Argentina_Western"{
             ld{"hora estive de Argentina occidental"}
             lg{"hora de Argentina occidental"}
-            ls{"hora standard de Argentina occidental"}
+            ls{"hora normal de Argentina occidental"}
         }
         "meta:Armenia"{
             ld{"hora estive de Armenia"}
             lg{"hora de Armenia"}
-            ls{"hora standard de Armenia"}
+            ls{"hora normal de Armenia"}
         }
         "meta:Atlantic"{
             ld{"hora estive atlantic"}
@@ -245,27 +236,27 @@ ia{
         "meta:Australia_Central"{
             ld{"hora estive de Australia central"}
             lg{"hora de Australia central"}
-            ls{"hora standard de Australia central"}
+            ls{"hora normal de Australia central"}
         }
         "meta:Australia_CentralWestern"{
             ld{"hora estive de Australia centro-occidental"}
             lg{"hora de Australia centro-occidental"}
-            ls{"hora standard de Australia centro-occidental"}
+            ls{"hora normal de Australia centro-occidental"}
         }
         "meta:Australia_Eastern"{
             ld{"hora estive de Australia oriental"}
             lg{"hora de Australia oriental"}
-            ls{"hora standard de Australia oriental"}
+            ls{"hora normal de Australia oriental"}
         }
         "meta:Australia_Western"{
             ld{"hora estive de Australia occidental"}
             lg{"hora de Australia occidental"}
-            ls{"hora standard de Australia occidental"}
+            ls{"hora normal de Australia occidental"}
         }
         "meta:Azerbaijan"{
             ld{"hora estive de Azerbeidzhan"}
             lg{"hora de Azerbeidzhan"}
-            ls{"hora standard de Azerbeidzhan"}
+            ls{"hora normal de Azerbeidzhan"}
         }
         "meta:Azores"{
             ld{"hora estive del Azores"}
@@ -275,7 +266,7 @@ ia{
         "meta:Bangladesh"{
             ld{"hora estive de Bangladesh"}
             lg{"hora de Bangladesh"}
-            ls{"hora standard de Bangladesh"}
+            ls{"hora normal de Bangladesh"}
         }
         "meta:Bhutan"{
             ls{"hora de Bhutan"}
@@ -286,33 +277,33 @@ ia{
         "meta:Brasilia"{
             ld{"hora estive de Brasilia"}
             lg{"hora de Brasilia"}
-            ls{"hora standard de Brasilia"}
+            ls{"hora normal de Brasilia"}
         }
         "meta:Brunei"{
-            ls{"hora de Brunei Darussalam"}
+            ls{"hora de Brunei"}
         }
         "meta:Cape_Verde"{
             ld{"hora estive de Capo Verde"}
             lg{"hora de Capo Verde"}
-            ls{"hora standard de Capo Verde"}
+            ls{"hora normal de Capo Verde"}
         }
         "meta:Chamorro"{
-            ls{"hora standard de Chamorro"}
+            ls{"hora normal de Chamorro"}
         }
         "meta:Chatham"{
             ld{"hora estive de Chatham"}
             lg{"hora de Chatham"}
-            ls{"hora standard de Chatham"}
+            ls{"hora normal de Chatham"}
         }
         "meta:Chile"{
             ld{"hora estive de Chile"}
             lg{"hora de Chile"}
-            ls{"hora standard de Chile"}
+            ls{"hora normal de Chile"}
         }
         "meta:China"{
             ld{"hora estive de China"}
             lg{"hora de China"}
-            ls{"hora standard de China"}
+            ls{"hora normal de China"}
         }
         "meta:Christmas"{
             ls{"hora del Insula de Natal"}
@@ -323,12 +314,12 @@ ia{
         "meta:Colombia"{
             ld{"hora estive de Colombia"}
             lg{"hora de Colombia"}
-            ls{"hora standard de Colombia"}
+            ls{"hora normal de Colombia"}
         }
         "meta:Cook"{
             ld{"hora estive del Insulas Cook"}
             lg{"hora del Insulas Cook"}
-            ls{"hora standard del Insulas Cook"}
+            ls{"hora normal del Insulas Cook"}
         }
         "meta:Cuba"{
             ld{"hora estive de Cuba"}
@@ -339,15 +330,15 @@ ia{
             ls{"hora de Davis"}
         }
         "meta:DumontDUrville"{
-            ls{"hora de Dumont-d’Urville"}
+            ls{"hora de Dumont d’Urville"}
         }
         "meta:East_Timor"{
-            ls{"hora de Timor del Est"}
+            ls{"hora de Timor Oriental"}
         }
         "meta:Easter"{
             ld{"hora estive del Insula de Pascha"}
             lg{"hora del Insula de Pascha"}
-            ls{"hora standard del Insula de Pascha"}
+            ls{"hora normal del Insula de Pascha"}
         }
         "meta:Ecuador"{
             ls{"hora de Ecuador"}
@@ -373,12 +364,12 @@ ia{
         "meta:Falkland"{
             ld{"hora estive del Insulas Falkland"}
             lg{"hora del Insulas Falkland"}
-            ls{"hora standard del Insulas Falkland"}
+            ls{"hora normal del Insulas Falkland"}
         }
         "meta:Fiji"{
             ld{"hora estive de Fiji"}
             lg{"hora de Fiji"}
-            ls{"hora standard de Fiji"}
+            ls{"hora normal de Fiji"}
         }
         "meta:French_Guiana"{
             ls{"hora de Guiana Francese"}
@@ -398,10 +389,15 @@ ia{
         "meta:Georgia"{
             ld{"hora estive de Georgia"}
             lg{"hora de Georgia"}
-            ls{"hora standard de Georgia"}
+            ls{"hora normal de Georgia"}
         }
         "meta:Gilbert_Islands"{
             ls{"hora del Insulas Gilbert"}
+        }
+        "meta:Greenland"{
+            ld{"hora estive de Groenlandia"}
+            lg{"hora de Groenlandia"}
+            ls{"hora normal de Groenlandia"}
         }
         "meta:Greenland_Eastern"{
             ld{"hora estive de Groenlandia oriental"}
@@ -413,11 +409,17 @@ ia{
             lg{"hora de Groenlandia occidental"}
             ls{"hora normal de Groenlandia occidental"}
         }
+        "meta:Guam"{
+            ls{"hora normal de Guam"}
+        }
         "meta:Gulf"{
-            ls{"hora standard del Golfo"}
+            ls{"hora normal del Golfo"}
         }
         "meta:Guyana"{
             ls{"hora de Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"hora normal de Hawaii-Aleutianas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"hora estive de Hawaii-Aleutianas"}
@@ -427,15 +429,15 @@ ia{
         "meta:Hong_Kong"{
             ld{"hora estive de Hongkong"}
             lg{"hora de Hongkong"}
-            ls{"hora standard de Hongkong"}
+            ls{"hora normal de Hongkong"}
         }
         "meta:Hovd"{
-            ld{"hora estive de Hovd"}
-            lg{"hora de Hovd"}
-            ls{"hora standard de Hovd"}
+            ld{"hora estive de Khovd"}
+            lg{"hora de Khovd"}
+            ls{"hora normal de Khovd"}
         }
         "meta:India"{
-            ls{"hora standard de India"}
+            ls{"hora normal de India"}
         }
         "meta:Indian_Ocean"{
             ls{"hora del Oceano Indian"}
@@ -455,7 +457,7 @@ ia{
         "meta:Iran"{
             ld{"hora estive de Iran"}
             lg{"hora de Iran"}
-            ls{"hora standard de Iran"}
+            ls{"hora normal de Iran"}
         }
         "meta:Irkutsk"{
             ld{"hora estive de Irkutsk"}
@@ -465,12 +467,12 @@ ia{
         "meta:Israel"{
             ld{"hora estive de Israel"}
             lg{"hora de Israel"}
-            ls{"hora standard de Israel"}
+            ls{"hora normal de Israel"}
         }
         "meta:Japan"{
             ld{"hora estive de Japon"}
             lg{"hora de Japon"}
-            ls{"hora standard de Japon"}
+            ls{"hora normal de Japon"}
         }
         "meta:Kazakhstan"{
             ls{"hora de Kazakhstan"}
@@ -484,7 +486,7 @@ ia{
         "meta:Korea"{
             ld{"hora estive de Corea"}
             lg{"hora de Corea"}
-            ls{"hora standard de Corea"}
+            ls{"hora normal de Corea"}
         }
         "meta:Kosrae"{
             ls{"hora de Kosrae"}
@@ -503,7 +505,7 @@ ia{
         "meta:Lord_Howe"{
             ld{"hora estive de Lord Howe"}
             lg{"hora de Lord Howe"}
-            ls{"hora standard de Lord Howe"}
+            ls{"hora normal de Lord Howe"}
         }
         "meta:Magadan"{
             ld{"hora estive de Magadan"}
@@ -525,7 +527,7 @@ ia{
         "meta:Mauritius"{
             ld{"hora estive de Mauritio"}
             lg{"hora de Mauritio"}
-            ls{"hora standard de Mauritio"}
+            ls{"hora normal de Mauritio"}
         }
         "meta:Mawson"{
             ls{"hora de Mawson"}
@@ -538,7 +540,7 @@ ia{
         "meta:Mongolia"{
             ld{"hora estive de Ulan Bator"}
             lg{"hora de Ulan Bator"}
-            ls{"hora standard de Ulan Bator"}
+            ls{"hora normal de Ulan Bator"}
         }
         "meta:Moscow"{
             ld{"hora estive de Moscova"}
@@ -557,12 +559,12 @@ ia{
         "meta:New_Caledonia"{
             ld{"hora estive de Nove Caledonia"}
             lg{"hora de Nove Caledonia"}
-            ls{"hora standard de Nove Caledonia"}
+            ls{"hora normal de Nove Caledonia"}
         }
         "meta:New_Zealand"{
             ld{"hora estive de Nove Zelanda"}
             lg{"hora de Nove Zelanda"}
-            ls{"hora standard de Nove Zelanda"}
+            ls{"hora normal de Nove Zelanda"}
         }
         "meta:Newfoundland"{
             ld{"hora estive de Terranova"}
@@ -575,12 +577,12 @@ ia{
         "meta:Norfolk"{
             ld{"hora estive del Insula Norfolk"}
             lg{"hora del Insula Norfolk"}
-            ls{"hora standard del Insula Norfolk"}
+            ls{"hora normal del Insula Norfolk"}
         }
         "meta:Noronha"{
             ld{"hora estive de Fernando de Noronha"}
             lg{"hora de Fernando de Noronha"}
-            ls{"hora standard de Fernando de Noronha"}
+            ls{"hora normal de Fernando de Noronha"}
         }
         "meta:Novosibirsk"{
             ld{"hora estive de Novosibirsk"}
@@ -595,7 +597,7 @@ ia{
         "meta:Pakistan"{
             ld{"hora estive de Pakistan"}
             lg{"hora de Pakistan"}
-            ls{"hora standard de Pakistan"}
+            ls{"hora normal de Pakistan"}
         }
         "meta:Palau"{
             ls{"hora de Palau"}
@@ -606,17 +608,17 @@ ia{
         "meta:Paraguay"{
             ld{"hora estive de Paraguay"}
             lg{"hora de Paraguay"}
-            ls{"hora standard de Paraguay"}
+            ls{"hora normal de Paraguay"}
         }
         "meta:Peru"{
             ld{"hora estive de Peru"}
             lg{"hora de Peru"}
-            ls{"hora standard de Peru"}
+            ls{"hora normal de Peru"}
         }
         "meta:Philippines"{
             ld{"hora estive del Philippinas"}
             lg{"hora del Philippinas"}
-            ls{"hora standard del Philippinas"}
+            ls{"hora normal del Philippinas"}
         }
         "meta:Phoenix_Islands"{
             ls{"hora del Insulas Phenice"}
@@ -630,10 +632,10 @@ ia{
             ls{"hora de Pitcairn"}
         }
         "meta:Ponape"{
-            ls{"hora de Ponape"}
+            ls{"hora de Pohnpei"}
         }
         "meta:Pyongyang"{
-            ls{"hora de Pyongyang"}
+            ls{"hora de Corea del Nord"}
         }
         "meta:Reunion"{
             ls{"hora de Réunion"}
@@ -647,15 +649,15 @@ ia{
             ls{"hora normal de Sachalin"}
         }
         "meta:Samoa"{
-            ld{"hora estive de Samoa"}
-            lg{"hora de Samoa"}
-            ls{"hora standard de Samoa"}
+            ld{"hora estive de Samoa american"}
+            lg{"hora de Samoa american"}
+            ls{"hora normal de Samoa american"}
         }
         "meta:Seychelles"{
             ls{"hora del Seychelles"}
         }
         "meta:Singapore"{
-            ls{"hora standard de Singapore"}
+            ls{"hora normal de Singapore"}
         }
         "meta:Solomon"{
             ls{"hora del Insulas Solomon"}
@@ -673,9 +675,9 @@ ia{
             ls{"hora de Tahiti"}
         }
         "meta:Taipei"{
-            ld{"hora estive de Taipei"}
-            lg{"hora de Taipei"}
-            ls{"hora standard de Taipei"}
+            ld{"hora estive de Taiwan"}
+            lg{"hora de Taiwan"}
+            ls{"hora normal de Taiwan"}
         }
         "meta:Tajikistan"{
             ls{"hora de Tajikistan"}
@@ -686,7 +688,7 @@ ia{
         "meta:Tonga"{
             ld{"hora estive de Tonga"}
             lg{"hora de Tonga"}
-            ls{"hora standard de Tonga"}
+            ls{"hora normal de Tonga"}
         }
         "meta:Truk"{
             ls{"hora de Chuuk"}
@@ -694,7 +696,7 @@ ia{
         "meta:Turkmenistan"{
             ld{"hora estive de Turkmenistan"}
             lg{"hora de Turkmenistan"}
-            ls{"hora standard de Turkmenistan"}
+            ls{"hora normal de Turkmenistan"}
         }
         "meta:Tuvalu"{
             ls{"hora de Tuvalu"}
@@ -702,17 +704,17 @@ ia{
         "meta:Uruguay"{
             ld{"hora estive de Uruguay"}
             lg{"hora de Uruguay"}
-            ls{"hora standard de Uruguay"}
+            ls{"hora normal de Uruguay"}
         }
         "meta:Uzbekistan"{
             ld{"hora estive de Uzbekistan"}
             lg{"hora de Uzbekistan"}
-            ls{"hora standard de Uzbekistan"}
+            ls{"hora normal de Uzbekistan"}
         }
         "meta:Vanuatu"{
             ld{"hora estive de Vanuatu"}
             lg{"hora de Vanuatu"}
-            ls{"hora standard de Vanuatu"}
+            ls{"hora normal de Vanuatu"}
         }
         "meta:Venezuela"{
             ls{"hora de Venezuela"}

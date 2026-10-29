@@ -1095,6 +1095,10 @@ id{
             "EC$",
             "Dolar Karibia Timur",
         }
+        XCG{
+            "Cg.",
+            "Guilder Karibia",
+        }
         XDR{
             "XDR",
             "Hak Khusus Menggambar",
@@ -1191,6 +1195,10 @@ id{
             "ZWD",
             "Dolar Zimbabwe (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "Emas Zimbabwe",
+        }
         ZWL{
             "ZWL",
             "Dolar Zimbabwe (2009)",
@@ -1211,11 +1219,17 @@ id{
         MXP{
             other{"Peso Perak Meksiko"}
         }
+        XCG{
+            other{"Guilder Karibia"}
+        }
         XXX{
             other{"(mata uang tidak dikenal)"}
         }
         YUD{
             other{"Dinar Keras Yugoslavia"}
+        }
+        ZWG{
+            other{"emas Zimbabwe"}
         }
     }
 }

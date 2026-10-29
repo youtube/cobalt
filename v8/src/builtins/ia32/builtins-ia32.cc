@@ -1806,7 +1806,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ movd(saved_feedback_cell, feedback_cell);
   Register feedback_vector = ecx;
   __ mov(feedback_vector,
-         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   __ AssertFeedbackVector(feedback_vector, scratch);
   feedback_cell = no_reg;
 
@@ -3942,8 +3942,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // If the stack has not been started yet, switching to it is invalid as it
   // does not have a stack entry frame. Instead, retire it and throw the
   // exception from the current stack.
-  // Both blocks exit with the arguments of the runtime call pushed on the
-  // stack.
+  // Both blocks exit with the exnref pushed on the stack.
   __ cmp(Operand(target_stack, wasm::kStackFpOffset), Immediate(0));
   Label throw_;
   Label retire_and_throw;
@@ -3969,9 +3968,11 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   }
 
   __ bind(&throw_);
-  // Throw the exception.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmReThrow);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
   __ Trap();
   __ bind(&return_);
   // Return the arg buffer.
@@ -5047,7 +5048,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ mov(feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   closure = no_reg;
   __ mov(feedback_vector,
-         FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+         FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

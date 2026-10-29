@@ -156,6 +156,7 @@ void NumberFormatTest::runIndexedTest( int32_t index, UBool exec, const char* &n
   TESTCASE_AUTO(TestFormatAttributes);
   TESTCASE_AUTO(TestFieldPositionIterator);
   TESTCASE_AUTO(TestDecimal);
+  TESTCASE_AUTO(TestDecimalFormatParse7E);
   TESTCASE_AUTO(TestCurrencyFractionDigits);
   TESTCASE_AUTO(TestExponentParse);
   TESTCASE_AUTO(TestExplicitParents);
@@ -227,6 +228,7 @@ void NumberFormatTest::runIndexedTest( int32_t index, UBool exec, const char* &n
   TESTCASE_AUTO(Test11649_DecFmtCurrencies);
   TESTCASE_AUTO(Test13148_ParseGroupingSeparators);
   TESTCASE_AUTO(Test12753_PatternDecimalPoint);
+  TESTCASE_AUTO(Test22303_PatternDecimalPoint_InfNaN);
   TESTCASE_AUTO(Test11647_PatternCurrencySymbols);
   TESTCASE_AUTO(Test11913_BigDecimal);
   TESTCASE_AUTO(Test11020_RoundingInScientificNotation);
@@ -915,7 +917,7 @@ static const char* testCases[][2]= {
     {"en_BE@currency=BEF", "1.150,50\\u00A0BEF" },
     {"es_ES@currency=ESP", "1.150\\u00A0\\u20A7" },
     {"eu_ES@currency=ESP", "\\u20A7\\u00A01.150" },
-    {"gl_ES@currency=ESP", "1.150\\u00A0\\u20A7" },
+    {"gl_ES@currency=ESP", "1\\u202F150\\u00A0\\u20A7" },
     {"it_IT@currency=ITL", "ITL\\u00A01.150" },
     {"pt_PT@currency=PTE", "1,150$50\\u00A0\\u200B"}, // per cldrbug 7670
     {"en_US@currency=JPY", "\\u00A51,150"},
@@ -4619,9 +4621,9 @@ NumberFormatTest::TestParseCurrencyInUCurr() {
         "Kuwaiti Dinar1.00",
         "Kuwaiti dinar1.00",
         "Kuwaiti dinars1.00",
-        "Kyrgystani Som1.00",
-        "Kyrgystani som1.00",
-        "Kyrgystani soms1.00",
+        "Kyrgyz Som1.00",
+        "Kyrgyz som1.00",
+        "Kyrgyz soms1.00",
         "HNL1.00",
         "LAK1.00",
         "LAK1.00",
@@ -5648,9 +5650,9 @@ NumberFormatTest::TestParseCurrencyInUCurr() {
         "1.00 Kuwaiti Dinar random",
         "1.00 Kuwaiti dinar random",
         "1.00 Kuwaiti dinars random",
-        "1.00 Kyrgystani Som random",
-        "1.00 Kyrgystani som random",
-        "1.00 Kyrgystani soms random",
+        "1.00 Kyrgyz Som random",
+        "1.00 Kyrgyz som random",
+        "1.00 Kyrgyz soms random",
         "1.00 Laotian Kip random",
         "1.00 Laotian kip random",
         "1.00 Laotian kips random",
@@ -6980,6 +6982,30 @@ void NumberFormatTest::TestDecimal() {
 
 }
 
+void NumberFormatTest::TestDecimalFormatParse7E() {
+    UErrorCode  status = U_ZERO_ERROR;
+    UnicodeString testdata = u"~";
+    icu::Formattable result;
+    icu::DecimalFormat dfmt(testdata, status);
+    if (U_SUCCESS(status)) {
+        dfmt.parse(testdata, result, status);
+    }
+
+    // Test basic behavior
+    status = U_ZERO_ERROR;
+    dfmt = icu::DecimalFormat(u"~0", status);
+    ASSERT_SUCCESS(status);
+    dfmt.parse(u"200", result, status);
+    ASSERT_EQUALS(status, U_INVALID_FORMAT_ERROR);
+    status = U_ZERO_ERROR;
+    dfmt.parse(u"≈200", result, status);
+    ASSERT_SUCCESS(status);
+    if (result.getInt64() != 200) {
+        errln(UnicodeString(u"Got unexpected parse result: ") +
+              DoubleToUnicodeString(result.getInt64()));
+    }
+}
+
 void NumberFormatTest::TestCurrencyFractionDigits() {
     UErrorCode status = U_ZERO_ERROR;
     UnicodeString text1, text2;
@@ -8099,9 +8125,9 @@ void NumberFormatTest::TestAccountingCurrency() {
     expect(NumberFormat::createInstance("de_DE", style, status),
         Formattable(-23456.7), UnicodeString("-23.456,70\\u00A0\\u20AC").unescape(), true, status);
     expect(NumberFormat::createInstance("en_ID", style, status),
-        Formattable(static_cast<double>(0)), UnicodeString("Rp\\u00A00,00").unescape(), true, status);
+        Formattable(static_cast<double>(0)), UnicodeString("Rp\\u00A00").unescape(), true, status);
     expect(NumberFormat::createInstance("en_ID", style, status),
-        Formattable(-0.2), UnicodeString("(Rp\\u00A00,20)").unescape(), true, status);
+        Formattable(-0.2), UnicodeString("(Rp\\u00A00)").unescape(), true, status);
     expect(NumberFormat::createInstance("sh_ME", style, status),
         Formattable(static_cast<double>(0)), UnicodeString("0,00\\u00A0\\u20AC").unescape(), true, status);
     expect(NumberFormat::createInstance("sh_ME", style, status),
@@ -8196,7 +8222,7 @@ void NumberFormatTest::TestCurrencyUsage() {
 
             // test the getter here
             UCurrencyUsage curUsage = fmt->getCurrencyUsage();
-            assertEquals("Test usage getter - standard", static_cast<int32_t>(curUsage), static_cast<int32_t>(UCURR_USAGE_STANDARD));
+            assertEquals("Test usage getter - standard", curUsage, UCURR_USAGE_STANDARD);
 
             fmt->setCurrencyUsage(UCURR_USAGE_CASH, &status);
         }else{
@@ -8208,7 +8234,7 @@ void NumberFormatTest::TestCurrencyUsage() {
 
         // must be usage = cash
         UCurrencyUsage curUsage = fmt->getCurrencyUsage();
-        assertEquals("Test usage getter - cash", static_cast<int32_t>(curUsage), static_cast<int32_t>(UCURR_USAGE_CASH));
+        assertEquals("Test usage getter - cash", curUsage, UCURR_USAGE_CASH);
 
         UnicodeString cash_currency;
         fmt->format(agent,cash_currency);
@@ -8272,7 +8298,7 @@ void NumberFormatTest::TestCurrencyUsage() {
 
         UnicodeString PKR_changed;
         fmt->format(agent, PKR_changed);
-        assertEquals("Test Currency Usage 6", u"PKR\u00A0123.57", PKR_changed);
+        assertEquals("Test Currency Usage 6", u"PKR\u00A0124", PKR_changed);
         delete fmt;
     }
 }
@@ -9030,9 +9056,9 @@ void NumberFormatTest::TestFormatFailIfMoreThanMaxDigits() {
     if (status.errDataIfFailureAndReset()) {
         return;
     }
-    assertEquals("Coverage for getter 1", static_cast<UBool>(false), df.isFormatFailIfMoreThanMaxDigits());
+    assertEquals("Coverage for getter 1", false, df.isFormatFailIfMoreThanMaxDigits());
     df.setFormatFailIfMoreThanMaxDigits(true);
-    assertEquals("Coverage for getter 2", static_cast<UBool>(true), df.isFormatFailIfMoreThanMaxDigits());
+    assertEquals("Coverage for getter 2", true, df.isFormatFailIfMoreThanMaxDigits());
     df.setMaximumIntegerDigits(2);
     UnicodeString result;
     df.format(1234, result, status);
@@ -9046,9 +9072,9 @@ void NumberFormatTest::TestParseCaseSensitive() {
     if (status.errDataIfFailureAndReset()) {
         return;
     }
-    assertEquals("Coverage for getter 1", static_cast<UBool>(false), df.isParseCaseSensitive());
+    assertEquals("Coverage for getter 1", false, df.isParseCaseSensitive());
     df.setParseCaseSensitive(true);
-    assertEquals("Coverage for getter 1", static_cast<UBool>(true), df.isParseCaseSensitive());
+    assertEquals("Coverage for getter 1", true, df.isParseCaseSensitive());
     Formattable result;
     ParsePosition ppos;
     df.parse(u"1e2", result, ppos);
@@ -9063,9 +9089,9 @@ void NumberFormatTest::TestParseNoExponent() {
     if (status.errDataIfFailureAndReset()) {
         return;
     }
-    assertEquals("Coverage for getter 1", static_cast<UBool>(false), df.isParseNoExponent());
+    assertEquals("Coverage for getter 1", false, df.isParseNoExponent());
     df.setParseNoExponent(true);
-    assertEquals("Coverage for getter 1", static_cast<UBool>(true), df.isParseNoExponent());
+    assertEquals("Coverage for getter 1", true, df.isParseNoExponent());
     Formattable result;
     ParsePosition ppos;
     df.parse(u"1E2", result, ppos);
@@ -9080,9 +9106,9 @@ void NumberFormatTest::TestSignAlwaysShown() {
     if (status.errDataIfFailureAndReset()) {
         return;
     }
-    assertEquals("Coverage for getter 1", static_cast<UBool>(false), df.isSignAlwaysShown());
+    assertEquals("Coverage for getter 1", false, df.isSignAlwaysShown());
     df.setSignAlwaysShown(true);
-    assertEquals("Coverage for getter 1", static_cast<UBool>(true), df.isSignAlwaysShown());
+    assertEquals("Coverage for getter 1", true, df.isSignAlwaysShown());
     UnicodeString result;
     df.format(1234, result, status);
     status.errIfFailureAndReset();
@@ -9423,9 +9449,26 @@ void NumberFormatTest::Test12753_PatternDecimalPoint() {
     df.parse(u"123",result, status);
     assertEquals("Parsing integer succeeded even though setDecimalPatternMatchRequired was set",
                  U_INVALID_FORMAT_ERROR, status);
-    }
+}
 
- void NumberFormatTest::Test11647_PatternCurrencySymbols() {
+void NumberFormatTest::Test22303_PatternDecimalPoint_InfNaN() {
+    UErrorCode status = U_ZERO_ERROR;
+    DecimalFormatSymbols symbols(Locale::getUS(), status);
+    symbols.setSymbol(DecimalFormatSymbols::kInfinitySymbol, u"infinity", false);
+    symbols.setSymbol(DecimalFormatSymbols::kNaNSymbol, u"notanumber", false);
+    DecimalFormat df(u"0.00", symbols, status);
+    if (!assertSuccess("", status)) return;
+    df.setDecimalPatternMatchRequired(true);
+    Formattable result;
+    df.parse(u"infinity", result, status);
+    assertEquals("Should parse to +INF even though decimal is required", INFINITY, result.getDouble());
+    df.parse(u"notanumber", result, status);
+    assertEquals("Should parse to NaN even though decimal is required", NAN, result.getDouble());
+    df.parse("-infinity", result, status);
+    assertEquals("Should parse to -INF even though decimal is required", -INFINITY, result.getDouble());
+}
+
+void NumberFormatTest::Test11647_PatternCurrencySymbols() {
     UErrorCode status = U_ZERO_ERROR;
     DecimalFormat df(status);
     df.applyPattern(u"¤¤¤¤#", status);
@@ -10030,7 +10073,7 @@ void NumberFormatTest::Test13733_StrictAndLenient() {
             parsedStrictValue = ca_strict->getNumber().getInt64();
         }
         assertEquals("Strict parse of " + inputString + " using " + patternString,
-            parsedStrictValue, cas.expectedStrictParse);
+            cas.expectedStrictParse, parsedStrictValue);
 
         ppos.setIndex(0);
         df.setLenient(true);
@@ -10040,7 +10083,7 @@ void NumberFormatTest::Test13733_StrictAndLenient() {
             parsedLenientValue = ca_lenient->getNumber().getInt64();
         }
         assertEquals("Lenient parse of " + inputString + " using " + patternString,
-            parsedLenientValue, cas.expectedLenientParse);
+            cas.expectedLenientParse, parsedLenientValue);
     }
 }
 

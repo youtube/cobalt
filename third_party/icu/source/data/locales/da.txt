@@ -13,7 +13,9 @@ da{
                 range{"{0}-{1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -196,20 +198,6 @@ da{
     }
     calendar{
         coptic{
-            eras{
-                abbreviated{
-                    "0. tidsr.",
-                    "1. tidsr.",
-                }
-                narrow{
-                    "0. t.",
-                    "1. t.",
-                }
-                wide{
-                    "0. tidsregning",
-                    "1. tidsregning",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -231,20 +219,6 @@ da{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "0. tidsr.",
-                    "1. tidsr.",
-                }
-                narrow{
-                    "0. t.",
-                    "1. t.",
-                }
-                wide{
-                    "0. tidsregning",
-                    "1. tidsregning",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -287,6 +261,12 @@ da{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'kl'. {0}",
+                "{1} kl. {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -308,6 +288,8 @@ da{
                 Ehm{"E h.mm a"}
                 Ehms{"E h.mm.ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -323,7 +305,6 @@ da{
                 MMMd{"d. MMM"}
                 Md{"d.M"}
                 d{"d."}
-                h{"h a"}
                 hm{"h.mm a"}
                 hms{"h.mm.ss a"}
                 ms{"mm.ss"}
@@ -501,6 +482,12 @@ da{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'kl'. {0}",
+                "{1} 'kl'. {0}",
+                "{1} 'kl'. {0}",
+                "{1} 'kl'. {0}",
+            }
             availableFormats{
                 Bhm{"h.mm B"}
                 Bhms{"h.mm.ss B"}
@@ -512,6 +499,8 @@ da{
                 Ehm{"E h.mm a"}
                 Ehms{"E h.mm.ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -534,7 +523,6 @@ da{
                 MMdd{"dd.MM"}
                 Md{"d.M"}
                 d{"d."}
-                h{"h a"}
                 hm{"h.mm a"}
                 hms{"h.mm.ss a"}
                 hmsv{"h.mm.ss a v"}
@@ -620,28 +608,28 @@ da{
             }
             eras{
                 abbreviated{
-                    "f.Kr.",
-                    "e.Kr.",
+                    0{"f.Kr."}
+                    1{"e.Kr."}
                 }
                 abbreviated%variant{
-                    "f.v.t.",
-                    "v.t.",
+                    0{"f.v.t."}
+                    1{"v.t."}
                 }
                 narrow{
-                    "fKr",
-                    "eKr",
+                    0{"fKr"}
+                    1{"eKr"}
                 }
                 narrow%variant{
-                    "fvt",
-                    "vt",
+                    0{"fvt"}
+                    1{"vt"}
                 }
                 wide{
-                    "før Kristus",
-                    "efter Kristus",
+                    0{"før Kristus"}
+                    1{"efter Kristus"}
                 }
                 wide%variant{
-                    "før vesterlandsk tidsregning",
-                    "vesterlandsk tidsregning",
+                    0{"før vesterlandsk tidsregning"}
+                    1{"vesterlandsk tidsregning"}
                 }
             }
             intervalFormats{
@@ -727,7 +715,6 @@ da{
                 fallback{"{0}-{1}"}
                 h{
                     a{"h a–h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h.mm a–h.mm a"}
@@ -741,7 +728,6 @@ da{
                 }
                 hv{
                     a{"h a–h a v"}
-                    h{"h–h a v"}
                 }
                 yM{
                     M{"MM.y–MM.y"}
@@ -943,8 +929,8 @@ da{
         roc{
             eras{
                 abbreviated{
-                    "før R.O.C.",
-                    "Minguo",
+                    0{"før R.O.C."}
+                    1{"Minguo"}
                 }
             }
         }

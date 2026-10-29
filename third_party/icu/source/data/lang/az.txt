@@ -7,10 +7,13 @@ az{
         cf{"Valyuta Formatı"}
         collation{"Sıralama"}
         currency{"Valyuta"}
+        em{"Emojilərin təqdim edilməsi"}
         hc{"Saat Sikli (12 / 24)"}
         lb{"Sətirdən sətrə keçirmə üslubu"}
+        lw{"Sözlərin bölünərək sətirdən-sətrə keçirilməsi"}
         ms{"Ölçü Sistemi"}
         numbers{"Rəqəmlər"}
+        ss{"Abreviaturadan sonra cümlə kəsintisi"}
     }
     Languages{
         aa{"afar"}
@@ -120,7 +123,6 @@ az{
         dav{"taita"}
         de{"alman"}
         de_AT{"Avstriya almancası"}
-        de_CH{"İsveçrə yüksək almancası"}
         del{"delaver"}
         den{"slavey"}
         dgr{"doqrib"}
@@ -251,10 +253,10 @@ az{
         kbd{"kabarda-çərkəz"}
         kcg{"tiyap"}
         kde{"makond"}
-        kea{"kabuverdian"}
+        kea{"kabuverdianu"}
         kfo{"koro"}
         kg{"konqo"}
-        kgp{"kaiqanq"}
+        kgp{"kaynqanq"}
         kha{"xazi"}
         kho{"xotan"}
         khq{"koyra çiini"}
@@ -574,6 +576,12 @@ az{
         zxx{"dil məzmunu yoxdur"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kürd dili"}
+    }
+    Languages%extension{
+        ku{"kurmanci (kürd dili) dialekti"}
+    }
     Languages%long{
         zh_Hans{"sadələşmiş mandarin çincəsi"}
         zh_Hant{"ənənəvi mandarin çincəsi"}
@@ -736,7 +744,7 @@ az{
             dangi{"Dangi təqvimi"}
             ethiopic{"Efiop təqvimi"}
             ethiopic-amete-alem{"Efiop amet-alem təqvimi"}
-            gregorian{"Qreqorian təqvimi"}
+            gregorian{"Qriqori təqvimi"}
             hebrew{"Yəhudi Təqvimi"}
             indian{"Hindi təqvimi"}
             islamic{"Hicri təqvimi"}
@@ -748,9 +756,30 @@ az{
             persian{"İran Təqvimi"}
             roc{"Minquo Təqvimi"}
         }
+        calendar%core{
+            buddhist{"Buddist"}
+            chinese{"Çin"}
+            coptic{"Qibti"}
+            dangi{"Dangi"}
+            ethiopic{"Efiop"}
+            ethiopic-amete-alem{"Efiop Amete Alem"}
+            gregorian{"Qriqori"}
+            hebrew{"Yəhudi"}
+            islamic{"Hicri"}
+            islamic-civil{"Hicri (cədvəl, mülki dövr)"}
+            islamic-tbla{"Hicri (cədvəl, astronomik dövr)"}
+            islamic-umalqura{"Hicri (Umm əl-Qura)"}
+            japanese{"Yapon"}
+            persian{"İran"}
+            roc{"Minquo"}
+        }
         cf{
             account{"Uçot Valyuta Formatı"}
             standard{"Standart Valyuta Formatı"}
+        }
+        cf%core{
+            account{"Valyuta formatı: Uçot"}
+            standard{"Valyuta formatı: Standart"}
         }
         collation{
             ducet{"Standart Unicode Sıralama"}
@@ -758,21 +787,53 @@ az{
             search{"Ümumi Məqsədli Axtarış"}
             standard{"Standart Sıralama"}
         }
+        collation%core{
+            ducet{"Defolt unikod"}
+            search{"Axtarış"}
+            standard{"Standart"}
+        }
+        em%core{
+            default{"Emojilərin təqdim edilməsi: Standart"}
+            emoji{"Emoji"}
+            text{"Mətn"}
+        }
         hc{
             h11{"12 Saatlıq Sistem (0–11)"}
             h12{"12 Saatlıq Sistem (0–12)"}
             h23{"24 Saatlıq Sistem (0–23)"}
             h24{"24 Saatlıq Sistem (0–23)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Sərbəst sətirdən sətrə keçirmə üslubu"}
             normal{"Normal sətirdən sətrə keçirmə üslubu"}
             strict{"Sərt sətirdən sətrə keçirmə üslubu"}
         }
+        lb%core{
+            loose{"Sərbəst"}
+            normal{"Normal"}
+            strict{"Ciddi"}
+        }
+        lw%core{
+            breakall{"Hamısını böl"}
+            keepall{"Hamısını saxla"}
+            normal{"Normal"}
+            phrase{"İfadələrdə saxla"}
+        }
         ms{
             metric{"Metrik Sistem"}
             uksystem{"İmperial Ölçü Sistemi"}
             ussystem{"ABŞ Ölçü Sistemi"}
+        }
+        ms%core{
+            metric{"Metrik"}
+            uksystem{"Birləşmiş Krallıq"}
+            ussystem{"Birləşmiş Ştatlar"}
         }
         numbers{
             arab{"Ərəb-Hind Rəqəmləri"}
@@ -815,6 +876,10 @@ az{
             thai{"Tay Rəqəmləri"}
             tibt{"Tibet Rəqəmləri"}
             vaii{"Vai rəqəmləri"}
+        }
+        ss%core{
+            none{"Deaktiv"}
+            standard{"Aktiv"}
         }
     }
     characterLabelPattern{

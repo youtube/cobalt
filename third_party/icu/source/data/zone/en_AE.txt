@@ -3,11 +3,6 @@
 // Generated using tools/cldr/cldr-to-icu/
 en_AE{
     zoneStrings{
-        "Pacific:Honolulu"{
-            sd{"∅∅∅"}
-            sg{"∅∅∅"}
-            ss{"∅∅∅"}
-        }
         "meta:Alaska"{
             sd{"∅∅∅"}
             sg{"∅∅∅"}
@@ -40,6 +35,9 @@ en_AE{
         }
         "meta:Gulf"{
             ss{"GST"}
+        }
+        "meta:Hawaii"{
+            ss{"∅∅∅"}
         }
         "meta:Hawaii_Aleutian"{
             sd{"∅∅∅"}

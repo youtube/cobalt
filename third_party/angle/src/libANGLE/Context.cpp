@@ -3735,25 +3735,7 @@ bool Context::isExtensionRequestable(const char *name) const
            mSupportedExtensions.*(extension->second.ExtensionsMember);
 }
 
-bool Context::isExtensionDisablable(const char *name) const
-{
-    const ExtensionInfoMap &extensionInfos = GetExtensionInfoMap();
-    auto extension                         = extensionInfos.find(name);
-
-    return extension != extensionInfos.end() && extension->second.Disablable &&
-           mSupportedExtensions.*(extension->second.ExtensionsMember);
-}
-
 void Context::requestExtension(const char *name)
-{
-    setExtensionEnabled(name, true);
-}
-void Context::disableExtension(const char *name)
-{
-    setExtensionEnabled(name, false);
-}
-
-void Context::setExtensionEnabled(const char *name, bool enabled)
 {
     const ExtensionInfoMap &extensionInfos = GetExtensionInfoMap();
     ASSERT(extensionInfos.find(name) != extensionInfos.end());
@@ -3761,15 +3743,15 @@ void Context::setExtensionEnabled(const char *name, bool enabled)
     ASSERT(extension.Requestable);
     ASSERT(isExtensionRequestable(name));
 
-    if (mState.getExtensions().*(extension.ExtensionsMember) == enabled)
+    if (mState.getExtensions().*(extension.ExtensionsMember))
     {
         // No change
         return;
     }
 
-    mState.getMutableExtensions()->*(extension.ExtensionsMember) = enabled;
+    mState.getMutableExtensions()->*(extension.ExtensionsMember) = true;
 
-    if (enabled)
+    // Handle extension dependencies
     {
         if (strcmp(name, "GL_OVR_multiview2") == 0)
         {
@@ -5765,19 +5747,6 @@ void Context::compressedTexImage2D(TextureTarget target,
                                                   static_cast<const uint8_t *>(data)));
 }
 
-void Context::compressedTexImage2DRobust(TextureTarget target,
-                                         GLint level,
-                                         GLenum internalformat,
-                                         GLsizei width,
-                                         GLsizei height,
-                                         GLint border,
-                                         GLsizei imageSize,
-                                         GLsizei bufSize,
-                                         const GLvoid *data)
-{
-    compressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
-}
-
 void Context::compressedTexImage3D(TextureTarget target,
                                    GLint level,
                                    GLenum internalformat,
@@ -5799,21 +5768,6 @@ void Context::compressedTexImage3D(TextureTarget target,
                                                   static_cast<const uint8_t *>(data)));
 }
 
-void Context::compressedTexImage3DRobust(TextureTarget target,
-                                         GLint level,
-                                         GLenum internalformat,
-                                         GLsizei width,
-                                         GLsizei height,
-                                         GLsizei depth,
-                                         GLint border,
-                                         GLsizei imageSize,
-                                         GLsizei bufSize,
-                                         const GLvoid *data)
-{
-    compressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize,
-                         data);
-}
-
 void Context::compressedTexSubImage2D(TextureTarget target,
                                       GLint level,
                                       GLint xoffset,
@@ -5833,21 +5787,6 @@ void Context::compressedTexSubImage2D(TextureTarget target,
     ANGLE_CONTEXT_TRY(texture->setCompressedSubImage(this, PixelUnpackState(), target, level, area,
                                                      format, imageSize,
                                                      static_cast<const uint8_t *>(data)));
-}
-
-void Context::compressedTexSubImage2DRobust(TextureTarget target,
-                                            GLint level,
-                                            GLint xoffset,
-                                            GLint yoffset,
-                                            GLsizei width,
-                                            GLsizei height,
-                                            GLenum format,
-                                            GLsizei imageSize,
-                                            GLsizei bufSize,
-                                            const GLvoid *data)
-{
-    compressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize,
-                            data);
 }
 
 void Context::compressedTexSubImage3D(TextureTarget target,
@@ -5877,23 +5816,6 @@ void Context::compressedTexSubImage3D(TextureTarget target,
     ANGLE_CONTEXT_TRY(texture->setCompressedSubImage(this, PixelUnpackState(), target, level, area,
                                                      format, imageSize,
                                                      static_cast<const uint8_t *>(data)));
-}
-
-void Context::compressedTexSubImage3DRobust(TextureTarget target,
-                                            GLint level,
-                                            GLint xoffset,
-                                            GLint yoffset,
-                                            GLint zoffset,
-                                            GLsizei width,
-                                            GLsizei height,
-                                            GLsizei depth,
-                                            GLenum format,
-                                            GLsizei imageSize,
-                                            GLsizei bufSize,
-                                            const GLvoid *data)
-{
-    compressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format,
-                            imageSize, data);
 }
 
 void Context::generateMipmap(TextureType target)
@@ -9198,46 +9120,52 @@ void Context::framebufferPixelLocalStorageRestore()
     }
 }
 
-void Context::getFramebufferPixelLocalStorageParameterfv(GLint plane, GLenum pname, GLfloat *params)
+void Context::getFramebufferPixelLocalStorageParameterfv(GLint plane,
+                                                         PlaneParameter pnamePacked,
+                                                         GLfloat *params)
 {
-    QueryFramebufferPixelLocalStorageParameterfv(this, plane, pname, nullptr, params);
+    QueryFramebufferPixelLocalStorageParameterfv(this, plane, pnamePacked, nullptr, params);
 }
 
-void Context::getFramebufferPixelLocalStorageParameteriv(GLint plane, GLenum pname, GLint *params)
+void Context::getFramebufferPixelLocalStorageParameteriv(GLint plane,
+                                                         PlaneParameter pnamePacked,
+                                                         GLint *params)
 {
-    QueryFramebufferPixelLocalStorageParameteriv(this, plane, pname, nullptr, params);
+    QueryFramebufferPixelLocalStorageParameteriv(this, plane, pnamePacked, nullptr, params);
 }
 
-void Context::getFramebufferPixelLocalStorageParameteruiv(GLint plane, GLenum pname, GLuint *params)
+void Context::getFramebufferPixelLocalStorageParameteruiv(GLint plane,
+                                                          PlaneParameter pnamePacked,
+                                                          GLuint *params)
 {
-    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pname, nullptr, params);
+    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pnamePacked, nullptr, params);
 }
 
 void Context::getFramebufferPixelLocalStorageParameterfvRobust(GLint plane,
-                                                               GLenum pname,
+                                                               PlaneParameter pnamePacked,
                                                                GLsizei paramCount,
                                                                GLsizei *length,
                                                                GLfloat *params)
 {
-    QueryFramebufferPixelLocalStorageParameterfv(this, plane, pname, length, params);
+    QueryFramebufferPixelLocalStorageParameterfv(this, plane, pnamePacked, length, params);
 }
 
 void Context::getFramebufferPixelLocalStorageParameterivRobust(GLint plane,
-                                                               GLenum pname,
+                                                               PlaneParameter pnamePacked,
                                                                GLsizei paramCount,
                                                                GLsizei *length,
                                                                GLint *params)
 {
-    QueryFramebufferPixelLocalStorageParameteriv(this, plane, pname, length, params);
+    QueryFramebufferPixelLocalStorageParameteriv(this, plane, pnamePacked, length, params);
 }
 
 void Context::getFramebufferPixelLocalStorageParameteruivRobust(GLint plane,
-                                                                GLenum pname,
+                                                                PlaneParameter pnamePacked,
                                                                 GLsizei paramCount,
                                                                 GLsizei *length,
                                                                 GLuint *params)
 {
-    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pname, length, params);
+    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pnamePacked, length, params);
 }
 
 void Context::eGLImageTargetTexStorage(GLenum target, egl::ImageID image, const GLint *attrib_list)

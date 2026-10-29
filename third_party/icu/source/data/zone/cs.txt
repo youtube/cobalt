@@ -21,9 +21,6 @@ cs{
         "Africa:Khartoum"{
             ec{"Chartúm"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Mogadišu"}
         }
@@ -45,17 +42,8 @@ cs{
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cayman"{
             ec{"Kajmanské ostrovy"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
         }
         "America:Costa_Rica"{
             ec{"Kostarika"}
@@ -72,14 +60,8 @@ cs{
         "America:Martinique"{
             ec{"Martinik"}
         }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
-        }
         "America:Merida"{
             ec{"Merida"}
-        }
-        "America:Mexico_City"{
-            ec{"Ciudad de México"}
         }
         "America:North_Dakota:Beulah"{
             ec{"Beulah, Severní Dakota"}
@@ -92,12 +74,6 @@ cs{
         }
         "America:Puerto_Rico"{
             ec{"Portoriko"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Svatý Bartoloměj"}
@@ -373,9 +349,6 @@ cs{
         "Europe:Sofia"{
             ec{"Sofie"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -406,9 +379,6 @@ cs{
         "Indian:Kerguelen"{
             ec{"Kerguelenovy ostrovy"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maledivy"}
         }
@@ -425,7 +395,7 @@ cs{
             ec{"Éfaté"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kanton (ostrov)"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
@@ -438,15 +408,9 @@ cs{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Marquesas"{
             ec{"Markézy"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "Pacific:Pitcairn"{
             ec{"Pitcairnovy ostrovy"}
@@ -472,9 +436,7 @@ cs{
             ls{"jihoafrický čas"}
         }
         "meta:Africa_Western"{
-            ld{"západoafrický letní čas"}
-            lg{"západoafrický čas"}
-            ls{"západoafrický standardní čas"}
+            ls{"západoafrický čas"}
         }
         "meta:Alaska"{
             ld{"aljašský letní čas"}
@@ -759,6 +721,9 @@ cs{
         }
         "meta:Guyana"{
             ls{"guyanský čas"}
+        }
+        "meta:Hawaii"{
+            ls{"havajsko-aleutský standardní čas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"havajsko-aleutský letní čas"}
@@ -1057,6 +1022,11 @@ cs{
         }
         "meta:Truk"{
             ls{"chuukský čas"}
+        }
+        "meta:Turkey"{
+            ld{"Turecký letní čas"}
+            lg{"Turecký čas"}
+            ls{"Turecký standardní čas"}
         }
         "meta:Turkmenistan"{
             ld{"turkmenský letní čas"}

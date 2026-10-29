@@ -65,20 +65,13 @@ nn{
         }
     }
     calendar{
-        generic{
-            intervalFormats{
-                yMMMEd{
-                    d{"E d.–E d. MMM y G"}
-                }
-            }
-        }
         gregorian{
             AmPmMarkersAbbr{
                 "f.m.",
                 "e.m.",
             }
             DateTimePatterns{
-                "'kl'. HH:mm:ss zzzz",
+                "HH:mm:ss zzzz",
                 "HH:mm:ss z",
                 "HH:mm:ss",
                 "HH:mm",
@@ -169,8 +162,8 @@ nn{
             }
             eras{
                 wide%variant{
-                    "før vår tidsrekning",
-                    "etter vår tidsrekning",
+                    0{"før vår tidsrekning"}
+                    1{"etter vår tidsrekning"}
                 }
             }
             intervalFormats{
@@ -805,17 +798,6 @@ nn{
         }
         week-narrow{
             dn{"v."}
-            relativePeriod{"veka med {0}"}
-            relativeTime{
-                future{
-                    one{"om {0} v."}
-                    other{"om {0} v."}
-                }
-                past{
-                    one{"for {0} v. sidan"}
-                    other{"for {0} v. sidan"}
-                }
-            }
         }
         week-short{
             relativePeriod{"veka med {0}"}

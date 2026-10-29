@@ -635,6 +635,10 @@ zu{
             "EC$",
             "i-East Caribbean Dollar",
         }
+        XCG{
+            "Cg.",
+            "Caribbean guilder",
+        }
         XOF{
             "F CFA",
             "i-West African CFA Franc",
@@ -662,6 +666,10 @@ zu{
         ZMW{
             "ZMW",
             "i-Zambian Kwacha",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwean Gold",
         }
     }
     Currencies%narrow{
@@ -715,9 +723,17 @@ zu{
             one{"i-CFA Franc BCEA"}
             other{"i-CFA Franc BCEA"}
         }
+        XCG{
+            one{"Caribbean guilder"}
+            other{"Caribbean guilders"}
+        }
         XOF{
             one{"i-West African CFA Franc"}
             other{"i-West African CFA francs"}
+        }
+        ZWG{
+            one{"Zimbabwean gold"}
+            other{"Zimbabwean gold"}
         }
     }
 }

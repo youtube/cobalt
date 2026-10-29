@@ -71,6 +71,11 @@ nn{
                 one{"{0} omdreiing"}
                 other{"{0} omdreiingar"}
             }
+            steradian{
+                dnam{"steradianar"}
+                one{"{0} steradian"}
+                other{"{0} steradianar"}
+            }
         }
         area{
             square-inch{
@@ -101,7 +106,12 @@ nn{
             millimole-per-liter{
                 gender{"neuter"}
             }
-            permillion{
+            part{
+                dnam{"delar"}
+                one{"{0} del"}
+                other{"{0} delar"}
+            }
+            part-per-1e6{
                 case{
                     genitive{
                         one{"{0} del per millions"}
@@ -111,6 +121,17 @@ nn{
                 dnam{"delar per million"}
                 one{"{0} del per million"}
                 other{"{0} delar per million"}
+            }
+            part-per-1e9{
+                case{
+                    genitive{
+                        one{"{0} del per milliards"}
+                        other{"{0} delar per milliards"}
+                    }
+                }
+                dnam{"delar per milliard"}
+                one{"{0} del per milliard"}
+                other{"{0} delar per milliard"}
             }
         }
         consumption{
@@ -263,6 +284,11 @@ nn{
                 one{"{0} kalori"}
                 other{"{0} kaloriar"}
             }
+            calorie-it{
+                dnam{"kaloriar [IT]"}
+                one{"{0} kalori [IT]"}
+                other{"{0} kaloriar [IT]"}
+            }
             foodcalorie{
                 dnam{"kaloriar"}
                 one{"{0} kalori"}
@@ -412,7 +438,6 @@ nn{
         }
         mass{
             earth-mass{
-                dnam{"jordmassar"}
                 one{"{0} jordmasse"}
                 other{"{0} jordmassar"}
             }
@@ -531,6 +556,11 @@ nn{
             }
             fluid-ounce-imperial{
                 gender{"feminine"}
+            }
+            fluid-ounce-metric{
+                dnam{"metriske væskeunsar"}
+                one{"{0} metrisk væskeunse"}
+                other{"{0} metriske væskeunsar"}
             }
             gallon-imperial{
                 per{"{0} per britiske gallon"}
@@ -688,7 +718,7 @@ nn{
             millimole-per-liter{
                 dnam{"mmol/l"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"delar/milliard"}
             }
         }

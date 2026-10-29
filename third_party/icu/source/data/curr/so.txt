@@ -659,6 +659,10 @@ so{
             "EC$",
             "Doolarka Iist Kaaribyan",
         }
+        XCG{
+            "Cg.",
+            "Caribbean guilder",
+        }
         XOF{
             "F CFA",
             "Faranka CFA Galbeedka Afrika",
@@ -682,6 +686,10 @@ so{
         ZMW{
             "ZMW",
             "Kawajada Sambiya",
+        }
+        ZWG{
+            "ZWG",
+            "Dahabka Zimbabwe",
         }
     }
     CurrencyPlurals{
@@ -1220,6 +1228,10 @@ so{
             one{"doolarka Iist Kaaribyan"}
             other{"doolarada Iist Kaaribyan"}
         }
+        XCG{
+            one{"Galdarada karabiyaan"}
+            other{"Galdarayaasha karabiyaan"}
+        }
         XOF{
             one{"faranka CFA Galbeedka Afrika"}
             other{"faranka CFA Galbeedka Afrika"}
@@ -1239,6 +1251,10 @@ so{
         ZMW{
             one{"Kawaja Sambiya"}
             other{"Kawajada Sambiya"}
+        }
+        ZWG{
+            one{"Dahabka Zimbabwe"}
+            other{"Dahabka Zimbabwe"}
         }
     }
     CurrencyUnitPatterns{

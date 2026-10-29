@@ -12,38 +12,14 @@ nl{
         "Africa:Khartoum"{
             ec{"Khartoem"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Sao_Tome"{
             ec{"Sao Tomé"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
         }
         "America:Cancun"{
             ec{"Cancun"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
         "America:Lower_Princes"{
             ec{"Beneden Prinsen Kwartier"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Mexico-Stad"}
@@ -56,9 +32,6 @@ nl{
         }
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Noord-Dakota"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -241,9 +214,6 @@ nl{
         "Europe:Prague"{
             ec{"Praag"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Vatican"{
             ec{"Vaticaanstad"}
         }
@@ -268,9 +238,6 @@ nl{
         "Indian:Cocos"{
             ec{"Cocoseilanden"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldiven"}
         }
@@ -278,22 +245,16 @@ nl{
             ec{"Paaseiland"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kanton"}
         }
         "Pacific:Gambier"{
             ec{"Îles Gambier"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Marquesas"{
             ec{"Marquesaseilanden"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "meta:Acre"{
             ld{"Acre-zomertijd"}
@@ -313,9 +274,7 @@ nl{
             ls{"Zuid-Afrikaanse tijd"}
         }
         "meta:Africa_Western"{
-            ld{"West-Afrikaanse zomertijd"}
-            lg{"West-Afrikaanse tijd"}
-            ls{"West-Afrikaanse standaardtijd"}
+            ls{"West-Afrikaanse tijd"}
         }
         "meta:Alaska"{
             ld{"Alaska-zomertijd"}
@@ -589,6 +548,11 @@ nl{
         "meta:Gilbert_Islands"{
             ls{"Gilberteilandse tijd"}
         }
+        "meta:Greenland"{
+            ld{"Groenlandse zomertijd"}
+            lg{"Groenlandse tijd"}
+            ls{"Groenlandse standaardtijd"}
+        }
         "meta:Greenland_Eastern"{
             ld{"Oost-Groenlandse zomertijd"}
             lg{"Oost-Groenlandse tijd"}
@@ -607,6 +571,10 @@ nl{
         }
         "meta:Guyana"{
             ls{"Guyaanse tijd"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleoetische standaardtijd"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleoetische zomertijd"}
@@ -908,6 +876,11 @@ nl{
         }
         "meta:Truk"{
             ls{"Chuukse tijd"}
+        }
+        "meta:Turkey"{
+            ld{"Turkse zomertijd"}
+            lg{"Turkse tijd"}
+            ls{"Turkse standaardtijd"}
         }
         "meta:Turkmenistan"{
             ld{"Turkmeense zomertijd"}

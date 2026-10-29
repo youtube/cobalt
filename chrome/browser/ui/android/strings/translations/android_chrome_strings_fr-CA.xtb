@@ -348,6 +348,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="2496180316473517155">Historique de navigation</translation>
 <translation id="2497852260688568942">La synchronisation est désactivée par votre administrateur</translation>
 <translation id="250020030759455918">Vous verrez votre état de connexion à <ph name="SITE_NAME" />, vos données de navigation et vos données de site dans Chrome</translation>
+<translation id="2501278716633472235">Retour</translation>
 <translation id="2510106555128151389">Installation de <ph name="WEBAPK_NAME" /> en cours…</translation>
 <translation id="2512234228327349533">Rechercher des options d'achat</translation>
 <translation id="2513403576141822879">Pour plus de paramètres relatifs à la confidentialité, à la sécurité et à la collecte de données, voir <ph name="BEGIN_LINK" />Synchronisation et services Google<ph name="END_LINK" /></translation>
@@ -797,6 +798,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="4384468725000734951">Sogou est utilisé pour la recherche</translation>
 <translation id="4387647248986092471">Créer un verrouillage de profil du véhicule</translation>
 <translation id="4387817230000841154">Ouvrir les téléchargements</translation>
+<translation id="4394049700291259645">Désactiver</translation>
 <translation id="4395046795145457714">La fenêtre d'activation de Chrome Finds est ouverte à pleine hauteur</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, onglet de navigation privée épinglé et sélectionné avec enregistrement en cours</translation>
 <translation id="4402611456429872546">Téléchargement de la langue <ph name="LANG" /> en cours…</translation>
@@ -821,7 +823,6 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="4478161224666880173">Vous pouvez utiliser votre compte <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> sur ce site. Pour continuer, connectez-vous à <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217">Installation du <ph name="MODULE" /> dans Chrome en cours…</translation>
 <translation id="4487967297491345095">Toutes les données des applications de Chrome seront supprimées de façon définitive. Cela comprend tous les fichiers, les paramètres, les comptes, les bases de données, etc.</translation>
-<translation id="4494315997125191493">Sélectionnez Gérer pour afficher toutes les fenêtres</translation>
 <translation id="4494806687727322324">L'enregistrement des mots de passe est activé par votre administrateur</translation>
 <translation id="4508528996305412043">Le menu de la carte du flux est ouvert</translation>
 <translation id="4509741852167209430">Des types de données restreints sont partagés entre les sites pour mesurer la performance de leurs annonces, par exemple si vous avez effectué un achat après avoir visité un site</translation>
@@ -869,7 +870,6 @@ D'autres formes d'historique de navigation, telles que les recherches et l'activ
 <translation id="4673702426794876519">Fenêtre de navigation privée</translation>
 <translation id="4675298276894277358">Ce site ne sera plus affiché</translation>
 <translation id="4678082183394354975">Le thème sombre pour les sites est activé dans Chrome</translation>
-<translation id="4682306524980568490">Seules <ph name="MAX_INSTANCE_COUNT" /> fenêtres peuvent être affichées</translation>
 <translation id="4684427112815847243">Tout synchroniser</translation>
 <translation id="4685741273709472646">Sélectionnez dans la liste du menu déroulant</translation>
 <translation id="4687718960473379118">Annonces suggérées par les sites</translation>
@@ -1492,7 +1492,6 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="7057969023583258980">Ouvrir l'historique complet de Chrome</translation>
 <translation id="7063006564040364415">Échec de connexion au serveur de synchronisation.</translation>
 <translation id="7063106218165698546">Personnalisez le groupe d'onglets et touchez Terminé</translation>
-<translation id="7071521146534760487">Gérer le compte</translation>
 <translation id="707155805709242880">Choisissez les éléments à synchroniser ci-dessous</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, onglet de navigation privée épinglé et multisélectionné en mode Incrustation d'image</translation>
 <translation id="7077143737582773186">Carte SD</translation>
@@ -1821,6 +1820,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8282950411412455249">Accéder aux paramètres de sécurité</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Fermer 1 fenêtre de navigation privée}one{Fermer # fenêtre de navigation privée}other{Fermer # fenêtres de navigation privée}}</translation>
 <translation id="831192587911042850">Ajoute le site Web actuel à la liste des sites Web que vous suivez.</translation>
+<translation id="8313599942510782709">Votre tâche est toujours en cours</translation>
 <translation id="8317318757008452355">Ouvrir les options d'impression</translation>
 <translation id="8320212361750431956">Activité récente</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Nouveau<ph name="END_NEW" /></translation>

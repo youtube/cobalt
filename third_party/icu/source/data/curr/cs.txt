@@ -1103,6 +1103,10 @@ cs{
             "EC$",
             "východokaribský dolar",
         }
+        XCG{
+            "Cg.",
+            "karibský gulden",
+        }
         XDR{
             "XDR",
             "SDR",
@@ -1202,6 +1206,10 @@ cs{
         ZWD{
             "ZWD",
             "zimbabwský dolar (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "zimbabwský zlatý",
         }
         ZWL{
             "ZWL",
@@ -2869,6 +2877,12 @@ cs{
             one{"východokaribský dolar"}
             other{"východokaribských dolarů"}
         }
+        XCG{
+            few{"karibské guldeny"}
+            many{"karibského guldenu"}
+            one{"karibský gulden"}
+            other{"karibských guldenů"}
+        }
         XEU{
             few{"ECU"}
             many{"ECU"}
@@ -2994,6 +3008,12 @@ cs{
             many{"zimbabwského dolaru (1980–2008)"}
             one{"zimbabwský dolar (1980–2008)"}
             other{"zimbabwských dolarů (1980–2008)"}
+        }
+        ZWG{
+            few{"zimbabwské zlaté"}
+            many{"zimbabwského zlatého"}
+            one{"zimbabwský zlatý"}
+            other{"zimbabwských zlatých"}
         }
         ZWL{
             few{"zimbabwské dolary (2009)"}

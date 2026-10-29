@@ -108,8 +108,9 @@ struct ScreamV2Parameters {
   FieldTrialParameter<int> queue_delay_drain_rtts;
 
   // Padding is periodically used in order to increase target rate even if a
-  // stream does not produce a high enough rate.
-  FieldTrialParameter<TimeDelta> periodic_padding_interval;
+  // stream does not produce a high enough rate. Time between periodic padding
+  // is at least this long.
+  FieldTrialParameter<TimeDelta> time_between_periodic_padding;
   // Max duration padding is used when periodic padding start.
   // Padding is stopped if congestion occur.
   FieldTrialParameter<TimeDelta> periodic_padding_duration;
@@ -117,6 +118,9 @@ struct ScreamV2Parameters {
   // time reference window was reduced but at least `periodic_padding_interval`
   // must have passed since last time padding was used.
   FieldTrialParameter<TimeDelta> allow_padding_after_last_congestion_time;
+  // If initial BWE probing is allowed, allow periodic probing for this duration
+  // even of no streams have been configured.
+  FieldTrialParameter<TimeDelta> initial_probing_duration;
 
   // Factor multiplied by the current target rate to decide the pacing rate.
   FieldTrialParameter<double> pacing_factor;

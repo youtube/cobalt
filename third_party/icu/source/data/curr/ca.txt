@@ -1100,6 +1100,10 @@ ca{
             "XCD",
             "dòlar del Carib Oriental",
         }
+        XCG{
+            "XCG",
+            "florí de les Antilles",
+        }
         XDR{
             "XDR",
             "drets especials de gir",
@@ -1195,6 +1199,10 @@ ca{
         ZWD{
             "ZWD",
             "dòlar zimbabuès (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "or de Zimbàbue",
         }
         ZWL{
             "ZWL",
@@ -2290,6 +2298,10 @@ ca{
             one{"dòlar del Carib Oriental"}
             other{"dòlars del Carib Oriental"}
         }
+        XCG{
+            one{"florí de les Antilles"}
+            other{"florins de les Antilles"}
+        }
         XEU{
             one{"unitat de moneda europea"}
             other{"unitats de moneda europees"}
@@ -2365,6 +2377,10 @@ ca{
         ZWD{
             one{"dòlar zimbabuès (1980–2008)"}
             other{"dòlars zimbabuesos (1980–2008)"}
+        }
+        ZWG{
+            one{"or de Zimbàbue"}
+            other{"or de Zimbàbue"}
         }
         ZWL{
             one{"dòlar zimbabuès (2009)"}

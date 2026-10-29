@@ -5,7 +5,6 @@ af{
     AuxExemplarCharacters{"[àåäã æ ç íì óò úùü ý]"}
     ExemplarCharacters{"[aáâ b c d eéèêë f g h iîï j k l m n oôö p q r s t uû v w x y z]"}
     ExemplarCharactersIndex{"[A B C D E F G H I J K L M N O P Q R S T U V W X Y Z]"}
-    ExemplarCharactersNumbers{"[  \\- ‑ , % ‰ + 0 1 2 3 4 5 6 7 8 9]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
         latn{
@@ -118,17 +117,53 @@ af{
                     }
                     100000000000000{
                         one{"¤000 bn"}
-                        other{"¤ 000 bn"}
+                        other{"¤000 bn"}
                     }
                 }
                 currencyFormat%alphaNextToNumber{
+                    1000{
+                        one{"¤ 0 k"}
+                        other{"¤ 0 k"}
+                    }
+                    10000{
+                        one{"¤ 00 k"}
+                        other{"¤ 00 k"}
+                    }
+                    100000{
+                        one{"¤ 000 k"}
+                        other{"¤ 000 k"}
+                    }
+                    1000000{
+                        one{"¤ 0 m"}
+                        other{"¤ 0 m"}
+                    }
+                    10000000{
+                        one{"¤ 00 m"}
+                        other{"¤ 00 m"}
+                    }
                     100000000{
                         one{"¤ 000 m"}
                         other{"¤ 000 m"}
                     }
+                    1000000000{
+                        one{"¤ 0 mjd"}
+                        other{"¤ 0 mjd"}
+                    }
+                    10000000000{
+                        one{"¤ 00 mjd"}
+                        other{"¤ 00 mjd"}
+                    }
                     100000000000{
                         one{"¤ 000 mjd"}
                         other{"¤ 000 mjd"}
+                    }
+                    1000000000000{
+                        one{"¤ 0 bn"}
+                        other{"¤ 0 bn"}
+                    }
+                    10000000000000{
+                        one{"¤ 00 bn"}
+                        other{"¤ 00 bn"}
                     }
                     100000000000000{
                         one{"¤ 000 bn"}
@@ -224,6 +259,12 @@ af{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'om' {0}",
+                "{1} 'om' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -240,20 +281,19 @@ af{
                 EBhm{"E hh:mm B"}
                 EBhms{"E hh:mm:ss B"}
                 Ed{"E d"}
-                Ehm{"E hh:mm a"}
-                Ehms{"E hh:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM-y G"}
+                GyMEd{"E, dd-MM-y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"M/d/y GGGGG"}
-                MEd{"E M/d"}
+                MEd{"E, d/M"}
                 MMMEd{"E d MMM"}
                 MMMMEd{"E d MMMM"}
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"hh:mm a"}
                 hms{"hh:mm:ss a"}
                 y{"y G"}
@@ -269,9 +309,6 @@ af{
                 yyyyQQQQ{"QQQQ y G"}
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
                 Gy{
                     G{"y G – y G"}
                     y{"y–y G"}
@@ -420,6 +457,12 @@ af{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'om' {0}",
+                "{1} 'om' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -452,7 +495,6 @@ af{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"dd-MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -513,11 +555,11 @@ af{
                         night1{"die nag"}
                     }
                     narrow{
-                        afternoon1{"m"}
-                        evening1{"a"}
+                        afternoon1{"in die middag"}
+                        evening1{"in die aand"}
                         midnight{"mn"}
-                        morning1{"o"}
-                        night1{"n"}
+                        morning1{"die oggend"}
+                        night1{"in die nag"}
                     }
                 }
                 stand-alone{
@@ -527,39 +569,27 @@ af{
                         morning1{"oggend"}
                         night1{"nag"}
                     }
-                    narrow{
-                        afternoon1{"m"}
-                        am{"v"}
-                        evening1{"a"}
-                        midnight{"mn"}
-                        morning1{"o"}
-                        night1{"n"}
-                        pm{"n"}
-                    }
                 }
             }
             eras{
                 abbreviated{
-                    "v.C.",
-                    "n.C.",
+                    0{"v.C."}
+                    1{"n.C."}
                 }
                 abbreviated%variant{
-                    "v.g.j.",
-                    "g.j.",
+                    0{"v.g.j."}
+                    1{"g.j."}
                 }
                 wide{
-                    "voor Christus",
-                    "ná Christus",
+                    0{"voor Christus"}
+                    1{"ná Christus"}
                 }
                 wide%variant{
-                    "voor die gewone jaartelling",
-                    "gewone jaartelling",
+                    0{"voor die gewone jaartelling"}
+                    1{"gewone jaartelling"}
                 }
             }
             intervalFormats{
-                Bh{
-                    B{"h B – h B"}
-                }
                 Bhm{
                     B{"hh:mm B – hh:mm B"}
                     h{"hh:mm B – hh:mm B"}
@@ -629,7 +659,6 @@ af{
                     d{"d/M – d/M"}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h a"}
                 }
                 hm{
@@ -643,7 +672,6 @@ af{
                     m{"h:mm a – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h a v"}
                 }
                 yM{
@@ -1398,10 +1426,6 @@ af{
             end{"{0} en {1}"}
         }
         standard-narrow{
-            end{"{0}, {1}"}
-        }
-        unit{
-            2{"{0}, {1}"}
             end{"{0}, {1}"}
         }
         unit-narrow{

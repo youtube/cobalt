@@ -4673,6 +4673,11 @@ void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Trap();
 }
 
+void Trap::SetValueLocationConstraints() {}
+void Trap::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  __ Trap();
+}
+
 void LogicalNot::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
@@ -6782,6 +6787,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
 
     __ CallJSBuiltin(builtin, expected_parameter_count_);
   } else {
+    __ RecordJSDispatchHandle(dispatch_handle_, expected_parameter_count_);
     __ CallJSDispatchEntry(dispatch_handle_, expected_parameter_count_);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);

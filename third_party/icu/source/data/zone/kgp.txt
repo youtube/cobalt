@@ -1142,9 +1142,6 @@ kgp{
         "Pacific:Efate"{
             ec{"Éfaté"}
         }
-        "Pacific:Enderbury"{
-            ec{"Ẽnnermuri"}
-        }
         "Pacific:Fakaofo"{
             ec{"Fakaofu"}
         }
@@ -1247,9 +1244,7 @@ kgp{
             ls{"Sur-Afrika tá óra"}
         }
         "meta:Africa_Western"{
-            ld{"Rỹ Kã óra Afrika Rãpur tá"}
-            lg{"Afrika Rãpur tá óra"}
-            ls{"Óra Pã Afrika Rãpur tá"}
+            ls{"Afrika Rãpur tá óra"}
         }
         "meta:Alaska"{
             ld{"Rỹ Kã óra Aranhka tá"}
@@ -1516,6 +1511,9 @@ kgp{
         }
         "meta:Guyana"{
             ls{"Óra Gijỹnỹ tá"}
+        }
+        "meta:Hawaii"{
+            ls{"Óra Pã Hava’i kar Arevta Goj-vẽso tá"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Rỹ kã óra Hava’i kar Arevta Goj-vẽso tá"}

@@ -114,12 +114,12 @@ mer{
             }
             eras{
                 abbreviated{
-                    "MK",
-                    "NK",
+                    0{"MK"}
+                    1{"NK"}
                 }
                 wide{
-                    "Mbere ya Kristũ",
-                    "Nyuma ya Kristũ",
+                    0{"Mbere ya Kristũ"}
+                    1{"Nyuma ya Kristũ"}
                 }
             }
             monthNames{

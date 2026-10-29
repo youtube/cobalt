@@ -306,7 +306,4 @@ kea{
             other{"(mueda diskonxedu)"}
         }
     }
-    CurrencyUnitPatterns{
-        other{"{0} {1}"}
-    }
 }

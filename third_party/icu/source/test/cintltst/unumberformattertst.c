@@ -18,6 +18,7 @@
 #include "unicode/ustring.h"
 #include "cformtst.h"
 #include "cintltst.h"
+#include "cstring.h"
 #include "cmemory.h"
 
 static void TestSkeletonFormatToString(void);
@@ -248,7 +249,7 @@ static void TestSimpleNumberFormatterFull(void) {
     int32_t len;
     const UChar* str = str = ufmtval_getString(unumf_resultAsValue(uresult, &ec), &len, &ec);
     if (assertSuccess("Formatting end-to-end 2", &ec)) {
-        assertUEquals("Should produce a result with Swiss symbols", u"4’321", str);
+        assertUEquals("Should produce a result with Swiss symbols", u"4'321", str);
     }
 
     USimpleNumber* unumber = usnum_openForInt64(1000007, &ec);
@@ -263,7 +264,7 @@ static void TestSimpleNumberFormatterFull(void) {
     usnumf_format(uformatter, unumber, uresult, &ec);
     str = ufmtval_getString(unumf_resultAsValue(uresult, &ec), &len, &ec);
     if (assertSuccess("Formatting end-to-end 3", &ec)) {
-        assertUEquals("Should produce a result with mutated number", u"+0’007.600", str);
+        assertUEquals("Should produce a result with mutated number", u"+0'007.600", str);
     }
 
     // Cleanup:
@@ -426,6 +427,10 @@ static void TestPerUnitInArabic(void) {
                 log_err("FAIL u_strFromUTF8: %s = %s ( %s )\n", locale, buffer,
                         u_errorName(status));
             }
+            if (uprv_strncmp(simpleMeasureUnits[i], "volume-",7)==0 || uprv_strncmp(simpleMeasureUnits[j], "volume-",7)==0) {
+                log_knownIssue("ICU-23104", "Strange handling of part-per-1e9 & volumes in skeletons");
+                continue;
+            }
             UNumberFormatter* nf = unumf_openForSkeletonAndLocale(
                 ubuffer, outputlen, locale, &status);
             if (U_FAILURE(status)) {
@@ -492,7 +497,7 @@ static void TestNegativeDegrees(void) {
         double value;
         const UChar* expectedResult;
     } TestCase;
-    
+
     TestCase testCases[] = {
         { u"measure-unit/temperature-celsius unit-width-short",               0,  u"0°C" },
         { u"measure-unit/temperature-celsius unit-width-short usage/default", 0,  u"32°F" },
@@ -502,22 +507,22 @@ static void TestNegativeDegrees(void) {
         { u"measure-unit/temperature-celsius unit-width-short usage/default", -1, u"30°F" },
         { u"measure-unit/temperature-celsius unit-width-short usage/weather", -1, u"30°F" }
     };
-    
+
     for (int32_t i = 0; i < UPRV_LENGTHOF(testCases); i++) {
         UErrorCode err = U_ZERO_ERROR;
         UNumberFormatter* nf = unumf_openForSkeletonAndLocale(testCases[i].skeleton, -1, "en_US", &err);
         UFormattedNumber* fn = unumf_openResult(&err);
-        
+
         if (assertSuccess("Failed to create formatter or result", &err)) {
             UChar result[200];
             unumf_formatDouble(nf, testCases[i].value, fn, &err);
             unumf_resultToString(fn, result, 200, &err);
-            
+
             if (assertSuccess("Formatting number failed", &err)) {
                 assertUEquals("Got wrong result", testCases[i].expectedResult, result);
             }
         }
-        
+
         unumf_closeResult(fn);
         unumf_close(nf);
     }

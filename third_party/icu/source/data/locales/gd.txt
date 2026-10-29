@@ -32,7 +32,6 @@ gd{
                 accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"¤#,##0.00"}
-                currencyFormat%alphaNextToNumber{"¤ #,##0.00"}
             }
             patternsLong{
                 decimalFormat{
@@ -624,6 +623,12 @@ gd{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -638,16 +643,21 @@ gd{
                 Bh{"hB"}
                 Bhm{"h:mmB"}
                 Bhms{"h:mm:ssB"}
+                EBh{"E hB"}
                 EBhm{"E h:mmB"}
                 EBhms{"E h:mm:ssB"}
                 Ed{"E, d"}
+                Eh{"E ha"}
                 Ehm{"E h:mma"}
                 Ehms{"E h:mm:ssa"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"LLL y G"}
                 GyMMMEd{"E, d'mh' MMM y G"}
                 GyMMMd{"d'mh' MMM y G"}
                 GyMd{"d/M/y GGGGG"}
+                Hv{"HH'u' v"}
                 MEd{"E, d/M"}
                 MMMEd{"E, d MMM"}
                 MMMMd{"d'mh' MMMM"}
@@ -657,6 +667,7 @@ gd{
                 h{"ha"}
                 hm{"h:mma"}
                 hms{"h:mm:ssa"}
+                hv{"ha v"}
                 y{"y G"}
                 yMEd{"E, d/M/y"}
                 yMM{"LL/y"}
@@ -675,11 +686,9 @@ gd{
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -841,20 +850,33 @@ gd{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+                "{0} {1}",
+            }
             availableFormats{
                 Bh{"hB"}
                 Bhm{"h:mmB"}
                 Bhms{"h:mm:ssB"}
-                EBhm{"E h:mmB"}
-                EBhms{"E h:mm:ssB"}
+                EBh{"E, hB"}
+                EBhm{"E, h:mmB"}
+                EBhms{"E, h:mm:ssB"}
+                EHm{"E, HH:mm"}
+                EHms{"E, HH:mm:ss"}
                 Ed{"E, d"}
-                Ehm{"E h:mma"}
-                Ehms{"E h:mm:ss a"}
+                Eh{"E, ha"}
+                Ehm{"E, h:mma"}
+                Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"LLL y G"}
-                GyMMMEd{"E, d'mh' MMM y G"}
-                GyMMMd{"d'mh' MMM y G"}
+                GyMMMEd{"E, d MMM y G"}
+                GyMMMd{"d MMM y G"}
                 GyMd{"d/M/y G"}
+                Hv{"HH'u' v"}
                 MEd{"E, d/M"}
                 MMMEd{"E, d MMM"}
                 MMMMW{
@@ -872,6 +894,7 @@ gd{
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
                 hmv{"h:mma v"}
+                hv{"ha v"}
                 yM{"L/y"}
                 yMEd{"E, d/M/y"}
                 yMM{"LL/y"}
@@ -933,29 +956,27 @@ gd{
             }
             eras{
                 abbreviated{
-                    "RC",
-                    "AD",
+                    0{"RC"}
+                    1{"AD"}
                 }
                 narrow{
-                    "R",
-                    "A",
+                    0{"R"}
+                    1{"A"}
                 }
                 wide{
-                    "Ro Chrìosta",
-                    "An dèidh Chrìosta",
+                    0{"Ro Chrìosta"}
+                    1{"An dèidh Chrìosta"}
                 }
                 wide%variant{
-                    "ron linn choitcheann",
-                    "dhen linn choitcheann",
+                    0{"ron linn choitcheann"}
+                    1{"dhen linn choitcheann"}
                 }
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -1172,12 +1193,11 @@ gd{
         roc{
             eras{
                 abbreviated{
-                    "Ro PnS",
-                    "Mínguó",
+                    0{"Ro PnS"}
+                    1{"Mínguó"}
                 }
                 wide{
-                    "Ro Ph. na Sìne",
-                    "Mínguó",
+                    0{"Ro Ph. na Sìne"}
                 }
             }
         }
@@ -2348,7 +2368,7 @@ gd{
             givenFirst-short-monogram-formal{"{surname-monogram-allCaps}"}
             givenFirst-short-monogram-informal{"{given-informal-monogram-allCaps}"}
             givenFirst-short-referring-formal{"{given-initial} {given2-initial} {surname}"}
-            givenFirst-short-referring-informal{"{given-informal} {given2-initial}"}
+            givenFirst-short-referring-informal{"{given-informal}"}
             sorting-long-referring-formal{"{surname-core}, {given} {given2} {surname-prefix}"}
             sorting-long-referring-informal{"{surname-core}, {given-informal} {given2}"}
             sorting-medium-referring-formal{"{surname-core}, {given} {given2-initial} {surname-prefix}"}

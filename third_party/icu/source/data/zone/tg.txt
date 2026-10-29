@@ -270,6 +270,9 @@ tg{
         "America:Costa_Rica"{
             ec{"Коста Рика"}
         }
+        "America:Coyhaique"{
+            ec{"Койҳайке"}
+        }
         "America:Creston"{
             ec{"Крестон"}
         }
@@ -1166,6 +1169,9 @@ tg{
         "Pacific:Efate"{
             ec{"Эфате"}
         }
+        "Pacific:Enderbury"{
+            ec{"Кантон"}
+        }
         "Pacific:Fakaofo"{
             ec{"Факаофо"}
         }
@@ -1186,9 +1192,6 @@ tg{
         }
         "Pacific:Guam"{
             ec{"Гуам"}
-        }
-        "Pacific:Kanton"{
-            ec{"Кантон"}
         }
         "Pacific:Kiritimati"{
             ec{"Киритимати"}
@@ -1272,9 +1275,7 @@ tg{
             ls{"Вақти стандартии Африқои Ҷанубӣ"}
         }
         "meta:Africa_Western"{
-            ld{"Вақти тобистонаи Африқои Ғарбӣ"}
-            lg{"Вақти Африқои Ғарбӣ"}
-            ls{"Вақти стандартии Африқои Ғарбӣ"}
+            ls{"Вақти Африқои Ғарбӣ"}
         }
         "meta:Alaska"{
             ld{"Вақти рӯзонаи Аляска"}
@@ -1512,6 +1513,9 @@ tg{
         }
         "meta:Guyana"{
             ls{"Вақти Гайана"}
+        }
+        "meta:Hawaii"{
+            ls{"Вақти стандартии Ҳавайӣ-Алеутӣ"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Вақти рӯзонаи Ҳавайӣ-Алеутӣ"}

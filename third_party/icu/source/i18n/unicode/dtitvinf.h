@@ -201,10 +201,9 @@ public:
 
     /**
      * Destructor.
-     * It is virtual to be safe, but it is not designed to be subclassed.
      * @stable ICU 4.0
      */
-    virtual ~DateIntervalInfo();
+    ~DateIntervalInfo();
 
 
     /**

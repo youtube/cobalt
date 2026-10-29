@@ -9,7 +9,9 @@ ff{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -153,12 +155,12 @@ ff{
             }
             eras{
                 abbreviated{
-                    "H-I",
-                    "C-I",
+                    0{"H-I"}
+                    1{"C-I"}
                 }
                 wide{
-                    "Hade Iisa",
-                    "Caggal Iisa",
+                    0{"Hade Iisa"}
+                    1{"Caggal Iisa"}
                 }
             }
             monthNames{

@@ -283,9 +283,7 @@ ksh{
             ls{"Söd-Affrekaanesche Zigg"}
         }
         "meta:Africa_Western"{
-            ld{"Wäß-Affrekaanesche Sommerzigg"}
-            lg{"Wäß-Affrekaanesche Zigg"}
-            ls{"Jewöhnlijje Wäß-Affrekaanesche Zigg"}
+            ls{"Wäß-Affrekaanesche Zigg"}
         }
         "meta:Azores"{
             ld{"de Azore ier Summerzick"}

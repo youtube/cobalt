@@ -14,10 +14,13 @@ lv{
         colStrength{"kārtošanas pakāpe"}
         collation{"kārtošanas secība"}
         currency{"valūta"}
+        em{"Emocijzīmes attēlojums"}
         hc{"Stundu formāts (12 vai 24)"}
         lb{"Rindiņas pārtraukuma stils"}
+        lw{"Rindiņu pārtraukumi vārdos"}
         ms{"mērvienību sistēma"}
         numbers{"Cipari"}
+        ss{"Teikuma beigas pēc abr."}
         timezone{"laika josla"}
         va{"lokalizācijas variants"}
         x{"personīgai lietošanai"}
@@ -585,6 +588,12 @@ lv{
         zxx{"bez lingvistiska satura"}
         zza{"zazaki"}
     }
+    Languages%core{
+        ku{"kurdu"}
+    }
+    Languages%extension{
+        ku{"kurmandži"}
+    }
     Languages%long{
         zh_Hans{"ķīniešu vienkāršotā (mandarīnu)"}
         zh_Hant{"ķīniešu tradicionālā (mandarīnu)"}
@@ -712,9 +721,29 @@ lv{
             persian{"persiešu kalendārs"}
             roc{"Ķīnas Republikas kalendārs"}
         }
+        calendar%core{
+            buddhist{"budistu"}
+            chinese{"ķīniešu"}
+            coptic{"Koptu"}
+            dangi{"dangi"}
+            ethiopic{"etiopiešu"}
+            ethiopic-amete-alem{"etiopiešu Amete Alem"}
+            gregorian{"Gregora"}
+            hebrew{"ebreju"}
+            islamic{"Hidžrī"}
+            islamic-civil{"Hidžrī (pilsoņu)"}
+            islamic-umalqura{"Hidžrī (Umm al-kura)"}
+            japanese{"japāņu"}
+            persian{"persiešu"}
+            roc{"Ķīnas Republikas"}
+        }
         cf{
             account{"uzskaites valūtas formāts"}
             standard{"standarta valūtas formāts"}
+        }
+        cf%core{
+            account{"Uzskaites"}
+            standard{"Standarta"}
         }
         colAlternate{
             non-ignorable{"Kārtot simbolus"}
@@ -755,12 +784,10 @@ lv{
             }
         }
         collation{
-            big5han{"tradicionālās ķīniešu valodas kārtošanas secība - Big5"}
             compat{"saderīgā kārtošanas secība"}
             dictionary{"Vārdnīcas kārtošanas secība"}
             ducet{"noklusējuma unikoda kārtošanas secība"}
             eor{"Eiropas rakstību kārtošanas secīa"}
-            gb2312han{"vienkāršotās ķīniešu valodas kārtošanas secība - GB2312"}
             phonebook{"tālruņu grāmatas kārtošanas secība"}
             phonetic{"Fonētiskā kārtošanas secība"}
             pinyin{"piņjiņa kārtošanas secība"}
@@ -771,10 +798,20 @@ lv{
             traditional{"tradicionālā kārtošanas secība"}
             unihan{"Radikālā kārtošanas secība pēc vilkumu skaita"}
         }
+        collation%core{
+            ducet{"noklusējuma unikods"}
+            search{"meklēšana"}
+            standard{"standarta"}
+        }
         d0{
             fwidth{"Pilna platuma"}
             hwidth{"Pusplatuma"}
             npinyin{"Ciparu"}
+        }
+        em%core{
+            default{"Noklusējuma"}
+            emoji{"Emocijzīmes"}
+            text{"Teksts"}
         }
         hc{
             h11{"12 stundu sistēma (0–11)"}
@@ -782,10 +819,27 @@ lv{
             h23{"24 stundu sistēma (0–23)"}
             h24{"24 stundu sistēma (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Brīvais rindiņas pārtraukuma stils"}
             normal{"Parastais rindiņas pārtraukuma stils"}
             strict{"Stingrais rindiņas pārtraukuma stils"}
+        }
+        lb%core{
+            loose{"Brīvais"}
+            normal{"Parastais"}
+            strict{"Stingrais"}
+        }
+        lw%core{
+            breakall{"Pārtraukt visas"}
+            keepall{"Saglabāt visas"}
+            normal{"Parasti"}
+            phrase{"Saglabāt frāzes"}
         }
         m0{
             bgn{"transliterācijas sistēma US BGN"}
@@ -795,6 +849,11 @@ lv{
             metric{"metriskā sistēma"}
             uksystem{"britu mērvienību sistēma"}
             ussystem{"amerikāņu mērvienību sistēma"}
+        }
+        ms%core{
+            metric{"metriskā"}
+            uksystem{"britu"}
+            ussystem{"ASV"}
         }
         numbers{
             arab{"Arābu-indiešu cipari"}
@@ -841,6 +900,10 @@ lv{
             tibt{"Tibetiešu cipari"}
             traditional{"Tradicionālā ciparu sistēma"}
             vaii{"VAI cipari"}
+        }
+        ss%core{
+            none{"Izsl."}
+            standard{"Iesl."}
         }
     }
     Variants{

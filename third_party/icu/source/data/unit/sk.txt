@@ -286,6 +286,13 @@ sk{
                 one{"{0} otáčka"}
                 other{"{0} otáčok"}
             }
+            steradian{
+                dnam{"steradiány"}
+                few{"{0} steradiány"}
+                many{"{0} steradiánu"}
+                one{"{0} steradián"}
+                other{"{0} steradiánov"}
+            }
         }
         area{
             acre{
@@ -821,6 +828,13 @@ sk{
                 one{"{0} karát"}
                 other{"{0} karátov"}
             }
+            katal{
+                dnam{"kataly"}
+                few{"{0} kataly"}
+                many{"{0} katalu"}
+                one{"{0} katal"}
+                other{"{0} katalov"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -941,6 +955,96 @@ sk{
                 one{"{0} mol"}
                 other{"{0} molov"}
             }
+            ofglucose{
+                dnam{"glukózy"}
+            }
+            part{
+                dnam{"častice"}
+                few{"{0} častice"}
+                many{"{0} častice"}
+                one{"{0} častica"}
+                other{"{0} častíc"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        few{"{0} milióntiny"}
+                        many{"{0} milióntiny"}
+                        one{"{0} milióntinu"}
+                        other{"{0} milióntin"}
+                    }
+                    dative{
+                        few{"{0} milióntinám"}
+                        many{"{0} milióntiny"}
+                        one{"{0} milióntine"}
+                        other{"{0} milióntinám"}
+                    }
+                    genitive{
+                        few{"{0} milióntin"}
+                        many{"{0} milióntiny"}
+                        one{"{0} milióntiny"}
+                        other{"{0} milióntin"}
+                    }
+                    instrumental{
+                        few{"{0} milióntinami"}
+                        many{"{0} milióntiny"}
+                        one{"{0} milióntinou"}
+                        other{"{0} milióntinami"}
+                    }
+                    locative{
+                        few{"{0} milióntinách"}
+                        many{"{0} milióntiny"}
+                        one{"{0} milióntine"}
+                        other{"{0} milióntinách"}
+                    }
+                }
+                dnam{"milióntiny"}
+                few{"{0} milióntiny"}
+                gender{"feminine"}
+                many{"{0} milióntiny"}
+                one{"{0} milióntina"}
+                other{"{0} milióntin"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        few{"{0} častice na miliardu"}
+                        many{"{0} častice na miliardu"}
+                        one{"{0} časticu na miliardu"}
+                        other{"{0} častíc na miliardu"}
+                    }
+                    dative{
+                        few{"{0} časticiam na miliardu"}
+                        many{"{0} častice na miliardu"}
+                        one{"{0} častici na miliardu"}
+                        other{"{0} časticiam na miliardu"}
+                    }
+                    genitive{
+                        few{"{0} častíc na miliardu"}
+                        many{"{0} častice na miliardu"}
+                        one{"{0} častice na miliardu"}
+                        other{"{0} častíc na miliardu"}
+                    }
+                    instrumental{
+                        few{"{0} časticami na miliardu"}
+                        many{"{0} častice na miliardu"}
+                        one{"{0} časticou na miliardu"}
+                        other{"{0} časticami na miliardu"}
+                    }
+                    locative{
+                        few{"{0} časticiach na miliardu"}
+                        many{"{0} častice na miliardu"}
+                        one{"{0} častici na miliardu"}
+                        other{"{0} časticiach na miliardu"}
+                    }
+                }
+                dnam{"častice na miliardu"}
+                few{"{0} častice na miliardu"}
+                gender{"feminine"}
+                many{"{0} častice na miliardu"}
+                one{"{0} častica na miliardu"}
+                other{"{0} častíc na miliardu"}
+            }
             percent{
                 case{
                     accusative{
@@ -1021,46 +1125,6 @@ sk{
                 one{"{0} promile"}
                 other{"{0} promile"}
             }
-            permillion{
-                case{
-                    accusative{
-                        few{"{0} milióntiny"}
-                        many{"{0} milióntiny"}
-                        one{"{0} milióntinu"}
-                        other{"{0} milióntin"}
-                    }
-                    dative{
-                        few{"{0} milióntinám"}
-                        many{"{0} milióntiny"}
-                        one{"{0} milióntine"}
-                        other{"{0} milióntinám"}
-                    }
-                    genitive{
-                        few{"{0} milióntin"}
-                        many{"{0} milióntiny"}
-                        one{"{0} milióntiny"}
-                        other{"{0} milióntin"}
-                    }
-                    instrumental{
-                        few{"{0} milióntinami"}
-                        many{"{0} milióntiny"}
-                        one{"{0} milióntinou"}
-                        other{"{0} milióntinami"}
-                    }
-                    locative{
-                        few{"{0} milióntinách"}
-                        many{"{0} milióntiny"}
-                        one{"{0} milióntine"}
-                        other{"{0} milióntinách"}
-                    }
-                }
-                dnam{"milióntiny"}
-                few{"{0} milióntiny"}
-                gender{"feminine"}
-                many{"{0} milióntiny"}
-                one{"{0} milióntina"}
-                other{"{0} milióntin"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -1100,46 +1164,6 @@ sk{
                 many{"{0} desatiny promile"}
                 one{"{0} desatina promile"}
                 other{"{0} desatín promile"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        few{"{0} častice na miliardu"}
-                        many{"{0} častice na miliardu"}
-                        one{"{0} časticu na miliardu"}
-                        other{"{0} častíc na miliardu"}
-                    }
-                    dative{
-                        few{"{0} časticiam na miliardu"}
-                        many{"{0} častice na miliardu"}
-                        one{"{0} častici na miliardu"}
-                        other{"{0} časticiam na miliardu"}
-                    }
-                    genitive{
-                        few{"{0} častíc na miliardu"}
-                        many{"{0} častice na miliardu"}
-                        one{"{0} častice na miliardu"}
-                        other{"{0} častíc na miliardu"}
-                    }
-                    instrumental{
-                        few{"{0} časticami na miliardu"}
-                        many{"{0} častice na miliardu"}
-                        one{"{0} časticou na miliardu"}
-                        other{"{0} časticami na miliardu"}
-                    }
-                    locative{
-                        few{"{0} časticiach na miliardu"}
-                        many{"{0} častice na miliardu"}
-                        one{"{0} častici na miliardu"}
-                        other{"{0} časticiach na miliardu"}
-                    }
-                }
-                dnam{"častice na miliardu"}
-                few{"{0} častice na miliardu"}
-                gender{"feminine"}
-                many{"{0} častice na miliardu"}
-                one{"{0} častica na miliardu"}
-                other{"{0} častíc na miliardu"}
             }
         }
         consumption{
@@ -2104,13 +2128,11 @@ sk{
                         other{"{0} nociach"}
                     }
                 }
-                dnam{"noci"}
                 few{"{0} noci"}
                 gender{"feminine"}
                 many{"{0} noci"}
                 one{"{0} noc"}
                 other{"{0} nocí"}
-                per{"{0}/noc"}
             }
             quarter{
                 case{
@@ -2317,6 +2339,27 @@ sk{
                 one{"{0} ampér"}
                 other{"{0} ampérov"}
             }
+            coulomb{
+                dnam{"coulomby"}
+                few{"{0} coulomby"}
+                many{"{0} coulombu"}
+                one{"{0} coulomb"}
+                other{"{0} coulombov"}
+            }
+            farad{
+                dnam{"farady"}
+                few{"{0} farady"}
+                many{"{0} faradu"}
+                one{"{0} farad"}
+                other{"{0} faradov"}
+            }
+            henry{
+                dnam{"henry"}
+                few{"{0} henry"}
+                many{"{0} henry"}
+                one{"{0} henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -2396,6 +2439,13 @@ sk{
                 many{"{0} ohmu"}
                 one{"{0} ohm"}
                 other{"{0} ohmov"}
+            }
+            siemens{
+                dnam{"siemensy"}
+                few{"{0} siemensy"}
+                many{"{0} siemensu"}
+                one{"{0} siemens"}
+                other{"{0} siemensov"}
             }
             volt{
                 case{
@@ -2485,6 +2535,13 @@ sk{
                 many{"{0} kalórie"}
                 one{"{0} kalória"}
                 other{"{0} kalórií"}
+            }
+            calorie-it{
+                dnam{"kalória [IT]"}
+                few{"{0} kalórie [IT]"}
+                many{"{0} kalórie [IT]"}
+                one{"{0} kalória [IT]"}
+                other{"{0} kalórií [IT]"}
             }
             electronvolt{
                 dnam{"elektrónvolty"}
@@ -2669,6 +2726,13 @@ sk{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kilopondy"}
+                few{"{0} kilopondy"}
+                many{"{0} kilopondu"}
+                one{"{0} kilopond"}
+                other{"{0} kilopondov"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -3691,6 +3755,15 @@ sk{
                 other{"{0} svietivostí Slnka"}
             }
         }
+        magnetic{
+            weber{
+                dnam{"webery"}
+                few{"{0} webery"}
+                many{"{0} weberu"}
+                one{"{0} weber"}
+                other{"{0} weberov"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -4490,6 +4563,9 @@ sk{
                 one{"{0} milimeter ortuťového stĺpca"}
                 other{"{0} milimetrov ortuťového stĺpca"}
             }
+            ofhg{
+                dnam{"ortute"}
+            }
             pascal{
                 case{
                     accusative{
@@ -5153,6 +5229,13 @@ sk{
                 one{"{0} britská tekutá unca"}
                 other{"{0} britských tekutých uncí"}
             }
+            fluid-ounce-metric{
+                dnam{"metrické tekuté unce"}
+                few{"{0} metrické tekuté unce"}
+                many{"{0} metrickej tekutej unce"}
+                one{"{0} metrická tekutá unca"}
+                other{"{0} metrických tekutých uncí"}
+            }
             gallon{
                 dnam{"galóny"}
                 few{"{0} galóny"}
@@ -5432,6 +5515,11 @@ sk{
                 dnam{"ha"}
             }
         }
+        concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
+        }
         consumption{
             liter-per-100-kilometer{
                 dnam{"l/100 km"}
@@ -5459,14 +5547,6 @@ sk{
                 other{"{0} m."}
                 per{"{0}/m."}
             }
-            night{
-                dnam{"noci"}
-                few{"{0} noci"}
-                many{"{0} noci"}
-                one{"{0} noc"}
-                other{"{0} nocí"}
-                per{"{0}/noc"}
-            }
             week{
                 dnam{"t."}
                 few{"{0} t."}
@@ -5476,13 +5556,18 @@ sk{
                 per{"{0}/t."}
             }
         }
+        energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
+        }
         force{
-            kilowatt-hour-per-100-kilometer{
-                dnam{"kWh/100 km"}
-                few{"{0} kWh/100 km"}
-                many{"{0} kWh/100 km"}
-                one{"{0} kWh/100 km"}
-                other{"{0} kWh/100 km"}
+            kilogram-force{
+                dnam{"kp"}
+                few{"{0} kp"}
+                many{"{0} kp"}
+                one{"{0} kp"}
+                other{"{0} kp"}
             }
         }
         graphics{
@@ -5510,6 +5595,15 @@ sk{
                 many{"{0} mb"}
                 one{"{0} mb"}
                 other{"{0} mb"}
+            }
+        }
+        volume{
+            fluid-ounce-metric{
+                dnam{"fl oz m"}
+                few{"{0} fl oz m"}
+                many{"{0} fl oz m"}
+                one{"{0} fl oz m"}
+                other{"{0} fl oz m"}
             }
         }
     }
@@ -5573,6 +5667,9 @@ sk{
                 many{"{0} mmol/l"}
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
+            }
+            ofglucose{
+                dnam{"Glc"}
             }
             percent{
                 few{"{0} %"}
@@ -5734,6 +5831,9 @@ sk{
                 one{"{0} BTU"}
                 other{"{0} BTU"}
             }
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             foodcalorie{
                 dnam{"cal"}
                 few{"{0} cal"}
@@ -5753,6 +5853,13 @@ sk{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kp"}
+                few{"{0} kp"}
+                many{"{0} kp"}
+                one{"{0} kp"}
+                other{"{0} kp"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 few{"{0} kWh/100 km"}
@@ -5921,6 +6028,13 @@ sk{
                 many{"{0} brit. fl oz"}
                 one{"{0} brit. fl oz"}
                 other{"{0} brit. fl oz"}
+            }
+            fluid-ounce-metric{
+                dnam{"fl oz m"}
+                few{"{0} fl oz m"}
+                many{"{0} fl oz m"}
+                one{"{0} fl oz m"}
+                other{"{0} fl oz m"}
             }
             gallon{
                 dnam{"gal"}

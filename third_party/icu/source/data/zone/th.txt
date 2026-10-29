@@ -270,6 +270,9 @@ th{
         "America:Costa_Rica"{
             ec{"คอสตาริกา"}
         }
+        "America:Coyhaique"{
+            ec{"โกไยเก"}
+        }
         "America:Creston"{
             ec{"เครสตัน"}
         }
@@ -1167,7 +1170,7 @@ th{
             ec{"เอฟาเต"}
         }
         "Pacific:Enderbury"{
-            ec{"เอนเดอร์เบอรี"}
+            ec{"แคนทอน"}
         }
         "Pacific:Fakaofo"{
             ec{"ฟาเคาโฟ"}
@@ -1192,9 +1195,6 @@ th{
         }
         "Pacific:Honolulu"{
             ec{"โฮโนลูลู"}
-        }
-        "Pacific:Kanton"{
-            ec{"แคนทอน"}
         }
         "Pacific:Kiritimati"{
             ec{"คิริทิมาตี"}
@@ -1283,9 +1283,7 @@ th{
             ls{"เวลาแอฟริกาใต้"}
         }
         "meta:Africa_Western"{
-            ld{"เวลาฤดูร้อนแอฟริกาตะวันตก"}
-            lg{"เวลาแอฟริกาตะวันตก"}
-            ls{"เวลามาตรฐานแอฟริกาตะวันตก"}
+            ls{"เวลาแอฟริกาตะวันตก"}
         }
         "meta:Alaska"{
             ld{"เวลาออมแสงของอะแลสกา"}
@@ -1549,6 +1547,9 @@ th{
         }
         "meta:Guyana"{
             ls{"เวลากายอานา"}
+        }
+        "meta:Hawaii"{
+            ls{"เวลามาตรฐานฮาวาย-อะลูเชียน"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"เวลาออมแสงฮาวาย-อะลูเชียน"}
@@ -1847,6 +1848,11 @@ th{
         }
         "meta:Truk"{
             ls{"เวลาชุก"}
+        }
+        "meta:Turkey"{
+            ld{"เวลาฤดูร้อนตุรกี"}
+            lg{"เวลาตุรกี"}
+            ls{"เวลามาตรฐานตุรกี"}
         }
         "meta:Turkmenistan"{
             ld{"เวลาฤดูร้อนเติร์กเมนิสถาน"}

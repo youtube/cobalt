@@ -22,8 +22,11 @@ bg{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
+                currencyFormat%noCurrency{"#,##0.00"}
             }
             patternsLong{
                 decimalFormat{
@@ -218,6 +221,12 @@ bg{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'в' {0}",
+                "{1} 'в' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -250,6 +259,7 @@ bg{
                 H{"HH 'ч'."}
                 Hm{"HH:mm 'ч'."}
                 Hms{"HH:mm:ss 'ч'."}
+                Hv{"HH 'ч' v"}
                 M{"M"}
                 MEd{"E, d.MM"}
                 MMM{"MM"}
@@ -454,6 +464,12 @@ bg{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'в' {0} 'ч'",
+                "{1} 'в' {0} 'ч'",
+                "{1}, {0} 'ч'",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -468,14 +484,18 @@ bg{
                 Bh{"h 'ч'. B"}
                 Bhm{"h:mm 'ч'. B"}
                 Bhms{"h:mm:ss 'ч'. B"}
+                EBh{"E, h B"}
                 EBhm{"E, h:mm 'ч'. B"}
                 EBhms{"E, h:mm:ss 'ч'. B"}
                 EHm{"E, HH:mm 'ч'."}
                 EHms{"E, HH:mm:ss 'ч'."}
                 Ed{"E, d"}
+                Eh{"E, h a"}
                 Ehm{"E, h:mm 'ч'. a"}
                 Ehms{"E, h:mm:ss 'ч'. a"}
                 Gy{"y 'г'. G"}
+                GyM{"M.y 'г'. G"}
+                GyMEd{"E, d.M.y 'г'. G"}
                 GyMMM{"MM.y 'г'. G"}
                 GyMMMEd{"E, d.MM.y 'г'. G"}
                 GyMMMM{"MMMM y 'г'. G"}
@@ -488,6 +508,7 @@ bg{
                 Hms{"HH:mm:ss 'ч'."}
                 Hmsv{"HH:mm:ss 'ч'. v"}
                 Hmv{"HH:mm 'ч'. v"}
+                Hv{"HH 'ч' v"}
                 MEd{"E, d.MM"}
                 MMM{"MM"}
                 MMMEd{"E, d.MM"}
@@ -506,6 +527,7 @@ bg{
                 hms{"h:mm:ss 'ч'. a"}
                 hmsv{"h:mm:ss 'ч'. a v"}
                 hmv{"h:mm 'ч'. a v"}
+                hv{"h 'ч'. a v"}
                 ms{"m:ss"}
                 y{"y 'г'."}
                 yM{"MM.y 'г'."}
@@ -571,20 +593,20 @@ bg{
             }
             eras{
                 abbreviated{
-                    "пр.Хр.",
-                    "сл.Хр.",
+                    0{"пр.Хр."}
+                    1{"сл.Хр."}
                 }
                 abbreviated%variant{
-                    "пр.н.е.",
-                    "сл.н.е.",
+                    0{"пр.н.е."}
+                    1{"сл.н.е."}
                 }
                 wide{
-                    "преди Христа",
-                    "след Христа",
+                    0{"преди Христа"}
+                    1{"след Христа"}
                 }
                 wide%variant{
-                    "преди новата ера",
-                    "след новата ера",
+                    0{"преди новата ера"}
+                    1{"след новата ера"}
                 }
             }
             intervalFormats{

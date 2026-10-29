@@ -17,10 +17,10 @@ index f09c72444..6356d052e 100644
      }
      extensions{
 diff --git a/source/data/brkitr/root.txt b/source/data/brkitr/root.txt
-index cb87c7ffc..24a280cc0 100644
+index d0368b300..b8b121522 100644
 --- a/source/data/brkitr/root.txt
 +++ b/source/data/brkitr/root.txt
-@@ -5,11 +5,6 @@ root{
+@@ -6,11 +6,6 @@ root{
      boundaries{
          grapheme:process(dependency){"char.brk"}
          line:process(dependency){"line_normal.brk"}

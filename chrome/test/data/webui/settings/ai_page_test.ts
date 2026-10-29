@@ -79,13 +79,13 @@ suite('AiPage', function() {
     loadTimeData.overrideValues({
       showHistorySearchControl: false,
       showComposeControl: true,
-      showTabOrganizationControl: false,
       showPasswordChangeControl: false,
+      enableAiModeSearchSetting: false,
     });
     resetRouterForTesting();
     await createPage();
 
-    assertEquals(4, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+    assertEquals(3, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertFalse(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -95,13 +95,11 @@ suite('AiPage', function() {
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.Compose', true);
 
-    assertFalse(isChildVisible(page, '#tabOrganizationRowV2'));
-    await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.TabOrganization', false);
-
     assertFalse(isChildVisible(page, '#passwordChangeRowV2'));
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.PasswordChange', false);
+
+    assertFalse(isChildVisible(page, '#aiModeSearchRow'));
 
     metricsBrowserProxy.resetResolver('recordBooleanHistogram');
 
@@ -113,12 +111,12 @@ suite('AiPage', function() {
     loadTimeData.overrideValues({
       showHistorySearchControl: true,
       showComposeControl: false,
-      showTabOrganizationControl: true,
       showPasswordChangeControl: true,
+      enableAiModeSearchSetting: true,
     });
     resetRouterForTesting();
     await createPage();
-    assertEquals(4, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+    assertEquals(3, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertTrue(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -128,13 +126,11 @@ suite('AiPage', function() {
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.Compose', false);
 
-    assertTrue(isChildVisible(page, '#tabOrganizationRowV2'));
-    await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.TabOrganization', true);
-
     assertTrue(isChildVisible(page, '#passwordChangeRowV2'));
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.PasswordChange', true);
+
+    assertTrue(isChildVisible(page, '#aiModeSearchRow'));
 
     metricsBrowserProxy.resetResolver('recordBooleanHistogram');
 
@@ -206,28 +202,6 @@ suite('AiPage', function() {
     assertEquals(routes.AI, currentRoute.parent);
   });
 
-  test('tabOrganizationRow', async () => {
-    loadTimeData.overrideValues({
-      showAiPage: true,
-      showTabOrganizationControl: true,
-    });
-    resetRouterForTesting();
-    await createPage();
-
-    const tabOrganizationRow =
-        page.shadowRoot!.querySelector<HTMLElement>('#tabOrganizationRowV2');
-
-    assertTrue(!!tabOrganizationRow);
-    assertTrue(isVisible(tabOrganizationRow));
-    tabOrganizationRow.click();
-    await verifyFeatureInteractionMetrics(
-        AiPageInteractions.TAB_ORGANIZATION_CLICK,
-        'Settings.AiPage.TabOrganizationEntryPointClick');
-
-    assertEquals(
-        routes.AI_TAB_ORGANIZATION, Router.getInstance().getCurrentRoute());
-  });
-
   test('PasswordChangeRow', async () => {
     loadTimeData.overrideValues({
       showPasswordChangeControl: true,
@@ -258,5 +232,25 @@ suite('AiPage', function() {
         page.shadowRoot!.querySelector<HTMLElement>('#passwordChangeRowV2');
     assertTrue(!!passwordChangeRow);
     assertFalse(isVisible(passwordChangeRow));
+  });
+
+  test('aiModeSearchRow', async () => {
+    loadTimeData.overrideValues({
+      enableAiModeSearchSetting: true,
+    });
+    resetRouterForTesting();
+    await createPage();
+
+    const aiModeSearchRow =
+        page.shadowRoot!.querySelector<CrLinkRowElement>('#aiModeSearchRow');
+
+    assertTrue(!!aiModeSearchRow);
+    assertTrue(isVisible(aiModeSearchRow));
+
+    aiModeSearchRow.click();
+
+    const currentRoute = Router.getInstance().getCurrentRoute();
+    assertEquals(routes.AI_MODE_SEARCH, currentRoute);
+    assertEquals(routes.AI, currentRoute.parent);
   });
 });

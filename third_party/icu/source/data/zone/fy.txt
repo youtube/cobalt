@@ -298,9 +298,7 @@ fy{
             ls{"Sûd-Afrikaanske tiid"}
         }
         "meta:Africa_Western"{
-            ld{"West-Afrikaanske simmertiid"}
-            lg{"West-Afrikaanske tiid"}
-            ls{"West-Afrikaanske standerttiid"}
+            ls{"West-Afrikaanske tiid"}
         }
         "meta:Alaska"{
             ld{"Alaska-simmertiid"}
@@ -562,6 +560,9 @@ fy{
         }
         "meta:Guyana"{
             ls{"Guyaanske tiid"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleoetyske standerttiid"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleoetyske simmertiid"}

@@ -6,6 +6,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/debug/debug.h"
@@ -1129,7 +1130,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(
       feedback_vector,
-      FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   {
     UseScratchRegisterScope temp(masm);
     Register type = temps.Acquire();
@@ -2631,10 +2632,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
+    UseScratchRegisterScope temps(masm);
     Label done, push, loop;
     Register src = a6;
-    Register scratch = len;
-    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     __ AddWord(src, args, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
     __ SllWord(scratch, len, kTaggedSizeLog2);
@@ -2667,7 +2668,20 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // - receiver already on the stack.
+  // - target
+  // - arguments list
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(len);
+  __ Push(a1, args, len);
+  // - adjust arg count
+  __ AddWord(a0, a0, SuperSpreadArgs::kNumExtraArgs - 1);
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
@@ -3105,20 +3119,17 @@ constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
   return saved_fp_regs;
 })();
 
-constexpr VRegList kSavedVectorRegs = ([]() constexpr {
-  // The JIT aliases FPU and vector registers. As such, we need to save the
-  // vectors that have the same code as argument FPU registers.
-  VRegList saved_vector_regs;
-  for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-    saved_vector_regs.set(VRegister::from_code(fp_param_reg.code()));
+constexpr Simd128RegList kSavedSimd128Regs = ([]() constexpr {
+  Simd128RegList saved_simd128_regs;
+  for (Simd128Register simd128_param_reg : wasm::kSimd128ParamRegisters) {
+    saved_simd128_regs.set(VRegister::from_code(simd128_param_reg.code()));
   }
 
-  CHECK_EQ(saved_vector_regs.Count(), kSavedFpRegs.Count());
-  return saved_vector_regs;
+  return saved_simd128_regs;
 })();
 
 static void SaveVectorRegisters(MacroAssembler* masm,
-                                const VRegList& reg_list) {
+                                const Simd128RegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
@@ -3146,7 +3157,7 @@ static void SaveVectorRegisters(MacroAssembler* masm,
 }
 
 static void RestoreVectorRegisters(MacroAssembler* masm,
-                                   const VRegList& reg_list) {
+                                   const Simd128RegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
@@ -3177,16 +3188,20 @@ static void SaveWasmParams(MacroAssembler* masm) {
   // Save all parameter registers (see wasm-linkage.h). They might be
   // overwritten in the subsequent runtime call. We don't have any
   // callee-saved registers in Wasm, so no need to store anything else.
-  __ MultiPush(kSavedGpRegs);
-  static_assert(kSavedVectorRegs.Count() ==
+  static_assert(kSavedSimd128Regs.Count() ==
                 WasmLiftoffSetupFrameConstants::kNumberOfSavedVpParamRegs);
-  SaveVectorRegisters(masm, kSavedVectorRegs);
+  static_assert(kSavedGpRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs);
+  static_assert(kSavedFpRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs);
+  __ MultiPush(kSavedGpRegs);
+  SaveVectorRegisters(masm, kSavedSimd128Regs);
   __ MultiPushFPU(kSavedFpRegs);
 }
 
 static void RestoreWasmParams(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
-  RestoreVectorRegisters(masm, kSavedVectorRegs);
+  RestoreVectorRegisters(masm, kSavedSimd128Regs);
   __ MultiPop(kSavedGpRegs);
 }
 
@@ -4146,8 +4161,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // If the stack has not been started yet, switching to it is invalid as it
   // does not have a stack entry frame. Instead, retire it and throw the
   // exception from the current stack.
-  // Both blocks exit with the arguments of the runtime call pushed on the
-  // stack.
+  // Both blocks exit with the exnref pushed on the stack.
   Register scratch = t0;
   DCHECK(!AreAliased(scratch, exnref, target_stack));
   __ LoadWord(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
@@ -4172,9 +4186,11 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
     __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
   }
   __ bind(&throw_);
-  // Throw the exception.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmReThrow);
+  // Throw the exnref. The builtin expects to be called from a wasm frame, so
+  // leave this frame first and tail call WasmThrowRef.
+  __ Pop(WasmThrowRefDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kWasmThrowRef);
   __ Trap();
   __ bind(&return_);
   // Return the arg buffer.
@@ -5337,7 +5353,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(
       feedback_vector,
-      FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.

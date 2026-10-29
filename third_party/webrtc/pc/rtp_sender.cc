@@ -38,6 +38,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/sframe/sframe_encrypter_interface.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -914,6 +915,15 @@ void RtpSenderBase::SetFrameTransformer(
       }
     });
   }
+}
+
+RTCErrorOr<scoped_refptr<SframeEncrypterInterface>>
+RtpSenderBase::CreateSframeEncrypterOrError(
+    const SframeEncrypterInit& options) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  // TODO(bugs.webrtc.org/479862368): Implement Sframe encrypter creation.
+  return RTCError(RTCErrorType::UNSUPPORTED_OPERATION,
+                  "Sframe encrypter not yet implemented");
 }
 
 LocalAudioSinkAdapter::LocalAudioSinkAdapter() : sink_(nullptr) {}

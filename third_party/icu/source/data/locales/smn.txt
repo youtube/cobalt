@@ -12,7 +12,9 @@ smn{
                 atLeast{"ucemustáá {0}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -341,20 +343,20 @@ smn{
             }
             eras{
                 abbreviated{
-                    "oKr.",
-                    "mKr.",
+                    0{"oKr."}
+                    1{"mKr."}
                 }
                 abbreviated%variant{
-                    "oää.",
-                    "mää.",
+                    0{"oää."}
+                    1{"mää."}
                 }
                 wide{
-                    "Ovdil Kristus šoddâm",
-                    "maŋa Kristus šoddâm",
+                    0{"Ovdil Kristus šoddâm"}
+                    1{"maŋa Kristus šoddâm"}
                 }
                 wide%variant{
-                    "Ovdil ääigirekinistem älgim",
-                    "maŋa ääigirekinistem älgim",
+                    0{"Ovdil ääigirekinistem älgim"}
+                    1{"maŋa ääigirekinistem älgim"}
                 }
             }
             intervalFormats{

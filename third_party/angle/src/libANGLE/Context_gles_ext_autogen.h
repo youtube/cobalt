@@ -480,7 +480,6 @@
     /* GL_ANGLE_renderability_validation */                                                        \
     /* GL_ANGLE_request_extension */                                                               \
     void requestExtension(const GLchar *name);                                                     \
-    void disableExtension(const GLchar *name);                                                     \
     /* GL_ANGLE_rgbx_internal_format */                                                            \
     /* GL_ANGLE_robust_client_memory */                                                            \
     void getBooleanvRobust(GLenum pname, GLsizei paramCount, GLsizei *length, GLboolean *data);    \
@@ -531,20 +530,6 @@
                              GLint yoffset, GLint zoffset, GLsizei width, GLsizei height,          \
                              GLsizei depth, GLenum format, GLenum type, GLsizei bufSize,           \
                              const void *pixels);                                                  \
-    void compressedTexImage2DRobust(                                                               \
-        TextureTarget targetPacked, GLint level, GLenum internalformat, GLsizei width,             \
-        GLsizei height, GLint border, GLsizei imageSize, GLsizei bufSize, const void *data);       \
-    void compressedTexSubImage2DRobust(                                                            \
-        TextureTarget targetPacked, GLint level, GLsizei xoffset, GLsizei yoffset, GLsizei width,  \
-        GLsizei height, GLenum format, GLsizei imageSize, GLsizei bufSize, const void *data);      \
-    void compressedTexImage3DRobust(TextureTarget targetPacked, GLint level,                       \
-                                    GLenum internalformat, GLsizei width, GLsizei height,          \
-                                    GLsizei depth, GLint border, GLsizei imageSize,                \
-                                    GLsizei bufSize, const void *data);                            \
-    void compressedTexSubImage3DRobust(TextureTarget targetPacked, GLint level, GLint xoffset,     \
-                                       GLint yoffset, GLint zoffset, GLsizei width,                \
-                                       GLsizei height, GLsizei depth, GLenum format,               \
-                                       GLsizei imageSize, GLsizei bufSize, const void *data);      \
     void getQueryivRobust(QueryType targetPacked, QueryParameter pnamePacked, GLsizei paramCount,  \
                           GLsizei *length, GLint *params);                                         \
     void getQueryObjectuivRobust(QueryID idPacked, QueryObjectParameter pnamePacked,               \
@@ -591,12 +576,15 @@
                                   GLsizei paramCount, GLsizei *length, GLint64 *params);           \
     void getQueryObjectui64vRobust(QueryID idPacked, QueryObjectParameter pnamePacked,             \
                                    GLsizei paramCount, GLsizei *length, GLuint64 *params);         \
-    void getFramebufferPixelLocalStorageParameterfvRobust(                                         \
-        GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLfloat *params);          \
-    void getFramebufferPixelLocalStorageParameterivRobust(                                         \
-        GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLint *params);            \
+    void getFramebufferPixelLocalStorageParameterfvRobust(GLint plane, PlaneParameter pnamePacked, \
+                                                          GLsizei paramCount, GLsizei *length,     \
+                                                          GLfloat *params);                        \
+    void getFramebufferPixelLocalStorageParameterivRobust(GLint plane, PlaneParameter pnamePacked, \
+                                                          GLsizei paramCount, GLsizei *length,     \
+                                                          GLint *params);                          \
     void getFramebufferPixelLocalStorageParameteruivRobust(                                        \
-        GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLuint *params);           \
+        GLint plane, PlaneParameter pnamePacked, GLsizei paramCount, GLsizei *length,              \
+        GLuint *params);                                                                           \
     /* GL_ANGLE_robust_fragment_shader_output */                                                   \
     /* GL_ANGLE_robust_resource_initialization */                                                  \
     /* GL_ANGLE_semaphore_fuchsia */                                                               \
@@ -617,9 +605,12 @@
     void pixelLocalStorageBarrier();                                                               \
     void framebufferPixelLocalStorageInterrupt();                                                  \
     void framebufferPixelLocalStorageRestore();                                                    \
-    void getFramebufferPixelLocalStorageParameterfv(GLint plane, GLenum pname, GLfloat *params);   \
-    void getFramebufferPixelLocalStorageParameteriv(GLint plane, GLenum pname, GLint *params);     \
-    void getFramebufferPixelLocalStorageParameteruiv(GLint plane, GLenum pname, GLuint *params);   \
+    void getFramebufferPixelLocalStorageParameterfv(GLint plane, PlaneParameter pnamePacked,       \
+                                                    GLfloat *params);                              \
+    void getFramebufferPixelLocalStorageParameteriv(GLint plane, PlaneParameter pnamePacked,       \
+                                                    GLint *params);                                \
+    void getFramebufferPixelLocalStorageParameteruiv(GLint plane, PlaneParameter pnamePacked,      \
+                                                     GLuint *params);                              \
     /* GL_ANGLE_shader_pixel_local_storage_coherent */                                             \
     /* GL_ANGLE_stencil_texturing */                                                               \
     /* GL_ANGLE_texture_compression_dxt3 */                                                        \

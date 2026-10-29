@@ -14,10 +14,13 @@ gl{
         colStrength{"forza de ordenación"}
         collation{"criterio de ordenación"}
         currency{"moeda"}
+        em{"representación como emoji"}
         hc{"ciclo horario (12 ou 24)"}
         lb{"estilo de quebra de liña"}
+        lw{"quebra de liña dentro das palabras"}
         ms{"sistema internacional de unidades"}
         numbers{"números"}
+        ss{"quebra de liña tras as abreviaturas"}
         timezone{"fuso horario"}
         va{"variante rexional"}
         x{"uso privado"}
@@ -54,6 +57,7 @@ gl{
         ay{"aimará"}
         az{"acerbaixano"}
         ba{"baxkir"}
+        bal{"baluchi"}
         ban{"balinés"}
         bas{"basaa"}
         be{"belaruso"}
@@ -485,6 +489,12 @@ gl{
         zxx{"sen contido lingüístico"}
         zza{"zazaki"}
     }
+    Languages%core{
+        ku{"kurdo"}
+    }
+    Languages%extension{
+        ku{"kurdo setentrional"}
+    }
     Languages%long{
         zh_Hans{"chinés mandarín simplificado"}
         zh_Hant{"chinés mandarín tradicional"}
@@ -588,9 +598,29 @@ gl{
             persian{"calendario persa"}
             roc{"calendario Minguo"}
         }
+        calendar%core{
+            buddhist{"budista"}
+            chinese{"chinés"}
+            coptic{"copto"}
+            dangi{"dangi"}
+            ethiopic{"etíope"}
+            ethiopic-amete-alem{"etíope amete alem"}
+            gregorian{"gregoriano"}
+            hebrew{"hebreo"}
+            islamic{"héxira"}
+            islamic-civil{"héxira (tabular, época civil)"}
+            islamic-umalqura{"héxira (Umm al-Qura)"}
+            japanese{"xaponés"}
+            persian{"persa"}
+            roc{"MInguo"}
+        }
         cf{
             account{"formato de moeda contable"}
             standard{"formato de moeda estándar"}
+        }
+        cf%core{
+            account{"contable"}
+            standard{"estándar"}
         }
         colAlternate{
             non-ignorable{"Clasificar símbolos"}
@@ -625,10 +655,8 @@ gl{
             tertiary{"Clasificar acentos/maiúsculas e minúsculas/ancho"}
         }
         collation{
-            big5han{"Orde de clasificación chinesa tradicional - Big5"}
             dictionary{"Criterio de ordenación do dicionario"}
             ducet{"criterio de ordenación Unicode predeterminado"}
-            gb2312han{"orde de clasifcación chinesa simplificada - GB2312"}
             phonebook{"orde de clasificación da guía telefónica"}
             phonetic{"Orde de clasificación fonética"}
             pinyin{"Orde de clasificación pinyin"}
@@ -639,10 +667,20 @@ gl{
             traditional{"Orde de clasificación tradicional"}
             unihan{"Criterio de ordenación radical-trazo"}
         }
+        collation%core{
+            ducet{"Unicode predeterminado"}
+            search{"busca"}
+            standard{"estándar"}
+        }
         d0{
             fwidth{"ancho completo"}
             hwidth{"ancho medio"}
             npinyin{"Numérico"}
+        }
+        em%core{
+            default{"predeterminada"}
+            emoji{"emoji"}
+            text{"texto"}
         }
         hc{
             h11{"sistema de 12 horas (0–11)"}
@@ -650,10 +688,27 @@ gl{
             h23{"sistema de 24 horas (0–23)"}
             h24{"sistema de 24 horas (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"estilo de quebra de liña flexible"}
             normal{"estilo de quebra de liña normal"}
-            strict{"estilo de quebra de liña estrita"}
+            strict{"estilo de quebra de liña estrito"}
+        }
+        lb%core{
+            loose{"flexible"}
+            normal{"normal"}
+            strict{"estrito"}
+        }
+        lw%core{
+            breakall{"quebrar todo"}
+            keepall{"manter todo"}
+            normal{"normal"}
+            phrase{"manter en frases"}
         }
         m0{
             bgn{"transliteración do BGN"}
@@ -663,6 +718,11 @@ gl{
             metric{"sistema métrico decimal"}
             uksystem{"sistema imperial de unidades"}
             ussystem{"sistema estadounidense de unidades"}
+        }
+        ms%core{
+            metric{"métrico"}
+            uksystem{"Reino Unido"}
+            ussystem{"EUA"}
         }
         numbers{
             arab{"díxitos indoarábigos"}
@@ -709,6 +769,10 @@ gl{
             tibt{"díxitos tibetanos"}
             traditional{"Numeros tradicionais"}
             vaii{"díxitos vai"}
+        }
+        ss%core{
+            none{"activado"}
+            standard{"desactivado"}
         }
     }
     characterLabelPattern{

@@ -38,6 +38,11 @@ fil{
                 one{"{0} pag-ikot"}
                 other{"{0} na pag-ikot"}
             }
+            steradian{
+                dnam{"steradians"}
+                one{"{0} steradian"}
+                other{"{0} steradians"}
+            }
         }
         area{
             acre{
@@ -157,6 +162,9 @@ fil{
                 one{"{0} karat"}
                 other{"{0} na karat"}
             }
+            katal{
+                dnam{"katals"}
+            }
             milligram-ofglucose-per-deciliter{
                 one{"{0} milligram per deciliter"}
                 other{"{0} milligrams per deciliter"}
@@ -169,6 +177,26 @@ fil{
                 one{"{0} mole"}
                 other{"{0} mole"}
             }
+            ofglucose{
+                dnam{"ng glucose"}
+                one{"{0} ng glucose"}
+                other{"{0} ng glucose"}
+            }
+            part{
+                dnam{"parts"}
+                one{"{0} part"}
+                other{"{0} parts"}
+            }
+            part-per-1e6{
+                dnam{"parts per million"}
+                one{"{0} part per million"}
+                other{"{0} parts per million"}
+            }
+            part-per-1e9{
+                dnam{"parts per billion"}
+                one{"{0} part per billion"}
+                other{"{0} parts per billion"}
+            }
             percent{
                 dnam{"porsyento"}
                 one{"{0} porsyento"}
@@ -179,19 +207,9 @@ fil{
                 one{"{0} permille"}
                 other{"{0} na permille"}
             }
-            permillion{
-                dnam{"parts per million"}
-                one{"{0} part per million"}
-                other{"{0} parts per million"}
-            }
             permyriad{
                 one{"{0} permyriad"}
                 other{"{0} permyriad"}
-            }
-            portion-per-1e9{
-                dnam{"parts per billion"}
-                one{"{0} part per billion"}
-                other{"{0} parts per billion"}
             }
         }
         consumption{
@@ -319,9 +337,6 @@ fil{
                 other{"{0} nanosegundo"}
             }
             night{
-                dnam{"mga gabi"}
-                one{"{0} gabi"}
-                other{"{0} gabi"}
                 per{"{0} kada gabi"}
             }
             quarter{
@@ -352,6 +367,21 @@ fil{
                 one{"{0} ampere"}
                 other{"{0} na ampere"}
             }
+            coulomb{
+                dnam{"coulombs"}
+                one{"{0} coulomb"}
+                other{"{0} coulombs"}
+            }
+            farad{
+                dnam{"farads"}
+                one{"{0} farad"}
+                other{"{0} farads"}
+            }
+            henry{
+                dnam{"henrys"}
+                one{"{0} henry"}
+                other{"{0} henrys"}
+            }
             milliampere{
                 dnam{"milliamperes"}
                 one{"{0} milliampere"}
@@ -361,12 +391,22 @@ fil{
                 one{"{0} ohm"}
                 other{"{0} na ohm"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} na volt"}
             }
         }
         energy{
+            becquerel{
+                dnam{"becquerels"}
+                one{"{0} becquerel"}
+                other{"{0} becquerels"}
+            }
             british-thermal-unit{
                 dnam{"British thermal unit"}
                 one{"{0} British thermal unit"}
@@ -377,6 +417,11 @@ fil{
                 one{"{0} calorie"}
                 other{"{0} na calories"}
             }
+            calorie-it{
+                dnam{"calories [IT]"}
+                one{"{0} calorie [IT]"}
+                other{"{0} calories [IT]"}
+            }
             electronvolt{
                 one{"{0} electronvolt"}
                 other{"{0} electronvolt"}
@@ -385,6 +430,11 @@ fil{
                 dnam{"Mga calorie"}
                 one{"{0} Calorie"}
                 other{"{0} Calorie"}
+            }
+            gray{
+                dnam{"grays"}
+                one{"{0} gray"}
+                other{"{0} grays"}
             }
             joule{
                 one{"{0} joule"}
@@ -405,8 +455,18 @@ fil{
                 one{"{0} kilowatt hour"}
                 other{"{0} na kilowatt-hour"}
             }
+            sievert{
+                dnam{"sieverts"}
+                one{"{0} sievert"}
+                other{"{0} sieverts"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilograms-force"}
+                one{"{0} kilogram-force"}
+                other{"{0} kilograms-force"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kilowatt-hour bawat 100 kilometro"}
                 one{"{0} kilowatt-hour bawat 100 kilometro"}
@@ -605,6 +665,15 @@ fil{
                 other{"{0} solar luminosity"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"teslas"}
+            }
+            weber{
+                one{"{0} weber"}
+                other{"{0} webers"}
+            }
+        }
         mass{
             carat{
                 one{"{0} karat"}
@@ -740,13 +809,18 @@ fil{
                 one{"{0} milimetro ng asoge"}
                 other{"{0} na milimetro ng asoge"}
             }
+            ofhg{
+                dnam{"ng mercury"}
+                one{"{0} ng mercury"}
+                other{"{0} ng mercury"}
+            }
             pascal{
                 dnam{"pascal"}
                 one{"{0} pascal"}
                 other{"{0} pascals"}
             }
             pound-force-per-square-inch{
-                dnam{"libra kada pulgadang parisukat"}
+                dnam{"pounds-force bawat square inch"}
                 one{"{0} libra kada pulgadang parisukat"}
                 other{"{0} na libra kada pulgadang parisukat"}
             }
@@ -1034,15 +1108,18 @@ fil{
             mole{
                 dnam{"mol"}
             }
-            permillion{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
                 dnam{"ppm"}
+            }
+            part-per-1e9{
+                one{"{0}ppb"}
+                other{"{0}ppb"}
             }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                one{"{0}ppb"}
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -1107,10 +1184,8 @@ fil{
                 other{"{0} buwan"}
             }
             night{
-                dnam{"mga gabi"}
                 one{"{0}gabi"}
                 other{"{0}gabi"}
-                per{"{0}/gabi"}
             }
             second{
                 one{"{0}s"}
@@ -1131,6 +1206,9 @@ fil{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -1329,6 +1407,11 @@ fil{
                 one{"{0}mmHg"}
                 other{"{0}mmHg"}
             }
+            ofhg{
+                dnam{"ng Hg"}
+                one{"{0} ng Hg"}
+                other{"{0} ng Hg"}
+            }
             pound-force-per-square-inch{
                 one{"{0}psi"}
                 other{"{0}psi"}
@@ -1513,14 +1596,17 @@ fil{
             mole{
                 dnam{"mole"}
             }
-            permillion{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part-per-1e6{
                 dnam{"parts/million"}
+            }
+            part-per-1e9{
+                dnam{"parts/billion"}
             }
             permyriad{
                 dnam{"permyriad"}
-            }
-            portion-per-1e9{
-                dnam{"parts/billion"}
             }
         }
         consumption{
@@ -1642,6 +1728,21 @@ fil{
             }
         }
         electric{
+            ampere{
+                dnam{"amps"}
+            }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             milliampere{
                 dnam{"milliamps"}
             }
@@ -1653,8 +1754,17 @@ fil{
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"electronvolt"}
@@ -1664,6 +1774,10 @@ fil{
                 one{"{0} Cal"}
                 other{"{0} Cal"}
             }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+            }
             joule{
                 dnam{"joules"}
             }
@@ -1672,6 +1786,10 @@ fil{
             }
             kilowatt-hour{
                 dnam{"kW-hour"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
         }
         force{
@@ -1819,6 +1937,11 @@ fil{
             millibar{
                 one{"{0} mb"}
                 other{"{0} mb"}
+            }
+            ofhg{
+                dnam{"ng Hg"}
+                one{"{0} ng Hg"}
+                other{"{0} ng Hg"}
             }
         }
         speed{

@@ -23,6 +23,8 @@ te{
                 accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
             }
             patternsLong{
@@ -251,6 +253,9 @@ te{
             patterns{
                 decimalFormat{"#,##0.###"}
             }
+            rationalFormats{
+                rationalUsage{"never"}
+            }
         }
     }
     calendar{
@@ -312,14 +317,23 @@ te{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0}కి",
+                "{1} {0}కి",
+                "{1} {0}",
+                "{1} {0}",
+            }
             availableFormats{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"B E h:mm"}
                 EBhms{"B E h:mm:ss"}
                 Ed{"E d"}
                 Gy{"y G"}
+                GyM{"G M/y"}
+                GyMEd{"G d/M/y, E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d, MMM y G"}
                 GyMMMd{"d, MMM y G"}
@@ -415,10 +429,6 @@ te{
             }
         }
         gregorian{
-            AmPmMarkersNarrow{
-                "ఉ",
-                "సా",
-            }
             DateTimePatterns{
                 "h:mm:ss a zzzz",
                 "h:mm:ss a z",
@@ -440,6 +450,12 @@ te{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0}కి",
+                "{1} {0}కి",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -451,6 +467,9 @@ te{
                 "yyMMdd",
             }
             availableFormats{
+                EBh{"E B h"}
+                GyM{"G M/y"}
+                GyMEd{"G d/M/y, E"}
                 GyMMM{"G MMM y"}
                 GyMMMEd{"G, d MMM, y, E"}
                 GyMMMd{"G d, MMM y"}
@@ -534,20 +553,20 @@ te{
             }
             eras{
                 abbreviated{
-                    "క్రీపూ",
-                    "క్రీశ",
+                    0{"క్రీపూ"}
+                    1{"క్రీశ"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "క్రీస్తు పూర్వం",
-                    "క్రీస్తు శకం",
+                    0{"క్రీస్తు పూర్వం"}
+                    1{"క్రీస్తు శకం"}
                 }
                 wide%variant{
-                    "ప్రస్తుత శకానికి పూర్వం",
-                    "ప్రస్తుత శకం",
+                    0{"ప్రస్తుత శకానికి పూర్వం"}
+                    1{"ప్రస్తుత శకం"}
                 }
             }
             intervalFormats{
@@ -740,7 +759,7 @@ te{
         indian{
             eras{
                 abbreviated{
-                    "శక",
+                    0{"శక"}
                 }
             }
             monthNames{
@@ -821,8 +840,7 @@ te{
         roc{
             eras{
                 abbreviated{
-                    "R.O.C. పూర్వం",
-                    "R.O.C.",
+                    0{"R.O.C. పూర్వం"}
                 }
             }
         }
@@ -917,7 +935,7 @@ te{
     }
     fields{
         day{
-            dn{"దినం"}
+            dn{"రోజు"}
             relative{
                 "-1"{"నిన్న"}
                 "-2"{"మొన్న"}
@@ -939,8 +957,17 @@ te{
         day-narrow{
             dn{"రోజు"}
         }
+        day-short{
+            dn{"రోజు"}
+        }
         dayOfYear{
-            dn{"సంవత్సరంలో దినం"}
+            dn{"సంవత్సరంలో రోజు"}
+        }
+        dayOfYear-narrow{
+            dn{"సంవత్సరంలో రోజు"}
+        }
+        dayOfYear-short{
+            dn{"సంవత్సరంలో రోజు"}
         }
         dayperiod{
             dn{"AM/PM"}

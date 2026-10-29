@@ -407,12 +407,12 @@ to{
             }
             eras{
                 abbreviated{
-                    "KM",
-                    "TS",
+                    0{"KM"}
+                    1{"TS"}
                 }
                 wide{
-                    "ki muʻa",
-                    "taʻu ʻo Sīsū",
+                    0{"ki muʻa"}
+                    1{"taʻu ʻo Sīsū"}
                 }
             }
             intervalFormats{

@@ -116,6 +116,11 @@ el{
                 one{"{0} στροφή"}
                 other{"{0} στροφές"}
             }
+            steradian{
+                dnam{"στερακτίνια"}
+                one{"{0} στερακτίνιο"}
+                other{"{0} στερακτίνια"}
+            }
         }
         area{
             hectare{
@@ -347,6 +352,11 @@ el{
                 one{"{0} καράτι"}
                 other{"{0} καράτια"}
             }
+            katal{
+                dnam{"κατάλ"}
+                one{"{0} κατάλ"}
+                other{"{0} κατάλ"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -382,6 +392,48 @@ el{
             mole{
                 gender{"neuter"}
             }
+            ofglucose{
+                dnam{"γλυκόζης"}
+                one{"{0} γλυκόζης"}
+                other{"{0} γλυκόζης"}
+            }
+            part{
+                dnam{"μέρη"}
+                one{"{0} μέρος"}
+                other{"{0} μέρη"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        one{"{0} μέρος ανά εκατομμύριο"}
+                        other{"{0} μέρη ανά εκατομμύριο"}
+                    }
+                    genitive{
+                        one{"{0} μέρους ανά εκατομμύριο"}
+                        other{"{0} μερών ανά εκατομμύριο"}
+                    }
+                }
+                dnam{"μέρη ανά εκατομμύριο"}
+                gender{"neuter"}
+                one{"{0} μέρος ανά εκατομμύριο"}
+                other{"{0} μέρη ανά εκατομμύριο"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        one{"{0} μέρος στο δισεκατομμύριο"}
+                        other{"{0} μέρη στο δισεκατομμύριο"}
+                    }
+                    genitive{
+                        one{"{0} μέρους στο δισεκατομμύριο"}
+                        other{"{0} μερών στο δισεκατομμύριο"}
+                    }
+                }
+                dnam{"μέρη στο δισεκατομμύριο"}
+                gender{"neuter"}
+                one{"{0} μέρος στο δισεκατομμύριο"}
+                other{"{0} μέρη στο δισεκατομμύριο"}
+            }
             percent{
                 case{
                     accusative{
@@ -412,22 +464,6 @@ el{
                 one{"{0} τοις χιλίοις"}
                 other{"{0} τοις χιλίοις"}
             }
-            permillion{
-                case{
-                    accusative{
-                        one{"{0} μέρος ανά εκατομμύριο"}
-                        other{"{0} μέρη ανά εκατομμύριο"}
-                    }
-                    genitive{
-                        one{"{0} μέρους ανά εκατομμύριο"}
-                        other{"{0} μερών ανά εκατομμύριο"}
-                    }
-                }
-                dnam{"μέρη ανά εκατομμύριο"}
-                gender{"neuter"}
-                one{"{0} μέρος ανά εκατομμύριο"}
-                other{"{0} μέρη ανά εκατομμύριο"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -442,22 +478,6 @@ el{
                 gender{"neuter"}
                 one{"{0} τοις δεκάκις χιλίοις"}
                 other{"{0} τοις δεκάκις χιλίοις"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        one{"{0} μέρος στο δισεκατομμύριο"}
-                        other{"{0} μέρη στο δισεκατομμύριο"}
-                    }
-                    genitive{
-                        one{"{0} μέρους στο δισεκατομμύριο"}
-                        other{"{0} μερών στο δισεκατομμύριο"}
-                    }
-                }
-                dnam{"μέρη στο δισεκατομμύριο"}
-                gender{"neuter"}
-                one{"{0} μέρος στο δισεκατομμύριο"}
-                other{"{0} μέρη στο δισεκατομμύριο"}
             }
         }
         consumption{
@@ -924,6 +944,21 @@ el{
                 one{"{0} αμπέρ"}
                 other{"{0} αμπέρ"}
             }
+            coulomb{
+                dnam{"κουλόμπ"}
+                one{"{0} κουλόμπ"}
+                other{"{0} κουλόμπ"}
+            }
+            farad{
+                dnam{"φαράντ"}
+                one{"{0} φαράντ"}
+                other{"{0} φαράντ"}
+            }
+            henry{
+                dnam{"ανρί"}
+                one{"{0} ανρί"}
+                other{"{0} ανρί"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -956,6 +991,11 @@ el{
                 one{"{0} ωμ"}
                 other{"{0} ωμ"}
             }
+            siemens{
+                dnam{"ζίμενς"}
+                one{"{0} ζίμενς"}
+                other{"{0} ζίμενς"}
+            }
             volt{
                 case{
                     accusative{
@@ -974,6 +1014,11 @@ el{
             }
         }
         energy{
+            becquerel{
+                dnam{"μπεκερέλ"}
+                one{"{0} μπεκερέλ"}
+                other{"{0} μπεκερέλ"}
+            }
             british-thermal-unit{
                 dnam{"βρετανικές μονάδες θερμότητας"}
                 one{"{0} βρετανική μονάδα θερμότητας"}
@@ -995,6 +1040,11 @@ el{
                 one{"{0} θερμίδα"}
                 other{"{0} θερμίδες"}
             }
+            calorie-it{
+                dnam{"θερμίδες ΙΤ"}
+                one{"{0} θερμίδα IT"}
+                other{"{0} θερμίδες IT"}
+            }
             electronvolt{
                 one{"{0} ηλεκτρονιοβόλτ"}
                 other{"{0} ηλεκτρονιοβόλτ"}
@@ -1003,6 +1053,11 @@ el{
                 dnam{"θερμίδες"}
                 one{"{0} θερμίδα"}
                 other{"{0} θερμίδες"}
+            }
+            gray{
+                dnam{"γκρέυ"}
+                one{"{0} γκρέυ"}
+                other{"{0} γκρέυ"}
             }
             joule{
                 case{
@@ -1066,6 +1121,11 @@ el{
                 one{"{0} κιλοβατώρα"}
                 other{"{0} κιλοβατώρες"}
             }
+            sievert{
+                dnam{"sievert"}
+                one{"{0} sievert"}
+                other{"{0} sievert"}
+            }
             therm-us{
                 dnam{"θερμικές μονάδες ΗΠΑ"}
                 one{"{0} θερμική μονάδα ΗΠΑ"}
@@ -1073,6 +1133,11 @@ el{
             }
         }
         force{
+            kilogram-force{
+                dnam{"χιλιόγραμμα δύναμης"}
+                one{"{0} χιλιόγραμμο δύναμης"}
+                other{"{0} χιλιόγραμμα δύναμης"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -1481,7 +1546,7 @@ el{
                 case{
                     accusative{
                         one{"{0} καντέλα"}
-                        other{"{0} καντέλα"}
+                        other{"{0} καντέλες"}
                     }
                     genitive{
                         one{"{0} καντέλας"}
@@ -1491,7 +1556,7 @@ el{
                 dnam{"καντέλα"}
                 gender{"feminine"}
                 one{"{0} καντέλα"}
-                other{"{0} καντέλα"}
+                other{"{0} καντέλες"}
             }
             lumen{
                 case{
@@ -1515,6 +1580,18 @@ el{
             solar-luminosity{
                 one{"{0} ηλιακή φωτεινότητα"}
                 other{"{0} ηλιακές φωτεινότητες"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"τέσλα"}
+                one{"{0} τέσλα"}
+                other{"{0} τέσλα"}
+            }
+            weber{
+                dnam{"βέμπερ"}
+                one{"{0} βέμπερ"}
+                other{"{0} βέμπερ"}
             }
         }
         mass{
@@ -1846,6 +1923,11 @@ el{
                 one{"{0} χιλιοστόμετρο στήλης υδραργύρου"}
                 other{"{0} χιλιοστόμετρα στήλης υδραργύρου"}
             }
+            ofhg{
+                dnam{"χιλιοστόμετρο στήλης υδραργύρου"}
+                one{"{0} στήλης υδραργύρου"}
+                other{"{0} στήλης υδραργύρου"}
+            }
             pascal{
                 case{
                     accusative{
@@ -1917,7 +1999,6 @@ el{
                         other{"{0} φωτός"}
                     }
                 }
-                dnam{"φως"}
                 gender{"neuter"}
                 one{"{0} φως"}
                 other{"{0} φως"}
@@ -2190,6 +2271,11 @@ el{
                 one{"{0} αγγλοσαξονική ουγγιά όγκου"}
                 other{"{0} αγγλοσαξονικές ουγγιές όγκου"}
             }
+            fluid-ounce-metric{
+                dnam{"μετρική ουγγιά υγρών"}
+                one{"{0} μετρική ουγγιά υγρών"}
+                other{"{0} μετρικές ουγγιές υγρών"}
+            }
             gallon{
                 dnam{"γαλόνια"}
                 one{"{0} γαλόνι"}
@@ -2395,14 +2481,29 @@ el{
             10p9{"γιγ-{0}"}
         }
         concentr{
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"μέρος"}
+                one{"{0} μέρος"}
+                other{"{0} μέρη"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+            }
+            part-per-1e9{
+                dnam{"ppb"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
-            }
-            permillion{
-                dnam{"ppm"}
             }
             permyriad{
                 dnam{"‱"}
@@ -2465,12 +2566,6 @@ el{
             nanosecond{
                 dnam{"ns"}
             }
-            night{
-                dnam{"νύχτ."}
-                one{"{0} νύχτ."}
-                other{"{0} νύχτ."}
-                per{"{0}/νύχτ."}
-            }
             quarter{
                 one{"{0} τέτ."}
                 other{"{0} τέτ."}
@@ -2494,6 +2589,9 @@ el{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -2647,8 +2745,6 @@ el{
             }
             light-speed{
                 dnam{"φώς"}
-                one{"{0} φως"}
-                other{"{0} φως"}
             }
             meter-per-second{
                 dnam{"μ./δ."}
@@ -2691,6 +2787,11 @@ el{
             }
             dram{
                 dnam{"δρ. όγκου"}
+            }
+            fluid-ounce-metric{
+                dnam{"μ. ουγγιά υγρ."}
+                one{"{0} μ. ουγγιά υγρ."}
+                other{"{0} μ. ουγγιές υγρ."}
             }
             liter{
                 dnam{"λίτρο"}
@@ -2847,10 +2948,28 @@ el{
                 one{"{0} κρτ"}
                 other{"{0} κρτ"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             mole{
                 dnam{"μολ"}
                 one{"{0} μολ"}
                 other{"{0} μολ"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"μέρος"}
+                one{"{0} μέρος"}
+                other{"{0} μέρη"}
+            }
+            part-per-1e6{
+                dnam{"μέρη/εκατ."}
+            }
+            part-per-1e9{
+                dnam{"μέρη/δισεκατομμύριο"}
             }
             percent{
                 dnam{"τοις εκατό"}
@@ -2858,14 +2977,8 @@ el{
             permille{
                 dnam{"τοις χιλίοις"}
             }
-            permillion{
-                dnam{"μέρη/εκατ."}
-            }
             permyriad{
                 dnam{"τοις δεκάκις χιλίοις"}
-            }
-            portion-per-1e9{
-                dnam{"μέρη/δισεκατομμύριο"}
             }
         }
         consumption{
@@ -2998,6 +3111,9 @@ el{
                 dnam{"θερμ."}
                 one{"{0} θερμ."}
                 other{"{0} θερμ."}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
             }
             electronvolt{
                 dnam{"ηλεκτρονιοβόλτ"}
@@ -3369,6 +3485,11 @@ el{
                 dnam{"αγγλ. ουγγιές όγκου"}
                 one{"{0} αγγλ. ουγγιά όγκου"}
                 other{"{0} αγγλ. ουγγιές όγκου"}
+            }
+            fluid-ounce-metric{
+                dnam{"μ. ουγγιά υγρ."}
+                one{"μ. ουγγιά υγρ."}
+                other{"{0} μ. ουγγιές υγρ."}
             }
             gallon{
                 dnam{"γαλ."}

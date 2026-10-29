@@ -2,6 +2,9 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 // Generated using tools/cldr/cldr-to-icu/
 ie{
+    Keys{
+        calendar{"calendare"}
+    }
     Languages{
         ar{"arabic"}
         cs{"tchec"}
@@ -11,19 +14,36 @@ ie{
         de_CH{"sviss alt-german"}
         el{"grec"}
         en{"anglesi"}
+        en_AU{"australian anglesi"}
+        en_CA{"canadian anglesi"}
+        en_GB{"britannic anglesi"}
+        en_US{"american anglesi"}
+        eo{"Esperanto"}
         es{"hispan"}
         es_419{"hispan del latin America"}
         es_ES{"europan hispan"}
         es_MX{"mexican hispan"}
         et{"estonian"}
         fa{"persian"}
+        fi{"finn"}
+        fil{"filipinesi"}
         fr{"francesi"}
+        fr_CA{"canadian francesi"}
         fr_CH{"sviss francesi"}
+        ga{"irlandesi"}
+        gl{"galician"}
+        ha{"hausa"}
+        he{"hebreic"}
+        hi{"hindi"}
         hu{"hungarian"}
+        ia{"Interlingua"}
         id{"indonesian"}
         ie{"Interlingue"}
+        is{"islandesi"}
         it{"italian"}
         ja{"japanesi"}
+        jv{"javan"}
+        ka{"georgian"}
         ko{"korean"}
         lij{"ligurian"}
         lv{"lettonian"}
@@ -40,21 +60,35 @@ ie{
         sl{"slovenian"}
         sv{"sved"}
         sw{"swahili"}
+        th{"thai"}
         tr{"turc"}
         und{"ínconosset lingue"}
         zh{"chinesi"}
+        zh_Hans{"chinesi simplificat"}
+        zh_Hant{"chinesi traditional"}
     }
     Languages%menu{
         zh{"chinesi, mandarin"}
     }
+    Languages%short{
+        en_GB{"anglesi de UR"}
+        en_US{"anglesi de USA"}
+    }
     Scripts{
         Arab{"arabic"}
+        Aran{"nastalik"}
+        Brai{"Braille"}
         Cyrl{"cirillic"}
         Hans{"simplificat"}
         Hant{"traditional"}
+        Hrkt{"japanesi sillabariums"}
         Jpan{"japanesi"}
         Kore{"korean"}
         Latn{"latin"}
+        Mong{"mongolian"}
+        Zmth{"matematic notation"}
+        Zsye{"emoji"}
+        Zsym{"simboles"}
         Zxxx{"ínscrit"}
         Zzzz{"ínconosset scritura"}
     }
@@ -64,10 +98,26 @@ ie{
     }
     Types{
         calendar{
+            buddhist{"buddhist calendare"}
+            chinese{"chinesi calendare"}
+            coptic{"coptic calendare"}
+            ethiopic{"etiopic calendare"}
             gregorian{"gregorian calendare"}
+            hebrew{"hebreic calendare"}
+            islamic{"calendare hejra"}
+            iso8601{"gregorian (li annu in avan)"}
+        }
+        calendar%core{
+            buddhist{"buddhist"}
+            chinese{"chinesi"}
+            coptic{"coptic"}
+            gregorian{"gregorian"}
         }
         collation{
             standard{"standard órdine"}
+        }
+        collation%core{
+            standard{"standard"}
         }
         numbers{
             latn{"occidental ciffres"}

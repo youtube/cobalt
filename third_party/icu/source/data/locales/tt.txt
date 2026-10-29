@@ -19,7 +19,9 @@ tt{
                 range{"{0}-{1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -65,40 +67,40 @@ tt{
             patternsShort{
                 currencyFormat{
                     1000{
-                        other{"¤0 мең"}
+                        other{"0 мең ¤"}
                     }
                     10000{
-                        other{"¤00 мең"}
+                        other{"00 мең ¤"}
                     }
                     100000{
-                        other{"¤000 мең"}
+                        other{"000 мең ¤"}
                     }
                     1000000{
-                        other{"¤0 млн"}
+                        other{"0 млн ¤"}
                     }
                     10000000{
-                        other{"¤00 млн"}
+                        other{"00 млн ¤"}
                     }
                     100000000{
-                        other{"¤000 млн"}
+                        other{"000 млн ¤"}
                     }
                     1000000000{
-                        other{"¤0 млрд"}
+                        other{"0 млрд ¤"}
                     }
                     10000000000{
-                        other{"¤00 млрд"}
+                        other{"00 млрд ¤"}
                     }
                     100000000000{
-                        other{"¤000 млрд"}
+                        other{"000млрд ¤"}
                     }
                     1000000000000{
-                        other{"¤0 трлн"}
+                        other{"0 трлн ¤"}
                     }
                     10000000000000{
-                        other{"¤00 трлн"}
+                        other{"00 трлн ¤"}
                     }
                     100000000000000{
-                        other{"¤000 трлн"}
+                        other{"000 трлн ¤"}
                     }
                 }
                 decimalFormat{
@@ -170,6 +172,12 @@ tt{
                 "{1}, {0}",
                 "{1}, {0}",
                 "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
             }
             DateTimeSkeletons{
                 "Hmmsszzzz",
@@ -321,6 +329,12 @@ tt{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -335,7 +349,7 @@ tt{
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Gy{"G y 'ел'"}
-                GyMMM{"G y 'ел', MMM"}
+                GyMMM{"MMM y G"}
                 GyMMMEd{"G y 'ел', d MMM, E"}
                 GyMMMd{"G y 'ел', d MMM"}
                 MEd{"dd.MM, E"}
@@ -399,20 +413,18 @@ tt{
             }
             eras{
                 abbreviated{
-                    "б.э.к.",
-                    "милади",
+                    0{"б.э.к."}
+                    1{"милади"}
                 }
                 abbreviated%variant{
-                    "б.э.к.",
-                    "б.э.",
+                    1{"б.э."}
                 }
                 wide{
-                    "безнең эрага кадәр",
-                    "милади",
+                    0{"безнең эрага кадәр"}
                 }
                 wide%variant{
-                    "безнең эрага кадәр",
-                    "безнең эра",
+                    0{"безнең эрага кадәр"}
+                    1{"безнең эра"}
                 }
             }
             intervalFormats{

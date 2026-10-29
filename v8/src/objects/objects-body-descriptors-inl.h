@@ -566,22 +566,20 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
 class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSObject::BodyDescriptor::kStartOffset;
-  static const int kCodeFieldOffset = JSFunction::kDispatchHandleOffset;
+  static const int kDispatchHandleOffset = JSFunction::kDispatchHandleOffset;
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // Iterate JSFunction header fields first.
-    int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
-    DCHECK_GE(object_size, header_size);
-    IteratePointers(obj, kStartOffset, kCodeFieldOffset, v);
+    // Iterate JSFunction header fields up to dispatch handle field.
+    DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(map), !map->has_prototype_slot());
+    IteratePointers(obj, kStartOffset, kDispatchHandleOffset, v);
 
     IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
 
-    // Iterate rest of the header fields
-    IteratePointers(obj, kCodeFieldOffset + kTaggedSize, header_size, v);
-    // Iterate rest of the fields starting after the header.
-    IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
+    // Iterate rest of the header fields and JSObject body.
+    IterateJSObjectBodyImpl(map, obj, kDispatchHandleOffset + kTaggedSize,
+                            object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -1361,10 +1359,13 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, Map::kStartOfStrongFieldsOffset,
                     Map::kEndOfStrongFieldsOffset, v);
     IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
+    // Some maps have additional fields after the transitions or prototype
+    // info.
+    IteratePointers(obj, Map::kEndOfWeakFieldsOffset, object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return Map::kSize;
+    return UncheckedCast<Map>(obj)->AllocatedSize();
   }
 };
 
@@ -1651,6 +1652,14 @@ class ArrayList::BodyDescriptor final
   }
 };
 
+class WeakArrayList::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<WeakArrayList>(raw_object)->AllocatedSize();
+  }
+};
+
 class ObjectBoilerplateDescription::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:
@@ -1665,13 +1674,13 @@ class FeedbackCell::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IteratePointer(obj, kValueOffset, v);
+    IteratePointer(obj, offsetof(FeedbackCell, value_), v);
 
-    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+    IterateJSDispatchEntry(obj, offsetof(FeedbackCell, dispatch_handle_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kAlignedSize;
+    return sizeof(FeedbackCell);
   }
 };
 

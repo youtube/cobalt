@@ -1103,6 +1103,10 @@ lt{
             "XCD",
             "Rytų Karibų doleris",
         }
+        XCG{
+            "Cg.",
+            "Karibų guldenas",
+        }
         XDR{
             "XDR",
             "SDR tarptautinis valiutos fondas",
@@ -1206,6 +1210,10 @@ lt{
         ZWD{
             "ZWD",
             "Zimbabvės doleris (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabvės auksas",
         }
         ZWL{
             "ZWL",
@@ -2835,6 +2843,12 @@ lt{
             one{"Rytų Karibų doleris"}
             other{"Rytų Karibų dolerių"}
         }
+        XCG{
+            few{"Karibų guldenai"}
+            many{"Karibų guldeno"}
+            one{"Karibų guldenas"}
+            other{"Karibų guldenų"}
+        }
         XFO{
             few{"Aukso frankai"}
             many{"Aukso franko"}
@@ -2960,6 +2974,12 @@ lt{
             many{"Zimbabvės dolerio (1980–2008)"}
             one{"Zimbabvės doleris (1980–2008)"}
             other{"Zimbabvės dolerių (1980–2008)"}
+        }
+        ZWG{
+            few{"Zimbabvės auksas"}
+            many{"Zimbabvės auksas"}
+            one{"Zimbabvės auksas"}
+            other{"Zimbabvės auksas"}
         }
         ZWL{
             few{"Zimbabvės doleriai (2009)"}

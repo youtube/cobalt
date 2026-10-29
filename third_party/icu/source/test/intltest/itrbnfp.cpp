@@ -40,6 +40,7 @@ void IntlTestRBNFParse::runIndexedTest(int32_t index, UBool exec, const char* &n
     switch (index) {
 #if U_HAVE_RBNF
         TESTCASE(0, TestParse);
+        TESTCASE(1, TestNullRuleSet);
 #else
         TESTCASE(0, TestRBNFParseDisabled);
 #endif
@@ -142,6 +143,17 @@ IntlTestRBNFParse::TestParse() {
           delete formatter;
       }
   }
+}
+
+void
+IntlTestRBNFParse::TestNullRuleSet() {
+   icu::UnicodeString fuzzstr = u"x00:a>>>b>#>";
+   UParseError perror;
+   UErrorCode status = U_ZERO_ERROR;
+   icu::RuleBasedNumberFormat rbfmt(fuzzstr, Locale::getUS(), perror, status);
+   if (status != U_PARSE_ERROR) {
+        logln("should get U_PARSE_ERROR");
+   }
 }
 
 void

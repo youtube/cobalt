@@ -147,12 +147,12 @@ mua{
             }
             eras{
                 abbreviated{
-                    "KK",
-                    "PK",
+                    0{"KK"}
+                    1{"PK"}
                 }
                 wide{
-                    "KǝPel Kristu",
-                    "Pel Kristu",
+                    0{"KǝPel Kristu"}
+                    1{"Pel Kristu"}
                 }
             }
             monthNames{

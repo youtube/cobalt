@@ -14,10 +14,13 @@ eu{
         colStrength{"Ordenaren sendotasuna"}
         collation{"Ordenatzeko irizpidea"}
         currency{"Moneta"}
+        em{"Emojien aurkezpena"}
         hc{"Ordu-zikloa (12 vs 24)"}
         lb{"Lerro-jauziaren estiloa"}
+        lw{"Hitz barruko lerro-jauziak"}
         ms{"Neurketa-sistema"}
         numbers{"Zenbakiak"}
+        ss{"Laburtzapenen ondorengo lerro-jauzia"}
         timezone{"Ordu-zona"}
         va{"Eskualdeko ezarpenen aldaera"}
         x{"Erabilera pribatua"}
@@ -53,6 +56,7 @@ eu{
         ay{"aimara"}
         az{"azerbaijanera"}
         ba{"baxkirera"}
+        bal{"balutxera"}
         ban{"baliera"}
         bas{"basaa"}
         be{"bielorrusiera"}
@@ -481,6 +485,12 @@ eu{
         zxx{"ez dago eduki linguistikorik"}
         zza{"zazera"}
     }
+    Languages%core{
+        ku{"kurduera"}
+    }
+    Languages%extension{
+        ku{"kurmanjia"}
+    }
     Languages%long{
         zh_Hans{"mandarin sinplifikatua"}
         zh_Hant{"mandarin tradizionala"}
@@ -703,9 +713,29 @@ eu{
             persian{"Egutegi persiarra"}
             roc{"Minguo egutegia"}
         }
+        calendar%core{
+            buddhist{"Budista"}
+            chinese{"Txinatarra"}
+            coptic{"Koptoa"}
+            dangi{"Dangia"}
+            ethiopic{"Etiopiarra"}
+            ethiopic-amete-alem{"Amete Alem etiopiarra"}
+            gregorian{"Gregoriarra"}
+            hebrew{"Hebrearra"}
+            islamic{"Islamiarra"}
+            islamic-civil{"Islamiarra (taula-formakoa, garai zibilekoa)"}
+            islamic-umalqura{"Islamiarra (Umm al-Qura)"}
+            japanese{"Japoniarra"}
+            persian{"Persiarra"}
+            roc{"Minguoa"}
+        }
         cf{
             account{"Kontabilitateko moneta-formatua"}
             standard{"Moneta-formatu estandarra"}
+        }
+        cf%core{
+            account{"Kontabilitatea"}
+            standard{"Estandarra"}
         }
         colAlternate{
             non-ignorable{"Ordenatu ikurrak"}
@@ -740,13 +770,11 @@ eu{
             tertiary{"Ordenatu azentuak / maiuskula eta minuskulak / zabalera"}
         }
         collation{
-            big5han{"Txinera tradizionalaren alfabetoa-Big5"}
             compat{"Aurreko hurrenkera, bateragarria izateko"}
             dictionary{"Hurrenkera alfabetikoa"}
             ducet{"Unicode hurrenkera lehenetsia"}
             emoji{"Emojien hurrenkera"}
             eor{"Europako ordenatzeko arauak"}
-            gb2312han{"Txinera sinplifikatuaren alfabetoa -GB2312"}
             phonebook{"Telefonoen zerrenda"}
             phonetic{"Ordenatzeko irizpide fonetikoa"}
             pinyin{"Pinyin hurrenkera"}
@@ -758,10 +786,20 @@ eu{
             unihan{"Radical trazuen hurrenkera"}
             zhuyin{"Zhuyin hurrenkera"}
         }
+        collation%core{
+            ducet{"Unicode lehenetsia"}
+            search{"Bilaketa"}
+            standard{"Estandarra"}
+        }
         d0{
             fwidth{"Zabalera osoko karaktere-bihurketa"}
             hwidth{"Zabalera erdiko karaktere-bihurketa"}
             npinyin{"Zenbakizko bihurketa"}
+        }
+        em%core{
+            default{"Lehenetsia"}
+            emoji{"Emojia"}
+            text{"Testua"}
         }
         hc{
             h11{"12 orduko sistema (0–11)"}
@@ -769,10 +807,27 @@ eu{
             h23{"24 orduko sistema (0–23)"}
             h24{"24 orduko sistema (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Lerro-jauziaren estilo malgua"}
             normal{"Lerro-jauziaren estilo arrunta"}
             strict{"Lerro-jauziaren estilo zorrotza"}
+        }
+        lb%core{
+            loose{"Malgua"}
+            normal{"Arrunta"}
+            strict{"Zorrotza"}
+        }
+        lw%core{
+            breakall{"Hautsi denak"}
+            keepall{"Mantendu denak"}
+            normal{"Arrunta"}
+            phrase{"Mantendu esaldietan"}
         }
         m0{
             bgn{"US BGN transliterazioa"}
@@ -782,6 +837,11 @@ eu{
             metric{"Sistema metrikoa"}
             uksystem{"Neurketa-sistema inperiala"}
             ussystem{"Neurketa-sistema anglosaxoia"}
+        }
+        ms%core{
+            metric{"Metrikoa"}
+            uksystem{"Erresuma Batua"}
+            ussystem{"AEB"}
         }
         numbers{
             ahom{"Ahom digituak"}
@@ -869,6 +929,10 @@ eu{
             vaii{"Vai digituak"}
             wara{"Warang Citi digituak"}
             wcho{"Wancho digituak"}
+        }
+        ss%core{
+            none{"Aktibatuta"}
+            standard{"Desaktibatuta"}
         }
     }
     Variants{

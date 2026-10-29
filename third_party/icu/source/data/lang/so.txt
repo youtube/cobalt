@@ -7,10 +7,13 @@ so{
         cf{"Habka Lacagta"}
         collation{"Kala Soocidda Dalabka"}
         currency{"Lacagta"}
+        em{"Soo bandhiga Imoji"}
         hc{"Wareegga Saacadda (12 ilaa 24)"}
         lb{"Habka Jebinta Xariiqda"}
+        lw{"Bar Dhamaadyada Khadadka ee gudaha Erayada"}
         ms{"Nidaamka Cabbiraadda"}
         numbers{"Tirooyinka"}
+        ss{"Bar Dhamaadka Jumlada Kadib Xarfo Soo Gaabinta"}
     }
     Languages{
         ab{"U dhashay Abkhazia"}
@@ -41,6 +44,7 @@ so{
         ay{"U dhashay Aymar"}
         az{"Asarbayjan"}
         ba{"Bashkir"}
+        bal{"Baluchi"}
         ban{"U dhashay Baline"}
         bas{"Basaa"}
         be{"Beleruusiyaan"}
@@ -455,6 +459,12 @@ so{
         zxx{"Luuqad Looma Hayo"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Kurdish"}
+    }
+    Languages%extension{
+        ku{"Kurmanji"}
+    }
     Languages%long{
         zh_Hans{"Shiineeska Mandarin ee Rasmiga ah"}
         zh_Hant{"Af-Shiineeska Mandarin ee Qadiimiga ah"}
@@ -667,18 +677,37 @@ so{
             persian{"Habeentiriska Baarshiyaanka"}
             roc{"Habeentiriska Minguwo"}
         }
+        calendar%core{
+            buddhist{"Qof Buddhi ah"}
+            chinese{"Shinees"}
+            coptic{"Coptic"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopic"}
+            ethiopic-amete-alem{"Ethiopic Amete Alem"}
+            gregorian{"Gregorian"}
+            hebrew{"Hebrew"}
+            islamic{"Taariikhda Islaamiga"}
+            islamic-civil{"Taariikhda Islaamiga (shax ahaan, taariikh madaniyeed jaan go’an)"}
+            islamic-tbla{"Taariikh Islaamiyeed (shax ahaan, waayo xiddigeed)"}
+            islamic-umalqura{"Taariikhda Islaamiga (Umm al-Qura)"}
+            japanese{"Jabaniis"}
+            persian{"U dhashay Faariis"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Habka Xisaabinta Lacagta"}
             standard{"Habka Heerka Lacagta"}
         }
+        cf%core{
+            account{"Xisaabaadka"}
+            standard{"Heerka"}
+        }
         collation{
-            big5han{"Isku hagaajinta Shiineeskii Hore - Big5"}
             compat{"Iswaafajinta Isku hajintii hore"}
             dictionary{"Isku hagaajinta Qaamuuska"}
             ducet{"Lambar Sireedka Caalamiga ee Kala Soocidda Dalabka"}
             emoji{"Isku hagaajinta Emojiga"}
             eor{"Xeerarka Dalabka Yurub"}
-            gb2312han{"Isku hagaajinta Farta shiineeska"}
             phonebook{"Isku hagaajinta foonbuuga"}
             pinyin{"Isku hagaajinta Pinyin"}
             search{"Raadinta Guud"}
@@ -689,21 +718,53 @@ so{
             unihan{"Isku hagaajinta Farta Radical-Stroke"}
             zhuyin{"Isku hagaajinta Farta Zhuyin"}
         }
+        collation%core{
+            ducet{"Lambar Sireedka Caalamiga ee Asaliga ah"}
+            search{"Raadi"}
+            standard{"Caadiga"}
+        }
+        em%core{
+            default{"Asaliga"}
+            emoji{"Imoji"}
+            text{"Qoraal"}
+        }
         hc{
             h11{"12 Saac ee Nidaamka Saacadda (0–12)"}
             h12{"12 Saac ee Nidaamka Saacadda (1–12)"}
             h23{"24 Saac ee Nidaamka Saacadda (0–23)"}
             h24{"24 Saac ee Nidaamka Saacadda (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Habka Jabinta Xariiqda Dabacsan"}
             normal{"Habka Jabinta Xariiqda Caadiga ah"}
             strict{"Habka Jabinta Xariiqda Adag"}
         }
+        lb%core{
+            loose{"Dabacsan"}
+            normal{"Caadi ah"}
+            strict{"Adag"}
+        }
+        lw%core{
+            breakall{"Jebi dhamaan"}
+            keepall{"Heyso dhamaan"}
+            normal{"Caadi ah"}
+            phrase{"Weedho ahaan ku heyso"}
+        }
         ms{
             metric{"Nidaamka Metric"}
             uksystem{"Nidaamka Cabbirka Imperial-ka"}
             ussystem{"Nidaamka Cabbirka ee US"}
+        }
+        ms%core{
+            metric{"Cabbir"}
+            uksystem{"UK"}
+            ussystem{"Mareykanka"}
         }
         numbers{
             ahom{"Godadka Ahom"}
@@ -785,6 +846,10 @@ so{
             vaii{"Godadka Vai"}
             wara{"Godadka Warang Citi"}
             wcho{"Godadka Wancho"}
+        }
+        ss%core{
+            none{"Dami"}
+            standard{"Daar"}
         }
     }
     Variants{

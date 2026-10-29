@@ -340,9 +340,7 @@ yo{
             ls{"South Africa Standard Time"}
         }
         "meta:Africa_Western"{
-            ld{"Àkókò Ìwọ̀-Oòrùn Ooru Afírikà"}
-            lg{"Àkókò Ìwọ̀-Oòrùn Afírikà"}
-            ls{"Àkókò Ìwọ̀-Oòrùn Àfẹnukò Afírikà"}
+            ls{"Àkókò Ìwọ̀-Oòrùn Afírikà"}
         }
         "meta:Alaska"{
             ld{"Àkókò Ojúmọ́ Alásíkà"}
@@ -580,6 +578,9 @@ yo{
         }
         "meta:Guyana"{
             ls{"Àkókò Gúyànà"}
+        }
+        "meta:Hawaii"{
+            ls{"Àkókò Àfẹnukò Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Àkókò Ojúmọmọ Hawaii-Aleutian"}

@@ -37,13 +37,12 @@
 #include "pc/rtp_receiver.h"
 #include "pc/video_rtp_track_source.h"
 #include "pc/video_track.h"
-#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
-class VideoRtpReceiver : public RtpReceiverInternal {
+class VideoRtpReceiver : public RtpReceiverBase {
  public:
   // An SSRC of 0 will create a receiver that will match the first SSRC it
   // sees. Must be called on signaling thread.
@@ -145,9 +144,6 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
     VideoRtpReceiver* const receiver_;
   } source_callback_{this};
-
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
-  Thread* const worker_thread_;
 
   const std::string id_;
   VideoMediaReceiveChannelInterface* media_channel_

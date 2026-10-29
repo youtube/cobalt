@@ -204,6 +204,12 @@ lv{
                 other{"{0} apgriezieni"}
                 zero{"{0} apgriezienu"}
             }
+            steradian{
+                dnam{"steradiāns"}
+                one{"{0} steradiāns"}
+                other{"{0} steradiāni"}
+                zero{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -550,6 +556,12 @@ lv{
                 other{"{0} karāti"}
                 zero{"{0} karātu"}
             }
+            katal{
+                dnam{"katals"}
+                one{"{0} katals"}
+                other{"{0} katali"}
+                zero{"{0} katalu"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     accusative{
@@ -637,6 +649,74 @@ lv{
                 other{"{0} moli"}
                 zero{"{0} molu"}
             }
+            ofglucose{
+                dnam{"glikozes vienības"}
+                one{"{0} glikozes vienība"}
+                other{"{0} glikozes vienības"}
+                zero{"{0} glikozes vienība"}
+            }
+            part{
+                dnam{"daļas"}
+                one{"{0} daļa"}
+                other{"{0} daļas"}
+                zero{"{0} daļu"}
+            }
+            part-per-1e6{
+                case{
+                    accusative{
+                        one{"{0} miljono daļu"}
+                        other{"{0} miljonās daļas"}
+                        zero{"{0} miljono daļu"}
+                    }
+                    dative{
+                        one{"{0} miljonajai daļai"}
+                        other{"{0} miljonajām daļām"}
+                        zero{"{0} miljono daļu"}
+                    }
+                    genitive{
+                        one{"{0} miljonās daļas"}
+                        other{"{0} miljono daļu"}
+                        zero{"{0} miljono daļu"}
+                    }
+                    locative{
+                        one{"{0} miljonajā daļā"}
+                        other{"{0} miljonajās daļās"}
+                        zero{"{0} miljono daļu"}
+                    }
+                }
+                gender{"feminine"}
+                one{"{0} miljonā daļa"}
+                other{"{0} miljonās daļas"}
+                zero{"{0} miljono daļu"}
+            }
+            part-per-1e9{
+                case{
+                    accusative{
+                        one{"{0} miljarddaļu"}
+                        other{"{0} miljarddaļas"}
+                        zero{"{0} miljarddaļu"}
+                    }
+                    dative{
+                        one{"{0} miljarddaļai"}
+                        other{"{0} miljarddaļām"}
+                        zero{"{0} miljarddaļu"}
+                    }
+                    genitive{
+                        one{"{0} miljarddaļas"}
+                        other{"{0} miljarddaļu"}
+                        zero{"{0} miljarddaļu"}
+                    }
+                    locative{
+                        one{"{0} miljarddaļā"}
+                        other{"{0} miljarddaļās"}
+                        zero{"{0} miljarddaļu"}
+                    }
+                }
+                gender{"feminine"}
+                one{"{0} miljarddaļa"}
+                other{"{0} miljarddaļas"}
+                zero{"{0} miljarddaļu"}
+            }
             percent{
                 case{
                     accusative{
@@ -693,34 +773,6 @@ lv{
                 other{"{0} promiles"}
                 zero{"{0} promiļu"}
             }
-            permillion{
-                case{
-                    accusative{
-                        one{"{0} miljono daļu"}
-                        other{"{0} miljonās daļas"}
-                        zero{"{0} miljono daļu"}
-                    }
-                    dative{
-                        one{"{0} miljonajai daļai"}
-                        other{"{0} miljonajām daļām"}
-                        zero{"{0} miljono daļu"}
-                    }
-                    genitive{
-                        one{"{0} miljonās daļas"}
-                        other{"{0} miljono daļu"}
-                        zero{"{0} miljono daļu"}
-                    }
-                    locative{
-                        one{"{0} miljonajā daļā"}
-                        other{"{0} miljonajās daļās"}
-                        zero{"{0} miljono daļu"}
-                    }
-                }
-                gender{"feminine"}
-                one{"{0} miljonā daļa"}
-                other{"{0} miljonās daļas"}
-                zero{"{0} miljono daļu"}
-            }
             permyriad{
                 case{
                     accusative{
@@ -748,35 +800,6 @@ lv{
                 one{"{0} promiriāde"}
                 other{"{0} promiriādes"}
                 zero{"{0}‱"}
-            }
-            portion-per-1e9{
-                case{
-                    accusative{
-                        one{"{0} miljarddaļu"}
-                        other{"{0} miljarddaļas"}
-                        zero{"{0} miljarddaļu"}
-                    }
-                    dative{
-                        one{"{0} miljarddaļai"}
-                        other{"{0} miljarddaļām"}
-                        zero{"{0} miljarddaļu"}
-                    }
-                    genitive{
-                        one{"{0} miljarddaļas"}
-                        other{"{0} miljarddaļu"}
-                        zero{"{0} miljarddaļu"}
-                    }
-                    locative{
-                        one{"{0} miljarddaļā"}
-                        other{"{0} miljarddaļās"}
-                        zero{"{0} miljarddaļu"}
-                    }
-                }
-                dnam{"miljarddaļas"}
-                gender{"feminine"}
-                one{"{0} miljarddaļa"}
-                other{"{0} miljarddaļas"}
-                zero{"{0} miljarddaļu"}
             }
         }
         consumption{
@@ -1459,11 +1482,9 @@ lv{
                         zero{"{0} nakšu"}
                     }
                 }
-                dnam{"naktis"}
                 gender{"feminine"}
                 one{"{0} nakts"}
                 other{"{0} naktis"}
-                per{"{0}/nakts"}
                 zero{"{0} nakšu"}
             }
             quarter{
@@ -1471,29 +1492,29 @@ lv{
                     accusative{
                         one{"{0} ceturksni"}
                         other{"{0} ceturkšņus"}
-                        zero{"{0} cet."}
+                        zero{"{0} ceturkšņa"}
                     }
                     dative{
                         one{"{0} ceturksnim"}
                         other{"{0} ceturkšņiem"}
-                        zero{"{0} cet."}
+                        zero{"{0} ceturkšņiem"}
                     }
                     genitive{
                         one{"{0} ceturkšņa"}
                         other{"{0} ceturkšņu"}
-                        zero{"{0} cet."}
+                        zero{"{0} ceturkšņa"}
                     }
                     locative{
                         one{"{0} ceturksnī"}
                         other{"{0} ceturkšņos"}
-                        zero{"{0} cet."}
+                        zero{"{0} ceturkšņos"}
                     }
                 }
                 dnam{"ceturkšņi"}
                 gender{"masculine"}
                 one{"{0} ceturksnis"}
                 other{"{0} ceturkšņi"}
-                zero{"{0} cet."}
+                zero{"{0} ceturkšņa"}
             }
             second{
                 case{
@@ -1616,6 +1637,24 @@ lv{
                 other{"{0} ampēri"}
                 zero{"{0} ampēru"}
             }
+            coulomb{
+                dnam{"kuloni"}
+                one{"{0} kulons"}
+                other{"{0} kuloni"}
+                zero{"{0} kulonu"}
+            }
+            farad{
+                dnam{"faradi"}
+                one{"{0} farads"}
+                other{"{0} faradi"}
+                zero{"{0} faradu"}
+            }
+            henry{
+                dnam{"henriji"}
+                one{"{0} henrijs"}
+                other{"{0} henriji"}
+                zero{"{0} henriju"}
+            }
             milliampere{
                 case{
                     accusative{
@@ -1673,6 +1712,12 @@ lv{
                 other{"{0} omi"}
                 zero{"{0} omu"}
             }
+            siemens{
+                dnam{"sīmensi"}
+                one{"{0} sīmenss"}
+                other{"{0} sīmensi"}
+                zero{"{0} sīmensu"}
+            }
             volt{
                 case{
                     accusative{
@@ -1703,6 +1748,12 @@ lv{
             }
         }
         energy{
+            becquerel{
+                dnam{"bekerels"}
+                one{"{0} bekerels"}
+                other{"{0} bekereli"}
+                zero{"{0} bekerels"}
+            }
             british-thermal-unit{
                 dnam{"britu termiskās mērvienības"}
                 one{"{0} britu termiskā mērvienība"}
@@ -1738,6 +1789,12 @@ lv{
                 other{"{0} kalorijas"}
                 zero{"{0} kaloriju"}
             }
+            calorie-it{
+                dnam{"kalorijas [IT]"}
+                one{"{0} kalorija [IT]"}
+                other{"{0} kalorijas [IT]"}
+                zero{"{0} kalorija [IT]"}
+            }
             electronvolt{
                 dnam{"elektronvolti"}
                 one{"{0} elektronvolts"}
@@ -1749,6 +1806,12 @@ lv{
                 one{"{0} kalorija"}
                 other{"{0} kalorijas"}
                 zero{"{0} kaloriju"}
+            }
+            gray{
+                dnam{"greji"}
+                one{"{0} grejs"}
+                other{"{0} greji"}
+                zero{"{0} greju"}
             }
             joule{
                 case{
@@ -1865,6 +1928,12 @@ lv{
                 other{"{0} kilovatstundas"}
                 zero{"{0} kilovatstundu"}
             }
+            sievert{
+                dnam{"zīverti"}
+                one{"{0} zīverts"}
+                other{"{0} zīverti"}
+                zero{"{0} zīvertu"}
+            }
             therm-us{
                 dnam{"ASV termiskās vienības"}
                 one{"{0} ASV termiskā vienība"}
@@ -1873,6 +1942,12 @@ lv{
             }
         }
         force{
+            kilogram-force{
+                dnam{"spēka kilograms"}
+                one{"{0} spēka kilograms"}
+                other{"{0} spēka kilogrami"}
+                zero{"{0} spēka kilogramu"}
+            }
             kilowatt-hour-per-100-kilometer{
                 case{
                     accusative{
@@ -2609,6 +2684,20 @@ lv{
                 zero{"{0} L☉"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} teslas"}
+                zero{"{0} teslu"}
+            }
+            weber{
+                dnam{"vēberi"}
+                one{"{0} vēbers"}
+                other{"{0} vēberi"}
+                zero{"{0} vēberu"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -3195,6 +3284,12 @@ lv{
                 other{"{0} dzīvsudraba stabiņa milimetri"}
                 zero{"{0} dzīvsudraba stabiņa milimetru"}
             }
+            ofhg{
+                dnam{"pēc dzīvsudraba staba"}
+                one{"{0} pēc dzīvsudraba staba"}
+                other{"{0} pēc dzīvsudraba staba"}
+                zero{"{0} pēc dzīvsudraba staba"}
+            }
             pascal{
                 case{
                     accusative{
@@ -3295,7 +3390,6 @@ lv{
                         zero{"{0} gaismas"}
                     }
                 }
-                dnam{"gaisma"}
                 gender{"feminine"}
                 one{"{0} gaisma"}
                 other{"{0} gaismas"}
@@ -3726,6 +3820,12 @@ lv{
                 other{"{0} britu šķidruma unces"}
                 zero{"{0} britu šķidruma unču"}
             }
+            fluid-ounce-metric{
+                dnam{"metriskā šķidruma unce"}
+                one{"{0} metriskā šķidruma unce"}
+                other{"{0} metriskā šķidruma unces"}
+                zero{"{0} metriskā šķidruma unces"}
+            }
             gallon{
                 dnam{"galoni"}
                 one{"{0} galons"}
@@ -3970,8 +4070,17 @@ lv{
             }
         }
         concentr{
-            portion-per-1e9{
-                dnam{"miljarddaļas"}
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+                zero{"{0} Glc"}
+            }
+            part{
+                dnam{"daļa"}
+                one{"{0} daļa"}
+                other{"{0} daļa"}
+                zero{"{0} daļu"}
             }
         }
         duration{
@@ -3987,13 +4096,6 @@ lv{
                 other{"{0} m."}
                 per{"{0}/m."}
                 zero{"{0} m."}
-            }
-            night{
-                dnam{"naktis"}
-                one{"{0} nakts"}
-                other{"{0} naktis"}
-                per{"{0}/nakts"}
-                zero{"{0} nakšu"}
             }
             quarter{
                 one{"{0} c."}
@@ -4013,6 +4115,48 @@ lv{
                 other{"{0} n."}
                 per{"{0}/n."}
                 zero{"{0} n."}
+            }
+        }
+        electric{
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+                zero{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+                zero{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+                zero{"{0} H"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+                zero{"{0} S"}
+            }
+        }
+        energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+                zero{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+            }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+                zero{"{0} Gy"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+                zero{"{0} Sv"}
             }
         }
         graphics{
@@ -4094,6 +4238,13 @@ lv{
                 dnam{"L☉"}
             }
         }
+        magnetic{
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+                zero{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 one{"{0} ct"}
@@ -4150,6 +4301,12 @@ lv{
                 other{"{0}mbar"}
                 zero{"{0}mbar"}
             }
+            ofhg{
+                dnam{"pēc dzīvsudraba staba"}
+                one{"{0} pēc dzīvsudraba staba"}
+                other{"{0} pēc dzīvsudraba staba"}
+                zero{"{0} pēc dzīvsudraba staba"}
+            }
         }
         speed{
             kilometer-per-hour{
@@ -4162,12 +4319,6 @@ lv{
                 one{"{0} mezgls"}
                 other{"{0} mezgli"}
                 zero{"{0} mezgli"}
-            }
-            light-speed{
-                dnam{"gaisma"}
-                one{"{0} gaisma"}
-                other{"{0} gaismas"}
-                zero{"{0} gaismu"}
             }
             meter-per-second{
                 one{"{0}m/s"}
@@ -4274,20 +4425,32 @@ lv{
             mole{
                 dnam{"mols"}
             }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+                zero{"{0} Glc"}
+            }
+            part{
+                dnam{"daļa"}
+                one{"{0} daļa"}
+                other{"{0} daļa"}
+                zero{"{0} daļu"}
+            }
+            part-per-1e6{
+                dnam{"miljonās daļas"}
+            }
+            part-per-1e9{
+                dnam{"miljarddaļas"}
+            }
             percent{
                 dnam{"procents"}
             }
             permille{
                 dnam{"promile"}
             }
-            permillion{
-                dnam{"miljonās daļas"}
-            }
             permyriad{
                 dnam{"promiriāde"}
-            }
-            portion-per-1e9{
-                dnam{"miljarddaļas"}
             }
         }
         consumption{
@@ -4404,14 +4567,45 @@ lv{
             ampere{
                 dnam{"A"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+                zero{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+                zero{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+                zero{"{0} H"}
+            }
             ohm{
                 dnam{"omi"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+                zero{"{0} S"}
             }
             volt{
                 dnam{"volti"}
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+                zero{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
+                zero{"{0} cal-IT"}
+            }
             electronvolt{
                 dnam{"elektronvolts"}
             }
@@ -4421,8 +4615,18 @@ lv{
                 other{"{0} cal"}
                 zero{"{0} kcal"}
             }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
+                zero{"{0} Gy"}
+            }
             joule{
                 dnam{"džouli"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
+                zero{"{0} Sv"}
             }
         }
         force{
@@ -4532,6 +4736,13 @@ lv{
                 dnam{"Saules starjauda"}
             }
         }
+        magnetic{
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+                zero{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"karāti"}
@@ -4603,6 +4814,12 @@ lv{
                 one{"{0} mmHg"}
                 other{"{0} mmHg"}
                 zero{"{0} mmHg"}
+            }
+            ofhg{
+                dnam{"pēc dzīvsudraba staba"}
+                one{"{0} pēc dzīvsudraba staba"}
+                other{"{0} pēc dzīvsudraba staba"}
+                zero{"{0} pēc dzīvsudraba staba"}
             }
         }
         speed{

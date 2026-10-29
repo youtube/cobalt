@@ -270,6 +270,9 @@ as{
         "America:Costa_Rica"{
             ec{"কোষ্টা ৰিকা"}
         }
+        "America:Coyhaique"{
+            ec{"কোইহাইক"}
+        }
         "America:Creston"{
             ec{"ক্ৰেষ্টন"}
         }
@@ -1167,7 +1170,7 @@ as{
             ec{"এফেট"}
         }
         "Pacific:Enderbury"{
-            ec{"এণ্ডৰবাৰী"}
+            ec{"কেণ্টন"}
         }
         "Pacific:Fakaofo"{
             ec{"ফাকাওফো"}
@@ -1189,9 +1192,6 @@ as{
         }
         "Pacific:Guam"{
             ec{"গুৱাম"}
-        }
-        "Pacific:Kanton"{
-            ec{"কেণ্টন"}
         }
         "Pacific:Kiritimati"{
             ec{"কিৰিটিমাটি"}
@@ -1275,9 +1275,7 @@ as{
             ls{"দক্ষিণ আফ্ৰিকাৰ মান সময়"}
         }
         "meta:Africa_Western"{
-            ld{"পশ্চিম আফ্ৰিকাৰ গ্ৰীষ্মকালীন সময়"}
-            lg{"পশ্চিম আফ্ৰিকাৰ সময়"}
-            ls{"পশ্চিম আফ্ৰিকাৰ মান সময়"}
+            ls{"পশ্চিম আফ্ৰিকাৰ সময়"}
         }
         "meta:Alaska"{
             ld{"আলাস্কাৰ ডেলাইট সময়"}
@@ -1515,6 +1513,9 @@ as{
         }
         "meta:Guyana"{
             ls{"গায়ানাৰ সময়"}
+        }
+        "meta:Hawaii"{
+            ls{"হাৱাই-এলিউশ্বনৰ মান সময়"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"হাৱাই-এলিউশ্বনৰ ডেলাইট সময়"}

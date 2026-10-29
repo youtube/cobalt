@@ -375,9 +375,6 @@ angle::CallCapture CaptureProvokingVertexANGLE(const State &glState,
 angle::CallCapture CaptureRequestExtensionANGLE(const State &glState,
                                                 bool isCallValid,
                                                 const GLchar *name);
-angle::CallCapture CaptureDisableExtensionANGLE(const State &glState,
-                                                bool isCallValid,
-                                                const GLchar *name);
 
 // GL_ANGLE_rgbx_internal_format
 
@@ -561,55 +558,6 @@ angle::CallCapture CaptureTexSubImage3DRobustANGLE(const State &glState,
                                                    GLenum type,
                                                    GLsizei bufSize,
                                                    const void *pixels);
-angle::CallCapture CaptureCompressedTexImage2DRobustANGLE(const State &glState,
-                                                          bool isCallValid,
-                                                          TextureTarget targetPacked,
-                                                          GLint level,
-                                                          GLenum internalformat,
-                                                          GLsizei width,
-                                                          GLsizei height,
-                                                          GLint border,
-                                                          GLsizei imageSize,
-                                                          GLsizei bufSize,
-                                                          const void *data);
-angle::CallCapture CaptureCompressedTexSubImage2DRobustANGLE(const State &glState,
-                                                             bool isCallValid,
-                                                             TextureTarget targetPacked,
-                                                             GLint level,
-                                                             GLsizei xoffset,
-                                                             GLsizei yoffset,
-                                                             GLsizei width,
-                                                             GLsizei height,
-                                                             GLenum format,
-                                                             GLsizei imageSize,
-                                                             GLsizei bufSize,
-                                                             const void *data);
-angle::CallCapture CaptureCompressedTexImage3DRobustANGLE(const State &glState,
-                                                          bool isCallValid,
-                                                          TextureTarget targetPacked,
-                                                          GLint level,
-                                                          GLenum internalformat,
-                                                          GLsizei width,
-                                                          GLsizei height,
-                                                          GLsizei depth,
-                                                          GLint border,
-                                                          GLsizei imageSize,
-                                                          GLsizei bufSize,
-                                                          const void *data);
-angle::CallCapture CaptureCompressedTexSubImage3DRobustANGLE(const State &glState,
-                                                             bool isCallValid,
-                                                             TextureTarget targetPacked,
-                                                             GLint level,
-                                                             GLint xoffset,
-                                                             GLint yoffset,
-                                                             GLint zoffset,
-                                                             GLsizei width,
-                                                             GLsizei height,
-                                                             GLsizei depth,
-                                                             GLenum format,
-                                                             GLsizei imageSize,
-                                                             GLsizei bufSize,
-                                                             const void *data);
 angle::CallCapture CaptureGetQueryivRobustANGLE(const State &glState,
                                                 bool isCallValid,
                                                 QueryType targetPacked,
@@ -770,7 +718,7 @@ angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
     const State &glState,
     bool isCallValid,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLfloat *params);
@@ -778,7 +726,7 @@ angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE(
     const State &glState,
     bool isCallValid,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLint *params);
@@ -786,7 +734,7 @@ angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE
     const State &glState,
     bool isCallValid,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLuint *params);
@@ -843,21 +791,24 @@ angle::CallCapture CaptureFramebufferPixelLocalStorageInterruptANGLE(const State
                                                                      bool isCallValid);
 angle::CallCapture CaptureFramebufferPixelLocalStorageRestoreANGLE(const State &glState,
                                                                    bool isCallValid);
-angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterfvANGLE(const State &glState,
-                                                                          bool isCallValid,
-                                                                          GLint plane,
-                                                                          GLenum pname,
-                                                                          GLfloat *params);
-angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterivANGLE(const State &glState,
-                                                                          bool isCallValid,
-                                                                          GLint plane,
-                                                                          GLenum pname,
-                                                                          GLint *params);
-angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivANGLE(const State &glState,
-                                                                           bool isCallValid,
-                                                                           GLint plane,
-                                                                           GLenum pname,
-                                                                           GLuint *params);
+angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterfvANGLE(
+    const State &glState,
+    bool isCallValid,
+    GLint plane,
+    PlaneParameter pnamePacked,
+    GLfloat *params);
+angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterivANGLE(
+    const State &glState,
+    bool isCallValid,
+    GLint plane,
+    PlaneParameter pnamePacked,
+    GLint *params);
+angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivANGLE(
+    const State &glState,
+    bool isCallValid,
+    GLint plane,
+    PlaneParameter pnamePacked,
+    GLuint *params);
 
 // GL_ANGLE_stencil_texturing
 
@@ -3242,9 +3193,6 @@ void CaptureMultiDrawElementsInstancedANGLE_instanceCounts(const State &glState,
 void CaptureRequestExtensionANGLE_name(const State &glState,
                                        const GLchar *name,
                                        angle::ParamCapture *paramCapture);
-void CaptureDisableExtensionANGLE_name(const State &glState,
-                                       const GLchar *name,
-                                       angle::ParamCapture *paramCapture);
 void CaptureGetBooleanvRobustANGLE_length(const State &glState,
                                           GLenum pname,
                                           GLsizei paramCount,
@@ -3568,55 +3516,6 @@ void CaptureTexSubImage3DRobustANGLE_pixels(const State &glState,
                                             GLsizei bufSize,
                                             const void *pixels,
                                             angle::ParamCapture *paramCapture);
-void CaptureCompressedTexImage2DRobustANGLE_data(const State &glState,
-                                                 TextureTarget targetPacked,
-                                                 GLint level,
-                                                 GLenum internalformat,
-                                                 GLsizei width,
-                                                 GLsizei height,
-                                                 GLint border,
-                                                 GLsizei imageSize,
-                                                 GLsizei bufSize,
-                                                 const void *data,
-                                                 angle::ParamCapture *paramCapture);
-void CaptureCompressedTexSubImage2DRobustANGLE_data(const State &glState,
-                                                    TextureTarget targetPacked,
-                                                    GLint level,
-                                                    GLsizei xoffset,
-                                                    GLsizei yoffset,
-                                                    GLsizei width,
-                                                    GLsizei height,
-                                                    GLenum format,
-                                                    GLsizei imageSize,
-                                                    GLsizei bufSize,
-                                                    const void *data,
-                                                    angle::ParamCapture *paramCapture);
-void CaptureCompressedTexImage3DRobustANGLE_data(const State &glState,
-                                                 TextureTarget targetPacked,
-                                                 GLint level,
-                                                 GLenum internalformat,
-                                                 GLsizei width,
-                                                 GLsizei height,
-                                                 GLsizei depth,
-                                                 GLint border,
-                                                 GLsizei imageSize,
-                                                 GLsizei bufSize,
-                                                 const void *data,
-                                                 angle::ParamCapture *paramCapture);
-void CaptureCompressedTexSubImage3DRobustANGLE_data(const State &glState,
-                                                    TextureTarget targetPacked,
-                                                    GLint level,
-                                                    GLint xoffset,
-                                                    GLint yoffset,
-                                                    GLint zoffset,
-                                                    GLsizei width,
-                                                    GLsizei height,
-                                                    GLsizei depth,
-                                                    GLenum format,
-                                                    GLsizei imageSize,
-                                                    GLsizei bufSize,
-                                                    const void *data,
-                                                    angle::ParamCapture *paramCapture);
 void CaptureGetQueryivRobustANGLE_length(const State &glState,
                                          QueryType targetPacked,
                                          QueryParameter pnamePacked,
@@ -3918,7 +3817,7 @@ void CaptureGetQueryObjectui64vRobustANGLE_params(const State &glState,
 void CaptureGetFramebufferPixelLocalStorageParameterfvRobustANGLE_length(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLfloat *params,
@@ -3926,7 +3825,7 @@ void CaptureGetFramebufferPixelLocalStorageParameterfvRobustANGLE_length(
 void CaptureGetFramebufferPixelLocalStorageParameterfvRobustANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLfloat *params,
@@ -3934,7 +3833,7 @@ void CaptureGetFramebufferPixelLocalStorageParameterfvRobustANGLE_params(
 void CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE_length(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLint *params,
@@ -3942,7 +3841,7 @@ void CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE_length(
 void CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLint *params,
@@ -3950,7 +3849,7 @@ void CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE_params(
 void CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_length(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLuint *params,
@@ -3958,7 +3857,7 @@ void CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_length(
 void CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLsizei paramCount,
     GLsizei *length,
     GLuint *params,
@@ -3986,19 +3885,19 @@ void CaptureEndPixelLocalStorageANGLE_storeops(const State &glState,
 void CaptureGetFramebufferPixelLocalStorageParameterfvANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLfloat *params,
     angle::ParamCapture *paramCapture);
 void CaptureGetFramebufferPixelLocalStorageParameterivANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLint *params,
     angle::ParamCapture *paramCapture);
 void CaptureGetFramebufferPixelLocalStorageParameteruivANGLE_params(
     const State &glState,
     GLint plane,
-    GLenum pname,
+    PlaneParameter pnamePacked,
     GLuint *params,
     angle::ParamCapture *paramCapture);
 void CaptureGetMultisamplefvANGLE_val(const State &glState,

@@ -192,6 +192,9 @@ tk{
         "America:Costa_Rica"{
             ec{"Kosta-Rika"}
         }
+        "America:Coyhaique"{
+            ec{"Koýýaik"}
+        }
         "America:Creston"{
             ec{"Kreston"}
         }
@@ -810,9 +813,6 @@ tk{
         "Europe:Tallinn"{
             ec{"Tallin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Ulýanowsk"}
         }
@@ -883,7 +883,7 @@ tk{
             ec{"Pasha adasy"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderberi"}
+            ec{"Kanton adasy"}
         }
         "Pacific:Galapagos"{
             ec{"Galapagos adalary"}
@@ -939,6 +939,11 @@ tk{
         "Pacific:Wallis"{
             ec{"Uollis"}
         }
+        "meta:Acre"{
+            ld{"Akri tomusky wagty"}
+            lg{"Akri wagty"}
+            ls{"Akri standart wagty"}
+        }
         "meta:Afghanistan"{
             ls{"Owganystan wagty"}
         }
@@ -952,9 +957,7 @@ tk{
             ls{"Günorta Afrika standart wagty"}
         }
         "meta:Africa_Western"{
-            ld{"Günbatar Afrika tomusky wagty"}
-            lg{"Günbatar Afrika wagty"}
-            ls{"Günbatar Afrika standart wagty"}
+            ls{"Günbatar Afrika wagty"}
         }
         "meta:Alaska"{
             ld{"Alýaska tomusky wagty"}
@@ -987,6 +990,7 @@ tk{
             ls{"Demirgazyk Amerika Ýuwaş umman standart wagty"}
         }
         "meta:Anadyr"{
+            ld{"Anadyr tomusky wagty"}
             lg{"Anadyr wagty"}
         }
         "meta:Apia"{
@@ -1196,6 +1200,9 @@ tk{
         "meta:Guyana"{
             ls{"Gaýana wagty"}
         }
+        "meta:Hawaii"{
+            ls{"Gawaý-Aleut standart wagty"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"Gawaý-Aleut tomusky wagty"}
             lg{"Gawaý-Aleut wagty"}
@@ -1250,6 +1257,7 @@ tk{
             ls{"Ýaponiýa standart wagty"}
         }
         "meta:Kamchatka"{
+            ld{"Kamçatka tomusky wagty"}
             lg{"Petropavlowsk-Kamçatskiý wagty"}
         }
         "meta:Kazakhstan"{
@@ -1427,6 +1435,7 @@ tk{
             ls{"Sahalin standart wagty"}
         }
         "meta:Samara"{
+            ld{"Samara tomusky wagty"}
             lg{"Samara wagty"}
         }
         "meta:Samoa"{

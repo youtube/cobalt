@@ -1569,14 +1569,15 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
           js_fun->prototype_or_initial_map(kAcquireLoad);
       if (!IsTheHole(proto_or_map)) {
         if (!IsMap(proto_or_map)) {
-          SetPropertyReference(entry, roots.prototype_string(), proto_or_map,
-                               nullptr,
-                               JSFunction::kPrototypeOrInitialMapOffset);
+          SetPropertyReference(
+              entry, roots.prototype_string(), proto_or_map, nullptr,
+              JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(entry, roots.prototype_string(),
                                js_fun->prototype());
-          SetInternalReference(entry, "initial_map", proto_or_map,
-                               JSFunction::kPrototypeOrInitialMapOffset);
+          SetInternalReference(
+              entry, "initial_map", proto_or_map,
+              JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
         }
       }
     }
@@ -2063,7 +2064,7 @@ void V8HeapExplorer::ExtractFeedbackCellReferences(
     HeapEntry* entry, Tagged<FeedbackCell> feedback_cell) {
   TagObject(feedback_cell, "(feedback cell)");
   SetInternalReference(entry, "value", feedback_cell->value(),
-                       FeedbackCell::kValueOffset);
+                       offsetof(FeedbackCell, value_));
 }
 
 void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
@@ -2247,7 +2248,7 @@ template <typename T>
 void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
                                                 HeapEntry* entry,
                                                 Tagged<T> array) {
-  uint32_t array_len = array->ulength().value();
+  const uint32_t array_len = array->ulength().value();
   for (uint32_t i = 0; i < array_len; ++i) {
     Tagged<MaybeObject> object = array->get(i);
     Tagged<HeapObject> heap_object;

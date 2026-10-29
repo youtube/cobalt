@@ -7,10 +7,13 @@ tk{
         cf{"Pul birliginiň formaty"}
         collation{"Tertip rejesi"}
         currency{"Pul birligi"}
+        em{"Emoji aňlatmasy"}
         hc{"Sagat aýlawy (12–24 sagat)"}
         lb{"Setirden setire geçiş stili"}
+        lw{"Sözleriň içinde setir bölünmeleri"}
         ms{"Ölçeg ulgamy"}
         numbers{"Sanlar"}
+        ss{"Gysgaltmadan soň sözlemi bölmek"}
     }
     Languages{
         aa{"afar dili"}
@@ -42,6 +45,7 @@ tk{
         ay{"aýmara dili"}
         az{"azerbaýjan dili"}
         ba{"başgyrt dili"}
+        bal{"buluç dili"}
         ban{"baliý dili"}
         bas{"basaa dili"}
         be{"belarus dili"}
@@ -321,8 +325,8 @@ tk{
         pis{"pijin dili"}
         pl{"polýak dili"}
         pqm{"malisit-passamakwodi dili"}
-        prg{"prussiýa dili"}
-        ps{"peştun dili"}
+        prg{"prus dili"}
+        ps{"puştu dili"}
         pt{"portugal dili"}
         pt_PT{"portugal dili (Ýewropa)"}
         qu{"keçua dili"}
@@ -454,6 +458,12 @@ tk{
         zxx{"dilçilige degişli mazmun ýok"}
         zza{"zazaki dili"}
     }
+    Languages%core{
+        ku{"kürt dili"}
+    }
+    Languages%extension{
+        ku{"kurmanji dili"}
+    }
     Languages%long{
         zh_Hans{"ýönekeýleşdirilen hytaý diliniň mandarin şiwesi"}
         zh_Hant{"adaty hytaý diliniň mandarin şiwesi"}
@@ -465,6 +475,9 @@ tk{
     Languages%short{
         az{"azeri dili"}
         en_US{"iňlis dili (ABŞ)"}
+    }
+    Languages%variant{
+        hi_Latn{"hingliş"}
     }
     Scripts{
         Adlm{"adlam"}
@@ -549,14 +562,45 @@ tk{
             persian{"Pars senenamasy"}
             roc{"Minguo senenamasy"}
         }
+        calendar%core{
+            buddhist{"Buddist"}
+            chinese{"Hytaý"}
+            coptic{"Kopt"}
+            dangi{"Dangi"}
+            ethiopic{"Efiopiýa"}
+            ethiopic-amete-alem{"Efiopiýa amete alem"}
+            gregorian{"Grigorian"}
+            hebrew{"Ýewreý"}
+            islamic{"Hijri-kamary"}
+            islamic-civil{"Hijri-kamary (tablisaly, raýat eýýamy)"}
+            islamic-tbla{"Hijri-kamary (tablisaly, astronomil eýýam)"}
+            islamic-umalqura{"Hijri-kamary (Umm al-Kura)"}
+            japanese{"Ýapon"}
+            persian{"Pars"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Pul birliginiň buhgalterçilik formaty"}
             standard{"Pul birliginiň standart formaty"}
+        }
+        cf%core{
+            account{"Buhgalterçilik"}
+            standard{"Standart"}
         }
         collation{
             ducet{"Deslapky Ýunikod tertip rejesi"}
             search{"Umumy maksatly gözleg"}
             standard{"Standart tertip rejesi"}
+        }
+        collation%core{
+            ducet{"Deslapky ýunikod"}
+            search{"Gözleg"}
+            standard{"Standart"}
+        }
+        em%core{
+            default{"Deslapky"}
+            emoji{"Emoji"}
+            text{"Tekst"}
         }
         hc{
             h11{"12 sagat ulgamy (0–11)"}
@@ -564,15 +608,37 @@ tk{
             h23{"24 sagat ulgamy (0–23)"}
             h24{"24 sagat ulgamy (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Setirden setire geçişiň gowşak stili"}
             normal{"Setirden setire geçişiň adaty stili"}
             strict{"Setirden setire geçişiň berk stili"}
         }
+        lb%core{
+            loose{"Gowşak"}
+            normal{"Adaty"}
+            strict{"Berk"}
+        }
+        lw%core{
+            breakall{"Hemmesi geçsin"}
+            keepall{"Hemmesi galsyn"}
+            normal{"Adaty"}
+            phrase{"Sözlemler galsyn"}
+        }
         ms{
             metric{"Metrik ulgam"}
             uksystem{"Imperial ölçeg ulgamy"}
             ussystem{"ABŞ ölçeg ulgamy"}
+        }
+        ms%core{
+            metric{"Metrik"}
+            uksystem{"Iňlis"}
+            ussystem{"ABŞ"}
         }
         numbers{
             arab{"Arap-hindi sanlary"}
@@ -615,6 +681,10 @@ tk{
             thai{"Taý sanlary"}
             tibt{"Tibet sanlary"}
             vaii{"Waý sanlary"}
+        }
+        ss%core{
+            none{"öçürilen"}
+            standard{"açyk"}
         }
     }
     characterLabelPattern{

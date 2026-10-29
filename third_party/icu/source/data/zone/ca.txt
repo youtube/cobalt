@@ -24,23 +24,8 @@ ca{
         "Africa:Monrovia"{
             ec{"Monròvia"}
         }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
-        }
         "Africa:Tripoli"{
             ec{"Trípoli"}
-        }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
         }
         "America:Blanc-Sablon"{
             ec{"Blanc Sablon"}
@@ -57,23 +42,8 @@ ca{
         "America:Cayman"{
             ec{"Caiman"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Martinique"{
             ec{"Martinica"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Ciutat de Mèxic"}
@@ -92,12 +62,6 @@ ca{
         }
         "America:Panama"{
             ec{"Panamà"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:Scoresbysund"{
             ec{"Scoresbysund"}
@@ -155,9 +119,6 @@ ca{
         }
         "Asia:Dushanbe"{
             ec{"Duixanbé"}
-        }
-        "Asia:Hovd"{
-            ec{"Khovd"}
         }
         "Asia:Jayapura"{
             ec{"Jaipur"}
@@ -329,9 +290,6 @@ ca{
         "Europe:Stockholm"{
             ec{"Estocolm"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uliànovsk"}
         }
@@ -359,23 +317,11 @@ ca{
         "Pacific:Easter"{
             ec{"Illa de Pasqua"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
-        "Pacific:Kanton"{
-            ec{"Canton"}
-        }
         "Pacific:Marquesas"{
             ec{"Marqueses"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "Pacific:Tahiti"{
             ec{"Tahití"}
@@ -393,9 +339,7 @@ ca{
             ls{"Hora estàndard de l’Àfrica meridional"}
         }
         "meta:Africa_Western"{
-            ld{"Hora d’estiu de l’Àfrica occidental"}
-            lg{"Hora de l’Àfrica occidental"}
-            ls{"Hora estàndard de l’Àfrica occidental"}
+            ls{"Hora de l’Àfrica occidental"}
         }
         "meta:Alaska"{
             ld{"Hora d’estiu d’Alaska"}
@@ -600,9 +544,9 @@ ca{
             ss{"WET"}
         }
         "meta:Falkland"{
-            ld{"Hora d’estiu de les illes Malvines"}
-            lg{"Hora de les illes Malvines"}
-            ls{"Hora estàndard de les illes Malvines"}
+            ld{"Hora d’estiu de les illes Falkland"}
+            lg{"Hora de les illes Falkland"}
+            ls{"Hora estàndard de les illes Falkland"}
         }
         "meta:Fiji"{
             ld{"Hora d’estiu de Fiji"}
@@ -648,6 +592,9 @@ ca{
         }
         "meta:Guyana"{
             ls{"Hora de Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Hora estàndard de Hawaii-Aleutianes"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hora d’estiu de Hawaii-Aleutianes"}
@@ -935,6 +882,11 @@ ca{
         }
         "meta:Truk"{
             ls{"Hora de Chuuk"}
+        }
+        "meta:Turkey"{
+            ld{"Hora d’estiu de Turquia"}
+            lg{"Hora de Turquia"}
+            ls{"Hora estàndard de Turquia"}
         }
         "meta:Turkmenistan"{
             ld{"Hora d’estiu del Turkmenistan"}

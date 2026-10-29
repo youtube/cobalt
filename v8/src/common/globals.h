@@ -2687,19 +2687,29 @@ enum class CachedTieringDecision : int32_t {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))
 
-#define TYPED_STRICTEQUAL_STUB_LIST(V) \
-  V(None)                              \
-  V(SignedSmall)                       \
-  V(Number)                            \
-  V(InternalizedString)                \
-  V(String)                            \
-  V(Symbol)                            \
-  V(Receiver)                          \
+#define TYPED_EQUAL_STUB_LIST(V) \
+  V(None)                        \
+  V(SignedSmall)                 \
+  V(Number)                      \
+  V(InternalizedString)          \
+  V(String)                      \
+  V(Receiver)                    \
   V(Any)
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V) \
+  TYPED_EQUAL_STUB_LIST(V)             \
+  V(Symbol)
+
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V) \
+  V(None)                                     \
+  V(SignedSmall)                              \
+  V(Number)
 #else
 #define IF_SPARKPLUG_PLUS(V, ...)
 
 #define TYPED_STRICTEQUAL_STUB_LIST(V)
+#define TYPED_EQUAL_STUB_LIST(V)
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V)
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {
@@ -2742,6 +2752,12 @@ constexpr const char* ToString(ConcurrencyMode mode) {
 }
 inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
+}
+
+enum class SharedFlag : bool { kNo = false, kYes = true };
+
+inline std::ostream& operator<<(std::ostream& os, SharedFlag shared) {
+  return os << (shared == SharedFlag::kYes ? "shared" : "not shared");
 }
 
 // An architecture independent representation of the sets of registers available

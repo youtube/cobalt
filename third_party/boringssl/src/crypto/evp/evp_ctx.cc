@@ -98,6 +98,12 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e) {
     case EVP_PKEY_ML_DSA_87:
       alg = EVP_pkey_ml_dsa_87();
       break;
+    case EVP_PKEY_ML_KEM_768:
+      alg = EVP_pkey_ml_kem_768();
+      break;
+    case EVP_PKEY_ML_KEM_1024:
+      alg = EVP_pkey_ml_kem_1024();
+      break;
   }
   if (alg == nullptr || alg->pkey_method == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
@@ -194,7 +200,7 @@ int EVP_PKEY_sign(EVP_PKEY_CTX *ctx, uint8_t *sig, size_t *sig_len,
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_SIGN) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->sign(impl, sig, sig_len, digest, digest_len);
@@ -220,7 +226,7 @@ int EVP_PKEY_verify(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t sig_len,
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_VERIFY) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->verify(impl, sig, sig_len, digest, digest_len);
@@ -244,7 +250,7 @@ int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_ENCRYPT) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->encrypt(impl, out, outlen, in, inlen);
@@ -268,7 +274,7 @@ int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_DECRYPT) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->decrypt(impl, out, outlen, in, inlen);
@@ -292,7 +298,7 @@ int EVP_PKEY_verify_recover(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *out_len,
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_VERIFYRECOVER) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->verify_recover(impl, out, out_len, sig, sig_len);
@@ -319,7 +325,7 @@ int EVP_PKEY_derive_set_peer(EVP_PKEY_CTX *ctx, EVP_PKEY *peer) {
   if (impl->operation != EVP_PKEY_OP_DERIVE &&
       impl->operation != EVP_PKEY_OP_ENCRYPT &&
       impl->operation != EVP_PKEY_OP_DECRYPT) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
 
@@ -371,7 +377,7 @@ int EVP_PKEY_derive(EVP_PKEY_CTX *ctx, uint8_t *key, size_t *out_key_len) {
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_DERIVE) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
   return impl->pmeth->derive(impl, key, out_key_len);
@@ -405,7 +411,7 @@ int EVP_PKEY_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY **out_pkey) {
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_KEYGEN) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
 
@@ -446,7 +452,7 @@ int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **out_pkey) {
     return 0;
   }
   if (impl->operation != EVP_PKEY_OP_PARAMGEN) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATON_NOT_INITIALIZED);
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
     return 0;
   }
 
@@ -468,4 +474,72 @@ int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **out_pkey) {
     return 0;
   }
   return 1;
+}
+
+int EVP_PKEY_encapsulate_init(EVP_PKEY_CTX *ctx, const OSSL_PARAM *params) {
+  if (params != nullptr) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PARAMETERS);
+    return 0;
+  }
+  auto *impl = FromOpaque(ctx);
+  if (!impl || !impl->pmeth || !impl->pmeth->encap) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+    return 0;
+  }
+  impl->operation = EVP_PKEY_OP_ENCAPSULATE;
+  return 1;
+}
+
+int EVP_PKEY_encapsulate(EVP_PKEY_CTX *ctx, uint8_t *out_ciphertext,
+                         size_t *out_ciphertext_len, uint8_t *out_secret,
+                         size_t *out_secret_len) {
+  auto *impl = FromOpaque(ctx);
+  if (!impl || !impl->pmeth || !impl->pmeth->encap) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+    return 0;
+  }
+  if (impl->operation != EVP_PKEY_OP_ENCAPSULATE) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
+    return 0;
+  }
+  if (!impl->pkey) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_NO_KEY_SET);
+    return 0;
+  }
+  return impl->pmeth->encap(impl, out_ciphertext, out_ciphertext_len,
+                            out_secret, out_secret_len);
+}
+
+int EVP_PKEY_decapsulate_init(EVP_PKEY_CTX *ctx, const OSSL_PARAM *params) {
+  if (params != nullptr) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PARAMETERS);
+    return 0;
+  }
+  auto *impl = FromOpaque(ctx);
+  if (!impl || !impl->pmeth || !impl->pmeth->decap) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+    return 0;
+  }
+  impl->operation = EVP_PKEY_OP_DECAPSULATE;
+  return 1;
+}
+
+int EVP_PKEY_decapsulate(EVP_PKEY_CTX *ctx, uint8_t *out_secret,
+                         size_t *out_secret_len, const uint8_t *ciphertext,
+                         size_t ciphertext_len) {
+  auto *impl = FromOpaque(ctx);
+  if (!impl || !impl->pmeth || !impl->pmeth->decap) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE);
+    return 0;
+  }
+  if (impl->operation != EVP_PKEY_OP_DECAPSULATE) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_OPERATION_NOT_INITIALIZED);
+    return 0;
+  }
+  if (!impl->pkey) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_NO_KEY_SET);
+    return 0;
+  }
+  return impl->pmeth->decap(impl, out_secret, out_secret_len, ciphertext,
+                            ciphertext_len);
 }

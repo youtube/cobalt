@@ -303,10 +303,9 @@ struct UniformSortComparator
 
 }  // anonymous namespace
 
-bool IsGLSL130OrNewer(ShShaderOutput output)
+bool IsGLSL150OrNewer(ShShaderOutput output)
 {
-    return (output == SH_GLSL_130_OUTPUT || output == SH_GLSL_140_OUTPUT ||
-            output == SH_GLSL_150_CORE_OUTPUT || output == SH_GLSL_330_CORE_OUTPUT ||
+    return (output == SH_GLSL_150_CORE_OUTPUT || output == SH_GLSL_330_CORE_OUTPUT ||
             output == SH_GLSL_400_CORE_OUTPUT || output == SH_GLSL_410_CORE_OUTPUT ||
             output == SH_GLSL_420_CORE_OUTPUT || output == SH_GLSL_430_CORE_OUTPUT ||
             output == SH_GLSL_440_CORE_OUTPUT || output == SH_GLSL_450_CORE_OUTPUT);
@@ -320,8 +319,7 @@ bool IsGLSL420OrNewer(ShShaderOutput output)
 
 bool IsGLSL410OrOlder(ShShaderOutput output)
 {
-    return (output == SH_GLSL_130_OUTPUT || output == SH_GLSL_140_OUTPUT ||
-            output == SH_GLSL_150_CORE_OUTPUT || output == SH_GLSL_330_CORE_OUTPUT ||
+    return (output == SH_GLSL_150_CORE_OUTPUT || output == SH_GLSL_330_CORE_OUTPUT ||
             output == SH_GLSL_400_CORE_OUTPUT || output == SH_GLSL_410_CORE_OUTPUT);
 }
 
@@ -1126,11 +1124,10 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // For the MSL output, keep the inactive fragment outputs, but remove them otherwise.
     if (compileOptions.removeInactiveVariables)
     {
-        const bool removeFragmentOutputs = mOutputType != SH_MSL_METAL_OUTPUT;
-
-        if (!RemoveInactiveInterfaceVariables(
-                this, root, &getSymbolTable(), getAttributes(), getInputVaryings(),
-                getOutputVariables(), getUniforms(), getInterfaceBlocks(), removeFragmentOutputs))
+        if (!RemoveInactiveInterfaceVariables(this, root, &getSymbolTable(), getAttributes(),
+                                              getInputVaryings(), getOutputVariables(),
+                                              getUniforms(), getInterfaceBlocks(),
+                                              !compileOptions.retainInactiveFragmentOutputs))
         {
             return false;
         }
@@ -1285,12 +1282,7 @@ ShCompileOptions TCompiler::adjustOptions(const ShCompileOptions &compileOptions
     if (mShaderType != GL_FRAGMENT_SHADER)
     {
         compileOptions.clampFragDepth = false;
-    }
-
-    // gl_Position should always be written in GLSL compatibility output mode.
-    if (mOutputType == SH_GLSL_COMPATIBILITY_OUTPUT && mShaderType == GL_VERTEX_SHADER)
-    {
-        compileOptions.initGLPosition = true;
+        compileOptions.retainInactiveFragmentOutputs = false;
     }
 
 #if !defined(ANGLE_IR)
@@ -1544,7 +1536,7 @@ void TCompiler::collectVariables(TIntermBlock *root)
     CollectVariables(root, &mAttributes, &mOutputVariables, &mUniforms, &mInputVaryings,
                      &mOutputVaryings, &mSharedVariables, &mUniformBlocks, &mShaderStorageBlocks,
                      mResources.UserVariableNamePrefix, mResources.HashFunction, &mSymbolTable,
-                     mShaderType, mExtensionBehavior, mResources, mTessControlShaderOutputVertices,
+                     mShaderType, mExtensionBehavior,
                      mCompileOptions.transformFloatUniformTo16Bits);
     collectInterfaceBlocks();
     mVariablesCollected = true;

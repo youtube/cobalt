@@ -12,9 +12,6 @@ ro{
         "Africa:Mogadishu"{
             ec{"Mogadiscio"}
         }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
-        }
         "Africa:Sao_Tome"{
             ec{"Sao Tomé"}
         }
@@ -47,9 +44,6 @@ ro{
         }
         "America:St_Barthelemy"{
             ec{"Saint Barthélemy"}
-        }
-        "Antarctica:Syowa"{
-            ec{"Showa"}
         }
         "Asia:Almaty"{
             ec{"Almatî"}
@@ -129,6 +123,9 @@ ro{
         "Asia:Sakhalin"{
             ec{"Sahalin"}
         }
+        "Asia:Seoul"{
+            ec{"Seul"}
+        }
         "Asia:Srednekolymsk"{
             ec{"Srednekolimsk"}
         }
@@ -192,9 +189,6 @@ ro{
         "Europe:Budapest"{
             ec{"Budapesta"}
         }
-        "Europe:Chisinau"{
-            ec{"Chișinău"}
-        }
         "Europe:Copenhagen"{
             ec{"Copenhaga"}
         }
@@ -229,9 +223,6 @@ ro{
         "Europe:Rome"{
             ec{"Roma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
@@ -244,6 +235,9 @@ ro{
         "Europe:Zurich"{
             ec{"Zürich"}
         }
+        "Indian:Christmas"{
+            ec{"Insula Christmas"}
+        }
         "Indian:Comoro"{
             ec{"Comore"}
         }
@@ -254,7 +248,7 @@ ro{
             ec{"Insula Paștelui"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Insula Canton"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
@@ -264,6 +258,9 @@ ro{
         }
         "Pacific:Pitcairn"{
             ec{"Insula Pitcairn"}
+        }
+        "Pacific:Wake"{
+            ec{"Insula Wake"}
         }
         "meta:Acre"{
             ld{"Ora de vară Acre"}
@@ -283,9 +280,7 @@ ro{
             ls{"Ora Africii Meridionale"}
         }
         "meta:Africa_Western"{
-            ld{"Ora de vară a Africii Occidentale"}
-            lg{"Ora Africii Occidentale"}
-            ls{"Ora standard a Africii Occidentale"}
+            ls{"Ora Africii Occidentale"}
         }
         "meta:Alaska"{
             ld{"Ora de vară din Alaska"}
@@ -328,9 +323,9 @@ ro{
             ls{"Ora standard din Anadyr"}
         }
         "meta:Apia"{
-            ld{"Ora de vară din Apia"}
-            lg{"Ora din Apia"}
-            ls{"Ora standard din Apia"}
+            ld{"Ora de vară din Samoa"}
+            lg{"Ora din Samoa"}
+            ls{"Ora standard din Samoa"}
         }
         "meta:Aqtau"{
             ld{"Ora de vară a zonei Aqtau"}
@@ -521,7 +516,7 @@ ro{
             ls{"Ora din Teritoriile Australe și Antarctice Franceze"}
         }
         "meta:GMT"{
-            ls{"Ora de Greenwhich"}
+            ls{"Ora de Greenwich"}
             ss{"GMT"}
         }
         "meta:Galapagos"{
@@ -553,6 +548,9 @@ ro{
         }
         "meta:Guyana"{
             ls{"Ora din Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Ora standard din Hawaii-Aleutine"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Ora de vară din Hawaii-Aleutine"}

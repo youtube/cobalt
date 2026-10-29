@@ -51,7 +51,7 @@ mi{
         AW{"Arūpa"}
         AX{"Motu Ōrana"}
         AZ{"Atepaihānia"}
-        BA{"Pōngia-Herekōwini"}
+        BA{"Pōngia & Herekōwini"}
         BB{"Papatohe"}
         BD{"Pākaratēhi"}
         BE{"Peretiama"}
@@ -85,6 +85,7 @@ mi{
         CN{"Haina"}
         CO{"Koromōpia"}
         CP{"Te Moutere Kiripetone"}
+        CQ{"Hāka"}
         CR{"Koto Rīka"}
         CU{"Kiupa"}
         CV{"Te Kūrae Matomato"}

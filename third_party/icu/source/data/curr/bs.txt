@@ -889,11 +889,11 @@ bs{
         }
         SLE{
             "SLE",
-            "Sijeraleonski leone",
+            "sijeraleonski leone",
         }
         SLL{
             "SLL",
-            "Sijeraleonski leone (1964—2022)",
+            "sijeraleonski leone (1964—2022)",
         }
         SOS{
             "SOS",
@@ -1091,6 +1091,10 @@ bs{
             "XCD",
             "Istočnokaripski dolar",
         }
+        XCG{
+            "Cg.",
+            "karipski gulden",
+        }
         XDR{
             "XDR",
             "Posebna prava",
@@ -1186,6 +1190,10 @@ bs{
         ZWD{
             "ZWD",
             "Zimbabvejski dolar (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "zimbabveansko zlato",
         }
         ZWL{
             "ZWL",
@@ -2556,6 +2564,11 @@ bs{
             one{"istočnokaripski dolar"}
             other{"istočnokaripskih dolara"}
         }
+        XCG{
+            few{"karipska guldena"}
+            one{"karipski gulden"}
+            other{"karipskih guldena"}
+        }
         XDR{
             few{"posebna crtaća prava"}
             one{"posebno crtaće pravo"}
@@ -2675,6 +2688,11 @@ bs{
             few{"zimbabvejska dolara (1980–2008)"}
             one{"zimbabvejski dolar (1980–2008)"}
             other{"zimbabvejski dolari (1980–2008)"}
+        }
+        ZWG{
+            few{"zimbabveanska zlata"}
+            one{"zimbabveansko zlato"}
+            other{"zimbabveanskih zlata"}
         }
         ZWL{
             few{"zimbabvejska dolara (2009)"}

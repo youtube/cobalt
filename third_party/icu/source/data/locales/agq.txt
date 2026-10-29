@@ -150,12 +150,12 @@ agq{
             }
             eras{
                 abbreviated{
-                    "SK",
-                    "BK",
+                    0{"SK"}
+                    1{"BK"}
                 }
                 wide{
-                    "Sěe Kɨ̀lesto",
-                    "Bǎa Kɨ̀lesto",
+                    0{"Sěe Kɨ̀lesto"}
+                    1{"Bǎa Kɨ̀lesto"}
                 }
             }
             monthNames{

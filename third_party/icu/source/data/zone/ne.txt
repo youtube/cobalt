@@ -270,6 +270,9 @@ ne{
         "America:Costa_Rica"{
             ec{"कोष्टा रिका"}
         }
+        "America:Coyhaique"{
+            ec{"कोहाक्व"}
+        }
         "America:Creston"{
             ec{"क्रेस्टन"}
         }
@@ -1167,7 +1170,7 @@ ne{
             ec{"ईफाते"}
         }
         "Pacific:Enderbury"{
-            ec{"एन्डरबरी"}
+            ec{"कान्टोन"}
         }
         "Pacific:Fakaofo"{
             ec{"फाकाओफो"}
@@ -1192,9 +1195,6 @@ ne{
         }
         "Pacific:Honolulu"{
             ec{"होनोलुलु"}
-        }
-        "Pacific:Kanton"{
-            ec{"कान्टोन"}
         }
         "Pacific:Kiritimati"{
             ec{"किरितिमाटी"}
@@ -1278,9 +1278,7 @@ ne{
             ls{"दक्षिण अफ्रिकी समय"}
         }
         "meta:Africa_Western"{
-            ld{"पश्चिम अफ्रिकी ग्रीष्मकालीन समय"}
-            lg{"पश्चिम अफ्रिकी समय"}
-            ls{"पश्चिम अफ्रिकी मानक समय"}
+            ls{"पश्चिम अफ्रिकी समय"}
         }
         "meta:Alaska"{
             ld{"अलस्काको दिवा समय"}
@@ -1518,6 +1516,9 @@ ne{
         }
         "meta:Guyana"{
             ls{"गुयाना समय"}
+        }
+        "meta:Hawaii"{
+            ls{"हवाई-एलुटियन मानक समय"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"हवाई-एलुटियन दिवा समय"}

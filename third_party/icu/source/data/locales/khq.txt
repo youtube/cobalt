@@ -152,12 +152,12 @@ khq{
             }
             eras{
                 abbreviated{
-                    "IJ",
-                    "IZ",
+                    0{"IJ"}
+                    1{"IZ"}
                 }
                 wide{
-                    "Isaa jine",
-                    "Isaa jamanoo",
+                    0{"Isaa jine"}
+                    1{"Isaa jamanoo"}
                 }
             }
             monthNames{

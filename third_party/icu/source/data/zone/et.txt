@@ -12,56 +12,17 @@ et{
         "Africa:Cairo"{
             ec{"Kairo"}
         }
-        "Africa:El_Aaiun"{
-            ec{"El Aaiún"}
-        }
         "Africa:Khartoum"{
             ec{"Hartum"}
-        }
-        "Africa:Lome"{
-            ec{"Lomé"}
         }
         "Africa:Mogadishu"{
             ec{"Muqdisho"}
         }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
-        }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
-        }
         "America:Havana"{
             ec{"Havanna"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"México"}
@@ -74,12 +35,6 @@ et{
         }
         "America:North_Dakota:New_Salem"{
             ec{"New Salem, Põhja-Dakota"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -207,9 +162,6 @@ et{
         "Asia:Tokyo"{
             ec{"Tōkyō"}
         }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
-        }
         "Asia:Yakutsk"{
             ec{"Jakutsk"}
         }
@@ -264,12 +216,6 @@ et{
         "Europe:Bucharest"{
             ec{"Bukarest"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
-        "Europe:Chisinau"{
-            ec{"Chișinău"}
-        }
         "Europe:Copenhagen"{
             ec{"Kopenhaagen"}
         }
@@ -312,9 +258,6 @@ et{
         "Europe:Rome"{
             ec{"Rooma"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -336,9 +279,6 @@ et{
         "Indian:Cocos"{
             ec{"Kookossaared"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldiivid"}
         }
@@ -346,25 +286,16 @@ et{
             ec{"Lihavõttesaar"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Abariringa"}
         }
         "Pacific:Fiji"{
             ec{"Fidži"}
         }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
-        "Pacific:Kanton"{
-            ec{"Abariringa"}
-        }
         "Pacific:Marquesas"{
             ec{"Markiisaared"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "Pacific:Palau"{
             ec{"Belau"}
@@ -387,9 +318,7 @@ et{
             ls{"Lõuna-Aafrika standardaeg"}
         }
         "meta:Africa_Western"{
-            ld{"Lääne-Aafrika suveaeg"}
-            lg{"Lääne-Aafrika aeg"}
-            ls{"Lääne-Aafrika standardaeg"}
+            ls{"Lääne-Aafrika aeg"}
         }
         "meta:Alaska"{
             ld{"Alaska suveaeg"}
@@ -658,6 +587,9 @@ et{
         }
         "meta:Guyana"{
             ls{"Guyana aeg"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleuudi standardaeg"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleuudi suveaeg"}
@@ -956,6 +888,11 @@ et{
         }
         "meta:Truk"{
             ls{"Chuuki aeg"}
+        }
+        "meta:Turkey"{
+            ld{"Türgi suveaeg"}
+            lg{"Türgi aeg"}
+            ls{"Türgi standardaeg"}
         }
         "meta:Turkmenistan"{
             ld{"Türkmenistani suveaeg"}

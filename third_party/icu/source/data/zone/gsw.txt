@@ -249,9 +249,7 @@ gsw{
             ls{"Süüdafrikanischi ziit"}
         }
         "meta:Africa_Western"{
-            ld{"Weschtafrikanischi Summerziit"}
-            lg{"Weschtafrikanischi Ziit"}
-            ls{"Weschtafrikanischi Schtandardziit"}
+            ls{"Weschtafrikanischi Ziit"}
         }
         "meta:Alaska"{
             ld{"Alaska-Summerziit"}

@@ -264,20 +264,14 @@ mr{
         buddhist{
             eras{
                 abbreviated{
-                    "इसपू.",
+                    0{"इसपू."}
                 }
                 wide{
-                    "इसवीसन पूर्व",
+                    0{"इसवीसन पूर्व"}
                 }
             }
         }
         coptic{
-            eras{
-                abbreviated{
-                    "युग0",
-                    "युग1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -316,12 +310,6 @@ mr{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "युग0",
-                    "युग1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -510,7 +498,7 @@ mr{
             }
             DateTimePatterns%atTime{
                 "{1} रोजी {0}",
-                "{1} रोजी {0}",
+                "{1} रोजी {0} वाजता",
                 "{1}, {0}",
                 "{1}, {0}",
             }
@@ -639,20 +627,20 @@ mr{
             }
             eras{
                 abbreviated{
-                    "ई. स. पू.",
-                    "इ. स.",
+                    0{"ई. स. पू."}
+                    1{"इ. स."}
                 }
                 abbreviated%variant{
-                    "ई. पू. युग",
-                    "ख्रि. यु.",
+                    0{"ई. पू. युग"}
+                    1{"ख्रि. यु."}
                 }
                 wide{
-                    "ईसवीसनपूर्व",
-                    "ईसवीसन",
+                    0{"ईसवीसनपूर्व"}
+                    1{"ईसवीसन"}
                 }
                 wide%variant{
-                    "ईसापूर्व युग",
-                    "ख्रिस्तयुग",
+                    0{"ईसापूर्व युग"}
+                    1{"ख्रिस्तयुग"}
                 }
             }
             intervalFormats{
@@ -825,7 +813,7 @@ mr{
         hebrew{
             eras{
                 wide{
-                    "ऍन्नो मुंडी",
+                    0{"ऍन्नो मुंडी"}
                 }
             }
             monthNames{
@@ -870,7 +858,7 @@ mr{
         indian{
             eras{
                 abbreviated{
-                    "शक",
+                    0{"शक"}
                 }
             }
             monthNames{
@@ -905,20 +893,6 @@ mr{
                     }
                 }
                 stand-alone{
-                    abbreviated{
-                        "चैत्र",
-                        "वैशाख",
-                        "ज्येष्ठ",
-                        "आषाढ",
-                        "श्रावण",
-                        "भाद्रपद",
-                        "अश्विन",
-                        "कार्तिक",
-                        "मार्गशीर्ष",
-                        "पौष",
-                        "माघ",
-                        "फाल्गुन",
-                    }
                     narrow{
                         "१",
                         "२",
@@ -933,30 +907,16 @@ mr{
                         "११",
                         "१२",
                     }
-                    wide{
-                        "चैत्र",
-                        "वैशाख",
-                        "ज्येष्ठ",
-                        "आषाढ",
-                        "श्रावण",
-                        "भाद्रपद",
-                        "आश्विन",
-                        "कार्तिक",
-                        "मार्गशीर्ष",
-                        "पौष",
-                        "माघ",
-                        "फाल्गुन",
-                    }
                 }
             }
         }
         islamic{
             eras{
                 abbreviated{
-                    "हि.व.",
+                    0{"हि.व."}
                 }
                 wide{
-                    "हिजरी वर्ष",
+                    0{"हिजरी वर्ष"}
                 }
             }
             monthNames{
@@ -1047,8 +1007,8 @@ mr{
         roc{
             eras{
                 abbreviated{
-                    "आर.ओ.सी. आधी",
-                    "मिंगू",
+                    0{"आर.ओ.सी. आधी"}
+                    1{"मिंगू"}
                 }
             }
         }
@@ -1453,7 +1413,7 @@ mr{
         }
         sun-narrow{
             relative{
-                "-1"{"मागील र"}
+                "-1"{"मागील रवि."}
                 "0"{"हा र"}
                 "1"{"पुढील र"}
             }
@@ -1488,12 +1448,32 @@ mr{
                 "0"{"हा गु"}
                 "1"{"पुढील गु"}
             }
+            relativeTime{
+                future{
+                    one{"येत्या {0} गुरुवारी"}
+                    other{"येत्या {0} गुरुवारी"}
+                }
+                past{
+                    one{"{0} गुरुवारपूर्वी"}
+                    other{"{0} गुरुवारांपूर्वी"}
+                }
+            }
         }
         thu-short{
             relative{
                 "-1"{"मागील गुरू."}
                 "0"{"हा गुरू."}
                 "1"{"पुढील गुरू."}
+            }
+            relativeTime{
+                future{
+                    one{"येत्या {0} गुरुवारी"}
+                    other{"येत्या {0} गुरुवारी"}
+                }
+                past{
+                    one{"{0} गुरुवारपूर्वी"}
+                    other{"{0} गुरुवारांपूर्वी"}
+                }
             }
         }
         tue{
@@ -1660,7 +1640,7 @@ mr{
             }
         }
         zone{
-            dn{"वेळ क्षेत्र"}
+            dn{"टाइम झोन"}
         }
         zone-short{
             dn{"क्षेत्र"}
@@ -1701,19 +1681,6 @@ mr{
                 "[\\: ∶]",
             }
         }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
-            }
-        }
         number{
             lenient{
                 "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",
@@ -1732,26 +1699,18 @@ mr{
                 "und",
                 "mr",
             }
-            surnameFirst{
-                "ko",
-                "si",
-                "ta",
-                "te",
-                "vi",
-                "yue",
-                "zh",
-            }
         }
         namePattern{
             givenFirst-long-addressing-formal{"{title} {given} {given2} {surname}, {credentials}"}
             givenFirst-long-addressing-informal{"{title} {given} {given2} {surname}, {credentials}"}
             givenFirst-long-monogram-informal{"{given-informal-monogram-allCaps}{surname-monogram-allCaps}"}
+            givenFirst-long-referring-formal{"{title} {given} {given2} {surname} {generation}, {credentials}"}
             givenFirst-long-referring-informal{"{title} {given} {given2} {surname}, {credentials}"}
             givenFirst-medium-addressing-formal{"{title} {surname}"}
             givenFirst-medium-addressing-informal{"{given-informal}"}
             givenFirst-medium-monogram-formal{"{surname-monogram-allCaps}"}
             givenFirst-medium-monogram-informal{"{given-informal-monogram-allCaps}"}
-            givenFirst-medium-referring-formal{"{title} {given} {given2} {surname}, {credentials}"}
+            givenFirst-medium-referring-formal{"{given} {given2-initial} {surname} {generation}, {credentials}"}
             givenFirst-medium-referring-informal{"{given-informal} {surname}"}
             givenFirst-short-addressing-formal{"{title} {surname}"}
             givenFirst-short-addressing-informal{"{given-informal}"}
@@ -1768,7 +1727,7 @@ mr{
             surnameFirst-long-addressing-formal{"{title} {surname}"}
             surnameFirst-long-addressing-informal{"{given-informal}"}
             surnameFirst-long-monogram-informal{"{surname-monogram-allCaps}{given-informal-monogram-allCaps}"}
-            surnameFirst-long-referring-formal{"{surname} {given} {given2} {credentials}"}
+            surnameFirst-long-referring-formal{"{surname} {title} {given} {given2} {generation}, {credentials}"}
             surnameFirst-long-referring-informal{"{surname} {given-informal}"}
             surnameFirst-medium-addressing-formal{"{title} {surname}"}
             surnameFirst-medium-addressing-informal{"{given-informal}"}

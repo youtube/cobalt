@@ -24,6 +24,9 @@ ha{
         "Europe:London"{
             ld{"Lokacin Bazara na Birtaniya"}
         }
+        "Pacific:Enderbury"{
+            ec{"Tsibirin Canton"}
+        }
         "meta:Afghanistan"{
             ls{"Lokacin Afghanistan"}
         }
@@ -37,9 +40,7 @@ ha{
             ls{"Tsayayyen Lokacin Afirka ta Kudu"}
         }
         "meta:Africa_Western"{
-            ld{"Lokacin Bazara na Afirka ta Yamma"}
-            lg{"Lokacin Afirka ta Yamma"}
-            ls{"Tsayayyen Lokacin Afirka ta Yamma"}
+            ls{"Lokacin Afirka ta Yamma"}
         }
         "meta:Alaska"{
             ld{"Lokacin Rana na Alaska"}
@@ -277,6 +278,9 @@ ha{
         }
         "meta:Guyana"{
             ls{"Lokacin Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Tsayayyen Lokacin Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Lokacin Rana na Hawaii-Aleutian"}

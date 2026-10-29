@@ -35,7 +35,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
@@ -132,13 +132,6 @@
 
 #ifndef CHECK
 #define CHECK(condition) assert(condition)
-#endif
-
-#if defined(__clang__)
-#if __has_warning("-Wlifetime-safety-dangling-global")
-// TODO(crbug/482994758): Fix the violations.
-#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
-#endif
 #endif
 
 namespace v8 {
@@ -1062,7 +1055,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   if (!maybe_result.ToLocal(&result)) {
     if (try_catch.HasTerminated()) {
       // Re-request terminate execution as it's been cleared, so
-      // Shell::FinishExecution doesn't waste time draining all enqueued tasks
+      // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
       // and microtasks.
       isolate->TerminateExecution();
       return true;
@@ -1871,15 +1864,21 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
     module_data->origin = absolute_path;
 
-    MaybeLocal<Value> maybe_result;
     if (root_module
             ->InstantiateModule(realm, ResolveModuleCallback,
                                 ResolveModuleSourceCallback)
             .FromMaybe(false)) {
-      maybe_result = root_module->Evaluate(realm);
-      CHECK(!maybe_result.IsEmpty());
-      global_result_promise.Reset(isolate,
-                                  maybe_result.ToLocalChecked().As<Promise>());
+      Local<Value> result;
+      if (root_module->Evaluate(realm).ToLocal(&result)) {
+        global_result_promise.Reset(isolate, result.As<Promise>());
+      } else {
+        CHECK(try_catch.HasTerminated());
+        // Re-request terminate execution as it's been cleared, so
+        // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
+        // and microtasks.
+        isolate->TerminateExecution();
+        return true;
+      }
     }
   }
 
@@ -2505,6 +2504,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = data->realms_[index].Get(isolate);
   data->realms_[index].Reset();
+  context->DetachGlobal();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
   isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
@@ -6502,6 +6502,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_flag_is_not_specified(options.trace_enabled);
     check_flag_is_not_specified(options.trace_config);
     check_flag_is_not_specified(options.trace_path);
+    // Inspector security bugs must be shown through the embedder (i.e. Chrome,
+    // or content_shell).
     check_flag_is_not_specified(options.enable_inspector);
     check_flag_is_not_specified(options.lcov_file);
     check_flag_is_not_specified(options.simulate_errors);
@@ -7187,7 +7189,10 @@ int Shell::Main(int argc, char* argv[]) {
 
   base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
-  v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
+  if (!v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file)) {
+    fprintf(stderr, "%s: Failed to initialize ICU\n", argv[0]);
+    return 1;
+  }
 
 #ifdef V8_OS_DARWIN
   if (options.apply_priority) {
@@ -7603,6 +7608,8 @@ int Shell::Main(int argc, char* argv[]) {
   }
   utf8_filenames.clear();
 #endif
+
+  Shell::array_buffer_allocator = nullptr;
 
   return result;
 }

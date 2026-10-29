@@ -3,15 +3,15 @@
 // Generated using tools/cldr/cldr-to-icu/
 haw{
     zoneStrings{
-        "Pacific:Honolulu"{
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
-        }
         "meta:Alaska"{
             sd{"AKDT"}
             sg{"AKT"}
             ss{"AKST"}
+        }
+        "meta:Hawaii"{
+            sd{"HADT"}
+            sg{"HAT"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             sd{"HADT"}

@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
@@ -71,7 +72,10 @@ class PinnedToolbarActionsContainerBrowserTest : public InProcessBrowserTest {
   }
 
   PinnedToolbarActionsContainer* container() {
-    return browser_view()->toolbar()->pinned_toolbar_actions_container();
+    CHECK(!features::IsWebUIPinnedToolbarActionsEnabled())
+        << "Test needs modification to support WebUIPinnedToolbarActions";
+    return static_cast<PinnedToolbarActionsContainer*>(
+        browser_view()->toolbar()->pinned_toolbar_actions());
   }
 
   void TranslatePage(content::WebContents* web_contents) {
@@ -284,10 +288,8 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
   // Open a web app and verify none of the buttons previously pinned exist.
   const GURL app_url("https://test.org");
   toolbar_helper().InstallAndLaunchWebApp(browser(), app_url);
-  PinnedToolbarActionsContainer* web_app_container =
-      toolbar_helper()
-          .web_app_frame_toolbar()
-          ->GetPinnedToolbarActionsContainer();
+  PinnedToolbarActions* web_app_container =
+      toolbar_helper().web_app_frame_toolbar()->GetPinnedToolbarActions();
   EXPECT_EQ(web_app_container->IsActionPinned(kActionShowTranslate), false);
   EXPECT_EQ(web_app_container->IsActionPinned(kActionSidePanelShowBookmarks),
             false);

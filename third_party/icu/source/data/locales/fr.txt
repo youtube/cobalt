@@ -25,8 +25,10 @@ fr{
             }
             patterns{
                 accountingFormat{"#,##0.00 ¤;(#,##0.00 ¤)"}
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤;(#,##0.00 ¤)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -214,13 +216,13 @@ fr{
             }
             eras{
                 abbreviated{
-                    "E. B.",
+                    0{"E. B."}
                 }
                 narrow{
-                    "EB",
+                    0{"EB"}
                 }
                 wide{
-                    "ère bouddhique",
+                    0{"ère bouddhique"}
                 }
             }
         }
@@ -309,12 +311,10 @@ fr{
         coptic{
             eras{
                 abbreviated{
-                    "av. D.",
-                    "ap. D.",
+                    1{"ap. D."}
                 }
                 wide{
-                    "avant Dioclétien",
-                    "après Dioclétien",
+                    1{"après Dioclétien"}
                 }
             }
             monthNames{
@@ -353,16 +353,6 @@ fr{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "av. Inc.",
-                    "ap. Inc.",
-                }
-                wide{
-                    "avant l’Incarnation",
-                    "après l’Incarnation",
-                }
-            }
             monthNames{
                 format{
                     abbreviated{
@@ -420,21 +410,29 @@ fr{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'à' {0}",
+                "{1} 'à' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             availableFormats{
                 Ed{"E d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"dd/MM/y GGGGG"}
+                Hv{"HH 'h' v"}
                 MEd{"E dd/MM"}
                 MMMEd{"E d MMM"}
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"dd/MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y G"}
@@ -451,11 +449,9 @@ fr{
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -613,17 +609,26 @@ fr{
                 "{1}, {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'à' {0}",
+                "{1} 'à' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             availableFormats{
                 E{"E"}
                 Ed{"E d"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"MM/y G"}
+                GyMEd{"E dd/MM/y GGGGG"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"dd/MM/y GGGGG"}
                 H{"HH 'h'"}
+                Hv{"HH 'h' v"}
                 MEd{"E dd/MM"}
                 MMMEd{"E d MMM"}
                 MMMMW{
@@ -633,7 +638,6 @@ fr{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"dd/MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -738,29 +742,27 @@ fr{
             }
             eras{
                 abbreviated{
-                    "av. J.-C.",
-                    "ap. J.-C.",
+                    0{"av. J.-C."}
+                    1{"ap. J.-C."}
                 }
                 abbreviated%variant{
-                    "AEC",
-                    "EC",
+                    0{"AEC"}
+                    1{"EC"}
                 }
                 wide{
-                    "avant Jésus-Christ",
-                    "après Jésus-Christ",
+                    0{"avant Jésus-Christ"}
+                    1{"après Jésus-Christ"}
                 }
                 wide%variant{
-                    "avant l’ère commune",
-                    "de l’ère commune",
+                    0{"avant l’ère commune"}
+                    1{"de l’ère commune"}
                 }
             }
             intervalFormats{
                 Bh{
-                    B{"h B – h B"}
                     h{"h – h B"}
                 }
                 Bhm{
-                    B{"h:mm B – h:mm B"}
                     h{"h:mm – h:mm B"}
                     m{"h:mm – h:mm B"}
                 }
@@ -839,7 +841,6 @@ fr{
                     d{"dd/MM – dd/MM"}
                 }
                 h{
-                    a{"h a – h a"}
                     h{"h – h a"}
                 }
                 hm{
@@ -853,7 +854,6 @@ fr{
                     m{"h:mm – h:mm a v"}
                 }
                 hv{
-                    a{"h a – h a v"}
                     h{"h – h a v"}
                 }
                 yM{
@@ -957,10 +957,10 @@ fr{
         hebrew{
             eras{
                 abbreviated{
-                    "A. M.",
+                    0{"A. M."}
                 }
                 wide{
-                    "Anno Mundi",
+                    0{"Anno Mundi"}
                 }
             }
             monthNames{
@@ -1003,7 +1003,7 @@ fr{
         indian{
             eras{
                 wide{
-                    "ère Saka",
+                    0{"ère Saka"}
                 }
             }
             monthNames{
@@ -1041,16 +1041,18 @@ fr{
         }
         islamic{
             availableFormats{
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 yyyyM{"M/y GGGGG"}
                 yyyyMEd{"E d/M/y GGGGG"}
                 yyyyMd{"d/M/y GGGGG"}
             }
             eras{
                 narrow{
-                    "H",
+                    0{"H"}
                 }
                 wide{
-                    "ère de l’Hégire",
+                    0{"ère de l’Hégire"}
                 }
             }
             monthNames{
@@ -1114,10 +1116,10 @@ fr{
         persian{
             eras{
                 abbreviated{
-                    "A. P.",
+                    0{"A. P."}
                 }
                 wide{
-                    "Anno Persico",
+                    0{"Anno Persico"}
                 }
             }
             monthNames{
@@ -1156,12 +1158,11 @@ fr{
         roc{
             eras{
                 abbreviated{
-                    "av. RdC",
-                    "RdC",
+                    0{"av. RdC"}
+                    1{"RdC"}
                 }
                 wide{
-                    "avant RdC",
-                    "RdC",
+                    0{"avant RdC"}
                 }
             }
         }
@@ -1876,6 +1877,11 @@ fr{
         }
         year-narrow{
             dn{"a"}
+            relative{
+                "-1"{"l’an dernier"}
+                "0"{"cette année"}
+                "1"{"l’an prochain"}
+            }
             relativeTime{
                 future{
                     one{"+{0} a"}
@@ -1889,6 +1895,11 @@ fr{
         }
         year-short{
             dn{"an"}
+            relative{
+                "-1"{"l’an dernier"}
+                "0"{"cette année"}
+                "1"{"l’an prochain"}
+            }
             relativeTime{
                 future{
                     one{"dans {0} a"}
@@ -1951,7 +1962,7 @@ fr{
         }
         number{
             lenient{
-                "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",
+                "[\\-－﹣ ‐‑ ‒ – −⁻₋ ➖]",
                 "[,，﹐︐ ، ٫ 、﹑､︑]",
                 "[+＋﬩﹢⁺₊ ➕]",
             }

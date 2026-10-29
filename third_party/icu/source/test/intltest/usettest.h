@@ -84,6 +84,7 @@ private:
     void TestInvalidCodePoint();
 
     void TestSymbolTable();
+    void TestLookupSymbolTable();
 
     void TestSurrogate();
 
@@ -109,6 +110,9 @@ private:
     void TestRangeIterator();
     void TestStringIterator();
     void TestElementIterator();
+
+    void TestToPatternOutput();
+    void TestParseErrors();
 
 private:
 

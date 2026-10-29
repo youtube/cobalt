@@ -240,16 +240,16 @@ mt{
             }
             eras{
                 abbreviated{
-                    "QK",
-                    "WK",
+                    0{"QK"}
+                    1{"WK"}
                 }
                 abbreviated%variant{
-                    "QEK",
-                    "EK",
+                    0{"QEK"}
+                    1{"EK"}
                 }
                 wide{
-                    "Qabel Kristu",
-                    "Wara Kristu",
+                    0{"Qabel Kristu"}
+                    1{"Wara Kristu"}
                 }
             }
             intervalFormats{

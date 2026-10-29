@@ -6,6 +6,12 @@ gaa{
     ExemplarCharacters{"[a b d e ɛ f g h i j k l m n ŋ o ɔ p r s t u v w y z]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
+        latn{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
+            }
+        }
         minimalPairs{
             ordinal{
                 other{"ni ji {0}"}
@@ -17,7 +23,7 @@ gaa{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "LEEBI",
                 "SHWANE",
             }
@@ -83,6 +89,15 @@ gaa{
             }
         }
     }
+    fields{
+        sun{
+            relative{
+                "-1"{"Hɔgbaa ni eho"}
+                "0"{"Hɔgbaa nɛɛ"}
+                "1"{"Hɔgbaa ni baaba"}
+            }
+        }
+    }
     listPattern{
         standard-short{
             2{"{0} kɛ {1}"}
@@ -98,6 +113,11 @@ gaa{
                 "und",
                 "gaa",
             }
+        }
+        namePattern{
+            givenFirst-long-addressing-formal{"{title} {surname}"}
+            givenFirst-long-referring-formal{"{title} {given} {given2} {surname} {surname2}"}
+            sorting-long-referring-formal{"{surname-prefix} {surname-core}, {given} {given2}"}
         }
     }
 }

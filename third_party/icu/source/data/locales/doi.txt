@@ -169,16 +169,14 @@ doi{
             }
             eras{
                 abbreviated{
-                    "ई.पू.",
-                    "ईसवी",
+                    0{"ई.पू."}
+                    1{"ईसवी"}
                 }
                 abbreviated%variant{
-                    "ई.पू.",
-                    "सन्",
+                    1{"सन्"}
                 }
                 wide{
-                    "ई.पू.",
-                    "ई. सन्",
+                    1{"ई. सन्"}
                 }
             }
             intervalFormats{

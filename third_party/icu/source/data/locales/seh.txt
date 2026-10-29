@@ -147,12 +147,12 @@ seh{
             }
             eras{
                 abbreviated{
-                    "AC",
-                    "AD",
+                    0{"AC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Antes de Cristo",
-                    "Anno Domini",
+                    0{"Antes de Cristo"}
+                    1{"Anno Domini"}
                 }
             }
             monthNames{

@@ -84,6 +84,11 @@ sv{
                 one{"{0} varv"}
                 other{"{0} varv"}
             }
+            steradian{
+                dnam{"steradianer"}
+                one{"{0} steradian"}
+                other{"{0} steradianer"}
+            }
         }
         area{
             acre{
@@ -268,6 +273,11 @@ sv{
                 one{"{0} karat"}
                 other{"{0} karat"}
             }
+            katal{
+                dnam{"katal"}
+                one{"{0} katal"}
+                other{"{0} katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     genitive{
@@ -303,6 +313,39 @@ sv{
                 one{"{0} mol"}
                 other{"{0} mol"}
             }
+            ofglucose{
+                dnam{"glukos"}
+                one{"{0} glukos"}
+                other{"{0} glukos"}
+            }
+            part{
+                dnam{"delar"}
+                one{"{0} del"}
+                other{"{0} delar"}
+            }
+            part-per-1e6{
+                case{
+                    genitive{
+                        one{"{0} miljondels"}
+                        other{"{0} miljondelars"}
+                    }
+                }
+                gender{"common"}
+                one{"{0} miljondel"}
+                other{"{0} miljondelar"}
+            }
+            part-per-1e9{
+                case{
+                    genitive{
+                        one{"{0} miljarddels"}
+                        other{"{0} miljarddelars"}
+                    }
+                }
+                dnam{"miljarddelar"}
+                gender{"common"}
+                one{"{0} miljarddel"}
+                other{"{0} miljarddelar"}
+            }
             percent{
                 case{
                     genitive{
@@ -327,17 +370,6 @@ sv{
                 one{"{0} promille"}
                 other{"{0} promille"}
             }
-            permillion{
-                case{
-                    genitive{
-                        one{"{0} miljondels"}
-                        other{"{0} miljondelars"}
-                    }
-                }
-                gender{"common"}
-                one{"{0} miljondel"}
-                other{"{0} miljondelar"}
-            }
             permyriad{
                 case{
                     genitive{
@@ -349,18 +381,6 @@ sv{
                 gender{"common"}
                 one{"{0} promyriad"}
                 other{"{0} promyriad"}
-            }
-            portion-per-1e9{
-                case{
-                    genitive{
-                        one{"{0} miljarddels"}
-                        other{"{0} miljarddelars"}
-                    }
-                }
-                dnam{"miljarddelar"}
-                gender{"common"}
-                one{"{0} miljarddel"}
-                other{"{0} miljarddelar"}
             }
         }
         consumption{
@@ -662,7 +682,6 @@ sv{
                         other{"{0} nätters"}
                     }
                 }
-                dnam{"nätter"}
                 gender{"common"}
                 one{"{0} natt"}
                 other{"{0} nätter"}
@@ -671,14 +690,15 @@ sv{
             quarter{
                 case{
                     genitive{
-                        one{"{0} kvarts"}
-                        other{"{0} kvarts"}
+                        one{"{0} kvartals"}
+                        other{"{0} kvartals"}
                     }
                 }
-                dnam{"kvartar"}
-                gender{"common"}
-                one{"{0} kvart"}
-                other{"{0} kvartar"}
+                dnam{"kvartal"}
+                gender{"neuter"}
+                one{"{0} kvartal"}
+                other{"{0} kvartal"}
+                per{"{0}/kvartal"}
             }
             second{
                 case{
@@ -732,6 +752,21 @@ sv{
                 one{"{0} ampere"}
                 other{"{0} ampere"}
             }
+            coulomb{
+                dnam{"coulomb"}
+                one{"{0} coulomb"}
+                other{"{0} coulomb"}
+            }
+            farad{
+                dnam{"farad"}
+                one{"{0} farad"}
+                other{"{0} farad"}
+            }
+            henry{
+                dnam{"henry"}
+                one{"{0} henry"}
+                other{"{0} henry"}
+            }
             milliampere{
                 case{
                     genitive{
@@ -755,6 +790,11 @@ sv{
                 one{"{0} ohm"}
                 other{"{0} ohm"}
             }
+            siemens{
+                dnam{"siemens"}
+                one{"{0} siemens"}
+                other{"{0} siemens"}
+            }
             volt{
                 case{
                     genitive{
@@ -768,6 +808,11 @@ sv{
             }
         }
         energy{
+            becquerel{
+                dnam{"becquerel"}
+                one{"{0} becquerel"}
+                other{"{0} becquerel"}
+            }
             british-thermal-unit{
                 dnam{"British thermal units"}
                 one{"{0} British thermal unit"}
@@ -785,6 +830,11 @@ sv{
                 one{"{0} kalori"}
                 other{"{0} kalorier"}
             }
+            calorie-it{
+                dnam{"IT-kalorier"}
+                one{"{0} IT-kalori"}
+                other{"{0} IT-kalorier"}
+            }
             electronvolt{
                 dnam{"elektronvolt"}
                 one{"{0} elektronvolt"}
@@ -795,6 +845,11 @@ sv{
                 gender{"common"}
                 one{"{0} kilokalori"}
                 other{"{0} kilokalorier"}
+            }
+            gray{
+                dnam{"gray"}
+                one{"{0} gray"}
+                other{"{0} gray"}
             }
             joule{
                 case{
@@ -844,8 +899,18 @@ sv{
                 one{"{0} kilowattimme"}
                 other{"{0} kilowattimmar"}
             }
+            sievert{
+                dnam{"sievert"}
+                one{"{0} sievert"}
+                other{"{0} sievert"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kilogramkraft"}
+                one{"{0} kilogramkraft"}
+                other{"{0} kilogramkrafter"}
+            }
             kilowatt-hour-per-100-kilometer{
                 gender{"common"}
             }
@@ -1140,8 +1205,8 @@ sv{
                     }
                 }
                 gender{"common"}
-                one{"{0} pkt"}
-                other{"{0} pkt"}
+                one{"{0} punkt"}
+                other{"{0} punkter"}
             }
             solar-radius{
                 dnam{"solradier"}
@@ -1188,6 +1253,18 @@ sv{
                 gender{"common"}
                 one{"{0} solluminositet"}
                 other{"{0} solluminositeter"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+                one{"{0} tesla"}
+                other{"{0} tesla"}
+            }
+            weber{
+                dnam{"weber"}
+                one{"{0} weber"}
+                other{"{0} weber"}
             }
         }
         mass{
@@ -1465,6 +1542,11 @@ sv{
                 one{"{0} millimeter kvicksilver"}
                 other{"{0} millimeter kvicksilver"}
             }
+            ofhg{
+                dnam{"kvicksilver"}
+                one{"{0} kvicksilver"}
+                other{"{0} kvicksilver"}
+            }
             pascal{
                 case{
                     genitive{
@@ -1502,16 +1584,7 @@ sv{
                 other{"{0} kilometer per timme"}
             }
             light-speed{
-                case{
-                    genitive{
-                        one{"{0} ljus"}
-                        other{"{0} ljus"}
-                    }
-                }
-                dnam{"ljus"}
                 gender{"neuter"}
-                one{"{0} ljus"}
-                other{"{0} ljus"}
             }
             meter-per-second{
                 case{
@@ -1590,9 +1663,9 @@ sv{
                 other{"{0} newton-meter"}
             }
             pound-force-foot{
-                dnam{"pound-feet"}
+                dnam{"pound-force-feet"}
                 one{"{0} pound-force-foot"}
-                other{"{0} pound-feet"}
+                other{"{0} pound-force-feet"}
             }
         }
         volume{
@@ -1729,14 +1802,19 @@ sv{
             fluid-ounce{
                 dnam{"flytande uns"}
                 gender{"neuter"}
-                one{"{0} flytande uns"}
+                one{"{0} fluid ounce"}
                 other{"{0} fluid ounces"}
             }
             fluid-ounce-imperial{
-                dnam{"Br. flytande uns"}
+                dnam{"Imp. fluid ounces"}
                 gender{"neuter"}
-                one{"{0} br. fl oz"}
-                other{"{0} br. flytande uns"}
+                one{"{0} Imp. fluid ounce"}
+                other{"{0} Imp. fluid ounces"}
+            }
+            fluid-ounce-metric{
+                dnam{"metriska flytande uns"}
+                one{"{0} metriskt flytande uns"}
+                other{"{0} metriska flytande uns"}
             }
             gallon{
                 dnam{"gallon"}
@@ -1941,6 +2019,24 @@ sv{
                 one{"{0}mol"}
                 other{"{0}mol"}
             }
+            ofglucose{
+                dnam{"glc"}
+                one{"{0} glc"}
+                other{"{0} glc"}
+            }
+            part{
+                dnam{"del"}
+                one{"{0} del"}
+                other{"{0} del"}
+            }
+            part-per-1e6{
+                one{"{0}ppm"}
+                other{"{0}ppm"}
+            }
+            part-per-1e9{
+                one{"{0}ppb"}
+                other{"{0}ppb"}
+            }
             percent{
                 one{"{0}%"}
                 other{"{0}%"}
@@ -1949,17 +2045,9 @@ sv{
                 one{"{0}‰"}
                 other{"{0}‰"}
             }
-            permillion{
-                one{"{0}ppm"}
-                other{"{0}ppm"}
-            }
             permyriad{
                 one{"{0}‱"}
                 other{"{0}‱"}
-            }
-            portion-per-1e9{
-                one{"{0}ppb"}
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -2072,6 +2160,7 @@ sv{
                 dnam{"m"}
                 one{"{0}m"}
                 other{"{0}m"}
+                per{"{0}/m"}
             }
             nanosecond{
                 one{"{0}ns"}
@@ -2106,6 +2195,10 @@ sv{
                 one{"{0}A"}
                 other{"{0}A"}
             }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             milliampere{
                 one{"{0}mA"}
                 other{"{0}mA"}
@@ -2114,6 +2207,10 @@ sv{
                 dnam{"Ω"}
                 one{"{0}Ω"}
                 other{"{0}Ω"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
             }
             volt{
                 dnam{"V"}
@@ -2129,6 +2226,11 @@ sv{
             calorie{
                 one{"{0}cal"}
                 other{"{0}cal"}
+            }
+            calorie-it{
+                dnam{"calIT"}
+                one{"{0} calIT"}
+                other{"{0} calIT"}
             }
             electronvolt{
                 one{"{0}eV"}
@@ -2244,8 +2346,8 @@ sv{
                 other{"{0}en.pfrld"}
             }
             inch{
-                one{"{0} tum"}
-                other{"{0}\u0022"}
+                one{"{0}″"}
+                other{"{0}″"}
             }
             kilometer{
                 one{"{0}km"}
@@ -2445,6 +2547,10 @@ sv{
                 one{"{0}mmHg"}
                 other{"{0}mmHg"}
             }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
             pascal{
                 one{"{0}Pa"}
                 other{"{0}Pa"}
@@ -2584,9 +2690,13 @@ sv{
                 other{"{0}fl oz"}
             }
             fluid-ounce-imperial{
-                dnam{"Br. fl oz"}
-                one{"{0}br. fl oz"}
-                other{"{0}br. fl oz"}
+                dnam{"Imp fl oz"}
+                one{"{0}fl oz Im"}
+                other{"{0}fl oz Im"}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m."}
+                other{"{0} fl oz m."}
             }
             gallon{
                 one{"{0}gal"}
@@ -2672,6 +2782,10 @@ sv{
                 one{"{0} varv"}
                 other{"{0} varv"}
             }
+            steradian{
+                one{"{0} sr"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -2711,6 +2825,10 @@ sv{
                 one{"{0} K"}
                 other{"{0} K"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dl"}
                 one{"{0} mg/dl"}
@@ -2721,6 +2839,19 @@ sv{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"glc"}
+                one{"{0} glc"}
+                other{"{0} glc"}
+            }
+            part{
+                dnam{"del"}
+                one{"{0} del"}
+                other{"{0} delar"}
+            }
+            part-per-1e6{
+                dnam{"miljondelar"}
+            }
             percent{
                 one{"{0} %"}
                 other{"{0} %"}
@@ -2728,9 +2859,6 @@ sv{
             permille{
                 one{"{0} ‰"}
                 other{"{0} ‰"}
-            }
-            permillion{
-                dnam{"miljondelar"}
             }
             permyriad{
                 one{"{0} ‱"}
@@ -2795,6 +2923,7 @@ sv{
                 dnam{"tim"}
                 one{"{0} tim"}
                 other{"{0} tim"}
+                per{"{0}/tim"}
             }
             month{
                 dnam{"mån"}
@@ -2809,10 +2938,10 @@ sv{
                 per{"{0}/natt"}
             }
             quarter{
-                dnam{"k"}
-                one{"{0} k"}
-                other{"{0} k"}
-                per{"{0}/k"}
+                dnam{"kv"}
+                one{"{0} kv"}
+                other{"{0} kv"}
+                per{"{0}/kv"}
             }
             second{
                 dnam{"sek"}
@@ -2834,10 +2963,23 @@ sv{
             ampere{
                 dnam{"A"}
             }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+            }
         }
         energy{
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             joule{
                 dnam{"J"}
@@ -2849,6 +2991,10 @@ sv{
             }
         }
         force{
+            kilogram-force{
+                one{"{0} kgf"}
+                other{"{0} kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kWh/100 km"}
                 one{"{0} kWh/100 km"}
@@ -2968,6 +3114,16 @@ sv{
                 other{"{0} lux"}
             }
         }
+        magnetic{
+            tesla{
+                one{"{0} T"}
+                other{"{0} T"}
+            }
+            weber{
+                one{"{0} Wb"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"karat"}
@@ -3023,6 +3179,10 @@ sv{
                 dnam{"tum Hg"}
                 one{"{0} tum Hg"}
                 other{"{0} tum Hg"}
+            }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
             }
         }
         speed{
@@ -3131,8 +3291,12 @@ sv{
                 other{"{0} fl oz"}
             }
             fluid-ounce-imperial{
-                one{"{0} br. fl oz"}
-                other{"{0} br. fl oz"}
+                one{"{0} fl oz Imp."}
+                other{"{0} fl oz Imp."}
+            }
+            fluid-ounce-metric{
+                one{"{0} fl oz m."}
+                other{"{0} fl oz m."}
             }
             gallon{
                 dnam{"gal"}

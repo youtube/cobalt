@@ -261,6 +261,31 @@ rtc_library("dtmf_sender_interface") {
   deps = [ ":ref_count" ]
 }
 
+rtc_library("sframe_types") {
+  visibility = [ "*" ]
+  sources = [ "sframe/sframe_types.h" ]
+}
+
+rtc_library("sframe_encrypter_interface") {
+  visibility = [ "*" ]
+  sources = [ "sframe/sframe_encrypter_interface.h" ]
+  deps = [
+    ":ref_count",
+    ":rtc_error",
+    ":sframe_types",
+  ]
+}
+
+rtc_library("sframe_decrypter_interface") {
+  visibility = [ "*" ]
+  sources = [ "sframe/sframe_decrypter_interface.h" ]
+  deps = [
+    ":ref_count",
+    ":rtc_error",
+    ":sframe_types",
+  ]
+}
+
 rtc_library("rtp_sender_interface") {
   visibility = [ "*" ]
 
@@ -277,6 +302,7 @@ rtc_library("rtp_sender_interface") {
     ":rtc_error",
     ":rtp_parameters",
     ":scoped_refptr",
+    ":sframe_encrypter_interface",
     "../rtc_base:checks",
     "../rtc_base/system:rtc_export",
     "crypto:frame_encryptor_interface",
@@ -477,8 +503,12 @@ rtc_library("rtp_receiver_interface") {
     ":frame_transformer_interface",
     ":media_stream_interface",
     ":ref_count",
+    ":rtc_error",
     ":rtp_parameters",
     ":scoped_refptr",
+    ":sframe_decrypter_interface",
+    ":sframe_types",
+    "../rtc_base:checks",
     "../rtc_base/system:rtc_export",
     "crypto:frame_decryptor_interface",
     "transport/rtp:rtp_source",
@@ -599,6 +629,9 @@ rtc_library("libjingle_peerconnection_api") {
     ":sctp_transport_interface",
     ":sequence_checker",
     ":set_local_description_observer_interface",
+    ":sframe_decrypter_interface",
+    ":sframe_encrypter_interface",
+    ":sframe_types",
     ":turn_customizer",
     "../call:rtp_interfaces",
     "../media:media_engine",

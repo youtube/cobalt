@@ -24,6 +24,7 @@
 #include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
@@ -122,12 +123,10 @@ class BaseChannel : public ChannelInterface,
   }
 
   // Channel control
-  bool SetLocalContent(const MediaContentDescription* content,
-                       SdpType type,
-                       std::string& error_desc) override;
-  bool SetRemoteContent(const MediaContentDescription* content,
-                        SdpType type,
-                        std::string& error_desc) override;
+  RTCError SetLocalContent(const MediaContentDescription* content,
+                           SdpType type) override;
+  RTCError SetRemoteContent(const MediaContentDescription* content,
+                            SdpType type) override;
   // Controls whether this channel will receive packets on the basis of
   // matching payload type alone. This is needed for legacy endpoints that
   // don't signal SSRCs or use MID/RID, but doesn't make sense if there is
@@ -255,21 +254,15 @@ class BaseChannel : public ChannelInterface,
   // Updates the send/recv state of the media channel.
   virtual void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) = 0;
 
-  bool UpdateLocalStreams_w(const std::vector<StreamParams>& streams,
-                            SdpType type,
-                            std::string& error_desc)
-      RTC_RUN_ON(worker_thread());
-  bool UpdateRemoteStreams_w(const MediaContentDescription* content,
-                             SdpType type,
-                             std::string& error_desc)
-      RTC_RUN_ON(worker_thread());
-  virtual bool SetLocalContent_w(const MediaContentDescription* content,
-                                 SdpType type,
-                                 std::string& error_desc)
+  RTCError UpdateLocalStreams_w(const std::vector<StreamParams>& streams,
+                                SdpType type) RTC_RUN_ON(worker_thread());
+  RTCError UpdateRemoteStreams_w(const MediaContentDescription* content,
+                                 SdpType type) RTC_RUN_ON(worker_thread());
+  virtual RTCError SetLocalContent_w(const MediaContentDescription* content,
+                                     SdpType type)
       RTC_RUN_ON(worker_thread()) = 0;
-  virtual bool SetRemoteContent_w(const MediaContentDescription* content,
-                                  SdpType type,
-                                  std::string& error_desc)
+  virtual RTCError SetRemoteContent_w(const MediaContentDescription* content,
+                                      SdpType type)
       RTC_RUN_ON(worker_thread()) = 0;
 
   // Returns a list of RTP header extensions where any extension URI is unique.
@@ -282,19 +275,17 @@ class BaseChannel : public ChannelInterface,
   // This verifies that all extension IDs are within the valid range,
   // that there are no duplicate IDs, and that no existing extension ID
   // has been reassigned to a different URI.
-  bool CheckRtpExtensionValidity(const RtpHeaderExtensions& extensions,
-                                 std::string& error_desc) const
-      RTC_RUN_ON(worker_thread());
+  RTCError CheckRtpExtensionValidity(
+      const RtpHeaderExtensions& extensions) const RTC_RUN_ON(worker_thread());
 
   // Returns `true` if either an update wasn't needed or one was successfully
   // applied. If the return value is `false`, then updating the demuxer criteria
   // failed, which needs to be treated as an error.
-  bool MaybeUpdateDemuxerAndRtpExtensions_w(
+  RTCError MaybeUpdateDemuxerAndRtpExtensions_w(
       bool update_demuxer,
       std::optional<flat_set<uint8_t>> payload_types,
       const RtpHeaderExtensions& extensions,
-      std::optional<flat_set<uint32_t>> ssrcs,
-      std::string& error_desc) RTC_RUN_ON(worker_thread());
+      std::optional<flat_set<uint32_t>> ssrcs) RTC_RUN_ON(worker_thread());
 
   // Registers a demuxer criteria with the transport, on the network thread.
   // This function will fail if there's no transport of if a sink is already
@@ -432,13 +423,10 @@ class VoiceChannel : public BaseChannel {
  private:
   // overrides from BaseChannel
   void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) override;
-  bool SetLocalContent_w(const MediaContentDescription* content,
-                         SdpType type,
-                         std::string& error_desc)
-      RTC_RUN_ON(worker_thread()) override;
-  bool SetRemoteContent_w(const MediaContentDescription* content,
-                          SdpType type,
-                          std::string& error_desc)
+  RTCError SetLocalContent_w(const MediaContentDescription* content,
+                             SdpType type) RTC_RUN_ON(worker_thread()) override;
+  RTCError SetRemoteContent_w(const MediaContentDescription* content,
+                              SdpType type)
       RTC_RUN_ON(worker_thread()) override;
 
   // Last AudioSenderParameter sent down to the media_channel() via
@@ -499,13 +487,10 @@ class VideoChannel : public BaseChannel {
  private:
   // overrides from BaseChannel
   void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) override;
-  bool SetLocalContent_w(const MediaContentDescription* content,
-                         SdpType type,
-                         std::string& error_desc)
-      RTC_RUN_ON(worker_thread()) override;
-  bool SetRemoteContent_w(const MediaContentDescription* content,
-                          SdpType type,
-                          std::string& error_desc)
+  RTCError SetLocalContent_w(const MediaContentDescription* content,
+                             SdpType type) RTC_RUN_ON(worker_thread()) override;
+  RTCError SetRemoteContent_w(const MediaContentDescription* content,
+                              SdpType type)
       RTC_RUN_ON(worker_thread()) override;
 
   // Last VideoSenderParameters sent down to the media_channel() via

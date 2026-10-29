@@ -28,9 +28,7 @@ wo{
             ls{"Afrique du Sud"}
         }
         "meta:Africa_Western"{
-            ld{"Afrique du sowwu jant"}
-            lg{"Waxtu sowwu Afrique"}
-            ls{"Waxtu buñ miin ci sowwu Afrique"}
+            ls{"Waxtu sowwu Afrique"}
         }
         "meta:Alaska"{
             ld{"Waxtu bëccëg ci Alaska"}
@@ -268,6 +266,9 @@ wo{
         }
         "meta:Guyana"{
             ls{"Waxtu Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Waxtu buñ jagleel Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Waxtu bëccëg bu Hawaii-Aleutian"}

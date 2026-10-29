@@ -1016,6 +1016,10 @@ it{
             "EC$",
             "dollaro dei Caraibi orientali",
         }
+        XCG{
+            "Cf",
+            "fiorino caraibico",
+        }
         XDR{
             "XDR",
             "diritti speciali di incasso",
@@ -1103,6 +1107,10 @@ it{
         ZWD{
             "ZWD",
             "dollaro dello Zimbabwe",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwe Gold",
         }
         ZWL{
             "ZWL",
@@ -1732,6 +1740,10 @@ it{
             one{"dollaro dei Caraibi orientali"}
             other{"dollari dei Caraibi orientali"}
         }
+        XCG{
+            one{"fiorino caraibico"}
+            other{"fiorini caraibici"}
+        }
         XOF{
             one{"franco CFA BCEAO"}
             other{"franchi CFA BCEAO"}
@@ -1759,6 +1771,10 @@ it{
         ZMW{
             one{"kwacha zambiano"}
             other{"kwacha zambiani"}
+        }
+        ZWG{
+            one{"Zimbabwe Gold"}
+            other{"Zimbabwe Gold"}
         }
     }
 }

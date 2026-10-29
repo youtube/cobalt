@@ -121,16 +121,16 @@ zgh{
             }
             eras{
                 abbreviated{
-                    "ⴷⴰⵄ",
-                    "ⴷⴼⵄ",
+                    0{"ⴷⴰⵄ"}
+                    1{"ⴷⴼⵄ"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "ⴷⴰⵜ ⵏ ⵄⵉⵙⴰ",
-                    "ⴷⴼⴼⵉⵔ ⵏ ⵄⵉⵙⴰ",
+                    0{"ⴷⴰⵜ ⵏ ⵄⵉⵙⴰ"}
+                    1{"ⴷⴼⴼⵉⵔ ⵏ ⵄⵉⵙⴰ"}
                 }
             }
             intervalFormats{

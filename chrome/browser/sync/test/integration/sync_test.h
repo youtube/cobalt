@@ -152,6 +152,7 @@ class SyncTest : public PlatformBrowserTest,
   void TearDown() override;
   void PostRunTestOnMainThread() override;
   void CreatedBrowserMainParts(content::BrowserMainParts* parts) override;
+  void SetUpLocalStatePrefService(PrefService* local_state) override;
 
   // Sets up command line flags required for sync tests.
   void SetUpCommandLine(base::CommandLine* cl) override;
@@ -301,9 +302,6 @@ class SyncTest : public PlatformBrowserTest,
   void OnProfileAdded(Profile* profile) override;
   void OnProfileManagerDestroying() override;
   void OnProfileCreationStarted(Profile* profile) override;
-
-  // Invoked immediately before creating profile |index| under |profile_path|.
-  virtual void BeforeSetupClient(int index, const base::FilePath& profile_path);
 
   // The name for a directory under chrome::DIR_USER_DATA.
   virtual base::FilePath GetProfileBaseName(int index);

@@ -14,10 +14,13 @@ sl{
         colStrength{"Moč razvrščanja"}
         collation{"razvrščanje"}
         currency{"valuta"}
+        em{"Prikaz emodžija"}
         hc{"urni prikaz (12 ali 24)"}
         lb{"Slog preloma vrstic"}
+        lw{"Prelomi vrstic znotraj besed"}
         ms{"merski sistem"}
         numbers{"številke"}
+        ss{"Konec stavka po okrajšavi"}
         timezone{"Časovni pas"}
         va{"Različica območnih nastavitev"}
         x{"Zasebna-uporaba"}
@@ -579,6 +582,12 @@ sl{
         zxx{"brez jezikoslovne vsebine"}
         zza{"zazajščina"}
     }
+    Languages%core{
+        ku{"kurdščina"}
+    }
+    Languages%extension{
+        ku{"kurmanščina"}
+    }
     Languages%long{
         zh_Hans{"poenostavljena mandarinska kitajščina"}
         zh_Hant{"tradicionalna mandarinska kitajščina"}
@@ -754,9 +763,29 @@ sl{
             persian{"perzijski koledar"}
             roc{"koledar Minguo"}
         }
+        calendar%core{
+            buddhist{"budistični"}
+            chinese{"kitajski"}
+            coptic{"koptski"}
+            dangi{"stari korejski"}
+            ethiopic{"etiopski"}
+            ethiopic-amete-alem{"etiopsko ametsko alemski"}
+            gregorian{"gregorijanski"}
+            hebrew{"hebrejski"}
+            islamic{"islamski"}
+            islamic-civil{"islamski civilni"}
+            islamic-umalqura{"islamski (Umm al-Qura)"}
+            japanese{"japonski"}
+            persian{"perzijski"}
+            roc{"Minguo"}
+        }
         cf{
             account{"oblika zapisa valute v računovodstvu"}
             standard{"standardna oblika zapisa valute"}
+        }
+        cf%core{
+            account{"računovodska"}
+            standard{"standardna"}
         }
         colAlternate{
             non-ignorable{"Razvrščanje simbolov"}
@@ -791,28 +820,45 @@ sl{
             tertiary{"Razvrščanje po naglasih/velikih črkah/malih črkah/širini"}
         }
         collation{
-            big5han{"razvrščanje po sistemu tradicionalne kitajščine - Big5"}
             compat{"prej uporabljeno razvrščanje za združljivost"}
             dictionary{"slovarsko razvrščanje"}
-            ducet{"Privzeto razvrščanje Unicode"}
+            ducet{"privzeto razvrščanje Unicode"}
             emoji{"razvrščanje čustvenčkov"}
             eor{"evropska pravila razvrščanja"}
-            gb2312han{"razvrščanje po sistemu poenostavljene kitajščine - GB2312"}
             phonebook{"razvrščanje po sistemu telefonskega imenika"}
             phonetic{"fonetično razvrščanje"}
             pinyin{"razvrščanje po sistemu pinjin"}
             search{"Splošno iskanje"}
             searchjl{"Iskanje po začetnem soglasniku hangul"}
-            standard{"Standardno razvrščanje"}
+            standard{"standardno razvrščanje"}
             stroke{"razvrščanje po zaporedju pisanja pismenk"}
             traditional{"razvrščanje po tradicionalnem sistemu"}
             unihan{"razvrščanje po radikalih in potezah"}
             zhuyin{"razvrščanje po pismenkah zhuyin"}
         }
+        collation%core{
+            compat{"združljivostno"}
+            dictionary{"slovarsko"}
+            ducet{"privzeto Unicode"}
+            phonebook{"po sistemu telefonskega imenika"}
+            phonetic{"fonetično"}
+            pinyin{"po sistemu pinjin"}
+            search{"splošno"}
+            standard{"standardno"}
+            stroke{"po zaporedju pisanja pismenk"}
+            traditional{"po tradicionalnem sistemu"}
+            unihan{"po radikalih in potezah"}
+            zhuyin{"po pismenkah zhuyin"}
+        }
         d0{
             fwidth{"Polna širina"}
             hwidth{"Polovična širina"}
             npinyin{"Številsko"}
+        }
+        em%core{
+            default{"privzeto"}
+            emoji{"emodži"}
+            text{"besedilo"}
         }
         hc{
             h11{"12-urni sistem (0–11)"}
@@ -820,10 +866,27 @@ sl{
             h23{"24-urni sistem (0–23)"}
             h24{"24-urni sistem (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Prosti slog preloma vrstic"}
             normal{"Običajni slog preloma vrstic"}
             strict{"Strogi slog preloma vrstic"}
+        }
+        lb%core{
+            loose{"Prosti slog"}
+            normal{"Običajni slog"}
+            strict{"Strogi slog"}
+        }
+        lw%core{
+            breakall{"prelomi vse"}
+            keepall{"obdrži vse"}
+            normal{"običajno"}
+            phrase{"obdrži v frazah"}
         }
         m0{
             bgn{"BGN"}
@@ -833,6 +896,11 @@ sl{
             metric{"metrični sistem"}
             uksystem{"imperialni merski sistem"}
             ussystem{"merski sistem Združenih držav"}
+        }
+        ms%core{
+            metric{"metrični"}
+            uksystem{"ZK"}
+            ussystem{"ZDA"}
         }
         numbers{
             ahom{"števke ahom"}
@@ -912,6 +980,10 @@ sl{
             traditional{"Tradicionalne številke"}
             vaii{"števke vai"}
             wara{"Warang Citi števke"}
+        }
+        ss%core{
+            none{"Izklopljeno"}
+            standard{"Vklopljeno"}
         }
     }
     Variants{

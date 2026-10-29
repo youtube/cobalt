@@ -7,17 +7,20 @@ jv{
         cf{"Format Mata Uang"}
         collation{"Urutan Pamilahan"}
         currency{"Mata Uang"}
+        em{"Presentasi Emoji"}
         hc{"Siklus Jam (12 vs 24)"}
         lb{"Gaya Ganti Baris"}
+        lw{"Ganti baris sajrone Tembung"}
         ms{"Sistem Pangukuran"}
         numbers{"Angka"}
+        ss{"Pedhotan ukara sawise singkatan"}
     }
     Languages{
         ab{"Abkhazian"}
         ace{"Achinese"}
         ada{"Adangme"}
         ady{"Adyghe"}
-        af{"Afrika"}
+        af{"Afrikaans"}
         agq{"Aghem"}
         ain{"Ainu"}
         ak{"Akan"}
@@ -41,6 +44,7 @@ jv{
         ay{"Aymara"}
         az{"Azerbaijan"}
         ba{"Bashkir"}
+        bal{"Baluchi"}
         ban{"Bali"}
         bas{"Basaa"}
         be{"Belarus"}
@@ -453,6 +457,12 @@ jv{
         zxx{"Konten tanpa linguistik"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Kurdi"}
+    }
+    Languages%extension{
+        ku{"Kurmanji"}
+    }
     Languages%long{
         zh_Hans{"Tyonghwa Mandarin (Ringkes)"}
         zh_Hant{"Tyonghwa Mandarin (Tradisional)"}
@@ -541,20 +551,51 @@ jv{
             islamic{"Tanggalan Hijriah"}
             islamic-civil{"Tanggalan Hijriah (tabel, jaman sipil)"}
             islamic-tbla{"Tanggalan Hijriah (tabel, jaman astronomis)"}
-            islamic-umalqura{"Tanggalan Hijriah (Umm al-Qura)"}
+            islamic-umalqura{"Tanggalan Hijriah (Ummul Qura)"}
             iso8601{"Tanggalan ISO-8601"}
             japanese{"Tanggalan Jepang"}
             persian{"Tanggalan Persia"}
             roc{"Tanggalan Minguo"}
         }
+        calendar%core{
+            buddhist{"Buddha"}
+            chinese{"Cina"}
+            coptic{"Koptik"}
+            dangi{"Dangi"}
+            ethiopic{"Etiopia"}
+            ethiopic-amete-alem{"Etiopia Amete Alem"}
+            gregorian{"Gregorian"}
+            hebrew{"Ibrani"}
+            islamic{"Hijriah"}
+            islamic-civil{"Hijriah (tabel, jaman sipil)"}
+            islamic-tbla{"Hijriah (tabel, jaman astronomis)"}
+            islamic-umalqura{"Hijriah (Ummul Qura)"}
+            japanese{"Jepang"}
+            persian{"Persia"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Format Mata Uang Akuntansi"}
             standard{"Format Mata Uang Standar"}
+        }
+        cf%core{
+            account{"Akuntansi"}
+            standard{"Standar"}
         }
         collation{
             ducet{"Urutan Pamilahan Unicode Default"}
             search{"Panlusuran Tujuan Umum"}
             standard{"Standar Ngurutke Urutan"}
+        }
+        collation%core{
+            ducet{"Unicode Default"}
+            search{"Panlusuran"}
+            standard{"Standar"}
+        }
+        em%core{
+            default{"Gawan"}
+            emoji{"Emoji"}
+            text{"Teks"}
         }
         hc{
             h11{"Sistem 12 Jam (0–11)"}
@@ -562,15 +603,37 @@ jv{
             h23{"Sistem 24 Jam (0–23)"}
             h24{"Sistem 24 Jam (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Gaya Ganti Baris Longgar"}
             normal{"Gaya Ganti Baris Normal"}
             strict{"Gaya Ganti Baris Strik"}
         }
+        lb%core{
+            loose{"Longgar"}
+            normal{"Normal"}
+            strict{"Ketat"}
+        }
+        lw%core{
+            breakall{"Ganti baris kabeh"}
+            keepall{"Tetep kabeh"}
+            normal{"Normal"}
+            phrase{"Pertahanake frasa"}
+        }
         ms{
             metric{"Sistem Metrik"}
             uksystem{"Sistem Pangukuran Imperial"}
             ussystem{"Sistem Pangukuran AS"}
+        }
+        ms%core{
+            metric{"Metrik"}
+            uksystem{"Inggris"}
+            ussystem{"AS"}
         }
         numbers{
             arab{"Digit Hindu-Arab"}
@@ -613,6 +676,10 @@ jv{
             thai{"Digit Thailand"}
             tibt{"Digit Tibet"}
             vaii{"Digit Vai"}
+        }
+        ss%core{
+            none{"Mati"}
+            standard{"Urip"}
         }
     }
     characterLabelPattern{

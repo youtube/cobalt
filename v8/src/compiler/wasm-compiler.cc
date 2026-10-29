@@ -168,7 +168,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
-  bool is_shared = module->type(inlinee.sig_index).is_shared;
+  SharedFlag is_shared = module->type(inlinee.sig_index).is_shared;
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end(), is_shared);
   // If the inlinee was not validated before, do that now.
@@ -231,7 +231,8 @@ void WasmGraphBuilder::Start(unsigned params) {
     case kJSFunctionAbiMode: {
       Node* param = Param(Linkage::kJSCallClosureParamIndex, "%closure");
       if (v8_flags.debug_code) {
-        Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
+        Assert(gasm_->HasInstanceTypeInRange(param, FIRST_JS_FUNCTION_TYPE,
+                                             LAST_JS_FUNCTION_TYPE),
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadExportedFunctionInstanceData(
@@ -746,7 +747,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(callable_node);
     Node* flags = gasm_->LoadFromObject(
         MachineType::Int32(), shared_function_info,
-        wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo());
+        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFlagsOffset));
     Node* strict_check = gasm_->Word32And(
         flags, Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
                              SharedFunctionInfo::IsStrictBit::kMask));

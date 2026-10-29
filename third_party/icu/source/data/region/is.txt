@@ -85,6 +85,7 @@ is{
         CN{"Kína"}
         CO{"Kólumbía"}
         CP{"Clipperton-eyja"}
+        CQ{"Sark"}
         CR{"Kostaríka"}
         CU{"Kúba"}
         CV{"Grænhöfðaeyjar"}
@@ -309,6 +310,7 @@ is{
         CD{"Kongó (Lýðstjórnarlýðveldið)"}
         CG{"Kongó (Lýðveldið)"}
         NZ{"Aotearoa, Nýja-Sjáland"}
+        SZ{"Svasíland"}
         TL{"Austur-Tímor"}
     }
 }

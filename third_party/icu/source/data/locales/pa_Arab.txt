@@ -106,8 +106,8 @@ pa_Arab{
             }
             eras{
                 abbreviated{
-                    "ايساپورو",
-                    "سں",
+                    0{"ايساپورو"}
+                    1{"سں"}
                 }
             }
             monthNames{

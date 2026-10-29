@@ -34,6 +34,7 @@
 #include "pc/audio_track.h"
 #include "pc/media_stream_track_proxy.h"
 #include "pc/remote_audio_source.h"
+#include "pc/rtp_receiver.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
 
@@ -81,7 +82,7 @@ AudioRtpReceiver::AudioRtpReceiver(
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
     VoiceMediaReceiveChannelInterface* voice_channel,
     RemoteAudioSource::OnAudioChannelGoneAction source_gone_action)
-    : worker_thread_(worker_thread),
+    : RtpReceiverBase(worker_thread),
       id_(receiver_id),
       source_(make_ref_counted<RemoteAudioSource>(worker_thread,
                                                   source_gone_action)),

@@ -102,6 +102,11 @@ OPENSSL_EXPORT int EVP_PKEY_has_public(const EVP_PKEY *pkey);
 // otherwise.
 OPENSSL_EXPORT int EVP_PKEY_has_private(const EVP_PKEY *pkey);
 
+// EVP_PKEY_copy_public returns a newly-allocated |EVP_PKEY| that contains only
+// the public key of |pkey|, or NULL on error. Parameters, if relevant for the
+// key type, are also copied.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_copy_public(const EVP_PKEY *pkey);
+
 // The following constants are returned by |EVP_PKEY_id| and specify the type of
 // key.
 #define EVP_PKEY_NONE NID_undef
@@ -116,6 +121,8 @@ OPENSSL_EXPORT int EVP_PKEY_has_private(const EVP_PKEY *pkey);
 #define EVP_PKEY_ML_DSA_44 NID_ML_DSA_44
 #define EVP_PKEY_ML_DSA_65 NID_ML_DSA_65
 #define EVP_PKEY_ML_DSA_87 NID_ML_DSA_87
+#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
+#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 
 // EVP_PKEY_id returns the type of |pkey|, which is one of the |EVP_PKEY_*|
 // values above. These type values generally correspond to the algorithm OID,
@@ -183,6 +190,18 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ed25519(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_dsa_44(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_dsa_65(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_dsa_87(void);
+
+// EVP_pkey_ml_kem_* implement ML-KEM keys, encoded as in RFC 9935. The
+// |EVP_PKEY_id| values are |EVP_PKEY_ML_KEM_*|. In the private key
+// representation, only the "seed" form is serialized or parsed.
+//
+// To configure OpenSSL to output the standard "seed" form, configure the
+// "ml-kem.output_formats" provider parameter so that "seed-only" is first. This
+// can be done programmatically with OpenSSL's
+// |OSSL_PROVIDER_add_conf_parameter| function, or by passing "-provparam" to
+// the command-line tool.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_kem_768(void);
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_kem_1024(void);
 
 // EVP_pkey_dsa implements DSA keys, encoded as in RFC 3279, Section 2.3.2. The
 // |EVP_PKEY_id| value is |EVP_PKEY_DSA|. This |EVP_PKEY_ALG| accepts all DSA
@@ -896,6 +915,63 @@ OPENSSL_EXPORT int EVP_PKEY_paramgen_init(EVP_PKEY_CTX *ctx);
 // or zero on error.
 OPENSSL_EXPORT int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **out_pkey);
 
+// EVP_PKEY_encapsulate_init initialises an |EVP_PKEY_CTX| for an encapsulate
+// operation. It should be called before |EVP_PKEY_encapsulate|. |params| is
+// included for OpenSSL compatibility, but this parameter should be NULL.
+//
+// It returns one on success or zero on error.
+OPENSSL_EXPORT int EVP_PKEY_encapsulate_init(EVP_PKEY_CTX *ctx,
+                                             const OSSL_PARAM *params);
+
+// EVP_PKEY_encapsulate implements public key encapsulation using |ctx|. It
+// either performs the operation or returns the maximum output sizes, depending
+// on whether |out_ciphertext| is NULL:
+//
+// If |out_ciphertext| is NULL, it writes the maximum ciphertext length to
+// |*out_ciphertext_len| and the maximum shared secret length to
+// |*out_secret_len|. Either of |out_ciphertext_len| or |out_secret_len| may be
+// NULL to ignore the corresponding output.
+//
+// If |out_ciphertext| is non-NULL, it performs the operation and, on success,
+// writes the ciphertext to |out_ciphertext|, the ciphertext size to
+// |out_ciphertext_len|, the shared secret to |out_secret|, and the shared
+// secret length to |out_secret_len|. On input, |*out_ciphertext_len| and
+// |*out_secret_len| must contain the amount of space available in
+// |out_ciphertext| and |out_secret|, respectively. If there is insufficient
+// space to write the output, the operation will fail.
+//
+// In both modes, this function returns one on success or zero on error.
+OPENSSL_EXPORT int EVP_PKEY_encapsulate(EVP_PKEY_CTX *ctx,
+                                        uint8_t *out_ciphertext,
+                                        size_t *out_ciphertext_len,
+                                        uint8_t *out_secret,
+                                        size_t *out_secret_len);
+
+// EVP_PKEY_decapsulate_init initialises an |EVP_PKEY_CTX| for a decapsulate
+// operation. It should be called before |EVP_PKEY_decapsulate|. |params| is
+// included for OpenSSL compatibility, but this parameter should be NULL.
+//
+// It returns one on success or zero on error.
+OPENSSL_EXPORT int EVP_PKEY_decapsulate_init(EVP_PKEY_CTX *ctx,
+                                             const OSSL_PARAM *params);
+
+// EVP_PKEY_decapsulate implements private key decapsulation using |ctx|.
+// |ciphertext| and |ciphertext_len| specify the ciphertext to be decapsulated.
+// If |out_secret| is NULL, it writes the maximum size of the shared secret
+// output to |*out_secret_len| and returns one. Otherwise, |*out_secret_len|
+// must contain the number of bytes of space available at |out_secret|. If the
+// space is insufficient, this function returns zero. If the space is
+// sufficient, the decapsulated shared secret will be written to |out_secret|
+// and the size of the output to |out_secret_len|, and this function will return
+// one. If |ciphertext| has been corrupted, the function may fail or it may
+// output a shared secret that appears to be random. Any subsequent symmetric
+// encryption using |out_secret| must use an authenticated encryption scheme to
+// discover the decapsulation failure.
+OPENSSL_EXPORT int EVP_PKEY_decapsulate(EVP_PKEY_CTX *ctx, uint8_t *out_secret,
+                                        size_t *out_secret_len,
+                                        const uint8_t *ciphertext,
+                                        size_t ciphertext_len);
+
 
 // Generic control functions.
 
@@ -1057,6 +1133,63 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx,
 // https://raccoon-attack.com/, particularly when the same private key is used
 // for multiple operations.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_dh_pad(EVP_PKEY_CTX *ctx, int pad);
+
+
+// Key encapsulation mechanism algorithms.
+//
+// Two APIs for working with key encapsulation mechanism (KEM) algorithms are
+// provided:
+//
+//  1. Create an |EVP_PKEY_CTX|, initialize it for the appropriate KEM operation
+//     (see |EVP_PKEY_encapsulate_init| and |EVP_PKEY_decapsulate_init|), then
+//     run the operation. This matches the OpenSSL API.
+//
+//  2. Pass an appropriate |EVP_KEM| object to the functions below to use it
+//     for encapsulation and decapsulation operations with compatible |EVP_PKEY|
+//     objects. This API requires fewer steps.
+//
+// The |EVP_KEM| API is only compatible with KEMs that use fixed-length
+// ciphertexts and secrets.
+
+// EVP_kem_ml_kem_* implement ML-KEM, defined in FIPS 203.
+OPENSSL_EXPORT const EVP_KEM *EVP_kem_ml_kem_768(void);
+OPENSSL_EXPORT const EVP_KEM *EVP_kem_ml_kem_1024(void);
+
+// TODO(crbug.com/449751916): Add more supported KEMs.
+
+// EVP_KEM_ciphertext_len returns the fixed length, in bytes, of a ciphertext
+// produced and consumed by |kem|.
+OPENSSL_EXPORT size_t EVP_KEM_ciphertext_len(const EVP_KEM *kem);
+
+// EVP_KEM_secret_len returns the fixed length, in bytes, of the shared
+// secret produced and consumed by |kem|.
+OPENSSL_EXPORT size_t EVP_KEM_secret_len(const EVP_KEM *kem);
+
+// EVP_KEM_encap uses |kem| to encapsulate a |peer_key|. It outputs a
+// ciphertext of length |ciphertext_len| into |*out_ciphertext| and outputs a
+// shared secret of length |secret_len| into |*out_secret|. |peer_key| must be
+// a public key of the type expected by |kem|. |ciphertext_len| and
+// |secret_len| must match the output of |EVP_KEM_ciphertext_len| and
+// |EVP_KEM_secret_len|, respectively, when called with |kem|. This function
+// returns one on success or zero on failure.
+OPENSSL_EXPORT int EVP_KEM_encap(const EVP_KEM *kem, uint8_t *out_ciphertext,
+                                 size_t ciphertext_len, uint8_t *out_secret,
+                                 size_t secret_len, const EVP_PKEY *peer_key);
+
+// EVP_KEM_decap uses |kem| to decapsulate a |ciphertext| of length
+// |ciphertext_len|, using |key| as a decapsulation key. It outputs a shared
+// secret of length |secret_len| into |*out_secret|. |key| must be a private key
+// of the type expected by |kem|. |secret_len| must match the output of
+// |EVP_KEM_secret_len| when called with |kem|. This function returns one on
+// success or zero on failure. If |ciphertext| is invalid (but of the correct
+// length), this will return one and fill |out_secret| with a key that will
+// always be the same for the same |ciphertext| and |key|, but which appears to
+// be random unless one has access to the private |key|. Any subsequent
+// symmetric encryption using |*out_secret| must use an authenticated encryption
+// scheme in order to discover the decapsulation failure.
+OPENSSL_EXPORT int EVP_KEM_decap(const EVP_KEM *kem, uint8_t *out_secret,
+                                 size_t secret_len, const uint8_t *ciphertext,
+                                 size_t ciphertext_len, const EVP_PKEY *key);
 
 
 // Deprecated functions.

@@ -1095,6 +1095,10 @@ hr{
             "XCD",
             "istočnokaripski dolar",
         }
+        XCG{
+            "Cg.",
+            "karipski gulden",
+        }
         XDR{
             "XDR",
             "posebna crtaća prava",
@@ -1198,6 +1202,10 @@ hr{
         ZWD{
             "ZWD",
             "zimbabveanski dolar (1980.–2008.)",
+        }
+        ZWG{
+            "ZWG",
+            "zimbabveansko zlato",
         }
         ZWL{
             "ZWL",
@@ -2579,6 +2587,11 @@ hr{
             one{"istočnokaripski dolar"}
             other{"istočnokaripskih dolara"}
         }
+        XCG{
+            few{"karipska guldena"}
+            one{"karipski gulden"}
+            other{"karipskih guldena"}
+        }
         XDR{
             few{"poseebna crtaća prava"}
             one{"posebno crtaće pravo"}
@@ -2708,6 +2721,11 @@ hr{
             few{"zimbabveanska dolara (1980.–2008.)"}
             one{"zimbabveanski dolar (1980.–2008.)"}
             other{"zimbabveanskih dolara (1980.–2008.)"}
+        }
+        ZWG{
+            few{"zimbabveanska zlata"}
+            one{"zimbabveansko zlato"}
+            other{"zimbabveanskih zlata"}
         }
         ZWL{
             few{"zimbabveanska dolara (2009)"}

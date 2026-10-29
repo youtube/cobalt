@@ -60,6 +60,7 @@ class OnboardingUserActivityCounter;
 class AuthenticatorBuilder;
 class LegacyTokenHandleFetcher;
 class EolNotification;
+class FrozenUpdateNotification;
 class InputEventsBlocker;
 class TokenHandleService;
 
@@ -78,15 +79,6 @@ class UserSessionManagerDelegate {
 
  protected:
   virtual ~UserSessionManagerDelegate() = default;
-};
-
-class UserSessionStateObserver : public base::CheckedObserver {
- public:
-  // Called when UserManager finishes restoring user sessions after crash.
-  virtual void PendingUserSessionsRestoreFinished() {}
-
- protected:
-  ~UserSessionStateObserver() override = default;
 };
 
 class UserAuthenticatorObserver : public base::CheckedObserver {
@@ -259,9 +251,6 @@ class UserSessionManager
   bool RestartToApplyPerSessionFlagsIfNeed(Profile* profile,
                                            bool early_restart);
 
-  void AddSessionStateObserver(ash::UserSessionStateObserver* observer);
-  void RemoveSessionStateObserver(ash::UserSessionStateObserver* observer);
-
   void AddUserAuthenticatorObserver(UserAuthenticatorObserver* observer);
   void RemoveUserAuthenticatorObserver(UserAuthenticatorObserver* observer);
 
@@ -274,6 +263,10 @@ class UserSessionManager
   // Check to see if given profile should show EndOfLife Notification
   // and show the message accordingly.
   void CheckEolInfo(Profile* profile);
+
+  // Check to see if given user should show Frozen Update Notification
+  // and show the message accordingly.
+  void CheckFrozenUpdateInfo(user_manager::User* user);
 
   // Removes a profile from the per-user input methods states map.
   void RemoveProfileForTesting(Profile* profile);
@@ -332,6 +325,11 @@ class UserSessionManager
           Profile* profile)>;
   void SetEolNotificationHandlerFactoryForTesting(
       const EolNotificationHandlerFactoryCallback& eol_notification_factory);
+
+  // Sets a testing callback which invoked when session restore is finished.
+  // The caller should check `UserSessionsRestored()` is false beforehand.
+  void SetOnPendingUserSessionRestoreFinishedForTesting(
+      base::OnceClosure callback);
 
   base::WeakPtr<UserSessionManager> GetUserSessionManagerAsWeakPtr();
 
@@ -556,8 +554,7 @@ class UserSessionManager
 
   PendingUserSessions pending_user_sessions_;
 
-  base::ObserverList<ash::UserSessionStateObserver>
-      session_state_observer_list_;
+  base::OnceClosure on_pending_user_session_restore_finished_for_testsing_;
 
   base::ObserverList<UserAuthenticatorObserver> authenticator_observer_list_;
 
@@ -574,6 +571,10 @@ class UserSessionManager
   // Per-user-session EndofLife Notification
   std::map<Profile*, std::unique_ptr<EolNotification>, ProfileCompare>
       eol_notification_handler_;
+
+  // Per-user-session Frozen Update Notification
+  std::map<AccountId, std::unique_ptr<FrozenUpdateNotification>>
+      frozen_update_notification_handler_;
 
   // Keeps track of which password-requiring-service has already told us whether
   // they need the login password or not.

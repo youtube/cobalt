@@ -293,6 +293,7 @@
       'source/common/errorcode.cpp',
       'source/common/filteredbrk.cpp',
       'source/common/filterednormalizer2.cpp',
+      'source/common/fixedstring.cpp',
       'source/common/icudataver.cpp',
       'source/common/icuplug.cpp',
       'source/common/loadednormalizer2impl.cpp',

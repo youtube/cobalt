@@ -123,13 +123,7 @@ class ApmDataDumper {
                [[maybe_unused]] const double* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      FILE* file = GetRawFile(name);
-      fwrite(v, sizeof(v[0]), v_length, file);
-    }
+    DumpRaw(name, ArrayView<const double>(v, v_length), dump_set);
 #endif
   }
 
@@ -141,7 +135,8 @@ class ApmDataDumper {
       return;
 
     if (recording_activated_) {
-      DumpRaw(name, v.size(), v.data());
+      FILE* file = GetRawFile(name);
+      fwrite(v.data(), sizeof(v[0]), v.size(), file);
     }
 #endif
   }
@@ -165,13 +160,7 @@ class ApmDataDumper {
                [[maybe_unused]] const float* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      FILE* file = GetRawFile(name);
-      fwrite(v, sizeof(v[0]), v_length, file);
-    }
+    DumpRaw(name, ArrayView<const float>(v, v_length), dump_set);
 #endif
   }
 
@@ -183,7 +172,8 @@ class ApmDataDumper {
       return;
 
     if (recording_activated_) {
-      DumpRaw(name, v.size(), v.data());
+      FILE* file = GetRawFile(name);
+      fwrite(v.data(), sizeof(v[0]), v.size(), file);
     }
 #endif
   }
@@ -206,16 +196,7 @@ class ApmDataDumper {
                [[maybe_unused]] const bool* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      FILE* file = GetRawFile(name);
-      for (size_t k = 0; k < v_length; ++k) {
-        int16_t value = static_cast<int16_t>(v[k]);
-        fwrite(&value, sizeof(value), 1, file);
-      }
-    }
+    DumpRaw(name, ArrayView<const bool>(v, v_length), dump_set);
 #endif
   }
 
@@ -227,7 +208,11 @@ class ApmDataDumper {
       return;
 
     if (recording_activated_) {
-      DumpRaw(name, v.size(), v.data());
+      FILE* file = GetRawFile(name);
+      for (bool val : v) {
+        int16_t value = static_cast<int16_t>(val);
+        fwrite(&value, sizeof(value), 1, file);
+      }
     }
 #endif
   }
@@ -251,13 +236,7 @@ class ApmDataDumper {
                [[maybe_unused]] const int16_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      FILE* file = GetRawFile(name);
-      fwrite(v, sizeof(v[0]), v_length, file);
-    }
+    DumpRaw(name, ArrayView<const int16_t>(v, v_length), dump_set);
 #endif
   }
 
@@ -269,7 +248,8 @@ class ApmDataDumper {
       return;
 
     if (recording_activated_) {
-      DumpRaw(name, v.size(), v.data());
+      FILE* file = GetRawFile(name);
+      fwrite(v.data(), sizeof(v[0]), v.size(), file);
     }
 #endif
   }
@@ -293,12 +273,20 @@ class ApmDataDumper {
                [[maybe_unused]] const int32_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
+    DumpRaw(name, ArrayView<const int32_t>(v, v_length), dump_set);
+#endif
+  }
+
+  void DumpRaw([[maybe_unused]] absl::string_view name,
+               [[maybe_unused]] ArrayView<const int32_t> v,
+               [[maybe_unused]] int dump_set = kDefaultDumpSet) {
+#if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
       return;
 
     if (recording_activated_) {
       FILE* file = GetRawFile(name);
-      fwrite(v, sizeof(v[0]), v_length, file);
+      fwrite(v.data(), sizeof(v[0]), v.size(), file);
     }
 #endif
   }
@@ -322,37 +310,21 @@ class ApmDataDumper {
                [[maybe_unused]] const size_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      FILE* file = GetRawFile(name);
-      fwrite(v, sizeof(v[0]), v_length, file);
-    }
+    DumpRaw(name, ArrayView<const size_t>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const int32_t> v,
+               [[maybe_unused]] ArrayView<const size_t> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
       return;
 
     if (recording_activated_) {
-      DumpRaw(name, v.size(), v.data());
+      FILE* file = GetRawFile(name);
+      fwrite(v.data(), sizeof(v[0]), v.size(), file);
     }
-#endif
-  }
-
-  void DumpRaw(absl::string_view name,
-               ArrayView<const size_t> v,
-               int dump_set = kDefaultDumpSet) {
-#if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    DumpRaw(name, v.size(), v.data());
 #endif
   }
 
@@ -363,14 +335,8 @@ class ApmDataDumper {
                [[maybe_unused]] int num_channels,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
-      return;
-
-    if (recording_activated_) {
-      WavWriter* file = GetWavFile(name, sample_rate_hz, num_channels,
-                                   WavFile::SampleFormat::kFloat);
-      file->WriteSamples(v, v_length);
-    }
+    DumpWav(name, ArrayView<const float>(v, v_length), sample_rate_hz,
+            num_channels, dump_set);
 #endif
   }
 
@@ -384,7 +350,9 @@ class ApmDataDumper {
       return;
 
     if (recording_activated_) {
-      DumpWav(name, v.size(), v.data(), sample_rate_hz, num_channels);
+      WavWriter* file = GetWavFile(name, sample_rate_hz, num_channels,
+                                   WavFile::SampleFormat::kFloat);
+      file->WriteSamples(v.data(), v.size());
     }
 #endif
   }

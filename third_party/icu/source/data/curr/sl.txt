@@ -981,7 +981,7 @@ sl{
         }
         VND{
             "₫",
-            "vientnamski dong",
+            "vietnamski dong",
         }
         VUV{
             "VUV",
@@ -1022,6 +1022,10 @@ sl{
         XCD{
             "XCD",
             "vzhodnokaribski dolar",
+        }
+        XCG{
+            "Cg.",
+            "karibski gulden",
         }
         XDR{
             "XDR",
@@ -1110,6 +1114,10 @@ sl{
         ZWD{
             "ZWD",
             "zimbabvejski dolar",
+        }
+        ZWG{
+            "ZWG",
+            "zimbabvejsko zlato",
         }
         ZWL{
             "ZWL",
@@ -2035,7 +2043,7 @@ sl{
         }
         VND{
             few{"vietnamski dongi"}
-            one{"vientnamski dong"}
+            one{"vietnamski dong"}
             other{"vietnamskih dongov"}
             two{"vietnamska donga"}
         }
@@ -2062,6 +2070,12 @@ sl{
             one{"vzhodnokaribski dolar"}
             other{"vzhodnokaribskih dolarjev"}
             two{"vzhodnokaribska dolarja"}
+        }
+        XCG{
+            few{"karibski guldni"}
+            one{"karibski gulden"}
+            other{"karibskih guldnov"}
+            two{"karibska guldna"}
         }
         XOF{
             few{"zahodnoafriški franki CFA"}
@@ -2098,6 +2112,12 @@ sl{
             one{"zambijska kvača"}
             other{"zambijskih kvač"}
             two{"zambijski kvači"}
+        }
+        ZWG{
+            few{"zimbabvejska zlata"}
+            one{"zimbabvejsko zlato"}
+            other{"zimbabvejsko zlato"}
+            two{"zimbabvejska zlata"}
         }
     }
 }

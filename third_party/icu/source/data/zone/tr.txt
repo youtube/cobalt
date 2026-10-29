@@ -87,9 +87,6 @@ tr{
         "America:St_Barthelemy"{
             ec{"Saint Barthelemy"}
         }
-        "Antarctica:Syowa"{
-            ec{"Showa"}
-        }
         "Asia:Almaty"{
             ec{"Almatı"}
         }
@@ -276,9 +273,6 @@ tr{
         "Europe:Budapest"{
             ec{"Budapeşte"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Chisinau"{
             ec{"Kişinev"}
         }
@@ -359,7 +353,7 @@ tr{
             ec{"Paskalya Adası"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Canton Adası"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
@@ -385,9 +379,7 @@ tr{
             ls{"Güney Afrika Standart Saati"}
         }
         "meta:Africa_Western"{
-            ld{"Batı Afrika Yaz Saati"}
-            lg{"Batı Afrika Saati"}
-            ls{"Batı Afrika Standart Saati"}
+            ls{"Batı Afrika Saati"}
         }
         "meta:Alaska"{
             ld{"Alaska Yaz Saati"}
@@ -651,6 +643,9 @@ tr{
         }
         "meta:Guyana"{
             ls{"Guyana Saati"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleut Standart Saati"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleut Yaz Saati"}
@@ -949,6 +944,12 @@ tr{
         }
         "meta:Truk"{
             ls{"Chuuk Saati"}
+        }
+        "meta:Turkey"{
+            ld{"Türkiye Yaz Saati"}
+            lg{"Türkiye Saati"}
+            ls{"Türkiye Standart Saati"}
+            sg{"TSİ"}
         }
         "meta:Turkmenistan"{
             ld{"Türkmenistan Yaz Saati"}

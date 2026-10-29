@@ -7,10 +7,13 @@ ig{
         cf{"Ụsọrọ egọ"}
         collation{"Ụsọrọ Nhazị"}
         currency{"Egọ"}
+        em{"Ngosiputa Emoji"}
         hc{"Okịrịkịrị Awa (12 vs 24)"}
         lb{"Akara akanka nkwụsị"}
+        lw{"Nkwụsị Ahịrị n’ime Okwu"}
         ms{"Ụsọrọ Mmeshọ"}
         numbers{"Nọmba"}
+        ss{"Nkwụsị ahịrịokwu mgbe nkenke gasịrị"}
     }
     Languages{
         aa{"Afar"}
@@ -24,19 +27,19 @@ ig{
         ak{"Akan"}
         ale{"Aleut"}
         alt{"Southern Altai"}
-        am{"Amariikị"}
+        am{"Asụsụ Amariikị"}
         an{"Aragonisị"}
         ann{"Obolo"}
         anp{"Angika"}
         apc{"apcc"}
-        ar{"Arabiikị"}
+        ar{"Asụsụ Arabiikị"}
         ar_001{"Ụdị Arabiikị nke oge a"}
         arn{"Mapuche"}
         arp{"Arapaho"}
         ars{"Najdi Arabikị"}
-        as{"Asamisị"}
+        as{"Asụsụ Asamisị"}
         asa{"Asụ"}
-        ast{"Asturianị"}
+        ast{"Asụsụ Asturianị"}
         atj{"Atikamekw"}
         av{"Avarịk"}
         awa{"Awadhi"}
@@ -175,7 +178,7 @@ ig{
         hu{"Hungarian"}
         hup{"Hupa"}
         hur{"Halkomelem"}
-        hy{"Armenianị"}
+        hy{"Asụsụ Armenianị"}
         hz{"Herero"}
         ia{"Interlingua"}
         iba{"Iban"}
@@ -481,6 +484,12 @@ ig{
         zxx{"Enweghị asụsụ dịnaya"}
         zza{"Zaza"}
     }
+    Languages%core{
+        ku{"Asụsụ Kurdish"}
+    }
+    Languages%extension{
+        ku{"Asụsụ Kurmanji"}
+    }
     Languages%long{
         zh_Hans{"Asụsụ Mandarin Chaịniiz dị mfe"}
         zh_Hant{"Asụsụ ọdịnala Mandarin Chaịniiz"}
@@ -709,9 +718,29 @@ ig{
             persian{"Kalenda Persian"}
             roc{"Kalenda repụblic nke China"}
         }
+        calendar%core{
+            buddhist{"Onye ụka Buda"}
+            chinese{"China"}
+            coptic{"Koptic"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopic"}
+            ethiopic-amete-alem{"Ethiopic Amete Alem"}
+            gregorian{"Gregorian"}
+            hebrew{"Hebrew"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (tabular, civil epoch)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            japanese{"Japanese"}
+            persian{"Persian"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Ụsọrọ akantụ egọ"}
             standard{"Ụsọrọ egọ nzụgbe"}
+        }
+        cf%core{
+            account{"Akantụ egọ"}
+            standard{"Ụkpụrụ"}
         }
         collation{
             ducet{"Default Unicode ụsọrọ nhazị"}
@@ -720,21 +749,53 @@ ig{
             search{"Ọchụchụ nịle"}
             standard{"Usoro Nhazi"}
         }
+        collation%core{
+            ducet{"Unicode Ndabere"}
+            search{"Ọchụchụ"}
+            standard{"Ụkpụrụ"}
+        }
+        em%core{
+            default{"Ndabara"}
+            emoji{"emoji"}
+            text{"Ederede"}
+        }
         hc{
             h11{"Ụsọrọ Okịrịkịrị awa iri na abụọ (0–11)"}
             h12{"Ụsọrọ Okịrịkịrị awa iri na abụọ (0–12)"}
             h23{"Ụsọrọ Okịrịkịrị (0–23)"}
             h24{"Ụsọrọ Okịrịkịrị (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Akara akanka nkwụsị esịghị ịke"}
             normal{"Akara akanka nkwụsị kwesịrị"}
             strict{"Akara akanka nkwụsị sịrị ịke"}
         }
+        lb%core{
+            loose{"Esịghị ịke"}
+            normal{"Kwesịrị"}
+            strict{"Sịrị ịke"}
+        }
+        lw%core{
+            breakall{"Kewaa nke niile"}
+            keepall{"Dobe nke niile"}
+            normal{"Nkịtị"}
+            phrase{"Dobe na nkebiokwu"}
+        }
         ms{
             metric{"Ụsọrọ Metric"}
             uksystem{"Ụsọrọ Mmeshọ ịmperịa"}
             ussystem{"Ụsọrọ Mmeshọ US"}
+        }
+        ms%core{
+            metric{"Metrik"}
+            uksystem{"UK"}
+            ussystem{"US"}
         }
         numbers{
             ahom{"Ọnụ ọgụgụ Ahom"}
@@ -827,6 +888,10 @@ ig{
             vaii{"Ọnụ ọgụgụ Vai"}
             wara{"Ọnụ ọgụgụ Warang Citi"}
             wcho{"Ọnụ ọgụgụ Wancho"}
+        }
+        ss%core{
+            none{"Mgbanyụ"}
+            standard{"Mgbanye"}
         }
     }
     characterLabelPattern{

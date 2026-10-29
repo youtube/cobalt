@@ -4,6 +4,9 @@
 en_AU{
     %%Parent{"en_001"}
     zoneStrings{
+        "Pacific:Wallis"{
+            ec{"Wallis and Futuna"}
+        }
         "meta:Australia_Central"{
             sd{"ACDT"}
             sg{"ACT"}
@@ -28,6 +31,9 @@ en_AU{
             ld{"China Summer Time"}
             lg{"China Time"}
             ls{"China Standard Time"}
+        }
+        "meta:French_Southern"{
+            ls{"French Southern and Antarctic Time"}
         }
         "meta:Japan"{
             ld{"Japan Summer Time"}

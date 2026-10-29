@@ -393,6 +393,7 @@
 <translation id="2359808026110333948">続行</translation>
 <translation id="2360196772093551345">モバイルサイトをリクエスト</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" />（<ph name="USER_EMAIL" />）としてログインしています。設定を開きます。</translation>
+<translation id="2367025302166767427">情報を入力できません</translation>
 <translation id="2371084566192454134">タブとタブグループ</translation>
 <translation id="2371303771137626249">新規</translation>
 <translation id="2381405137052800939">基本設定</translation>
@@ -480,6 +481,7 @@
 <translation id="2691653761409724435">オフラインで使用不可</translation>
 <translation id="2697530870203420261">無効なニックネーム</translation>
 <translation id="269819437389494246">アクセスしたページを確認したり履歴から削除したりできます</translation>
+<translation id="2704295676501803339">左に移動</translation>
 <translation id="2704606927547763573">コピーしました</translation>
 <translation id="2708051474374549906">Google に送信される閲覧データに基づき、危険なサイト、ダウンロード、拡張機能から、リアルタイムで予防的に保護します。</translation>
 <translation id="2709516037105925701">自動入力</translation>
@@ -1662,6 +1664,7 @@
 <translation id="6899890595581608884">安全チェックの通知がオフになっています</translation>
 <translation id="6900532703269623216">保護強化機能</translation>
 <translation id="6900702165119149418">ログアウトしました</translation>
+<translation id="6903282483217634857">右に移動</translation>
 <translation id="6903907808598579934">同期をオンにする</translation>
 <translation id="6906448540340261898">Google アカウントのパスワードを常に使用できるようにしてください</translation>
 <translation id="6908734251759299256">ブラウザを更新してください</translation>
@@ -1724,6 +1727,7 @@
 <translation id="7149893636342594995">過去 24 時間</translation>
 <translation id="7154417656353909837">住所を削除</translation>
 <translation id="7161230316646448869">すべてのデバイスでブックマーク、履歴、その他の設定を同期する</translation>
+<translation id="7165323152084385463">車両識別番号</translation>
 <translation id="7173114856073700355">設定を開く</translation>
 <translation id="7173721738069475737">{count,plural, =1{ブックマークを保存しました}other{{count} 件のブックマークを保存しました}}</translation>
 <translation id="7176183551031110427">縮小</translation>
@@ -2218,6 +2222,7 @@
 <translation id="8863067612494559785"><ph name="DEVICE_NAME" /> に送信しています…</translation>
 <translation id="8863431381414769983">Google マップから経路とローカル情報を取得します</translation>
 <translation id="8871974300055371298">コンテンツの設定</translation>
+<translation id="8876661425082386199">接続を確認してください</translation>
 <translation id="8877788021141246043">リマインダーを設定して</translation>
 <translation id="8879604564928138696">試すにはダブルタップします</translation>
 <translation id="8879952635974818770">パーソナライズされたコンテンツ</translation>
@@ -2319,7 +2324,6 @@
 <translation id="926455622548529175">切り替えて削除</translation>
 <translation id="929748059769569925">選択したテキスト</translation>
 <translation id="932305336591073205">{count,plural, =1{タブを閉じる}other{タブを閉じる}}</translation>
-<translation id="932327136139879170">自宅</translation>
 <translation id="939472100615258482">現在のサイト</translation>
 <translation id="939598580284253335">パスフレーズを入力</translation>
 <translation id="939736085109172342">新しいフォルダ</translation>

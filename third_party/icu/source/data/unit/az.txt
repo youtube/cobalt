@@ -37,6 +37,9 @@ az{
                 one{"{0} dövrə"}
                 other{"{0} dövrə"}
             }
+            steradian{
+                dnam{"steradian"}
+            }
         }
         area{
             acre{
@@ -138,6 +141,9 @@ az{
                 one{"{0} karat"}
                 other{"{0} karat"}
             }
+            katal{
+                dnam{"katal"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"milliqram/desilitr"}
                 one{"{0} milliqram/desilitr"}
@@ -147,6 +153,26 @@ az{
                 one{"{0} millimol/litr"}
                 other{"{0} millimol/litr"}
             }
+            ofglucose{
+                dnam{"qlükoza"}
+                one{"{0} qlükoza"}
+                other{"{0} qlükoza"}
+            }
+            part{
+                dnam{"hissə"}
+                one{"{0} hissə"}
+                other{"{0} hissə"}
+            }
+            part-per-1e6{
+                dnam{"milyonda hissəcik"}
+                one{"{0} milyonda hissəcik"}
+                other{"{0} milyonda hissəcik"}
+            }
+            part-per-1e9{
+                dnam{"milyardda hissə"}
+                one{"milyardda {0} hissə"}
+                other{"milyardda {0} hissə"}
+            }
             percent{
                 one{"{0} faiz"}
                 other{"{0} faiz"}
@@ -155,19 +181,9 @@ az{
                 one{"{0} promil"}
                 other{"{0} promil"}
             }
-            permillion{
-                dnam{"milyonda hissəcik"}
-                one{"{0} milyonda hissəcik"}
-                other{"{0} milyonda hissəcik"}
-            }
             permyriad{
                 one{"{0} permiriada"}
                 other{"{0} permiriada"}
-            }
-            portion-per-1e9{
-                dnam{"bir milyarda düşən hissə sayı"}
-                one{"bir milyarda düşən {0} hissə"}
-                other{"bir milyarda düşən {0} hissə"}
             }
         }
         consumption{
@@ -267,12 +283,6 @@ az{
                 one{"{0} nanosaniyə"}
                 other{"{0} nanosaniyə"}
             }
-            night{
-                dnam{"gecə"}
-                one{"{0} gecə"}
-                other{"{0} gecə"}
-                per{"{0}/gecə"}
-            }
             second{
                 one{"{0} saniyə"}
                 other{"{0} saniyə"}
@@ -290,6 +300,17 @@ az{
                 one{"{0} amper"}
                 other{"{0} amper"}
             }
+            coulomb{
+                dnam{"kulomb"}
+                one{"{0} kulomb"}
+                other{"{0} kulomb"}
+            }
+            farad{
+                dnam{"farad"}
+            }
+            henry{
+                dnam{"henri"}
+            }
             milliampere{
                 dnam{"milliamper"}
                 one{"{0} milliamper"}
@@ -299,12 +320,20 @@ az{
                 one{"{0} om"}
                 other{"{0} om"}
             }
+            siemens{
+                dnam{"simen"}
+            }
             volt{
                 one{"{0} volt"}
                 other{"{0} volt"}
             }
         }
         energy{
+            becquerel{
+                dnam{"bekkerel"}
+                one{"{0} bekkerel"}
+                other{"{0} bekkerel"}
+            }
             british-thermal-unit{
                 dnam{"Britaniya termal vahidi"}
                 one{"{0} Britaniya terman vahidi"}
@@ -315,6 +344,11 @@ az{
                 one{"{0} kalori"}
                 other{"{0} kalori"}
             }
+            calorie-it{
+                dnam{"kalori-IT"}
+                one{"{0} kalori [IT]"}
+                other{"{0} kal-IT"}
+            }
             electronvolt{
                 one{"{0} elektronvolt"}
                 other{"{0} elektronvolt"}
@@ -323,6 +357,11 @@ az{
                 dnam{"Kalori"}
                 one{"{0} Kalori"}
                 other{"{0} Kalori"}
+            }
+            gray{
+                dnam{"qrey"}
+                one{"{0} Qy"}
+                other{"{0} Qy"}
             }
             joule{
                 one{"{0} coul"}
@@ -343,6 +382,11 @@ az{
                 one{"{0} kilovatt-saat"}
                 other{"{0} kilovatt-saat"}
             }
+            sievert{
+                dnam{"zivert"}
+                one{"{0} zivert"}
+                other{"{0} zivert"}
+            }
             therm-us{
                 dnam{"ABŞ termal vahidi"}
                 one{"{0} ABŞ termal vahidi"}
@@ -350,6 +394,11 @@ az{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kiloqram qüvvə"}
+                one{"{0} kqq"}
+                other{"{0} kqq"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0} kVtst/100km"}
                 other{"{0} kVtst/100km"}
@@ -496,6 +545,14 @@ az{
                 other{"{0} gün işığı"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"tesla"}
+            }
+            weber{
+                dnam{"veber"}
+            }
+        }
         mass{
             carat{
                 dnam{"karat"}
@@ -614,6 +671,9 @@ az{
                 one{"{0} millimetr civə sütunu"}
                 other{"{0} millimetr civə sütunu"}
             }
+            ofhg{
+                dnam{"civə"}
+            }
             pascal{
                 dnam{"paskal"}
                 one{"{0} paskal"}
@@ -633,11 +693,6 @@ az{
             kilometer-per-hour{
                 one{"{0} kilometr/saat"}
                 other{"{0} kilometr/saat"}
-            }
-            light-speed{
-                dnam{"işıq"}
-                one{"{0} işıq"}
-                other{"{0} işıq"}
             }
             meter-per-second{
                 one{"{0} metr/saniyə"}
@@ -747,6 +802,11 @@ az{
             fluid-ounce-imperial{
                 dnam{"İmp. maye unsiyası"}
             }
+            fluid-ounce-metric{
+                dnam{"metrik maye unsiyası"}
+                one{"{0} metrik maye unsiyası"}
+                other{"{0} metrik maye unsiyası"}
+            }
             gallon{
                 dnam{"qallon"}
                 one{"{0} qallon"}
@@ -843,15 +903,25 @@ az{
             10p3{"k{0}"}
         }
         concentr{
+            ofglucose{
+                dnam{"Qlk"}
+                one{"{0} Qlk"}
+                other{"{0} Qlk"}
+            }
+            part{
+                dnam{"hissə"}
+                one{"{0} hissə"}
+                other{"{0} hissə"}
+            }
+            part-per-1e9{
+                one{"{0} hissə/milyard"}
+                other{"{0} hissə/milyard"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
-            }
-            permillion{
-                one{"{0} hs/mln"}
-                other{"{0}ppm"}
             }
             permyriad{
                 dnam{"‱"}
@@ -871,10 +941,8 @@ az{
                 dnam{"dəq"}
             }
             night{
-                dnam{"gecə"}
                 one{"{0}gecə"}
                 other{"{0}gecə"}
-                per{"{0}/gecə"}
             }
             second{
                 dnam{"san"}
@@ -883,17 +951,49 @@ az{
                 dnam{"hft"}
             }
         }
+        electric{
+            coulomb{
+                dnam{"K"}
+                one{"{0} K"}
+                other{"{0} K"}
+            }
+        }
         energy{
+            becquerel{
+                dnam{"Bk"}
+                one{"{0} Bk"}
+                other{"{0} Bk"}
+            }
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
+            }
+            gray{
+                dnam{"Qy"}
+                one{"{0} Qy"}
+                other{"{0} Qy"}
             }
             kilowatt-hour{
                 dnam{"kVt/saat"}
                 one{"{0} kVt/saat"}
                 other{"{0} kVt/saat"}
             }
+            sievert{
+                dnam{"Zv"}
+                one{"{0} Zv"}
+                other{"{0} Zv"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"kqq"}
+                one{"{0} kqq"}
+                other{"{0} kqq"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0} kVts/100km"}
                 other{"{0} kVts/100km"}
@@ -1009,7 +1109,6 @@ az{
         }
         speed{
             light-speed{
-                dnam{"işıq"}
                 one{"{0}işıq"}
                 other{"{0}işıq"}
             }
@@ -1068,6 +1167,11 @@ az{
             fluid-ounce-imperial{
                 one{"{0}fl oz Im"}
                 other{"{0}fl oz Im"}
+            }
+            fluid-ounce-metric{
+                dnam{"mmu"}
+                one{"{0} mmu"}
+                other{"{0} mmu"}
             }
             gallon-imperial{
                 one{"{0} imp.qal"}
@@ -1194,22 +1298,34 @@ az{
                 one{"{0} mmol/l"}
                 other{"{0} mmol/l"}
             }
+            ofglucose{
+                dnam{"Qlk"}
+                one{"{0} Qlk"}
+                other{"{0} Qlk"}
+            }
+            part{
+                dnam{"hissə"}
+                one{"{0} hissə"}
+                other{"{0} hissə"}
+            }
+            part-per-1e6{
+                dnam{"hissəcik/milyon"}
+                one{"{0} hs/mln"}
+                other{"{0} hs/mln"}
+            }
+            part-per-1e9{
+                dnam{"hissə/milyard"}
+                one{"{0} hissə/milyard"}
+                other{"{0} hissə/milyard"}
+            }
             percent{
                 dnam{"faiz"}
             }
             permille{
                 dnam{"promil"}
             }
-            permillion{
-                dnam{"hissəcik/milyon"}
-                one{"{0} hs/mln"}
-                other{"{0} hs/mln"}
-            }
             permyriad{
                 dnam{"permiriada"}
-            }
-            portion-per-1e9{
-                dnam{"hissə/milyard"}
             }
         }
         consumption{
@@ -1329,11 +1445,21 @@ az{
             }
         }
         electric{
+            coulomb{
+                dnam{"kulomb"}
+                one{"{0} kulomb"}
+                other{"{0} kulomb"}
+            }
             ohm{
                 dnam{"om"}
             }
         }
         energy{
+            becquerel{
+                dnam{"Bk"}
+                one{"{0} Bk"}
+                other{"{0} Bk"}
+            }
             british-thermal-unit{
                 dnam{"BTV"}
                 one{"{0} Btv"}
@@ -1344,6 +1470,11 @@ az{
                 one{"{0} kal"}
                 other{"{0} kal"}
             }
+            calorie-it{
+                dnam{"kal-IT"}
+                one{"{0} kal-IT"}
+                other{"{0} kal-IT"}
+            }
             electronvolt{
                 dnam{"elektronvolt"}
             }
@@ -1351,6 +1482,11 @@ az{
                 dnam{"Kal"}
                 one{"{0} Kal"}
                 other{"{0} Kal"}
+            }
+            gray{
+                dnam{"Qy"}
+                one{"{0} Qy"}
+                other{"{0} Qy"}
             }
             joule{
                 dnam{"coul"}
@@ -1367,6 +1503,11 @@ az{
                 one{"{0} kc"}
                 other{"{0} kc"}
             }
+            sievert{
+                dnam{"Zv"}
+                one{"{0} Zv"}
+                other{"{0} Zv"}
+            }
             therm-us{
                 dnam{"ABŞ tv"}
                 one{"{0} ABŞ tv"}
@@ -1374,6 +1515,11 @@ az{
             }
         }
         force{
+            kilogram-force{
+                dnam{"kqq"}
+                one{"{0} kqq"}
+                other{"{0} kqq"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"kVtst/100km"}
                 one{"{0} kWh/100km"}
@@ -1642,6 +1788,11 @@ az{
                 dnam{"İmp. fl oz"}
                 one{"{0} fl oz İmp."}
                 other{"{0} fl oz İmp."}
+            }
+            fluid-ounce-metric{
+                dnam{"mmu"}
+                one{"{0} mmu"}
+                other{"{0} mmu"}
             }
             gallon{
                 dnam{"qal"}

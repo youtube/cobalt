@@ -90,6 +90,51 @@ import {DashboardNode, DashboardSerializedState} from './nodes/dashboard_node';
 import {Icons} from '../../../base/semantic_icons';
 import {NodeType} from '../query_node';
 
+// After JoinNode.onPrevNodesUpdated() defaults all columns to unchecked on
+// first initialization, check the columns that the downstream ModifyColumns
+// node needs. For JSON import this is a no-op because columns are restored
+// from serialized state (already have checked values).
+function applyJoinColumnDefaults(joinNode: JoinNode): void {
+  const leftCols = joinNode.state.leftColumns ?? [];
+  const rightCols = joinNode.state.rightColumns ?? [];
+
+  // If any columns are already checked, the serialized state was restored
+  // correctly (JSON import path) — nothing to do.
+  if (leftCols.some((c) => c.checked) || rightCols.some((c) => c.checked)) {
+    return;
+  }
+
+  // No columns checked — first initialization (e.g. pbtxt import).
+  // Check only columns needed by the downstream ModifyColumns node.
+  const mc = joinNode.nextNodes.find((n) => n.type === NodeType.kModifyColumns);
+  if (mc !== undefined) {
+    const mcState = mc.state as {
+      selectedColumns?: Array<{name: string; checked: boolean}>;
+    };
+    const needed = new Set(
+      mcState.selectedColumns?.filter((c) => c.checked).map((c) => c.name) ??
+        [],
+    );
+    const checked = new Set<string>();
+    for (const col of leftCols) {
+      if (needed.has(col.name) && !checked.has(col.name)) {
+        col.checked = true;
+        checked.add(col.name);
+      }
+    }
+    for (const col of rightCols) {
+      if (needed.has(col.name) && !checked.has(col.name)) {
+        col.checked = true;
+        checked.add(col.name);
+      }
+    }
+  } else {
+    // No downstream ModifyColumns — check all columns.
+    for (const col of leftCols) col.checked = true;
+    for (const col of rightCols) col.checked = true;
+  }
+}
+
 export function registerCoreNodes() {
   nodeRegistry.register('slice', {
     name: 'Slices',
@@ -223,6 +268,7 @@ export function registerCoreNodes() {
       'Add columns from another node via LEFT JOIN. Connect a node to the left-side port.',
     icon: 'add_box',
     type: 'modification',
+    category: 'Columns',
     nodeType: NodeType.kAddColumns,
     factory: (state) => {
       const fullState: AddColumnsNodeState = {
@@ -258,6 +304,7 @@ export function registerCoreNodes() {
     description: 'Select, rename, and add new columns to the data.',
     icon: 'edit',
     type: 'modification',
+    category: 'Columns',
     nodeType: NodeType.kModifyColumns,
     factory: (state) => new ModifyColumnsNode(state as ModifyColumnsState),
     deserialize: (state, _trace, sqlModules) =>
@@ -267,7 +314,7 @@ export function registerCoreNodes() {
           state as ModifyColumnsSerializedState,
         ),
       ),
-    postDeserialize: (node) => (node as ModifyColumnsNode).resolveColumns(),
+    postDeserializeLate: (node) => (node as ModifyColumnsNode).resolveColumns(),
   });
 
   nodeRegistry.register('aggregation', {
@@ -284,7 +331,7 @@ export function registerCoreNodes() {
         ),
         sqlModules,
       }),
-    postDeserialize: (node) => (node as AggregationNode).resolveColumns(),
+    postDeserializeLate: (node) => (node as AggregationNode).resolveColumns(),
   });
 
   nodeRegistry.register('filter_node', {
@@ -292,6 +339,7 @@ export function registerCoreNodes() {
     description: 'Filter rows based on column values.',
     icon: Icons.Filter,
     type: 'modification',
+    category: 'Filter',
     nodeType: NodeType.kFilter,
     factory: (state) => new FilterNode(state as FilterNodeState),
     deserialize: (state, _trace, sqlModules) =>
@@ -306,8 +354,8 @@ export function registerCoreNodes() {
     description:
       'Filter to only show intervals that occurred during intervals from another source.',
     icon: Icons.Filter,
-    type: 'multisource',
-    category: 'Time',
+    type: 'modification',
+    category: 'Filter',
     nodeType: NodeType.kFilterDuring,
     // Override: multisource nodes default to no primary input, but
     // FilterDuring has both a primary input and secondary inputs.
@@ -341,8 +389,8 @@ export function registerCoreNodes() {
     description:
       'Filter rows to only those where a column value exists in another query result.',
     icon: Icons.Filter,
-    type: 'multisource',
-    category: 'Filtering',
+    type: 'modification',
+    category: 'Filter',
     nodeType: NodeType.kFilterIn,
     // Override: multisource nodes default to no primary input, but
     // FilterIn has both a primary input and secondary inputs.
@@ -368,24 +416,6 @@ export function registerCoreNodes() {
         );
       }
     },
-  });
-
-  nodeRegistry.register('counter_to_intervals', {
-    name: 'Counter to Intervals',
-    description:
-      'Convert counter data (with ts but no dur) to interval data (with ts and dur).',
-    icon: 'show_chart',
-    type: 'modification',
-    nodeType: NodeType.kCounterToIntervals,
-    factory: (state) =>
-      new CounterToIntervalsNode(state as CounterToIntervalsNodeState),
-    deserialize: (state, _trace, sqlModules) =>
-      new CounterToIntervalsNode({
-        ...CounterToIntervalsNode.deserializeState(
-          state as CounterToIntervalsNodeState,
-        ),
-        sqlModules,
-      }),
   });
 
   nodeRegistry.register('interval_intersect', {
@@ -467,7 +497,13 @@ export function registerCoreNodes() {
         joinNode.secondaryInputs.connections.set(1, conns.rightNode);
       }
     },
-    postDeserializeLate: (node) => (node as JoinNode).onPrevNodesUpdated(),
+    postDeserializeLate: (node) => {
+      const joinNode = node as JoinNode;
+      joinNode.onPrevNodesUpdated();
+      // After updateColumnArrays defaults all to unchecked on first init,
+      // check the columns that the downstream ModifyColumns needs.
+      applyJoinColumnDefaults(joinNode);
+    },
   });
 
   nodeRegistry.register('create_slices', {
@@ -593,7 +629,7 @@ export function registerCoreNodes() {
   });
 
   nodeRegistry.register('visualisation', {
-    name: 'Visualisation',
+    name: 'Charts',
     description:
       'Visualize data with bar charts or histograms. Click to filter.',
     icon: 'bar_chart',
@@ -603,6 +639,25 @@ export function registerCoreNodes() {
     deserialize: (state, _trace, sqlModules) =>
       new VisualisationNode({
         ...VisualisationNode.deserializeState(state as VisualisationNodeState),
+        sqlModules,
+      }),
+  });
+
+  nodeRegistry.register('counter_to_intervals', {
+    name: 'Counter to Intervals',
+    description:
+      'Convert counter data (with ts but no dur) to interval data (with ts and dur).',
+    icon: 'show_chart',
+    type: 'modification',
+    category: 'Advanced',
+    nodeType: NodeType.kCounterToIntervals,
+    factory: (state) =>
+      new CounterToIntervalsNode(state as CounterToIntervalsNodeState),
+    deserialize: (state, _trace, sqlModules) =>
+      new CounterToIntervalsNode({
+        ...CounterToIntervalsNode.deserializeState(
+          state as CounterToIntervalsNodeState,
+        ),
         sqlModules,
       }),
   });

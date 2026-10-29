@@ -40,11 +40,9 @@ es_MX{
         nso{"sotho septentrional"}
         ojb{"ojibwa del noroeste"}
         ojw{"ojibwa del oeste"}
-        pa{"punyabí"}
         shu{"árabe chadiano"}
         slh{"lushootseed del sur"}
         ss{"siswati"}
-        sw{"suajili"}
         sw_CD{"suajili del Congo"}
         syr{"siriaco"}
         tce{"tutchone del sur"}
@@ -64,8 +62,20 @@ es_MX{
         calendar{
             roc{"calendario minguo"}
         }
+        calendar%core{
+            roc{"minguo"}
+        }
         collation{
             ducet{"orden de clasificación de Unicode predeterminado"}
+        }
+        collation%core{
+            phonetic{"fonético"}
+            stroke{"trazos"}
+            unihan{"trazos radicales"}
+        }
+        lw%core{
+            breakall{"dividir todo"}
+            keepall{"conservar todo"}
         }
         numbers{
             gujr{"dígitos en gujarati"}

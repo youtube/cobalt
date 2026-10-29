@@ -23,9 +23,19 @@ public interface ChromeAndroidTaskFeature {
      * <p>This is the start of the feature's lifecycle. Usually a feature would initialize objects
      * it owns in this method.
      *
+     * <p>This is also the moment when the feature can associate itself with the matching native
+     * {@code BrowserWindowInterface} (see documentation for the {@code nativeBrowserWindowPtr}
+     * parameter below).
+     *
+     * @param nativeBrowserWindowPtr The native {@code BrowserWindowInterface} matching this
+     *     feature's {@link ChromeAndroidTaskFeatureKey}. The value 0 will be provided if there is
+     *     no matching {@code BrowserWindowInterface}. For a {@code BrowserWindowInterface} to match
+     *     the {@link ChromeAndroidTaskFeatureKey}, the {@code BrowserWindowInterface} must be
+     *     associated with the same {@code Profile} and {@code ActivityWindowAndroid} in the {@link
+     *     ChromeAndroidTaskFeatureKey}.
      * @see ChromeAndroidTask#addFeature
      */
-    void onAddedToTask();
+    void onAddedToTask(long nativeBrowserWindowPtr);
 
     /**
      * Called by a {@link ChromeAndroidTask} when the feature is being removed.
@@ -47,14 +57,14 @@ public interface ChromeAndroidTaskFeature {
      *
      * @param newBoundsInDp The new Task bounds.
      */
-    void onTaskBoundsChanged(Rect newBoundsInDp);
+    default void onTaskBoundsChanged(Rect newBoundsInDp) {}
 
     /**
      * Called by a {@link ChromeAndroidTask} when the Task (window) has gained or lost focus.
      *
      * @param hasFocus True if the Task has focus.
      */
-    void onTaskFocusChanged(boolean hasFocus);
+    default void onTaskFocusChanged(boolean hasFocus) {}
 
     /**
      * Called when the selected {@link TabModel} changes. This is also invoked when the feature is

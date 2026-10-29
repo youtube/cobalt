@@ -114,12 +114,12 @@ kam{
             }
             eras{
                 abbreviated{
-                    "MY",
-                    "IY",
+                    0{"MY"}
+                    1{"IY"}
                 }
                 wide{
-                    "Mbee wa Yesũ",
-                    "Ĩtina wa Yesũ",
+                    0{"Mbee wa Yesũ"}
+                    1{"Ĩtina wa Yesũ"}
                 }
             }
             monthNames{

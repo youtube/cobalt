@@ -36,6 +36,11 @@ bn{
             revolution{
                 dnam{"ঘূর্ণন"}
             }
+            steradian{
+                dnam{"স্টেরেডিয়ান"}
+                one{"{0} স্টেরেডিয়ান"}
+                other{"{0} স্টেরেডিয়ান"}
+            }
         }
         area{
             dunam{
@@ -131,6 +136,11 @@ bn{
                 one{"{0} ক্যারেট"}
                 other{"{0} ক্যারেট"}
             }
+            katal{
+                dnam{"ক্যাটাল"}
+                one{"{0} ক্যাটাল"}
+                other{"{0} ক্যাটাল"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"মিলিগ্রাম, প্রতি ডেসিলিটারে"}
                 one{"{0} মিলিগ্রাম, প্রতি ডেসিলিটারে"}
@@ -141,10 +151,25 @@ bn{
                 one{"{0} মিলিমোল, প্রতি লিটারে"}
                 other{"{0} মিলিমোল, প্রতি লিটারে"}
             }
-            mole{
-                dnam{"মোল্স"}
-                one{"{0} মোল"}
-                other{"{0} মোল্স"}
+            ofglucose{
+                dnam{"গ্লুকোজ"}
+                one{"{0} গ্লুকোজ"}
+                other{"{0} গ্লুকোজ"}
+            }
+            part{
+                dnam{"পার্ট"}
+                one{"{0} পার্ট"}
+                other{"{0} পার্ট"}
+            }
+            part-per-1e6{
+                dnam{"ভাগ, প্রতি মিলিয়নে"}
+                one{"{0} ভাগ, প্রতি মিলিয়নে"}
+                other{"{0} ভাগ, প্রতি মিলিয়নে"}
+            }
+            part-per-1e9{
+                dnam{"পার্ট প্রতি বিলিয়ন"}
+                one{"{0} পার্ট প্রতি বিলিয়ন"}
+                other{"{0} পার্ট প্রতি বিলিয়ন"}
             }
             percent{
                 one{"{0}শতাংশ"}
@@ -154,19 +179,9 @@ bn{
                 one{"{0} প্রতিমাইল"}
                 other{"{0}প্রতিমাইল"}
             }
-            permillion{
-                dnam{"ভাগ, প্রতি মিলিয়নে"}
-                one{"{0} ভাগ, প্রতি মিলিয়নে"}
-                other{"{0} ভাগ, প্রতি মিলিয়নে"}
-            }
             permyriad{
                 one{"{0} পারমিরিয়াড"}
                 other{"{0} পারমিরিয়াড"}
-            }
-            portion-per-1e9{
-                dnam{"পার্ট প্রতি বিলিয়ন"}
-                one{"{0} পার্ট প্রতি বিলিয়ন"}
-                other{"{0} পার্ট প্রতি বিলিয়ন"}
             }
         }
         consumption{
@@ -251,6 +266,12 @@ bn{
                 one{"{0} শতাব্দী"}
                 other{"{0} শতাব্দী"}
             }
+            hour{
+                dnam{"ঘণ্টা"}
+                one{"{0} ঘণ্টা"}
+                other{"{0} ঘণ্টা"}
+                per{"{0} প্রতি ঘণ্টা"}
+            }
             microsecond{
                 dnam{"মাইক্রোসেকেন্ড"}
                 one{"{0} মাইক্রোসেকেন্ড"}
@@ -264,18 +285,27 @@ bn{
                 one{"{0} ন্যানোসেকেন্ড"}
                 other{"{0} ন্যানোসেকেন্ড"}
             }
-            night{
-                dnam{"রাত্রি"}
-                one{"{0} রাত্রি"}
-                other{"{0} রাত্রি"}
-                per{"{0}/রাত্রি"}
-            }
         }
         electric{
             ampere{
                 dnam{"অ্যাম্পিয়ার"}
                 one{"{0} অ্যাম্পিয়ার"}
                 other{"{0} অ্যাম্পিয়ার"}
+            }
+            coulomb{
+                dnam{"কুলম্ব"}
+                one{"{0} কুলম্ব"}
+                other{"{0} কুলম্ব"}
+            }
+            farad{
+                dnam{"ফ্যারাড"}
+                one{"{0} ফ্যারাড"}
+                other{"{0} ফ্যারাড"}
+            }
+            henry{
+                dnam{"হেনরি"}
+                one{"{0} হেনরি"}
+                other{"{0} হেনরি"}
             }
             milliampere{
                 dnam{"মিলি-অ্যাম্পিয়ার"}
@@ -286,12 +316,22 @@ bn{
                 one{"{0} ওহম"}
                 other{"{0} ওহম"}
             }
+            siemens{
+                dnam{"সিমেন্স"}
+                one{"{0} সিমেন্স"}
+                other{"{0} সিমেন্স"}
+            }
             volt{
                 one{"{0} ভোল্ট"}
                 other{"{0} ভোল্ট"}
             }
         }
         energy{
+            becquerel{
+                dnam{"বেকেরেল"}
+                one{"{0} বেকেরেল"}
+                other{"{0} বেকেরেল"}
+            }
             british-thermal-unit{
                 dnam{"ব্রিটিশ থার্মাল ইউনিট"}
                 one{"{0} ব্রিটিশ থার্মাল ইউনিট"}
@@ -302,6 +342,11 @@ bn{
                 one{"{0} ক্যালোরি"}
                 other{"{0} ক্যালোরি"}
             }
+            calorie-it{
+                dnam{"ক্যালোরি [IT]"}
+                one{"{0} ক্যালোরি [IT]"}
+                other{"{0} ক্যালোরি [IT]"}
+            }
             electronvolt{
                 one{"{0} ইলেকট্রন ভোল্ট"}
                 other{"{0} ইলেকট্রন ভোল্ট"}
@@ -310,6 +355,11 @@ bn{
                 dnam{"ক্যালোরি"}
                 one{"{0} ক্যালোরি"}
                 other{"{0} ক্যালোরি"}
+            }
+            gray{
+                dnam{"গ্রে"}
+                one{"{0} গ্রে"}
+                other{"{0} গ্রে"}
             }
             joule{
                 one{"{0} জুল"}
@@ -327,20 +377,29 @@ bn{
             }
             kilowatt-hour{
                 dnam{"কিলোওয়াট ঘন্টা"}
-                one{"{0} কিলোওয়াট ঘন্টা"}
+                one{"{0} কিলোওয়াট ঘণ্টা"}
                 other{"{0} কিলোওয়াট ঘন্টা"}
+            }
+            sievert{
+                dnam{"সিভার্ট"}
+                one{"{0} সিভার্ট"}
+                other{"{0} সিভার্ট"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"কিলোগ্রাম-ফোর্স"}
+                one{"{0} কিলোগ্রাম-ফোর্স"}
+                other{"{0} কিলোগ্রাম-ফোর্স"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"কিলোওয়াট-ঘণ্টা প্রতি 100 কিলোমিটার"}
                 one{"{0} কিলোওয়াট-ঘণ্টা প্রতি 100 কিলোমিটার"}
                 other{"{0} কিলোওয়াট-ঘণ্টা প্রতি 100 কিলোমিটার"}
             }
             newton{
-                dnam{"নিউটন্স"}
                 one{"{0} নিউটন"}
-                other{"{0} নিউটন্স"}
+                other{"{0} নিউটন"}
             }
         }
         frequency{
@@ -458,8 +517,9 @@ bn{
                 other{"{0} নটিক্যাল মাইল"}
             }
             parsec{
-                one{"{0} parsec"}
-                other{"{0} parsecs"}
+                dnam{"পারসেক"}
+                one{"{0} পারসেক"}
+                other{"{0} পারসেক"}
             }
             picometer{
                 dnam{"পিকোমিটার"}
@@ -490,6 +550,18 @@ bn{
             solar-luminosity{
                 one{"{0} সৌর ঔজ্জ্বল্য"}
                 other{"{0} সৌর ঔজ্জ্বল্যতাগুলি"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"টেসলা"}
+                one{"{0} টেসলা"}
+                other{"{0} টেসলা"}
+            }
+            weber{
+                dnam{"ওয়েবার"}
+                one{"{0} ওয়েবার"}
+                other{"{0} ওয়েবার"}
             }
         }
         mass{
@@ -630,22 +702,28 @@ bn{
                 other{"বিউফোর্ট {0}"}
             }
             kilometer-per-hour{
-                dnam{"ঘন্টা প্রতি কিলোমিটার"}
-                one{"{0} ঘন্টা প্রতি কিলোমিটার"}
-                other{"{0} ঘন্টা প্রতি কিলোমিটার"}
+                dnam{"ঘণ্টা প্রতি কিলোমিটার"}
+                one{"{0} কিলোমিটার প্রতি ঘণ্টা"}
+                other{"{0} কিলোমিটার প্রতি ঘণ্টা"}
             }
             knot{
                 dnam{"নট"}
                 one{"{0} নট"}
                 other{"{0} নট"}
             }
+            light-speed{
+                dnam{"আলোক"}
+                one{"{0} আলোক"}
+                other{"{0} আলোক"}
+            }
             meter-per-second{
                 one{"{0} মিটার প্রতি সেকেন্ড"}
                 other{"{0} মিটার প্রতি সেকেন্ড"}
             }
             mile-per-hour{
-                one{"{0} ঘন্টা প্রতি মাইল"}
-                other{"{0} ঘন্টা প্রতি মাইল"}
+                dnam{"ঘণ্টা প্রতি মাইল"}
+                one{"{0} মাইল প্রতি ঘণ্টা"}
+                other{"{0} মাইল প্রতি ঘণ্টা"}
             }
         }
         temperature{
@@ -768,6 +846,11 @@ bn{
                 one{"{0} Imp. fl oz"}
                 other{"{0} Imp. fluid ounces"}
             }
+            fluid-ounce-metric{
+                dnam{"মেট্রিক ফ্লুইড আউন্স"}
+                one{"{0} মেট্রিক ফ্লুইড আউন্স"}
+                other{"{0} মেট্রিক ফ্লুইড আউন্স"}
+            }
             gallon{
                 dnam{"গ্যালন"}
                 one{"{0} গ্যালন"}
@@ -886,12 +969,20 @@ bn{
             10p9{"গি{0}"}
         }
         concentr{
-            permille{
-                dnam{"‰"}
+            ofglucose{
+                dnam{"Glc"}
             }
-            portion-per-1e9{
+            part{
+                dnam{"পার্ট"}
+                one{"{0} পার্ট"}
+                other{"{0} পার্ট"}
+            }
+            part-per-1e9{
                 one{"{0}ppb"}
                 other{"{0} ppb"}
+            }
+            permille{
+                dnam{"‰"}
             }
         }
         consumption{
@@ -907,10 +998,8 @@ bn{
             west{"{0}প"}
         }
         duration{
-            day{
-                per{"{0}/দিন"}
-            }
             hour{
+                dnam{"ঘণ্টা"}
                 one{"{0} ঘঃ"}
                 other{"{0} ঘঃ"}
                 per{"{0}/ঘ:"}
@@ -932,10 +1021,8 @@ bn{
                 other{"{0}ns"}
             }
             night{
-                dnam{"রাত্রি"}
                 one{"{0}রাত্রি"}
                 other{"{0}রাত্রি"}
-                per{"{0}/রাত্রি"}
             }
             quarter{
                 one{"{0}ত্রৈমাসিক"}
@@ -951,6 +1038,11 @@ bn{
             }
             year{
                 per{"{0}/বছর"}
+            }
+        }
+        energy{
+            calorie-it{
+                dnam{"cal-IT"}
             }
         }
         force{
@@ -992,6 +1084,9 @@ bn{
             }
             micrometer{
                 dnam{"μm"}
+            }
+            parsec{
+                dnam{"পারসেক"}
             }
             point{
                 dnam{"pts"}
@@ -1051,13 +1146,18 @@ bn{
                 one{"{0}kph"}
                 other{"{0}kph"}
             }
+            light-speed{
+                dnam{"আলোক"}
+                one{"{0} আলোক"}
+                other{"{0} আলোক"}
+            }
             meter-per-second{
                 dnam{"মি/সেক"}
                 one{"{0}m/s"}
                 other{"{0}m/s"}
             }
             mile-per-hour{
-                dnam{"মাইল/ঘ:"}
+                dnam{"মাইল/ঘণ্টা"}
                 one{"{0}mph"}
                 other{"{0}mph"}
             }
@@ -1232,6 +1332,19 @@ bn{
                 one{"{0} মোল"}
                 other{"{0} মোল"}
             }
+            ofglucose{
+                dnam{"Glc"}
+                one{"{0} Glc"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"পার্ট"}
+                one{"{0} পার্ট"}
+                other{"{0} পার্ট"}
+            }
+            part-per-1e9{
+                dnam{"পার্ট/ বিলিয়ন"}
+            }
             percent{
                 dnam{"শতাংশ"}
             }
@@ -1240,9 +1353,6 @@ bn{
             }
             permyriad{
                 dnam{"পারমিরিয়াড"}
-            }
-            portion-per-1e9{
-                dnam{"পার্ট/ বিলিয়ন"}
             }
         }
         consumption{
@@ -1309,9 +1419,9 @@ bn{
                 other{"{0} দশক"}
             }
             hour{
-                dnam{"ঘন্টা"}
-                one{"{0} ঘন্টা"}
-                other{"{0} ঘন্টা"}
+                dnam{"ঘণ্টা"}
+                one{"{0} ঘণ্টা"}
+                other{"{0} ঘণ্টা"}
                 per{"{0} প্রতি ঘন্টা"}
             }
             microsecond{
@@ -1375,6 +1485,11 @@ bn{
             }
         }
         energy{
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
+            }
             electronvolt{
                 dnam{"ইলেকট্রন ভোল্ট"}
             }
@@ -1480,7 +1595,7 @@ bn{
                 other{"{0} মিমি"}
             }
             parsec{
-                dnam{"parsecs"}
+                dnam{"পারসেক"}
             }
             picometer{
                 dnam{"পিমি"}
@@ -1497,6 +1612,9 @@ bn{
             }
         }
         light{
+            candela{
+                dnam{"ক্যান্ডেলা"}
+            }
             solar-luminosity{
                 dnam{"সৌর ঔজ্জ্বল্য"}
             }
@@ -1555,11 +1673,16 @@ bn{
                 one{"{0} kph"}
                 other{"{0} km/h"}
             }
+            light-speed{
+                dnam{"আলোক"}
+                one{"{0} আলোক"}
+                other{"{0} আলোক"}
+            }
             meter-per-second{
                 dnam{"মিটার প্রতি সেকেন্ড"}
             }
             mile-per-hour{
-                dnam{"ঘন্টা প্রতি মাইল"}
+                dnam{"মাইল/ঘণ্টা"}
                 one{"{0} mph"}
                 other{"{0} mph"}
             }

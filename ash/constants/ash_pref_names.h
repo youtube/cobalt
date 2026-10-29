@@ -318,6 +318,10 @@ inline constexpr char kInputVoiceIsolationEnabled[] =
 inline constexpr char kInputVoiceIsolationPreferredEffect[] =
     "ash.input_voice_isolation_preferred_effect";
 
+// A boolean pref that controls whether Krisp noise cancellation is enabled.
+inline constexpr char kInputKrispNoiseCancellationEnabled[] =
+    "ash.input_krisp_noise_cancellation_enabled";
+
 // A boolean pref that controls whether input noise cancellation is enabled.
 inline constexpr char kInputNoiseCancellationEnabled[] =
     "ash.input_noise_cancellation_enabled";
@@ -2774,6 +2778,11 @@ inline constexpr char kFactoryResetTPMFirmwareUpdateMode[] =
 // and cannot cancel the dialog otherwise.
 inline constexpr char kForceFactoryReset[] = "ForceFactoryReset";
 
+// A boolean pref that tracks whether the user has dismissed the notification
+// warning them that their Flex device will no longer receive OS updates.
+inline constexpr char kFrozenUpdateNotificationDismissed[] =
+    "ash.frozen_update.notification_dismissed";
+
 //-----------------------------------------------------------------------------
 // Kiosk related Prefs
 //-----------------------------------------------------------------------------
@@ -3014,6 +3023,37 @@ inline constexpr char kOfficeMoveConfirmationShownForOneDrive[] =
 
 inline constexpr char kOfficeMoveConfirmationShownForOneDriveSyncable[] =
     "filebrowser.office.move_confirmation_shown_for_onedrive_syncable";
+
+//-----------------------------------------------------------------------------
+// End of Life related Prefs
+//-----------------------------------------------------------------------------
+
+// Deprecated (crbug.com/998983) in favor of kEndOfLifeDate.
+// An integer pref. Holds one of several values:
+// 0: Supported. Device is in supported state.
+// 1: Security Only. Device is in Security-Only update (after initial 5 years).
+// 2: EOL. Device is End of Life(No more updates expected).
+// This value needs to be consistent with EndOfLifeStatus enum.
+inline constexpr char kEolStatus[] = "eol_status";
+
+// A Time pref.  Holds the last used Eol Date and is compared to the latest Eol
+// Date received to make changes to Eol notifications accordingly.
+inline constexpr char kEndOfLifeDate[] = "eol_date";
+
+// Boolean pref indicating that the first warning End Of Life month and year
+// notification was dismissed by the user.
+inline constexpr char kFirstEolWarningDismissed[] =
+    "first_eol_warning_dismissed";
+
+// Boolean pref indicating that the second warning End Of Life month and year
+// notification was dismissed by the user.
+inline constexpr char kSecondEolWarningDismissed[] =
+    "second_eol_warning_dismissed";
+
+// Boolean pref indicating that the End Of Life final update notification was
+// dismissed by the user.
+inline constexpr char kEolNotificationDismissed[] =
+    "eol_notification_dismissed";
 
 //-----------------------------------------------------------------------------
 // HATS related Prefs
@@ -3358,6 +3398,53 @@ inline constexpr char kRecommendedPrintersBlocklist[] =
 // and use their own printers.
 inline constexpr char kUserPrintersAllowed[] =
     "native_printing.user_native_printers_allowed";
+
+//-----------------------------------------------------------------------------
+// Enrollment related Prefs
+//-----------------------------------------------------------------------------
+
+// Whether to automatically start the enterprise enrollment step during OOBE.
+inline constexpr char kDeviceEnrollmentAutoStart[] = "enrollment.auto_start";
+
+// Whether the user may exit enrollment.
+inline constexpr char kDeviceEnrollmentCanExit[] = "enrollment.can_exit";
+
+// Device requisition for enterprise enrollment.
+inline constexpr char kDeviceEnrollmentRequisition[] =
+    "enrollment.device_requisition";
+
+// Sub organization for enterprise enrollment.
+inline constexpr char kDeviceEnrollmentSubOrganization[] =
+    "enrollment.sub_organization";
+
+// A boolean pref of the device registered flag (second part after first login).
+inline constexpr char kDeviceRegistered[] = "DeviceRegistered";
+
+// An integer pref. Its valid values are defined in
+// enterprise_management::DeviceRegisterRequest::PsmExecutionResult enum which
+// indicates all possible PSM execution results in the Chrome OS enrollment
+// flow.
+inline constexpr char kEnrollmentPsmResult[] = "EnrollmentPsmResult";
+
+// An int64 pref to record the timestamp of PSM retrieving the device's
+// determination successfully in the Chrome OS enrollment flow.
+inline constexpr char kEnrollmentPsmDeterminationTime[] =
+    "EnrollmentPsmDeterminationTime";
+
+// Boolean pref to signal corrupted enrollment to force the device through
+// enrollment recovery flow upon next boot.
+inline constexpr char kEnrollmentRecoveryRequired[] =
+    "EnrollmentRecoveryRequired";
+
+// String pref with the data about the OS version and browser version at the
+// time of enrollment. The format is established by release management team.
+// The Chrome OS version format is
+// [Milestone.]TIP_BUILD.BRANCH_BUILD.BRANCH_BRANCH_BUILD.
+// Example: 15711.0.0
+// For browser version the format is MAJOR.MINOR.BRANCH.BUILD.
+// Example: 122.0.6252.0
+inline constexpr char kEnrollmentVersionOS[] = "EnrollmentVersionOS";
+inline constexpr char kEnrollmentVersionBrowser[] = "EnrollmentVersionBrowser";
 
 //-----------------------------------------------------------------------------
 // Child account related Prefs

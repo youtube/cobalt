@@ -417,8 +417,9 @@ class PeerConnection : public PeerConnectionInternal,
   bool CreateDataChannelTransport(absl::string_view mid) override;
   void DestroyDataChannelTransport(RTCError error) override;
 
-  // Asynchronously calls SctpTransport::Start() on the network thread for
-  // `sctp_mid()` if set. Called as part of setting the local description.
+  // Synchronously calls SctpTransport::Start() on the network thread for
+  // `sctp_mid()` if set. Called as part of pushing down the media descriptions
+  // after a complete offer/answer.
   RTCError StartSctpTransport(const SctpOptions& options) override;
 
   // Returns the CryptoOptions set as RTCConfiguration.crypto_options for this

@@ -97,7 +97,7 @@ af{
         }
         BYN{
             "BYN",
-            "Belarusiese roebel",
+            "Belarussiese roebel",
         }
         BYR{
             "BYR",
@@ -185,7 +185,7 @@ af{
         }
         EUR{
             "€",
-            "Euro",
+            "euro",
         }
         FJD{
             "FJD",
@@ -349,7 +349,7 @@ af{
         }
         LSL{
             "LSL",
-            "Lesotho loti",
+            "Lesotho-loti",
         }
         LTL{
             "LTL",
@@ -541,7 +541,7 @@ af{
         }
         SLL{
             "SLL",
-            "Sierra Leoniese leone (1964—2022)",
+            "Sierra Leoniese leone (1964–2022)",
         }
         SOS{
             "SOS",
@@ -659,6 +659,10 @@ af{
             "EC$",
             "Oos-Karibiese dollar",
         }
+        XCG{
+            "Cg.",
+            "Karibiese gulde",
+        }
         XOF{
             "F CFA",
             "Wes-Afrikaanse CFA-frank",
@@ -691,6 +695,10 @@ af{
             "ZWD",
             "Zimbabwiese dollar",
         }
+        ZWG{
+            "ZWG",
+            "Zimbabwiese goud",
+        }
     }
     Currencies%narrow{
         BYN{"р."}
@@ -709,29 +717,45 @@ af{
             one{"Brasillianse reaal"}
             other{"Brasillianse reaal"}
         }
+        BYN{
+            one{"Belarussiese roebel"}
+            other{"Belarussiese roebel"}
+        }
         EUR{
             one{"euro"}
             other{"euro"}
         }
-        GTQ{
-            one{"Guatemalaanse kwetsal"}
-            other{"Guatemalaanse kwetsal"}
-        }
         INR{
-            one{"Indiese rupee"}
-            other{"Indiese rupee"}
+            one{"Indiese roepee"}
+            other{"Indiese roepee"}
+        }
+        LSL{
+            one{"Lesotho-loti"}
+            other{"Lesotho-loti"}
         }
         QAR{
             one{"Katarese rial"}
             other{"Katarese rial"}
         }
+        SLL{
+            one{"Sierra Leoniese leone (1964–2022)"}
+            other{"Sierra Leoniese leone (1964–2022)"}
+        }
         VEF{
             one{"Venezolaanse bolívar (2008–2018)"}
             other{"Venezolaanse bolívare (2008–2018)"}
         }
+        XCG{
+            one{"Karibiese gulde"}
+            other{"Karibiese gulde"}
+        }
         XXX{
             one{"(onbekende geldeenheid)"}
             other{"(onbekende geldeenheid)"}
+        }
+        ZWG{
+            one{"Zimbabwiese goud"}
+            other{"Zimbabwiese goud"}
         }
     }
 }

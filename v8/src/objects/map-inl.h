@@ -42,8 +42,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/map-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
-
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED2(Map, instance_descriptors, Tagged<DescriptorArray>,
                    kInstanceDescriptorsOffset,
@@ -396,6 +394,8 @@ DirectHandle<Map> Map::AddMissingTransitionsForTesting(
 void Map::set_instance_type(InstanceType value) {
   RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
+
+int Map::AllocatedSize() const { return Map::kSize; }
 
 int Map::UnusedPropertyFields() const {
 #if V8_ENABLE_WEBASSEMBLY

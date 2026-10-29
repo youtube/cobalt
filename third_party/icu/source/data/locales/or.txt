@@ -8,11 +8,14 @@ or{
         " ନ ପ ଫ ବ ଭ ମ ଯୟ ର ଲ ଳ ଵ ୱ ଶ ଷ ସ ହ {କ୍ଷ} ା ି ୀ ୁ ୂ ୃ େ ୈ ୋ ୌ ୍]"
     }
     ExemplarCharactersIndex{
-        "[ଅ ଆ ଇ ଈ ଉ ଊ ଋ ଏ ଐ ଓ ଔ କ ଖ ଗ ଘ ଙ ଚ ଛ ଜ ଝ ଞ ଟ ଠ ଡ ଢ ଣ ତ ଥ ଦ ଧ ନ ପ ଫ ବ ଭ ମ ଯ ର"
-        " ଲ ଳ ଶ ଷ ସ ହ {କ୍ଷ}]"
+        "[ଅ ଆ ଇ ଈ ଉ ଊ ଋ ଏ ଐ ଓ ଔ କ ଖ ଗ ଘ ଙ ଚ ଛ ଜ ଝ ଞ ଟ ଠ ଡ ଢ ଣ ତ ଥ ଦ ଧ ନ ପ ଫ ବ ଭ ମ ଯୟ "
+        "ର ଲ ଳ ୱ ଶ ଷ ସ ହ {କ୍ଷ}]"
     }
     ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0୦ 1୧ 2୨ 3୩ 4୪ 5୫ 6୬ 7୭ 8୮ 9୯]"}
-    ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
+    ExemplarCharactersPunctuation{
+        "[\\- ‐‑ – — , ; \\: ! ? . … । '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″"
+        "]"
+    }
     NumberElements{
         latn{
             miscPatterns{
@@ -166,16 +169,16 @@ or{
                         other{"¤ 000ବି"}
                     }
                     1000000000000{
-                        one{"¤ 0T"}
-                        other{"¤ 0T"}
+                        one{"¤ 0ଟ୍ରି"}
+                        other{"¤ 0ଟ୍ରି"}
                     }
                     10000000000000{
-                        one{"¤ 00T"}
-                        other{"¤ 00T"}
+                        one{"¤ 00ଟ୍ରି"}
+                        other{"¤ 00ଟ୍ରି"}
                     }
                     100000000000000{
-                        one{"¤ 000T"}
-                        other{"¤ 000T"}
+                        one{"¤ 000ଟ୍ରି"}
+                        other{"¤ 000ଟ୍ରି"}
                     }
                 }
                 decimalFormat{
@@ -277,6 +280,7 @@ or{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyMEd{"G dd-MM-y, E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -393,10 +397,6 @@ or{
             }
         }
         gregorian{
-            AmPmMarkersNarrow{
-                "ପୂ",
-                "ଅ",
-            }
             DateTimePatterns{
                 "h:mm:ss a zzzz",
                 "h:mm:ss a z",
@@ -431,6 +431,7 @@ or{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyMEd{"G dd-MM-y, E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, MMM d, y G"}
                 GyMMMd{"MMM d, y G"}
@@ -493,11 +494,11 @@ or{
             }
             dayPeriod{
                 stand-alone{
-                    abbreviated{
-                        am{"ପୂର୍ବାହ୍ନ"}
-                        pm{"ଅପରାହ୍ନ"}
-                    }
                     narrow{
+                        am{"AM"}
+                        pm{"PM"}
+                    }
+                    wide{
                         am{"AM"}
                         pm{"PM"}
                     }
@@ -505,20 +506,20 @@ or{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "ଖ୍ରୀଷ୍ଟପୂର୍ବ",
-                    "ଖ୍ରୀଷ୍ଟାବ୍ଦ",
+                    0{"ଖ୍ରୀଷ୍ଟପୂର୍ବ"}
+                    1{"ଖ୍ରୀଷ୍ଟାବ୍ଦ"}
                 }
                 wide%variant{
-                    "ସାମ୍ପ୍ରତିକ ଯୁଗ ପୂର୍ବରୁ",
-                    "ସାମ୍ପ୍ରତିକ ଯୁଗ",
+                    0{"ସାମ୍ପ୍ରତିକ ଯୁଗ ପୂର୍ବରୁ"}
+                    1{"ସାମ୍ପ୍ରତିକ ଯୁଗ"}
                 }
             }
             intervalFormats{
@@ -648,8 +649,8 @@ or{
                     abbreviated{
                         "Q1",
                         "Q2",
-                        "3ୟ ତ୍ରୟମାସ",
-                        "4ର୍ଥ ତ୍ରୟମାସ",
+                        "Q3",
+                        "Q4",
                     }
                     wide{
                         "1ମ ତ୍ରୟମାସ",
@@ -671,55 +672,11 @@ or{
         indian{
             eras{
                 abbreviated{
-                    "ସାକା",
+                    0{"ସାକା"}
                 }
             }
             monthNames{
                 format{
-                    abbreviated{
-                        "ଚୈତ୍ର",
-                        "ବୈଶାଖ",
-                        "ଜ୍ୟେଷ୍ଠ",
-                        "ଆଷାଢ଼",
-                        "ଶ୍ରାବଣ",
-                        "ଭାଦ୍ରବ",
-                        "ଆଶ୍ଵିନ",
-                        "କାର୍ତ୍ତିକ",
-                        "ମାର୍ଗଶିର",
-                        "ପୌଷ",
-                        "ମାଘ",
-                        "ଫାଲଗୁନ",
-                    }
-                    wide{
-                        "ଚୈତ୍ର",
-                        "ବୈଶାଖ",
-                        "ଜ୍ୟେଷ୍ଠ",
-                        "ଆଷାଢ଼",
-                        "ଶ୍ରାବଣ",
-                        "ଭାଦ୍ରବ",
-                        "ଆଶ୍ଵିନ",
-                        "କାର୍ତ୍ତିକ",
-                        "ମାର୍ଗଶିର",
-                        "ପୌଷ",
-                        "ମାଘ",
-                        "ଫାଲଗୁନ",
-                    }
-                }
-                stand-alone{
-                    abbreviated{
-                        "ଚୈତ୍ର",
-                        "ବୈଶାଖ",
-                        "ଜ୍ୟେଷ୍ଠ",
-                        "ଆଷାଢ଼",
-                        "ଶ୍ରାବଣ",
-                        "ଭାଦ୍ରବ",
-                        "ଆଶ୍ଵିନ",
-                        "କାର୍ତ୍ତିକ",
-                        "ମାର୍ଗଶିର",
-                        "ପୌଷ",
-                        "ମାଘ",
-                        "ଫାଲଗୁନ",
-                    }
                     wide{
                         "ଚୈତ୍ର",
                         "ବୈଶାଖ",
@@ -852,12 +809,6 @@ or{
             dn{"ବ. ର ଦିନ"}
         }
         dayperiod{
-            dn{"AM/PM"}
-        }
-        dayperiod-narrow{
-            dn{"AM/PM"}
-        }
-        dayperiod-short{
             dn{"AM/PM"}
         }
         era{
@@ -1339,9 +1290,6 @@ or{
         }
         weekdayOfMonth{
             dn{"ମାସର ସାପ୍ତାହିକ ଦିନ"}
-        }
-        weekdayOfMonth-narrow{
-            dn{"ମାସର ସାପ୍ତାହିକ ଦି."}
         }
         weekdayOfMonth-short{
             dn{"ମାସର ସାପ୍ତାହିକ ଦି."}

@@ -27,7 +27,9 @@ hu{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -211,7 +213,7 @@ hu{
         buddhist{
             eras{
                 abbreviated{
-                    "BK",
+                    0{"BK"}
                 }
             }
         }
@@ -320,6 +322,18 @@ hu{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%atTime{
+                "{1} {0}",
+                "{1} {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} {0}",
+                "{1} {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -334,16 +348,20 @@ hu{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E h:mm"}
                 EBhms{"E h:mm:ss"}
                 Ed{"d., E"}
+                Eh{"E a h"}
                 Ehm{"E h:mm"}
                 Ehms{"E h:mm:ss"}
                 Gy{"G y."}
+                GyM{"G y. M."}
+                GyMEd{"E, M/d/y G"}
                 GyMMM{"G y. MMM"}
                 GyMMMEd{"G y. MMM d., E"}
                 GyMMMd{"G y. MMM d."}
-                GyMd{"GGGGG y/MM/dd"}
+                GyMd{"G y. M. d."}
                 H{"H"}
                 Hm{"H:mm"}
                 Hms{"H:mm:ss"}
@@ -355,6 +373,7 @@ hu{
                 h{"a h"}
                 hm{"a h:mm"}
                 hms{"a h:mm:ss"}
+                hv{"a h v"}
                 y{"G y."}
                 yyyy{"G y."}
                 yyyyM{"G y. MM."}
@@ -499,12 +518,16 @@ hu{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"d., E"}
+                Eh{"E a h"}
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"G y."}
+                GyM{"G y. MM."}
+                GyMEd{"G y. MM. dd., E"}
                 GyMMM{"G y. MMM"}
                 GyMMMEd{"G y. MMM d., E"}
                 GyMMMd{"G y. MMM d."}
@@ -526,6 +549,7 @@ hu{
                 hms{"a h:mm:ss"}
                 hmsv{"a h:mm:ss v"}
                 hmv{"a h:mm v"}
+                hv{"a h v"}
                 mmss{"mm:ss"}
                 y{"y."}
                 yM{"y. M."}
@@ -587,6 +611,16 @@ hu{
                         night2{"hajnal"}
                         noon{"dél"}
                     }
+                    narrow{
+                        afternoon1{"délután"}
+                        evening1{"este"}
+                        midnight{"éjfél"}
+                        morning1{"reggel"}
+                        morning2{"de."}
+                        night1{"éjjel"}
+                        night2{"hajnal"}
+                        noon{"dél"}
+                    }
                     wide{
                         afternoon1{"délután"}
                         evening1{"este"}
@@ -599,6 +633,14 @@ hu{
                     }
                 }
                 stand-alone{
+                    narrow{
+                        afternoon1{"délután"}
+                        evening1{"este"}
+                        morning1{"reggel"}
+                        morning2{"de."}
+                        night1{"éjjel"}
+                        night2{"hajnal"}
+                    }
                     wide{
                         afternoon1{"délután"}
                         evening1{"este"}
@@ -611,24 +653,24 @@ hu{
             }
             eras{
                 abbreviated{
-                    "i. e.",
-                    "i. sz.",
+                    0{"i. e."}
+                    1{"i. sz."}
                 }
                 abbreviated%variant{
-                    "i.e.",
-                    "i.sz.",
+                    0{"i.e."}
+                    1{"i.sz."}
                 }
                 narrow{
-                    "ie.",
-                    "isz.",
+                    0{"ie."}
+                    1{"isz."}
                 }
                 wide{
-                    "Krisztus előtt",
-                    "időszámításunk szerint",
+                    0{"Krisztus előtt"}
+                    1{"időszámításunk szerint"}
                 }
                 wide%variant{
-                    "időszámításunk előtt",
-                    "i. sz.",
+                    0{"időszámításunk előtt"}
+                    1{"i. sz."}
                 }
             }
             intervalFormats{
@@ -816,7 +858,7 @@ hu{
         hebrew{
             eras{
                 abbreviated{
-                    "TÉ",
+                    0{"TÉ"}
                 }
             }
             monthNames{
@@ -843,7 +885,7 @@ hu{
         islamic{
             eras{
                 abbreviated{
-                    "MF",
+                    0{"MF"}
                 }
             }
             monthNames{
@@ -945,8 +987,7 @@ hu{
         roc{
             eras{
                 abbreviated{
-                    "R.O.C. előtt",
-                    "R.O.C.",
+                    0{"R.O.C. előtt"}
                 }
             }
         }
@@ -1420,19 +1461,6 @@ hu{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

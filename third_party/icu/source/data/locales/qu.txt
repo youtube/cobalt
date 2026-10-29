@@ -2,14 +2,17 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 // Generated using tools/cldr/cldr-to-icu/
 qu{
-    AuxExemplarCharacters{"[áàăâåäãā æ b cç d eéèĕêëē f g íìĭîïī j oóòŏôöøō œ r úùŭûüū v x ÿ z]"}
+    AuxExemplarCharacters{
+        "[áàăâåäãā æ b cç {chh} d eéèĕêëē f g íìĭîïī j oóòŏôöøō œ {ph} {qh} r úùŭûüū "
+        "v x ÿ z]"
+    }
     ExemplarCharacters{"[a {ch} {chʼ} h i k {kʼ} l {ll} m nñ p {pʼ} q {qʼ} s t {tʼ} u w y]"}
-    ExemplarCharactersIndex{"[A {Ch} H I K L {Ll} M NÑ P Q S T U W Y]"}
+    ExemplarCharactersIndex{"[A {CH} H I K L {Ll} M NÑ P Q R S T U W Y]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
     NumberElements{
         latn{
             patterns{
-                accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
+                accountingFormat%noCurrency{"#,##0.00"}
                 percentFormat{"#,##0 %"}
             }
         }
@@ -272,24 +275,23 @@ qu{
             }
             eras{
                 abbreviated{
-                    "a.d.",
-                    "d.C.",
+                    0{"a.d."}
+                    1{"d.C."}
                 }
                 abbreviated%variant{
-                    "ace",
-                    "ec",
+                    0{"ace"}
+                    1{"ec"}
                 }
                 narrow{
-                    "a.d.",
-                    "dC",
+                    1{"dC"}
                 }
                 wide{
-                    "ñawpa cristu",
-                    "chanta cristu",
+                    0{"ñawpa cristu"}
+                    1{"chanta cristu"}
                 }
                 wide%variant{
-                    "ñawpa kaqlla era",
-                    "kaqlla era",
+                    0{"ñawpa kaqlla era"}
+                    1{"kaqlla era"}
                 }
             }
             intervalFormats{

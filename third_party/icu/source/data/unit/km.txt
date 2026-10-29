@@ -113,16 +113,16 @@ km{
                 dnam{"មិល្លីម៉ូលក្នុងមួយលីត្រ"}
                 other{"{0} មិល្លីម៉ូលក្នុងមួយលីត្រ"}
             }
-            percent{
-                other{"{0} ភាគរយ"}
-            }
-            permillion{
+            part-per-1e6{
                 dnam{"ផ្នែកក្នុងមួយលាន"}
                 other{"{0} ផ្នែកក្នុងមួយលាន"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"ផ្នែកក្នុងមួយប៊ីលាន"}
                 other{"{0} ផ្នែកក្នុងមួយប៊ីលាន"}
+            }
+            percent{
+                other{"{0} ភាគរយ"}
             }
         }
         consumption{
@@ -220,8 +220,6 @@ km{
                 other{"{0} ណាណូវិនាទី"}
             }
             night{
-                dnam{"យប់"}
-                other{"{0} យប់"}
                 per{"{0} ក្នុងមួយយប់"}
             }
             second{
@@ -249,6 +247,10 @@ km{
             }
         }
         energy{
+            becquerel{
+                dnam{"ប៊ែកគ័ររែល"}
+                other{"{0} ប៊ែកគ័ររែល"}
+            }
             british-thermal-unit{
                 dnam{"ឯកតាកម្ដៅអង់គ្លេស"}
                 other{"{0} ឯកតាកម្ដៅអង់គ្លេស"}
@@ -540,10 +542,6 @@ km{
                 dnam{"ណត់"}
                 other{"{0} ណត់"}
             }
-            light-speed{
-                dnam{"ពន្លឺ"}
-                other{"{0} ពន្លឺ"}
-            }
             meter-per-second{
                 dnam{"ម៉ែត្រ​ក្នុង​មួយ​វិនាទី"}
                 other{"{0} ម៉ែត្រ​ក្នុង​មួយ​វិនាទី"}
@@ -626,6 +624,10 @@ km{
             fluid-ounce{
                 dnam{"អោន​វត្ថុ​រាវ"}
                 other{"{0} អោន​វត្ថុ​រាវ"}
+            }
+            fluid-ounce-metric{
+                dnam{"អោនស៍រាវម៉ែត្រ"}
+                other{"{0} អោនស៍រាវម៉ែត្រ"}
             }
             gallon{
                 dnam{"ហ្គាឡុង"}
@@ -716,11 +718,11 @@ km{
                 dnam{"ម៉ូល"}
                 other{"{0} ម៉ូល"}
             }
+            part-per-1e9{
+                other{"{0}ppb"}
+            }
             percent{
                 dnam{"%"}
-            }
-            portion-per-1e9{
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -732,11 +734,6 @@ km{
             }
         }
         duration{
-            night{
-                dnam{"យប់"}
-                other{"{0} យប់"}
-                per{"{0}/យប់"}
-            }
             quarter{
                 other{"{0} ត្រី"}
             }
@@ -781,7 +778,7 @@ km{
         }
         power{
             horsepower{
-                other{"{0} សេះ"}
+                other{"{0}hp"}
             }
             kilowatt{
                 other{"{0} គ.វ."}
@@ -808,10 +805,6 @@ km{
             }
         }
         speed{
-            light-speed{
-                dnam{"ពន្លឺ"}
-                other{"{0} ពន្លឺ"}
-            }
             meter-per-second{
                 other{"{0} ម./វិ."}
             }
@@ -888,11 +881,11 @@ km{
                 dnam{"មិល្លីម៉ូល/លីត្រ"}
                 other{"{0} ម.ម៉ូល/លី"}
             }
+            part-per-1e9{
+                dnam{"ផ្នែក/ប៊ីលាន"}
+            }
             percent{
                 dnam{"ភាគរយ"}
-            }
-            portion-per-1e9{
-                dnam{"ផ្នែក/ប៊ីលាន"}
             }
         }
         consumption{

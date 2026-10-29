@@ -7,10 +7,12 @@ en_CH{
         latn{
             patterns{
                 accountingFormat{"¤ #,##0.00;¤-#,##0.00"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;¤-#,##0.00"}
                 currencyFormat{"¤ #,##0.00;¤-#,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00;¤-#,##0.00"}
             }
             symbols{
-                group{"’"}
+                group{"'"}
                 superscriptingExponent{"·"}
             }
         }
@@ -128,13 +130,13 @@ en_CH{
                 "HH:mm:ss z",
                 "HH:mm:ss",
                 "HH:mm",
-                "EEEE, MMMM d, y G",
-                "MMMM d, y G",
-                "MMM d, y G",
+                "EEEE, d MMMM y G",
+                "d MMMM y G",
+                "d MMM y G",
                 "M.d.y GGGGG",
                 "{1}, {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} 'at' {0}",
+                "{1} 'at' {0}",
                 "{1}, {0}",
                 "{1}, {0}",
             }

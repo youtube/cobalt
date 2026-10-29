@@ -5,6 +5,8 @@
 #ifndef BASE_MESSAGE_LOOP_MESSAGE_PUMP_WIN_H_
 #define BASE_MESSAGE_LOOP_MESSAGE_PUMP_WIN_H_
 
+#include <stdint.h>
+
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -146,14 +148,20 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
 
   // An observer interface to give the scheduler an opportunity to log
   // information about MSGs before and after they are dispatched.
-  class BASE_EXPORT Observer {
+  // There is at most one observer at a time.
+  class BASE_EXPORT NativeEventObserver {
    public:
-    virtual void WillDispatchMSG(const MSG& msg) = 0;
-    virtual void DidDispatchMSG(const MSG& msg) = 0;
+    virtual void WillRunNativeEvent(uintptr_t identifier) = 0;
+    virtual void DidRunNativeEvent(uintptr_t identifier) = 0;
   };
 
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* obseerver);
+  void RegisterNativeEventObserver(NativeEventObserver* observer);
+  void UnregisterNativeEventObserver(NativeEventObserver* observer);
+
+  // For testing only, allows overriding the current observer.
+  // Returns the previous observer.
+  NativeEventObserver* ResetNativeEventObserverForTesting(
+      NativeEventObserver* observer);
 
  private:
   bool MessageCallback(UINT message,
@@ -207,7 +215,7 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
   // `kInactive` at construction, but set to `kRunning` on entry to DoRunLoop().
   WakeupState wakeup_state_ = WakeupState::kInactive;
 
-  ObserverList<Observer>::Unchecked observers_;
+  raw_ptr<NativeEventObserver> native_event_observer_ = nullptr;
 };
 
 //-----------------------------------------------------------------------------

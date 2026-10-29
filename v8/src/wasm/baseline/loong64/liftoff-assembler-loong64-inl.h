@@ -525,10 +525,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand(instance, offset));
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  St_d(instance, liftoff::GetInstanceDataOperand());
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
@@ -556,16 +552,6 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, no_reg, offset_imm);
   Ld_d(dst, src_op);
 }
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
-                                                        Register src_addr,
-                                                        int32_t offset_imm) {
-  MemOperand src_op = liftoff::GetMemOp(this, src_addr, no_reg, offset_imm);
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
-                                                   kWasmEntrypointTag);
-}
-#endif
 
 void LiftoffAssembler::StoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
@@ -1363,20 +1349,28 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   }
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   // TODO(ksreten): Handle different sizes here.
   MacroAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind != kS128) {
     MacroAssembler::Move(dst, src);
   } else {
     MacroAssembler::Vmove(dst.toV(), src.toV());
   }
+}
+
+template <>
+inline void LiftoffAssembler::Move(Simd128Register dst, Simd128Register src,
+                                   ValueKind kind) {
+  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {

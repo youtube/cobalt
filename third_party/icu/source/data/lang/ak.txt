@@ -8,19 +8,20 @@ ak{
         collation{"Nyiyie Kwan"}
         currency{"Sika"}
         hc{"Dɔnhwere Nkɔmmaeɛ (12 anaa 24)"}
-        lb{"Line Break Nhyehyɛeɛ"}
+        lb{"Line Break Nhyehyɛeɛ Ketee"}
         ms{"Nsusudeɛ Sestɛm"}
-        numbers{"Nɛma"}
+        numbers{"Nɔma"}
     }
     Languages{
         af{"Afrikaans"}
         ak{"Akan"}
-        am{"Amarik"}
+        am{"Amariki"}
         ar{"Arabeke"}
         ar_001{"Arabeke Kasa Nhyehyɛeɛ Foforɔ"}
         as{"Asamese"}
         ast{"Asturiani"}
         az{"Asabegyanni"}
+        bal{"Balukyi"}
         be{"Belarus kasa"}
         bg{"Bɔlgeria kasa"}
         bgc{"Harianvi"}
@@ -43,13 +44,13 @@ ak{
         de_CH{"Swisalande Gyaaman"}
         doi{"Dɔgri"}
         dsb{"Sɔɔbia a ɛwɔ fam"}
+        ee{"Ayigbe"}
         el{"Greek kasa"}
         en{"Borɔfo"}
         en_GB{"Ngresi Borɔfo"}
         en_US{"Amɛrika Borɔfo"}
         eo{"Esperanto"}
         es{"Spain kasa"}
-        es_419{"Spain kasa (Laaten Amɛrika)"}
         et{"Estonia kasa"}
         eu{"Baske"}
         fa{"Pɛɛhyia kasa"}
@@ -265,9 +266,12 @@ ak{
             islamic-civil{"Higyiri Kalɛnda (tabula, sivil epokyi"}
             islamic-umalqura{"Higyiri Kalɛnda (Ummm al-Kura)"}
             iso8601{"ISO-8601 Kalɛnna"}
-            japanese{"Gyapanfoɔ Kalɛnda"}
+            japanese{"Gyapanfoɔ Kalɛnna"}
             persian{"Pɛɛsiafoɔ Kalɛnda"}
             roc{"Minguo Kalɛnda"}
+        }
+        calendar%core{
+            gregorian{"Gregorian"}
         }
         cf{
             account{"Sika Nkotabuo Fɔmate"}
@@ -278,9 +282,12 @@ ak{
             search{"Daa-Botaeɛ Adehwehwɛ"}
             standard{"Nyiyie Kwan Susudua"}
         }
+        collation%core{
+            standard{"Susudua"}
+        }
         hc{
             h11{"Nnɔnhwere 12 Sestɛm (0–11)"}
-            h12{"Nnɔnhwere 12 Sestɛm (1–12"}
+            h12{"Nnɔnhwere 12 Sestɛm (1–12)"}
             h23{"Nnɔnhwere 24 Sestɛm (0–23)"}
             h24{"Nnɔnhwere 24 Sestɛm (0–24)"}
         }
@@ -341,7 +348,6 @@ ak{
         compatibility{"{0} — kɔmpatebiliti"}
         enclosed{"{0} — ɛnkloso"}
         extended{"{0} — ɛstɛndɛde"}
-        facing-left{"{0} rehwɛ bɛnkum"}
         facing-right{"{0} rehwɛ nifa"}
         historic{"{0} — histɔrike"}
         miscellaneous{"{0} — mɛsɛleniɔso"}

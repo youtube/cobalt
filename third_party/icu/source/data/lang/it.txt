@@ -14,10 +14,13 @@ it{
         colStrength{"Sicurezza ordinamento"}
         collation{"Ordinamento"}
         currency{"Valuta"}
+        em{"Presentazione emoji"}
         hc{"Sistema orario (12 o 24 ore)"}
         lb{"Tipo di interruzione di riga"}
+        lw{"Interruzioni di riga all’interno delle parole"}
         ms{"Sistema di misurazione"}
         numbers{"Numeri"}
+        ss{"Interruzione frase dopo abbreviaz."}
         timezone{"Fuso orario"}
         va{"Variante lingua"}
         x{"Uso privato"}
@@ -670,6 +673,12 @@ it{
         zxx{"nessun contenuto linguistico"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"curdo"}
+    }
+    Languages%extension{
+        ku{"kurmancî"}
+    }
     Languages%long{
         zh_Hans{"cinese mandarino semplificato"}
         zh_Hant{"cinese mandarino tradizionale"}
@@ -882,9 +891,29 @@ it{
             persian{"Calendario persiano"}
             roc{"Calendario minguo"}
         }
+        calendar%core{
+            buddhist{"Buddista"}
+            chinese{"Cinese"}
+            coptic{"Copto"}
+            dangi{"Dangi"}
+            ethiopic{"Etiope"}
+            ethiopic-amete-alem{"Etiope Amete Alem"}
+            gregorian{"Gregoriano"}
+            hebrew{"Ebraico"}
+            islamic{"Hijri"}
+            islamic-civil{"Hijri (tabulare, epoca civile)"}
+            islamic-umalqura{"Hijri (Umm al-Qura)"}
+            japanese{"Giapponese"}
+            persian{"Persiano"}
+            roc{"Minguo"}
+        }
         cf{
             account{"Formato valuta contabile"}
             standard{"Formato valuta standard"}
+        }
+        cf%core{
+            account{"Contabile"}
+            standard{"Standard"}
         }
         colAlternate{
             non-ignorable{"Ordina simboli"}
@@ -919,11 +948,9 @@ it{
             tertiary{"Ordina accenti/lettere/larghezza"}
         }
         collation{
-            big5han{"Ordinamento Cinese tradizionale - Big5"}
             compat{"Ordinamento precedente, per compatibilità"}
             dictionary{"Ordinamento dizionario"}
             ducet{"Ordinamento Unicode predefinito"}
-            gb2312han{"Ordinamento Cinese semplificato - GB2312"}
             phonebook{"Ordinamento Elenco telefonico"}
             phonetic{"Ordinamento fonetico"}
             pinyin{"Ordinamento pinyin"}
@@ -935,10 +962,29 @@ it{
             unihan{"Ordinamento tratti radicali"}
             zhuyin{"Ordinamento Zhuyin"}
         }
+        collation%core{
+            compat{"Compatibilità"}
+            dictionary{"Dizionario"}
+            ducet{"Unicode predefinito"}
+            phonebook{"Elenco telefonico"}
+            phonetic{"Fonetico"}
+            pinyin{"Pinyin"}
+            search{"Ricerca"}
+            standard{"Standard"}
+            stroke{"Tratti"}
+            traditional{"Tradizionale"}
+            unihan{"Tratti radicali"}
+            zhuyin{"Zhuyin"}
+        }
         d0{
             fwidth{"Larghezza intera"}
             hwidth{"Metà larghezza"}
             npinyin{"Numerica"}
+        }
+        em%core{
+            default{"Default"}
+            emoji{"Emoji"}
+            text{"Testo"}
         }
         hc{
             h11{"Sistema orario a 12 ore (0–11)"}
@@ -946,10 +992,27 @@ it{
             h23{"Sistema orario a 24 ore (0–23)"}
             h24{"Sistema orario a 24 ore (1–24)"}
         }
+        hc%core{
+            h11{"12 ore (0–11)"}
+            h12{"12 ore (1–12)"}
+            h23{"24 ore (0–23)"}
+            h24{"24 ore (1–24)"}
+        }
         lb{
             loose{"Interruzione di riga facoltativa"}
             normal{"Interruzione di riga normale"}
             strict{"Interruzione di riga forzata"}
+        }
+        lb%core{
+            loose{"Facoltativa"}
+            normal{"Normale"}
+            strict{"Forzata"}
+        }
+        lw%core{
+            breakall{"Dividi tutte"}
+            keepall{"Conserva tutte"}
+            normal{"Normale"}
+            phrase{"Conserva in sintagmi"}
         }
         m0{
             bgn{"BGN"}
@@ -959,6 +1022,11 @@ it{
             metric{"Sistema metrico"}
             uksystem{"Sistema imperiale britannico"}
             ussystem{"Sistema consuetudinario statunitense"}
+        }
+        ms%core{
+            metric{"Metrico"}
+            uksystem{"Imperiale britannico"}
+            ussystem{"Consuetudinario statunitense"}
         }
         numbers{
             arab{"Cifre indo-arabe"}
@@ -1022,6 +1090,10 @@ it{
             tibt{"Cifre tibetane"}
             traditional{"Numeri tradizionali"}
             vaii{"Cifre Vai"}
+        }
+        ss%core{
+            none{"Off"}
+            standard{"On"}
         }
     }
     Variants{

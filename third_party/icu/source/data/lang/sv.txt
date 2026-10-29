@@ -14,10 +14,13 @@ sv{
         colStrength{"Sorteringsstyrka"}
         collation{"sorteringsordning"}
         currency{"valuta"}
+        em{"emojipresentation"}
         hc{"12- eller 24-timmarsklocka"}
         lb{"radbrytningstyp"}
+        lw{"radbrytningar inom ord"}
         ms{"enhetssystem"}
         numbers{"siffror"}
+        ss{"meningsgräns efter förkortn."}
         timezone{"Tidszon"}
         va{"Språkvariant"}
         x{"privat"}
@@ -677,6 +680,12 @@ sv{
         zxx{"inget språkligt innehåll"}
         zza{"zazaiska"}
     }
+    Languages%core{
+        ku{"kurdiska"}
+    }
+    Languages%extension{
+        ku{"kurmandji"}
+    }
     Languages%menu{
         ars{"arabiska (najdi)"}
         ckb{"kurdiska (sorani)"}
@@ -914,9 +923,29 @@ sv{
             persian{"persisk kalender"}
             roc{"kinesiska republikens kalender"}
         }
+        calendar%core{
+            buddhist{"buddistisk"}
+            chinese{"kinesisk"}
+            coptic{"koptisk"}
+            dangi{"koreansk"}
+            ethiopic{"etiopisk"}
+            ethiopic-amete-alem{"etiopisk amete-alem"}
+            gregorian{"gregoriansk"}
+            hebrew{"hebreisk"}
+            islamic{"islamisk"}
+            islamic-civil{"islamisk civil"}
+            islamic-umalqura{"islamisk, Umm al-Qura"}
+            japanese{"japansk"}
+            persian{"persisk"}
+            roc{"kinesiska republikens"}
+        }
         cf{
             account{"redovisningsformat"}
             standard{"normalt format"}
+        }
+        cf%core{
+            account{"redovisning"}
+            standard{"normalt"}
         }
         colAlternate{
             non-ignorable{"sortera symboler"}
@@ -951,13 +980,11 @@ sv{
             tertiary{"Sortera accenter/skiftläge/bredd"}
         }
         collation{
-            big5han{"big5-sorteringsordning"}
             compat{"bakåtkompatibel sorteringsordning"}
             dictionary{"ordbokssorteringsordning"}
             ducet{"grundläggande Unicode-sorteringsordning"}
             emoji{"emojisorteringsordning"}
             eor{"sorteringsordning för flerspråkliga europeiska dokument"}
-            gb2312han{"gb2312-sorteringsordning"}
             phonebook{"telefonkatalogssorteringsordning"}
             phonetic{"fonetisk sorteringsordning"}
             pinyin{"pinyin-sorteringsordning"}
@@ -969,10 +996,29 @@ sv{
             unihan{"radikal-streck-sorteringsordning"}
             zhuyin{"zhuyin-sorteringsordning"}
         }
+        collation%core{
+            compat{"bakåtkompatibel"}
+            dictionary{"ordbok"}
+            ducet{"grundläggande Unicode"}
+            phonebook{"telefonkatalog"}
+            phonetic{"fonetisk"}
+            pinyin{"pinyin"}
+            search{"sökning"}
+            standard{"normal"}
+            stroke{"streck"}
+            traditional{"traditionell"}
+            unihan{"radikal-streck"}
+            zhuyin{"zhuyin"}
+        }
         d0{
             fwidth{"till helbreda"}
             hwidth{"till halvbreda"}
             npinyin{"Numerisk"}
+        }
+        em%core{
+            default{"standard"}
+            emoji{"emoji"}
+            text{"text"}
         }
         hc{
             h11{"12-timmarsklocka (0–11)"}
@@ -980,10 +1026,27 @@ sv{
             h23{"24-timmarsklocka (0–23)"}
             h24{"24-timmarsklocka (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"fri radbrytning"}
             normal{"normal radbrytning"}
             strict{"strikt radbrytning"}
+        }
+        lb%core{
+            loose{"fri"}
+            normal{"normal"}
+            strict{"strikt"}
+        }
+        lw%core{
+            breakall{"radbryt alla"}
+            keepall{"behåll alla"}
+            normal{"normal"}
+            phrase{"behåll i fraser"}
         }
         m0{
             bgn{"enligt USA:s geografiska namnkommitté"}
@@ -993,6 +1056,11 @@ sv{
             metric{"metersystem"}
             uksystem{"brittiskt måttsystem"}
             ussystem{"USA:s måttsystem"}
+        }
+        ms%core{
+            metric{"meter"}
+            uksystem{"brittiskt"}
+            ussystem{"USA:s"}
         }
         numbers{
             ahom{"ahom-siffror"}
@@ -1077,6 +1145,10 @@ sv{
             vaii{"vai-siffror"}
             wara{"varang kshiti-siffror"}
             wcho{"wanchosiffror"}
+        }
+        ss%core{
+            none{"av"}
+            standard{"på"}
         }
     }
     Variants{

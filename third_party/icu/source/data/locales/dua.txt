@@ -9,7 +9,9 @@ dua{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             symbols{
@@ -148,12 +150,12 @@ dua{
             }
             eras{
                 abbreviated{
-                    "ɓ.Ys",
-                    "mb.Ys",
+                    0{"ɓ.Ys"}
+                    1{"mb.Ys"}
                 }
                 wide{
-                    "ɓoso ɓwá yáɓe lá",
-                    "mbúsa kwédi a Yés",
+                    0{"ɓoso ɓwá yáɓe lá"}
+                    1{"mbúsa kwédi a Yés"}
                 }
             }
             monthNames{

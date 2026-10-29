@@ -264,9 +264,7 @@ lb{
             ls{"Südafrikanesch Zäit"}
         }
         "meta:Africa_Western"{
-            ld{"Westafrikanesch Summerzäit"}
-            lg{"Westafrikanesch Zäit"}
-            ls{"Westafrikanesch Normalzäit"}
+            ls{"Westafrikanesch Zäit"}
         }
         "meta:Alaska"{
             ld{"Alaska-Summerzäit"}
@@ -509,6 +507,9 @@ lb{
         }
         "meta:Guyana"{
             ls{"Guyana-Zäit"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleuten-Normalzäit"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleuten-Summerzäit"}

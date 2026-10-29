@@ -14,10 +14,13 @@ lt{
         colStrength{"Rikiavimo intensyvumas"}
         collation{"rikiavimas"}
         currency{"valiuta"}
+        em{"Jaustukų pateiktis"}
         hc{"valandų ciklas (12 ir 24)"}
         lb{"teksto laužymo stilius"}
+        lw{"Eilučių laužymas"}
         ms{"matų sistema"}
         numbers{"skaičiai"}
+        ss{"tarpas po trumpinio"}
         timezone{"Laiko juosta"}
         va{"Lokalės variantas"}
         x{"Naudoti privačiai"}
@@ -669,6 +672,12 @@ lt{
         zxx{"nėra kalbinio turinio"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurdų"}
+    }
+    Languages%extension{
+        ku{"šiaurės kurdų"}
+    }
     Languages%long{
         zh_Hans{"supaprastintoji mandarinų kinų"}
         zh_Hant{"tradicinė mandarinų kinų"}
@@ -870,19 +879,39 @@ lt{
             gregorian{"Grigaliaus kalendorius"}
             hebrew{"hebrajų kalendorius"}
             indian{"nacionalinis indų kalendorius"}
-            islamic{"islamo kalendorius"}
-            islamic-civil{"Islamo kalendorius (lentelinis, pilietinė era)"}
+            islamic{"musulmonų kalendorius"}
+            islamic-civil{"musulmonų kalendorius (lentelinis, pilietinė era)"}
             islamic-rgsa{"Islamo kalendorius (Saudo Arabija)"}
             islamic-tbla{"Islamo kalendorius (lentelinis, astronominė era)"}
-            islamic-umalqura{"Islamo kalendorius (Umm al-Qura)"}
+            islamic-umalqura{"musulmonų kalendorius (Umm al-Qura)"}
             iso8601{"ISO 8601 kalendorius"}
             japanese{"japonų kalendorius"}
             persian{"persų kalendorius"}
             roc{"Kinijos Respublikos kalendorius"}
         }
+        calendar%core{
+            buddhist{"budistų"}
+            chinese{"kinų"}
+            coptic{"koptų"}
+            dangi{"dangi"}
+            ethiopic{"Etiopijos"}
+            ethiopic-amete-alem{"Etiopijos „Amete Alem“"}
+            gregorian{"Grigaliaus"}
+            hebrew{"hebrajų"}
+            islamic{"Islamo"}
+            islamic-civil{"musulmonų (lentelinis, pilietinė era)"}
+            islamic-umalqura{"musulmonų (Umm al-Qura)"}
+            japanese{"japonų"}
+            persian{"persų"}
+            roc{"Kinijos Respublikos"}
+        }
         cf{
             account{"apskaitos valiutos formatas"}
             standard{"standartinis valiutos formatas"}
+        }
+        cf%core{
+            account{"apskaita"}
+            standard{"standartinis"}
         }
         colAlternate{
             non-ignorable{"Rikiuoti simbolius"}
@@ -923,12 +952,10 @@ lt{
             }
         }
         collation{
-            big5han{"įprasta kiniška rūšiavimo tvarka - Big5"}
             compat{"ankstesnė rūšiavimo tvarka, skirta suderinamumui"}
             dictionary{"žodyno rūšiavimo tvarka"}
             ducet{"numatytasis unikodo rikiavimas"}
             eor{"rūšiavimo tvarka daugiakalbės Europos dokumentų"}
-            gb2312han{"supaprastinta kiniška rūšiavimo tvarka - GB2312"}
             phonebook{"telefonų knygos rūšiavimo tvarka"}
             phonetic{"Fonetinė rikiavimo tvarka"}
             pinyin{"supaprastinta kiniškų hieroglifų rūšiavimo tvarka"}
@@ -939,10 +966,20 @@ lt{
             unihan{"Šaknies ženklų ir brūkšnių rūšiavimo tvarka"}
             zhuyin{"Zhuyin rikiavimo tvarka"}
         }
+        collation%core{
+            ducet{"numatytasis unikodo"}
+            search{"paieška"}
+            standard{"standartinis"}
+        }
         d0{
             fwidth{"viso pločio"}
             hwidth{"vidutinio pločio"}
             npinyin{"Skaitinis"}
+        }
+        em%core{
+            default{"numatytasis"}
+            emoji{"jausmaženklis"}
+            text{"tekstas"}
         }
         hc{
             h11{"12 valandų sistema (0–11)"}
@@ -950,10 +987,27 @@ lt{
             h23{"24 valandų sistema (0–23)"}
             h24{"24 valandų sistema (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"laisvas teksto laužymo stilius"}
             normal{"įprastas teksto laužymo stilius"}
             strict{"griežtas teksto laužymo stilius"}
+        }
+        lb%core{
+            loose{"laisvas"}
+            normal{"įprastas"}
+            strict{"griežtas"}
+        }
+        lw%core{
+            breakall{"Laužti viską"}
+            keepall{"Išlaikyti viską"}
+            normal{"Įprastinis"}
+            phrase{"Išlaikyti frazėse"}
         }
         m0{
             bgn{"BGN simboliai"}
@@ -963,6 +1017,11 @@ lt{
             metric{"metrinė sistema"}
             uksystem{"angliška matų sistema"}
             ussystem{"amerikietiška matų sistema"}
+        }
+        ms%core{
+            metric{"metrinė"}
+            uksystem{"JK"}
+            ussystem{"JAV"}
         }
         numbers{
             arab{"arabų-indų skaitmenys"}
@@ -1026,6 +1085,10 @@ lt{
             tibt{"tibetiečių skaitmenys"}
             traditional{"Tradiciniai skaičiai"}
             vaii{"vai skaitmenys"}
+        }
+        ss%core{
+            none{"išjungta"}
+            standard{"įjungta"}
         }
     }
     Variants{

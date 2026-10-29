@@ -15,6 +15,9 @@ uz{
             }
         }
         arabext{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
+            }
             symbols{
                 minusSign{"-"}
                 nan{"son emas"}
@@ -24,8 +27,10 @@ uz{
         latn{
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;(¤ #,##0.00)"}
                 accountingFormat%noCurrency{"#,##0.00;(#,##0.00)"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             patternsLong{
                 decimalFormat{
@@ -260,9 +265,6 @@ uz{
                     h{"B h:mm–h:mm"}
                     m{"B h:mm – h:mm"}
                 }
-                Gy{
-                    G{"G y – G y"}
-                }
                 GyM{
                     G{"M/y (GGGGG) – M/y (GGGGG)"}
                     M{"M/y – M/y (GGGGG)"}
@@ -387,12 +389,16 @@ uz{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E, B h"}
                 EBhm{"E, B h:mm"}
                 EBhms{"E, B h:mm:ss"}
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
+                Eh{"E, h a"}
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
+                GyM{"MM-y G"}
+                GyMEd{"E, dd-MM-y G"}
                 GyMMM{"MMM, G y"}
                 GyMMMEd{"E, d-MMM, G y"}
                 GyMMMd{"d-MMM, G y"}
@@ -409,7 +415,6 @@ uz{
                 MMMMd{"d-MMMM"}
                 MMMd{"d-MMM"}
                 Md{"dd/MM"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a (v)"}
@@ -484,20 +489,18 @@ uz{
             }
             eras{
                 abbreviated{
-                    "m.a.",
-                    "milodiy",
+                    0{"m.a."}
+                    1{"milodiy"}
                 }
                 abbreviated%variant{
-                    "e.a.",
-                    "mil.",
+                    0{"e.a."}
+                    1{"mil."}
                 }
                 wide{
-                    "miloddan avvalgi",
-                    "milodiy",
+                    0{"miloddan avvalgi"}
                 }
                 wide%variant{
-                    "eramizdan avvalgi",
-                    "mil.",
+                    0{"eramizdan avvalgi"}
                 }
             }
             intervalFormats{
@@ -509,9 +512,6 @@ uz{
                     B{"B h:mm – B h:mm"}
                     h{"B h:mm – h:mm"}
                     m{"B h:mm – h:mm"}
-                }
-                Gy{
-                    G{"G y – G y"}
                 }
                 GyM{
                     G{"M/y (G) – M/y (G)"}
@@ -575,10 +575,6 @@ uz{
                 Md{
                     M{"dd/MM – dd/MM"}
                     d{"dd/MM – dd/MM"}
-                }
-                h{
-                    a{"h a – h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
@@ -730,41 +726,11 @@ uz{
             }
             eras{
                 abbreviated{
-                    "hijriy",
+                    0{"hijriy"}
                 }
             }
             monthNames{
                 format{
-                    abbreviated{
-                        "Muh.",
-                        "Saf.",
-                        "Rab. avv.",
-                        "Rab. son.",
-                        "Jum. avv.",
-                        "Jum. son.",
-                        "Raj.",
-                        "Sha.",
-                        "Ram.",
-                        "Shav.",
-                        "Zulq.",
-                        "Zulh.",
-                    }
-                    wide{
-                        "Muharram",
-                        "Safar",
-                        "Rabiʼul avval",
-                        "Rabiʼus soniy",
-                        "Jumodul avval",
-                        "Jumodus soniy",
-                        "Rajab",
-                        "Sha’bon",
-                        "Ramazon",
-                        "Shavvol",
-                        "Zulqaʼda",
-                        "Zulhijja",
-                    }
-                }
-                stand-alone{
                     abbreviated{
                         "Muh.",
                         "Saf.",
@@ -799,7 +765,7 @@ uz{
         persian{
             eras{
                 abbreviated{
-                    "forsiy",
+                    0{"forsiy"}
                 }
             }
             monthNames{

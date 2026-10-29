@@ -12,7 +12,9 @@ ewo{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -150,12 +152,12 @@ ewo{
             }
             eras{
                 abbreviated{
-                    "oyk",
-                    "ayk",
+                    0{"oyk"}
+                    1{"ayk"}
                 }
                 wide{
-                    "osúsúa Yésus kiri",
-                    "ámvus Yésus Kirís",
+                    0{"osúsúa Yésus kiri"}
+                    1{"ámvus Yésus Kirís"}
                 }
             }
             monthNames{

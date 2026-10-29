@@ -9,13 +9,13 @@ lmo{
         latn{
             symbols{
                 decimal{","}
-                group{"’"}
+                group{"'"}
             }
         }
     }
     calendar{
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "del matin",
                 "de sira",
             }

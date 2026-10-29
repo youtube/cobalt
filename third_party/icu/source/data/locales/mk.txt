@@ -18,7 +18,9 @@ mk{
                 range{"{0} – {1}"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -96,8 +98,8 @@ mk{
                         other{"00 мил'.' ¤"}
                     }
                     100000000{
-                        one{"000 мил'.' ¤"}
-                        other{"000 мил'.' ¤"}
+                        one{"000 М ¤"}
+                        other{"000 М ¤"}
                     }
                     1000000000{
                         one{"0 милј'.' ¤"}
@@ -108,8 +110,8 @@ mk{
                         other{"00 милј'.' ¤"}
                     }
                     100000000000{
-                        one{"000 милј'.' ¤"}
-                        other{"000 милј'.' ¤"}
+                        one{"000 мј'.' ¤"}
+                        other{"000 ми'.' ¤"}
                     }
                     1000000000000{
                         one{"0 бил'.' ¤"}
@@ -300,12 +302,6 @@ mk{
                 "{1} {0}",
                 "{1} {0}",
             }
-            eras{
-                abbreviated{
-                    "ЕРА0",
-                    "ЕРА1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -327,12 +323,6 @@ mk{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "ЕРА0",
-                    "ЕРА1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -375,6 +365,12 @@ mk{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'во' {0}",
+                "{1} 'во' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -393,6 +389,8 @@ mk{
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y 'г'. G"}
+                GyM{"M. y 'г'. G"}
+                GyMEd{"E d.M.y 'г'. G"}
                 GyMMM{"MMM y 'г'. G"}
                 GyMMMEd{"E, d MMM y 'г'. G"}
                 GyMMMd{"d MMM y 'г'. G"}
@@ -400,13 +398,13 @@ mk{
                 H{"H"}
                 Hm{"H:mm"}
                 Hms{"H:mm:ss"}
+                Hv{"HH 'ч'. v"}
                 MEd{"E, d.M"}
                 MMMEd{"E, d MMM"}
                 MMMMEd{"E, d MMMM"}
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d.M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 y{"y 'г'. G"}
@@ -497,7 +495,6 @@ mk{
                 }
                 h{
                     a{"h a – h a"}
-                    h{"h–h a"}
                 }
                 hm{
                     a{"h:mm a – h:mm a"}
@@ -511,7 +508,6 @@ mk{
                 }
                 hv{
                     a{"h a – h a v"}
-                    h{"h–h a v"}
                 }
                 y{
                     y{"y 'г'. – y 'г'. G"}
@@ -562,8 +558,8 @@ mk{
                 "HH:mm",
                 "EEEE, d MMMM y 'г'.",
                 "d MMMM y 'г'.",
+                "d MMM y 'г'.",
                 "d.M.y 'г'.",
-                "d.M.yy",
                 "{1}, {0}",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -574,7 +570,13 @@ mk{
                 "{1}, 'во' {0}",
                 "{1}, 'во' {0}",
                 "{1}, 'во' {0}",
-                "{1}, 'во' {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} 'во' {0}",
+                "{1} 'во' {0}",
+                "{1}, {0}",
+                "{1}, {0}",
             }
             DateTimeSkeletons{
                 "HHmmsszzzz",
@@ -591,10 +593,14 @@ mk{
                 Ehm{"E h:mm a"}
                 Ehms{"E h:mm:ss a"}
                 Gy{"y 'г'. G"}
+                GyM{"M.y 'г'. G"}
+                GyMEd{"E, d.M.y 'г'. G"}
                 GyMMM{"MMM y 'г'. G"}
                 GyMMMEd{"E, d MMM y 'г'. G"}
                 GyMMMd{"d MMM y 'г'. G"}
                 GyMd{"d.M.y 'г'. G"}
+                H{"H"}
+                Hv{"HH 'ч'. v"}
                 MEd{"E, d.M"}
                 MMMEd{"E, d MMM"}
                 MMMMEd{"E, d MMMM"}
@@ -606,7 +612,6 @@ mk{
                 MMMd{"d MMM"}
                 Md{"d.M"}
                 Mdd{"d.M"}
-                h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
@@ -700,16 +705,15 @@ mk{
             }
             eras{
                 abbreviated{
-                    "пр. н. е.",
-                    "н. е.",
+                    0{"пр. н. е."}
+                    1{"н. е."}
                 }
                 wide{
-                    "пред нашата ера",
-                    "од нашата ера",
+                    0{"пред нашата ера"}
+                    1{"од нашата ера"}
                 }
                 wide%variant{
-                    "пр. н. е.",
-                    "нашата ера",
+                    1{"нашата ера"}
                 }
             }
             intervalFormats{
@@ -917,14 +921,6 @@ mk{
                         "четврто тримесечје",
                     }
                 }
-                stand-alone{
-                    abbreviated{
-                        "јан. – мар.",
-                        "апр. – јун.",
-                        "јул. – сеп.",
-                        "окт. – дек.",
-                    }
-                }
             }
         }
         hebrew{
@@ -1039,7 +1035,7 @@ mk{
         indian{
             eras{
                 abbreviated{
-                    "Сака",
+                    0{"Сака"}
                 }
             }
             monthNames{
@@ -1185,7 +1181,7 @@ mk{
         persian{
             eras{
                 abbreviated{
-                    "АП",
+                    0{"АП"}
                 }
             }
             monthNames{
@@ -1210,12 +1206,11 @@ mk{
         roc{
             eras{
                 abbreviated{
-                    "пр. Р.К.",
-                    "мингуо",
+                    0{"пр. Р.К."}
+                    1{"мингуо"}
                 }
                 wide{
-                    "пред Р.К.",
-                    "мингуо",
+                    0{"пред Р.К."}
                 }
             }
         }
@@ -1344,6 +1339,12 @@ mk{
         dayperiod{
             dn{"претпладне/попладне"}
         }
+        dayperiod-narrow{
+            dn{"претпл./попл."}
+        }
+        dayperiod-short{
+            dn{"претпл./попл."}
+        }
         era{
             dn{"ера"}
         }
@@ -1384,7 +1385,7 @@ mk{
         hour{
             dn{"час"}
             relative{
-                "0"{"часов"}
+                "0"{"овој час"}
             }
             relativeTime{
                 future{
@@ -1485,33 +1486,46 @@ mk{
             dn{"мес."}
         }
         quarter{
-            dn{"тромесечје"}
+            dn{"тримесечје"}
             relative{
-                "-1"{"последното тромесечје"}
-                "0"{"ова тромесечје"}
-                "1"{"следното тромесечје"}
+                "-1"{"последното тримесечје"}
+                "0"{"ова тримесечје"}
+                "1"{"следното тримесечје"}
             }
             relativeTime{
                 future{
-                    one{"за {0} тромесечје"}
-                    other{"за {0} тромесечја"}
+                    one{"за {0} тримесечје"}
+                    other{"за {0} тримесечја"}
                 }
                 past{
-                    one{"пред {0} тромесечје"}
-                    other{"пред {0} тромесечја"}
+                    one{"пред {0} тримесечје"}
+                    other{"пред {0} тримесечја"}
+                }
+            }
+        }
+        quarter-narrow{
+            dn{"тримес."}
+            relativeTime{
+                future{
+                    one{"за {0} тримес."}
+                    other{"за {0} тримес."}
+                }
+                past{
+                    one{"пред {0} тримес."}
+                    other{"пред {0} тримес."}
                 }
             }
         }
         quarter-short{
-            dn{"тромес."}
+            dn{"тримес."}
             relativeTime{
                 future{
-                    one{"за {0} тромес."}
-                    other{"за {0} тромес."}
+                    one{"за {0} тримес."}
+                    other{"за {0} тримес."}
                 }
                 past{
-                    one{"пред {0} тромес."}
-                    other{"пред {0} тромес."}
+                    one{"пред {0} тримес."}
+                    other{"пред {0} тримес."}
                 }
             }
         }
@@ -1739,11 +1753,20 @@ mk{
         weekOfMonth{
             dn{"седмица од месецот"}
         }
+        weekOfMonth-narrow{
+            dn{"сед. од мес."}
+        }
+        weekOfMonth-short{
+            dn{"сед. од мес."}
+        }
         weekday{
             dn{"ден од неделата"}
         }
+        weekday-narrow{
+            dn{"ден од нед."}
+        }
         weekday-short{
-            dn{"ден во неделата"}
+            dn{"ден од нед."}
         }
         weekdayOfMonth{
             dn{"ден од месецот"}
@@ -1816,19 +1839,6 @@ mk{
                 "[\\: ∶]",
             }
         }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
-            }
-        }
         number{
             lenient{
                 "[\\-－﹣ ‑ ‒ −⁻₋ ➖]",
@@ -1846,12 +1856,6 @@ mk{
             givenFirst{
                 "und",
                 "mk",
-            }
-            surnameFirst{
-                "ko",
-                "vi",
-                "yue",
-                "zh",
             }
         }
         namePattern{

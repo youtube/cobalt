@@ -154,13 +154,6 @@ en_AU{
         angle{
             arc-minute{
                 dnam{"arcmin."}
-                one{"{0} arcmin."}
-                other{"{0} arcmin."}
-            }
-            arc-second{
-                dnam{"arcsec."}
-                one{"{0} arcsec."}
-                other{"{0} arcsec."}
             }
         }
         concentr{
@@ -186,16 +179,6 @@ en_AU{
             liter-per-kilometer{
                 one{"{0} L/km"}
                 other{"{0} L/km"}
-            }
-            mile-per-gallon{
-                dnam{"miles/gal. US"}
-                one{"{0} m.p.g. US"}
-                other{"{0} m.p.g. US"}
-            }
-            mile-per-gallon-imperial{
-                dnam{"miles/gal."}
-                one{"{0} m.p.g."}
-                other{"{0} m.p.g."}
             }
         }
         duration{
@@ -229,18 +212,9 @@ en_AU{
             }
         }
         pressure{
-            inch-ofhg{
-                dnam{"in Hg"}
-            }
             millibar{
-                dnam{"mb"}
                 one{"{0} mb"}
                 other{"{0} mb"}
-            }
-            millimeter-ofhg{
-                dnam{"mm Hg"}
-                one{"{0} mm Hg"}
-                other{"{0} mm Hg"}
             }
         }
         speed{

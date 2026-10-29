@@ -15,26 +15,11 @@ fr{
         "Africa:El_Aaiun"{
             ec{"Laâyoune"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Mogadiscio"}
         }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
-        }
         "Africa:Tripoli"{
             ec{"Tripoli (Libye)"}
-        }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
         }
         "America:Argentina:Ushuaia"{
             ec{"Ushuaïa"}
@@ -45,26 +30,14 @@ fr{
         "America:Barbados"{
             ec{"La Barbade"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
         "America:Cayman"{
             ec{"Caïmans"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
         }
         "America:Detroit"{
             ec{"Détroit"}
         }
         "America:Dominica"{
             ec{"Dominique"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:Grenada"{
             ec{"Grenade"}
@@ -99,14 +72,8 @@ fr{
         "America:Kentucky:Monticello"{
             ec{"Monticello [Kentucky]"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Manaus"{
             ec{"Manaos"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Mexico"}
@@ -126,14 +93,8 @@ fr{
         "America:Puerto_Rico"{
             ec{"Porto Rico"}
         }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
         "America:Santo_Domingo"{
             ec{"Saint-Domingue"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -155,12 +116,6 @@ fr{
         }
         "America:Thule"{
             ec{"Thulé"}
-        }
-        "Antarctica:DumontDUrville"{
-            ec{"Dumont-d’Urville"}
-        }
-        "Antarctica:Syowa"{
-            ec{"Showa"}
         }
         "Asia:Almaty"{
             ec{"Alma Ata"}
@@ -291,9 +246,6 @@ fr{
         "Asia:Ulaanbaatar"{
             ec{"Oulan-Bator"}
         }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
-        }
         "Asia:Yakutsk"{
             ec{"Iakoutsk"}
         }
@@ -334,7 +286,7 @@ fr{
             ls{"temps universel coordonné"}
         }
         "Etc:Unknown"{
-            ec{"ville inconnue"}
+            ec{"lieu inconnu"}
         }
         "Europe:Andorra"{
             ec{"Andorre"}
@@ -347,9 +299,6 @@ fr{
         }
         "Europe:Bucharest"{
             ec{"Bucarest"}
-        }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
         }
         "Europe:Copenhagen"{
             ec{"Copenhague"}
@@ -382,9 +331,6 @@ fr{
         "Europe:San_Marino"{
             ec{"Saint-Marin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Oulianovsk"}
         }
@@ -396,12 +342,6 @@ fr{
         }
         "Europe:Warsaw"{
             ec{"Varsovie"}
-        }
-        "Indian:Comoro"{
-            ec{"Comores"}
-        }
-        "Indian:Mahe"{
-            ec{"Mahé"}
         }
         "Indian:Mauritius"{
             ec{"Maurice"}
@@ -415,26 +355,14 @@ fr{
         "Pacific:Efate"{
             ec{"Éfaté"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Fiji"{
             ec{"Fidji"}
-        }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
-        "Pacific:Kanton"{
-            ec{"Canton"}
-        }
         "Pacific:Marquesas"{
             ec{"Marquises"}
-        }
-        "Pacific:Noumea"{
-            ec{"Nouméa"}
         }
         "Pacific:Palau"{
             ec{"Palaos"}
@@ -457,9 +385,7 @@ fr{
             ls{"heure normale d’Afrique méridionale"}
         }
         "meta:Africa_Western"{
-            ld{"heure d’été d’Afrique de l’Ouest"}
-            lg{"heure d’Afrique de l’Ouest"}
-            ls{"heure normale d’Afrique de l’Ouest"}
+            ls{"heure d’Afrique de l’Ouest"}
         }
         "meta:Alaska"{
             ld{"heure d’été de l’Alaska"}
@@ -720,6 +646,9 @@ fr{
         }
         "meta:Guyana"{
             ls{"heure du Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"heure normale d’Hawaï - Aléoutiennes"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"heure d’été d’Hawaï - Aléoutiennes"}
@@ -1005,6 +934,11 @@ fr{
         }
         "meta:Truk"{
             ls{"heure de Chuuk"}
+        }
+        "meta:Turkey"{
+            ld{"heure avancée de Turquie"}
+            lg{"heure de Turquie"}
+            ls{"heure normale de Turquie"}
         }
         "meta:Turkmenistan"{
             ld{"heure d’été du Turkménistan"}

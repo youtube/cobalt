@@ -221,12 +221,6 @@ ml{
     }
     calendar{
         coptic{
-            eras{
-                abbreviated{
-                    "കാലഘട്ടം0",
-                    "കാലഘട്ടം1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -265,12 +259,6 @@ ml{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "കാലഘട്ടം0",
-                    "കാലഘട്ടം1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -310,29 +298,49 @@ ml{
         }
         generic{
             DateTimePatterns{
-                "h:mm:ss a zzzz",
-                "h:mm:ss a z",
+                "zzzz h:mm:ss a",
+                "z h:mm:ss a",
                 "h:mm:ss a",
                 "h:mm a",
-                "G y, MMMM d, EEEE",
-                "G y, MMMM d",
-                "G y, MMM d",
-                "GGGGG y-MM-dd",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
+                "G y MMMM d, EEEE",
+                "G y MMMM d",
+                "G y MMM d",
+                "G y-MM-dd",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%atTime{
+                "{1}, {0}-ന്",
+                "{1}, {0}-ന്",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} {0}-ന്",
+                "{1} {0}-ന്",
+                "{1}, {0}",
+                "{1}, {0}",
             }
             availableFormats{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E, B h"}
                 EBhm{"E, B h:mm"}
                 EBhms{"E, B h:mm:ss"}
-                MEd{"M/d, E"}
+                GyM{"G y/M"}
+                GyMEd{"G y/M/d, E"}
+                GyMd{"G y/M/d"}
+                Hv{"v HH'h'"}
+                MEd{"d/M, E"}
                 MMMMEd{"MMMM d, E"}
                 MMdd{"dd-MM"}
+                Md{"d/M"}
+                hv{"v h a"}
+                yyyyM{"G y/M"}
                 yyyyMEd{"G d/M/y, E"}
                 yyyyMM{"MM-y G"}
                 yyyyMd{"G d/M/y"}
@@ -378,19 +386,31 @@ ml{
         }
         gregorian{
             DateTimePatterns{
-                "h:mm:ss a zzzz",
-                "h:mm:ss a z",
+                "zzzz h:mm:ss a",
+                "z h:mm:ss a",
                 "h:mm:ss a",
                 "h:mm a",
-                "y, MMMM d, EEEE",
-                "y, MMMM d",
-                "y, MMM d",
+                "y MMMM d, EEEE",
+                "y MMMM d",
+                "y MMM d",
                 "d/M/yy",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%atTime{
+                "{1}, {0}-ന്",
+                "{1}, {0}-ന്",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} {0}-ന്",
+                "{1} {0}-ന്",
+                "{1}, {0}",
+                "{1}, {0}",
             }
             DateTimeSkeletons{
                 "ahmmsszzzz",
@@ -408,7 +428,13 @@ ml{
                 Bhms{"B h:mm:ss"}
                 EBhm{"E, B h:mm"}
                 EBhms{"E, B h:mm:ss"}
-                GyMd{"M/d/y G"}
+                Eh{"E, h a"}
+                GyM{"G y/M"}
+                GyMEd{"G d/M/y, E"}
+                GyMd{"G y/M/d"}
+                Hmsv{"v HH:mm:ss"}
+                Hmv{"v HH:mm"}
+                Hv{"v HH'h'"}
                 MEd{"d/M, E"}
                 MMMMEd{"MMMM d, E"}
                 MMMMW{
@@ -417,8 +443,12 @@ ml{
                 }
                 MMdd{"dd/MM"}
                 Md{"d/M"}
-                yMEd{"d-M-y, E"}
-                yMM{"y-MM"}
+                hmsv{"v h:mm:ss a"}
+                hmv{"v h:mm a"}
+                hv{"v h a"}
+                yM{"M/y"}
+                yMEd{"d/M/y, E"}
+                yMM{"MM/y"}
                 yMd{"d/M/y"}
                 yw{
                     one{"Y-ലെ ആഴ്ച w"}
@@ -513,20 +543,20 @@ ml{
             }
             eras{
                 abbreviated{
-                    "ബി.സി.",
-                    "എഡി",
+                    0{"ബിസി"}
+                    1{"എഡി"}
                 }
                 abbreviated%variant{
-                    "ബിസിഇ",
-                    "സിഇ",
+                    0{"ബിസിഇ"}
+                    1{"സിഇ"}
                 }
                 wide{
-                    "ക്രിസ്‌തുവിന് മുമ്പ്",
-                    "ആന്നോ ഡൊമിനി",
+                    0{"ക്രിസ്‌തുവിന് മുമ്പ്"}
+                    1{"ആന്നോ ഡൊമിനി"}
                 }
                 wide%variant{
-                    "ബി.സി.ഇ.",
-                    "സി.ഇ.",
+                    0{"കോമൺ ഇറയ്ക്ക് മുമ്പ്"}
+                    1{"കോമൺ ഇറ"}
                 }
             }
             intervalFormats{
@@ -713,7 +743,7 @@ ml{
         indian{
             eras{
                 abbreviated{
-                    "ശക",
+                    0{"ശക"}
                 }
             }
             monthNames{
@@ -731,20 +761,6 @@ ml{
                         "പൗഷം",
                         "മാഘം",
                         "ഫൽഗുനം",
-                    }
-                    narrow{
-                        "1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
-                        "8",
-                        "9",
-                        "10",
-                        "11",
-                        "12",
                     }
                     wide{
                         "ചൈത്രം",
@@ -766,7 +782,7 @@ ml{
         islamic{
             eras{
                 abbreviated{
-                    "ഹിജറ",
+                    0{"ഹിജറ"}
                 }
             }
             monthNames{
@@ -871,12 +887,11 @@ ml{
         roc{
             eras{
                 abbreviated{
-                    "R.O.C-യ്‌ക്ക് മു.",
-                    "മിംഗ്വോ",
+                    0{"R.O.C-യ്‌ക്ക് മു."}
+                    1{"മിംഗ്വോ"}
                 }
                 wide{
-                    "R.O.C-യ്‌ക്ക് മുമ്പ്",
-                    "മിംഗ്വോ",
+                    0{"R.O.C-യ്‌ക്ക് മുമ്പ്"}
                 }
             }
         }
@@ -1342,12 +1357,12 @@ ml{
             2{"{0} അല്ലെങ്കിൽ {1}"}
             end{"{0}, അല്ലെങ്കിൽ {1}"}
         }
-        standard{
-            2{"{0} കൂടാതെ {1}"}
-            end{"{0}, {1} എന്നിവ"}
-        }
         standard-narrow{
             2{"{0}, {1}"}
+        }
+        standard-short{
+            2{"{0}, {1}"}
+            end{"{0}, {1}"}
         }
         unit-narrow{
             end{"{0} {1}"}

@@ -2,20 +2,25 @@
 // License & terms of use: http://www.unicode.org/copyright.html
 // Generated using tools/cldr/cldr-to-icu/
 pa{
-    AuxExemplarCharacters{"[\u200C\u200Dਃ ਂ {ਲ਼}]"}
+    AuxExemplarCharacters{"[\u200C\u200Dਃ]"}
     ExemplarCharacters{
-        "[ੱ ੰ ਼ ੦ ੧ ੨ ੩ ੪ ੫ ੬ ੭ ੮ ੯ ੴ ੳ ਉ ਊ ਓ ਅ ਆ ਐ ਔ ੲ ਇ ਈ ਏ ਸ{ਸ਼} ਹ ਕ ਖ{ਖ਼} ਗ{ਗ਼} ਘ"
-        " ਙ ਚ ਛ ਜ{ਜ਼} ਝ ਞ ਟ ਠ ਡ ਢ ਣ ਤ ਥ ਦ ਧ ਨ ਪ ਫ{ਫ਼} ਬ ਭ ਮ ਯ ਰ ਲ ਵ ੜ ੍ ਾ ਿ ੀ ੁ ੂ ੇ ੈ"
-        " ੋ ੌ]"
+        "[ੱ ੰ ਂ ਼ ੦ ੧ ੨ ੩ ੪ ੫ ੬ ੭ ੮ ੯ ੴ ੳ ਉ ਊ ਓ ਅ ਆ ਐ ਔ ੲ ਇ ਈ ਏ ਸ{ਸ਼} ਹ ਕ ਖ{ਖ਼} ਗ{ਗ਼}"
+        " ਘ ਙ ਚ ਛ ਜ{ਜ਼} ਝ ਞ ਟ ਠ ਡ ਢ ਣ ਤ ਥ ਦ ਧ ਨ ਪ ਫ{ਫ਼} ਬ ਭ ਮ ਯ ਰ ਲ{ਲ਼} ਵ ੜ ੍ ਾ ਿ ੀ ੁ"
+        " ੂ ੇ ੈ ੋ ੌ]"
     }
-    ExemplarCharactersIndex{"[ੳ ਅ ੲ ਸ ਹ ਕ ਖ ਗ ਘ ਙ ਚ ਛ ਜ ਝ ਞ ਟ ਠ ਡ ਢ ਣ ਤ ਥ ਦ ਧ ਨ ਪ ਫ ਬ ਭ ਮ ਯ ਰ ਲ ਵ ੜ]"}
+    ExemplarCharactersIndex{"[ੳ ਅ ੲ ਸ{ਸ਼} ਹ ਕ ਖ ਗ ਘ ਙ ਚ ਛ ਜ ਝ ਞ ਟ ਠ ਡ ਢ ਣ ਤ ਥ ਦ ਧ ਨ ਪ ਫ ਬ ਭ ਮ ਯ ਰ ਲ ਵ ੜ]"}
     ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0੦ 1੧ 2੨ 3੩ 4੪ 5੫ 6੬ 7੭ 8੮ 9੯]"}
     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . '‘’ \u0022“” ( ) \\[ \\] / \\& ′ ″]"}
     NumberElements{
         arab{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 currencyFormat%noCurrency{"#,##,##0.00"}
+            }
+            rationalFormats{
+                rationalUsage{"never"}
             }
             symbols{
                 decimal{"."}
@@ -29,12 +34,22 @@ pa{
         }
         arabext{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
                 currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+            }
+            rationalFormats{
+                rationalUsage{"never"}
             }
             symbols{
                 group{","}
                 minusSign{"-"}
                 plusSign{"+"}
+            }
+        }
+        guru{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
             }
         }
         latn{
@@ -43,8 +58,11 @@ pa{
             }
             patterns{
                 accountingFormat{"¤ #,##0.00"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
                 accountingFormat%noCurrency{"#,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
@@ -104,6 +122,56 @@ pa{
             }
             patternsShort{
                 currencyFormat{
+                    1000{
+                        one{"¤0 ਹਜ਼ਾਰ"}
+                        other{"¤0 ਹਜ਼ਾਰ"}
+                    }
+                    10000{
+                        one{"¤00 ਹਜ਼ਾਰ"}
+                        other{"¤00 ਹਜ਼ਾਰ"}
+                    }
+                    100000{
+                        one{"¤0 ਲੱਖ"}
+                        other{"¤0 ਲੱਖ"}
+                    }
+                    1000000{
+                        one{"¤00 ਲੱਖ"}
+                        other{"¤00 ਲੱਖ"}
+                    }
+                    10000000{
+                        one{"¤0 ਕਰੋੜ"}
+                        other{"¤0 ਕਰੋੜ"}
+                    }
+                    100000000{
+                        one{"¤00 ਕਰੋੜ"}
+                        other{"¤00 ਕਰੋੜ"}
+                    }
+                    1000000000{
+                        one{"¤0 ਅਰਬ"}
+                        other{"¤0 ਅਰਬ"}
+                    }
+                    10000000000{
+                        one{"¤00 ਅਰਬ"}
+                        other{"¤00 ਅਰਬ"}
+                    }
+                    100000000000{
+                        one{"¤0 ਖਰਬ"}
+                        other{"¤0 ਖਰਬ"}
+                    }
+                    1000000000000{
+                        one{"¤00 ਖਰਬ"}
+                        other{"¤00 ਖਰਬ"}
+                    }
+                    10000000000000{
+                        one{"¤0 ਨੀਲ"}
+                        other{"¤0 ਨੀਲ"}
+                    }
+                    100000000000000{
+                        one{"¤00 ਨੀਲ"}
+                        other{"¤00 ਨੀਲ"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
                     1000{
                         one{"¤ 0 ਹਜ਼ਾਰ"}
                         other{"¤ 0 ਹਜ਼ਾਰ"}
@@ -215,7 +283,7 @@ pa{
                 masculine{"ਇਹ ਕਿੰਨੇ {0} ਦਾ ਹੈ"}
             }
             ordinal{
-                other{"ਸਜੇ ਪਾਸੇ {0} ਮੋੜ ਲਵੋ"}
+                other{"ਸੱਜੇ ਪਾਸੇ {0}ਵਾਂ ਮੋੜ ਲਓ"}
             }
             plural{
                 one{"{0} ਘੰਟਾ"}
@@ -249,20 +317,14 @@ pa{
             }
             eras{
                 abbreviated{
-                    "ਈਸਵੀ ਪੂਰਵ",
+                    0{"ਈਸਵੀ ਪੂਰਵ"}
                 }
                 narrow{
-                    "ਈ. ਪੂ.",
+                    0{"ਈ. ਪੂ."}
                 }
             }
         }
         coptic{
-            eras{
-                abbreviated{
-                    "ਕਾਲ0",
-                    "ਕਾਲ1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -284,12 +346,6 @@ pa{
             }
         }
         ethiopic{
-            eras{
-                abbreviated{
-                    "ਕਾਲ0",
-                    "ਕਾਲ1",
-                }
-            }
             monthNames{
                 format{
                     wide{
@@ -326,6 +382,12 @@ pa{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -337,6 +399,12 @@ pa{
                 "GGGGGyMMdd",
             }
             availableFormats{
+                Bh{"B h"}
+                Bhm{"B h:mm"}
+                Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
+                EBhm{"E B h:mm"}
+                EBhms{"E B h:mm:ss"}
                 Ed{"E, d"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d MMM y G"}
@@ -423,13 +491,13 @@ pa{
             }
         }
         gregorian{
-            AmPmMarkersAbbr{
-                "ਪੂ.ਦੁ.",
-                "ਬਾ.ਦੁ.",
+            AmPmMarkers{
+                "AM",
+                "PM",
             }
             AmPmMarkersNarrow{
-                "ਸ.",
-                "ਸ਼.",
+                "AM",
+                "PM",
             }
             DateTimePatterns{
                 "h:mm:ss a zzzz",
@@ -446,6 +514,12 @@ pa{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -457,6 +531,14 @@ pa{
                 "yyMd",
             }
             availableFormats{
+                Bh{"B h"}
+                Bhm{"B h:mm"}
+                Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
+                EBhm{"E B h:mm"}
+                EBhms{"E B h:mm:ss"}
+                GyM{"G M/y"}
+                GyMEd{"E, d/M/y G"}
                 GyMMM{"MMM, G y"}
                 GyMMMEd{"E d MMM, G y"}
                 GyMMMd{"d MMM, G y"}
@@ -493,7 +575,7 @@ pa{
                         "ਬੁੱਧ",
                         "ਵੀਰ",
                         "ਸ਼ੁੱਕਰ",
-                        "ਸ਼ਨਿੱਚਰ",
+                        "ਸ਼ਨੀ",
                     }
                     short{
                         "ਐਤ",
@@ -502,7 +584,7 @@ pa{
                         "ਬੁੱਧ",
                         "ਵੀਰ",
                         "ਸ਼ੁੱਕ",
-                        "ਸ਼ਨਿੱ",
+                        "ਸ਼ਨੀ",
                     }
                     wide{
                         "ਐਤਵਾਰ",
@@ -511,10 +593,19 @@ pa{
                         "ਬੁੱਧਵਾਰ",
                         "ਵੀਰਵਾਰ",
                         "ਸ਼ੁੱਕਰਵਾਰ",
-                        "ਸ਼ਨਿੱਚਰਵਾਰ",
+                        "ਸ਼ਨੀਵਾਰ",
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        "ਐਤ",
+                        "ਸੋਮ",
+                        "ਮੰਗਲ",
+                        "ਬੁੱਧ",
+                        "ਵੀਰ",
+                        "ਸ਼ੁੱਕਰ",
+                        "ਸ਼ਨੀ",
+                    }
                     narrow{
                         "ਐ",
                         "ਸੋ",
@@ -523,6 +614,24 @@ pa{
                         "ਵੀ",
                         "ਸ਼ੁੱ",
                         "ਸ਼",
+                    }
+                    short{
+                        "ਐਤ",
+                        "ਸੋਮ",
+                        "ਮੰਗ",
+                        "ਬੁੱਧ",
+                        "ਵੀਰ",
+                        "ਸ਼ੁੱਕ",
+                        "ਸ਼ਨੀ",
+                    }
+                    wide{
+                        "ਐਤਵਾਰ",
+                        "ਸੋਮਵਾਰ",
+                        "ਮੰਗਲਵਾਰ",
+                        "ਬੁੱਧਵਾਰ",
+                        "ਵੀਰਵਾਰ",
+                        "ਸ਼ੁੱਕਰਵਾਰ",
+                        "ਸ਼ਨੀਵਾਰ",
                     }
                 }
             }
@@ -537,38 +646,45 @@ pa{
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        am{"AM"}
+                        pm{"PM"}
+                    }
+                    narrow{
+                        am{"AM"}
+                        pm{"PM"}
+                    }
                     wide{
                         afternoon1{"ਦੁਪਹਿਰੇ"}
+                        am{"AM"}
                         evening1{"ਸ਼ਾਮ"}
                         morning1{"ਸਵੇਰੇ"}
                         night1{"ਰਾਤ"}
+                        pm{"PM"}
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "ਈ. ਪੂ.",
-                    "ਸੰਨ",
+                    0{"ਈ. ਪੂ."}
+                    1{"ਸੰਨ"}
                 }
                 abbreviated%variant{
-                    "ਈ. ਪੂ.",
-                    "ਈ. ਸੰ.",
+                    1{"ਈ. ਸੰ."}
                 }
                 narrow{
-                    "ਈ.ਪੂ.",
-                    "ਸੰਨ",
+                    0{"ਈ.ਪੂ."}
                 }
                 narrow%variant{
-                    "ਈ. ਪੂ.",
-                    "ਈ.ਸੰ.",
+                    1{"ਈ.ਸੰ."}
                 }
                 wide{
-                    "ਈਸਵੀ ਪੂਰਵ",
-                    "ਈਸਵੀ ਸੰਨ",
+                    0{"ਈਸਵੀ ਪੂਰਵ"}
+                    1{"ਈਸਵੀ ਸੰਨ"}
                 }
                 wide%variant{
-                    "ਈਸਵੀ ਪੂਰਵ ਯੁੱਗ",
-                    "ਈਸਵੀ ਯੁੱਗ",
+                    0{"ਈਸਵੀ ਪੂਰਵ ਯੁੱਗ"}
+                    1{"ਈਸਵੀ ਯੁੱਗ"}
                 }
             }
             intervalFormats{
@@ -718,7 +834,7 @@ pa{
         indian{
             eras{
                 abbreviated{
-                    "ਸਾਕਾ",
+                    0{"ਸਾਕਾ"}
                 }
             }
             monthNames{
@@ -758,6 +874,8 @@ pa{
         }
         islamic{
             availableFormats{
+                GyM{"M/y G"}
+                GyMEd{"E, d/M/y G"}
                 GyMMMd{"d MMM, y G"}
             }
             monthNames{
@@ -832,12 +950,11 @@ pa{
         roc{
             eras{
                 abbreviated{
-                    "ਆਰ.ਓ.ਸੀ ਤੋਂ ਪਹਿਲਾਂ",
-                    "ਮਿੰਗ",
+                    0{"ਆਰ.ਓ.ਸੀ ਤੋਂ ਪਹਿਲਾਂ"}
+                    1{"ਮਿੰਗ"}
                 }
                 wide{
-                    "ਚੀਨ ਦੇ ਗਣਰਾਜ ਤੋਂ ਪਹਿਲਾਂ",
-                    "ਮਿੰਗ",
+                    0{"ਚੀਨ ਦੇ ਗਣਰਾਜ ਤੋਂ ਪਹਿਲਾਂ"}
                 }
             }
         }
@@ -953,7 +1070,13 @@ pa{
             dn{"ਸਾਲ ਦਾ ਦਿਨ"}
         }
         dayperiod{
-            dn{"ਪੂ.ਦੁ./ਬਾ.ਦੁ."}
+            dn{"AM/PM"}
+        }
+        dayperiod-narrow{
+            dn{"AM/PM"}
+        }
+        dayperiod-short{
+            dn{"AM/PM"}
         }
         era{
             dn{"ਸੰਮਤ"}
@@ -1099,38 +1222,52 @@ pa{
         }
         sat{
             relative{
-                "-1"{"ਪਿਛਲਾ ਸ਼ਨਿੱਚਰਵਾਰ"}
-                "0"{"ਇਹ ਸ਼ਨਿੱਚਰਵਾਰ"}
-                "1"{"ਅਗਲਾ ਸ਼ਨਿੱਚਰਵਾਰ"}
+                "-1"{"ਪਿਛਲੇ ਸ਼ਨੀਵਾਰ"}
+                "0"{"ਇਹ ਸ਼ਨੀਵਾਰ"}
+                "1"{"ਅਗਲੇ ਸ਼ਨੀਵਾਰ"}
             }
             relativeTime{
                 future{
-                    one{"{0} ਸ਼ਨਿੱਚਰਵਾਰ ਵਿੱਚ"}
-                    other{"{0} ਸ਼ਨਿੱਚਰਵਾਰਾਂ ਵਿੱਚ"}
+                    one{"{0} ਸ਼ਨੀਵਾਰ ਬਾਅਦ"}
+                    other{"{0} ਸ਼ਨੀਵਾਰਾਂ ਬਾਅਦ"}
                 }
                 past{
-                    one{"{0} ਸ਼ਨਿੱਚਰਵਾਰ ਪਹਿਲਾਂ"}
-                    other{"{0} ਸ਼ਨਿੱਚਰਵਾਰ ਪਹਿਲਾਂ"}
+                    one{"{0} ਸ਼ਨੀਵਾਰ ਪਹਿਲਾਂ"}
+                    other{"{0} ਸ਼ਨੀਵਾਰ ਪਹਿਲਾਂ"}
                 }
             }
         }
         sat-narrow{
             relative{
-                "-1"{"ਪਿਛਲਾ ਸ਼ਨਿੱ"}
-                "0"{"ਇਹ ਸ਼ਨਿੱ"}
-                "1"{"ਅਗਲਾ ਸ਼ਨਿੱ"}
+                "-1"{"ਪਿਛਲੇ ਸ਼ਨੀ"}
+                "0"{"ਇਹ ਸ਼ਨੀ"}
+                "1"{"ਅਗਲੇ ਸ਼ਨੀ"}
+            }
+            relativeTime{
+                future{
+                    one{"{0} ਸ਼ਨੀ ਬਾਅਦ"}
+                    other{"{0} ਸ਼ਨੀ ਬਾਅਦ"}
+                }
+                past{
+                    one{"{0} ਸ਼ਨੀ ਪਹਿਲਾਂ"}
+                    other{"{0} ਸ਼ਨੀ ਪਹਿਲਾਂ"}
+                }
             }
         }
         sat-short{
             relative{
-                "-1"{"ਪਿਛਲਾ ਸ਼ਨਿੱਚਰ"}
-                "0"{"ਇਹ ਸ਼ਨਿੱਚਰ"}
-                "1"{"ਅਗਲਾ ਸ਼ਨਿੱਚਰ"}
+                "-1"{"ਪਿਛਲੇ ਸ਼ਨੀ"}
+                "0"{"ਇਹ ਸ਼ਨੀ"}
+                "1"{"ਅਗਲੇ ਸ਼ਨੀ"}
             }
             relativeTime{
                 future{
-                    one{"{0} ਸ਼ਨਿੱਚਰਵਾਰਾਂ ਵਿੱਚ"}
-                    other{"{0} ਸ਼ਨਿੱਚਰਵਾਰਾਂ ਵਿੱਚ"}
+                    one{"{0} ਸ਼ਨੀਵਾਰ ਬਾਅਦ"}
+                    other{"{0} ਸ਼ਨੀਵਾਰਾਂ ਬਾਅਦ"}
+                }
+                past{
+                    one{"{0} ਸ਼ਨੀਵਾਰ ਪਹਿਲਾਂ"}
+                    other{"{0} ਸ਼ਨੀਵਾਰ ਪਹਿਲਾਂ"}
                 }
             }
         }
@@ -1353,19 +1490,6 @@ pa{
             lenient{
                 "[\\- ‑ . /]",
                 "[\\: ∶]",
-            }
-        }
-        general{
-            lenient{
-                "[.．․﹒ 。｡︒]",
-                "['＇’ ՚ ᾽᾿ ʼ]",
-                "[%％﹪ ٪]",
-                "[‰ ؉]",
-                "[\$＄﹩]",
-                "[£￡ ₤]",
-                "[¥￥]",
-                "[₩￦]",
-                "[₹ {Rp} {Rs}₨]",
             }
         }
         number{

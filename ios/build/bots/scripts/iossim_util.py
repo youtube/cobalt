@@ -333,7 +333,22 @@ def boot_simulator_if_not_booted(sim_udid, path=SIMULATOR_DEFAULT_PATH):
       (sim_udid, simulator_list['devices']))
 
 
-def ensure_simulator_fully_booted(sim_udid: str, path=SIMULATOR_DEFAULT_PATH):
+def update_dyld_shared_cache(runtime=None):
+  """Updates dyld_shared_cache before starting to boot simulators.
+
+  Args:
+    runtime: (str) simulator runtime. E.g. "com.apple.CoreSimulator.SimRuntime.iOS-18-5".
+      If None, updates all runtimes.
+  """
+  LOGGER.info('Updating dyld_shared_cache')
+  cmd = ['xcrun', 'simctl', 'runtime', 'dyld_shared_cache', 'update']
+  cmd.append(runtime if runtime else '--all')
+  subprocess.check_call(cmd)
+
+
+def ensure_simulator_fully_booted(sim_udid: str,
+                                  path=SIMULATOR_DEFAULT_PATH,
+                                  num_attempts=1):
   """Ensures simulator of given udid is fully booted.
 
   `xcrun simctl boot` launches only background processes and does not ensure the
@@ -351,29 +366,38 @@ def ensure_simulator_fully_booted(sim_udid: str, path=SIMULATOR_DEFAULT_PATH):
   Returns:
     True if the simulator was successfully booted, false otherwise.
   """
-  if is_device_with_udid_simulator(sim_udid):
+  if not is_device_with_udid_simulator(sim_udid):
+    raise test_runner.SimulatorNotFoundError(
+        f"Not found simulator with UDID: {sim_udid}")
 
-    # Ensure data migrations are run
-    cmd = [
-        'xcrun',
-        'simctl',
-        '--set',
-        path,
-        'bootstatus',
-        sim_udid,
-        '-bd',
-    ]
+  # Ensure data migrations are run
+  cmd = [
+      'xcrun',
+      'simctl',
+      '--set',
+      path,
+      'bootstatus',
+      sim_udid,
+      '-bd',
+  ]
+
+  runtime = get_simulator_runtime_by_device_udid(sim_udid)
+  for boot_attempt in range(num_attempts):
     try:
+      update_dyld_shared_cache(runtime)
       subprocess.check_call(cmd, timeout=120)
+      return True
     except subprocess.TimeoutExpired as e:
       msg = f"Manually booting simulator timed out after 120 seconds."
       LOGGER.info(msg)
-      return False
-    return True
+      msg_again = " again" if boot_attempt > 0 else ""
+      msg_action = "continuing" if boot_attempt == num_attempts - 1 else "retrying"
+      LOGGER.info(f"Failed to manually boot simulator{msg_again}. "
+                  f"Wiping simulator and {msg_action}.")
+      wipe_simulator_by_udid(sim_udid)
+      test_runner.SimulatorTestRunner.kill_simulators()
 
-  else:
-    raise test_runner.SimulatorNotFoundError(
-        f"Not found simulator with UDID: {sim_udid}")
+  return False
 
 
 

@@ -9,7 +9,9 @@ tzm{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -123,12 +125,12 @@ tzm{
             }
             eras{
                 abbreviated{
-                    "ZƐ",
-                    "ḌƐ",
+                    0{"ZƐ"}
+                    1{"ḌƐ"}
                 }
                 wide{
-                    "Zdat Ɛisa (TAƔ)",
-                    "Ḍeffir Ɛisa (TAƔ)",
+                    0{"Zdat Ɛisa (TAƔ)"}
+                    1{"Ḍeffir Ɛisa (TAƔ)"}
                 }
             }
             monthNames{

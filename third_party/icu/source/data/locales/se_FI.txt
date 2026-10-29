@@ -319,20 +319,20 @@ se_FI{
             }
             eras{
                 abbreviated{
-                    "oKr.",
-                    "mKr.",
+                    0{"oKr."}
+                    1{"mKr."}
                 }
                 abbreviated%variant{
-                    "oáá.",
-                    "áá.",
+                    0{"oáá."}
+                    1{"áá."}
                 }
                 wide{
-                    "ovdal Kristusa",
-                    "maŋŋel Kristusa",
+                    0{"ovdal Kristusa"}
+                    1{"maŋŋel Kristusa"}
                 }
                 wide%variant{
-                    "ovdal áigelogu",
-                    "áigelohku",
+                    0{"ovdal áigelogu"}
+                    1{"áigelohku"}
                 }
             }
             intervalFormats{

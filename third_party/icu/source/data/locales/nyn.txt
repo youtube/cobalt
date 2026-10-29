@@ -109,12 +109,12 @@ nyn{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 wide{
-                    "Kurisito Atakaijire",
-                    "Kurisito Yaijire",
+                    0{"Kurisito Atakaijire"}
+                    1{"Kurisito Yaijire"}
                 }
             }
             monthNames{

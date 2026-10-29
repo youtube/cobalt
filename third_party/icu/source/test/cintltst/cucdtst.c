@@ -1568,6 +1568,27 @@ static void TestCodePoint(void){
     }
 
     if(
+        !U_IS_CODE_POINT(0) || !U_IS_CODE_POINT(0x61) || !U_IS_CODE_POINT(0x20ac) ||
+        !U_IS_CODE_POINT(0xd9da) || !U_IS_CODE_POINT(0xdfed) || !U_IS_CODE_POINT(0xffff) ||
+        U_IS_CODE_POINT(U_SENTINEL) || !U_IS_CODE_POINT(0x10000) || !U_IS_CODE_POINT(0x50005) ||
+        !U_IS_CODE_POINT(0x10ffff) || U_IS_CODE_POINT(0x110000) || U_IS_CODE_POINT(0x7fffffff)
+    ) {
+        log_err("error with U_IS_CODE_POINT()\n");
+    }
+
+    if(
+        !U_IS_SCALAR_VALUE(0) || !U_IS_SCALAR_VALUE(0x61) || !U_IS_SCALAR_VALUE(0x20ac) ||
+        !U_IS_SCALAR_VALUE(0xd7ff) || U_IS_SCALAR_VALUE(0xd800) ||
+        U_IS_SCALAR_VALUE(0xd9da) || U_IS_SCALAR_VALUE(0xdfed) ||
+        U_IS_SCALAR_VALUE(0xdfff) || !U_IS_SCALAR_VALUE(0xe000) ||
+        !U_IS_SCALAR_VALUE(0xffff) ||
+        U_IS_SCALAR_VALUE(U_SENTINEL) || !U_IS_SCALAR_VALUE(0x10000) || !U_IS_SCALAR_VALUE(0x50005) ||
+        !U_IS_SCALAR_VALUE(0x10ffff) || U_IS_SCALAR_VALUE(0x110000) || U_IS_SCALAR_VALUE(0x7fffffff)
+    ) {
+        log_err("error with U_IS_SCALAR_VALUE()\n");
+    }
+
+    if(
         !U_IS_BMP(0) || !U_IS_BMP(0x61) || !U_IS_BMP(0x20ac) ||
         !U_IS_BMP(0xd9da) || !U_IS_BMP(0xdfed) || !U_IS_BMP(0xffff) ||
         U_IS_BMP(U_SENTINEL) || U_IS_BMP(0x10000) || U_IS_BMP(0x50005) ||
@@ -2562,7 +2583,7 @@ TestAdditionalProperties(void) {
         { 0x070e, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
         { 0x0775, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
         { 0xfbc2, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
-        { 0xfd90, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
+        { 0xfd92, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
         { 0xfefe, UCHAR_BIDI_CLASS, U_RIGHT_TO_LEFT_ARABIC },
 
         { 0x02AF, UCHAR_BLOCK, UBLOCK_IPA_EXTENSIONS },
@@ -3041,8 +3062,9 @@ TestNumericProperties(void) {
         { 0x4e07, U_NT_NUMERIC, 10000. },
         { 0x12432, U_NT_NUMERIC, 216000. },
         { 0x12433, U_NT_NUMERIC, 432000. },
-        { 0x5146, U_NT_NUMERIC, 1000000. },
+        { 0x16B5E, U_NT_NUMERIC, 1000000. },
         { 0x4ebf, U_NT_NUMERIC, 100000000. },
+        { 0x16B61, U_NT_NUMERIC, 1000000000000. },
         { -1, U_NT_NONE, U_NO_NUMERIC_VALUE },
         { 0x61, U_NT_NONE, U_NO_NUMERIC_VALUE },
         { 0x3000, U_NT_NONE, U_NO_NUMERIC_VALUE },

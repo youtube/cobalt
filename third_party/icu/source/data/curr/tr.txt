@@ -1108,6 +1108,10 @@ tr{
             "EC$",
             "Doğu Karayip doları",
         }
+        XCG{
+            "Cg.",
+            "Karayip guldeni",
+        }
         XDR{
             "XDR",
             "Özel Çekme Hakkı (SDR)",
@@ -1211,6 +1215,10 @@ tr{
         ZWD{
             "ZWD",
             "Zimbabve Doları",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabve altını",
         }
         ZWL{
             "ZWL",
@@ -1332,6 +1340,10 @@ tr{
             one{"Vietnam dongu (1978–1985)"}
             other{"Vietnam dongu (1978–1985)"}
         }
+        XCG{
+            one{"Karayip guldeni"}
+            other{"Karayip guldeni"}
+        }
         XUA{
             one{"ADB hesap birimi"}
             other{"ADB hesap birimi"}
@@ -1343,6 +1355,10 @@ tr{
         YUR{
             one{"İyileştirilmiş Yugoslav dinarı (1992–1993)"}
             other{"İyileştirilmiş Yugoslav dinarı (1992–1993)"}
+        }
+        ZWG{
+            one{"Zimbabve altını"}
+            other{"Zimbabve altını"}
         }
         ZWR{
             one{"Zimbabve doları (2008)"}

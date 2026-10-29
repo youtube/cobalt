@@ -643,6 +643,10 @@ ia{
             "EC$",
             "dollar del Caribes Oriental",
         }
+        XCG{
+            "Cg.",
+            "florino caribe",
+        }
         XOF{
             "F CFA",
             "franco CFA de Africa Occidental",
@@ -666,6 +670,10 @@ ia{
         ZMW{
             "ZMW",
             "kwacha zambian",
+        }
+        ZWG{
+            "ZWG",
+            "auro de Zimbwabwe",
         }
     }
     CurrencyPlurals{
@@ -1281,6 +1289,10 @@ ia{
             one{"dollar del Caribes Oriental"}
             other{"dollares del Caribes Oriental"}
         }
+        XCG{
+            one{"florino caribe"}
+            other{"florinos caribe"}
+        }
         XOF{
             one{"franco CFA de Africa Occidental"}
             other{"francos CFA de Africa Occidental"}
@@ -1296,6 +1308,10 @@ ia{
         YER{
             one{"rial yemeni"}
             other{"riales yemeni"}
+        }
+        ZWG{
+            one{"auro de Zimbwabwe"}
+            other{"auros de Zimbwabwe"}
         }
     }
 }

@@ -379,8 +379,11 @@ metaZones:table(nofallback){
         Guyana{
             001{"America/Guyana"}
         }
-        Hawaii_Aleutian{
+        Hawaii{
             001{"Pacific/Honolulu"}
+        }
+        Hawaii_Aleutian{
+            001{"America/Adak"}
         }
         Hong_Kong{
             001{"Asia/Hong_Kong"}
@@ -776,6 +779,7 @@ metaZones:table(nofallback){
         haal{"Hawaii_Aleutian"}
         hoko{"Hong_Kong"}
         hovd{"Hovd"}
+        hwai{"Hawaii"}
         ince{"Indonesia_Central"}
         indi{"India"}
         indo{"Indochina"}
@@ -1149,11 +1153,11 @@ metaZones:table(nofallback){
             {
                 "Liberia",
                 "1970-01-01 00:00",
-                "1972-05-01 00:45",
+                "1972-01-07 00:45",
             }
             {
                 "GMT",
-                "1972-05-01 00:45",
+                "1972-01-07 00:45",
                 "9999-12-31 23:59",
             }
         }
@@ -1709,7 +1713,7 @@ metaZones:table(nofallback){
             {
                 "Chile",
                 "1970-01-01 00:00",
-                "2025-03-19 21:00",
+                "2025-03-20 03:00",
             }
         }
         "America:Creston"{
@@ -2804,7 +2808,7 @@ metaZones:table(nofallback){
             {
                 "Chile",
                 "1982-05-01 03:00",
-                "2016-12-03 23:00",
+                "2016-12-04 03:00",
             }
         }
         "Antarctica:Rothera"{
@@ -2870,11 +2874,11 @@ metaZones:table(nofallback){
             {
                 "Magadan",
                 "2010-03-27 14:00",
-                "2014-10-25 14:00",
+                "2011-03-26 15:00",
             }
             {
-                "Anadyr",
-                "2014-10-25 14:00",
+                "Kamchatka",
+                "2011-03-26 15:00",
                 "9999-12-31 23:59",
             }
         }
@@ -2926,11 +2930,11 @@ metaZones:table(nofallback){
             {
                 "Ashkhabad",
                 "1970-01-01 00:00",
-                "1991-10-26 20:00",
+                "1992-01-18 22:00",
             }
             {
                 "Turkmenistan",
-                "1991-10-26 20:00",
+                "1992-01-18 22:00",
                 "9999-12-31 23:59",
             }
         }
@@ -2967,17 +2971,24 @@ metaZones:table(nofallback){
             {
                 "Baku",
                 "1970-01-01 00:00",
-                "1991-08-29 20:00",
+                "1991-03-30 22:00",
             }
             {
                 "Azerbaijan",
-                "1991-08-29 20:00",
+                "1991-03-30 22:00",
                 "9999-12-31 23:59",
             }
         }
         "Asia:Bangkok"{
             {
                 "Indochina",
+            }
+        }
+        "Asia:Barnaul"{
+            {
+                "Krasnoyarsk",
+                "2016-03-26 20:00",
+                "9999-12-31 23:59",
             }
         }
         "Asia:Beirut"{
@@ -2989,11 +3000,11 @@ metaZones:table(nofallback){
             {
                 "Frunze",
                 "1970-01-01 00:00",
-                "1991-08-30 20:00",
+                "1991-03-30 20:00",
             }
             {
                 "Kyrgystan",
-                "1991-08-30 20:00",
+                "1991-03-30 20:00",
                 "9999-12-31 23:59",
             }
         }
@@ -3015,7 +3026,7 @@ metaZones:table(nofallback){
             }
             {
                 "Irkutsk",
-                "2014-10-25 16:00",
+                "2014-10-25 17:00",
                 "2016-03-26 18:00",
             }
             {
@@ -3099,6 +3110,11 @@ metaZones:table(nofallback){
                 "Europe_Eastern",
                 "1970-01-01 00:00",
                 "2016-09-07 21:00",
+            }
+            {
+                "Europe_Eastern",
+                "2017-10-29 01:00",
+                "9999-12-31 23:59",
             }
         }
         "Asia:Gaza"{
@@ -3290,6 +3306,13 @@ metaZones:table(nofallback){
         "Asia:Novosibirsk"{
             {
                 "Novosibirsk",
+                "1970-01-01 00:00",
+                "2016-07-23 20:00",
+            }
+            {
+                "Krasnoyarsk",
+                "2016-07-23 20:00",
+                "9999-12-31 23:59",
             }
         }
         "Asia:Omsk"{
@@ -3424,6 +3447,18 @@ metaZones:table(nofallback){
         "Asia:Sakhalin"{
             {
                 "Sakhalin",
+                "1970-01-01 00:00",
+                "2014-10-25 15:00",
+            }
+            {
+                "Magadan",
+                "2014-10-25 15:00",
+                "2016-03-26 16:00",
+            }
+            {
+                "Magadan",
+                "2016-04-26 16:00",
+                "9999-12-31 23:59",
             }
         }
         "Asia:Samarkand"{
@@ -3469,6 +3504,11 @@ metaZones:table(nofallback){
                 "1970-01-01 00:00",
                 "2014-10-25 14:00",
             }
+            {
+                "Magadan",
+                "2016-04-23 16:00",
+                "9999-12-31 23:59",
+            }
         }
         "Asia:Taipei"{
             {
@@ -3479,11 +3519,11 @@ metaZones:table(nofallback){
             {
                 "Tashkent",
                 "1970-01-01 00:00",
-                "1991-08-31 18:00",
+                "1991-03-30 20:00",
             }
             {
                 "Uzbekistan",
-                "1991-08-31 18:00",
+                "1991-03-30 20:00",
                 "9999-12-31 23:59",
             }
         }
@@ -3491,11 +3531,11 @@ metaZones:table(nofallback){
             {
                 "Tbilisi",
                 "1970-01-01 00:00",
-                "1991-04-08 20:00",
+                "1991-03-30 22:00",
             }
             {
                 "Georgia",
-                "1991-04-08 20:00",
+                "1991-03-30 22:00",
                 "9999-12-31 23:59",
             }
         }
@@ -3519,6 +3559,13 @@ metaZones:table(nofallback){
         "Asia:Tokyo"{
             {
                 "Japan",
+            }
+        }
+        "Asia:Tomsk"{
+            {
+                "Krasnoyarsk",
+                "2016-05-28 20:00",
+                "9999-12-31 23:59",
             }
         }
         "Asia:Ulaanbaatar"{
@@ -3579,11 +3626,11 @@ metaZones:table(nofallback){
             {
                 "Yerevan",
                 "1970-01-01 00:00",
-                "1991-09-22 20:00",
+                "1991-03-30 22:00",
             }
             {
                 "Armenia",
-                "1991-09-22 20:00",
+                "1991-03-30 22:00",
                 "9999-12-31 23:59",
             }
         }
@@ -3732,6 +3779,11 @@ metaZones:table(nofallback){
                 "1992-03-28 22:00",
                 "2016-03-26 23:00",
             }
+            {
+                "Samara",
+                "2016-03-26 23:00",
+                "9999-12-31 23:59",
+            }
         }
         "Europe:Athens"{
             {
@@ -3777,11 +3829,11 @@ metaZones:table(nofallback){
             {
                 "Moscow",
                 "1970-01-01 00:00",
-                "1990-05-05 21:00",
+                "1990-05-05 22:00",
             }
             {
                 "Europe_Eastern",
-                "1990-05-05 21:00",
+                "1990-05-05 22:00",
                 "9999-12-31 23:59",
             }
         }
@@ -3845,11 +3897,11 @@ metaZones:table(nofallback){
             {
                 "Turkey",
                 "1978-06-28 21:00",
-                "1985-04-19 21:00",
+                "1984-10-31 23:00",
             }
             {
                 "Europe_Eastern",
-                "1985-04-19 21:00",
+                "1984-10-31 23:00",
                 "2016-09-06 21:00",
             }
             {
@@ -3901,6 +3953,13 @@ metaZones:table(nofallback){
             {
                 "Europe_Eastern",
                 "1990-06-30 22:00",
+                "9999-12-31 23:59",
+            }
+        }
+        "Europe:Kirov"{
+            {
+                "Moscow",
+                "2014-10-25 22:00",
                 "9999-12-31 23:59",
             }
         }
@@ -4082,6 +4141,11 @@ metaZones:table(nofallback){
                 "1992-03-28 22:00",
                 "2016-12-03 23:00",
             }
+            {
+                "Samara",
+                "2016-12-03 23:00",
+                "9999-12-31 23:59",
+            }
         }
         "Europe:Simferopol"{
             {
@@ -4148,6 +4212,11 @@ metaZones:table(nofallback){
                 "1992-01-19 00:00",
                 "2016-03-26 23:00",
             }
+            {
+                "Samara",
+                "2016-03-26 23:00",
+                "9999-12-31 23:59",
+            }
         }
         "Europe:Vaduz"{
             {
@@ -4189,6 +4258,13 @@ metaZones:table(nofallback){
         "Europe:Volgograd"{
             {
                 "Volgograd",
+                "1970-01-01 00:00",
+                "2020-12-26 22:00",
+            }
+            {
+                "Moscow",
+                "2020-12-26 22:00",
+                "9999-12-31 23:59",
             }
         }
         "Europe:Warsaw"{
@@ -4349,14 +4425,7 @@ metaZones:table(nofallback){
         }
         "Pacific:Honolulu"{
             {
-                "Alaska_Hawaii",
-                "1970-01-01 00:00",
-                "1983-10-30 11:00",
-            }
-            {
-                "Hawaii_Aleutian",
-                "1983-10-30 11:00",
-                "9999-12-31 23:59",
+                "Hawaii",
             }
         }
         "Pacific:Kiritimati"{

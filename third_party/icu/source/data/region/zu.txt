@@ -32,7 +32,7 @@ zu{
         151{"i-Eastern Europe"}
         154{"i-Northern Europe"}
         155{"i-Western Europe"}
-        202{"Sub-Saharan Africa"}
+        202{"i-Sub-Saharan Africa"}
         419{"i-Latin America"}
         AC{"i-Ascension Island"}
         AD{"i-Andorra"}
@@ -85,6 +85,7 @@ zu{
         CN{"i-China"}
         CO{"i-Colombia"}
         CP{"i-Clipperton Island"}
+        CQ{"i-Sark"}
         CR{"i-Costa Rica"}
         CU{"i-Cuba"}
         CV{"i-Cape Verde"}
@@ -288,8 +289,8 @@ zu{
         VU{"i-Vanuatu"}
         WF{"i-Wallis ne-Futuna"}
         WS{"i-Samoa"}
-        XA{"Pseudo-Accents"}
-        XB{"Pseudo-Bidi"}
+        XA{"i-Pseudo-Accents"}
+        XB{"i-Pseudo-Bidi"}
         XK{"i-Kosovo"}
         YE{"i-Yemen"}
         YT{"i-Mayotte"}

@@ -24,17 +24,26 @@ import {Accordion, AccordionItem} from '../../../widgets/accordion';
 import {Button} from '../../../widgets/button';
 import {Icons} from '../../../base/semantic_icons';
 import {Chip} from '../../../widgets/chip';
-import {EmptyState} from '../../../widgets/empty_state';
+import {ResultsPanelEmptyState} from '../query_builder/widgets';
 import {Icon} from '../../../widgets/icon';
 import {MenuItem, PopupMenu} from '../../../widgets/menu';
 import {
   DashboardBrushFilter,
   DashboardDataSource,
   DashboardItem,
+  DEFAULT_COL_SPAN,
+  DEFAULT_ROW_SPAN,
+  GRID_COLUMNS,
+  GRID_MARGIN,
+  MIN_COL_SPAN,
+  MIN_ROW_SPAN,
+  checkOverlap,
+  findNonOverlappingPosition,
+  getItemBounds,
   getItemId,
   getLinkedSourceNodeIds,
   getNextItemPosition,
-  snapToGrid,
+  isDriverChart,
 } from './dashboard_registry';
 import {
   DashboardChartView,
@@ -42,16 +51,22 @@ import {
 } from './dashboard_chart_view';
 import {ResizeHandle} from '../../../widgets/resize_handle';
 import {Card} from '../../../widgets/card';
-import {getDefaultChartLabel} from '../query_builder/nodes/visualisation_node';
+import {
+  ChartType,
+  getDefaultChartLabel,
+} from '../query_builder/nodes/visualisation_node';
 import {Popup, PopupPosition} from '../../../widgets/popup';
 import {renderChartConfigPopup} from '../query_builder/charts/chart_config_popup';
 import {RoundActionButton} from '../query_builder/widgets';
+import {renderChartTypePickerGrid} from '../query_builder/charts/chart_type_picker';
 
-// Default dimensions for dashboard chart cards (in pixels).
-const DEFAULT_CHART_WIDTH = 400;
-const DEFAULT_CHART_HEIGHT = 294;
-const MIN_CHART_WIDTH = 200;
-const MIN_CHART_HEIGHT = 150;
+const DEFAULT_DIVIDER_LABEL = 'Filter boundary';
+// CSS selector for elements that should not initiate a card drag.
+const DRAG_EXCLUDED_SELECTORS =
+  'textarea, button, input, .pf-resize-handle, canvas';
+// Delay (ms) after a drag gesture during which title click-to-edit is
+// suppressed, so releasing the pointer doesn't accidentally open the editor.
+const DRAG_EDIT_SUPPRESS_MS = 300;
 
 function formatBrushFilter(f: DashboardBrushFilter): string {
   if (f.op === 'is null') return 'IS NULL';
@@ -110,14 +125,34 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
   private filtersExpanded = true;
   private expandedInput: string | undefined = undefined;
   private editingChartId?: string;
+  // Incremented when filters are removed from the filter bar, so that
+  // chart brush overlays are cleared in sync.
+  private brushClearGen = 0;
+
+  // Grid measurement — updated via ResizeObserver on the canvas element.
+  private canvasWidth = 1200;
+  private resizeObserver?: ResizeObserver;
 
   // Pointer-event drag state.
   private draggingItemId?: string;
   private dragOffset = {x: 0, y: 0};
-  private tempPositions = new Map<string, {x: number; y: number}>();
+  // Temp positions during drag, stored in grid coordinates (col, row).
+  private tempPositions = new Map<string, {col: number; row: number}>();
+  // Whether the pointer actually moved during a drag.
+  private didMove = false;
+  // Timestamp of the last drag end, used to suppress click-to-edit on the
+  // title text immediately after a drag gesture.
+  private lastDragEndTime = 0;
   // Latest attrs — kept in sync every render so drag handlers never use stale
   // references.
   private latestAttrs?: DashboardAttrs;
+
+  // Whether a resize handle is currently active (shows grid lines).
+  private isResizing = false;
+
+  private get cellSize(): number {
+    return this.canvasWidth / (GRID_COLUMNS + 2 * GRID_MARGIN);
+  }
 
   view({attrs}: m.CVnode<DashboardAttrs>) {
     this.latestAttrs = attrs;
@@ -129,9 +164,32 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
         m(
           '.pf-dashboard__canvas',
           {
+            style: `--pf-grid-cell-size: ${this.cellSize}px; --pf-grid-margin-px: ${GRID_MARGIN * this.cellSize}px`,
+            className: classNames(
+              (this.draggingItemId !== undefined || this.isResizing) &&
+                'pf-dashboard__canvas--grid-visible',
+            ),
+            oncreate: (vnode: m.VnodeDOM) => {
+              const el = vnode.dom as HTMLElement;
+              this.canvasWidth = el.clientWidth;
+              this.resizeObserver = new ResizeObserver((entries) => {
+                const newWidth = entries[0]?.contentRect.width;
+                if (
+                  newWidth !== undefined &&
+                  Math.abs(newWidth - this.canvasWidth) > 1
+                ) {
+                  this.canvasWidth = newWidth;
+                  m.redraw();
+                }
+              });
+              this.resizeObserver.observe(el);
+            },
+            onremove: () => {
+              this.resizeObserver?.disconnect();
+            },
             onpointermove: (e: PointerEvent) => this.handlePointerMove(e),
             onpointerup: () => this.handlePointerUp(),
-            onpointercancel: () => this.cancelDrag(),
+            onpointercancel: () => this.endDrag(),
           },
           [
             this.renderAddButton(attrs),
@@ -140,11 +198,17 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
               ? this.renderItems(attrs, items)
               : m(
                   '.pf-dashboard__empty-overlay',
-                  m(
-                    EmptyState,
-                    {icon: 'bar_chart', title: 'No items yet'},
-                    'Use the + button to add charts or labels.',
-                  ),
+                  attrs.sources.length > 0
+                    ? m(
+                        ResultsPanelEmptyState,
+                        {icon: 'bar_chart', title: 'No items yet'},
+                        'Use the + button to add charts or labels.',
+                      )
+                    : m(
+                        ResultsPanelEmptyState,
+                        {icon: 'bar_chart', title: 'No data exported'},
+                        'Use the "Export to Dashboard" node in the graph to export data here.',
+                      ),
                 ),
           ],
         ),
@@ -190,28 +254,36 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     return m(
       '.pf-dashboard__add-button',
       m(
-        PopupMenu,
+        Popup,
         {
           trigger: RoundActionButton({
             icon: 'add',
             title: 'Add item',
           }),
+          fitContent: true,
         },
-        m(MenuItem, {
-          label: 'Chart',
-          icon: 'bar_chart',
-          disabled: lastSource === undefined,
-          onclick: () => {
-            if (lastSource !== undefined) {
-              this.addChartForSource(attrs, lastSource);
-            }
-          },
-        }),
+        lastSource !== undefined
+          ? renderChartTypePickerGrid((chartType: ChartType) => {
+              this.addChartForSource(attrs, lastSource, chartType);
+            })
+          : m(
+              '.pf-chart-type-picker__empty',
+              'Add a data source first to create charts',
+            ),
         m(MenuItem, {
           label: 'Label',
           icon: 'text_fields',
+          className: 'pf-dismiss-popup-group',
           onclick: () => {
             this.addLabel(attrs);
+          },
+        }),
+        m(MenuItem, {
+          label: 'Segment Divider',
+          icon: 'horizontal_rule',
+          className: 'pf-dismiss-popup-group',
+          onclick: () => {
+            this.addDivider(attrs);
           },
         }),
       ),
@@ -227,6 +299,9 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     return items.map((item) => {
       if (item.kind === 'label') {
         return this.renderLabel(attrs, item);
+      }
+      if (item.kind === 'divider') {
+        return this.renderDivider(attrs, item);
       }
       const source = attrs.sources.find((s) => s.nodeId === item.sourceNodeId);
       if (source === undefined) {
@@ -244,6 +319,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     const config = chart.config;
     const itemId = config.id;
     const headerLabel = config.name ?? getDefaultChartLabel(config);
+    const chartIsDriver = isDriverChart(chart, attrs.items);
 
     const editButton = m(
       Popup,
@@ -294,61 +370,69 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     );
 
     return this.renderItemCard(attrs, itemId, chart, [
-      m(
-        '.pf-dashboard__chart-header',
-        {
-          onpointerdown: (e: PointerEvent) => this.startDrag(e, itemId),
-        },
-        [
-          this.editingChartId === itemId
-            ? m('input.pf-dashboard__chart-title-input', {
-                type: 'text',
-                value: config.name ?? '',
-                placeholder: getDefaultChartLabel(config),
-                oncreate: (vnode: m.VnodeDOM) => {
-                  const input = vnode.dom as HTMLInputElement;
-                  input.focus();
-                  input.select();
-                },
-                onblur: (e: Event) => {
-                  const target = e.target as HTMLInputElement;
-                  const name = target.value.trim() || undefined;
-                  this.updateChartName(attrs, itemId, name);
-                  this.editingChartId = undefined;
-                },
-                onkeydown: (e: KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === 'Escape') {
-                    this.editingChartId = undefined;
-                    (e.target as HTMLInputElement).blur();
-                  }
-                },
-                oninput: (e: Event) => {
-                  const target = e.target as HTMLInputElement;
-                  const name = target.value || undefined;
-                  this.updateChartName(attrs, itemId, name);
-                },
-              })
-            : m(
-                '.pf-dashboard__chart-header-text',
-                {
-                  onclick: (e: MouseEvent) => {
-                    e.stopPropagation();
-                    this.editingChartId = itemId;
-                  },
-                  title: 'Click to rename',
-                },
-                headerLabel,
+      m('.pf-dashboard__chart-header', [
+        this.editingChartId === itemId
+          ? m('input.pf-dashboard__chart-title-input', {
+              type: 'text',
+              value: config.name ?? '',
+              placeholder: getDefaultChartLabel(config),
+              size: Math.max(
+                1,
+                (config.name ?? getDefaultChartLabel(config)).length,
               ),
-          m('.pf-dashboard__chart-actions', [
-            sourceChip,
-            editButton,
-            this.deleteButton(attrs, itemId),
-          ]),
-        ],
-      ),
+              oncreate: (vnode: m.VnodeDOM) => {
+                const input = vnode.dom as HTMLInputElement;
+                input.focus();
+                input.select();
+              },
+              onblur: (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const name = target.value.trim() || undefined;
+                this.updateChartName(attrs, itemId, name);
+                this.editingChartId = undefined;
+              },
+              onkeydown: (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === 'Escape') {
+                  this.editingChartId = undefined;
+                  (e.target as HTMLInputElement).blur();
+                }
+              },
+              oninput: (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const name = target.value || undefined;
+                this.updateChartName(attrs, itemId, name);
+                // Update size attribute to match content.
+                target.size = Math.max(1, target.value.length);
+              },
+            })
+          : m(
+              '.pf-dashboard__chart-header-text',
+              {
+                onclick: (e: MouseEvent) => {
+                  e.stopPropagation();
+                  // Don't enter edit mode if we just finished dragging.
+                  if (
+                    performance.now() - this.lastDragEndTime <
+                    DRAG_EDIT_SUPPRESS_MS
+                  ) {
+                    return;
+                  }
+                  this.editingChartId = itemId;
+                },
+                title: 'Click to rename',
+              },
+              headerLabel,
+            ),
+        m('.pf-dashboard__chart-actions', [
+          sourceChip,
+          editButton,
+          this.deleteButton(attrs, itemId),
+        ]),
+      ]),
       m(
         '.pf-dashboard__chart-content',
         m(DashboardChartView, {
+          key: `${config.id}-${this.brushClearGen}`,
           trace: attrs.trace,
           source,
           config,
@@ -358,6 +442,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
           brushFilters: attrs.brushFilters,
           onItemsChange: attrs.onItemsChange,
           onBrushFiltersChange: attrs.onBrushFiltersChange,
+          isDriverChart: chartIsDriver,
         }),
       ),
     ]);
@@ -369,20 +454,14 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
   ): m.Child {
     const itemId = chart.config.id;
     return this.renderItemCard(attrs, itemId, chart, [
-      m(
-        '.pf-dashboard__chart-header',
-        {
-          onpointerdown: (e: PointerEvent) => this.startDrag(e, itemId),
-        },
-        [
-          m('.pf-dashboard__chart-header-text', chart.config.name ?? 'Chart'),
-          m('.pf-dashboard__chart-actions', [this.deleteButton(attrs, itemId)]),
-        ],
-      ),
+      m('.pf-dashboard__chart-header', [
+        m('.pf-dashboard__chart-header-text', chart.config.name ?? 'Chart'),
+        m('.pf-dashboard__chart-actions', [this.deleteButton(attrs, itemId)]),
+      ]),
       m(
         '.pf-dashboard__chart-content',
         m(
-          EmptyState,
+          ResultsPanelEmptyState,
           {icon: 'link_off', title: 'Data source removed'},
           'The data source for this chart is no longer available. Delete or re-assign it.',
         ),
@@ -411,81 +490,164 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     ]);
   }
 
+  private renderDivider(
+    attrs: DashboardAttrs,
+    divider: DashboardItem & {kind: 'divider'},
+  ): m.Child {
+    const itemId = divider.id;
+    const isDragging = this.draggingItemId === itemId;
+    const temp = this.tempPositions.get(itemId);
+    const row = temp?.row ?? divider.row;
+    const cs = this.cellSize;
+
+    return m(
+      '.pf-dashboard__divider',
+      {
+        key: itemId,
+        style: `top: ${(row + GRID_MARGIN) * cs}px`,
+        className: classNames(isDragging && 'pf-dashboard__divider--dragging'),
+        onpointerdown: (e: PointerEvent) => {
+          if (
+            (e.target as HTMLElement).closest(
+              'button, input, .pf-resize-handle',
+            )
+          ) {
+            return;
+          }
+          this.startDividerDrag(e, itemId, row);
+        },
+      },
+      [
+        m('.pf-dashboard__divider-line'),
+        m(
+          '.pf-dashboard__divider-label',
+          divider.label ?? DEFAULT_DIVIDER_LABEL,
+        ),
+        m('.pf-dashboard__divider-actions', [
+          m(Button, {
+            icon: 'close',
+            title: 'Remove divider',
+            compact: true,
+            onclick: (e: MouseEvent) => {
+              e.stopPropagation();
+              this.removeItem(attrs, itemId);
+            },
+          }),
+        ]),
+      ],
+    );
+  }
+
   // --- Shared card wrapper with resize + absolute positioning ---
 
   private renderItemCard(
     attrs: DashboardAttrs,
     itemId: string,
-    item: DashboardItem,
+    item: Exclude<DashboardItem, {kind: 'divider'}>,
     children: m.Children,
   ): m.Child {
     const isDragging = this.draggingItemId === itemId;
-    const hasCustomWidth = item.widthPx !== undefined;
-    const hasCustomHeight = item.heightPx !== undefined;
+    const cs = this.cellSize;
 
     // Use temp position during drag, persisted position otherwise.
     const temp = this.tempPositions.get(itemId);
-    const x = temp?.x ?? item.x ?? 0;
-    const y = temp?.y ?? item.y ?? 0;
+    const col = temp?.col ?? item.col ?? 0;
+    const row = temp?.row ?? item.row ?? 0;
+    const colSpan = item.colSpan ?? DEFAULT_COL_SPAN;
+    const rowSpan = item.rowSpan ?? DEFAULT_ROW_SPAN;
 
-    const styleProps = [
-      `left: ${x}px`,
-      `top: ${y}px`,
-      hasCustomWidth ? `--pf-db-chart-width: ${item.widthPx}px` : '',
-      hasCustomHeight ? `--pf-db-chart-height: ${item.heightPx}px` : '',
-    ]
-      .filter(Boolean)
-      .join('; ');
+    const style = [
+      `left: ${(col + GRID_MARGIN) * cs}px`,
+      `top: ${(row + GRID_MARGIN) * cs}px`,
+      `width: ${colSpan * cs}px`,
+      `height: ${rowSpan * cs}px`,
+    ].join('; ');
 
     return m(
       Card,
       {
         key: itemId,
-        style: styleProps,
+        style,
         className: classNames(
           'pf-dashboard__chart',
-          hasCustomWidth && 'pf-dashboard__chart--custom-width',
-          hasCustomHeight && 'pf-dashboard__chart--custom-height',
           isDragging && 'pf-dashboard__chart--dragging',
         ),
-        // Labels are dragged by the card body (not a header).
-        onpointerdown:
-          item.kind === 'label'
-            ? (e: PointerEvent) => {
-                if (
-                  (e.target as HTMLElement).closest(
-                    'textarea, button, input, .pf-resize-handle',
-                  )
-                ) {
-                  return;
-                }
-                this.startDrag(e, itemId);
-              }
-            : undefined,
+        // Allow dragging from anywhere on the card, excluding interactive
+        // elements (textareas, buttons, inputs, resize handles, and canvas).
+        onpointerdown: (e: PointerEvent) => {
+          if ((e.target as HTMLElement).closest(DRAG_EXCLUDED_SELECTORS)) {
+            return;
+          }
+          this.startDrag(e, itemId);
+        },
       },
       [
         ...(Array.isArray(children) ? children : [children]),
         m(ResizeHandle, {
           direction: 'horizontal',
-          onResize: (deltaPx: number) => {
-            const currentWidth = item.widthPx ?? DEFAULT_CHART_WIDTH;
-            const newWidth = Math.max(MIN_CHART_WIDTH, currentWidth + deltaPx);
-            this.mapItems(attrs, (i) =>
-              getItemId(i) === itemId ? {...i, widthPx: newWidth} : i,
+          onResizeStart: () => {
+            this.isResizing = true;
+            m.redraw();
+          },
+          onResizeEnd: () => {
+            this.isResizing = false;
+            m.redraw();
+          },
+          onResizeAbsolute: (positionPx: number) => {
+            const itemCol = item.col ?? 0;
+            const itemRow = item.row ?? 0;
+            const curRowSpan = item.rowSpan ?? DEFAULT_ROW_SPAN;
+            const newSpan = Math.max(
+              MIN_COL_SPAN,
+              Math.min(GRID_COLUMNS - itemCol, Math.round(positionPx / cs)),
             );
+            if (
+              newSpan !== (item.colSpan ?? DEFAULT_COL_SPAN) &&
+              !checkOverlap(
+                itemCol,
+                itemRow,
+                newSpan,
+                curRowSpan,
+                attrs.items,
+                itemId,
+              )
+            ) {
+              this.mapItems(attrs, (i) =>
+                getItemId(i) === itemId ? {...i, colSpan: newSpan} : i,
+              );
+            }
           },
         }),
         m(ResizeHandle, {
           direction: 'vertical',
-          onResize: (deltaPx: number) => {
-            const currentHeight = item.heightPx ?? DEFAULT_CHART_HEIGHT;
-            const newHeight = Math.max(
-              MIN_CHART_HEIGHT,
-              currentHeight + deltaPx,
-            );
-            this.mapItems(attrs, (i) =>
-              getItemId(i) === itemId ? {...i, heightPx: newHeight} : i,
-            );
+          onResizeStart: () => {
+            this.isResizing = true;
+            m.redraw();
+          },
+          onResizeEnd: () => {
+            this.isResizing = false;
+            m.redraw();
+          },
+          onResizeAbsolute: (positionPx: number) => {
+            const itemCol = item.col ?? 0;
+            const itemRow = item.row ?? 0;
+            const curColSpan = item.colSpan ?? DEFAULT_COL_SPAN;
+            const newSpan = Math.max(MIN_ROW_SPAN, Math.round(positionPx / cs));
+            if (
+              newSpan !== (item.rowSpan ?? DEFAULT_ROW_SPAN) &&
+              !checkOverlap(
+                itemCol,
+                itemRow,
+                curColSpan,
+                newSpan,
+                attrs.items,
+                itemId,
+              )
+            ) {
+              this.mapItems(attrs, (i) =>
+                getItemId(i) === itemId ? {...i, rowSpan: newSpan} : i,
+              );
+            }
           },
         }),
       ],
@@ -496,9 +658,6 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
 
   private startDrag(e: PointerEvent, itemId: string): void {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('button, input, .pf-resize-handle')) {
-      return;
-    }
 
     const cardEl = (e.currentTarget as HTMLElement).closest(
       '.pf-card',
@@ -518,22 +677,67 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     };
   }
 
+  /** Start drag for a divider — only vertical movement matters. */
+  private startDividerDrag(
+    e: PointerEvent,
+    itemId: string,
+    currentRow: number,
+  ): void {
+    if (e.button !== 0) return;
+
+    const canvasEl = (e.currentTarget as HTMLElement).closest(
+      '.pf-dashboard__canvas',
+    ) as HTMLElement | null;
+    if (canvasEl === null) return;
+
+    const canvasRect = canvasEl.getBoundingClientRect();
+    this.draggingItemId = itemId;
+    this.dragOffset = {
+      x: 0,
+      y:
+        e.clientY -
+        canvasRect.top +
+        canvasEl.scrollTop -
+        currentRow * this.cellSize,
+    };
+  }
+
   private handlePointerMove(e: PointerEvent): void {
     if (this.draggingItemId === undefined) return;
+    this.didMove = true;
 
     const canvasEl = e.currentTarget as HTMLElement;
     const canvasRect = canvasEl.getBoundingClientRect();
+    const cs = this.cellSize;
 
-    const x = Math.max(
+    const pixelX = Math.max(
       0,
       e.clientX - canvasRect.left + canvasEl.scrollLeft - this.dragOffset.x,
     );
-    const y = Math.max(
+    const pixelY = Math.max(
       0,
       e.clientY - canvasRect.top + canvasEl.scrollTop - this.dragOffset.y,
     );
 
-    this.tempPositions.set(this.draggingItemId, {x, y});
+    // Snap to grid cells (subtract margin offset before rounding).
+    const col = Math.round(pixelX / cs - GRID_MARGIN);
+    const row = Math.max(0, Math.round(pixelY / cs - GRID_MARGIN));
+
+    // Dividers only move vertically — keep col at 0.
+    const draggingItem = this.latestAttrs?.items.find(
+      (i) => getItemId(i) === this.draggingItemId,
+    );
+    if (draggingItem?.kind === 'divider') {
+      this.tempPositions.set(this.draggingItemId, {col: 0, row});
+    } else {
+      // Clamp col so item doesn't extend past the grid.
+      const span =
+        draggingItem !== undefined
+          ? getItemBounds(draggingItem).colSpan
+          : DEFAULT_COL_SPAN;
+      const clampedCol = Math.max(0, Math.min(col, GRID_COLUMNS - span));
+      this.tempPositions.set(this.draggingItemId, {col: clampedCol, row});
+    }
     m.redraw();
   }
 
@@ -545,16 +749,45 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     const temp = this.tempPositions.get(this.draggingItemId);
     if (temp !== undefined) {
       const itemId = this.draggingItemId;
-      const x = snapToGrid(temp.x);
-      const y = snapToGrid(temp.y);
-      this.mapItems(attrs, (i) => (getItemId(i) === itemId ? {...i, x, y} : i));
+      const draggingItem = attrs.items.find((i) => getItemId(i) === itemId);
+      const bounds =
+        draggingItem !== undefined
+          ? getItemBounds(draggingItem)
+          : {
+              col: 0,
+              row: 0,
+              colSpan: DEFAULT_COL_SPAN,
+              rowSpan: DEFAULT_ROW_SPAN,
+            };
+      const pos = findNonOverlappingPosition(
+        temp.col,
+        temp.row,
+        bounds.colSpan,
+        bounds.rowSpan,
+        attrs.items,
+        itemId,
+      );
+
+      if (draggingItem?.kind === 'divider') {
+        this.mapItems(attrs, (i) =>
+          getItemId(i) === itemId ? {...i, row: pos.row} : i,
+        );
+      } else {
+        this.mapItems(attrs, (i) =>
+          getItemId(i) === itemId ? {...i, col: pos.col, row: pos.row} : i,
+        );
+      }
     }
-    this.cancelDrag();
+    this.endDrag();
   }
 
-  private cancelDrag(): void {
+  private endDrag(): void {
     this.draggingItemId = undefined;
     this.tempPositions.clear();
+    if (this.didMove) {
+      this.lastDragEndTime = performance.now();
+    }
+    this.didMove = false;
     m.redraw();
   }
 
@@ -574,8 +807,38 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
 
   private addLabel(attrs: DashboardAttrs): void {
     const items = [...attrs.items];
-    const {x, y} = getNextItemPosition(items);
-    items.push({kind: 'label', id: shortUuid(), text: '', x, y});
+    const id = shortUuid();
+    const candidate = getNextItemPosition(items);
+    const pos = findNonOverlappingPosition(
+      candidate.col,
+      candidate.row,
+      DEFAULT_COL_SPAN,
+      DEFAULT_ROW_SPAN,
+      items,
+      id,
+    );
+    items.push({kind: 'label', id, text: '', col: pos.col, row: pos.row});
+    attrs.onItemsChange(items);
+  }
+
+  private addDivider(attrs: DashboardAttrs): void {
+    const items = [...attrs.items];
+    const id = shortUuid();
+    // Place the divider below all existing items.
+    let maxRow = 0;
+    for (const item of items) {
+      const b = getItemBounds(item);
+      maxRow = Math.max(maxRow, b.row + b.rowSpan);
+    }
+    const pos = findNonOverlappingPosition(
+      0,
+      maxRow,
+      GRID_COLUMNS,
+      1,
+      items,
+      id,
+    );
+    items.push({kind: 'divider', id, row: pos.row});
     attrs.onItemsChange(items);
   }
 
@@ -620,6 +883,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     sourceNodeId: string,
     column: string,
   ): void {
+    this.brushClearGen++;
     const newFilters = new Map(attrs.brushFilters);
 
     // Clear the column from the specified source and all other sources that
@@ -646,6 +910,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     sourceNodeId: string,
     filter: DashboardBrushFilter,
   ): void {
+    this.brushClearGen++;
     const newFilters = new Map(attrs.brushFilters);
 
     // Remove the filter from the specified source and all other sources that
@@ -816,6 +1081,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
           label: 'Clear all',
           compact: true,
           onclick: () => {
+            this.brushClearGen++;
             attrs.onBrushFiltersChange(new Map());
           },
         }),
@@ -838,7 +1104,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
 
     if (allExported.length === 0) {
       return m(
-        EmptyState,
+        ResultsPanelEmptyState,
         {icon: 'dataset', title: 'No exported sources'},
         'Use "Export to Dashboard" nodes in the graph builder to make data sources available here.',
       );
@@ -908,7 +1174,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
     const sources = attrs.sources;
     if (sources.length < 2) {
       return m(
-        EmptyState,
+        ResultsPanelEmptyState,
         {icon: 'link', title: 'No linked columns'},
         'Add two or more data sources to see columns that are shared across them.',
       );
@@ -937,7 +1203,7 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
 
     if (linked.length === 0) {
       return m(
-        EmptyState,
+        ResultsPanelEmptyState,
         {icon: 'link_off', title: 'No shared columns'},
         'None of the data sources share a column name. Brushing one source will not filter others.',
       );
@@ -1013,31 +1279,46 @@ export class Dashboard implements m.ClassComponent<DashboardAttrs> {
             ),
           ),
         ),
-      m(Button, {
-        label: 'Add Chart',
-        icon: 'bar_chart',
-        compact: true,
-        className: 'pf-dashboard__add-chart-btn',
-        onclick: () => {
-          this.addChartForSource(attrs, source);
+      m(
+        Popup,
+        {
+          trigger: m(Button, {
+            label: 'Add Chart',
+            icon: 'bar_chart',
+            compact: true,
+            className: 'pf-dashboard__add-chart-btn',
+          }),
+          fitContent: true,
         },
-      }),
+        renderChartTypePickerGrid((chartType: ChartType) => {
+          this.addChartForSource(attrs, source, chartType);
+        }),
+      ),
     ];
   }
 
   private addChartForSource(
     attrs: DashboardAttrs,
     source: DashboardDataSource,
+    chartType: ChartType,
   ): void {
     const items = [...attrs.items];
-    const newConfig = createDefaultChartConfig(source.columns);
-    const {x, y} = getNextItemPosition(items);
+    const newConfig = createDefaultChartConfig(source.columns, chartType);
+    const candidate = getNextItemPosition(items);
+    const pos = findNonOverlappingPosition(
+      candidate.col,
+      candidate.row,
+      DEFAULT_COL_SPAN,
+      DEFAULT_ROW_SPAN,
+      items,
+      newConfig.id,
+    );
     items.push({
       kind: 'chart',
       sourceNodeId: source.nodeId,
       config: newConfig,
-      x,
-      y,
+      col: pos.col,
+      row: pos.row,
     });
     attrs.onItemsChange(items);
   }

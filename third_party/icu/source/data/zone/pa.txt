@@ -270,6 +270,9 @@ pa{
         "America:Costa_Rica"{
             ec{"ਕੋਸਟਾ ਰੀਕਾ"}
         }
+        "America:Coyhaique"{
+            ec{"ਕੋਹੇਕੇ"}
+        }
         "America:Creston"{
             ec{"ਕ੍ਰੈਸਟਨ"}
         }
@@ -1167,7 +1170,7 @@ pa{
             ec{"ਇਫੇਟ"}
         }
         "Pacific:Enderbury"{
-            ec{"ਏਂਡਰਬਰੀ"}
+            ec{"ਕੈਂਟੋਨ"}
         }
         "Pacific:Fakaofo"{
             ec{"ਫਕਾਉਫੋ"}
@@ -1192,9 +1195,6 @@ pa{
         }
         "Pacific:Honolulu"{
             ec{"ਹੋਨੋਲੁਲੂ"}
-        }
-        "Pacific:Kanton"{
-            ec{"ਕੈਂਟੋਨ"}
         }
         "Pacific:Kiritimati"{
             ec{"ਕਿਰਿਤਿਮਤੀ"}
@@ -1269,18 +1269,16 @@ pa{
             ls{"ਅਫ਼ਗਾਨਿਸਤਾਨ ਵੇਲਾ"}
         }
         "meta:Africa_Central"{
-            ls{"ਕੇਂਦਰੀ ਅਫਰੀਕਾ ਵੇਲਾ"}
+            ls{"ਕੇਂਦਰੀ ਅਫ਼ਰੀਕਾ ਵੇਲਾ"}
         }
         "meta:Africa_Eastern"{
-            ls{"ਪੂਰਬੀ ਅਫਰੀਕਾ ਵੇਲਾ"}
+            ls{"ਪੂਰਬੀ ਅਫ਼ਰੀਕਾ ਵੇਲਾ"}
         }
         "meta:Africa_Southern"{
             ls{"ਦੱਖਣੀ ਅਫ਼ਰੀਕਾ ਮਿਆਰੀ ਵੇਲਾ"}
         }
         "meta:Africa_Western"{
-            ld{"ਪੱਛਮੀ ਅਫਰੀਕਾ ਗਰਮੀਆਂ ਦਾ ਵੇਲਾ"}
-            lg{"ਪੱਛਮੀ ਅਫਰੀਕਾ ਵੇਲਾ"}
-            ls{"ਪੱਛਮੀ ਅਫਰੀਕਾ ਮਿਆਰੀ ਵੇਲਾ"}
+            ls{"ਪੱਛਮੀ ਅਫਰੀਕਾ ਵੇਲਾ"}
         }
         "meta:Alaska"{
             ld{"ਅਲਾਸਕਾ ਪ੍ਰਕਾਸ਼ ਵੇਲਾ"}
@@ -1539,6 +1537,9 @@ pa{
         }
         "meta:Guyana"{
             ls{"ਗੁਯਾਨਾ ਵੇਲਾ"}
+        }
+        "meta:Hawaii"{
+            ls{"ਹਵਾਈ-ਅਲੇਯੂਸ਼ਿਅਨ ਮਿਆਰੀ ਵੇਲਾ"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ਹਵਾਈ-ਅਲੇਯੂਸ਼ਿਅਨ ਪ੍ਰਕਾਸ਼ ਵੇਲਾ"}

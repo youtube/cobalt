@@ -51,6 +51,10 @@ en_CA{
             "US$",
             "US Dollar",
         }
+        XCG{
+            "Cg",
+            "Caribbean guilder",
+        }
         XXX{
             "¤",
             "unknown currency",

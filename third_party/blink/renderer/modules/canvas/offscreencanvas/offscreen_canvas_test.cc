@@ -137,7 +137,7 @@ void OffscreenCanvasTest::SetUp() {
       ScopedTestingPlatformSupport<AcceleratedCompositingTestPlatform>>();
 
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
-      String::FromUTF8("<body><canvas id='c'></canvas></body>"));
+      "<body><canvas id='c'></canvas></body>");
 
   canvas_element_ =
       To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
@@ -287,8 +287,7 @@ TEST_P(OffscreenCanvasTest, CompositorFrameOpacity) {
             EXPECT_NE(shared_quad_state_list.front()->are_contents_opaque,
                       context_alpha);
           }));
-  offscreen_canvas().PushFrame(std::move(canvas_resource),
-                               SkIRect::MakeWH(10, 10));
+  offscreen_canvas().PushFrame(std::move(canvas_resource), std::nullopt);
   platform->RunUntilIdle();
 }
 

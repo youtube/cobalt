@@ -270,6 +270,9 @@ si{
         "America:Costa_Rica"{
             ec{"කොස්ටරිකා"}
         }
+        "America:Coyhaique"{
+            ec{"කොයිහයික්"}
+        }
         "America:Creston"{
             ec{"ක්‍රෙස්ටන්"}
         }
@@ -1167,7 +1170,7 @@ si{
             ec{"එෆාත්"}
         }
         "Pacific:Enderbury"{
-            ec{"එන්ඩර්බරි"}
+            ec{"කැන්ටන්"}
         }
         "Pacific:Fakaofo"{
             ec{"ෆාකාඕෆෝ"}
@@ -1192,9 +1195,6 @@ si{
         }
         "Pacific:Honolulu"{
             ec{"හොනොලුලු"}
-        }
-        "Pacific:Kanton"{
-            ec{"කැන්ටන්"}
         }
         "Pacific:Kiritimati"{
             ec{"කිරිමටි"}
@@ -1278,9 +1278,7 @@ si{
             ls{"දකුණු අප්‍රිකානු වේලාව"}
         }
         "meta:Africa_Western"{
-            ld{"බටහිර අප්‍රිකානු ග්‍රීෂ්ම කාලය"}
-            lg{"බටහිර අප්‍රිකානු වේලාව"}
-            ls{"බටහිර අප්‍රිකානු සම්මත වේලාව"}
+            ls{"බටහිර අප්‍රිකානු වේලාව"}
         }
         "meta:Alaska"{
             ld{"ඇලස්කා දිවාආලෝක වේලාව"}
@@ -1518,6 +1516,9 @@ si{
         }
         "meta:Guyana"{
             ls{"ගයනා වේලාව"}
+        }
+        "meta:Hawaii"{
+            ls{"හවායි-අලෙයුතියාන් සම්මත වේලාව"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"හවායි-අලෙයුතියාන් දිවාආලෝක වේලාව"}
@@ -1853,6 +1854,7 @@ si{
             ls{"යුකොන් වේලාව"}
         }
         gmtFormat{"ග්‍රිමවේ{0}"}
+        gmtUnknownFormat{"ග්‍රිමවේ+?"}
         gmtZeroFormat{"ග්‍රිමවේ"}
         hourFormat{"+HH.mm;-HH.mm"}
         regionFormat{"{0} වේලාව"}

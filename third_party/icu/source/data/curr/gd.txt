@@ -1219,6 +1219,10 @@ gd{
             "ZWD",
             "Dolar Sìombabuthach (1980–2008)",
         }
+        ZWG{
+            "ZWG",
+            "Òr Sìombabuthach",
+        }
         ZWL{
             "ZWL",
             "Dolar Sìombabuthach (2009)",
@@ -3058,6 +3062,12 @@ gd{
             one{"dolar Sìombabuthach (1980–2008)"}
             other{"dolar Sìombabuthach (1980–2008)"}
             two{"dholar Sìombabuthach (1980–2008)"}
+        }
+        ZWG{
+            few{"Òr Sìombabuthach"}
+            one{"Òr Sìombabuthach"}
+            other{"Òr Sìombabuthach"}
+            two{"Òr Sìombabuthach"}
         }
         ZWL{
             few{"dolaran Sìombabuthach (2009)"}

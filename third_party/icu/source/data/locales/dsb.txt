@@ -22,7 +22,9 @@ dsb{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             patternsLong{
@@ -227,6 +229,9 @@ dsb{
                     }
                 }
             }
+            rationalFormats{
+                rationalUsage{"casy"}
+            }
             symbols{
                 approximatelySign{"≈"}
                 decimal{","}
@@ -280,26 +285,32 @@ dsb{
                 "GGGGGyyMd",
             }
             availableFormats{
-                Bh{"h 'hodź'. B"}
+                Bh{"'zeg'. h B"}
+                EBh{"E 'zeg'. h B"}
                 EHm{"E, HH:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
+                Eh{"E 'zeg'. h a"}
                 Ehm{"E h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d.M.y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
                 GyMd{"d.M.y GGGGG"}
-                H{"HH 'hodź'."}
+                H{"'zeg'. HH"}
+                Hv{"'zeg'. HH v"}
                 MEd{"E, d.M."}
                 MMMEd{"E, d. MMM"}
                 MMMMd{"d. MMMM"}
                 MMMd{"d. MMM"}
                 Md{"d.M."}
-                h{"h 'hodź'. a"}
+                h{"'zeg'. h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"'zeg'. h a v"}
                 y{"y G"}
                 yyyy{"y G"}
                 yyyyM{"M.y GGGGG"}
@@ -446,6 +457,12 @@ dsb{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} 'zeger' {0}",
+                "{1} 'zeger' {0}",
+                "{1} {0}",
+                "{1} {0}",
+            }
             DateTimeSkeletons{
                 "Hmmsszzzz",
                 "Hmmssz",
@@ -457,12 +474,16 @@ dsb{
                 "yyMd",
             }
             availableFormats{
+                Bh{"'zeg'. h B"}
+                EBh{"E, 'zeg'. h B"}
                 EHm{"E, 'zeg'. H:mm"}
                 EHms{"E, HH:mm:ss"}
                 Ed{"E, d."}
                 Ehm{"E, h:mm a"}
                 Ehms{"E, h:mm:ss a"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E, d.M.y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E, d. MMM y G"}
                 GyMMMd{"d. MMM y G"}
@@ -472,6 +493,7 @@ dsb{
                 Hms{"H:mm:ss"}
                 Hmsv{"H:mm:ss v"}
                 Hmv{"H:mm v"}
+                Hv{"'zeg'. H v"}
                 MEd{"E, d.M."}
                 MMMEd{"E, d. MMM"}
                 MMMMW{
@@ -487,6 +509,7 @@ dsb{
                 h{"h a"}
                 hm{"h:mm a"}
                 hms{"h:mm:ss a"}
+                hv{"'zeg'. h a v"}
                 yM{"M.y"}
                 yMEd{"E, d.M.y"}
                 yMMM{"MMM y"}
@@ -555,20 +578,20 @@ dsb{
             }
             eras{
                 abbreviated{
-                    "pś.Chr.n.",
-                    "pó Chr.n.",
+                    0{"pś.Chr.n."}
+                    1{"pó Chr.n."}
                 }
                 abbreviated%variant{
-                    "pś.n.l.c.",
-                    "n.l.c.",
+                    0{"pś.n.l.c."}
+                    1{"n.l.c."}
                 }
                 wide{
-                    "pśed Kristusowym naroźenim",
-                    "pó Kristusowem naroźenju",
+                    0{"pśed Kristusowym naroźenim"}
+                    1{"pó Kristusowem naroźenju"}
                 }
                 wide%variant{
-                    "pśed našym licenim casa",
-                    "našogo licenja casa",
+                    0{"pśed našym licenim casa"}
+                    1{"našogo licenja casa"}
                 }
             }
             intervalFormats{

@@ -4,6 +4,37 @@
 eo{
     Countries{
         001{"mondo"}
+        002{"Afriko"}
+        003{"Nordameriko"}
+        005{"Sudameriko"}
+        009{"Oceanio"}
+        011{"Okcidenta Afriko"}
+        013{"Centra Ameriko"}
+        014{"Orienta Afriko"}
+        015{"Norda Afriko"}
+        017{"Centra Afriko"}
+        018{"Suda Afriko"}
+        019{"Amerikoj"}
+        021{"Norda Ameriko"}
+        029{"Kariba regiono"}
+        030{"Orienta Azio"}
+        034{"Suda Azio"}
+        035{"Sud-orienta Azio"}
+        039{"Suda Eŭropo"}
+        053{"Aŭstralazio"}
+        054{"Melanezio"}
+        057{"Mikronezia regiono"}
+        061{"Polinezio"}
+        142{"Azio"}
+        143{"Centra Azio"}
+        145{"Okcidenta Azio"}
+        150{"Eŭropo"}
+        151{"Orienta Eŭropo"}
+        154{"Norda Eŭropo"}
+        155{"Okcidenta Eŭropo"}
+        202{"Subsahara Afriko"}
+        419{"Latinameriko"}
+        AC{"Ascension"}
         AD{"Andoro"}
         AE{"Unuiĝintaj Arabaj Emirlandoj"}
         AF{"Afganujo"}
@@ -14,9 +45,11 @@ eo{
         AO{"Angolo"}
         AQ{"Antarkto"}
         AR{"Argentino"}
+        AS{"Usona Samoo"}
         AT{"Aŭstrujo"}
         AU{"Aŭstralio"}
         AW{"Arubo"}
+        AX{"Alando"}
         AZ{"Azerbajĝano"}
         BA{"Bosnujo kaj Hercegovino"}
         BB{"Barbado"}
@@ -27,17 +60,22 @@ eo{
         BH{"Barejno"}
         BI{"Burundo"}
         BJ{"Benino"}
+        BL{"Sankta Bartolomeo"}
         BM{"Bermudoj"}
         BN{"Brunejo"}
         BO{"Bolivio"}
+        BQ{"Kariba Nederlando"}
         BR{"Brazilo"}
         BS{"Bahamoj"}
         BT{"Butano"}
+        BV{"Buvetinsulo"}
         BW{"Bocvano"}
         BY{"Belorusujo"}
         BZ{"Belizo"}
         CA{"Kanado"}
-        CF{"Centr-Afrika Respubliko"}
+        CC{"Kokosinsuloj"}
+        CD{"Kongo Kinŝasa"}
+        CF{"Centr-Afriko"}
         CG{"Kongo Brazavila"}
         CH{"Svisujo"}
         CI{"Ebur-Bordo"}
@@ -46,17 +84,23 @@ eo{
         CM{"Kameruno"}
         CN{"Ĉinujo"}
         CO{"Kolombio"}
+        CP{"Klipertono"}
+        CQ{"Sark"}
         CR{"Kostariko"}
         CU{"Kubo"}
         CV{"Kaboverdo"}
+        CW{"Kuracao"}
+        CX{"Kristnaskinsulo"}
         CY{"Kipro"}
         CZ{"Ĉeĥujo"}
         DE{"Germanujo"}
+        DG{"Diego Garcia"}
         DJ{"Ĝibutio"}
         DK{"Danujo"}
         DM{"Dominiko"}
-        DO{"Domingo"}
+        DO{"Dominika Respubliko"}
         DZ{"Alĝerio"}
+        EA{"Ceŭto kaj Melilo"}
         EC{"Ekvadoro"}
         EE{"Estonujo"}
         EG{"Egiptujo"}
@@ -64,8 +108,11 @@ eo{
         ER{"Eritreo"}
         ES{"Hispanujo"}
         ET{"Etiopujo"}
+        EU{"Eŭropa Unio"}
+        EZ{"Eŭrozono"}
         FI{"Finnlando"}
-        FJ{"Fiĝoj"}
+        FJ{"Fiĝio"}
+        FK{"Falklandoj"}
         FM{"Mikronezio"}
         FO{"Ferooj"}
         FR{"Francujo"}
@@ -73,7 +120,8 @@ eo{
         GB{"Unuiĝinta Reĝlando"}
         GD{"Grenado"}
         GE{"Kartvelujo"}
-        GF{"Franca Gviano"}
+        GF{"Franca Gujano"}
+        GG{"Gernezejo"}
         GH{"Ganao"}
         GI{"Ĝibraltaro"}
         GL{"Gronlando"}
@@ -87,19 +135,24 @@ eo{
         GU{"Gvamo"}
         GW{"Gvineo-Bisaŭo"}
         GY{"Gujano"}
+        HK{"Honkongo (SAR de Ĉinujo)"}
         HM{"Herda kaj Makdonaldaj Insuloj"}
         HN{"Honduro"}
         HR{"Kroatujo"}
         HT{"Haitio"}
         HU{"Hungarujo"}
+        IC{"Kanarioj"}
         ID{"Indonezio"}
         IE{"Irlando"}
         IL{"Israelo"}
+        IM{"Manksinsulo"}
         IN{"Hindujo"}
+        IO{"Brita Hindoceana Teritorio"}
         IQ{"Irako"}
         IR{"Irano"}
         IS{"Islando"}
         IT{"Italujo"}
+        JE{"Ĵerzejo"}
         JM{"Jamajko"}
         JO{"Jordanio"}
         JP{"Japanujo"}
@@ -109,10 +162,10 @@ eo{
         KI{"Kiribato"}
         KM{"Komoroj"}
         KN{"Sankta Kristoforo kaj Neviso"}
-        KP{"Nord-Koreo"}
-        KR{"Sud-Koreo"}
+        KP{"Nord-Koreujo"}
+        KR{"Sud-Koreujo"}
         KW{"Kuvajto"}
-        KY{"Kejmanoj"}
+        KY{"Kajmana Insularo"}
         KZ{"Kazaĥujo"}
         LA{"Laoso"}
         LB{"Libano"}
@@ -128,14 +181,19 @@ eo{
         MA{"Maroko"}
         MC{"Monako"}
         MD{"Moldavujo"}
+        ME{"Montenegro"}
+        MF{"Saint-Martin"}
         MG{"Madagaskaro"}
         MH{"Marŝaloj"}
+        MK{"Nord-Makedonujo"}
         ML{"Malio"}
         MM{"Birmo"}
         MN{"Mongolujo"}
+        MO{"Makao (SAR de Ĉinujo)"}
         MP{"Nord-Marianoj"}
         MQ{"Martiniko"}
-        MR{"Maŭritanujo"}
+        MR{"Maŭritanio"}
+        MS{"Moncerato"}
         MT{"Malto"}
         MU{"Maŭricio"}
         MV{"Maldivoj"}
@@ -166,12 +224,15 @@ eo{
         PM{"Sankta Piero kaj Mikelono"}
         PN{"Pitkarna Insulo"}
         PR{"Puertoriko"}
+        PS{"Palestinaj teritorioj"}
         PT{"Portugalujo"}
         PW{"Palaŭo"}
         PY{"Paragvajo"}
         QA{"Kataro"}
+        QO{"malproksimaj insuletoj de Oceanio"}
         RE{"Reunio"}
         RO{"Rumanujo"}
+        RS{"Serbujo"}
         RU{"Rusujo"}
         RW{"Ruando"}
         SA{"Sauda Arabujo"}
@@ -189,14 +250,21 @@ eo{
         SN{"Senegalo"}
         SO{"Somalujo"}
         SR{"Surinamo"}
+        SS{"Sud-Sudano"}
         ST{"Santomeo kaj Principeo"}
         SV{"Salvadoro"}
+        SX{"Sint-Maarten"}
         SY{"Sirio"}
         SZ{"Svazilando"}
+        TA{"Tristan da Cunha"}
+        TC{"Turkoj kaj Kajkoj"}
         TD{"Ĉado"}
+        TF{"Francaj Sudaj Teritorioj"}
         TG{"Togolando"}
         TH{"Tajlando"}
         TJ{"Taĝikujo"}
+        TK{"Tokelao"}
+        TL{"Orienta Timoro"}
         TM{"Turkmenujo"}
         TN{"Tunizio"}
         TO{"Tongo"}
@@ -208,6 +276,7 @@ eo{
         UA{"Ukrainujo"}
         UG{"Ugando"}
         UM{"Usonaj malgrandaj insuloj"}
+        UN{"Unuiĝintaj Nacioj"}
         US{"Usono"}
         UY{"Urugvajo"}
         UZ{"Uzbekujo"}
@@ -216,14 +285,29 @@ eo{
         VE{"Venezuelo"}
         VG{"Britaj Virgulininsuloj"}
         VI{"Usonaj Virgulininsuloj"}
-        VN{"Vjetnamo"}
+        VN{"Vjetnamujo"}
         VU{"Vanuatuo"}
         WF{"Valiso kaj Futuno"}
         WS{"Samoo"}
+        XA{"pseŭdo-supersignoj"}
+        XB{"pseŭdo-inversdirekta"}
+        XK{"Kosovo"}
         YE{"Jemeno"}
         YT{"Majoto"}
         ZA{"Sud-Afriko"}
         ZM{"Zambio"}
         ZW{"Zimbabvo"}
+        ZZ{"nekonata regiono"}
+    }
+    Countries%chagos{
+        IO{"Ĉagos-arĥipelago"}
+    }
+    Countries%short{
+        GB{"Britujo"}
+    }
+    Countries%variant{
+        CD{"Demokratia Respubliko Kongo"}
+        CG{"Respubliko Kongo"}
+        CZ{"Ĉeĥa Respubliko"}
     }
 }

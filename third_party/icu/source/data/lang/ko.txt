@@ -14,10 +14,13 @@ ko{
         colStrength{"정렬 강도"}
         collation{"정렬 순서"}
         currency{"통화"}
+        em{"이모티콘 표시"}
         hc{"시간표시법(12시, 24시)"}
         lb{"줄바꿈 스타일"}
+        lw{"단어의 줄바꿈"}
         ms{"계량법"}
         numbers{"숫자"}
+        ss{"약어 뒤 문장 구분"}
         timezone{"시간대"}
         va{"방언"}
         x{"공개 여부"}
@@ -421,7 +424,7 @@ ko{
         os{"오세트어"}
         osa{"오세이지어"}
         ota{"오스만 터키어"}
-        pa{"펀잡어"}
+        pa{"펀자브어"}
         pag{"판가시난어"}
         pal{"팔레비어"}
         pam{"팜팡가어"}
@@ -602,6 +605,12 @@ ko{
         zun{"주니어"}
         zxx{"언어 관련 내용 없음"}
         zza{"자자어"}
+    }
+    Languages%core{
+        ku{"쿠르드어"}
+    }
+    Languages%extension{
+        ku{"쿠르만지"}
     }
     Languages%long{
         zh_Hans{"중국어(만다린, 간체)"}
@@ -816,9 +825,29 @@ ko{
             persian{"페르시안력"}
             roc{"대만력"}
         }
+        calendar%core{
+            buddhist{"불교"}
+            chinese{"음"}
+            coptic{"콥트"}
+            dangi{"단기"}
+            ethiopic{"에티오피아"}
+            ethiopic-amete-alem{"에티오피아 아메테 알렘"}
+            gregorian{"양"}
+            hebrew{"히브리"}
+            islamic{"히즈라"}
+            islamic-civil{"히즈라 상용"}
+            islamic-umalqura{"히즈라(움 알 쿠라)"}
+            japanese{"일본"}
+            persian{"페르시안"}
+            roc{"대만"}
+        }
         cf{
             account{"회계 통화 형식"}
             standard{"표준 통화 형식"}
+        }
+        cf%core{
+            account{"회계"}
+            standard{"표준"}
         }
         colAlternate{
             non-ignorable{"기호 정렬"}
@@ -853,12 +882,10 @@ ko{
             tertiary{"악센트/대소문자/전반각 정렬"}
         }
         collation{
-            big5han{"중국어 번체 정렬 순서 (Big5)"}
             compat{"호환성을 위해 이전 정렬 순서"}
             dictionary{"사전 정렬순"}
             ducet{"기본 유니코드 정렬 순서"}
             eor{"유럽 정렬 규칙"}
-            gb2312han{"중국어 간체 정렬 순서 (GB2312)"}
             phonebook{"전화번호부순"}
             phonetic{"소리나는 대로 정렬 순서"}
             pinyin{"병음순"}
@@ -870,10 +897,29 @@ ko{
             unihan{"부수순"}
             zhuyin{"주음순"}
         }
+        collation%core{
+            compat{"호환성"}
+            dictionary{"사전"}
+            ducet{"기본 유니코드"}
+            phonebook{"전화번호부"}
+            phonetic{"소리나는 대로"}
+            pinyin{"병음"}
+            search{"검색"}
+            standard{"표준"}
+            stroke{"자획"}
+            traditional{"전통"}
+            unihan{"부수"}
+            zhuyin{"주음"}
+        }
         d0{
             fwidth{"전각"}
             hwidth{"반각"}
             npinyin{"숫자"}
+        }
+        em%core{
+            default{"기본"}
+            emoji{"이모티콘"}
+            text{"텍스트"}
         }
         hc{
             h11{"12시간제(0–11)"}
@@ -881,10 +927,27 @@ ko{
             h23{"24시간제(0–23)"}
             h24{"24시간제(1–24)"}
         }
+        hc%core{
+            h11{"12(0–11)"}
+            h12{"12(1–12)"}
+            h23{"24(0–23)"}
+            h24{"24(1–24)"}
+        }
         lb{
             loose{"줄바꿈 - 넓게"}
             normal{"줄바꿈 - 보통"}
             strict{"줄바꿈 - 좁게"}
+        }
+        lb%core{
+            loose{"넓게"}
+            normal{"보통"}
+            strict{"좁게"}
+        }
+        lw%core{
+            breakall{"모두 분리"}
+            keepall{"모두 유지"}
+            normal{"일반"}
+            phrase{"구 단위 유지"}
         }
         m0{
             bgn{"미국 지명위원회(BGN)"}
@@ -894,6 +957,11 @@ ko{
             metric{"미터법"}
             uksystem{"야드파운드법"}
             ussystem{"미국 계량법"}
+        }
+        ms%core{
+            metric{"미터법"}
+            uksystem{"영국식"}
+            ussystem{"미국식"}
         }
         numbers{
             arab{"아라비아-인도식 숫자"}
@@ -953,6 +1021,10 @@ ko{
             tibt{"티벳 숫자"}
             traditional{"전통적인 숫자"}
             vaii{"바이 숫자"}
+        }
+        ss%core{
+            none{"끔"}
+            standard{"켬"}
         }
     }
     Variants{

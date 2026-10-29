@@ -5,7 +5,7 @@ ur_IN{
     NumberElements{
         arabext{
             patterns{
-                currencyFormat{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##0.00"}
             }
         }
         default{"arabext"}

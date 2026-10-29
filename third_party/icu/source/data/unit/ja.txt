@@ -16,6 +16,10 @@ ja{
             revolution{
                 other{"{0} 回転"}
             }
+            steradian{
+                dnam{"ステラジアン"}
+                other{"{0} ステラジアン"}
+            }
         }
         area{
             acre{
@@ -107,6 +111,10 @@ ja{
             }
         }
         concentr{
+            katal{
+                dnam{"カタール"}
+                other{"{0} カタール"}
+            }
             milligram-ofglucose-per-deciliter{
                 other{"{0} ミリグラム毎デシリットル"}
             }
@@ -115,6 +123,14 @@ ja{
             }
             mole{
                 other{"{0} モル"}
+            }
+            ofglucose{
+                dnam{"グルコース"}
+                other{"{0} グルコース"}
+            }
+            part{
+                dnam{"パーツ"}
+                other{"{0} パーツ"}
             }
             percent{
                 other{"{0} パーセント"}
@@ -191,11 +207,6 @@ ja{
             nanosecond{
                 other{"{0} ナノ秒"}
             }
-            night{
-                dnam{"泊"}
-                other{"{0} 泊"}
-                per{"{0}/泊"}
-            }
             quarter{
                 other{"{0} 四半期"}
             }
@@ -204,17 +215,37 @@ ja{
             ampere{
                 other{"{0} アンペア"}
             }
+            coulomb{
+                dnam{"クーロン"}
+                other{"{0} クーロン"}
+            }
+            farad{
+                dnam{"ファラド"}
+                other{"{0} ファラド"}
+            }
+            henry{
+                dnam{"ヘンリー"}
+                other{"{0} ヘンリー"}
+            }
             milliampere{
                 other{"{0} ミリアンペア"}
             }
             ohm{
                 other{"{0} オーム"}
             }
+            siemens{
+                dnam{"ジーメンス"}
+                other{"{0} ジーメンス"}
+            }
             volt{
                 other{"{0} ボルト"}
             }
         }
         energy{
+            becquerel{
+                dnam{"ベクレル"}
+                other{"{0} ベクレル"}
+            }
             british-thermal-unit{
                 other{"{0} 英熱量"}
             }
@@ -222,12 +253,20 @@ ja{
                 dnam{"カロリー"}
                 other{"{0} カロリー"}
             }
+            calorie-it{
+                dnam{"国際蒸気表カロリー"}
+                other{"{0} 国際蒸気表カロリー"}
+            }
             electronvolt{
                 other{"{0} 電子ボルト"}
             }
             foodcalorie{
                 dnam{"カロリー"}
                 other{"{0} カロリー"}
+            }
+            gray{
+                dnam{"グレイ"}
+                other{"{0} グレイ"}
             }
             joule{
                 other{"{0} ジュール"}
@@ -242,8 +281,16 @@ ja{
             kilowatt-hour{
                 other{"{0} キロワット時"}
             }
+            sievert{
+                dnam{"シーベルト"}
+                other{"{0} シーベルト"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"重量キログラム"}
+                other{"{0} 重量キログラム"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"キロワット時毎100キロメートル"}
                 other{"{0} キロワット時毎100キロメートル"}
@@ -388,6 +435,16 @@ ja{
                 other{"{0} 太陽光度"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"テスラ"}
+                other{"{0} テスラ"}
+            }
+            weber{
+                dnam{"ウェーバ"}
+                other{"{0} ウェーバ"}
+            }
+        }
         mass{
             carat{
                 other{"{0} カラット"}
@@ -484,6 +541,10 @@ ja{
             millimeter-ofhg{
                 other{"{0} 水銀柱ミリメートル"}
             }
+            ofhg{
+                dnam{"水銀柱"}
+                other{"{0}Hg"}
+            }
             pascal{
                 other{"{0} パスカル"}
             }
@@ -502,10 +563,6 @@ ja{
             }
             knot{
                 other{"{0} ノット"}
-            }
-            light-speed{
-                dnam{"光"}
-                other{"{0} 光"}
             }
             meter-per-second{
                 dnam{"メートル毎秒"}
@@ -596,6 +653,10 @@ ja{
             fluid-ounce-imperial{
                 other{"{0} 英液量オンス"}
             }
+            fluid-ounce-metric{
+                dnam{"メトリック液量オンス"}
+                other{"{0} メトリック液量オンス"}
+            }
             gallon{
                 other{"{0} ガロン"}
                 per{"{0}/ガロン"}
@@ -664,6 +725,9 @@ ja{
                 dnam{"rev"}
                 other{"{0}rev"}
             }
+            steradian{
+                other{"{0}sr"}
+            }
         }
         area{
             acre{
@@ -714,6 +778,10 @@ ja{
             karat{
                 other{"{0}K"}
             }
+            katal{
+                dnam{"カタール"}
+                other{"{0}kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"mg/dL"}
                 other{"{0}mg/dL"}
@@ -726,20 +794,28 @@ ja{
                 dnam{"mol"}
                 other{"{0}mol"}
             }
+            ofglucose{
+                dnam{"グルコース"}
+                other{"{0}Glc"}
+            }
+            part{
+                dnam{"パーツ"}
+                other{"{0}パーツ"}
+            }
+            part-per-1e6{
+                other{"{0}ppm"}
+            }
+            part-per-1e9{
+                other{"{0}ppb"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
             }
-            permillion{
-                other{"{0}ppm"}
-            }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -838,9 +914,7 @@ ja{
                 other{"{0}ns"}
             }
             night{
-                dnam{"泊"}
                 other{"{0}泊"}
-                per{"{0}/泊"}
             }
             quarter{
                 other{"{0}Q"}
@@ -877,6 +951,9 @@ ja{
             calorie{
                 other{"{0}calth"}
             }
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
             }
@@ -901,6 +978,10 @@ ja{
             }
         }
         force{
+            kilogram-force{
+                dnam{"重量キログラム"}
+                other{"{0}kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 other{"{0}kWh/100km"}
             }
@@ -1061,6 +1142,16 @@ ja{
                 other{"{0}L☉"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"テスラ"}
+                other{"{0}T"}
+            }
+            weber{
+                dnam{"ウェーバ"}
+                other{"{0}Wb"}
+            }
+        }
         mass{
             carat{
                 other{"{0}ct"}
@@ -1165,6 +1256,10 @@ ja{
             millimeter-ofhg{
                 other{"{0}mmHg"}
             }
+            ofhg{
+                dnam{"水銀柱"}
+                other{"{0}Hg"}
+            }
             pascal{
                 dnam{"Pa"}
                 other{"{0}Pa"}
@@ -1184,7 +1279,6 @@ ja{
                 other{"{0}kn"}
             }
             light-speed{
-                dnam{"光"}
                 other{"{0}光"}
             }
             meter-per-second{
@@ -1284,6 +1378,10 @@ ja{
                 dnam{"Imp fl oz"}
                 other{"{0}Imp fl oz"}
             }
+            fluid-ounce-metric{
+                dnam{"メトリック液量オンス"}
+                other{"{0} fl oz m."}
+            }
             gallon{
                 dnam{"gal"}
                 other{"{0}gal"}
@@ -1382,6 +1480,10 @@ ja{
             revolution{
                 dnam{"回転"}
             }
+            steradian{
+                dnam{"ステラジアン"}
+                other{"{0} sr"}
+            }
         }
         area{
             acre{
@@ -1428,6 +1530,10 @@ ja{
                 dnam{"金"}
                 other{"{0} 金"}
             }
+            katal{
+                dnam{"カタール"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ミリグラム毎デシリットル"}
             }
@@ -1436,6 +1542,14 @@ ja{
             }
             mole{
                 dnam{"モル"}
+            }
+            ofglucose{
+                dnam{"グルコース"}
+                other{"{0} Glc"}
+            }
+            part{
+                dnam{"パーツ"}
+                other{"{0} パーツ"}
             }
             percent{
                 dnam{"パーセント"}
@@ -1561,20 +1675,39 @@ ja{
             ampere{
                 dnam{"アンペア"}
             }
+            coulomb{
+                other{"{0} C"}
+            }
+            farad{
+                other{"{0} F"}
+            }
+            henry{
+                other{"{0} H"}
+            }
             milliampere{
                 dnam{"ミリアンペア"}
             }
             ohm{
                 dnam{"オーム"}
             }
+            siemens{
+                other{"{0} S"}
+            }
             volt{
                 dnam{"ボルト"}
             }
         }
         energy{
+            becquerel{
+                other{"{0} Bq"}
+            }
             british-thermal-unit{
                 dnam{"英熱量"}
                 other{"{0} BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"電子ボルト"}
@@ -1582,6 +1715,9 @@ ja{
             foodcalorie{
                 dnam{"cal"}
                 other{"{0} cal"}
+            }
+            gray{
+                other{"{0} Gy"}
             }
             joule{
                 dnam{"ジュール"}
@@ -1592,12 +1728,19 @@ ja{
             kilowatt-hour{
                 dnam{"キロワット時"}
             }
+            sievert{
+                other{"{0} Sv"}
+            }
             therm-us{
                 dnam{"米サーム"}
                 other{"{0} 米サーム"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"重量キログラム"}
+                other{"{0} kgf"}
+            }
             newton{
                 dnam{"ニュートン"}
             }
@@ -1719,6 +1862,16 @@ ja{
                 dnam{"太陽光度"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"テスラ"}
+                other{"{0} T"}
+            }
+            weber{
+                dnam{"ウェーバ"}
+                other{"{0} Wb"}
+            }
+        }
         mass{
             carat{
                 dnam{"カラット"}
@@ -1801,6 +1954,10 @@ ja{
             }
             millimeter-ofhg{
                 dnam{"水銀柱ミリメートル"}
+            }
+            ofhg{
+                dnam{"水銀柱"}
+                other{"{0}Hg"}
             }
             pascal{
                 dnam{"パスカル"}
@@ -1895,6 +2052,10 @@ ja{
             fluid-ounce-imperial{
                 dnam{"英液量オンス"}
                 other{"{0} fl oz Imp"}
+            }
+            fluid-ounce-metric{
+                dnam{"メトリック液量オンス"}
+                other{"{0} fl oz m."}
             }
             gallon{
                 dnam{"ガロン"}

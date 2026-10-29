@@ -86,8 +86,8 @@ IIRFilterHandler::IIRFilterHandler(AudioNode& node,
 
   feedforward_.Allocate(feedforward_length);
   feedback_.Allocate(feedback_length);
-  feedforward_.CopyToRange(feedforward_coef.data(), 0, feedforward_length);
-  feedback_.CopyToRange(feedback_coef.data(), 0, feedback_length);
+  feedforward_.as_span().first(feedforward_length).copy_from(feedforward_coef);
+  feedback_.as_span().first(feedback_length).copy_from(feedback_coef);
 
   // Need to scale the feedback and feedforward coefficients appropriately.
   // (It's up to the caller to ensure feedbackCoef[0] is not 0.)
@@ -144,9 +144,10 @@ void IIRFilterHandler::Process(uint32_t frames_to_process) {
       DCHECK_EQ(source_bus->NumberOfChannels(), kernels_.size());
 
       for (unsigned i = 0; i < kernels_.size(); ++i) {
-        kernels_[i]->Process(source_bus->Channel(i)->Data(),
-                             destination_bus->Channel(i)->MutableData(),
-                             frames_to_process);
+        kernels_[i]->Process(
+            source_bus->Channel(i)->Span().first(frames_to_process),
+            destination_bus->Channel(i)->MutableSpan().first(
+                frames_to_process));
       }
     } else {
       // Unfortunately, the kernel is being processed by another thread.

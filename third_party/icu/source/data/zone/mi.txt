@@ -348,9 +348,7 @@ mi{
             ls{"Wā Arowhānui o Āwherika ki te tonga"}
         }
         "meta:Africa_Western"{
-            ld{"Wā Raumati o Āwherika ki te uru"}
-            lg{"Wā o Āwherika ki te uru"}
-            ls{"Wā Arowhānui o Āwerika ki te uru"}
+            ls{"Wā o Āwherika ki te uru"}
         }
         "meta:Alaska"{
             ld{"Wā Awatea Alaska"}
@@ -588,6 +586,9 @@ mi{
         }
         "meta:Guyana"{
             ls{"Wā Kaiana"}
+        }
+        "meta:Hawaii"{
+            ls{"Wā Arowhānui Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Wā Awatea Hawaii-Aleutian"}

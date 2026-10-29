@@ -1698,8 +1698,22 @@ bool ValidateES2TexImageParametersBase(const Context *context,
             }
             else
             {
-                isValid = (GetInternalFormatInfo(format, type).sizedInternalFormat ==
-                           textureSizedInternalFormat);
+                if (format == GL_BGRA_EXT)
+                {
+                    // GL_BGRA_EXT is registered as a sized format in ANGLE, which can cause
+                    // GetInternalFormatInfo to return it as an alias for GL_BGRA8_EXT. We
+                    // check both GetSizedFormatInternal (which resolves to the canonical
+                    // sized format) and GetInternalFormatInfo (which might return GL_BGRA_EXT
+                    // itself) to handle all cases.
+                    isValid = (GetSizedFormatInternal(format, type) == textureSizedInternalFormat ||
+                               GetInternalFormatInfo(format, type).sizedInternalFormat ==
+                                   textureSizedInternalFormat);
+                }
+                else
+                {
+                    isValid = (GetInternalFormatInfo(format, type).sizedInternalFormat ==
+                               textureSizedInternalFormat);
+                }
             }
             if (!isValid)
             {
@@ -2985,27 +2999,6 @@ bool ValidateCompressedTexImage2D(const Context *context,
     return true;
 }
 
-bool ValidateCompressedTexImage2DRobustANGLE(const Context *context,
-                                             angle::EntryPoint entryPoint,
-                                             TextureTarget target,
-                                             GLint level,
-                                             GLenum internalformat,
-                                             GLsizei width,
-                                             GLsizei height,
-                                             GLint border,
-                                             GLsizei imageSize,
-                                             GLsizei dataSize,
-                                             const void *data)
-{
-    if (!ValidateRobustCompressedTexImageBase(context, entryPoint, imageSize, dataSize))
-    {
-        return false;
-    }
-
-    return ValidateCompressedTexImage2D(context, entryPoint, target, level, internalformat, width,
-                                        height, border, imageSize, data);
-}
-
 bool ValidateCompressedTexImage3DOES(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      TextureTarget target,
@@ -3020,28 +3013,6 @@ bool ValidateCompressedTexImage3DOES(const Context *context,
 {
     return ValidateCompressedTexImage3D(context, entryPoint, target, level, internalformat, width,
                                         height, depth, border, imageSize, data);
-}
-
-bool ValidateCompressedTexSubImage2DRobustANGLE(const Context *context,
-                                                angle::EntryPoint entryPoint,
-                                                TextureTarget target,
-                                                GLint level,
-                                                GLint xoffset,
-                                                GLint yoffset,
-                                                GLsizei width,
-                                                GLsizei height,
-                                                GLenum format,
-                                                GLsizei imageSize,
-                                                GLsizei dataSize,
-                                                const void *data)
-{
-    if (!ValidateRobustCompressedTexImageBase(context, entryPoint, imageSize, dataSize))
-    {
-        return false;
-    }
-
-    return ValidateCompressedTexSubImage2D(context, entryPoint, target, level, xoffset, yoffset,
-                                           width, height, format, imageSize, data);
 }
 
 bool ValidateCompressedTexSubImage2D(const Context *context,
@@ -3829,19 +3800,6 @@ bool ValidateRequestExtensionANGLE(const Context *context,
     if (!context->isExtensionRequestable(name))
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotRequestable);
-        return false;
-    }
-
-    return true;
-}
-
-bool ValidateDisableExtensionANGLE(const Context *context,
-                                   angle::EntryPoint entryPoint,
-                                   const GLchar *name)
-{
-    if (!context->isExtensionDisablable(name))
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExtensionNotDisablable);
         return false;
     }
 

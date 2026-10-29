@@ -270,6 +270,9 @@ ar{
         "America:Costa_Rica"{
             ec{"كوستاريكا"}
         }
+        "America:Coyhaique"{
+            ec{"كويهايكيو"}
+        }
         "America:Creston"{
             ec{"كريستون"}
         }
@@ -1167,7 +1170,7 @@ ar{
             ec{"إيفات"}
         }
         "Pacific:Enderbury"{
-            ec{"اندربيرج"}
+            ec{"كانتون"}
         }
         "Pacific:Fakaofo"{
             ec{"فاكاوفو"}
@@ -1192,9 +1195,6 @@ ar{
         }
         "Pacific:Honolulu"{
             ec{"هونولولو"}
-        }
-        "Pacific:Kanton"{
-            ec{"كانتون"}
         }
         "Pacific:Kiritimati"{
             ec{"كيريتي ماتي"}
@@ -1278,9 +1278,7 @@ ar{
             ls{"توقيت جنوب أفريقيا"}
         }
         "meta:Africa_Western"{
-            ld{"توقيت غرب أفريقيا الصيفي"}
-            lg{"توقيت غرب أفريقيا"}
-            ls{"توقيت غرب أفريقيا الرسمي"}
+            ls{"توقيت غرب أفريقيا"}
         }
         "meta:Alaska"{
             ld{"توقيت ألاسكا الصيفي"}
@@ -1523,10 +1521,12 @@ ar{
         }
         "meta:Gulf"{
             ls{"توقيت الخليج"}
-            ss{"GST"}
         }
         "meta:Guyana"{
             ls{"توقيت غيانا"}
+        }
+        "meta:Hawaii"{
+            ls{"توقيت هاواي ألوتيان الرسمي"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"توقيت هاواي ألوتيان الصيفي"}
@@ -1872,6 +1872,7 @@ ar{
             ls{"توقيت يوكون"}
         }
         gmtFormat{"غرينتش{0}"}
+        gmtUnknownFormat{"غرينتش+?"}
         gmtZeroFormat{"غرينتش"}
         regionFormat{"توقيت {0}"}
         regionFormatDaylight{"توقيت {0} الصيفي"}

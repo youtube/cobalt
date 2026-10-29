@@ -73,8 +73,13 @@
 #define DEFINE_GENERIC_IMPLICATION(cond, statement) \
   if (cond) statement;
 
-// TODO(457654443): can we use FlagError for this, too?
-#define DEFINE_REQUIREMENT(statement) CHECK_NO_SECURITY_IMPACT(statement);
+#define DEFINE_REQUIREMENT(statement) \
+  do {                                \
+    if (V8_UNLIKELY(!(statement))) {  \
+      FlagError{} << #statement;      \
+      UNREACHABLE();                  \
+    }                                 \
+  } while (false);
 
 // Enforce that a flag was not explicitly set via command line. Setting a value
 // via implications is still allowed.
@@ -422,12 +427,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
-DEFINE_BOOL(icu_default_italian_number_grouping_always, false,
-            "override the default useGrouping rule for Italian to \"always\" "
-            "to match behavior of ICU <76")
-DEFINE_BOOL(icu_british_remove_full_weekday_comma, false,
-            "remove any comma after a full weekday in en-AU, en-GB and en-IN "
-            "to match behavior of ICU<76")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
@@ -750,6 +749,8 @@ DEFINE_BOOL(maglev_untagged_phis, false,
             "enable phi untagging in the maglev optimizing compiler")
 DEFINE_BOOL(turbolev_untagged_phis, false,
             "enable phi untagging in the Turbolev optimizing compiler")
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
+
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -1780,9 +1781,6 @@ DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_strings)
-// TODO(493179861): Add support for shared custom descriptors.
-DEFINE_NEG_IMPLICATION(experimental_wasm_shared,
-                       experimental_wasm_custom_descriptors)
 #endif
 
 DEFINE_BOOL(
@@ -2086,6 +2084,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "enable JS Interop part of Custom Descriptors proposal")
 DEFINE_IMPLICATION(experimental_wasm_js_interop,
                    experimental_wasm_custom_descriptors)
+DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
+            "Emergency off-switch for Custom Descriptors Origin Trial")
 
 #define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
   DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
@@ -2352,6 +2352,10 @@ DEFINE_TEST_ONLY_FLAG(trace_wasm_generate_compilation_hints,
 // Feedback collection is guarded by the --wasm-inlining flag.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
+// --wasm-code-coverage implies --no-wasm-inlining.
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, wasm_code_coverage)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
+                       wasm_code_coverage)
 // We need liftoff to generate feedback when generating compilation hints.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, liftoff)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
@@ -2605,8 +2609,10 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
 DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
+DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
+DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
 DEFINE_BOOL(enable_allocation_failures_optimize_memory, true,
             "Enable eager allocations failures due to memory optimizations")
 DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
@@ -2616,10 +2622,10 @@ DEFINE_NEG_IMPLICATION(
     enable_allocation_failures_optimize_memory,
     enable_allocation_failures_optimize_memory_ignoring_priority)
 DEFINE_BOOL(
-    external_memory_accounted_in_global_limit, false,
+    external_memory_accounted_in_global_limit, true,
     "External memory limits are computed as part of global limits in v8 Heap.")
 DEFINE_FLOAT(
-    external_memory_max_growing_factor, 1.3,
+    external_memory_max_growing_factor, 1.1,
     "When external memory limits are computed as poart of the global limits,"
     "this is the upper bound for growing factor imposed on external memory.")
 DEFINE_INT(external_memory_max_reasonable_size, 32,
@@ -2680,10 +2686,10 @@ DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
-DEFINE_INT(fixed_margin_for_input_handling, 64,
+DEFINE_INT(fixed_margin_for_input_handling, 32,
            "how much we are allowed to overshoot the heap limit by during "
            "input mode, in MiB.")
-DEFINE_BOOL(optimize_for_input_handling, false,
+DEFINE_BOOL(optimize_for_input_handling, true,
             "whether to use input hints to optimize for responsiveness.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
@@ -3268,9 +3274,7 @@ DEFINE_BOOL(hashes_collide, false,
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")
-DEFINE_BOOL(
-    detailed_error_stack_trace, false,
-    "includes arguments for each function call in the error stack frames array")
+
 DEFINE_BOOL(adjust_os_scheduling_parameters, true,
             "adjust OS specific scheduling params for the isolate")
 DEFINE_BOOL(experimental_flush_embedded_blob_icache, true,
@@ -4188,6 +4192,10 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+// The memory corruption API is only allowed in sandbox testing/fuzzing mode.
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
+                                          !sandbox_testing && !sandbox_fuzzing,
+                                      expose_memory_corruption_api)
 
 #undef FLAG
 

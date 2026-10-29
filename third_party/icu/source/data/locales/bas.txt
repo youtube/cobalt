@@ -13,7 +13,9 @@ bas{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 percentFormat{"#,##0 %"}
             }
             symbols{
@@ -156,12 +158,12 @@ bas{
             }
             eras{
                 abbreviated{
-                    "b.Y.K",
-                    "m.Y.K",
+                    0{"b.Y.K"}
+                    1{"m.Y.K"}
                 }
                 wide{
-                    "bisū bi Yesù Krǐstò",
-                    "i mbūs Yesù Krǐstò",
+                    0{"bisū bi Yesù Krǐstò"}
+                    1{"i mbūs Yesù Krǐstò"}
                 }
             }
             monthNames{

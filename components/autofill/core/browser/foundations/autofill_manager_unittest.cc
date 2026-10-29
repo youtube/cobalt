@@ -24,6 +24,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/foundations/with_test_autofill_client_driver_manager.h"
+#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -34,10 +35,6 @@
 #include "components/translate/core/common/language_detection_details.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
-#endif
 
 namespace autofill {
 namespace {
@@ -74,7 +71,6 @@ class MockAutofillDriver : public TestAutofillDriver {
               ());
 };
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 class MockFieldClassificationModelHandler
     : public FieldClassificationModelHandler {
  public:
@@ -94,7 +90,6 @@ class MockFieldClassificationModelHandler
                base::OnceCallback<void(std::vector<ModelPredictions>)>),
               (override));
 };
-#endif
 
 // Creates a vector of test forms which differ in their FormGlobalIds
 // and FieldGlobalIds.
@@ -516,6 +511,10 @@ TEST_F(AutofillManagerTest_ObserverCalls, CallsEvents) {
     std::move(run_loop).Run();
   }
 
+  EXPECT_CALL(observer(),
+              OnSuggestionsHidden(m, SuggestionHidingReason::kFocusChanged));
+  autofill_manager().OnSuggestionsHidden(SuggestionHidingReason::kFocusChanged);
+
   // TODO(crbug.com/) Test in browser_autofill_manager_unittest.cc that
   // FillOrPreviewForm() triggers OnFillOrPreviewForm().
 
@@ -683,7 +682,6 @@ TEST_F(AutofillManagerTest, TriggerFormExtractionInAllFrames) {
   autofill_manager().TriggerFormExtractionInAllFrames(base::DoNothing());
 }
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 // Ensure that `FieldClassificationModelHandler`s are called when parsing the
 // form in `ParseFormsAsync()`. These tests intentionally don't associate
 // predictions to the `FormStructure`, they only verify that
@@ -792,7 +790,6 @@ TEST_F(AutofillManagerTestForModelPredictions,
   OnFormsSeenWithExpectations(autofill_manager(), /*updated_forms=*/{form},
                               /*removed_forms=*/{}, /*expectation=*/{form});
 }
-#endif
 
 TEST_F(
     AutofillManagerTest_OnLoadedServerPredictionsObserver,

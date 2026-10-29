@@ -70,6 +70,7 @@ if (rtc_include_tests) {
         "../../../rtc_base:network_constants",
         "../../network:emulated_network",
         "../../scenario",
+        "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/strings",
       ]
     }

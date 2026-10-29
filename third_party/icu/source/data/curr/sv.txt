@@ -1107,6 +1107,10 @@ sv{
             "EC$",
             "östkaribisk dollar",
         }
+        XCG{
+            "XCG",
+            "karibisk gulden",
+        }
         XDR{
             "XDR",
             "IMF särskild dragningsrätt",
@@ -1210,6 +1214,10 @@ sv{
         ZWD{
             "ZWD",
             "Zimbabwe-dollar",
+        }
+        ZWG{
+            "ZWG",
+            "zimbabwiskt guld",
         }
         ZWL{
             "ZWL",
@@ -2271,6 +2279,10 @@ sv{
             one{"östkaribisk dollar"}
             other{"östkaribiska dollar"}
         }
+        XCG{
+            one{"karibisk gulden"}
+            other{"karibisk gulden"}
+        }
         XDR{
             one{"IMF särskild dragningsrätt"}
             other{"IMF särskilda dragningsrätter"}
@@ -2358,6 +2370,10 @@ sv{
         ZRZ{
             one{"zaïrisk zaïre"}
             other{"zaïriska zaïre"}
+        }
+        ZWG{
+            one{"zimbabwiskt guld"}
+            other{"zimbabwiskt guld"}
         }
     }
 }

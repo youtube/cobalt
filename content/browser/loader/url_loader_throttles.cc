@@ -125,8 +125,9 @@ CreateContentBrowserURLLoaderThrottles(
   }
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (auto throttle = MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
-          webid::SetIdpSigninStatus, browser_context, frame_tree_node_id))) {
+  if (auto throttle = MaybeCreateIdentityUrlLoaderThrottle(
+          base::BindRepeating(webid::SetIdpSigninStatus, browser_context,
+                              request.destination, frame_tree_node_id))) {
     throttles.push_back(std::move(throttle));
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -151,14 +152,6 @@ CreateContentBrowserURLLoaderThrottlesForKeepAlive(
   // browser side, and we might be fine with Owner::kUnknown.
   variations::VariationsURLLoaderThrottle::AppendThrottleIfNeeded(
       browser_context->GetVariationsClient(), &throttles);
-
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  auto throttle = MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
-      webid::SetIdpSigninStatus, browser_context, frame_tree_node_id));
-  if (throttle) {
-    throttles.push_back(std::move(throttle));
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   return throttles;
 }

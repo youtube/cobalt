@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 
 #import "base/functional/callback.h"
+#import "base/memory/weak_ptr.h"
 #import "components/enterprise/connectors/core/common.h"
 
 namespace web {
@@ -22,10 +23,10 @@ enum TriggerType { kSavePrompt, kShareSheet };
 // Handles the scan decision and shows the Warning Dialog or Snackbar Message to
 // the user. A callback `download_proceed` will run at the end to indicate if
 // the download should proceed.
-void HandleScanDecision(web::WebState* web_state,
-                        RequestHandlerResult result,
+void HandleScanDecision(base::WeakPtr<web::WebState> web_state,
                         TriggerType trigger_type,
-                        base::OnceCallback<void(bool)> download_proceed);
+                        base::OnceCallback<void(bool)> download_proceed,
+                        RequestHandlerResult result);
 
 }  // namespace enterprise_connectors
 

@@ -15,9 +15,6 @@ ig{
         "Europe:London"{
             ld{"Oge Okpomọkụ Britain"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "meta:Afghanistan"{
             ls{"Oge Afghanistan"}
         }
@@ -31,9 +28,7 @@ ig{
             ls{"Oge Izugbe Mpaghara Mgbada Ugwu Afrịka"}
         }
         "meta:Africa_Western"{
-            ld{"Oge Okpomọkụ Mpaghara Ọdịda Anyanwụ Afrịka"}
-            lg{"Oge Mpaghara Ọdịda Anyanwụ Afrịka"}
-            ls{"Oge Izugbe Mpaghara Ọdịda Anyanwụ Afrịka"}
+            ls{"Oge Mpaghara Ọdịda Anyanwụ Afrịka"}
         }
         "meta:Alaska"{
             ld{"Oge Ihe Alaska"}
@@ -271,6 +266,9 @@ ig{
         }
         "meta:Guyana"{
             ls{"Oge Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Oge Izugbe Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Oge Ihe Hawaii-Aleutian"}

@@ -473,10 +473,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, Operand(instance, offset));
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  movq(liftoff::kInstanceDataOperand, instance);
-}
-
 void LiftoffAssembler::ResetOSRTarget() {
   movq(liftoff::kOSRTargetSlot, Immediate(0));
 }
@@ -520,17 +516,6 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                      static_cast<uint32_t>(offset_imm));
   movq(dst, src_op);
 }
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
-                                                        Register src_addr,
-                                                        int offset_imm) {
-  Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
-                                     static_cast<uint32_t>(offset_imm));
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
-                                                   kWasmEntrypointTag);
-}
-#endif
 
 void LiftoffAssembler::EmitWriteBarrier(Register target_object,
                                         Operand store_location,
@@ -1186,7 +1171,8 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   }
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind == kI32) {
     movl(dst, src);
@@ -1196,8 +1182,9 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   }
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
   DCHECK_NE(dst, src);
   if (kind == kF32) {
     Movss(dst, src);

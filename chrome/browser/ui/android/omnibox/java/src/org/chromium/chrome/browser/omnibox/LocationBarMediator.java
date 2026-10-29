@@ -638,8 +638,11 @@ class LocationBarMediator
         }
     }
 
-    /* package */ void onUrlTextChanged() {
+    /* package */ void onUrlTextChanged(String text) {
         updateButtonVisibility();
+        if (mCurrentInput != null) {
+            mCurrentInput.setUserText(text);
+        }
     }
 
     /* package */ void onSuggestionsChanged(
@@ -1021,7 +1024,7 @@ class LocationBarMediator
         if (mCurrentInput != null) {
             mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
         }
-        // To avoid the asyc gap between now and on activate, null out here as well.
+        // To avoid the async gap between now and on activate, null out here as well.
         setAttachmentModelList(null);
 
         session.activate(
@@ -1034,7 +1037,9 @@ class LocationBarMediator
                 });
 
         mCurrentInput = session.getAutocompleteInput();
-        mCurrentInput.getRequestTypeSupplier().addSyncObserver(mAutocompleteRequestTypeObserver);
+        mCurrentInput
+                .getRequestTypeSupplier()
+                .addSyncObserverAndCallIfNonNull(mAutocompleteRequestTypeObserver);
 
         UrlBarData data = UrlBarData.forNonUrlText(mCurrentInput.getUserText());
         mUrlCoordinator.setUrlBarData(
@@ -2010,6 +2015,10 @@ class LocationBarMediator
     @Override
     public void onVoiceAvailabilityImpacted() {
         updateButtonVisibility();
+    }
+
+    boolean isUrlBarFocusedWithoutAnimation() {
+        return mUrlFocusedWithoutAnimations;
     }
 
     /** Getter for LocationBarDataProvider. */

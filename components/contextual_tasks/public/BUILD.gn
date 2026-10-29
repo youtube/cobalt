@@ -26,6 +26,8 @@ source_set("public") {
     "contextual_task_context.h",
     "contextual_tasks_service.cc",
     "contextual_tasks_service.h",
+    "gemini_thread_data_type_controller.cc",
+    "gemini_thread_data_type_controller.h",
     "prefs.cc",
     "prefs.h",
     "utils.cc",
@@ -51,6 +53,25 @@ source_set("public") {
   public_deps = [
     ":feature_list",
     "//third_party/omnibox_proto",
+  ]
+}
+
+source_set("query_contextualizer") {
+  sources = [
+    "query_contextualizer.cc",
+    "query_contextualizer.h",
+  ]
+
+  deps = [
+    ":public",
+    "//base",
+    "//components/contextual_search:public",
+    "//components/lens",
+    "//components/lens:lens_url_utils",
+    "//components/sessions:session_id",
+    "//components/url_deduplication",
+    "//ui/gfx",
+    "//url",
   ]
 }
 
@@ -80,10 +101,12 @@ source_set("unit_tests") {
     "contextual_task_context_unittest.cc",
     "contextual_task_unittest.cc",
     "features_unittest.cc",
+    "gemini_thread_data_type_controller_unittest.cc",
   ]
 
   deps = [
     ":public",
+    ":test_support",
     "//base/test:test_support",
     "//components/omnibox/browser:test_support",
     "//components/sessions:session_id",
@@ -93,6 +116,27 @@ source_set("unit_tests") {
     "//components/sync_preferences:test_support",
     "//components/url_deduplication",
     "//components/visited_url_ranking/public",
+    "//testing/gtest",
+    "//url",
+  ]
+
+  visibility = [ "//components/contextual_tasks:unit_tests" ]
+}
+
+source_set("search_unittests") {
+  testonly = true
+
+  sources = [ "query_contextualizer_unittest.cc" ]
+
+  deps = [
+    ":public",
+    ":query_contextualizer",
+    ":test_support",
+    "//base/test:test_support",
+    "//components/contextual_search:public",
+    "//components/contextual_search:test_support",
+    "//components/lens",
+    "//components/sessions:session_id",
     "//testing/gtest",
     "//url",
   ]

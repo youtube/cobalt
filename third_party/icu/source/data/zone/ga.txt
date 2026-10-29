@@ -24,9 +24,6 @@ ga{
         "Africa:Khartoum"{
             ec{"Cartúm"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Maputo"{
             ec{"Mapútó"}
         }
@@ -48,23 +45,14 @@ ga{
         "America:Aruba"{
             ec{"Arúba"}
         }
-        "America:Bahia_Banderas"{
-            ec{"Bahia Banderas"}
-        }
         "America:Barbados"{
             ec{"Barbadós"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
         }
         "America:Belize"{
             ec{"an Bheilís"}
         }
         "America:Bogota"{
             ec{"Bogatá"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
         }
         "America:Costa_Rica"{
             ec{"Cósta Ríce"}
@@ -96,9 +84,6 @@ ga{
         "America:Lima"{
             ec{"Líoma"}
         }
-        "America:Merida"{
-            ec{"Merida"}
-        }
         "America:Mexico_City"{
             ec{"Cathair Mheicsiceo"}
         }
@@ -111,9 +96,6 @@ ga{
         "America:Puerto_Rico"{
             ec{"Pórtó Ríce"}
         }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
-        }
         "America:St_Barthelemy"{
             ec{"Saint Barthélemy"}
         }
@@ -123,14 +105,38 @@ ga{
         "America:St_Lucia"{
             ec{"Saint Lucia"}
         }
-        "America:St_Vincent"{
-            ec{"San Uinseann"}
-        }
         "America:Thule"{
             ec{"Inis Tuile"}
         }
+        "Antarctica:Casey"{
+            ec{"Stáisiún Casey"}
+        }
+        "Antarctica:DumontDUrville"{
+            ec{"Stáisiún Dumont-d’Urville"}
+        }
         "Antarctica:Macquarie"{
-            ec{"Mac Guaire"}
+            ec{"Oileán Mhic Guaire"}
+        }
+        "Antarctica:Mawson"{
+            ec{"Stáisiún Mawson"}
+        }
+        "Antarctica:McMurdo"{
+            ec{"Stáisiún McMurdo"}
+        }
+        "Antarctica:Palmer"{
+            ec{"Tír Palmer"}
+        }
+        "Antarctica:Rothera"{
+            ec{"Stáisiún Rothera"}
+        }
+        "Antarctica:Syowa"{
+            ec{"Stáisiún Showa"}
+        }
+        "Antarctica:Troll"{
+            ec{"Stáisiún Troll"}
+        }
+        "Antarctica:Vostok"{
+            ec{"Stáisiún Vostok"}
         }
         "Asia:Aden"{
             ec{"Áidin"}
@@ -142,7 +148,7 @@ ga{
             ec{"Bairéin"}
         }
         "Asia:Baku"{
-            ec{"Baki"}
+            ec{"Bakı"}
         }
         "Asia:Beirut"{
             ec{"Béiriút"}
@@ -171,8 +177,14 @@ ga{
         "Asia:Kabul"{
             ec{"Cabúl"}
         }
+        "Asia:Katmandu"{
+            ec{"Katmandu"}
+        }
         "Asia:Kuwait"{
             ec{"Cuáit"}
+        }
+        "Asia:Macau"{
+            ec{"Macau"}
         }
         "Asia:Makassar"{
             ec{"Macasar"}
@@ -195,6 +207,9 @@ ga{
         "Asia:Saigon"{
             ec{"Cathair Ho Chi Minh"}
         }
+        "Asia:Sakhalin"{
+            ec{"Sacailín"}
+        }
         "Asia:Seoul"{
             ec{"Súl"}
         }
@@ -206,6 +221,9 @@ ga{
         }
         "Asia:Tokyo"{
             ec{"Tóiceo"}
+        }
+        "Asia:Ulaanbaatar"{
+            ec{"Ulan Bator"}
         }
         "Asia:Yakutsk"{
             ec{"Iacútsc"}
@@ -240,11 +258,14 @@ ga{
         "Atlantic:St_Helena"{
             ec{"San Héilin"}
         }
+        "Australia:Lord_Howe"{
+            ec{"Oileán an Tiarna Howe"}
+        }
         "Etc:UTC"{
             ls{"Am Uilíoch Lárnach"}
         }
         "Etc:Unknown"{
-            ec{"Cathair Anaithnid"}
+            ec{"Láthair Anaithnid"}
         }
         "Europe:Amsterdam"{
             ec{"Amstardam"}
@@ -400,11 +421,14 @@ ga{
         "Indian:Antananarivo"{
             ec{"Antananairíveo"}
         }
+        "Indian:Chagos"{
+            ec{"Oileánra Chagos"}
+        }
         "Indian:Christmas"{
             ec{"Oileán na Nollag"}
         }
         "Indian:Cocos"{
-            ec{"Oileán Cocos"}
+            ec{"Oileáin Cocos"}
         }
         "Indian:Comoro"{
             ec{"Oileáin Chomóra"}
@@ -418,14 +442,20 @@ ga{
         "Indian:Reunion"{
             ec{"La Réunion"}
         }
+        "Pacific:Easter"{
+            ec{"Oileán na Cásca"}
+        }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Oileán Canton"}
         }
         "Pacific:Fiji"{
             ec{"Fidsí"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
+        }
+        "Pacific:Kwajalein"{
+            ec{"Oileáin Kwajalein"}
         }
         "Pacific:Marquesas"{
             ec{"na hOileáin Mharcasacha"}
@@ -436,11 +466,17 @@ ga{
         "Pacific:Nauru"{
             ec{"Nárú"}
         }
+        "Pacific:Norfolk"{
+            ec{"Oileán Norfolk"}
+        }
         "Pacific:Tahiti"{
             ec{"Taihítí"}
         }
+        "Pacific:Wake"{
+            ec{"Oileán Wake"}
+        }
         "Pacific:Wallis"{
-            ec{"Vailís"}
+            ec{"Wallis agus Futuna"}
         }
         "meta:Acre"{
             ld{"Am Samhraidh Acre"}
@@ -460,9 +496,7 @@ ga{
             ls{"Am na hAfraice Theas"}
         }
         "meta:Africa_Western"{
-            ld{"Am Samhraidh Iarthar na hAfraice"}
-            lg{"Am Iarthar na hAfraice"}
-            ls{"Am Caighdeánach Iarthar na hAfraice"}
+            ls{"Am Iarthar na hAfraice"}
         }
         "meta:Alaska"{
             ld{"Am Samhraidh Alasca"}
@@ -508,9 +542,9 @@ ga{
             ls{"Am Caighdeánach Anadyr"}
         }
         "meta:Apia"{
-            ld{"Am Samhraidh Apia"}
-            lg{"Am Apia"}
-            ls{"Am Caighdeánach Apia"}
+            ld{"Am Samhraidh Shamó"}
+            lg{"Am Shamó"}
+            ls{"Am Caighdeánach Shamó"}
         }
         "meta:Aqtau"{
             ld{"Am Samhraidh Aqtau"}
@@ -634,7 +668,7 @@ ga{
             ls{"Am Caighdeánach na Colóime"}
         }
         "meta:Cook"{
-            ld{"Am Leathshamhraidh Oileáin Cook"}
+            ld{"Am Samhraidh Oileáin Cook"}
             lg{"Am Oileáin Cook"}
             ls{"Am Caighdeánach Oileáin Cook"}
         }
@@ -719,7 +753,7 @@ ga{
             ls{"Am Caighdeánach na Seoirsia"}
         }
         "meta:Gilbert_Islands"{
-            ls{"Am Chireabaití"}
+            ls{"Am Chiribeas"}
         }
         "meta:Greenland_Eastern"{
             ld{"Am Samhraidh Oirthear na Graonlainne"}
@@ -740,6 +774,9 @@ ga{
         "meta:Guyana"{
             ls{"Am na Guáine"}
         }
+        "meta:Hawaii"{
+            ls{"Am Caighdeánach Haváí-Ailiúit"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"Am Samhraidh Haváí-Ailiúit"}
             lg{"Am Haváí-Ailiúit"}
@@ -751,9 +788,9 @@ ga{
             ls{"Am Caighdeánach Hong Cong"}
         }
         "meta:Hovd"{
-            ld{"Am Samhraidh Hovd"}
-            lg{"Am Hovd"}
-            ls{"Am Caighdeánach Hovd"}
+            ld{"Am Samhraidh Khovd"}
+            lg{"Am Khovd"}
+            ls{"Am Caighdeánach Khovd"}
         }
         "meta:India"{
             ls{"Am Caighdeánach na hIndia"}
@@ -870,9 +907,9 @@ ga{
             ls{"Am Caighdeánach Meicsiceach an Aigéin Chiúin"}
         }
         "meta:Mongolia"{
-            ld{"Am Samhraidh Ulánbátar"}
+            ld{"Am Samhraidh Ulan Bator"}
             lg{"Am Ulánbátar"}
-            ls{"Am Caighdeánach Ulánbátar"}
+            ls{"Am Caighdeánach Ulan Bator"}
         }
         "meta:Moscow"{
             ld{"Am Samhraidh Mhoscó"}
@@ -967,7 +1004,7 @@ ga{
             ls{"Am Pitcairn"}
         }
         "meta:Ponape"{
-            ls{"Am Phohnpei"}
+            ls{"Am Pohnpei"}
         }
         "meta:Pyongyang"{
             ls{"Am Pyongyang"}
@@ -994,9 +1031,9 @@ ga{
             ls{"Am Caighdeánach Shamara"}
         }
         "meta:Samoa"{
-            ld{"Am Samhraidh Shamó"}
-            lg{"Am Shamó"}
-            ls{"Am Caighdeánach Shamó"}
+            ld{"Am Samhraidh Shamó Mheiriceá"}
+            lg{"Am Shamó Mheiriceá"}
+            ls{"Am Caighdeánach Shamó Mheiriceá"}
         }
         "meta:Seychelles"{
             ls{"Am na Séiséal"}
@@ -1028,7 +1065,7 @@ ga{
             ls{"Am na Táidsíceastáine"}
         }
         "meta:Tokelau"{
-            ls{"Am Oileáin Tócalá"}
+            ls{"Am Oileáin Thócaláú"}
         }
         "meta:Tonga"{
             ld{"Am Samhraidh Thonga"}

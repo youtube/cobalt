@@ -611,6 +611,10 @@ wo{
             "EC$",
             "East Caribbean Dollar",
         }
+        XCG{
+            "Cg.",
+            "Gildiye Karayib",
+        }
         XOF{
             "F CFA",
             "Franc CFA bu Afrik Sowwu-jant",
@@ -634,6 +638,10 @@ wo{
         ZMW{
             "ZMW",
             "Zambian Kwacha",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwean ZiG",
         }
     }
     Currencies%narrow{
@@ -687,14 +695,8 @@ wo{
         BHD{
             other{"Bahraini dinars"}
         }
-        BIF{
-            other{"Burundian francs"}
-        }
         BMD{
             other{"Bermudan dollars"}
-        }
-        BND{
-            other{"Brunei dollars"}
         }
         BOB{
             other{"Bolivian bolivianos"}
@@ -705,17 +707,11 @@ wo{
         BSD{
             other{"Bahamian dollars"}
         }
-        BTN{
-            other{"Bhutanese ngultrums"}
-        }
         BWP{
             other{"Botswanan pulas"}
         }
         BYN{
             other{"Belarusian rubles"}
-        }
-        BZD{
-            other{"Belize dollars"}
         }
         CAD{
             other{"Canadian dollars"}
@@ -737,9 +733,6 @@ wo{
         }
         COP{
             other{"Colombian pesos"}
-        }
-        CRC{
-            other{"Costa Rican colóns"}
         }
         CUC{
             other{"Cuban convertible pesos"}
@@ -768,14 +761,8 @@ wo{
         EGP{
             other{"Egyptian pounds"}
         }
-        ERN{
-            other{"Eritrean nakfas"}
-        }
         ETB{
             other{"Ethiopian birrs"}
-        }
-        EUR{
-            other{"euro"}
         }
         FJD{
             other{"Fijian dollars"}
@@ -785,9 +772,6 @@ wo{
         }
         GBP{
             other{"Pound yu Grànd Brëtaañ"}
-        }
-        GEL{
-            other{"Georgian laris"}
         }
         GHS{
             other{"Ghanaian cedis"}
@@ -849,17 +833,11 @@ wo{
         JPY{
             other{"Yen yu Sapoŋ"}
         }
-        KES{
-            other{"Kenyan shillings"}
-        }
         KGS{
             other{"Kyrgystani soms"}
         }
         KHR{
             other{"Cambodian riels"}
-        }
-        KMF{
-            other{"Comorian francs"}
         }
         KPW{
             other{"North Korean won"}
@@ -882,9 +860,6 @@ wo{
         LBP{
             other{"Lebanese pounds"}
         }
-        LKR{
-            other{"Sri Lankan rupees"}
-        }
         LRD{
             other{"Liberian dollars"}
         }
@@ -893,9 +868,6 @@ wo{
         }
         LYD{
             other{"Libyan dinars"}
-        }
-        MAD{
-            other{"Moroccan dirhams"}
         }
         MDL{
             other{"Moldovan lei"}
@@ -918,15 +890,6 @@ wo{
         MRU{
             other{"Mauritanian ouguiyas"}
         }
-        MUR{
-            other{"Mauritian rupees"}
-        }
-        MVR{
-            other{"Maldivian rufiyaas"}
-        }
-        MWK{
-            other{"Malawian kwachas"}
-        }
         MXN{
             other{"Mexican pesos"}
         }
@@ -948,9 +911,6 @@ wo{
         NOK{
             other{"Norwegian kroner"}
         }
-        NPR{
-            other{"Nepalese rupees"}
-        }
         NZD{
             other{"New Zealand dollars"}
         }
@@ -965,12 +925,6 @@ wo{
         }
         PGK{
             other{"Papua New Guinean kina"}
-        }
-        PHP{
-            other{"Philippine pesos"}
-        }
-        PKR{
-            other{"Pakistani rupees"}
         }
         PLN{
             other{"Polish zlotys"}
@@ -1008,9 +962,6 @@ wo{
         SEK{
             other{"Swedish kronor"}
         }
-        SGD{
-            other{"Singapore dollars"}
-        }
         SHP{
             other{"St. Helena pounds"}
         }
@@ -1038,9 +989,6 @@ wo{
         SZL{
             other{"Swazi emalangeni"}
         }
-        THB{
-            other{"Thai baht"}
-        }
         TJS{
             other{"Tajikistani somonis"}
         }
@@ -1052,9 +1000,6 @@ wo{
         }
         TOP{
             other{"Tongan paʻanga"}
-        }
-        TRY{
-            other{"Turkish Lira"}
         }
         TTD{
             other{"Trinidad & Tobago dollars"}
@@ -1098,23 +1043,23 @@ wo{
         XCD{
             other{"East Caribbean dollars"}
         }
+        XCG{
+            other{"Gildiye Karayib"}
+        }
         XOF{
             other{"Franc CFA yu Afrik Sowwu-jant"}
         }
         XPF{
             other{"CFP francs"}
         }
-        XXX{
-            other{"(xaalis buñ xamul)"}
-        }
-        YER{
-            other{"Yemeni rials"}
-        }
         ZAR{
             other{"South African rand"}
         }
         ZMW{
             other{"Zambian kwachas"}
+        }
+        ZWG{
+            other{"Zimbabwean ZiG"}
         }
     }
 }

@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <array>
+#include <map>
 #include <string_view>
 #include <unordered_map>
 
@@ -28,9 +30,11 @@
 #include "unicode/symtable.h"
 #include "unicode/utf8.h"
 #include "unicode/utf16.h"
+#include "unicode/utfiterator.h"
 #include "unicode/uversion.h"
 #include "cmemory.h"
 #include "hash.h"
+#include <variant>
 
 #define TEST_ASSERT_SUCCESS(status) UPRV_BLOCK_MACRO_BEGIN { \
     if (U_FAILURE(status)) { \
@@ -93,6 +97,7 @@ UnicodeSetTest::runIndexedTest(int32_t index, UBool exec,
     TESTCASE_AUTO(TestEscapePattern);
     TESTCASE_AUTO(TestInvalidCodePoint);
     TESTCASE_AUTO(TestSymbolTable);
+    TESTCASE_AUTO(TestLookupSymbolTable);
     TESTCASE_AUTO(TestSurrogate);
     TESTCASE_AUTO(TestPosixClasses);
     TESTCASE_AUTO(TestIteration);
@@ -110,6 +115,8 @@ UnicodeSetTest::runIndexedTest(int32_t index, UBool exec,
     TESTCASE_AUTO(TestRangeIterator);
     TESTCASE_AUTO(TestStringIterator);
     TESTCASE_AUTO(TestElementIterator);
+    TESTCASE_AUTO(TestToPatternOutput);
+    TESTCASE_AUTO(TestParseErrors);
     TESTCASE_AUTO_END;
 }
 
@@ -1096,7 +1103,7 @@ void UnicodeSetTest::TestPropertySet() {
         // Script_Extensions, new in Unicode 6.0
         "[:scx=Arab:]",
         "\\u061E\\u061F\\u0620\\u0621\\u063F\\u0640\\u0650\\u065E\\uFDF1\\uFDF2\\uFDF3",
-        "\\u088F\\uFDEF\\uFEFE",
+        "\\uFDEF\\uFEFE",
 
         // U+FDF2 has Script=Arabic and also Arab in its Script_Extensions,
         // so scx-sc is missing U+FDF2.
@@ -1753,10 +1760,20 @@ void UnicodeSetTest::TestSymbolTable() {
     // Multiple test cases can be set up here.  Each test case
     // is terminated by null:
     // var, value, var, value,..., input pat., exp. output pat., null
-    const char* DATA[] = {
+    const char *DATA[] = {
         "us", "a-z", "[0-1$us]", "[0-1a-z]", nullptr,
         "us", "[a-z]", "[0-1$us]", "[0-1[a-z]]", nullptr,
         "us", "\\[a\\-z\\]", "[0-1$us]", "[-01\\[\\]az]", nullptr,
+        // Things that probably should not work, but currently do:
+        "open", "[", "$open a-z]", "[a-z]", nullptr,
+        "open", "[", "close", "]", "hyphenMinus", "-",
+            "[ $open a $hyphenMinus z] $hyphenMinus [ c-z $close $hyphenMinus ]",
+            "[[a-z]-[c-z]-]", nullptr,
+        "string", "{", "end", "}", "[ $string Zeichenkette $end ]", "[{Zeichenkette}]", nullptr,
+        "privateUse", "[[:Co:]]", "$privateUse", "[[:Co:]]", nullptr,
+        "smiling", ":-]", "laughing", ":-D",
+            "[ {$smiling} $laughing $smiling",
+            R"([\-\:-D{\:\-\]}])", nullptr,
         nullptr
     };
 
@@ -1811,6 +1828,303 @@ void UnicodeSetTest::TestSymbolTable() {
             logln(UnicodeString("Ok, got ") + us.toPattern(a, true));
         }
     }
+    struct TestCase {
+        struct Variable {
+            std::u16string_view name;
+            std::u16string_view value;
+        };
+        std::vector<Variable> variables;
+        std::u16string_view expression;
+        UErrorCode expectedErrorCode;
+        std::u16string_view expectedPattern;
+    };
+    for (const auto &[variables, expression, expectedErrorCode, expectedPattern] : std::vector<TestCase>{
+            // You should not do this, but it works.
+            {{{u"privateUseOrUnassigned", u"[[:Co:][:Cn:]"}, {u"close", u"]"}},
+            u"$privateUseOrUnassigned$close",
+            U_ZERO_ERROR,
+            u"[[:Co:][:Cn:]]"},
+            // This works and it is fine.
+            {{{u"privateUse", u"[[:Co:]]"}}, u"$privateUse", U_ZERO_ERROR, u"[[:Co:]]"},
+            // This should work! But it does not. Note the doubled brackets on the one that works above.
+            // We are not yet inside the variable when we call lookahead(), so we try to parse
+            // $privateUse rather than [:Co:].
+            {{{u"privateUse", u"[:Co:]"}}, u"[$privateUse]", U_ILLEGAL_ARGUMENT_ERROR, u"[]"},
+            // This should not work, and it does not (we try to parse [$sad$surprised] as a
+            // property-query).
+            {{{u"sad", u":C"}, {u"surprised", u"o:"}},
+            u"[$sad$surprised]",
+            U_ILLEGAL_ARGUMENT_ERROR,
+            u"[]"},
+        }) {
+        UErrorCode errorCode = U_ZERO_ERROR;
+        TokenSymbolTable symbols(errorCode);
+        if (U_FAILURE(errorCode)) {
+            errln("FAIL: Couldn’t construct symbol table");
+            continue;
+        }
+        for (const auto &[name, value] : variables) {
+            symbols.add(name, value, errorCode);
+            if (U_FAILURE(errorCode)) {
+                errln("FAIL: Couldn’t add variable " + name);
+                continue;
+            }
+        }
+        const UnicodeSet set(expression, USET_IGNORE_SPACE, &symbols, errorCode);
+        if (errorCode != expectedErrorCode) {
+            errln(u"Parsing " + expression + u": Expected " + u_errorName(expectedErrorCode) + ", got " +
+                  u_errorName(errorCode));
+        }
+        UnicodeString actual;
+        if (set.toPattern(actual) != expectedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression + u")\").toPattern() expected " + expectedPattern +
+                  ", got " + actual);
+        }
+    }
+}
+
+void UnicodeSetTest::TestLookupSymbolTable() {
+    UErrorCode errorCode = U_ZERO_ERROR;
+    // We let `variables` be empty by default in the test cases below.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+    struct TestCase {
+        struct Variable {
+            std::u16string_view name;
+            std::u16string_view value;
+        };
+        std::u16string_view expression;
+        UErrorCode expectedErrorCode;
+        std::u16string_view expectedPattern;
+        std::u16string_view expectedRegeneratedPattern;
+        // Hyrum’s law at work: Some users (RBBI) depend on the sequencing of `lookup` and
+        // `lookupMatcher` calls, so we test that.
+        std::vector<std::variant<UnicodeString, UChar32>> expectedLookups;
+        // Variables for `lookup`.
+        std::vector<Variable> variables;
+    };
+    class TestSymbolTable : public SymbolTable {
+      public:
+        const UnicodeString *lookup(const UnicodeString &name) const override {
+            auto it = variables_.find(name);
+            lookupTrace_.push_back(name);
+            return it == variables_.end() ? nullptr : &it->second;
+        }
+
+        const UnicodeFunctor *lookupMatcher(UChar32 c) const override {
+            lookupTrace_.push_back(c);
+            return symbols_.find(c) != symbols_.end() ? &symbols_.at(c)
+                                                                    : nullptr;
+        }
+
+        virtual UnicodeString parseReference(const UnicodeString &text, ParsePosition &pos,
+                                                 int32_t limit) const override {
+                const auto limitedText = std::u16string_view(text).substr(pos.getIndex(), limit);
+                for (auto codeUnits : header::utfStringCodePoints<UChar32, UTF_BEHAVIOR_FFFD>(limitedText)) {
+                    if (!u_isIDPart(codeUnits.codePoint())) {
+                        pos.setIndex(pos.getIndex() + (codeUnits.begin() - limitedText.begin()));
+                        // TODO(egg): In C++20, this could use the two-iterator constructor of
+                        // std::u16string_view.
+                        return limitedText.substr(0, codeUnits.begin() - limitedText.begin());
+                    }
+                }
+                pos.setIndex(limit);
+                return limitedText;
+        }
+
+        void add(UChar32 c, UnicodeSet set) {
+            symbols_[c] = set;
+        }
+
+        void setVariables(const std::vector<TestCase::Variable>& variables) {
+            for (const auto &[name, value] : variables) {
+                variables_[name] = value;
+            }
+        }
+
+        const std::vector<std::variant<UnicodeString, UChar32>>& getLookupTrace() const {
+            return lookupTrace_;
+        }
+
+        void clearLookupTrace() {
+            lookupTrace_.clear();
+        }
+
+      private:
+        std::unordered_map<UChar32, UnicodeSet> symbols_;
+        std::map<UnicodeString, UnicodeString> variables_;
+        mutable std::vector<std::variant<UnicodeString, UChar32>> lookupTrace_;
+    };
+    TestSymbolTable symbols;
+    symbols.add(u'0', UnicodeSet(u"[ a-z ]", errorCode));
+    symbols.add(u'1', UnicodeSet(u"[ b-c ]", errorCode));
+    symbols.add(u'2', UnicodeSet(u"[: Co :]", errorCode));
+    for (const auto &[expression, expectedErrorCode, expectedPattern, expectedRegeneratedPattern,
+                      expectedLookups, variables] : std::vector<TestCase>{
+            {u"0", U_ZERO_ERROR, u"[a-z]", u"[a-z]", {u'0'}},
+            {u"[0-1]", U_ZERO_ERROR, u"[[a-z]-[bc]]", u"[ad-z]", {u'0', u'-', u'1', u']'}},
+            {u"[!-0]", U_MALFORMED_SET, u"[]", u"[]", {u'!', u'-', u'0'}},
+            // A call to lookupMatcher with the first character of the content of a variable happens
+            // immediately after a corresponding call to lookup, although we may lookup the variable
+            // several times before we call lookupMatcher.
+            {u"[0-$one]",
+            U_ZERO_ERROR,
+            u"[[a-z]-[bc]]",
+            u"[ad-z]",
+            {u'0', u'-', u"one", u"one", u'1', u']'},
+            {{u"zero", u"0"}, {u"one", u"1"}}},
+            {u"[$zero-$one]",
+            U_ZERO_ERROR,
+            u"[[a-z]-[bc]]",
+            u"[ad-z]",
+            {u"zero", u"zero", u"zero", u"zero", u'0', u'-', u"one", u"one", u'1', u']'},
+            {{u"zero", u"0"}, {u"one", u"1"}}},
+            // If the variable expands to multiple symbols, only the first one is sequenced right after
+            // the variable lookup.
+            {u"[$ten]",
+            U_ZERO_ERROR,
+            u"[[bc][a-z]]",
+            u"[a-z]",
+            {u"ten", u"ten", u"ten", u"ten", u'1', u'0', u']'},
+            {{u"ten", u"10"}}},
+            // Substitution of lookupMatcher symbols takes place after unescaping.
+            {uR"([!-\u0030])", U_MALFORMED_SET, u"[]", u"[]", {u'!', u'-', u'0'}},
+            // It does not take place in string literals.
+            {uR"([!-/{0}])", U_ZERO_ERROR, u"[!-0]", u"[!-0]", {u'!', u'-', u'/', u'{', u']'}},
+            {uR"([ 2 & 1 ])", U_ZERO_ERROR, u"[[: Co :]&[bc]]", u"[]", {u'2', u'&', u'1', u']'}},
+            {uR"([ 21 ])",
+            U_ZERO_ERROR,
+            u"[[: Co :][bc]]",
+            u"[bc\uE000-\uF8FF\U000F0000-\U000FFFFD\U00100000-\U0010FFFD]",
+            {u'2', u'1', u']'}},
+            {u"[ a-b 1 ]", U_ZERO_ERROR, u"[a-b[bc]]", u"[a-c]", {u'a', u'-', u'b', u'1', u']'}},
+        }) {
+        symbols.setVariables(variables);
+        symbols.clearLookupTrace();
+        UnicodeString actual;
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, USET_IGNORE_SPACE, &symbols, errorCode);
+        if (errorCode != expectedErrorCode) {
+            errln(u"Parsing " + expression + u": Expected " + u_errorName(expectedErrorCode) + ", got " +
+                  u_errorName(errorCode));
+        }
+        if (set.toPattern(actual) != expectedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression + u")\").toPattern() expected " + expectedPattern +
+                  ", got " + actual);
+        }
+        if (UnicodeSet(set).complement().complement().toPattern(actual) != expectedRegeneratedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression +
+                  u")\").complement().complement().toPattern() expected " + expectedRegeneratedPattern +
+                  ", got " + actual);
+        }
+        if (symbols.getLookupTrace() != expectedLookups) {
+            UnicodeString expected;
+            UnicodeString actual;
+            for (const auto &l : expectedLookups) {
+                expected += std::holds_alternative<UChar32>(l)
+                                ? (u"u'" + UnicodeString(std::get<UChar32>(l)) + u"', ")
+                                : u"u\"" + std::get<UnicodeString>(l) + u"\", ";
+            }
+            for (const auto &l : symbols.getLookupTrace()) {
+                actual += std::holds_alternative<UChar32>(l)
+                              ? (u"u'" + UnicodeString(std::get<UChar32>(l)) + u"', ")
+                              : u"u\"" + std::get<UnicodeString>(l) + u"\", ";
+            }
+            errln(u"Unexpected sequence of lookups:\nExpected : " + expected + "\nActual   : " + actual);
+        }
+    }
+    // Test what happens when we define syntax characters as symbols.  It is an extraordinarily bad idea
+    // to rely on this behaviour, but since it has been around since ICU 2.8, we probably should not
+    // change it unknowingly.
+    symbols.add(u'-', UnicodeSet(u"[{hyphenMinus}]", errorCode));
+    symbols.add(u'&', UnicodeSet(u"[{ampersand}]", errorCode));
+    // This one is never used, except if escaped.
+    symbols.add(u'[', UnicodeSet(u"[{leftSquareBracket}]", errorCode));
+    symbols.add(u'^', UnicodeSet(u"[{circumflexAccent}]", errorCode));
+    symbols.add(u'{', UnicodeSet(u"[{leftCurlyBracket}]", errorCode));
+    symbols.add(u'}', UnicodeSet(u"[{rightCurlyBracket}]", errorCode));
+    symbols.add(u'$', UnicodeSet(u"[{dollarSign}]", errorCode));
+    symbols.add(u':', UnicodeSet(u"[{colon}]", errorCode));
+    symbols.add(u'\\', UnicodeSet(u"[{reverseSolidus}]", errorCode));
+    symbols.add(u'p', UnicodeSet(u"[{latinSmallLetterP}]", errorCode));
+    for (const auto &[expression, expectedErrorCode, expectedPattern, expectedRegeneratedPattern,
+                      expectedLookups, variables] : std::vector<TestCase>{
+            {u"-", U_ZERO_ERROR, u"[{hyphenMinus}]", u"[{hyphenMinus}]"},
+            {u"0", U_ZERO_ERROR, u"[a-z]", u"[a-z]"},
+            // The hyphen no longer works as set difference.
+            {u"[0-1]", U_ZERO_ERROR, u"[[a-z][{hyphenMinus}][bc]]", u"[a-z{hyphenMinus}]"},
+            {u"[!-0]", U_ZERO_ERROR, u"[![{hyphenMinus}][a-z]]", u"[!a-z{hyphenMinus}]"},
+            // An initial HYPHEN-MINUS is still treated as a literal '-', but a final one is treated
+            // as a set.
+            {u"[-1]", U_ZERO_ERROR, uR"([\-[bc]])", uR"([\-bc])"},
+            {u"[1-]", U_ZERO_ERROR, u"[[bc][{hyphenMinus}]]", u"[bc{hyphenMinus}]"},
+            // String literals no longer work.
+            {uR"([!-/{0}])", U_ZERO_ERROR,
+            u"[![{hyphenMinus}]/[{leftCurlyBracket}][a-z][{rightCurlyBracket}]]",
+            u"[!/a-z{hyphenMinus}{leftCurlyBracket}{rightCurlyBracket}]"},
+            // The ampersand no longer works as set intersection.
+            {uR"([ 2 & 1 ])", U_ZERO_ERROR, u"[[: Co :][{ampersand}][bc]]",
+            u"[bc-󰀀-󿿽􀀀-􏿽{ampersand}]"},
+            // Complementing still works.
+            {uR"([^ \u0000 ])", U_ZERO_ERROR, uR"([\u0001-\U0010FFFF])",
+            uR"([\u0001-\U0010FFFF])"},
+            // ^ elsewhere becomes a symbol rather than a syntax error.
+            {uR"([\u0000 ^ -])", U_ZERO_ERROR, uR"([\u0000[{circumflexAccent}][{hyphenMinus}]])",
+            uR"([\u0000{circumflexAccent}{hyphenMinus}])"},
+            // Opening brackets still work.
+            {uR"([^ [ [^] ] ])", U_ZERO_ERROR, uR"([^[[\u0000-\U0010FFFF]]])", uR"([])"},
+            // The only way to access the [ symbol is via escaping.
+            {uR"([ \[ ])", U_ZERO_ERROR, uR"([[{leftSquareBracket}]])", uR"([{leftSquareBracket}])"},
+            // Anchors are gone.
+            {uR"([$])", U_ZERO_ERROR, uR"([[{dollarSign}]])", uR"([{dollarSign}])"},
+            // Property queries are unaffected.
+            {u"[:Co:]", U_ZERO_ERROR, u"[:Co:]", u"[\uE000-\uF8FF\U000F0000-\U000FFFFD\U00100000-\U0010FFFD]"},
+            {uR"(\p{Co})", U_ZERO_ERROR, uR"(\p{Co})", u"[\uE000-\uF8FF\U000F0000-\U000FFFFD\U00100000-\U0010FFFD]"},
+        }) {
+        UnicodeString actual;
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, USET_IGNORE_SPACE, &symbols, errorCode);
+        if (errorCode != expectedErrorCode) {
+            errln(u"Parsing " + expression + u": Expected " + u_errorName(expectedErrorCode) + ", got " +
+                  u_errorName(errorCode));
+        }
+        if (set.toPattern(actual) != expectedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression + u")\").toPattern() expected " + expectedPattern +
+                  ", got " + actual);
+        }
+        if (UnicodeSet(set).complement().complement().toPattern(actual) != expectedRegeneratedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression +
+                  u")\").complement().complement().toPattern() expected " + expectedRegeneratedPattern +
+                  ", got " + actual);
+        }
+    }
+    // If ] is defined as a symbol, everything breaks except a lone symbol or property-query, and the
+    // constructor returns an error but not an empty set. Don’t do that.
+    symbols.add(u']', UnicodeSet(u"[{rightSquareBracket}]", errorCode));
+    for (const auto &[expression, expectedErrorCode, expectedPattern, expectedRegeneratedPattern,
+                      expectedLookups, variables] : std::vector<TestCase>{
+            {u"]", U_ZERO_ERROR, u"[{rightSquareBracket}]", u"[{rightSquareBracket}]"},
+            {u"[:Co:]", U_ZERO_ERROR, u"[:Co:]", u"[\uE000-\uF8FF\U000F0000-\U000FFFFD\U00100000-\U0010FFFD]"},
+            {u"[]", U_MALFORMED_SET, u"[{rightSquareBracket}]", u"[{rightSquareBracket}]"},
+        }) {
+        UnicodeString actual;
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, USET_IGNORE_SPACE, &symbols, errorCode);
+        if (errorCode != expectedErrorCode) {
+            errln(u"Parsing " + expression + u": Expected " + u_errorName(expectedErrorCode) + ", got " +
+                  u_errorName(errorCode));
+        }
+        if (set.toPattern(actual) != expectedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression + u")\").toPattern() expected " + expectedPattern +
+                  ", got " + actual);
+        }
+        if (UnicodeSet(set).complement().complement().toPattern(actual) != expectedRegeneratedPattern) {
+            errln(u"UnicodeSet(R\"(" + expression +
+                  u")\").complement().complement().toPattern() expected " + expectedRegeneratedPattern +
+                  ", got " + actual);
+        }
+    }
+#pragma GCC diagnostic pop
 }
 
 void UnicodeSetTest::TestSurrogate() {
@@ -4333,4 +4647,130 @@ void UnicodeSetTest::TestElementIterator() {
 
     // begin() & end() return USetElementIterator for which explicit APIs are tested via USet
     // in a header-only unit test file.
+}
+
+void UnicodeSetTest::TestToPatternOutput() {
+    for (const auto &[expression, expected] :
+        std::vector<std::pair<std::u16string_view, std::u16string_view>>{
+            // For a UnicodeSet which is not a property-query nor a named-element and without any
+            // Restriction among its Terms (that is, whose Union consists solely a sequence of Elements
+            // UnescapedHyphenMinus), toPattern merges and sorts ranges, and introduces a complement to
+            // minimize the result.
+            {u"[c-za-b]", u"[a-z]"},
+            {u"[  c - z  a - b  ]", u"[a-z]"},
+            {uR"([ ^ \u0000-b d-\U0010FFFF ])", u"[c]"},
+            {uR"([ \u0000-b d-\U0010FFFF ])", u"[^c]"},
+            {u"[ - - ]", uR"([\-])"},
+            {u"[ - _ - ]", uR"([\-_])"},
+            {u"[ - + - ]", uR"([+\-])"},
+            {u"[ { Z e i c h e n k e t t e } Zeichenmenge ]", u"[Zceg-imn{Zeichenkette}]"},
+            {uR"([ { \x5A e i c h e n k e t t e } \x5Aeichenmenge ])", u"[Zceg-imn{Zeichenkette}]"},
+            {u"[$d-za-c]", uR"([\$a-z])"},
+            {u"[a-c$d-z]", uR"([\$a-z])"},
+            {uR"([\uFFFFa-z])", uR"([a-z\uFFFF])"},
+            {u"[!-$z]", uR"([!-\$z])"},
+            {u"[-a-cd-z$-]", uR"([\$\-a-z])"},
+            {u"[-$-]", uR"([\$\-])"},
+            // A property-query or named-element is kept as-is:
+            {uR"(\p{ General_Category = Punctuation })", uR"(\p{ General_Category = Punctuation })"},
+            {uR"(\p{P})", uR"(\p{P})"},
+            {uR"(\p{gc=P})", uR"(\p{gc=P})"},
+            {uR"([: general category = punctuation :])", uR"([: general category = punctuation :])"},
+            {uR"([: ^general category = punctuation :])", uR"([: ^general category = punctuation :])"},
+            {uR"(\P{ gc = punctuation })", uR"(\P{ gc = punctuation })"},
+            {uR"(\N{ latin small letter a })", uR"(\N{ latin small letter a })"},
+            // If there is any Restriction among the terms, its syntax is mostly as-is (spaces are
+            // still eliminated), with the exception that an initial UnescapedHyphenMinus gets escaped.
+            // This is applied recursively, so innermost ranges-only UnicodeSets get normalized.
+            {u"[ c-z a-b [c-f g-z] ]", u"[c-za-b[c-z]]"},
+            {u"[- + c-z a-b [c-f g-z] -]", uR"([\-+c-za-b[c-z]-])"},
+            {uR"([ c-z a-b \p{ General_Category = Punctuation } ])",
+            uR"([c-za-b\p{ General_Category = Punctuation }])"},
+            {u"[^[c]]", uR"([^[c]])"},
+            {uR"([ ^ [ \u0000-b d-\U0010FFFF ] ])", uR"([^[^c]])"},
+            {u"[$[]]", uR"([\$[]])"},
+            // Spaces are eliminated within a string-literal even when the syntax is preserved.
+            {u"[ {Z e i c h e n k e t t e } [] Zeichenmenge ]", u"[{Zeichenkette}[]Zeichenmenge]"},
+            // Escapes are removed even when the syntax is preserved.
+            {uR"([ { \x5A e i c h e n k e t t e } [] \x5Aeichenmenge ])",
+            u"[{Zeichenkette}[]Zeichenmenge]"},
+            // A named-element is currently a nested set, so it is preserved and causes the syntax to be
+            // preserved.
+            {uR"([ \N{LATIN CAPITAL LETTER Z}eichenmenge ])", uR"([\N{LATIN CAPITAL LETTER Z}eichenmenge])"},
+            // An anchor also causes the syntax to be preserved.
+            {u"[ d-z a-c $ ]", u"[d-za-c$]"},
+            {u"[ - a-c d-z $ ]", uR"([\-a-cd-z$])"},
+            {u"[$$$]", uR"([\$\$$])"},
+        }) {
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, errorCode);
+        UnicodeString actual;
+        if (U_FAILURE(errorCode)) {
+            errln(u"Failed to parse " + expression + u": " + u_errorName(errorCode));
+        } else if (set.toPattern(actual) != expected) {
+            errln(u"UnicodeSet(R\"(" + expression + u")\").toPattern() expected " + expected + ", got " +
+                  actual);
+        }
+    }
+}
+
+void UnicodeSetTest::TestParseErrors() {
+    for (const auto expression : std::vector<std::u16string_view>{
+            // Java error message: "Char expected after operator".
+            u"[a-[b]]",
+            // "Missing '['".
+            u"a-z",
+            // "Trailing '&'".
+            u"[[a]&]",
+            // "'-' not after char or set".
+            u"[[a]&-[z]]",
+            u"[[a]--[z]]",
+            u"[{aa}-{zz}]",
+            // "'&' not after set".
+            u"[a&z]",
+            u"[{aa}&{zz}]",
+            // "'^' not after '['"
+            u"[a^z]",  // TODO(egg): Exclude from literal-element in PDUTS61.
+            // "Missing operand after operator".
+            u"[a-{zz}]",
+            u"[[a]-{zz}]",
+            u"[[a]&{zz}]",
+            // "Invalid multicharacter string".
+            u"[{aa]",
+            // "Unquoted '$'".
+            u"[a-$]",
+            u"[!-$]",
+            // "Invalid range".
+            u"[a-a]",  // TODO(egg): Exclude in PDUTS61.
+            u"[z-a]",
+            // "Set expected after operator".
+            u"[[a]-z]",
+            u"[[a]&z]",
+            // "Missing ']'".
+            u"[a-z",
+        }) {
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, errorCode);
+        if (errorCode != U_MALFORMED_SET) {
+            UnicodeString s;
+            errln(expression + u": Expected U_MALFORMED_SET, got " + u_errorName(errorCode) +
+                  ", set is " + UnicodeSet(set).complement().complement().toPattern(s));
+        }
+    }
+    for (const auto expression : std::vector<std::u16string_view>{
+            // Java error message: "Invalid property pattern".
+            u"[:]",
+            uR"(\p)"
+            u"[:^]",
+            uR"(\P)",
+            uR"(\N)",
+        }) {
+        UErrorCode errorCode = U_ZERO_ERROR;
+        const UnicodeSet set(expression, errorCode);
+        if (errorCode != U_ILLEGAL_ARGUMENT_ERROR) {
+            UnicodeString s;
+            errln(expression + u": Expected U_ILLEGAL_ARGUMENT_ERROR, got " + u_errorName(errorCode) +
+                  ", set is " + UnicodeSet(set).complement().complement().toPattern(s));
+        }
+    }
 }

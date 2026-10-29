@@ -7537,6 +7537,7 @@ Se podrán agregar más restricciones de cuentas con la política <ph name="MICR
 <translation id="5815990343032461023">Comportamiento heredado: las apps de Chrome para kiosco recibirán actualizaciones del sistema de extensiones (mediante las URL de actualización del manifiesto de la extensión) y del administrador del almacenamiento en caché (mediante las URL de actualización de la política)</translation>
 <translation id="5816688024515869030">Inhabilitar el proveedor de <ph name="UIA_NAME" />.</translation>
 <translation id="581737504822041364">Permitir que ServiceWorker envíe solicitudes de navegación sin esperar su inicio</translation>
+<translation id="5827464697821627670">Se puede configurar para la máquina y el usuario</translation>
 <translation id="5828008775808363753">No abrir el navegador al inicio</translation>
 <translation id="582857022372205358">Habilitar la impresión doble con bordes cortos</translation>
 <translation id="5830196507442186669">Permite que los dispositivos usen <ph name="BOREALIS_NAME" /> en <ph name="PRODUCT_OS_NAME" /></translation>
@@ -7631,9 +7632,6 @@ Si ninguna de las entradas tiene un valor de <ph name="CHROMEOS_VERSION_PROPERTY
 <translation id="5882345429632338713">Retraso antes de ejecutar otro navegador (milisegundos)</translation>
 <translation id="5883015257301027298">Configuración de cookies predeterminada</translation>
 <translation id="5883631290631802010">Habilitar la Traducción instantánea</translation>
-<translation id="5883754873839596178">Si estableces la política, se especificará la cantidad máxima de conexiones en simultáneo al servidor proxy. Algunos servidores proxy no pueden soportar una gran cantidad de conexiones en simultáneo por cliente. Para solucionar este problema, establece un valor más bajo para esta política. El valor debe ser menor a 100 y mayor a 6. Algunas apps web son conocidas por utilizar muchas conexiones con solicitudes GET pendientes. Por lo tanto, si estableces un valor menor a 32 es posible que la red del navegador quede pendiente si hay demasiadas apps web con conexiones pendientes abiertas. Usa un valor menor al valor predeterminado bajo tu responsabilidad.
-
-      Si no estableces la política, se usará el valor predeterminado de 32.</translation>
 <translation id="5886280631293123880">Esta política proporciona una opción temporal para volver a habilitar un conjunto de eventos de la plataforma que ya no están disponibles y se quitaron, llamados eventos de mutación.
 Si habilitas esta política, se seguirán activando los eventos de mutación, incluso si se inhabilitaron de forma predeterminada para los usuarios normales de la Web. Si la inhabilitas o no la estableces, no se podrán activar estos eventos.
 Esta política es una solución temporal y ya no funcionará en la versión M137.</translation>
@@ -11011,6 +11009,21 @@ Si inhabilitas la política <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" />, el va
 <translation id="7933141401888114454">Habilita la creación de usuarios supervisados.</translation>
 <translation id="793473937901685727">Establecer la disponibilidad de certificados para apps de ARC</translation>
 <translation id="7936302526928951356">El string usuario-agente no bloqueará los cambios para la versión principal</translation>
+<translation id="7936632434238618620">Si estableces la política, podrás crear una lista de patrones de URL que especifiquen los sitios para los cuales Chrome podrá seleccionar un certificado de cliente automáticamente. El valor es un arreglo de diccionarios convertidos en strings de JSON. Cada diccionario debe tener el formato <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, donde <ph name="URL_PATTERN_PLACEHOLDER" /> es un patrón de configuración de contenido. <ph name="FILTER_PLACEHOLDER" /> restringe los certificados de cliente entre los cuales el navegador seleccionará automáticamente. Más allá del filtro, solo se seleccionarán certificados que se ajusten a la solicitud del servidor. En iOS y Android, Chrome solo puede seleccionar los certificados de cliente que aprovisionó por sí misma; no puede acceder a los certificados instalados a nivel del sistema operativo.
+
+      A continuación se incluyen ejemplos de uso de la sección <ph name="FILTER_PLACEHOLDER" />:
+
+      * Si estableces <ph name="FILTER_PLACEHOLDER" /> en <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" />, solo se seleccionarán certificados de cliente emitidos por un certificado con el CommonName <ph name="ISSUER_CN_PLACEHOLDER" />.
+
+      * Si <ph name="FILTER_PLACEHOLDER" /> incluye las secciones <ph name="ISSUER_STRING_VALUE" /> y <ph name="SUBJECT_STRING_VALUE" />, solo se seleccionarán certificados de cliente que cumplan con ambas condiciones.
+
+      * Si <ph name="FILTER_PLACEHOLDER" /> incluye la sección <ph name="SUBJECT_STRING_VALUE" /> con el valor <ph name="FILTER_STRING_ORGANIZATION" />, el certificado deberá contar con al menos una unidad organizacional que coincida con el valor indicado para ser elegido.
+
+      * Si <ph name="FILTER_PLACEHOLDER" /> incluye una sección <ph name="SUBJECT_STRING_VALUE" /> con el valor <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />, el certificado deberá contar con al menos una unidad organizacional que coincida con el valor indicado para ser elegido.
+
+      * Si estableces <ph name="FILTER_PLACEHOLDER" /> como <ph name="EMPTY_DICTIONARY" />, no se aplicarán restricciones adicionales a la selección de certificados de cliente. Ten en cuenta que se seguirán aplicando los filtros que proporciona el servidor web.
+
+      Si no estableces la política, no se implementará la selección automática para ningún sitio.</translation>
 <translation id="7937766917976512374">Permitir o rechazar la captura de video</translation>
 <translation id="7937825205289116563">Si habilitas la política o no la estableces, se habilitará el uso de firmas de ad-hoc para la aplicación nativa que se crea cuando se instala una aplicación web progresiva (AWP). Esto garantiza que cada aplicación instalada tenga una identidad única para los componentes del sistema <ph name="MAC_OS_NAME" />.
 

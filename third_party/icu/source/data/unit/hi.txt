@@ -67,6 +67,11 @@ hi{
                 one{"{0} घूर्णन"}
                 other{"{0} घूर्णन"}
             }
+            steradian{
+                dnam{"स्टेरेडियन"}
+                one{"{0} स्टेरेडियन"}
+                other{"{0} स्टेरेडियन"}
+            }
         }
         area{
             acre{
@@ -240,17 +245,22 @@ hi{
                 one{"{0} कैरट"}
                 other{"{0} कैरट"}
             }
+            katal{
+                dnam{"कैटाल"}
+                one{"{0} कैटाल"}
+                other{"{0} कैटाल"}
+            }
             milligram-ofglucose-per-deciliter{
                 case{
                     oblique{
-                        one{"{0} मिलिग्राम प्रति डेसीलीटर"}
-                        other{"{0} मिलिग्राम प्रति डेसीलीटर"}
+                        one{"{0} मिलीग्राम प्रति डेसीलीटर"}
+                        other{"{0} मिलीग्राम प्रति डेसीलीटर"}
                     }
                 }
-                dnam{"मिलिग्राम प्रति डेसीलीटर"}
+                dnam{"मिलीग्राम प्रति डेसीलीटर"}
                 gender{"masculine"}
-                one{"{0} मिलिग्राम प्रति डेसीलीटर"}
-                other{"{0} मिलिग्राम प्रति डेसीलीटर"}
+                one{"{0} मिलीग्राम प्रति डेसीलीटर"}
+                other{"{0} मिलीग्राम प्रति डेसीलीटर"}
             }
             millimole-per-liter{
                 case{
@@ -266,6 +276,39 @@ hi{
             }
             mole{
                 gender{"masculine"}
+            }
+            ofglucose{
+                dnam{"ग्लूकोज़"}
+                one{"{0} ग्लूकोज़"}
+                other{"{0} ग्लूकोज़"}
+            }
+            part{
+                dnam{"भाग"}
+                one{"{0} भाग"}
+                other{"{0} भागों"}
+            }
+            part-per-1e6{
+                case{
+                    oblique{
+                        one{"{0} हिस्सा प्रति दस लाख"}
+                        other{"{0} हिस्सा प्रति दस लाख"}
+                    }
+                }
+                gender{"masculine"}
+                one{"{0} हिस्सा प्रति दस लाख"}
+                other{"{0} हिस्सा प्रति दस लाख"}
+            }
+            part-per-1e9{
+                case{
+                    oblique{
+                        one{"{0} पार्ट प्रति बिलियन"}
+                        other{"{0} पार्ट्स प्रति बिलियन"}
+                    }
+                }
+                dnam{"पार्ट्स प्रति बिलियन"}
+                gender{"masculine"}
+                one{"{0} पार्ट प्रति बिलियन"}
+                other{"{0} पार्ट्स प्रति बिलियन"}
             }
             percent{
                 case{
@@ -289,17 +332,6 @@ hi{
                 one{"{0} प्रति हज़ार"}
                 other{"{0} प्रति हज़ार"}
             }
-            permillion{
-                case{
-                    oblique{
-                        one{"{0} हिस्सा प्रति दस लाख"}
-                        other{"{0} हिस्सा प्रति दस लाख"}
-                    }
-                }
-                gender{"masculine"}
-                one{"{0} हिस्सा प्रति दस लाख"}
-                other{"{0} हिस्सा प्रति दस लाख"}
-            }
             permyriad{
                 case{
                     oblique{
@@ -311,18 +343,6 @@ hi{
                 gender{"masculine"}
                 one{"{0} प्रति दस हज़ार"}
                 other{"{0} प्रति दस हज़ार"}
-            }
-            portion-per-1e9{
-                case{
-                    oblique{
-                        one{"{0} पार्ट प्रति बिलियन"}
-                        other{"{0} पार्ट्स प्रति बिलियन"}
-                    }
-                }
-                dnam{"पार्ट्स प्रति बिलियन"}
-                gender{"masculine"}
-                one{"{0} पार्ट प्रति बिलियन"}
-                other{"{0} पार्ट्स प्रति बिलियन"}
             }
         }
         consumption{
@@ -602,16 +622,7 @@ hi{
                 other{"{0} नैनो सेकंड"}
             }
             night{
-                case{
-                    oblique{
-                        one{"{0} रात"}
-                        other{"{0} रातें"}
-                    }
-                }
-                dnam{"रातें"}
                 gender{"feminine"}
-                one{"{0} रात"}
-                other{"{0} रातें"}
                 per{"{0} प्रति रात"}
             }
             quarter{
@@ -660,6 +671,21 @@ hi{
                 one{"{0} एम्पीयर"}
                 other{"{0} एम्पीयर"}
             }
+            coulomb{
+                dnam{"कूलाम"}
+                one{"{0} कूलाम"}
+                other{"{0} कूलाम"}
+            }
+            farad{
+                dnam{"फैरड"}
+                one{"{0} फैरड"}
+                other{"{0} फैरड"}
+            }
+            henry{
+                dnam{"हेनरी"}
+                one{"{0} हेनरी"}
+                other{"{0} हेनरी"}
+            }
             milliampere{
                 case{
                     oblique{
@@ -683,6 +709,11 @@ hi{
                 one{"{0} ओम"}
                 other{"{0} ओम"}
             }
+            siemens{
+                dnam{"सीमेंस"}
+                one{"{0} सीमेंस"}
+                other{"{0} सीमेंस"}
+            }
             volt{
                 case{
                     oblique{
@@ -696,6 +727,11 @@ hi{
             }
         }
         energy{
+            becquerel{
+                dnam{"becquerels"}
+                one{"{0} becquerel"}
+                other{"{0} becquerels"}
+            }
             british-thermal-unit{
                 dnam{"ब्रिटिश थर्मल यूनिट"}
                 one{"{0} ब्रिटिश थर्मल यूनिट"}
@@ -713,6 +749,11 @@ hi{
                 one{"{0} कैलोरी"}
                 other{"{0} कैलोरी"}
             }
+            calorie-it{
+                dnam{"calories [IT]"}
+                one{"{0} calorie [IT]"}
+                other{"{0} calories [IT]"}
+            }
             electronvolt{
                 dnam{"इलेक्ट्रॉनवोल्ट"}
                 one{"{0} इलेक्ट्रॉनवोल्ट"}
@@ -720,6 +761,11 @@ hi{
             }
             foodcalorie{
                 gender{"feminine"}
+            }
+            gray{
+                dnam{"grays"}
+                one{"{0} gray"}
+                other{"{0} grays"}
             }
             joule{
                 case{
@@ -767,8 +813,18 @@ hi{
                 one{"{0} किलोवॉट घंटा"}
                 other{"{0} किलोवॉट घंटे"}
             }
+            sievert{
+                dnam{"sieverts"}
+                one{"{0} sievert"}
+                other{"{0} sieverts"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"किलोग्राम-फ़ोर्स"}
+                one{"{0} किलोग्राम-फ़ोर्स"}
+                other{"{0} किलोग्राम-फ़ोर्स"}
+            }
             kilowatt-hour-per-100-kilometer{
                 gender{"masculine"}
             }
@@ -1123,6 +1179,18 @@ hi{
                 other{"{0} सौर ज्योति"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"टेस्ला"}
+                one{"{0} टेस्ला"}
+                other{"{0} टेस्ला"}
+            }
+            weber{
+                dnam{"वेबर"}
+                one{"{0} वेबर"}
+                other{"{0} वेबर"}
+            }
+        }
         mass{
             carat{
                 case{
@@ -1342,9 +1410,9 @@ hi{
                 other{"{0} हेक्टोपास्कल"}
             }
             inch-ofhg{
-                dnam{"मर्करी इंच"}
-                one{"{0} मर्करी इंच"}
-                other{"{0} मर्करी इंच"}
+                dnam{"मर्क्यूरी इंच"}
+                one{"{0} मर्क्यूरी इंच"}
+                other{"{0} मर्क्यूरी इंच"}
             }
             kilopascal{
                 case{
@@ -1394,6 +1462,11 @@ hi{
                 one{"{0} मर्क्यूरी मिलीमीटर"}
                 other{"{0} मर्क्यूरी मिलीमीटर"}
             }
+            ofhg{
+                dnam{"मर्क्यूरी"}
+                one{"{0} मर्क्यूरी"}
+                other{"{0} मर्क्यूरी"}
+            }
             pascal{
                 case{
                     oblique{
@@ -1426,16 +1499,7 @@ hi{
                 other{"{0} किलोमीटर प्रति घंटा"}
             }
             light-speed{
-                case{
-                    oblique{
-                        one{"{0} लाइट"}
-                        other{"{0} लाइट"}
-                    }
-                }
-                dnam{"लाइट"}
                 gender{"feminine"}
-                one{"{0} लाइट"}
-                other{"{0} लाइट"}
             }
             meter-per-second{
                 case{
@@ -1678,6 +1742,11 @@ hi{
                 one{"{0} इम्पी॰ फ़्लुइड आउंस"}
                 other{"{0} इम्पी॰ फ़्लुइड आउंस"}
             }
+            fluid-ounce-metric{
+                dnam{"मेट्रिक फ़्लूड आउंस"}
+                one{"{0} मेट्रिक फ़्लूड आउंस"}
+                other{"{0} मेट्रिक फ़्लूड आउंस"}
+            }
             gallon{
                 gender{"masculine"}
             }
@@ -1820,7 +1889,7 @@ hi{
         }
         area{
             hectare{
-                dnam{"हे"}
+                dnam{"हे॰"}
             }
             square-centimeter{
                 dnam{"वर्ग सेंमी"}
@@ -1888,11 +1957,19 @@ hi{
             10p9{"गी {0}"}
         }
         concentr{
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"भाग"}
+                one{"{0} भाग"}
+                other{"{0} भाग"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+            }
             percent{
                 dnam{"%"}
-            }
-            permillion{
-                dnam{"ppm"}
             }
         }
         consumption{
@@ -1940,10 +2017,8 @@ hi{
                 other{"{0} नैनो से"}
             }
             night{
-                dnam{"रातें"}
                 one{"{0}रात"}
                 other{"{0}रातें"}
-                per{"{0}/रात"}
             }
             second{
                 one{"{0} से"}
@@ -1960,13 +2035,24 @@ hi{
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
             calorie{
                 one{"{0} कै"}
                 other{"{0} कै"}
             }
+            calorie-it{
+                dnam{"cal-IT"}
+            }
             foodcalorie{
                 one{"{0} कै"}
                 other{"{0} कै"}
+            }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
             }
             joule{
                 one{"{0} जू"}
@@ -1975,6 +2061,10 @@ hi{
             kilojoule{
                 one{"{0} किजू"}
                 other{"{0} किजू"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
         }
         graphics{
@@ -2096,27 +2186,24 @@ hi{
                 one{"{0} किवॉ"}
                 other{"{0} किवॉ"}
             }
-            milliwatt{
-                one{"{0} मिवॉ"}
-                other{"{0} मिवॉ"}
-            }
             watt{
                 one{"{0} वॉ"}
                 other{"{0} वॉ"}
             }
         }
         pressure{
-            hectopascal{
-                one{"{0}hPa"}
-                other{"{0} hPa"}
-            }
             inch-ofhg{
+                dnam{"″ Hg"}
                 one{"{0}\u0022 Hg"}
                 other{"{0}\u0022 Hg"}
             }
             millibar{
                 one{"{0}mb"}
                 other{"{0}mb"}
+            }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
             }
         }
         speed{
@@ -2127,15 +2214,6 @@ hi{
             kilometer-per-hour{
                 one{"{0} किमी/घं"}
                 other{"{0} किमी/घं"}
-            }
-            light-speed{
-                dnam{"लाइट"}
-                one{"{0} लाइट"}
-                other{"{0} लाइट"}
-            }
-            meter-per-second{
-                one{"{0} मी/से"}
-                other{"{0}मी॰/से॰"}
             }
             mile-per-hour{
                 one{"{0} मीप्रघं"}
@@ -2214,6 +2292,9 @@ hi{
                 dnam{"Imp fl oz"}
                 one{"{0} fl oz Im"}
                 other{"{0} fl oz Im"}
+            }
+            fluid-ounce-metric{
+                dnam{"मेट्रिक फ़्लूड आउंस"}
             }
             gallon{
                 dnam{"गै"}
@@ -2422,17 +2503,25 @@ hi{
                 one{"{0} मोल"}
                 other{"{0} मोल"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"भाग"}
+                one{"{0} भाग"}
+                other{"{0} भाग"}
+            }
+            part-per-1e6{
+                dnam{"हिस्सा प्रति दस लाख"}
+            }
+            part-per-1e9{
+                dnam{"पार्ट्स/बिलियन"}
+            }
             percent{
                 dnam{"प्रतिशत"}
             }
             permille{
                 dnam{"प्रति हज़ार"}
-            }
-            permillion{
-                dnam{"हिस्सा प्रति दस लाख"}
-            }
-            portion-per-1e9{
-                dnam{"पार्ट्स/बिलियन"}
             }
         }
         consumption{
@@ -2560,6 +2649,18 @@ hi{
                 one{"{0} ए॰"}
                 other{"{0} ए॰"}
             }
+            coulomb{
+                one{"{0} C"}
+                other{"{0} C"}
+            }
+            farad{
+                one{"{0} F"}
+                other{"{0} F"}
+            }
+            henry{
+                one{"{0} H"}
+                other{"{0} H"}
+            }
             milliampere{
                 dnam{"मि॰ ए॰"}
                 one{"{0} मि॰ ए॰"}
@@ -2568,15 +2669,32 @@ hi{
             ohm{
                 dnam{"ओम"}
             }
+            siemens{
+                one{"{0} S"}
+                other{"{0} S"}
+            }
             volt{
                 dnam{"वोल्ट"}
             }
         }
         energy{
+            becquerel{
+                one{"{0} Bq"}
+                other{"{0} Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
+            }
             foodcalorie{
                 dnam{"कैलोरी"}
                 one{"{0} कैलोरी"}
                 other{"{0} कैलोरी"}
+            }
+            gray{
+                one{"{0} Gy"}
+                other{"{0} Gy"}
             }
             joule{
                 dnam{"जूल"}
@@ -2587,6 +2705,10 @@ hi{
                 dnam{"किलो जूल"}
                 one{"{0} कि॰जू॰"}
                 other{"{0} कि॰जू॰"}
+            }
+            sievert{
+                one{"{0} Sv"}
+                other{"{0} Sv"}
             }
             therm-us{
                 dnam{"यूएस थेर्म"}
@@ -2816,6 +2938,10 @@ hi{
                 one{"{0} मेपा॰"}
                 other{"{0} मेपा॰"}
             }
+            ofhg{
+                one{"{0} Hg"}
+                other{"{0} Hg"}
+            }
             pascal{
                 dnam{"पा॰"}
                 one{"{0} पा॰"}
@@ -2970,6 +3096,11 @@ hi{
                 dnam{"फ़्लूइड आउंस"}
                 one{"{0} फ़्लूइड आउंस"}
                 other{"{0} फ़्लूइड आउंस"}
+            }
+            fluid-ounce-metric{
+                dnam{"मेट्रिक फ़्लूड आउंस"}
+                one{"{0} fl oz m."}
+                other{"{0} fl oz m."}
             }
             gallon{
                 dnam{"गैलन"}

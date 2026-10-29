@@ -16,6 +16,10 @@ zh{
             degree{
                 other{"{0}度"}
             }
+            steradian{
+                dnam{"球面度"}
+                other{"{0}球面度"}
+            }
         }
         compound{
             1024p3{"Gib{0}"}
@@ -64,6 +68,10 @@ zh{
                 dnam{"克拉"}
                 other{"{0}克拉"}
             }
+            katal{
+                dnam{"开特"}
+                other{"{0}开特"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"毫克/分升"}
                 other{"每分升{0}毫克"}
@@ -76,10 +84,18 @@ zh{
                 dnam{"摩尔"}
                 other{"{0}摩尔"}
             }
-            permillion{
+            ofglucose{
+                dnam{"葡萄糖"}
+                other{"{0}葡萄糖"}
+            }
+            part{
+                dnam{"份"}
+                other{"{0}份"}
+            }
+            part-per-1e6{
                 other{"百万分之{0}"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"十亿分比"}
                 other{"十亿分之{0}"}
             }
@@ -152,11 +168,6 @@ zh{
             }
         }
         duration{
-            night{
-                dnam{"晚"}
-                other{"{0}晚"}
-                per{"{0}/晚"}
-            }
             quarter{
                 dnam{"季度"}
             }
@@ -170,6 +181,18 @@ zh{
                 dnam{"安培"}
                 other{"{0}安培"}
             }
+            coulomb{
+                dnam{"库仑"}
+                other{"{0}库仑"}
+            }
+            farad{
+                dnam{"法拉"}
+                other{"{0}法拉"}
+            }
+            henry{
+                dnam{"亨利"}
+                other{"{0}亨利"}
+            }
             milliampere{
                 dnam{"毫安"}
                 other{"{0}毫安"}
@@ -178,15 +201,27 @@ zh{
                 dnam{"欧姆"}
                 other{"{0}欧姆"}
             }
+            siemens{
+                dnam{"西门子"}
+                other{"{0}西门子"}
+            }
             volt{
                 dnam{"伏特"}
                 other{"{0}伏特"}
             }
         }
         energy{
+            becquerel{
+                dnam{"贝克勒尔"}
+                other{"{0}贝克勒尔"}
+            }
             calorie{
                 dnam{"卡路里"}
                 other{"{0}卡路里"}
+            }
+            calorie-it{
+                dnam{"国际蒸汽表卡路里"}
+                other{"{0}国际蒸汽表卡路里"}
             }
             electronvolt{
                 dnam{"电子伏特"}
@@ -195,8 +230,20 @@ zh{
             foodcalorie{
                 other{"{0}大卡"}
             }
+            gray{
+                dnam{"戈瑞"}
+                other{"{0}戈瑞"}
+            }
+            sievert{
+                dnam{"西弗"}
+                other{"{0} 西弗"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"千克力"}
+                other{"{0}千克力"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"千瓦时/100千米"}
                 other{"{0}千瓦时/100千米"}
@@ -276,6 +323,16 @@ zh{
             solar-luminosity{
                 dnam{"太阳光度"}
                 other{"{0}太阳光度"}
+            }
+        }
+        magnetic{
+            tesla{
+                dnam{"特斯拉"}
+                other{"{0}特斯拉"}
+            }
+            weber{
+                dnam{"韦伯"}
+                other{"{0}韦伯"}
             }
         }
         mass{
@@ -380,6 +437,10 @@ zh{
                 dnam{"毫米汞柱"}
                 other{"{0}毫米汞柱"}
             }
+            ofhg{
+                dnam{"汞柱"}
+                other{"{0}汞柱"}
+            }
             pascal{
                 dnam{"帕斯卡"}
                 other{"{0}帕斯卡"}
@@ -401,10 +462,6 @@ zh{
             knot{
                 dnam{"节"}
                 other{"{0}节"}
-            }
-            light-speed{
-                dnam{"光"}
-                other{"{0}光"}
             }
             meter-per-second{
                 dnam{"米/秒"}
@@ -448,6 +505,10 @@ zh{
                 dnam{"打兰"}
                 other{"{0}打兰"}
             }
+            fluid-ounce-metric{
+                dnam{"公制液量盎司"}
+                other{"{0}公制液量盎司"}
+            }
             quart-imperial{
                 dnam{"英制夸脱"}
                 other{"{0}英制夸脱"}
@@ -467,6 +528,9 @@ zh{
             }
             arc-second{
                 other{"{0}″"}
+            }
+            steradian{
+                other{"{0}sr"}
             }
         }
         area{
@@ -517,6 +581,9 @@ zh{
             karat{
                 other{"{0}kt"}
             }
+            katal{
+                other{"{0}kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 other{"{0}mg/dL"}
             }
@@ -525,6 +592,17 @@ zh{
             }
             mole{
                 other{"{0}mol"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0}Glc"}
+            }
+            part{
+                dnam{"份"}
+                other{"{0}份"}
+            }
+            part-per-1e9{
+                other{"{0}ppb"}
             }
         }
         consumption{
@@ -558,11 +636,6 @@ zh{
             nanosecond{
                 other{"{0}ns"}
             }
-            night{
-                dnam{"晚"}
-                other{"{0}晚"}
-                per{"{0}/晚"}
-            }
         }
         electric{
             ampere{
@@ -579,6 +652,9 @@ zh{
             }
         }
         energy{
+            becquerel{
+                other{"{0}Bq"}
+            }
             british-thermal-unit{
                 dnam{"BTU"}
                 other{"{0}Btu"}
@@ -587,6 +663,10 @@ zh{
                 dnam{"cal"}
                 other{"{0}cal"}
             }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0}cal-IT"}
+            }
             electronvolt{
                 dnam{"eV"}
                 other{"{0}eV"}
@@ -594,6 +674,9 @@ zh{
             foodcalorie{
                 dnam{"Cal"}
                 other{"{0}Cal"}
+            }
+            gray{
+                other{"{0}Gy"}
             }
             joule{
                 other{"{0}J"}
@@ -610,8 +693,14 @@ zh{
                 dnam{"kWh"}
                 other{"{0}kWh"}
             }
+            sievert{
+                other{"{0}Sv"}
+            }
         }
         force{
+            kilogram-force{
+                other{"{0}kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 other{"{0}kWh/100km"}
             }
@@ -753,6 +842,14 @@ zh{
                 other{"{0}L☉"}
             }
         }
+        magnetic{
+            tesla{
+                other{"{0}T"}
+            }
+            weber{
+                other{"{0}Wb"}
+            }
+        }
         mass{
             carat{
                 other{"{0}CD"}
@@ -852,6 +949,9 @@ zh{
             millimeter-ofhg{
                 other{"{0}mmHg"}
             }
+            ofhg{
+                other{"{0}Hg"}
+            }
             pascal{
                 other{"{0}Pa"}
             }
@@ -868,10 +968,6 @@ zh{
             }
             knot{
                 other{"{0}kn"}
-            }
-            light-speed{
-                dnam{"光"}
-                other{"{0}光"}
             }
             meter-per-second{
                 dnam{"米/秒"}
@@ -1038,6 +1134,9 @@ zh{
                 dnam{"转"}
                 other{"{0}转"}
             }
+            steradian{
+                other{"{0}sr"}
+            }
         }
         area{
             acre{
@@ -1091,8 +1190,22 @@ zh{
                 dnam{"项"}
                 other{"{0}项"}
             }
-            permillion{
+            katal{
+                other{"{0}kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0}Glc"}
+            }
+            part{
+                dnam{"份"}
+                other{"{0}份"}
+            }
+            part-per-1e6{
                 other{"{0}ppm"}
+            }
+            part-per-1e9{
+                other{"{0}ppb"}
             }
         }
         coordinate{
@@ -1191,6 +1304,10 @@ zh{
             }
         }
         energy{
+            becquerel{
+                dnam{"贝克"}
+                other{"{0}贝克"}
+            }
             british-thermal-unit{
                 dnam{"英热单位"}
                 other{"{0}英热单位"}
@@ -1199,6 +1316,10 @@ zh{
                 dnam{"卡"}
                 other{"{0}卡"}
             }
+            calorie-it{
+                dnam{"国际蒸汽表卡"}
+                other{"{0}国际蒸汽表卡"}
+            }
             electronvolt{
                 dnam{"电子伏"}
                 other{"{0}电子伏"}
@@ -1206,6 +1327,10 @@ zh{
             foodcalorie{
                 dnam{"大卡"}
                 other{"{0} Cal"}
+            }
+            gray{
+                dnam{"戈瑞"}
+                other{"{0}戈瑞"}
             }
             joule{
                 dnam{"焦耳"}
@@ -1223,12 +1348,19 @@ zh{
                 dnam{"千瓦时"}
                 other{"{0}千瓦时"}
             }
+            sievert{
+                dnam{"西弗"}
+                other{"{0}西弗"}
+            }
             therm-us{
                 dnam{"美制克卡"}
                 other{"{0}美制克卡"}
             }
         }
         force{
+            kilogram-force{
+                other{"{0}kgf"}
+            }
             newton{
                 dnam{"牛"}
                 other{"{0}牛"}
@@ -1335,6 +1467,14 @@ zh{
                 other{"{0}码"}
             }
         }
+        magnetic{
+            tesla{
+                other{"{0}T"}
+            }
+            weber{
+                other{"{0}Wb"}
+            }
+        }
         mass{
             grain{
                 dnam{"gr"}
@@ -1377,6 +1517,9 @@ zh{
             millimeter-ofhg{
                 dnam{"mmHg"}
                 other{"{0} mmHg"}
+            }
+            ofhg{
+                other{"{0}Hg"}
             }
         }
         speed{
@@ -1474,6 +1617,10 @@ zh{
             fluid-ounce-imperial{
                 dnam{"英制液盎司"}
                 other{"{0}英制液盎司"}
+            }
+            fluid-ounce-metric{
+                dnam{"公制液量盎司"}
+                other{"{0}公制液量盎司"}
             }
             gallon{
                 dnam{"加仑"}

@@ -48,9 +48,6 @@ pl{
         "Africa:Kinshasa"{
             ec{"Kinszasa"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Mogadishu"{
             ec{"Mogadiszu"}
         }
@@ -78,23 +75,14 @@ pl{
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
         }
-        "America:Belem"{
-            ec{"Belém"}
-        }
         "America:Cayenne"{
             ec{"Kajenna"}
         }
         "America:Cayman"{
             ec{"Kajmany"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
         "America:Costa_Rica"{
             ec{"Kostaryka"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
         }
         "America:Dominica"{
             ec{"Dominika"}
@@ -116,9 +104,6 @@ pl{
         }
         "America:Jamaica"{
             ec{"Jamajka"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
         }
         "America:Martinique"{
             ec{"Martynika"}
@@ -469,9 +454,6 @@ pl{
         "Europe:Tallinn"{
             ec{"Tallin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanowsk"}
         }
@@ -514,9 +496,6 @@ pl{
         "Indian:Kerguelen"{
             ec{"Wyspy Kerguelena"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Malediwy"}
         }
@@ -530,7 +509,7 @@ pl{
             ec{"Wyspa Wielkanocna"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Kanton"}
         }
         "Pacific:Fiji"{
             ec{"Fidżi"}
@@ -560,9 +539,7 @@ pl{
             ls{"czas południowoafrykański"}
         }
         "meta:Africa_Western"{
-            ld{"czas zachodnioafrykański letni"}
-            lg{"czas zachodnioafrykański"}
-            ls{"czas zachodnioafrykański standardowy"}
+            ls{"czas zachodnioafrykański"}
         }
         "meta:Alaska"{
             ld{"Alaska (czas letni)"}
@@ -814,6 +791,9 @@ pl{
         }
         "meta:Guyana"{
             ls{"czas Gujana"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaje-Aleuty (czas standardowy)"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaje-Aleuty (czas letni)"}

@@ -34,6 +34,10 @@ ko{
                 dnam{"회전"}
                 other{"{0}회전"}
             }
+            steradian{
+                dnam{"스테라디안"}
+                other{"{0}스테라디안"}
+            }
         }
         area{
             acre{
@@ -132,6 +136,10 @@ ko{
                 dnam{"캐럿"}
                 other{"{0}캐럿"}
             }
+            katal{
+                dnam{"캐탈"}
+                other{"{0}캐탈"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"데시리터당 밀리그램"}
                 other{"데시리터당 {0}밀리그램"}
@@ -144,8 +152,13 @@ ko{
                 dnam{"몰"}
                 other{"{0}몰"}
             }
-            portion-per-1e9{
-                other{"{0}ppb"}
+            ofglucose{
+                dnam{"포도당"}
+                other{"{0}포도당"}
+            }
+            part{
+                dnam{"분율"}
+                other{"{0}분율"}
             }
         }
         consumption{
@@ -248,8 +261,6 @@ ko{
                 other{"{0}나노초"}
             }
             night{
-                dnam{"박"}
-                other{"{0}박"}
                 per{"1박당 {0}"}
             }
             second{
@@ -267,6 +278,18 @@ ko{
                 dnam{"암페어"}
                 other{"{0}암페어"}
             }
+            coulomb{
+                dnam{"쿨롬"}
+                other{"{0}쿨롬"}
+            }
+            farad{
+                dnam{"패럿"}
+                other{"{0}패럿"}
+            }
+            henry{
+                dnam{"헨리"}
+                other{"{0}헨리"}
+            }
             milliampere{
                 dnam{"밀리암페어"}
                 other{"{0}밀리암페어"}
@@ -275,12 +298,20 @@ ko{
                 dnam{"옴"}
                 other{"{0}옴"}
             }
+            siemens{
+                dnam{"지멘스"}
+                other{"{0}지멘스"}
+            }
             volt{
                 dnam{"볼트"}
                 other{"{0}볼트"}
             }
         }
         energy{
+            becquerel{
+                dnam{"베크렐"}
+                other{"{0}베크렐"}
+            }
             british-thermal-unit{
                 dnam{"영국 열량 단위"}
                 other{"{0}영국 열량 단위"}
@@ -289,6 +320,10 @@ ko{
                 dnam{"칼로리"}
                 other{"{0}칼로리"}
             }
+            calorie-it{
+                dnam{"칼로리[IT]"}
+                other{"{0}칼로리[IT]"}
+            }
             electronvolt{
                 dnam{"전자볼트"}
                 other{"{0}전자볼트"}
@@ -296,6 +331,10 @@ ko{
             foodcalorie{
                 dnam{"칼로리"}
                 other{"{0}칼로리"}
+            }
+            gray{
+                dnam{"그레이"}
+                other{"{0}그레이"}
             }
             kilocalorie{
                 dnam{"킬로칼로리"}
@@ -309,8 +348,16 @@ ko{
                 dnam{"킬로와트시"}
                 other{"{0}킬로와트시"}
             }
+            sievert{
+                dnam{"시버트"}
+                other{"{0}시버트"}
+            }
         }
         force{
+            kilogram-force{
+                dnam{"킬로그램힘"}
+                other{"{0}킬로그램힘"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"100킬로미터당 킬로와트시"}
                 other{"100킬로미터당 {0}킬로와트시"}
@@ -465,6 +512,16 @@ ko{
                 other{"{0}태양 광도"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"테슬라"}
+                other{"{0}테슬라"}
+            }
+            weber{
+                dnam{"웨버"}
+                other{"{0}웨버"}
+            }
+        }
         mass{
             carat{
                 dnam{"캐럿"}
@@ -585,6 +642,10 @@ ko{
                 dnam{"수은주밀리미터"}
                 other{"{0}수은주밀리미터"}
             }
+            ofhg{
+                dnam{"수은주"}
+                other{"{0}수은주"}
+            }
             pascal{
                 dnam{"파스칼"}
                 other{"{0}파스칼"}
@@ -606,6 +667,10 @@ ko{
             knot{
                 dnam{"노트"}
                 other{"{0}노트"}
+            }
+            light-speed{
+                dnam{"광속"}
+                other{"{0}광속"}
             }
             meter-per-second{
                 dnam{"미터 매 초"}
@@ -719,6 +784,10 @@ ko{
                 dnam{"영국 액량 온스"}
                 other{"{0}영국 액량 온스"}
             }
+            fluid-ounce-metric{
+                dnam{"미터식 액량 온스"}
+                other{"{0}미터식 액량 온스"}
+            }
             gallon{
                 dnam{"갤런"}
                 other{"{0}갤런"}
@@ -780,9 +849,21 @@ ko{
         }
     }
     unitsNarrow{
+        angle{
+            steradian{
+                other{"{0}sr"}
+            }
+        }
         concentr{
-            portion-per-1e9{
-                other{"{0}ppb"}
+            katal{
+                other{"{0}kat"}
+            }
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0}Glc"}
+            }
+            part{
+                other{"{0}part"}
             }
         }
         digital{
@@ -800,13 +881,42 @@ ko{
             minute{
                 per{"{0}/분"}
             }
-            night{
-                dnam{"박"}
-                other{"{0}박"}
-                per{"{0}/박"}
-            }
             second{
                 per{"{0}/초"}
+            }
+        }
+        electric{
+            coulomb{
+                other{"{0}C"}
+            }
+            farad{
+                other{"{0}F"}
+            }
+            henry{
+                other{"{0}H"}
+            }
+            siemens{
+                other{"{0}S"}
+            }
+        }
+        energy{
+            becquerel{
+                other{"{0}Bq"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0}cal-IT"}
+            }
+            gray{
+                other{"{0}Gy"}
+            }
+            sievert{
+                other{"{0}Sv"}
+            }
+        }
+        force{
+            kilogram-force{
+                other{"{0}kgf"}
             }
         }
         length{
@@ -815,6 +925,14 @@ ko{
             }
             inch{
                 other{"{0}″"}
+            }
+        }
+        magnetic{
+            tesla{
+                other{"{0}T"}
+            }
+            weber{
+                other{"{0}Wb"}
             }
         }
         mass{
@@ -827,9 +945,17 @@ ko{
                 other{"{0}HP"}
             }
         }
+        pressure{
+            ofhg{
+                other{"{0}Hg"}
+            }
+        }
         speed{
             beaufort{
                 other{"B{0}"}
+            }
+            light-speed{
+                other{"{0}light"}
             }
             mile-per-hour{
                 other{"{0}mph"}
@@ -839,6 +965,9 @@ ko{
             dessert-spoon-imperial{
                 dnam{"dsp Imp"}
                 other{"{0}dsp-Imp"}
+            }
+            fluid-ounce-metric{
+                other{"{0}fl oz m."}
             }
         }
     }
@@ -866,6 +995,9 @@ ko{
             }
             revolution{
                 other{"{0}rev"}
+            }
+            steradian{
+                other{"{0}sr"}
             }
         }
         area{
@@ -911,6 +1043,9 @@ ko{
             karat{
                 other{"{0}kt"}
             }
+            katal{
+                other{"{0}kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 other{"{0}mg/dL"}
             }
@@ -920,10 +1055,17 @@ ko{
             mole{
                 other{"{0}mol"}
             }
-            permillion{
+            ofglucose{
+                dnam{"Glc"}
+                other{"{0}Glc"}
+            }
+            part{
+                other{"{0}part"}
+            }
+            part-per-1e6{
                 other{"{0}ppm"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 other{"{0}ppb"}
             }
         }
@@ -1045,11 +1187,23 @@ ko{
             ampere{
                 other{"{0}A"}
             }
+            coulomb{
+                other{"{0}C"}
+            }
+            farad{
+                other{"{0}F"}
+            }
+            henry{
+                other{"{0}H"}
+            }
             milliampere{
                 other{"{0}mA"}
             }
             ohm{
                 other{"{0}Ω"}
+            }
+            siemens{
+                other{"{0}S"}
             }
             volt{
                 dnam{"V"}
@@ -1057,11 +1211,18 @@ ko{
             }
         }
         energy{
+            becquerel{
+                other{"{0}Bq"}
+            }
             british-thermal-unit{
                 other{"{0}Btu"}
             }
             calorie{
                 other{"{0}cal"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                other{"{0}cal-IT"}
             }
             electronvolt{
                 other{"{0}eV"}
@@ -1069,6 +1230,9 @@ ko{
             foodcalorie{
                 dnam{"Cal"}
                 other{"{0}Cal"}
+            }
+            gray{
+                other{"{0}Gy"}
             }
             joule{
                 dnam{"줄"}
@@ -1083,12 +1247,18 @@ ko{
             kilowatt-hour{
                 other{"{0}kWh"}
             }
+            sievert{
+                other{"{0}Sv"}
+            }
             therm-us{
                 dnam{"미국 섬"}
                 other{"{0}섬"}
             }
         }
         force{
+            kilogram-force{
+                other{"{0}kgf"}
+            }
             kilowatt-hour-per-100-kilometer{
                 other{"{0}kWh/100km"}
             }
@@ -1225,6 +1395,14 @@ ko{
                 other{"{0}L☉"}
             }
         }
+        magnetic{
+            tesla{
+                other{"{0}T"}
+            }
+            weber{
+                other{"{0}Wb"}
+            }
+        }
         mass{
             carat{
                 other{"{0}CD"}
@@ -1320,6 +1498,9 @@ ko{
                 dnam{"mmHg"}
                 other{"{0}mmHg"}
             }
+            ofhg{
+                other{"{0}Hg"}
+            }
             pascal{
                 other{"{0}Pa"}
             }
@@ -1333,6 +1514,9 @@ ko{
             }
             knot{
                 other{"{0}kn"}
+            }
+            light-speed{
+                other{"{0}light"}
             }
             meter-per-second{
                 other{"{0}m/s"}
@@ -1416,6 +1600,9 @@ ko{
             }
             fluid-ounce-imperial{
                 other{"{0}fl oz Imp."}
+            }
+            fluid-ounce-metric{
+                other{"{0}fl oz m."}
             }
             gallon{
                 dnam{"gal"}

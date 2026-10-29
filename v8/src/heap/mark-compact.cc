@@ -2527,8 +2527,9 @@ void MarkCompactCollector::RetainMaps() {
       !heap_->ShouldReduceMemory() && v8_flags.retain_maps_for_n_gc != 0;
 
   for (Tagged<WeakArrayList> retained_maps : heap_->FindAllRetainedMaps()) {
-    DCHECK_EQ(0, retained_maps->length() % 2);
-    for (int i = 0; i < retained_maps->length(); i += 2) {
+    const uint32_t retained_maps_len = retained_maps->length().value();
+    DCHECK_EQ(0, retained_maps_len % 2);
+    for (uint32_t i = 0; i < retained_maps_len; i += 2) {
       Tagged<MaybeObject> value = retained_maps->Get(i);
       Tagged<HeapObject> map_heap_object;
       if (!value.GetHeapObjectIfWeak(&map_heap_object)) {
@@ -5912,7 +5913,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
+          SharedFlag shared =
+              SharedFlag(HeapLayout::InAnySharedSpace(relocated_object));
           auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
           tpt->Set(handle, relocated_object.ptr(), tag);
         }
@@ -5927,7 +5929,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
+          SharedFlag shared =
+              SharedFlag(HeapLayout::InAnySharedSpace(relocated_object));
           auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
           DCHECK(IsSharedTrustedPointerType(tag));
           stpt->Set(handle, relocated_object.ptr(), tag);

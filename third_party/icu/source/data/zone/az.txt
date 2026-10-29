@@ -183,6 +183,9 @@ az{
         "America:Costa_Rica"{
             ec{"Kosta Rika"}
         }
+        "America:Coyhaique"{
+            ec{"Koyayke"}
+        }
         "America:Creston"{
             ec{"Kreston"}
         }
@@ -786,9 +789,6 @@ az{
         "Europe:Tallinn"{
             ec{"Tallin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Vaduz"{
             ec{"Vaduts"}
         }
@@ -850,7 +850,7 @@ az{
             ec{"Pasxa"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderböri"}
+            ec{"Kanton"}
         }
         "Pacific:Fiji"{
             ec{"Fici"}
@@ -931,9 +931,7 @@ az{
             ls{"Cənubi Afrika Vaxtı"}
         }
         "meta:Africa_Western"{
-            ld{"Qərbi Afrika Yay Vaxtı"}
-            lg{"Qərbi Afrika Vaxtı"}
-            ls{"Qərbi Afrika Standart Vaxtı"}
+            ls{"Qərbi Afrika Vaxtı"}
         }
         "meta:Alaska"{
             ld{"Alyaska Yay Vaxtı"}
@@ -946,9 +944,9 @@ az{
             ls{"Amazon Standart Vaxtı"}
         }
         "meta:America_Central"{
-            ld{"Şimali Mərkəzi Amerika Yay Vaxtı"}
-            lg{"Şimali Mərkəzi Amerika Vaxtı"}
-            ls{"Şimali Mərkəzi Amerika Standart Vaxtı"}
+            ld{"Mərkəzi Amerika yay vaxtı"}
+            lg{"Mərkəzi Amerika saat qurşağı"}
+            ls{"Mərkəzi Amerika Standart Vaxtı"}
         }
         "meta:America_Eastern"{
             ld{"Şimali Şərqi Amerika Yay Vaxtı"}
@@ -992,7 +990,7 @@ az{
         }
         "meta:Atlantic"{
             ld{"Atlantik Yay Vaxtı"}
-            lg{"Atlantik Vaxt"}
+            lg{"Atlantik saat qurşağı"}
             ls{"Atlantik Standart Vaxt"}
         }
         "meta:Australia_Central"{
@@ -1171,6 +1169,9 @@ az{
         }
         "meta:Guyana"{
             ls{"Qayana Vaxtı"}
+        }
+        "meta:Hawaii"{
+            ls{"Havay-Aleut Standart Vaxtı"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Havay-Aleut Yay Vaxtı"}
@@ -1448,6 +1449,11 @@ az{
         }
         "meta:Truk"{
             ls{"Çuuk Vaxtı"}
+        }
+        "meta:Turkey"{
+            ld{"Türkiya yay vaxtı"}
+            lg{"Türkiya vaxtı"}
+            ls{"Türkiya standart vaxtı"}
         }
         "meta:Turkmenistan"{
             ld{"Türkmənistan Yay Vaxtı"}

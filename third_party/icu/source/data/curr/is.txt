@@ -859,6 +859,10 @@ is{
             "EC$",
             "austurkarabískur dalur",
         }
+        XCG{
+            "XCG",
+            "Karíbahafsgyllini",
+        }
         XDR{
             "XDR",
             "Sérstök dráttarréttindi",
@@ -914,6 +918,10 @@ is{
         ZWD{
             "ZWD",
             "Simbabveskur dalur",
+        }
+        ZWG{
+            "ZWG",
+            "simbabveskt gold",
         }
     }
     Currencies%narrow{
@@ -1560,6 +1568,10 @@ is{
             one{"austurkarabískur dalur"}
             other{"austurkarabískir dalir"}
         }
+        XCG{
+            one{"Karíbahafsgyllini"}
+            other{"Karíbahafsgyllini"}
+        }
         XOF{
             one{"vesturafrískur franki"}
             other{"vesturafrískir frankar"}
@@ -1583,6 +1595,10 @@ is{
         ZMW{
             one{"sambísk kvaka"}
             other{"sambískar kvökur"}
+        }
+        ZWG{
+            one{"simbabveskt gold"}
+            other{"simbabveskt gold"}
         }
     }
 }

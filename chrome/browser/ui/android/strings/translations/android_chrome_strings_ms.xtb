@@ -348,6 +348,7 @@ Orang yang mengetahui ungkapan laluan anda sahaja yang dapat membaca data anda y
 <translation id="2496180316473517155">Sejarah penyemakan imbas</translation>
 <translation id="2497852260688568942">Penyegerakan dilumpuhkan oleh pentadbir anda</translation>
 <translation id="250020030759455918">Anda akan melihat status log masuk <ph name="SITE_NAME" />, data semakan imbas dan data tapak anda dalam Chrome</translation>
+<translation id="2501278716633472235">Kembali</translation>
 <translation id="2510106555128151389">Memasang <ph name="WEBAPK_NAME" />...</translation>
 <translation id="2512234228327349533">Cari pilihan pembelian</translation>
 <translation id="2513403576141822879">Untuk mendapatkan lebih banyak tetapan yang berkaitan dengan privasi, keselamatan dan pengumpulan data, lihat <ph name="BEGIN_LINK" />Penyegerakan dan perkhidmatan Google<ph name="END_LINK" /></translation>
@@ -797,6 +798,7 @@ Orang yang mengetahui ungkapan laluan anda sahaja yang dapat membaca data anda y
 <translation id="4384468725000734951">Menggunakan Sogou untuk carian</translation>
 <translation id="4387647248986092471">Buat kunci profil kereta</translation>
 <translation id="4387817230000841154">Buka Muat Turun</translation>
+<translation id="4394049700291259645">Lumpuhkan</translation>
 <translation id="4395046795145457714">Ikut serta Chrome Finds dibuka pada ketinggian penuh</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, Tab Inkognito Rakaman Yang Tersemat Dan Dipilih</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - Memuat turun…</translation>
@@ -821,7 +823,6 @@ Orang yang mengetahui ungkapan laluan anda sahaja yang dapat membaca data anda y
 <translation id="4478161224666880173">Anda boleh menggunakan akaun <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> pada laman ini. Untuk meneruskan proses ini, log masuk ke <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217">Memasang <ph name="MODULE" /> untuk Chrome…</translation>
 <translation id="4487967297491345095">Semua data apl Chrome akan dipadamkan selama-lamanya. Ini termasuk semua fail, tetapan, akaun, pangkalan data dan sebagainya.</translation>
-<translation id="4494315997125191493">Pilih urus untuk melihat semua tetingkap</translation>
 <translation id="4494806687727322324">Penyimpanan kata laluan dihidupkan oleh pentadbir anda</translation>
 <translation id="4508528996305412043">Menu kad suapan dibuka</translation>
 <translation id="4509741852167209430">Jenis data yang terhad akan dikongsi antara laman untuk mengukur prestasi iklan laman, seperti sama ada anda membuat pembelian atau tidak selepas melawat laman</translation>
@@ -869,7 +870,6 @@ Google Account anda mungkin mempunyai sejarah penyemakan imbas dalam bentuk lain
 <translation id="4673702426794876519">Tetingkap inkognito</translation>
 <translation id="4675298276894277358">Laman ini tidak akan dipaparkan lagi</translation>
 <translation id="4678082183394354975">Tema gelap untuk laman dihidupkan dalam Chrome</translation>
-<translation id="4682306524980568490">Hanya <ph name="MAX_INSTANCE_COUNT" /> tetingkap dapat ditunjukkan</translation>
 <translation id="4684427112815847243">Segerakkan semua</translation>
 <translation id="4685741273709472646">Pilih daripada senarai lungsur</translation>
 <translation id="4687718960473379118">Iklan yang dicadangkan laman</translation>
@@ -1492,7 +1492,6 @@ Sebagai contoh, sesetengah laman web mungkin memberi respons kepada permintaan i
 <translation id="7057969023583258980">Buka sejarah penuh Chrome</translation>
 <translation id="7063006564040364415">Tidak dapat bersambung ke pelayan yang disegerakkan.</translation>
 <translation id="7063106218165698546">Sesuaikan kumpulan tab dan tekan selesai</translation>
-<translation id="7071521146534760487">Urus akaun</translation>
 <translation id="707155805709242880">Pilih data yang hendak disegerakkan di bawah</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, Tab Inkognito Gambar dalam Gambar yang Disematkan dengan Berbilang Pilihan</translation>
 <translation id="7077143737582773186">Kad SD</translation>
@@ -1821,6 +1820,7 @@ Untuk menukar tetapan ini, <ph name="BEGIN_LINK" />padamkan data Chrome dalam ak
 <translation id="8282950411412455249">Akses tetapan keselamatan</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Tutup 1 tetingkap Inkognito}other{Tutup # tetingkap Inkognito}}</translation>
 <translation id="831192587911042850">Menambahkan laman web semasa pada senarai laman web yang anda ikuti.</translation>
+<translation id="8313599942510782709">Tugasan anda masih dalam proses</translation>
 <translation id="8317318757008452355">Buka pilihan untuk mencetak</translation>
 <translation id="8320212361750431956">Aktiviti Baru-baru Ini</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Baharu<ph name="END_NEW" /></translation>

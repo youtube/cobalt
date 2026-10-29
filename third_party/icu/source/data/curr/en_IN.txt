@@ -16,15 +16,19 @@ en_IN{
             "VEF",
             "Venezuelan Bolívar",
         }
-        VES{
-            "VES",
-            "VEF",
+        XCG{
+            "Cg.",
+            "Caribbean Guilder",
         }
     }
     CurrencyPlurals{
+        ANG{
+            one{"Netherlands Antillean Guilder"}
+            other{"Netherlands Antillean Guilders"}
+        }
         KGS{
-            one{"Kyrgyzstani som"}
-            other{"Kyrgyzstani soms"}
+            one{"Kyrgyzstani Som"}
+            other{"Kyrgyzstani Soms"}
         }
         KZT{
             one{"Kazakhstani Tenge"}
@@ -51,8 +55,16 @@ en_IN{
             other{"Venezuelan bolívars"}
         }
         VES{
-            one{"VEF"}
-            other{"VEF"}
+            one{"Venezuelan Bolívar"}
+            other{"Venezuelan Bolívars"}
+        }
+        XCG{
+            one{"Caribbean Guilder"}
+            other{"Caribbean Guilders"}
+        }
+        ZWG{
+            one{"Zimbabwean Gold"}
+            other{"Zimbabwean Gold"}
         }
     }
 }

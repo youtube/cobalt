@@ -338,6 +338,12 @@ ti{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} ሰዓት {0}",
+                "{1} ሰዓት {0}",
+                "{1}፣ {0}",
+                "{1}፣ {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -351,10 +357,12 @@ ti{
             availableFormats{
                 Ed{"d E"}
                 Gy{"y G"}
+                GyMEd{"G y-MM-dd፣ E"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E፣ d MMM y G"}
                 GyMMMd{"MMM d, y G"}
                 GyMd{"M/d/y GGGGG"}
+                Hv{"HHሰ v"}
                 MEd{"E፣ d/M"}
                 MMMEd{"E, MMM d"}
                 MMMMd{"d MMMM"}
@@ -504,6 +512,12 @@ ti{
                 "{1} {0}",
                 "{1} {0}",
             }
+            DateTimePatterns%relative{
+                "{1} {0}",
+                "{1} {0}",
+                "{1}፣ {0}",
+                "{1}፣ {0}",
+            }
             DateTimeSkeletons{
                 "ahmmsszzzz",
                 "ahmmssz",
@@ -521,6 +535,7 @@ ti{
                 Ehm{"E፣ h:mm a"}
                 Ehms{"E፣ h:mm:ss a"}
                 Gy{"y G"}
+                GyMEd{"E፣ M/d/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E፣ d MMM y G"}
                 GyMMMd{"MMM d, y G"}
@@ -586,16 +601,16 @@ ti{
             }
             eras{
                 abbreviated{
-                    "ዓ/ዓ",
-                    "ዓ/ም",
+                    0{"ዓ/ዓ"}
+                    1{"ዓ/ም"}
                 }
                 abbreviated%variant{
-                    "ቅ.ል.ክ",
-                    "ድ.ል.ክ",
+                    0{"ቅ.ል.ክ"}
+                    1{"ድ.ል.ክ"}
                 }
                 wide{
-                    "ቅድመ ክርስቶስ",
-                    "ዓመተ ምሕረት",
+                    0{"ቅድመ ክርስቶስ"}
+                    1{"ዓመተ ምሕረት"}
                 }
             }
             intervalFormats{
@@ -794,6 +809,7 @@ ti{
             }
             availableFormats{
                 Ed{"d E"}
+                GyMEd{"G y-MM-dd፣ E"}
                 GyMMMd{"MMM d, y G"}
                 GyMd{"M/d/y GGGGG"}
                 MMMEd{"E, MMM d"}
@@ -934,7 +950,13 @@ ti{
             dn{"መዓልቲ ናይ ዓ."}
         }
         dayperiod{
-            dn{"AM/PM"}
+            dn{"ኤ.ኤም/ፒ.ኤም"}
+        }
+        dayperiod-narrow{
+            dn{"ኤ.ኤም/ፒ.ኤም"}
+        }
+        dayperiod-short{
+            dn{"ኤ.ኤም/ፒ.ኤም"}
         }
         era{
             dn{"ዘመን"}
@@ -1306,9 +1328,9 @@ ti{
             givenFirst-short-referring-formal{"{given-initial} {given2-initial} {surname}"}
             givenFirst-short-referring-informal{"{given-informal} {surname-initial}"}
             sorting-long-referring-formal{"{surname-core}፣ {given} {given2} {surname-prefix}"}
-            sorting-long-referring-informal{"{surname}, {given-informal}"}
-            sorting-medium-referring-formal{"{surname-core}, {given} {given2-initial} {surname-prefix}"}
-            sorting-medium-referring-informal{"{surname}, {given-informal}"}
+            sorting-long-referring-informal{"{surname}፣ {given-informal}"}
+            sorting-medium-referring-formal{"{surname-core}፣ {given} {given2-initial} {surname-prefix}"}
+            sorting-medium-referring-informal{"{surname}፣ {given-informal}"}
             sorting-short-referring-formal{"{surname-core}፣ {given} {given2} {surname-prefix}"}
             sorting-short-referring-informal{"{surname-core}፣ {given} {given2} {surname-prefix}"}
             surnameFirst-long-addressing-formal{"{title} {surname}"}

@@ -14,11 +14,11 @@ yo_BJ{
             item{
                 dnam{"àwɔ́n ohun"}
             }
+            part-per-1e9{
+                dnam{"ɛ̀yà nínú ìdá blíɔ̀nù"}
+            }
             permille{
                 other{"{0} ìdákan nínú ɛgbɛ̀rún"}
-            }
-            portion-per-1e9{
-                dnam{"ɛ̀yà nínú ìdá blíɔ̀nù"}
             }
         }
         consumption{
@@ -83,11 +83,6 @@ yo_BJ{
             decade{
                 other{"ɛ̀wádùn {0}"}
             }
-            night{
-                dnam{"àwɔn alɛ́"}
-                other{"àwɔn alɛ́ {0}"}
-                per{"{0}/alɛ́"}
-            }
             second{
                 other{"{0}ìsh àáy"}
                 per{"{0}/ìsh àáy"}
@@ -98,6 +93,7 @@ yo_BJ{
             year{
                 dnam{"ɔ̀dún"}
                 other{"{0} ɔ̀dún"}
+                per{"{0} lɔ́dún"}
             }
         }
         force{
@@ -122,7 +118,6 @@ yo_BJ{
         }
         light{
             candela{
-                dnam{"kandɛ́là"}
                 other{"{0} kandɛ́là"}
             }
             lumen{
@@ -133,12 +128,6 @@ yo_BJ{
         mass{
             tonne{
                 dnam{"mɛtiriki tɔɔnu"}
-            }
-        }
-        speed{
-            light-speed{
-                dnam{"ìmɔ́lɛ̀"}
-                other{"{0} ìmɔ́lɛ̀"}
             }
         }
         volume{
@@ -167,17 +156,11 @@ yo_BJ{
                 other{"{0}/ìsh"}
             }
             night{
-                dnam{"àwɔn alɛ́"}
                 other{"àwɔn alɛ́{0}"}
-                per{"{0}/alɛ́"}
             }
             week{
                 dnam{"ɔshɛ́"}
                 per{"{0}/ɔ̀shɛ̀"}
-            }
-            year{
-                dnam{"ɔd"}
-                other{"{0} ɔd"}
             }
         }
         length{
@@ -192,7 +175,6 @@ yo_BJ{
         }
         speed{
             light-speed{
-                dnam{"ìmɔ́lɛ̀"}
                 other{"{0}ìmɔ́lɛ̀"}
             }
         }
@@ -205,11 +187,11 @@ yo_BJ{
     }
     unitsShort{
         concentr{
+            part-per-1e6{
+                dnam{"ara/milíɔ̀nù"}
+            }
             permille{
                 dnam{"ìdákan nínú ɛgbɛ̀rún"}
-            }
-            permillion{
-                dnam{"ara/milíɔ̀nù"}
             }
         }
         digital{

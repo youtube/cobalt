@@ -1,8 +1,8 @@
 diff --git a/source/common/unicode/utypes.h b/source/common/unicode/utypes.h
-index f890d5d1..0af7ccda 100644
+index f53b7536f..cbec42817 100644
 --- a/source/common/unicode/utypes.h
 +++ b/source/common/unicode/utypes.h
-@@ -312,7 +312,11 @@ typedef double UDate;
+@@ -327,7 +327,11 @@ typedef double UDate;
  #define U_IO_API
  #define U_TOOLUTIL_API
  #elif defined(U_COMMON_IMPLEMENTATION)

@@ -8,6 +8,7 @@ import '//resources/cr_components/localized_link/localized_link.js';
 
 import type {ComposeboxElement} from '//resources/cr_components/composebox/composebox.js';
 import type {PageHandlerRemote} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
+import {LensOverlayDismissalSource} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
 import {ComposeboxProxyImpl, createAutocompleteMatch} from '//resources/cr_components/composebox/composebox_proxy.js';
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
@@ -16,7 +17,8 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {InputType} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -107,8 +109,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
         value: loadTimeData.getBoolean('composeboxShowContextMenu'),
       },
       zeroStateSuggestions_: {type: Object},
-      activeToolMode_: {
-        type: Number,
+      inputState_: {
+        type: Object,
       },
       isLoading_: {
         type: Boolean,
@@ -128,6 +130,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       },
       selectedMatchIndex_: {type: Number},
       enableFileHint_: {type: Boolean},
+      lensButtonDisabled_: {type: Boolean},
     };
   }
 
@@ -154,12 +157,13 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   protected accessor isComposeboxFocused_: boolean = false;
   protected accessor showContextMenu_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
-  protected accessor activeToolMode_: ToolMode = ToolMode.kUnspecified;
+  protected accessor inputState_: InputState|null = null;
   protected accessor showSuggestionsActivityLink_: boolean = false;
   protected accessor inVoiceSearchMode_: boolean = false;
   protected accessor selectedMatchIndex_: number = -1;
   protected accessor enableFileHint_: boolean =
       loadTimeData.getBoolean('enableFileHint');
+  protected accessor lensButtonDisabled_: boolean = false;
   protected searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   private pageHandler_: PageHandlerRemote;
@@ -180,7 +184,11 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
 
   override connectedCallback() {
     super.connectedCallback();
-
+    this.searchboxListenerIds_.push(
+        this.searchboxCallbackRouter_.onInputStateChanged.addListener(
+            (inputState: InputState) => {
+              this.inputState_ = inputState;
+            }));
     const composebox = this.$.composebox;
     if (composebox) {
       this.eventTracker_.add(composebox, 'composebox-focus-in', () => {
@@ -242,16 +250,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
                 VoiceSearchState.VOICE_SEARCH_ERROR_AND_CANCELED);
           });
       this.eventTracker_.add(
-          composebox, 'active-tool-mode-changed',
-          (e: CustomEvent<{value: ToolMode}>) => {
-            this.activeToolMode_ = e.detail.value;
-          });
-      this.eventTracker_.add(
           composebox, 'composebox-voice-search-user-canceled', () => {
             this.endVoiceSearch();
             recordVoiceSearchAction(VoiceSearchState.VOICE_SEARCH_CANCELED);
           });
-      this.activeToolMode_ = composebox.activeToolMode;
 
       this.fire('update-tooltip-visibility', {height: composebox.offsetHeight});
 
@@ -302,9 +304,12 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     return this.isZeroState;
   }
 
+  protected get dropdownNeeded_() {
+    return !this.showSuggestions_;
+  }
+
   get showLensButton_() {
-    // Lens should be hidden in the side panel if deep search is enabled.
-    return this.isSidePanel && this.activeToolMode_ !== ToolMode.kDeepSearch;
+    return this.isSidePanel;
   }
 
   protected getInputPlaceholder_() {
@@ -321,6 +326,17 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     this.showSuggestionsActivityLink_ = e.detail;
   }
 
+  protected onInputStateChanged_(e: CustomEvent<{inputState: InputState}>) {
+    const disabledTypes = e.detail.inputState?.disabledInputTypes || [];
+    if (disabledTypes.includes(InputType.kLensImage)) {
+      this.pageHandler_.closeLensOverlayFromWebUI(
+          LensOverlayDismissalSource.kContextualTasksImageUploadsDisabled);
+      this.lensButtonDisabled_ = true;
+      return;
+    }
+    this.lensButtonDisabled_ = false;
+  }
+
   protected onSuggestionsResultChanged_(e: CustomEvent<AutocompleteResult>) {
     this.isLoading_ = false;
     this.zeroStateSuggestions_ = e.detail;
@@ -333,14 +349,17 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       e.preventDefault();
       e.stopPropagation();
     }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }
 
-  private updateSelection_(index: number) {
-    this.selectedMatchIndex_ = index;
-  }
-
+  // TODO(crbug.com/:494603388): This function definition should be updated: It should be
+  // `FocusIn` and use `CustomEvent<number>`. However, this means `composebox_match.ts`
+  // and its event needs to be updated, too.
   protected onMatchFocusin_(e: CustomEvent<{index: number}>) {
-    this.updateSelection_(e.detail.index);
+    this.selectedMatchIndex_ = e.detail.index;
   }
 
   private navigateToMatch_(index: number) {

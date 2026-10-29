@@ -33,50 +33,20 @@ hu{
         "Africa:Tunis"{
             ec{"Tunisz"}
         }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Bahia_Banderas"{
             ec{"Bahia Banderas"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
         }
         "America:Cayman"{
             ec{"Kajmán-szigetek"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
         "America:Dominica"{
             ec{"Dominika"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:El_Salvador"{
             ec{"Salvador"}
         }
         "America:Havana"{
             ec{"Havanna"}
-        }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Mexikóváros"}
@@ -92,9 +62,6 @@ hu{
         }
         "America:Rio_Branco"{
             ec{"Río Branco"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
@@ -339,9 +306,6 @@ hu{
         "Europe:Bucharest"{
             ec{"Bukarest"}
         }
-        "Europe:Busingen"{
-            ec{"Büsingen"}
-        }
         "Europe:Copenhagen"{
             ec{"Koppenhága"}
         }
@@ -411,9 +375,6 @@ hu{
         "Europe:Tallinn"{
             ec{"Tallin"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovszk"}
         }
@@ -454,7 +415,7 @@ hu{
             ec{"Húsvét-szigetek"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Canton-sziget"}
         }
         "Pacific:Fiji"{
             ec{"Fidzsi"}
@@ -516,9 +477,7 @@ hu{
             ls{"dél-afrikai téli idő"}
         }
         "meta:Africa_Western"{
-            ld{"nyugat-afrikai nyári idő"}
-            lg{"nyugat-afrikai időzóna"}
-            ls{"nyugat-afrikai téli idő"}
+            ls{"nyugat-afrikai időzóna"}
         }
         "meta:Alaska"{
             ld{"alaszkai nyári idő"}
@@ -715,7 +674,7 @@ hu{
         }
         "meta:Europe_Central"{
             ld{"közép-európai nyári idő"}
-            lg{"közép-európai időzóna"}
+            lg{"közép-európai idő"}
             ls{"közép-európai téli idő"}
             sd{"CEST"}
             sg{"CET"}
@@ -792,6 +751,9 @@ hu{
         }
         "meta:Guyana"{
             ls{"guyanai téli idő"}
+        }
+        "meta:Hawaii"{
+            ls{"hawaii-aleuti téli idő"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"hawaii-aleuti nyári idő"}
@@ -1090,6 +1052,11 @@ hu{
         }
         "meta:Truk"{
             ls{"truki idő"}
+        }
+        "meta:Turkey"{
+            ld{"Törökországi nyári idő"}
+            lg{"Törökországi idő"}
+            ls{"Törökországi zónaidő"}
         }
         "meta:Turkmenistan"{
             ld{"türkmenisztáni nyári idő"}

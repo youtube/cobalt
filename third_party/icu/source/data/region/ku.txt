@@ -75,12 +75,12 @@ ku{
         CA{"Kanada"}
         CC{"Giravên Kokosê (Keeling)"}
         CD{"Kongo - Kînşasa"}
-        CF{"Komara Afrîkaya Navîn"}
+        CF{"Cimhûrîyeta Afrîkaya Navîn"}
         CG{"Kongo - Brazzaville"}
         CH{"Swîsre"}
         CI{"Côte d’Ivoire"}
         CK{"Giravên Cookê"}
-        CL{"Şîle"}
+        CL{"Şîlî"}
         CM{"Kamerûn"}
         CN{"Çîn"}
         CO{"Kolombîya"}
@@ -98,7 +98,7 @@ ku{
         DJ{"Cîbûtî"}
         DK{"Danîmarka"}
         DM{"Domînîka"}
-        DO{"Komara Domînîkê"}
+        DO{"Cimhûrîyeta Domînîkê"}
         DZ{"Cezayîr"}
         EA{"Ceuta û Melîla"}
         EC{"Ekwador"}
@@ -181,11 +181,11 @@ ku{
         MA{"Fas"}
         MC{"Monako"}
         MD{"Moldova"}
-        ME{"Montenegro"}
+        ME{"Qeredax"}
         MF{"Saint Martin"}
         MG{"Madagaskar"}
         MH{"Giravên Marşalê"}
-        MK{"Makendonyaya Bakur"}
+        MK{"Makedonyaya Bakur"}
         ML{"Malî"}
         MM{"Myanmar (Bûrma)"}
         MN{"Moxolistan"}
@@ -196,7 +196,7 @@ ku{
         MS{"Montserat"}
         MT{"Malta"}
         MU{"Mauritius"}
-        MV{"Maldîva"}
+        MV{"Maldîv"}
         MW{"Malawî"}
         MX{"Meksîka"}
         MY{"Malezya"}
@@ -208,12 +208,12 @@ ku{
         NG{"Nîjerya"}
         NI{"Nîkaragua"}
         NL{"Holanda"}
-        NO{"Norwêc"}
+        NO{"Norwec"}
         NP{"Nepal"}
         NR{"Naûrû"}
         NU{"Niûe"}
         NZ{"Zelandaya Nû"}
-        OM{"Oman"}
+        OM{"Uman"}
         PA{"Panama"}
         PE{"Perû"}
         PF{"Polînezyaya Fransizî"}
@@ -225,7 +225,7 @@ ku{
         PN{"Giravên Pitcairnê"}
         PR{"Porto Rîko"}
         PS{"Filistîn"}
-        PT{"Portûgal"}
+        PT{"Portugal"}
         PW{"Palau"}
         PY{"Paragûay"}
         QA{"Qeter"}
@@ -262,22 +262,22 @@ ku{
         TF{"Herêmên Başûr ên Fransayê"}
         TG{"Togo"}
         TH{"Tayland"}
-        TJ{"Tacîkistan"}
+        TJ{"Tacikistan"}
         TK{"Tokelau"}
         TL{"Tîmor-Leste"}
         TM{"Tirkmenistan"}
         TN{"Tûnis"}
         TO{"Tonga"}
-        TR{"Tirkîye"}
+        TR{"Türkiye"}
         TT{"Trînîdad û Tobago"}
         TV{"Tûvalû"}
         TW{"Taywan"}
         TZ{"Tanzanya"}
         UA{"Ûkrayna"}
         UG{"Ûganda"}
-        UM{"Giravên Biçûk ên Derveyî DYAyê"}
+        UM{"Giravên Biçûk ên Derveyî DAYê"}
         UN{"Miletên Yekbûyî"}
-        US{"Dewletên Yekbûyî yên Amerîkayê"}
+        US{"Dewletên Amerîkayê yên Yekbûyî"}
         UY{"Ûrûguay"}
         UZ{"Ozbekistan"}
         VA{"Vatîkan"}
@@ -304,15 +304,15 @@ ku{
     }
     Countries%short{
         GB{"QY"}
-        US{"DYA"}
+        US{"DAY"}
     }
     Countries%variant{
         CD{"Kongo (KDK)"}
-        CG{"Kongo (Komar)"}
+        CG{"Kongo (Cimhûrîyet)"}
         CI{"Perava Ivoryê"}
+        CZ{"Cimhûrîyeta Çekî"}
         NZ{"Aoteroaya Zelandaya Nû"}
         SZ{"Swazîlenda"}
         TL{"Tîmora Rojhilat"}
-        TR{"Türkiye"}
     }
 }

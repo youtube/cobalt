@@ -62,6 +62,9 @@ extern const char kAskGeminiChipDescription[];
 extern const char kAssistantContainerName[];
 extern const char kAssistantContainerDescription[];
 
+extern const char kAssistantSidePanelName[];
+extern const char kAssistantSidePanelDescription[];
+
 extern const char kAutofillAcrossIframesName[];
 extern const char kAutofillAcrossIframesDescription[];
 
@@ -118,6 +121,9 @@ extern const char kAutofillEnableSupportForNameAndEmailDescription[];
 
 extern const char kAutofillEnableWalletBrandingName[];
 extern const char kAutofillEnableWalletBrandingDescription[];
+
+extern const char kAutofillEnableWalletBrandingV2Name[];
+extern const char kAutofillEnableWalletBrandingV2Description[];
 
 extern const char kAutofillManualTestingDataName[];
 extern const char kAutofillManualTestingDataDescription[];
@@ -187,6 +193,9 @@ extern const char kComposeboxCloseButtonTopAlignDescription[];
 
 extern const char kComposeboxCompactModeName[];
 extern const char kComposeboxCompactModeDescription[];
+
+extern const char kComposeboxConditionalPlusButtonName[];
+extern const char kComposeboxConditionalPlusButtonDescription[];
 
 extern const char kComposeboxDeepSearchName[];
 extern const char kComposeboxDeepSearchDescription[];
@@ -634,9 +643,6 @@ extern const char kLensUnaryApisWithHttpTransportEnabledDescription[];
 extern const char kLensUnaryHttpTransportEnabledName[];
 extern const char kLensUnaryHttpTransportEnabledDescription[];
 
-extern const char kLensWebPageLoadOptimizationEnabledName[];
-extern const char kLensWebPageLoadOptimizationEnabledDescription[];
-
 extern const char kLocationBarBadgeMigrationName[];
 extern const char kLocationBarBadgeMigrationDescription[];
 
@@ -678,9 +684,6 @@ extern const char kNTPBackgroundColorSliderDescription[];
 
 extern const char kNTPBackgroundCustomizationName[];
 extern const char kNTPBackgroundCustomizationDescription[];
-
-extern const char kNTPMIAEntrypointName[];
-extern const char kNTPMIAEntrypointDescription[];
 
 extern const char kNativeFindInPageName[];
 extern const char kNativeFindInPageDescription[];
@@ -778,8 +781,14 @@ extern const char kOmniboxZeroSuggestPrefetchingOnSRPDescription[];
 extern const char kOmniboxZeroSuggestPrefetchingOnWebName[];
 extern const char kOmniboxZeroSuggestPrefetchingOnWebDescription[];
 
+extern const char kOpenEditGroupViewByTappingTitleName[];
+extern const char kOpenEditGroupViewByTappingTitleDescription[];
+
 extern const char kOptimizationGuideDebugLogsName[];
 extern const char kOptimizationGuideDebugLogsDescription[];
+
+extern const char kPageActionMenuAuthFlowName[];
+extern const char kPageActionMenuAuthFlowDescription[];
 
 extern const char kPageActionMenuIconName[];
 extern const char kPageActionMenuIconDescription[];
@@ -793,6 +802,12 @@ extern const char kPageContentAnnotationsDescription[];
 extern const char kPageContentAnnotationsRemotePageMetadataName[];
 extern const char kPageContentAnnotationsRemotePageMetadataDescription[];
 
+extern const char kPageContextIPCOptimizationName[];
+extern const char kPageContextIPCOptimizationDescription[];
+
+extern const char kPageToolsFeatureUnavailabilityName[];
+extern const char kPageToolsFeatureUnavailabilityDescription[];
+
 extern const char kPasswordRemovalFromDeleteBrowsingDataName[];
 extern const char kPasswordRemovalFromDeleteBrowsingDataDescription[];
 
@@ -804,6 +819,9 @@ extern const char kPasswordSharingDescription[];
 
 extern const char kPersistTabContextName[];
 extern const char kPersistTabContextDescription[];
+
+extern const char kPersistTabContextRichExtractionName[];
+extern const char kPersistTabContextRichExtractionDescription[];
 
 extern const char kPersistentDefaultBrowserPromoName[];
 extern const char kPersistentDefaultBrowserPromoDescription[];
@@ -1011,6 +1029,9 @@ extern const char kWalletServiceUseSandboxDescription[];
 
 extern const char kWelcomeBackName[];
 extern const char kWelcomeBackDescription[];
+
+extern const char kYourSavedInfoSettingsPageIosName[];
+extern const char kYourSavedInfoSettingsPageIosDescription[];
 
 extern const char kZeroStateSuggestionsName[];
 extern const char kZeroStateSuggestionsDescription[];

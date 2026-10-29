@@ -196,9 +196,9 @@ SimulcastEncoderAdapter::StreamContext::StreamContext(
       is_keyframe_needed_(false),
       is_paused_(is_paused) {
   if (parent_) {
+    // If we have a parent, this encoder is not running in bypass mode and we
+    // should funnnel the callbacks back via this stream context.
     encoder_context_->encoder().RegisterEncodeCompleteCallback(this);
-  } else {
-    RTC_LOG(LS_ERROR) << "[SEA] StreamContext ctor parent is null";
   }
 }
 
@@ -212,6 +212,8 @@ SimulcastEncoderAdapter::StreamContext::StreamContext(StreamContext&& rhs)
       is_keyframe_needed_(rhs.is_keyframe_needed_),
       is_paused_(rhs.is_paused_) {
   if (parent_) {
+    // If we have a parent, this encoder is not running in bypass mode and we
+    // should funnel the callbacks back via this stream context.
     encoder_context_->encoder().RegisterEncodeCompleteCallback(this);
   }
 }
@@ -273,9 +275,13 @@ void SimulcastEncoderAdapter::StreamContext::OnFrameDropped(
 int SimulcastEncoderAdapter::StreamContext::Encode(
     const VideoFrame& frame,
     const std::vector<VideoFrameType>* frame_types) {
-  pending_rtp_timestamps_.push_back(frame.rtp_timestamp());
+  {
+    MutexLock lock(&queue_mutex_);
+    pending_rtp_timestamps_.push_back(frame.rtp_timestamp());
+  }
   int ret = encoder().Encode(frame, frame_types);
   if (ret != WEBRTC_VIDEO_CODEC_OK) {
+    MutexLock lock(&queue_mutex_);
     RTC_DCHECK_EQ(pending_rtp_timestamps_.back(), frame.rtp_timestamp());
     pending_rtp_timestamps_.pop_back();
   }
@@ -284,15 +290,24 @@ int SimulcastEncoderAdapter::StreamContext::Encode(
 
 void SimulcastEncoderAdapter::StreamContext::MaybeCullOldTimestamps(
     uint32_t new_rtp_timestamp) {
-  while (!pending_rtp_timestamps_.empty() &&
-         pending_rtp_timestamps_.front() != new_rtp_timestamp &&
-         IsNewerTimestamp(new_rtp_timestamp, pending_rtp_timestamps_.front())) {
-    parent_->OnFrameDropped(pending_rtp_timestamps_.front(), stream_idx_);
-    pending_rtp_timestamps_.pop_front();
+  std::vector<uint32_t> dropped_timestamps;
+  {
+    MutexLock lock(&queue_mutex_);
+    while (
+        !pending_rtp_timestamps_.empty() &&
+        pending_rtp_timestamps_.front() != new_rtp_timestamp &&
+        IsNewerTimestamp(new_rtp_timestamp, pending_rtp_timestamps_.front())) {
+      dropped_timestamps.push_back(pending_rtp_timestamps_.front());
+      pending_rtp_timestamps_.pop_front();
+    }
+    if (!pending_rtp_timestamps_.empty() &&
+        pending_rtp_timestamps_.front() == new_rtp_timestamp) {
+      pending_rtp_timestamps_.pop_front();
+    }
   }
-  if (!pending_rtp_timestamps_.empty() &&
-      pending_rtp_timestamps_.front() == new_rtp_timestamp) {
-    pending_rtp_timestamps_.pop_front();
+  // Make callback outside lock to avoid potential deadlocks.
+  for (uint32_t timestamp : dropped_timestamps) {
+    parent_->OnFrameDropped(timestamp, stream_idx_);
   }
 }
 

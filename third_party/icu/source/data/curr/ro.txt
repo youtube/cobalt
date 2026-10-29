@@ -919,6 +919,10 @@ ro{
             "XCD",
             "dolar est-caraib",
         }
+        XCG{
+            "Cg.",
+            "gulden caraib",
+        }
         XDR{
             "XDR",
             "drepturi speciale de tragere",
@@ -1002,6 +1006,10 @@ ro{
         ZWD{
             "ZWD",
             "dolar Zimbabwe (1980–2008)",
+        }
+        ZWG{
+            "ZWG",
+            "Zimbabwe Gold",
         }
         ZWL{
             "ZWL",
@@ -1997,6 +2005,11 @@ ro{
             one{"dolar est-caraib"}
             other{"dolari est-caraibi"}
         }
+        XCG{
+            few{"guldeni caraibi"}
+            one{"gulden caraib"}
+            other{"guldeni caraibi"}
+        }
         XFO{
             few{"franci francezi de aur"}
             one{"franc francez de aur"}
@@ -2066,6 +2079,11 @@ ro{
             few{"dolari Zimbabwe (1980–2008)"}
             one{"dolar Zimbabwe (1980–2008)"}
             other{"dolari Zimbabwe (1980–2008)"}
+        }
+        ZWG{
+            few{"Zimbabwe Gold"}
+            one{"Zimbabwe Gold"}
+            other{"Zimbabwe Gold"}
         }
     }
     CurrencyUnitPatterns{

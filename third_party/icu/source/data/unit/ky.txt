@@ -34,6 +34,11 @@ ky{
                 one{"{0} радиан"}
                 other{"{0} радиан"}
             }
+            steradian{
+                dnam{"стерадиан"}
+                one{"{0} стерадиан"}
+                other{"{0} стерадиан"}
+            }
         }
         area{
             hectare{
@@ -130,6 +135,11 @@ ky{
                 one{"{0} карат"}
                 other{"{0} карат"}
             }
+            katal{
+                dnam{"катал"}
+                one{"{0} катал"}
+                other{"{0} катал"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"децилитрга миллиграмм"}
                 one{"децилитрга {0} миллиграмм"}
@@ -143,6 +153,26 @@ ky{
             mole{
                 dnam{"мольдор"}
             }
+            ofglucose{
+                dnam{"глюкоза"}
+                one{"{0} глюкоза"}
+                other{"{0} глюкоза"}
+            }
+            part{
+                dnam{"бирдик"}
+                one{"{0} бирдик"}
+                other{"{0} бирдик"}
+            }
+            part-per-1e6{
+                dnam{"миллионго бөлүктөр"}
+                one{"миллионго {0} бөлүк"}
+                other{"миллионго {0} бөлүк"}
+            }
+            part-per-1e9{
+                dnam{"мкг/л"}
+                one{"{0} мкг/л"}
+                other{"{0} мкг/л"}
+            }
             percent{
                 one{"{0} пайыз"}
                 other{"{0} пайыз"}
@@ -150,16 +180,6 @@ ky{
             permille{
                 one{"{0} промилле"}
                 other{"{0} промилле"}
-            }
-            permillion{
-                dnam{"миллионго бөлүктөр"}
-                one{"миллионго {0} бөлүк"}
-                other{"миллионго {0} бөлүк"}
-            }
-            portion-per-1e9{
-                dnam{"мкг/л"}
-                one{"{0} мкг/л"}
-                other{"{0} мкг/л"}
             }
         }
         consumption{
@@ -275,9 +295,6 @@ ky{
                 other{"{0} наносекунд"}
             }
             night{
-                dnam{"түн"}
-                one{"{0}/түн"}
-                other{"{0}/түн"}
                 per{"{0}/түнүнө"}
             }
             quarter{
@@ -307,6 +324,21 @@ ky{
                 one{"{0} ампер"}
                 other{"{0} ампер"}
             }
+            coulomb{
+                dnam{"Кулон"}
+                one{"{0} кулон"}
+                other{"{0} кулон"}
+            }
+            farad{
+                dnam{"фарад"}
+                one{"{0} фарад"}
+                other{"{0} фарад"}
+            }
+            henry{
+                dnam{"генри"}
+                one{"{0} генри"}
+                other{"{0} генри"}
+            }
             milliampere{
                 dnam{"миллиампер"}
                 one{"{0} миллиампер"}
@@ -316,12 +348,22 @@ ky{
                 one{"{0} ом"}
                 other{"{0} ом"}
             }
+            siemens{
+                dnam{"сименс"}
+                one{"{0} сименс"}
+                other{"{0} сименс"}
+            }
             volt{
                 one{"{0} вольт"}
                 other{"{0} вольт"}
             }
         }
         energy{
+            becquerel{
+                dnam{"Беккерель"}
+                one{"{0} беккерель"}
+                other{"{0} беккерель"}
+            }
             british-thermal-unit{
                 dnam{"Британдык жылуулук бирдиктери"}
                 one{"{0} Британдык жылуулук бирдиги"}
@@ -332,10 +374,18 @@ ky{
                 one{"{0} калория"}
                 other{"{0} калория"}
             }
+            calorie-it{
+                dnam{"калориялар [IT]"}
+            }
             foodcalorie{
                 dnam{"Калориялар"}
                 one{"{0} Калория"}
                 other{"{0} Калория"}
+            }
+            gray{
+                dnam{"Грей"}
+                one{"{0} грей"}
+                other{"{0} грей"}
             }
             joule{
                 one{"{0} жоул"}
@@ -355,11 +405,21 @@ ky{
                 one{"{0} килловат-саат"}
                 other{"{0} килловат-саат"}
             }
+            sievert{
+                dnam{"зиверттер"}
+                one{"{0} зиверттер"}
+                other{"{0} зиверттер"}
+            }
             therm-us{
                 dnam{"терм АКШ"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"килограмм- күч"}
+                one{"{0} килограмм-күч"}
+                other{"{0} килограмм-күч"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"100 километрге киловатт саат"}
             }
@@ -506,6 +566,18 @@ ky{
                 other{"{0} күндүн жарык күчү"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"тесла"}
+                one{"{0} тесла"}
+                other{"{0} тесла"}
+            }
+            weber{
+                dnam{"вебер"}
+                one{"{0} вебер"}
+                other{"{0} вебер"}
+            }
+        }
         mass{
             carat{
                 one{"{0} карат"}
@@ -625,6 +697,9 @@ ky{
                 one{"{0} миллиметр сымап мамычасы"}
                 other{"{0} миллиметр сымап мамычасы"}
             }
+            ofhg{
+                dnam{"сымап мамычасы"}
+            }
             pound-force-per-square-inch{
                 dnam{"чарчы дюймга фунт"}
                 one{"чарчы дюймга {0} фунт"}
@@ -641,11 +716,6 @@ ky{
                 dnam{"түйүн"}
                 one{"{0} түйүн"}
                 other{"{0} түйүн"}
-            }
-            light-speed{
-                dnam{"жарык"}
-                one{"{0} жарык"}
-                other{"{0} жарык"}
             }
             meter-per-second{
                 dnam{"секундасына метр"}
@@ -845,13 +915,21 @@ ky{
                 one{"{0}ммоль/л"}
                 other{"{0}ммоль/л"}
             }
-            percent{
-                dnam{"%"}
+            ofglucose{
+                dnam{"Glc"}
             }
-            portion-per-1e9{
+            part{
+                dnam{"бирдик"}
+                one{"{0} бирдик"}
+                other{"{0} бирдик"}
+            }
+            part-per-1e9{
                 dnam{"мкг/л"}
                 one{"{0} мкг/л"}
                 other{"{0} мкг/л"}
+            }
+            percent{
+                dnam{"%"}
             }
         }
         consumption{
@@ -882,12 +960,6 @@ ky{
             }
             minute{
                 dnam{"мүн"}
-            }
-            night{
-                dnam{"түн"}
-                one{"{0}/түн"}
-                other{"{0}/түн"}
-                per{"{0}/түн"}
             }
             quarter{
                 one{"{0}/ч"}
@@ -978,11 +1050,6 @@ ky{
             }
         }
         speed{
-            light-speed{
-                dnam{"жарык"}
-                one{"{0} жарык"}
-                other{"{0} жарык"}
-            }
             meter-per-second{
                 one{"{0} м/с"}
                 other{"{0} м/с"}
@@ -1169,19 +1236,27 @@ ky{
                 one{"{0} моль"}
                 other{"{0} моль"}
             }
+            ofglucose{
+                dnam{"Glc"}
+            }
+            part{
+                dnam{"бирдик"}
+                one{"{0} бирдик"}
+                other{"{0} бирдик"}
+            }
+            part-per-1e6{
+                dnam{"миллионго/бөлүк"}
+            }
+            part-per-1e9{
+                dnam{"мкг/л"}
+                one{"{0} мкг/л"}
+                other{"{0} мкг/л"}
+            }
             percent{
                 dnam{"пайыз"}
             }
             permille{
                 dnam{"промилле"}
-            }
-            permillion{
-                dnam{"миллионго/бөлүк"}
-            }
-            portion-per-1e9{
-                dnam{"мкг/л"}
-                one{"{0} мкг/л"}
-                other{"{0} мкг/л"}
             }
         }
         consumption{

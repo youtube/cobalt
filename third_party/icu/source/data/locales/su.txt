@@ -107,7 +107,6 @@ su{
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d/M"}
-                h{"h a"}
                 hm{"h.mm a"}
                 hms{"h.mm.ss a"}
                 hmsv{"h.mm.ss a v"}
@@ -158,8 +157,8 @@ su{
             }
             eras{
                 abbreviated{
-                    "SM",
-                    "M",
+                    0{"SM"}
+                    1{"M"}
                 }
             }
             monthNames{
@@ -304,9 +303,6 @@ su{
                 "0"{"taun ieu"}
                 "1"{"taun payun"}
             }
-        }
-        year-short{
-            dn{"tn."}
         }
         zone{
             dn{"zona waktu"}

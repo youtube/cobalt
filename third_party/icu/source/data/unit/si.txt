@@ -29,6 +29,11 @@ si{
                 one{"පරිභ්‍රමණ {0}"}
                 other{"පරිභ්‍රමණය {0}"}
             }
+            steradian{
+                dnam{"ස්ටරේඩියන"}
+                one{"ස්ටරේඩියන {0}"}
+                other{"ස්ටරේඩියන {0}"}
+            }
         }
         area{
             hectare{
@@ -126,6 +131,11 @@ si{
             item{
                 dnam{"අයිතම"}
             }
+            katal{
+                dnam{"කැටල්"}
+                one{"කැටල් {0}"}
+                other{"කැටල් {0}"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ඩෙසිලීටරයකට මිලිග්‍රෑම්"}
                 one{"ඩෙසිලීටරයකට මිලිග්‍රෑම් {0}"}
@@ -136,6 +146,26 @@ si{
                 one{"ලීටරයකට මිලිමෝල් {0}"}
                 other{"ලීටරයකට මිලිමෝල් {0}"}
             }
+            ofglucose{
+                dnam{"ග්ලූකෝස්"}
+                one{"ග්ලූකෝස් {0}"}
+                other{"ග්ලූකෝස් {0}"}
+            }
+            part{
+                dnam{"කොටස"}
+                one{"කොටස {0}"}
+                other{"කොටස {0}"}
+            }
+            part-per-1e6{
+                dnam{"මිලියනයට කොටස්"}
+                one{"මිලියනයට කොටස් {0}"}
+                other{"මිලියනයට කොටස් {0}"}
+            }
+            part-per-1e9{
+                dnam{"බිලියනයකට කොටස්"}
+                one{"බිලියනයකට කොටස් {0}"}
+                other{"බිලියනයකට කොටස් {0}"}
+            }
             percent{
                 one{"ප්‍රතිශතය {0}"}
                 other{"ප්‍රතිශතය {0}"}
@@ -145,19 +175,9 @@ si{
                 one{"ප්‍රතිසහශ්‍රක {0}"}
                 other{"ප්‍රතිසහශ්‍රක {0}"}
             }
-            permillion{
-                dnam{"මිලියනයට කොටස්"}
-                one{"මිලියනයට කොටස් {0}"}
-                other{"මිලියනයට කොටස් {0}"}
-            }
             permyriad{
                 one{"{0} පර්මැරියඩ්"}
                 other{"{0} පර්මැරියඩ්"}
-            }
-            portion-per-1e9{
-                dnam{"බිලියනයකට කොටස්"}
-                one{"බිලියනයකට කොටස් {0}"}
-                other{"බිලියනයකට කොටස් {0}"}
             }
         }
         consumption{
@@ -265,10 +285,8 @@ si{
                 other{"නැනෝතත්පර {0}"}
             }
             night{
-                dnam{"රාත්‍රිය"}
                 one{"{0} රාත්‍රිය"}
                 other{"රාත්‍රිය {0}"}
-                per{"{0}/රාත්‍රිය"}
             }
             quarter{
                 one{"කාල {0}"}
@@ -291,6 +309,21 @@ si{
                 one{"ඇම්පියර {0}"}
                 other{"ඇම්පියර {0}"}
             }
+            coulomb{
+                dnam{"කූලෝම්බ්"}
+                one{"කූලෝම්බ් {0}"}
+                other{"කූලෝම්බ් {0}"}
+            }
+            farad{
+                dnam{"ෆැරඩ"}
+                one{"ෆැරඩ {0}"}
+                other{"ෆැරඩ {0}"}
+            }
+            henry{
+                dnam{"හෙන්රි"}
+                one{"හෙන්රි {0}"}
+                other{"හෙන්රි {0}"}
+            }
             milliampere{
                 dnam{"මිලි ඇම්පියර"}
                 one{"මිලි ඇම්පියර {0}"}
@@ -300,12 +333,22 @@ si{
                 one{"ඕම් {0}"}
                 other{"ඕම් {0}"}
             }
+            siemens{
+                dnam{"සීමන්"}
+                one{"සීමන් {0}"}
+                other{"සීමන් {0}"}
+            }
             volt{
                 one{"වෝල්ට් {0}"}
                 other{"වෝල්ට් {0}"}
             }
         }
         energy{
+            becquerel{
+                dnam{"බෙකරල්"}
+                one{"බෙකරල් {0}"}
+                other{"බෙකරල් {0}"}
+            }
             british-thermal-unit{
                 dnam{"බ්‍රිතාන්‍ය තාප ඒකක"}
                 one{"{0} බ්‍රිතාන්‍ය තාප ඒකක"}
@@ -316,6 +359,11 @@ si{
                 one{"කැලරි {0}"}
                 other{"කැලරි {0}"}
             }
+            calorie-it{
+                dnam{"කැලරි [IT]"}
+                one{"කැලරි [IT] {0}"}
+                other{"කැලරි [IT] {0}"}
+            }
             electronvolt{
                 one{"{0} ඉලේට්‍රෝන වෝල්ට්"}
                 other{"{0} ඉලේට්‍රෝන වෝල්ට්"}
@@ -324,6 +372,11 @@ si{
                 dnam{"කැලරි"}
                 one{"කැලරි {0}"}
                 other{"කැලරි {0}"}
+            }
+            gray{
+                dnam{"අළු"}
+                one{"අළු {0}"}
+                other{"අළු {0}"}
             }
             joule{
                 one{"ජුල් {0}"}
@@ -343,6 +396,11 @@ si{
                 one{"කිලෝවොට්-පැය {0}"}
                 other{"කිලෝවොට්-පැය {0}"}
             }
+            sievert{
+                dnam{"සීවර්ට්"}
+                one{"සීවර්ට් {0}"}
+                other{"සීවර්ට් {0}"}
+            }
             therm-us{
                 dnam{"එක්සත් ජනපද තාප ඒකක"}
                 one{"එක්සත් ජනපද තාප ඒකක {0}"}
@@ -350,6 +408,11 @@ si{
             }
         }
         force{
+            kilogram-force{
+                dnam{"කිලෝග්‍රෑම්-බලය"}
+                one{"කිලෝග්‍රෑම්-බලය {0}"}
+                other{"කිලෝග්‍රෑම්-බලය {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"කිලෝමීටර 100 කට කිලෝවොට් පැය"}
                 one{"කිලෝමීටර 100 කට කිලෝවොට් පැය {0}"}
@@ -539,6 +602,18 @@ si{
                 other{"{0} සූර්ය දීප්ති"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ටෙස්ලා"}
+                one{"ටෙස්ලා {0}"}
+                other{"ටෙස්ලා {0}"}
+            }
+            weber{
+                dnam{"වේබර"}
+                one{"වේබරය {0}"}
+                other{"වේබරය {0}"}
+            }
+        }
         mass{
             carat{
                 one{"කැරට් {0}"}
@@ -668,6 +743,11 @@ si{
                 one{"රසදිය මිලිමීටර {0}"}
                 other{"රසදිය මිලිමීටර {0}"}
             }
+            ofhg{
+                dnam{"රසදිය"}
+                one{"රසදිය {0}"}
+                other{"රසදිය {0}"}
+            }
             pascal{
                 dnam{"පැස්කල්"}
                 one{"පැස්කල් {0}"}
@@ -695,7 +775,6 @@ si{
                 other{"නාවික සැතපුම් {0}"}
             }
             light-speed{
-                dnam{"ආලෝකය"}
                 one{"{0} ආලෝකය"}
                 other{"ආලෝකය {0}"}
             }
@@ -828,6 +907,11 @@ si{
                 one{"{0} අධිරා. තරල අවුන්ස"}
                 other{"{0} අධිරා. තරල අවුන්ස"}
             }
+            fluid-ounce-metric{
+                dnam{"මෙට්‍රික් තරල අවුන්ස"}
+                one{"මෙට්‍රික් තරල අවුන්ස {0}"}
+                other{"මෙට්‍රික් තරල අවුන්ස {0}"}
+            }
             gallon{
                 dnam{"ගැලුම්"}
                 one{"ගැලුම් {0}"}
@@ -916,6 +1000,11 @@ si{
                 one{"{0}°"}
                 other{"{0}°"}
             }
+            steradian{
+                dnam{"ස්ට"}
+                one{"ස්ට {0}"}
+                other{"ස්ට {0}"}
+            }
         }
         area{
             hectare{
@@ -967,19 +1056,32 @@ si{
             10p9{"ගි{0}"}
         }
         concentr{
+            katal{
+                dnam{"කැට"}
+                one{"කැට {0}"}
+                other{"කැට {0}"}
+            }
+            ofglucose{
+                dnam{"ග්ලූ"}
+                one{"ග්ලූ {0}"}
+                other{"ග්ලූ {0}"}
+            }
+            part{
+                dnam{"කොටස"}
+                one{"කොටස {0}"}
+                other{"කොටස {0}"}
+            }
+            part-per-1e6{
+                dnam{"මිලිකො"}
+            }
+            part-per-1e9{
+                dnam{"බිකො"}
+            }
             percent{
                 dnam{"%"}
             }
-            permillion{
-                dnam{"මිලිකො"}
-            }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                dnam{"බිකො"}
-                one{"බිකො {0}"}
-                other{"බිකො {0}"}
             }
         }
         consumption{
@@ -1012,12 +1114,6 @@ si{
                 one{"මා {0}"}
                 other{"මා {0}"}
             }
-            night{
-                dnam{"රාත්‍රිය"}
-                one{"රාත්‍රිය {0}"}
-                other{"රාත්‍රිය {0}"}
-                per{"{0}/රාත්‍රිය"}
-            }
             second{
                 dnam{"තත්"}
                 one{"ත {0}"}
@@ -1036,11 +1132,41 @@ si{
             ampere{
                 dnam{"ඇ"}
             }
+            coulomb{
+                dnam{"කූ"}
+                one{"කූ {0}"}
+                other{"කූ {0}"}
+            }
+            farad{
+                dnam{"ෆැ"}
+                one{"ෆැ {0}"}
+                other{"ෆැ {0}"}
+            }
+            henry{
+                dnam{"හෙ"}
+                one{"හෙ {0}"}
+                other{"හෙ {0}"}
+            }
             milliampere{
                 dnam{"මිඇ"}
             }
+            siemens{
+                dnam{"සී"}
+                one{"සී {0}"}
+                other{"සී {0}"}
+            }
         }
         energy{
+            becquerel{
+                dnam{"බෙක"}
+                one{"බෙක {0}"}
+                other{"බෙක {0}"}
+            }
+            calorie-it{
+                dnam{"කැ [IT]"}
+                one{"කැ [IT] {0}"}
+                other{"කැ [IT] {0}"}
+            }
             electronvolt{
                 dnam{"ඉවෝ"}
             }
@@ -1048,8 +1174,18 @@ si{
                 one{"කැල{0}"}
                 other{"කැල{0}"}
             }
+            gray{
+                dnam{"අළු"}
+                one{"අළු {0}"}
+                other{"අළු {0}"}
+            }
             kilojoule{
                 dnam{"කිජු"}
+            }
+            sievert{
+                dnam{"සීව"}
+                one{"සීව {0}"}
+                other{"සීව {0}"}
             }
             therm-us{
                 dnam{"එජ තාප ඒකක"}
@@ -1058,6 +1194,11 @@ si{
             }
         }
         force{
+            kilogram-force{
+                dnam{"කිග්‍රෑබ"}
+                one{"කිග්‍රෑබ {0}"}
+                other{"කිග්‍රෑබ {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 one{"{0}කිවොපැ/100කිමී"}
                 other{"{0} කිවොපැ/100කිමී"}
@@ -1098,6 +1239,18 @@ si{
                 dnam{"අ☉"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ටෙ"}
+                one{"ටෙ {0}"}
+                other{"ටෙ {0}"}
+            }
+            weber{
+                dnam{"වේබ"}
+                one{"වේබ {0}"}
+                other{"වේබ {0}"}
+            }
+        }
         mass{
             dalton{
                 dnam{"ඩෝ"}
@@ -1132,10 +1285,6 @@ si{
             }
         }
         pressure{
-            hectopascal{
-                one{"{0} hPa"}
-                other{"{0} hPa"}
-            }
             inch-ofhg{
                 dnam{"\u0022 ර"}
                 one{"ර {0}\u0022"}
@@ -1145,16 +1294,16 @@ si{
                 one{"මි.බා. {0}"}
                 other{"මි.බා. {0}"}
             }
+            ofhg{
+                dnam{"ර"}
+                one{"ර {0}"}
+                other{"ර {0}"}
+            }
         }
         speed{
             beaufort{
                 one{"බි{0}"}
                 other{"බි{0}"}
-            }
-            light-speed{
-                dnam{"ආලෝකය"}
-                one{"ආලෝකය {0}"}
-                other{"ආලෝකය {0}"}
             }
             meter-per-second{
                 dnam{"මී/තත්"}
@@ -1186,6 +1335,11 @@ si{
             }
             dessert-spoon-imperial{
                 dnam{"ඉම්පී. අතුරුපස හැඳි"}
+            }
+            fluid-ounce-metric{
+                dnam{"මෙ ත අ."}
+                one{"මෙ ත අ. {0}"}
+                other{"මෙ ත අ. {0}"}
             }
         }
     }
@@ -1225,6 +1379,11 @@ si{
                 dnam{"පරිභ්‍ර"}
                 one{"පරිභ්‍ර {0}"}
                 other{"පරිභ්‍ර {0}"}
+            }
+            steradian{
+                dnam{"ස්ට"}
+                one{"ස්ට {0}"}
+                other{"ස්ට {0}"}
             }
         }
         area{
@@ -1328,6 +1487,11 @@ si{
                 one{"ක්‍රාත් {0}"}
                 other{"ක්‍රාත් {0}"}
             }
+            katal{
+                dnam{"කැට"}
+                one{"කැට {0}"}
+                other{"කැට {0}"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"මිග්‍රෑ/ඩෙලි"}
                 one{"{0} මිග්‍රෑ/ඩෙලි"}
@@ -1343,21 +1507,31 @@ si{
                 one{"{0} මවුල"}
                 other{"{0} මවුල"}
             }
-            percent{
-                dnam{"ප්‍රතිශතය"}
+            ofglucose{
+                dnam{"ග්ලූකෝ"}
+                one{"ග්ලූකෝ {0}"}
+                other{"ග්ලූකෝ {0}"}
             }
-            permillion{
+            part{
+                dnam{"කොටස"}
+                one{"කොටස {0}"}
+                other{"කොටස {0}"}
+            }
+            part-per-1e6{
                 dnam{"කොටස්/මිලියනය"}
                 one{"{0} මිලිකො"}
                 other{"{0} මිලිකො"}
             }
-            permyriad{
-                dnam{"පර්මැරියඩ්"}
-            }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"කොටස්/බිලියනය"}
                 one{"බිකො {0}"}
                 other{"බිකො {0}"}
+            }
+            percent{
+                dnam{"ප්‍රතිශතය"}
+            }
+            permyriad{
+                dnam{"පර්මැරියඩ්"}
             }
         }
         consumption{
@@ -1533,6 +1707,21 @@ si{
                 one{"ඇ {0}"}
                 other{"ඇ {0}"}
             }
+            coulomb{
+                dnam{"කූ"}
+                one{"කූ {0}"}
+                other{"කූ {0}"}
+            }
+            farad{
+                dnam{"ෆැ"}
+                one{"ෆැ {0}"}
+                other{"ෆැ {0}"}
+            }
+            henry{
+                dnam{"හෙ"}
+                one{"හෙ {0}"}
+                other{"හෙ {0}"}
+            }
             milliampere{
                 dnam{"මිලිඇම්පිර"}
                 one{"මිඇ {0}"}
@@ -1541,6 +1730,11 @@ si{
             ohm{
                 dnam{"ඕම්"}
             }
+            siemens{
+                dnam{"සී"}
+                one{"සී {0}"}
+                other{"සී {0}"}
+            }
             volt{
                 dnam{"වෝල්ට්"}
                 one{"වෝ {0}"}
@@ -1548,6 +1742,11 @@ si{
             }
         }
         energy{
+            becquerel{
+                dnam{"බෙක"}
+                one{"බෙක {0}"}
+                other{"බෙක {0}"}
+            }
             british-thermal-unit{
                 dnam{"බ්‍රිතාඒ"}
                 one{"{0} බ්‍රිතාඒ"}
@@ -1558,6 +1757,11 @@ si{
                 one{"කැල {0}"}
                 other{"කැල {0}"}
             }
+            calorie-it{
+                dnam{"කැල [IT]"}
+                one{"කැල [IT] {0}"}
+                other{"කැල [IT] {0}"}
+            }
             electronvolt{
                 dnam{"ඉලේට්‍රෝන වෝල්ට්"}
                 one{"{0} ඉවෝ"}
@@ -1567,6 +1771,11 @@ si{
                 dnam{"කැල"}
                 one{"කැල {0}"}
                 other{"කැල {0}"}
+            }
+            gray{
+                dnam{"අළු"}
+                one{"අළු {0}"}
+                other{"අළු {0}"}
             }
             joule{
                 dnam{"ජුල්"}
@@ -1588,6 +1797,11 @@ si{
                 one{"කිවො-පැය {0}"}
                 other{"කිවො-පැය {0}"}
             }
+            sievert{
+                dnam{"සීව"}
+                one{"සීව {0}"}
+                other{"සීව {0}"}
+            }
             therm-us{
                 dnam{"එක්සත් ජනපද තාප ඒකකය"}
                 one{"එ. ජ. තාප ඒකක {0}"}
@@ -1595,6 +1809,11 @@ si{
             }
         }
         force{
+            kilogram-force{
+                dnam{"කිග්‍රෑබ"}
+                one{"කිග්‍රෑබ {0}"}
+                other{"කිග්‍රෑබ {0}"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"කිවොපැ/100කිමී"}
                 one{"{0} කිවොපැ/100කිමී"}
@@ -1790,6 +2009,18 @@ si{
                 other{"{0} දි☉"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ටෙ"}
+                one{"ටෙ {0}"}
+                other{"ටෙ {0}"}
+            }
+            weber{
+                dnam{"වේබ"}
+                one{"වේබ {0}"}
+                other{"වේබ {0}"}
+            }
+        }
         mass{
             carat{
                 dnam{"කැරට්"}
@@ -1943,6 +2174,11 @@ si{
                 dnam{"ර මිමී"}
                 one{"ර මිමී {0}"}
                 other{"ර මිමී {0}"}
+            }
+            ofhg{
+                dnam{"ර"}
+                one{"ර {0}"}
+                other{"ර {0}"}
             }
             pascal{
                 dnam{"පැස්"}
@@ -2118,6 +2354,11 @@ si{
                 dnam{"අධිරා. තර අවු"}
                 one{"{0} තර අවු අධිරා."}
                 other{"{0} තර අවු අධිරා."}
+            }
+            fluid-ounce-metric{
+                dnam{"මෙට්‍රි තර අවු."}
+                one{"මෙට්‍රි තර අවු. {0}"}
+                other{"මෙට්‍රි තර අවු. {0}"}
             }
             gallon{
                 dnam{"ගැලු"}

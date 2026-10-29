@@ -9,9 +9,6 @@ nso{
             patterns{
                 accountingFormat{"¤#,##0.00"}
             }
-            symbols{
-                group{" "}
-            }
         }
     }
     calendar{
@@ -47,6 +44,8 @@ nso{
                 hms{"h:mm:ss a"}
                 hmsv{"h:mm:ss a v"}
                 hmv{"h:mm a v"}
+                yMMMd{"d MMM y"}
+                yMd{"dd-MM-y"}
                 yw{
                     one{"'beke' 'ya' 'bo' w 'ya' Y"}
                     other{"'beke' 'ya' 'bo' w 'ya' Y"}
@@ -87,20 +86,20 @@ nso{
             }
             eras{
                 abbreviated{
-                    "BC",
-                    "AD",
+                    0{"BC"}
+                    1{"AD"}
                 }
                 abbreviated%variant{
-                    "BCE",
-                    "CE",
+                    0{"BCE"}
+                    1{"CE"}
                 }
                 wide{
-                    "Before Christ",
-                    "Anno Domini",
+                    0{"Before Christ"}
+                    1{"Anno Domini"}
                 }
                 wide%variant{
-                    "Before Common Era",
-                    "Common Era",
+                    0{"Before Common Era"}
+                    1{"Common Era"}
                 }
             }
             intervalFormats{
@@ -170,18 +169,18 @@ nso{
             monthNames{
                 format{
                     abbreviated{
-                        "Phere",
-                        "Dibo",
-                        "Hlak",
-                        "Mora",
+                        "Jan",
+                        "Feb",
+                        "Mat",
+                        "Apo",
                         "Mei",
-                        "June",
-                        "Mose",
-                        "Agosetose",
-                        "Lewe",
-                        "Dipha",
-                        "Diba",
-                        "Manth",
+                        "Jun",
+                        "Jul",
+                        "Ago",
+                        "Sep",
+                        "Okt",
+                        "Nof",
+                        "Dis",
                     }
                     wide{
                         "Janeware",
@@ -217,6 +216,12 @@ nso{
             }
             quarters{
                 format{
+                    abbreviated{
+                        "Kotara 1",
+                        "Kotara 2",
+                        "Kotara 3",
+                        "Kotara 4",
+                    }
                     wide{
                         "1st Kotara",
                         "2nd Kotara",
@@ -227,11 +232,42 @@ nso{
             }
         }
     }
-    delimiters{
-        alternateQuotationEnd{"”"}
-        alternateQuotationStart{"“"}
-        quotationEnd{"’"}
-        quotationStart{"‘"}
+    fields{
+        day{
+            relative{
+                "-1"{"maabane"}
+                "0"{"lehono"}
+                "1"{"gosasa"}
+            }
+        }
+        month{
+            relative{
+                "-1"{"kgwedi ye e fetilego"}
+                "0"{"kgwedi ye"}
+                "1"{"kgwedi ye e tlago"}
+            }
+        }
+        sun{
+            relative{
+                "-1"{"LaMorena le fetilego"}
+                "0"{"LaMorena le"}
+                "1"{"LaMorena le latelago"}
+            }
+        }
+        week{
+            relative{
+                "-1"{"beke ye e fetilego"}
+                "0"{"beke ye"}
+                "1"{"beke ye e tlago"}
+            }
+        }
+        year{
+            relative{
+                "-1"{"ngwaga wa go feta"}
+                "0"{"ngwaga wo"}
+                "1"{"ngwaga wo o tlago"}
+            }
+        }
     }
     measurementSystemNames{
         metric{"Metriki"}

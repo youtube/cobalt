@@ -119,12 +119,12 @@ kln{
             }
             eras{
                 abbreviated{
-                    "AM",
-                    "KO",
+                    0{"AM"}
+                    1{"KO"}
                 }
                 wide{
-                    "Amait kesich Jesu",
-                    "Kokakesich Jesu",
+                    0{"Amait kesich Jesu"}
+                    1{"Kokakesich Jesu"}
                 }
             }
             monthNames{

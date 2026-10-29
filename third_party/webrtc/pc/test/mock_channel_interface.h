@@ -18,6 +18,7 @@
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtc_error.h"
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
 #include "pc/channel_interface.h"
@@ -72,13 +73,13 @@ class MockChannelInterface : public ChannelInterface {
               SetPacketReceivedCallback_n,
               (absl::AnyInvocable<void(const RtpPacketReceived&)>),
               (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD(RTCError,
               SetLocalContent,
-              (const webrtc::MediaContentDescription*, SdpType, std::string&),
+              (const webrtc::MediaContentDescription*, SdpType),
               (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD(RTCError,
               SetRemoteContent,
-              (const webrtc::MediaContentDescription*, SdpType, std::string&),
+              (const webrtc::MediaContentDescription*, SdpType),
               (override));
   MOCK_METHOD(bool, SetPayloadTypeDemuxingEnabled, (bool), (override));
   MOCK_METHOD(const std::vector<StreamParams>&,

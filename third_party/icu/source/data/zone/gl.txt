@@ -30,17 +30,11 @@ gl{
         "Africa:Khartoum"{
             ec{"Khartún"}
         }
-        "Africa:Lome"{
-            ec{"Lomé"}
-        }
         "Africa:Lusaka"{
             ec{"Lusaca"}
         }
         "Africa:Mogadishu"{
             ec{"Mogadixo"}
-        }
-        "Africa:Ndjamena"{
-            ec{"N’Djamena"}
         }
         "Africa:Ouagadougou"{
             ec{"Uagadugu"}
@@ -57,23 +51,8 @@ gl{
         "America:Anguilla"{
             ec{"Anguila"}
         }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Bahia"{
             ec{"Baía"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
-        }
-        "America:Bogota"{
-            ec{"Bogotá"}
         }
         "America:Cayenne"{
             ec{"Caiena"}
@@ -81,14 +60,8 @@ gl{
         "America:Cayman"{
             ec{"Illas Caimán"}
         }
-        "America:Cordoba"{
-            ec{"Córdoba"}
-        }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
+        "America:Coyhaique"{
+            ec{"Coihaique"}
         }
         "America:El_Salvador"{
             ec{"O Salvador"}
@@ -117,14 +90,8 @@ gl{
         "America:Los_Angeles"{
             ec{"Os Ánxeles"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Martinique"{
             ec{"Martinica"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Cidade de México"}
@@ -156,12 +123,6 @@ gl{
         "America:Rio_Branco"{
             ec{"Río Branco"}
         }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
-        }
         "America:St_Barthelemy"{
             ec{"Saint Barthélemy"}
         }
@@ -182,12 +143,6 @@ gl{
         }
         "America:Tortola"{
             ec{"Tórtola"}
-        }
-        "Antarctica:DumontDUrville"{
-            ec{"Dumont-d’Urville"}
-        }
-        "Antarctica:Syowa"{
-            ec{"Showa"}
         }
         "Asia:Aden"{
             ec{"Adén"}
@@ -272,9 +227,6 @@ gl{
         }
         "Asia:Tehran"{
             ec{"Teherán"}
-        }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
         }
         "Asia:Yakutsk"{
             ec{"Iakutsk"}
@@ -401,9 +353,6 @@ gl{
         "Europe:Stockholm"{
             ec{"Estocolmo"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Ulianovsk"}
         }
@@ -425,12 +374,6 @@ gl{
         "Indian:Christmas"{
             ec{"Illa Christmas"}
         }
-        "Indian:Comoro"{
-            ec{"Comores"}
-        }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Maldivas"}
         }
@@ -444,7 +387,7 @@ gl{
             ec{"Illa de Pascua"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"illa Kantón"}
         }
         "Pacific:Fiji"{
             ec{"Fixi"}
@@ -459,7 +402,9 @@ gl{
             ec{"Tahití"}
         }
         "meta:Acre"{
+            ld{"hora de verán de Acre"}
             lg{"hora de Acre"}
+            ls{"hora estándar de Acre"}
         }
         "meta:Afghanistan"{
             ls{"hora de Afganistán"}
@@ -474,9 +419,7 @@ gl{
             ls{"hora de África Meridional"}
         }
         "meta:Africa_Western"{
-            ld{"hora de verán de África Occidental"}
-            lg{"hora de África Occidental"}
-            ls{"hora estándar de África Occidental"}
+            ls{"hora de África Occidental"}
         }
         "meta:Alaska"{
             ld{"hora de verán de Alasca"}
@@ -729,6 +672,9 @@ gl{
         }
         "meta:Guyana"{
             ls{"hora da Güiana"}
+        }
+        "meta:Hawaii"{
+            ls{"hora estándar de Hawai-illas Aleutianas"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"hora de verán de Hawai-illas Aleutianas"}

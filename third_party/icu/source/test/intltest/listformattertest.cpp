@@ -444,9 +444,10 @@ void ListFormatterTest::TestRussian() {
 // For two elements, "\\u0d15\\u0d42\\u0d1f\\u0d3e\\u0d24\\u0d46" is inserted in between.
 // For more than two elements, comma is inserted between all elements up to (and including) the penultimate,
 // and the word \\u0d0e\\u0d28\\u0d4d\\u0d28\\u0d3f\\u0d35 is inserted in the end.
+// EDIT: this unit test is updated as ml now uses commas in lists
 void ListFormatterTest::TestMalayalam() {
-    UnicodeString pair_string = UnicodeString(" \\u0d15\\u0d42\\u0d1f\\u0d3e\\u0d24\\u0d46 ", -1, US_INV).unescape();
-    UnicodeString total_string = UnicodeString(" \\u0d0e\\u0d28\\u0d4d\\u0d28\\u0d3f\\u0d35", -1, US_INV).unescape();
+    UnicodeString pair_string = UnicodeString(", ", -1, US_INV).unescape();
+    UnicodeString total_string = UnicodeString("", -1, US_INV).unescape();
     UnicodeString results[4] = {
         one,
         one + pair_string + two,

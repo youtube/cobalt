@@ -40,8 +40,8 @@ kw{
             }
             eras{
                 abbreviated{
-                    "RC",
-                    "AD",
+                    0{"RC"}
+                    1{"AD"}
                 }
             }
             monthNames{

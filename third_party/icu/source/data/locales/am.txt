@@ -255,12 +255,34 @@ am{
         buddhist{
             availableFormats{
                 GyMMM{"MMM፣ y G"}
+                yyyyM{"GGGGG y-MM"}
+                yyyyMEd{"GGGGG y-MM-dd, E"}
+                yyyyMd{"GGGGG y-MM-dd"}
+            }
+            intervalFormats{
+                H{
+                    H{"HH–HH"}
+                }
+                Hv{
+                    H{"HH–HH v"}
+                }
             }
         }
         ethiopic{
             availableFormats{
                 GyMMM{"MMM፣ y G"}
                 MMMMEd{"E, MMMM d"}
+                yyyyM{"GGGGG y-MM"}
+                yyyyMEd{"GGGGG y-MM-dd, E"}
+                yyyyMd{"GGGGG y-MM-dd"}
+            }
+            intervalFormats{
+                H{
+                    H{"HH–HH"}
+                }
+                Hv{
+                    H{"HH–HH v"}
+                }
             }
             monthNames{
                 format{
@@ -297,6 +319,12 @@ am{
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} በ {0}",
+                "{1} በ {0}",
+                "{1} በ {0}",
+                "{1} በ {0}",
             }
             availableFormats{
                 Ed{"E d"}
@@ -430,12 +458,16 @@ am{
                 Bh{"B h"}
                 Bhm{"B h:mm"}
                 Bhms{"B h:mm:ss"}
+                EBh{"E B h"}
                 EBhm{"E B h:mm"}
                 EBhms{"E B h:mm:ss"}
                 Ed{"E d"}
+                Eh{"E a h"}
                 Ehm{"E a h:mm"}
                 Ehms{"E a h:mm:ss"}
                 Gy{"y G"}
+                GyM{"M/y G"}
+                GyMEd{"E d/M/y G"}
                 GyMMM{"MMM y G"}
                 GyMMMEd{"E MMM d y G"}
                 GyMMMd{"MMM d y G"}
@@ -452,6 +484,7 @@ am{
                 h{"a h"}
                 hm{"a h:mm"}
                 hms{"a h:mm:ss"}
+                hv{"a h v"}
                 yM{"M/y"}
                 yMEd{"E፣ d/M/y"}
                 yMMM{"MMM y"}
@@ -533,30 +566,25 @@ am{
                         night1{"ሌሊት"}
                     }
                     narrow{
-                        afternoon1{"ከሰዓት"}
                         am{"ጠ"}
-                        evening1{"ማታ"}
-                        morning1{"ጥዋት"}
-                        night1{"ሌሊት"}
                         pm{"ከ"}
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "ዓ/ዓ",
-                    "ዓ/ም",
+                    0{"ዓ/ዓ"}
+                    1{"ዓ/ም"}
                 }
                 wide{
-                    "ዓመተ ዓለም",
-                    "ዓመተ ምሕረት",
-                }
-                wide%variant{
-                    "ዓ/ዓ",
-                    "ዓ/ም",
+                    0{"ዓመተ ዓለም"}
+                    1{"ዓመተ ምሕረት"}
                 }
             }
             intervalFormats{
+                Bh{
+                    B{"B h – B h"}
+                }
                 GyM{
                     G{"GGGGG M/y – GGGGG M/y"}
                     M{"GGGGG M/y – M/y"}
@@ -1004,12 +1032,28 @@ am{
             }
             relativeTime{
                 future{
-                    one{"+{0} ሩብ"}
-                    other{"+{0} ሩብ"}
+                    one{"በ{0} ሩብ"}
+                    other{"በ{0} ሩብ"}
                 }
                 past{
                     one{"{0} ሩብ በፊት"}
                     other{"{0} ሩብ በፊት"}
+                }
+            }
+        }
+        quarter-narrow{
+            relativeTime{
+                future{
+                    one{"በ{0} ሩብ"}
+                    other{"በ{0} ሩብ"}
+                }
+            }
+        }
+        quarter-short{
+            relativeTime{
+                future{
+                    one{"በ{0} ሩብ"}
+                    other{"በ{0} ሩብ"}
                 }
             }
         }
@@ -1256,27 +1300,11 @@ am{
             middle{"{0}፣ {1}"}
             start{"{0}፣ {1}"}
         }
-        or-narrow{
-            end{"{0} ወይም {1}"}
-        }
-        or-short{
-            end{"{0} ወይም {1}"}
-        }
         standard{
             2{"{0} እና {1}"}
             end{"{0} እና {1}"}
             middle{"{0}፣ {1}"}
             start{"{0}፣ {1}"}
-        }
-        standard-short{
-            end{"{0} እና {1}"}
-        }
-        unit{
-            end{"{0} እና {1}"}
-        }
-        unit-narrow{
-            2{"{0} እና {1}"}
-            end{"{0} እና {1}"}
         }
     }
     measurementSystemNames{

@@ -14,10 +14,13 @@ vi{
         colStrength{"Cường độ sắp xếp"}
         collation{"Thứ tự sắp xếp"}
         currency{"Tiền tệ"}
+        em{"Trình bày emoji"}
         hc{"Chu kỳ giờ (12 với 24)"}
         lb{"Kiểu xuống dòng"}
+        lw{"Ngắt dòng trong từ"}
         ms{"Hệ thống đo lường"}
         numbers{"Số"}
+        ss{"Ngắt câu sau khi viết tắt."}
         timezone{"Múi giờ"}
         va{"Biến thể ngôn ngữ"}
         x{"Sử dụng cá nhân"}
@@ -65,7 +68,7 @@ vi{
         ay{"Tiếng Aymara"}
         az{"Tiếng Azerbaijan"}
         ba{"Tiếng Bashkir"}
-        bal{"Tiếng Baluchi"}
+        bal{"Tiếng Baloch"}
         ban{"Tiếng Bali"}
         bar{"Tiếng Bavaria"}
         bas{"Tiếng Basaa"}
@@ -418,7 +421,7 @@ vi{
         non{"Tiếng Na Uy cổ"}
         nqo{"Tiếng N’Ko"}
         nr{"Tiếng Ndebele Miền Nam"}
-        nso{"Tiếng Sotho Miền Bắc"}
+        nso{"Tiếng Bắc Sotho"}
         nus{"Tiếng Nuer"}
         nv{"Tiếng Navajo"}
         nwc{"Tiếng Newari cổ"}
@@ -520,7 +523,7 @@ vi{
         srr{"Tiếng Serer"}
         ss{"Tiếng Swati"}
         ssy{"Tiếng Saho"}
-        st{"Tiếng Sotho Miền Nam"}
+        st{"Tiếng Nam Sotho"}
         str{"Tiếng Straits Salish"}
         su{"Tiếng Sunda"}
         suk{"Tiếng Sukuma"}
@@ -617,6 +620,12 @@ vi{
         zun{"Tiếng Zuni"}
         zxx{"Không có nội dung ngôn ngữ"}
         zza{"Tiếng Zaza"}
+    }
+    Languages%core{
+        ku{"Tiếng Kurd"}
+    }
+    Languages%extension{
+        ku{"Tiếng Kurmanji"}
     }
     Languages%long{
         zh_Hans{"Tiếng Trung Phổ thông (Giản thể)"}
@@ -827,9 +836,29 @@ vi{
             persian{"Lịch Ba Tư"}
             roc{"Lịch Trung Hoa Dân Quốc"}
         }
+        calendar%core{
+            buddhist{"Phật giáo"}
+            chinese{"Trung Quốc"}
+            coptic{"Copts"}
+            dangi{"Dangi"}
+            ethiopic{"Ethiopic"}
+            ethiopic-amete-alem{"Ethiopic Amete Alem"}
+            gregorian{"Gregory"}
+            hebrew{"Do Thái"}
+            islamic{"Hồi giáo"}
+            islamic-civil{"Hồi giáo (dạng bảng, kỷ nguyên dân sự)"}
+            islamic-umalqura{"Hồi giáo (Umm al-Qura)"}
+            japanese{"Nhật Bản"}
+            persian{"Ba Tư"}
+            roc{"Trung Hoa Dân Quốc"}
+        }
         cf{
             account{"Định dạng tiền tệ kế toán"}
             standard{"Định dạng tiền tệ chuẩn"}
+        }
+        cf%core{
+            account{"Kế toán"}
+            standard{"Chuẩn"}
         }
         colAlternate{
             non-ignorable{"Sắp xếp biểu tượng"}
@@ -864,13 +893,11 @@ vi{
             tertiary{"Sắp xếp dấu trọng âm/chữ cái/độ rộng"}
         }
         collation{
-            big5han{"Thứ tự sắp xếp theo tiếng Trung phồn thể - Big5"}
             compat{"Thứ tự sắp xếp trước đây, để tương thích"}
             dictionary{"Thứ tự sắp xếp theo từ điển"}
             ducet{"Thứ tự sắp xếp unicode mặc định"}
             emoji{"Thứ tự sắp xếp biểu tượng"}
             eor{"Quy tắc sắp xếp Châu Âu"}
-            gb2312han{"Thứ tự sắp xếp theo tiếng Trung giản thể - GB2312"}
             phonebook{"Thứ tự sắp xếp theo danh bạ điện thoại"}
             phonetic{"Thứ tự sắp xếp theo ngữ âm"}
             pinyin{"Thứ tự sắp xếp theo bính âm"}
@@ -882,10 +909,29 @@ vi{
             unihan{"Trình tự sắp xếp theo bộ-nét"}
             zhuyin{"Thứ tự sắp xếp theo chú âm phù hiệu"}
         }
+        collation%core{
+            compat{"Khả năng tương thích"}
+            dictionary{"Từ điển"}
+            ducet{"Unicode mặc định"}
+            phonebook{"Danh bạ điện thoại"}
+            phonetic{"Ngữ âm"}
+            pinyin{"Bính âm"}
+            search{"Tìm kiếm"}
+            standard{"Chuẩn"}
+            stroke{"Nét chữ"}
+            traditional{"Truyền thống"}
+            unihan{"Bộ-nét"}
+            zhuyin{"Chú âm phù hiệu"}
+        }
         d0{
             fwidth{"Độ rộng tối đa"}
             hwidth{"Nửa độ rộng"}
             npinyin{"Số"}
+        }
+        em%core{
+            default{"Mặc định"}
+            emoji{"Emoji"}
+            text{"Văn bản"}
         }
         hc{
             h11{"Hệ thống 12 giờ (0–11)"}
@@ -893,10 +939,27 @@ vi{
             h23{"Hệ thống 24 giờ (0–23)"}
             h24{"Hệ thống 24 giờ (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"Kiểu xuống dòng thoáng"}
             normal{"Kiểu xuống dòng thường"}
             strict{"Kiểu xuống dòng hẹp"}
+        }
+        lb%core{
+            loose{"Thoáng"}
+            normal{"Bình thường"}
+            strict{"Hẹp"}
+        }
+        lw%core{
+            breakall{"Ngắt tất cả"}
+            keepall{"Giữ tất cả"}
+            normal{"Bình thường"}
+            phrase{"Giữ trong cụm từ"}
         }
         m0{
             bgn{"Chuyển tự US BGN"}
@@ -906,6 +969,11 @@ vi{
             metric{"Hệ mét"}
             uksystem{"Hệ đo lường Anh"}
             ussystem{"Hệ đo lường Mỹ"}
+        }
+        ms%core{
+            metric{"Mét"}
+            uksystem{"Anh"}
+            ussystem{"Mỹ"}
         }
         numbers{
             ahom{"Chữ số Ahom"}
@@ -989,6 +1057,10 @@ vi{
             vaii{"Chữ số Vai"}
             wara{"Chữ số Wara"}
             wcho{"Chữ số Wancho"}
+        }
+        ss%core{
+            none{"Tắt"}
+            standard{"Bật"}
         }
     }
     Variants{

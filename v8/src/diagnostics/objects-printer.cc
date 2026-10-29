@@ -273,7 +273,7 @@ void HeapObjectLayout::PrintHeader(std::ostream& os, const char* id) {
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (!SafeEquals(GetReadOnlyRoots().meta_map())) {
+  if (!IsMetaMap(*this)) {
     os << "\n - map: " << Brief(map(cage_base));
   }
 }
@@ -2886,14 +2886,6 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
-    std::ostream& os) {
-  PrintHeader(os, "PrototypeSharedClosureInfo");
-  os << "\n - context: " << Brief(context());
-  os << "\n - closure feedback cell array: "
-     << Brief(closure_feedback_cell_array());
-}
-
 void JSDeferredModuleNamespace::JSDeferredModuleNamespacePrint(
     std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDeferredModuleNamespace");
@@ -3351,10 +3343,63 @@ void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void ModuleRequest::ModuleRequestPrint(std::ostream& os) {
+  PrintHeader(os, "ModuleRequest");
+  os << "\n - specifier: " << Brief(specifier());
+  os << "\n - import_attributes: " << Brief(import_attributes());
+  os << "\n - position: " << position();
+  os << "\n - phase: " << static_cast<int>(phase());
+  os << '\n';
+}
+
+void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryPrint(
+    std::ostream& os) {
+  PrintHeader(os, "SourceTextModuleInfoEntry");
+  os << "\n - export_name: " << Brief(export_name());
+  os << "\n - local_name: " << Brief(local_name());
+  os << "\n - import_name: " << Brief(import_name());
+  os << "\n - module_request: " << module_request();
+  os << "\n - cell_index: " << cell_index();
+  os << "\n - beg_pos: " << beg_pos();
+  os << "\n - end_pos: " << end_pos();
+  os << '\n';
+}
+
+void FunctionTemplateRareData::FunctionTemplateRareDataPrint(std::ostream& os) {
+  PrintHeader(os, "FunctionTemplateRareData");
+  os << "\n - prototype_template: " << Brief(prototype_template());
+  os << "\n - prototype_provider_template: "
+     << Brief(prototype_provider_template());
+  os << "\n - parent_template: " << Brief(parent_template());
+  os << "\n - named_property_handler: " << Brief(named_property_handler());
+  os << "\n - indexed_property_handler: " << Brief(indexed_property_handler());
+  os << "\n - instance_template: " << Brief(instance_template());
+  os << "\n - instance_call_handler: " << Brief(instance_call_handler());
+  os << "\n - access_check_info: " << Brief(access_check_info());
+  os << "\n - c_function_overloads: " << Brief(c_function_overloads());
+  os << '\n';
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PrototypeSharedClosureInfo");
+  os << "\n - boilerplate_description: " << Brief(boilerplate_description());
+  os << "\n - closure_feedback_cell_array: "
+     << Brief(closure_feedback_cell_array());
+  os << "\n - context: " << Brief(context());
+  os << '\n';
+}
+
 void Tuple2::Tuple2Print(std::ostream& os) {
   this->PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(this->value1());
   os << "\n - value2: " << Brief(this->value2());
+  os << '\n';
+}
+
+void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(std::ostream& os) {
+  PrintHeader(os, "AliasedArgumentsEntry");
+  os << "\n - aliased_context_slot: " << aliased_context_slot();
   os << '\n';
 }
 
@@ -3454,7 +3499,6 @@ void CallSiteInfo::CallSiteInfoPrint(std::ostream& os) {
   os << "\n - code_offset_or_source_position: "
      << code_offset_or_source_position();
   os << "\n - flags: " << flags();
-  os << "\n - parameters: " << Brief(parameters());
   os << "\n";
 }
 
@@ -3478,6 +3522,15 @@ void CallableTask::CallableTaskPrint(std::ostream& os) {
   MicrotaskPrint(os);
   os << "\n - callable: " << Brief(callable());
   os << "\n - context: " << Brief(context());
+  os << "\n";
+}
+
+void AsyncResumeTask::AsyncResumeTaskPrint(std::ostream& os) {
+  PrintHeader(os, "AsyncResumeTask");
+  MicrotaskPrint(os);
+  os << "\n - generator: " << Brief(generator());
+  os << "\n - value: " << Brief(value());
+  os << "\n - kind: " << kind();
   os << "\n";
 }
 
@@ -3921,7 +3974,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(*this);
-      if (map->instance_type() == MAP_TYPE) {
+      if (IsMetaMapMap(map)) {
         // This is one of the meta maps, print only relevant fields.
         os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
       } else {
@@ -4345,7 +4398,7 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
-  bool is_meta_map = instance_type() == MAP_TYPE;
+  bool is_meta_map = IsMetaMapMap(*this);
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_map = IsWasmObjectMap(*this);
 #else
@@ -4357,17 +4410,18 @@ void Map::MapPrint(std::ostream& os) {
   os << (is_meta_map ? "MetaMap=" : "Map=") << reinterpret_cast<void*>(ptr());
 #endif
   os << "\n - type: " << instance_type();
+  if (is_meta_map) {
+    // This is one of the meta maps, print only relevant fields.
+    os << "\n - native_context: " << Brief(native_context_or_null());
+    os << "\n - meta map size: " << AllocatedSize();
+    os << "\n";
+    return;
+  }
   os << "\n - instance size: ";
   if (instance_size() == kVariableSizeSentinel) {
     os << "variable";
   } else {
     os << instance_size();
-  }
-  if (is_meta_map) {
-    // This is one of the meta maps, print only relevant fields.
-    os << "\n - native_context: " << Brief(native_context_or_null());
-    os << "\n";
-    return;
   }
 
   if (IsJSObjectMap(*this)) {

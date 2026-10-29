@@ -7,10 +7,13 @@ sd{
         cf{"سڪي جو فارميٽ"}
         collation{"ترتيب ڇانٽي"}
         currency{"سڪو"}
+        em{"ايموجي پيشڪاري"}
         hc{"ڪلاڪ سائيڪل"}
         lb{"لائن ٽوڙڻ انداز"}
+        lw{"لفظن وچ ۾ لڪير ٽوڙ"}
         ms{"ماپڻ جو نظام"}
         numbers{"انگ"}
+        ss{"تخفيف کانپوءِ جملو ٽوڙ"}
     }
     Languages{
         aa{"افار"}
@@ -42,6 +45,7 @@ sd{
         ay{"ایمارا"}
         az{"آزربائيجاني"}
         ba{"ڪينيڊا"}
+        bal{"بلوچي"}
         ban{"بالينيس"}
         bas{"باسا"}
         be{"بيلاروسي"}
@@ -461,6 +465,12 @@ sd{
         zxx{"ڪوئي ٻولي جو مواد ڪونهي"}
         zza{"زازا"}
     }
+    Languages%core{
+        ku{"ڪردي"}
+    }
+    Languages%extension{
+        ku{"ڪرمانجي"}
+    }
     Languages%long{
         zh_Hans{"سادي مندارن چيني"}
         zh_Hant{"رواجي مندارن چيني"}
@@ -562,14 +572,46 @@ sd{
             persian{"فارسي ڪئلينڊر"}
             roc{"منگوو ڪئلينڊر"}
         }
+        calendar%core{
+            buddhist{"ٻوڌي"}
+            chinese{"چيني"}
+            coptic{"ڪاپٽڪ"}
+            dangi{"دانگي"}
+            ethiopic{"ايٿيوپيائي"}
+            ethiopic-amete-alem{"ايٿيوپيائي اميٽي اليم"}
+            gregorian{"جارجيائي"}
+            hebrew{"عبراني"}
+            indian{"هندستاني قومي"}
+            islamic{"هجري"}
+            islamic-civil{"هجري (ٽيبليائي، شهري دور)"}
+            islamic-tbla{"هجري (ٽيبليائي، فلڪياتي دور)"}
+            islamic-umalqura{"هجري (اُم القری)"}
+            japanese{"جاپاني"}
+            persian{"فارسي"}
+            roc{"منگوو"}
+        }
         cf{
             account{"اڪائونٽنگ سڪو فارميٽ"}
             standard{"معياري سڪو فارميٽ"}
+        }
+        cf%core{
+            account{"اڪائونٽنگ"}
+            standard{"معياري"}
         }
         collation{
             ducet{"ڊفالٽ يوني ڪوڊ ترتيب ڇانٽي"}
             search{"عام مقصد جي ڳولا"}
             standard{"معياري ترتيب ڇانٽي"}
+        }
+        collation%core{
+            ducet{"ڊفالٽ يونيڪوڊ"}
+            search{"ڳولا"}
+            standard{"معياري"}
+        }
+        em%core{
+            default{"ڊفالٽ"}
+            emoji{"ايموجي"}
+            text{"متن"}
         }
         hc{
             h11{"12 ڪلاڪ جو سسٽم (0–11)"}
@@ -577,15 +619,37 @@ sd{
             h23{"24 ڪلاڪ جو سسٽم (0–23)"}
             h24{"24 ڪلاڪ جو سسٽم (1–24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"لوز لائن ٽوڙ انداز"}
             normal{"عام لائن ٽوڙ انداز"}
             strict{"سخت لائن ٽوڙ انداز"}
         }
+        lb%core{
+            loose{"ڍرو"}
+            normal{"عام"}
+            strict{"سخت"}
+        }
+        lw%core{
+            breakall{"سڀ ٽوڙ"}
+            keepall{"سڀ رک"}
+            normal{"عام"}
+            phrase{"محاورن وچ ۾ رک"}
+        }
         ms{
             metric{"ميٽرڪ نظام"}
             uksystem{"امپيريل ماپڻ جو نظام"}
             ussystem{"آمريڪا جو ماپڻ جو نظام"}
+        }
+        ms%core{
+            metric{"ميٽرڪ"}
+            uksystem{"برطانيا"}
+            ussystem{"آمريڪا"}
         }
         numbers{
             arab{"عربي-هندي عدد"}
@@ -628,6 +692,10 @@ sd{
             thai{"ٿائي عدد"}
             tibt{"تبتي عدد"}
             vaii{"وائي انگ اکر"}
+        }
+        ss%core{
+            none{"بند"}
+            standard{"چالو"}
         }
     }
     Variants{

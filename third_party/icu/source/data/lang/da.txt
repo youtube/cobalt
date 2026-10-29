@@ -14,10 +14,13 @@ da{
         colStrength{"Sorteringsstyrke"}
         collation{"sorteringsrækkefølge"}
         currency{"valuta"}
+        em{"emojivisning"}
         hc{"timeur (12 vs. 24)"}
         lb{"linjeskift"}
+        lw{"linjeskift midt i ord"}
         ms{"målesystem"}
         numbers{"tal"}
+        ss{"afsluttende tegnsætning efter fork."}
         timezone{"Tidszone"}
         va{"Sprogvariant"}
         x{"Privatbrug"}
@@ -597,6 +600,12 @@ da{
         zxx{"intet sprogligt indhold"}
         zza{"zaza"}
     }
+    Languages%core{
+        ku{"kurdisk"}
+    }
+    Languages%extension{
+        ku{"kurmanji"}
+    }
     Languages%menu{
         ars{"arabisk, najdi"}
         ckb{"kurdisk, sorani"}
@@ -805,9 +814,29 @@ da{
             persian{"persisk kalender"}
             roc{"kalender for Republikken Kina"}
         }
+        calendar%core{
+            buddhist{"buddhistisk"}
+            chinese{"kinesisk"}
+            coptic{"koptisk"}
+            dangi{"dangi"}
+            ethiopic{"etiopisk"}
+            ethiopic-amete-alem{"etiopisk amete-alem"}
+            gregorian{"gregoriansk"}
+            hebrew{"jødisk"}
+            islamic{"hijri"}
+            islamic-civil{"verdslig hijri"}
+            islamic-umalqura{"hijri (Umm al-Qura)"}
+            japanese{"japansk"}
+            persian{"persisk"}
+            roc{"Republikken Kina"}
+        }
         cf{
             account{"format for regnskabsvaluta"}
             standard{"format for standardvaluta"}
+        }
+        cf%core{
+            account{"regnskab"}
+            standard{"standard"}
         }
         colAlternate{
             non-ignorable{"Sortér efter symboler"}
@@ -842,12 +871,10 @@ da{
             tertiary{"Sortér efter accenter/store og små bogstaver/bredde"}
         }
         collation{
-            big5han{"sorteringsrækkefølge uforkortet kinesisk - Big5"}
             compat{"tidligere sorteringsrækkefølge, kompatibilitet"}
             dictionary{"sorteringsrækkefølge for ordbog"}
             ducet{"Unicode-standardsorteringsrækkefølge"}
             eor{"europæisk sorteringsrækkefølge"}
-            gb2312han{"sorteringsrækkefølge forkortet kinesisk - GB2312"}
             phonebook{"sorteringsrækkefølge i telefonbøger"}
             phonetic{"fonetisk sorteringsrækkefølge"}
             pinyin{"pinyin-baseret sorteringsrækkefølge"}
@@ -856,13 +883,32 @@ da{
             standard{"standardsorteringsrækkefølge"}
             stroke{"stregbaseret sorteringsrækkefølge"}
             traditional{"traditionel sorteringsrækkefølge"}
-            unihan{"sortering efter streger i rodtegn"}
+            unihan{"sorteringsrækkefølge efter radikal-strøg"}
             zhuyin{"zhuyin-sorteringsrækkefølge"}
+        }
+        collation%core{
+            compat{"kompatibilitet"}
+            dictionary{"ordbog"}
+            ducet{"standard-Unicode"}
+            phonebook{"telefonbog"}
+            phonetic{"fonetisk"}
+            pinyin{"pinyin"}
+            search{"søg"}
+            standard{"standard"}
+            stroke{"streg"}
+            traditional{"traditionel"}
+            unihan{"radikal-strøg"}
+            zhuyin{"zhuyin"}
         }
         d0{
             fwidth{"fuld bredde"}
             hwidth{"halv bredde"}
             npinyin{"Numerisk"}
+        }
+        em%core{
+            default{"standard"}
+            emoji{"emoji"}
+            text{"tekst"}
         }
         hc{
             h11{"12-timersur (0-11)"}
@@ -870,10 +916,27 @@ da{
             h23{"24-timersur (0-23)"}
             h24{"24-timersur (1-24)"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
             loose{"løst linjeskift"}
             normal{"normalt linjeskift"}
             strict{"hårdt linjeskift"}
+        }
+        lb%core{
+            loose{"løst"}
+            normal{"normalt"}
+            strict{"hårdt"}
+        }
+        lw%core{
+            breakall{"bryd alle"}
+            keepall{"behold alle"}
+            normal{"normal"}
+            phrase{"behold i sætningsdele"}
         }
         m0{
             bgn{"BGN"}
@@ -883,6 +946,11 @@ da{
             metric{"metersystem"}
             uksystem{"britisk målesystem"}
             ussystem{"amerikansk målesystem"}
+        }
+        ms%core{
+            metric{"metrisk"}
+            uksystem{"britisk"}
+            ussystem{"amerikansk"}
         }
         numbers{
             arab{"hindu-arabiske tal"}
@@ -946,6 +1014,10 @@ da{
             tibt{"tibetanske tal"}
             traditional{"Traditionelle tal"}
             vaii{"vai-tal"}
+        }
+        ss%core{
+            none{"Fra"}
+            standard{"Til"}
         }
     }
     Variants{

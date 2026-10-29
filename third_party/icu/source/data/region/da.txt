@@ -85,6 +85,7 @@ da{
         CN{"Kina"}
         CO{"Colombia"}
         CP{"Clippertonøen"}
+        CQ{"Sark"}
         CR{"Costa Rica"}
         CU{"Cuba"}
         CV{"Kap Verde"}

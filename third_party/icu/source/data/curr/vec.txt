@@ -611,6 +611,10 @@ vec{
             "XCD",
             "dòlaro caraìbego",
         }
+        XCG{
+            "Cf",
+            "fiorin caraìbego",
+        }
         XOF{
             "XOF",
             "franco CFA de l’Àfrega osidentale",
@@ -634,6 +638,10 @@ vec{
         ZMW{
             "ZMW",
             "kwacha zanbian",
+        }
+        ZWG{
+            "ZWG",
+            "oro de Zimbabwe",
         }
     }
     Currencies%narrow{
@@ -1237,6 +1245,10 @@ vec{
             one{"dòlaro caraìbego"}
             other{"dòlari caraìbeghi"}
         }
+        XCG{
+            one{"fiorin caraìbego"}
+            other{"fiorini caraìbeghi"}
+        }
         XOF{
             one{"franco CFA de l’Àfrega osidentale"}
             other{"franchi CFA de l’Àfrega osidentale"}
@@ -1260,6 +1272,10 @@ vec{
         ZMW{
             one{"kwacha zanbian"}
             other{"kwacha zanbiani"}
+        }
+        ZWG{
+            one{"oro de Zimbabwe"}
+            other{"ori de Zimbabwe"}
         }
     }
     CurrencyUnitPatterns{

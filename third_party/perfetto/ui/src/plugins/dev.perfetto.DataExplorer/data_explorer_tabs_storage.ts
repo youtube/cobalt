@@ -13,9 +13,18 @@
 // limitations under the License.
 
 import {z} from 'zod';
-import {DataExplorerTab, DataExplorerState} from './data_explorer';
+import {shortUuid} from '../../base/uuid';
+import {
+  DataExplorerTab,
+  DashboardTabState,
+  DataExplorerState,
+} from './data_explorer';
 import {serializeState} from './json_handler';
-import {serializeDashboardItems} from './dashboard/dashboard_registry';
+import {
+  serializeDashboardItems,
+  parseBrushFilters,
+  validateDashboardItems,
+} from './dashboard/dashboard_registry';
 
 const DATA_EXPLORER_TABS_STORAGE_KEY = 'perfettoDataExplorerTabs';
 
@@ -29,7 +38,6 @@ const PERSISTED_DATA_EXPLORER_TAB_SCHEMA = z.object({
 // Dashboard schema — new, flat list with a reference to the parent graph tab.
 const PERSISTED_DASHBOARD_SCHEMA = z.object({
   id: z.string(),
-  title: z.string(),
   graphTabId: z.string(),
   items: z.array(z.unknown()).optional(),
   brushFilters: z.record(z.string(), z.array(z.unknown())).optional(),
@@ -122,33 +130,77 @@ export function createEmptyState(): DataExplorerState {
   };
 }
 
+/** Serialized dashboard without a graphTabId reference. */
+export interface SerializedDashboard {
+  id: string;
+  items?: unknown[];
+  brushFilters?: Record<string, unknown[]>;
+}
+
+/** Serialize all dashboards for a single tab. */
+export function serializeDashboardsForTab(
+  tab: DataExplorerTab,
+): SerializedDashboard[] | undefined {
+  const result: SerializedDashboard[] = [];
+  for (const db of tab.dashboards) {
+    const items = serializeDashboardItems(db.items);
+    let brushFilters: Record<string, unknown[]> | undefined;
+    if (db.brushFilters.size > 0) {
+      const raw: Record<string, unknown[]> = {};
+      for (const [sourceNodeId, filters] of db.brushFilters) {
+        raw[sourceNodeId] = filters;
+      }
+      brushFilters = JSON.parse(
+        JSON.stringify(raw, (_k, v) => (typeof v === 'bigint' ? Number(v) : v)),
+      );
+    }
+    result.push({
+      id: db.id,
+      items,
+      brushFilters,
+    });
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+/** Reconstruct live DashboardTabState[] from persisted dashboard data. */
+export function deserializeDashboardsForTab(
+  tabId: string,
+  allDashboards?: ReadonlyArray<PersistedDashboardData>,
+): DashboardTabState[] {
+  if (allDashboards !== undefined) {
+    const matching = allDashboards.filter((db) => db.graphTabId === tabId);
+    if (matching.length > 0) {
+      return matching.map((db) => ({
+        id: db.id,
+        items: validateDashboardItems(db.items) ?? [],
+        brushFilters:
+          db.brushFilters !== undefined
+            ? parseBrushFilters(db.brushFilters)
+            : new Map(),
+      }));
+    }
+  }
+  return [
+    {
+      id: shortUuid(),
+      items: [],
+      brushFilters: new Map(),
+    },
+  ];
+}
+
 /** Flatten all dashboards across all tabs into a single serializable list. */
 export function serializeAllDashboards(
   tabs: DataExplorerTab[],
 ): PersistedDashboardData[] | undefined {
   const result: PersistedDashboardData[] = [];
   for (const tab of tabs) {
-    for (const db of tab.dashboards) {
-      const items = serializeDashboardItems(db.items);
-      let brushFilters: Record<string, unknown[]> | undefined;
-      if (db.brushFilters.size > 0) {
-        const raw: Record<string, unknown[]> = {};
-        for (const [sourceNodeId, filters] of db.brushFilters) {
-          raw[sourceNodeId] = filters;
-        }
-        brushFilters = JSON.parse(
-          JSON.stringify(raw, (_k, v) =>
-            typeof v === 'bigint' ? Number(v) : v,
-          ),
-        );
+    const serialized = serializeDashboardsForTab(tab);
+    if (serialized !== undefined) {
+      for (const db of serialized) {
+        result.push({...db, graphTabId: tab.id});
       }
-      result.push({
-        id: db.id,
-        title: db.title,
-        graphTabId: tab.id,
-        items,
-        brushFilters,
-      });
     }
   }
   return result.length > 0 ? result : undefined;

@@ -7,9 +7,6 @@ nn{
         "America:Cayman"{
             ec{"Caymanøyane"}
         }
-        "America:Cuiaba"{
-            ec{"Cuiaba"}
-        }
         "America:Merida"{
             ec{"Merida"}
         }
@@ -18,9 +15,6 @@ nn{
         }
         "Asia:Ashgabat"{
             ec{"Asjgabat"}
-        }
-        "Asia:Hovd"{
-            ec{"Khovd"}
         }
         "Asia:Rangoon"{
             ec{"Yangôn"}
@@ -57,11 +51,6 @@ nn{
         }
         "meta:Africa_Eastern"{
             ls{"austafrikansk tid"}
-        }
-        "meta:Africa_Western"{
-            ld{"vestafrikansk sommartid"}
-            lg{"vestafrikansk tid"}
-            ls{"vestafrikansk standardtid"}
         }
         "meta:Alaska"{
             ld{"alaskisk sommartid"}

@@ -9,7 +9,11 @@ ie{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00;¤ -#,##0.00"}
+                accountingFormat%noCurrency{"#,##0.00"}
                 currencyFormat{"¤ #,##0.00;¤ -#,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##0.00;¤ -#,##0.00"}
+                currencyFormat%noCurrency{"#,##0.00"}
             }
             symbols{
                 decimal{","}
@@ -19,9 +23,6 @@ ie{
         minimalPairs{
             ordinal{
                 other{"Li {0}-im edition"}
-            }
-            plural{
-                other{"{0} dies"}
             }
         }
         minimumGroupingDigits{"2"}
@@ -64,11 +65,10 @@ ie{
                 GyMMMEd{"E d MMM y G"}
                 GyMMMd{"d MMM y G"}
                 GyMd{"d.M.y G"}
+                H{"H 'h'."}
+                Hv{"HH 'h'. 'de' v"}
                 MEd{"E d.M"}
                 MMMEd{"E d MMM"}
-                MMMMW{
-                    other{"W-'im' 'semane' 'de' MMMM"}
-                }
                 MMMMd{"d MMMM"}
                 MMMd{"d MMM"}
                 Md{"d.M"}
@@ -82,9 +82,6 @@ ie{
                 yMd{"d.M.y"}
                 yQQQ{"QQQ y"}
                 yQQQQ{"QQQQ y"}
-                yw{
-                    other{"w-'im' 'semane' 'de' Y"}
-                }
             }
             dayNames{
                 format{
@@ -138,20 +135,20 @@ ie{
             }
             eras{
                 abbreviated{
-                    "a.C.",
-                    "e.C.",
+                    0{"a.C."}
+                    1{"e.C."}
                 }
                 abbreviated%variant{
-                    "a.e.c.",
-                    "e.c.",
+                    0{"a.e.c."}
+                    1{"e.c."}
                 }
                 wide{
-                    "ante Crist",
-                    "era Cristan",
+                    0{"ante Crist"}
+                    1{"era Cristan"}
                 }
                 wide%variant{
-                    "ante era comun",
-                    "era comun",
+                    0{"ante era comun"}
+                    1{"era comun"}
                 }
             }
             intervalFormats{
@@ -164,7 +161,7 @@ ie{
                 d{
                     d{"d. – d."}
                 }
-                fallback{"{0} til {1}"}
+                fallback{"{0} til {1}"}
                 y{
                     y{"y – y"}
                 }
@@ -217,6 +214,16 @@ ie{
                     }
                 }
             }
+            quarters{
+                format{
+                    wide{
+                        "1-m trimestre",
+                        "2-m trimestre",
+                        "3-m trimestre",
+                        "4-m trimestre",
+                    }
+                }
+            }
         }
     }
     delimiters{
@@ -230,8 +237,10 @@ ie{
             dn{"die"}
             relative{
                 "-1"{"yer"}
+                "-2"{"anteyer"}
                 "0"{"hodie"}
                 "1"{"deman"}
+                "2"{"posdeman"}
             }
         }
         day-narrow{
@@ -260,9 +269,23 @@ ie{
         }
         month{
             dn{"mensu"}
+            relative{
+                "-1"{"ultim mensu"}
+                "0"{"ho-mensu"}
+                "1"{"sequent mensu"}
+            }
+        }
+        month-narrow{
+            dn{"mn"}
+        }
+        month-short{
+            dn{"mn."}
         }
         quarter{
             dn{"trimestre"}
+        }
+        quarter-narrow{
+            dn{"tr"}
         }
         second{
             dn{"seconde"}
@@ -275,6 +298,15 @@ ie{
         }
         week{
             dn{"semane"}
+        }
+        week-narrow{
+            dn{"sem"}
+        }
+        week-short{
+            dn{"sem."}
+        }
+        weekday{
+            dn{"die del semane"}
         }
         year{
             dn{"annu"}

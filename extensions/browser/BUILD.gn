@@ -9,6 +9,7 @@ import("//extensions/buildflags/buildflags.gni")
 import("//pdf/features.gni")
 import("//rlz/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 if (enable_desktop_android_extensions) {
   import("//build/config/android/rules.gni")
@@ -868,6 +869,26 @@ source_set("crx_installer") {
     deps += [ "//components/user_manager" ]
   }
 }
+source_set("webstore_installer") {
+  sources = [
+    "webstore_installer.cc",
+    "webstore_installer.h",
+  ]
+  deps = [
+    ":browser_sources",
+    ":crx_installer",
+    "//base",
+    "//components/download/public/common:public",
+    "//components/update_client",
+    "//content/public/browser",
+    "//extensions/buildflags",
+    "//extensions/common",
+    "//extensions/strings",
+    "//net/traffic_annotation",
+    "//ui/base",
+    "//url",
+  ]
+}
 
 source_set("test_support") {
   testonly = true
@@ -1342,4 +1363,8 @@ if (enable_extensions) {
     # The fuzzed code needs more RAM that the default limit.
     libfuzzer_options = [ "rss_limit_mb=4096" ]
   }
+}
+
+proto_library("cws_item_service_proto") {
+  sources = [ "cws_item_service.proto" ]
 }

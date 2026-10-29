@@ -270,6 +270,9 @@ bg{
         "America:Costa_Rica"{
             ec{"Коста Рика"}
         }
+        "America:Coyhaique"{
+            ec{"Койайке"}
+        }
         "America:Creston"{
             ec{"Крестън"}
         }
@@ -1167,7 +1170,7 @@ bg{
             ec{"Ефате"}
         }
         "Pacific:Enderbury"{
-            ec{"Ендърбъри"}
+            ec{"Кантон"}
         }
         "Pacific:Fakaofo"{
             ec{"Факаофо"}
@@ -1192,9 +1195,6 @@ bg{
         }
         "Pacific:Honolulu"{
             ec{"Хонолулу"}
-        }
-        "Pacific:Kanton"{
-            ec{"Кантон"}
         }
         "Pacific:Kiritimati"{
             ec{"Киритимати"}
@@ -1278,9 +1278,7 @@ bg{
             ls{"Южноафриканско време"}
         }
         "meta:Africa_Western"{
-            ld{"Западноафриканско лятно часово време"}
-            lg{"Западноафриканско време"}
-            ls{"Западноафриканско стандартно време"}
+            ls{"Западноафриканско време"}
         }
         "meta:Alaska"{
             ld{"Аляска – лятно часово време"}
@@ -1523,6 +1521,9 @@ bg{
         }
         "meta:Guyana"{
             ls{"Гаяна"}
+        }
+        "meta:Hawaii"{
+            ls{"Хавайско-алеутско стандартно време"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Хавайско-алеутско лятно часово време"}
@@ -1865,6 +1866,7 @@ bg{
             ls{"Юкон"}
         }
         gmtFormat{"Гринуич{0}"}
+        gmtUnknownFormat{"Гринуич+?"}
         gmtZeroFormat{"Гринуич"}
         regionFormatDaylight{"{0} – лятно часово време"}
         regionFormatStandard{"{0} – стандартно време"}

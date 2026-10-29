@@ -154,9 +154,7 @@ se_FI{
             ls{"Lulli-Afrihká dálveáigi"}
         }
         "meta:Africa_Western"{
-            ld{"Oarje-Afrihká geasseáigi"}
-            lg{"Oarje-Afrihká áigi"}
-            ls{"Oarje-Afrihká dálveáigi"}
+            ls{"Oarje-Afrihká áigi"}
         }
         "meta:Alaska"{
             ld{"Alaska geasseáigi"}
@@ -394,6 +392,9 @@ se_FI{
         }
         "meta:Guyana"{
             ls{"Guyana áigi"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-aleuhtalaš dálveáigi"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-aleuhtalaš geasseáigi"}

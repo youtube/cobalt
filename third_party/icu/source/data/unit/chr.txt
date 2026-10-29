@@ -36,6 +36,11 @@ chr{
                 one{"{0} ᎠᏕᏲᎲ"}
                 other{"{0} ᏗᏕᏲᎯ"}
             }
+            steradian{
+                dnam{"ᏍᏘᏇᏗᎠᏂᏍ"}
+                one{"{0} ᏍᏘᏇᏗᎠᏂ"}
+                other{"{0} ᏍᏘᏇᏗᎠᏂᏍ"}
+            }
         }
         area{
             acre{
@@ -155,6 +160,11 @@ chr{
                 one{"{0} ᎧᏇᏓ"}
                 other{"{0} ᏗᎧᏇᏓ"}
             }
+            katal{
+                dnam{"ᎧᏔᎵᏍ"}
+                one{"{0} ᎧᏔᎵ"}
+                other{"{0} ᎧᏔᎵᏍ"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᎤᏍᏗ ᏂᏚᏓᎨᏒ ᏌᏉ ᎢᏳᎾᏓᎢ ᏍᎪᎯ ᎵᏔᎢ ᎢᏳᏓᎵ"}
                 one{"{0} ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᎤᏍᏗ ᎤᏓᎨᏒ ᏌᏉ ᎢᏳᎾᏓᎢ ᏍᎪᎯ ᎵᏔᎢ ᎢᏳᏓᎵ"}
@@ -170,6 +180,26 @@ chr{
                 one{"{0} ᎼᎴ"}
                 other{"{0} ᎼᎴᏍ"}
             }
+            ofglucose{
+                dnam{"ᎾᎿ ᎦᎷᎪᏏ"}
+                one{"{0} ᎾᎿ ᎦᎷᎪᏏ"}
+                other{"{0} ᎾᎿ ᎦᎷᎪᏏ"}
+            }
+            part{
+                dnam{"ᎢᎦᏛ"}
+                one{"{0} ᎢᎦᏛ"}
+                other{"{0} ᎢᎦᏛᎭ"}
+            }
+            part-per-1e6{
+                dnam{"ᏚᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
+                one{"{0} ᎤᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
+                other{"{0} ᏚᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
+            }
+            part-per-1e9{
+                dnam{"ᏚᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
+                one{"{0} ᎤᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
+                other{"{0} ᏚᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
+            }
             percent{
                 one{"{0} ᏓᎬᏩᎶᏛ"}
                 other{"{0} ᏓᎬᏩᎶᏛ"}
@@ -178,19 +208,9 @@ chr{
                 one{"{0} ᏈᎻᎴ"}
                 other{"{0} ᏈᎻᎴ"}
             }
-            permillion{
-                dnam{"ᏚᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
-                one{"{0} ᎤᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
-                other{"{0} ᏚᏙᏢᏒ ᎢᏳᏆᏗᏅᏛ ᎢᏳᏓᎵ"}
-            }
             permyriad{
                 one{"{0} ᏋᎻᎵᎠᏗ"}
                 other{"{0} ᏋᎻᎵᎠᏗ"}
-            }
-            portion-per-1e9{
-                dnam{"ᏚᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
-                one{"{0} ᎤᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
-                other{"{0} ᏚᏙᏢᏒ ᎢᏳᏓᎵ ᎢᏳᏔᎵᎳᏗᏅᏛ"}
             }
         }
         consumption{
@@ -320,12 +340,6 @@ chr{
                 one{"{0} ᎾᏃᎠᏎᏢ"}
                 other{"{0} ᎾᏃᏗᏎᏢ"}
             }
-            night{
-                dnam{"ᏚᎵᏏᏂᏒ"}
-                one{"{0} ᎤᏒ"}
-                other{"{0} ᏚᎵᏏᏂᏒ"}
-                per{"{0}/ᎤᏒ"}
-            }
             quarter{
                 dnam{"ᎯᎸᏍᎩ ᎩᏄᏘᏗ"}
                 one{"{0} ᎩᏄᏘᏗ"}
@@ -354,6 +368,21 @@ chr{
                 one{"{0} ᎠᎾᎦᎵᏍᎩ ᎠᏟᎶᏍᏗ"}
                 other{"{0} ᏗᎾᎦᎵᏍᎩ ᎠᏟᎶᏍᏗ"}
             }
+            coulomb{
+                dnam{"ᎠᏂᎪᎶᎻᏍ"}
+                one{"{0} ᎪᎶᎻᏍ"}
+                other{"{0} ᎠᏂᎪᎶᎻᏍ"}
+            }
+            farad{
+                dnam{"ᏆᏇᏗᏍ"}
+                one{"{0} ᏆᏇᏗ"}
+                other{"{0} ᏆᏇᏗᏍ"}
+            }
+            henry{
+                dnam{"ᎯᏂᏫᏍ"}
+                one{"{0} ᎯᏂᏫ"}
+                other{"{0} ᎯᏂᏫᏍ"}
+            }
             milliampere{
                 dnam{"ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᏗᎾᎦᎵᏍᎩ ᎠᏟᎶᏍᏗ"}
                 one{"{0} ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᎠᎾᎦᎵᏍᎩ ᎠᏟᎶᏍᏗ"}
@@ -363,12 +392,22 @@ chr{
                 one{"{0} ᎣᎻ"}
                 other{"{0} ᏗᎣᎻ"}
             }
+            siemens{
+                dnam{"ᏏᎺᏂᏍ"}
+                one{"{0} ᏏᎺᏂᏍ"}
+                other{"{0} ᏏᎺᏂᏍ"}
+            }
             volt{
                 one{"{0} ᎠᎾᎦᎵᏍᎩ ᎢᏳᏟᏂᎩᏓ"}
                 other{"{0} ᎠᎾᎦᎵᏍᎩ ᎢᏧᏟᏂᏚᏓ"}
             }
         }
         energy{
+            becquerel{
+                dnam{"ᏘᎯ ᎠᎩᎪᏍᎦ"}
+                one{"{0} ᏘᎯ ᎠᎩᎪᏍᎦ"}
+                other{"{0} ᏘᎯ ᏗᎩᎪᏍᎦ"}
+            }
             british-thermal-unit{
                 dnam{"ᏈᏗᏏ ᏗᎬᏍᎦᏢᏗ ᏂᎨᏒᎾ ᏓᎪᎵᏰᎥ ᏭᏍᏗᎬ ᎧᎵᎨᏒ"}
                 one{"{0} ᏈᏗᏏ ᏗᎬᏍᎦᏢᏗ ᏂᎨᏒᎾ ᏓᎪᎵᏰᎥ ᏭᏍᏗᎬ ᎧᎵᎨᏒ"}
@@ -379,6 +418,11 @@ chr{
                 one{"{0} ᎠᏓᎵᏥᏍᏗᏍᎩ"}
                 other{"{0} ᏗᏓᎵᏥᏍᏗᏍᎩ"}
             }
+            calorie-it{
+                dnam{"ᏗᏓᎵᏥᏍᏗᏍᎩ [IT]"}
+                one{"{0} ᎠᏓᎵᏥᏍᏗᏍᎩ [IT]"}
+                other{"{0} ᏗᏓᎵᏥᏍᏗᏍᎩ [IT]"}
+            }
             electronvolt{
                 dnam{"ᎡᎴᏆᎾᏉᏔᏍ"}
                 one{"{0} ᎡᎴᏆᎾᏉᏔ"}
@@ -388,6 +432,11 @@ chr{
                 dnam{"ᏗᏓᎵᏥᏍᏗᏍᎩ"}
                 one{"{0} ᎠᏓᎵᏥᏍᏗᏍᎩ"}
                 other{"{0} ᏗᏓᎵᏥᏍᏗᏍᎩ"}
+            }
+            gray{
+                dnam{"ᎤᏍᎪᎸ ᎠᏂᏌᎪᏂᎨ"}
+                one{"{0} ᎤᏍᎪᎸ ᏌᎪᏂᎨ"}
+                other{"{0} ᎤᏍᎪᎸ ᎠᏂᏌᎪᏂᎨ"}
             }
             joule{
                 one{"{0} ᏦᎤᎵ"}
@@ -408,12 +457,22 @@ chr{
                 one{"ᎠᎦᏴᎵ ᎠᏟᎶᏓ"}
                 other{"{0} ᎠᎦᏴᎵ-ᎢᏧᏟᎶᏓ"}
             }
+            sievert{
+                dnam{"ᏗᏏᏇᏘ"}
+                one{"{0} ᏏᏇᏘ"}
+                other{"{0} ᏗᏏᏇᏘ"}
+            }
             therm-us{
                 one{"{0} US ᎤᏗᏞᎬᎢ"}
                 other{"{0} US ᎤᏗᏞᎬᎢ"}
             }
         }
         force{
+            kilogram-force{
+                dnam{"ᎠᎦᏴᎵ ᎤᏍᏗ ᏂᏚᏓᎨᏒ-ᎦᏌᏙᏯᏍᏗ"}
+                one{"{0} ᎠᏍᏴᎵ ᎤᏍᏗ ᏗᏚᏓᎨᏒ-ᎦᏌᏙᏯᏍᏗ"}
+                other{"{0} ᎠᏍᏴᎵ ᎤᏍᏗ ᏂᏚᏓᎨᏒ-ᎦᏌᏙᏯᏍᏗ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ᎠᎦᏴᎵᏩᏘ-ᏑᏟᎶᏓ ᎾᎿ 100 ᎠᎦᏴᎵᎢᏳᏟᎶᏓ"}
                 one{"{0} ᎠᎦᏴᎵᏩᏘ-ᏑᏟᎶᏓ ᎾᎿ 100 ᎠᎦᏴᎵᎢᏳᏟᎶᏓ"}
@@ -609,6 +668,18 @@ chr{
                 other{"{0} ᏅᏓ ᏗᏨᏍᏗ"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ᏖᏍᎳᏍ"}
+                one{"{0} ᏖᏍᎳ"}
+                other{"{0} ᏖᏍᎳᏍ"}
+            }
+            weber{
+                dnam{"ᏪᏆᏍ"}
+                one{"{0} ᏪᏆ"}
+                other{"{0} ᏪᏆᏍ"}
+            }
+        }
         mass{
             carat{
                 one{"{0} ᎨᏇᏓ"}
@@ -749,6 +820,11 @@ chr{
                 one{"{0} ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᎠᏟᎶᏗ ᎾᎿ ᎹᎫᎢ"}
                 other{"{0} ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᏗᏟᎶᏗ ᎾᎿ ᎹᎫᎢ"}
             }
+            ofhg{
+                dnam{"ᎾᎿ ᎹᎫᎢ"}
+                one{"{0} ᎾᎿ ᎹᎫᎢ"}
+                other{"{0} ᎾᎿ ᎹᎫᎢ"}
+            }
             pascal{
                 dnam{"ᏗᏆᏌᎵ"}
                 one{"{0} ᏆᏌᎵ"}
@@ -775,11 +851,6 @@ chr{
                 dnam{"ᏓᎧᏁᎲ"}
                 one{"{0} ᎠᎧᏁᎲ"}
                 other{"{0} ᏓᎧᏁᎲ"}
-            }
-            light-speed{
-                dnam{"ᎠᏨᏍᏗ"}
-                one{"{0} ᎠᏨᏍᏗ"}
-                other{"{0} ᎠᏨᏍᏗ"}
             }
             meter-per-second{
                 dnam{"ᏗᏟᎶᏗ ᎠᏎᏢ ᎢᏳᏓᎵ"}
@@ -915,6 +986,11 @@ chr{
                 dnam{"Imp. ᎤᏓᏁᎯ ᎢᏯᎣᏂᏏ"}
                 one{"{0} Imp. ᎤᏓᏁᎯ ᎣᏂᏏ"}
                 other{"{0} Imp. ᎤᏓᏁᎯ ᎢᏯᎣᏂᏏ"}
+            }
+            fluid-ounce-metric{
+                dnam{"ᎠᏂᎩᎸᏥ ᏂᏓᏳᏓᎴᏅᎯ ᏗᏎᏍᏗ ᎤᏓᏁᎯ ᎢᏯᎣᏂᏏ"}
+                one{"ᎠᏂᎩᎸᏥ ᏂᏓᏳᏓᎴᏅᎯ ᏗᏎᏍᏗ ᎤᏓᏁᎯ ᎣᏂᏏ"}
+                other{"{0} ᎠᏂᎩᎸᏥ ᏂᏓᏳᏓᎴᏅᎯ ᏗᏎᏍᏗ ᎤᏓᏁᎯ ᎢᏯᎣᏂᏏ"}
             }
             gallon{
                 one{"{0} ᎢᏳᎵᎶᏓ"}
@@ -1070,6 +1146,10 @@ chr{
                 one{"{0}kt"}
                 other{"{0}kt"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             milligram-ofglucose-per-deciliter{
                 one{"{0}mg/dL"}
                 other{"{0}mg/dL"}
@@ -1084,23 +1164,29 @@ chr{
                 one{"{0}mol"}
                 other{"{0}mol"}
             }
+            part{
+                dnam{"ᎢᎦᏛ"}
+                one{"{0} ᎢᎦᏛ"}
+                other{"{0} ᎢᎦᏛ"}
+            }
+            part-per-1e6{
+                dnam{"ppm"}
+                one{"{0}ppm"}
+                other{"{0}ppm"}
+            }
+            part-per-1e9{
+                dnam{"ppb"}
+                one{"{0}ppb"}
+                other{"{0}ppb"}
+            }
             percent{
                 dnam{"%"}
             }
             permille{
                 dnam{"‰"}
             }
-            permillion{
-                dnam{"ppm"}
-                one{"{0}ppm"}
-                other{"{0}ppm"}
-            }
             permyriad{
                 dnam{"‱"}
-            }
-            portion-per-1e9{
-                one{"{0}ppb"}
-                other{"{0}ppb"}
             }
         }
         consumption{
@@ -1230,10 +1316,8 @@ chr{
                 other{"{0}ᎾᏃ"}
             }
             night{
-                dnam{"ᏚᎵᏏᏂᏒ"}
                 one{"{0}ᎤᏒ"}
                 other{"{0}ᏚᎵᏏᏂᏒ"}
-                per{"{0}/ᎤᏒ"}
             }
             quarter{
                 one{"{0}Ꭿ"}
@@ -1285,6 +1369,11 @@ chr{
             calorie{
                 one{"{0}cal"}
                 other{"{0}cal"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"eV"}
@@ -1654,7 +1743,6 @@ chr{
                 other{"{0}kn"}
             }
             light-speed{
-                dnam{"ᎠᏨᏍᏗ"}
                 one{"{0}ᎠᏨᏍᏗ"}
                 other{"{0}ᎠᏨᏍᏗ"}
             }
@@ -1927,11 +2015,26 @@ chr{
             karat{
                 dnam{"ᏗᎧᏇᏓ"}
             }
+            katal{
+                one{"{0} kat"}
+                other{"{0} kat"}
+            }
             millimole-per-liter{
                 dnam{"ᏌᏉ ᎢᏯᎦᎨᎵᏁᎢ ᎼᎵ ᎵᏔᎢ ᎢᏳᏓᎵ"}
             }
             mole{
                 dnam{"ᎼᎴ"}
+            }
+            part{
+                dnam{"ᎢᎦᏛ"}
+                one{"{0} ᎢᎦᏛ"}
+                other{"{0} ᎢᎦᏛ"}
+            }
+            part-per-1e6{
+                dnam{"ᏚᏙᏢᏒ/ᎢᏳᏆᏗᏅᏛ"}
+            }
+            part-per-1e9{
+                dnam{"ᏚᏙᏢᏒ/ᎢᏳᏔᎵᎳᏗᏅᏛ"}
             }
             percent{
                 dnam{"ᏓᎬᏩᎶᏛ"}
@@ -1939,14 +2042,8 @@ chr{
             permille{
                 dnam{"ᏈᎻᎴ"}
             }
-            permillion{
-                dnam{"ᏚᏙᏢᏒ/ᎢᏳᏆᏗᏅᏛ"}
-            }
             permyriad{
                 dnam{"ᏋᎻᎵᎠᏗ"}
-            }
-            portion-per-1e9{
-                dnam{"ᏚᏙᏢᏒ/ᎢᏳᏔᎵᎳᏗᏅᏛ"}
             }
         }
         consumption{
@@ -2109,6 +2206,11 @@ chr{
         energy{
             british-thermal-unit{
                 dnam{"BTU"}
+            }
+            calorie-it{
+                dnam{"cal-IT"}
+                one{"{0} cal-IT"}
+                other{"{0} cal-IT"}
             }
             electronvolt{
                 dnam{"ᎡᎴᏆᎾᏉᏔ"}

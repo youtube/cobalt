@@ -8,7 +8,9 @@ az_Cyrl{
     NumberElements{
         latn{
             patterns{
+                accountingFormat%alphaNextToNumber{"#,##0.00 ¤"}
                 currencyFormat{"#,##0.00 ¤"}
+                currencyFormat%alphaNextToNumber{"#,##0.00 ¤"}
             }
             symbols{
                 decimal{","}
@@ -208,20 +210,20 @@ az_Cyrl{
             }
             eras{
                 abbreviated{
-                    "е.ә.",
-                    "ј.е.",
+                    0{"е.ә."}
+                    1{"ј.е."}
                 }
                 abbreviated%variant{
-                    "б.е.ә.",
-                    "б.е.",
+                    0{"б.е.ә."}
+                    1{"б.е."}
                 }
                 wide{
-                    "ерамыздан әввәл",
-                    "јени ера",
+                    0{"ерамыздан әввәл"}
+                    1{"јени ера"}
                 }
                 wide%variant{
-                    "бизим ерадан әввәл",
-                    "бизим ера",
+                    0{"бизим ерадан әввәл"}
+                    1{"бизим ера"}
                 }
             }
             intervalFormats{

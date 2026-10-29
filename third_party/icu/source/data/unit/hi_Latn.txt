@@ -5,6 +5,11 @@ hi_Latn{
     %%Parent{"en_IN"}
     units{
         concentr{
+            ofglucose{
+                dnam{"glucose level"}
+                one{"{0} kaa glucose level"}
+                other{"{0} kaa glucose level"}
+            }
             percent{
                 dnam{"percent"}
                 one{"{0} percent"}
@@ -87,6 +92,11 @@ hi_Latn{
                 one{"{0} millimetre mercury"}
                 other{"{0} millimetres mercury"}
             }
+            ofhg{
+                dnam{"mercury level"}
+                one{"{0} kaa mercury level"}
+                other{"{0} kaa mercury level"}
+            }
         }
         temperature{
             generic{
@@ -125,9 +135,6 @@ hi_Latn{
         }
     }
     unitsNarrow{
-        compound{
-            10p-6{"μ {0}"}
-        }
         concentr{
             karat{
                 dnam{"karat"}
@@ -177,6 +184,11 @@ hi_Latn{
             bar{
                 one{"{0}bar"}
                 other{"{0}bars"}
+            }
+            ofhg{
+                dnam{"Hg level"}
+                one{"{0} kaa Hg level"}
+                other{"{0} kaa Hg level"}
             }
         }
         speed{
@@ -265,6 +277,11 @@ hi_Latn{
             bar{
                 one{"{0} bar"}
                 other{"{0} bars"}
+            }
+            ofhg{
+                dnam{"Hg level"}
+                one{"{0} kaa Hg level"}
+                other{"{0} kaa Hg level"}
             }
         }
         volume{

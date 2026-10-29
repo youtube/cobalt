@@ -75,9 +75,6 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   output->set_mime_type(mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  if (!output->IsValidConfig())
-    return false;
-
   return true;
 }
 

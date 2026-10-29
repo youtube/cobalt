@@ -12,6 +12,8 @@
 #include "include/core/SkData.h"
 #include "include/private/base/SkAPI.h"
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -53,6 +55,20 @@ struct SK_API ContentLightLevelInformation {
      * Serialize to the encoding used by parse().
      */
     sk_sp<SkData> serialize() const;
+
+    /**
+     * Helper functions for accessing members as uint16_t, which is often needed when interacting
+     * with libraries using the CTA semantics.
+     */
+    static ContentLightLevelInformation MakeUint16(uint16_t maxCLL, uint16_t maxFALL) {
+        return { .fMaxCLL = static_cast<float>(maxCLL), .fMaxFALL = static_cast<float>(maxFALL) };
+    }
+    uint16_t getUint16MaxCLL() const {
+        return static_cast<uint16_t>(std::clamp(std::round(fMaxCLL), 0.f, 65535.f));
+    }
+    uint16_t getUint16MaxFALL() const {
+        return static_cast<uint16_t>(std::clamp(std::round(fMaxFALL), 0.f, 65535.f));
+    }
 
     /**
      * Decode from the binary encoding listed at:

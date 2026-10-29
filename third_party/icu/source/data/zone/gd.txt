@@ -15,14 +15,8 @@ gd{
         "Africa:Djibouti"{
             ec{"Diobùtaidh"}
         }
-        "Africa:El_Aaiun"{
-            ec{"El Aaiún"}
-        }
         "Africa:Johannesburg"{
             ec{"Hannsaborgh"}
-        }
-        "Africa:Lome"{
-            ec{"Lomé"}
         }
         "Africa:Ndjamena"{
             ec{"N’Djaména"}
@@ -33,44 +27,20 @@ gd{
         "America:Antigua"{
             ec{"Aintìoga"}
         }
-        "America:Araguaina"{
-            ec{"Araguaína"}
-        }
-        "America:Argentina:Rio_Gallegos"{
-            ec{"Río Gallegos"}
-        }
-        "America:Argentina:Tucuman"{
-            ec{"Tucumán"}
-        }
         "America:Aruba"{
             ec{"Arùba"}
-        }
-        "America:Belem"{
-            ec{"Belém"}
         }
         "America:Belize"{
             ec{"A’ Bheilìs"}
         }
-        "America:Bogota"{
-            ec{"Bogotá"}
-        }
         "America:Cayman"{
             ec{"Caimean"}
-        }
-        "America:Cordoba"{
-            ec{"Córdoba"}
         }
         "America:Costa_Rica"{
             ec{"Costa Rìcea"}
         }
-        "America:Cuiaba"{
-            ec{"Cuiabá"}
-        }
         "America:Dominica"{
             ec{"Doiminicea"}
-        }
-        "America:Eirunepe"{
-            ec{"Eirunepé"}
         }
         "America:El_Salvador"{
             ec{"An Salbhador"}
@@ -99,14 +69,8 @@ gd{
         "America:Jamaica"{
             ec{"Diameuga"}
         }
-        "America:Maceio"{
-            ec{"Maceió"}
-        }
         "America:Martinique"{
             ec{"Mairtinic"}
-        }
-        "America:Mazatlan"{
-            ec{"Mazatlán"}
         }
         "America:Mexico_City"{
             ec{"Cathair Mheagsago"}
@@ -128,12 +92,6 @@ gd{
         }
         "America:Resolute"{
             ec{"Qausuittuq"}
-        }
-        "America:Santarem"{
-            ec{"Santarém"}
-        }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
         }
         "America:St_Barthelemy"{
             ec{"Saint Barthélemy"}
@@ -180,9 +138,6 @@ gd{
         "Asia:Gaza"{
             ec{"Gàsa"}
         }
-        "Asia:Hovd"{
-            ec{"Khovd"}
-        }
         "Asia:Jerusalem"{
             ec{"Ierusalam"}
         }
@@ -228,9 +183,6 @@ gd{
         "Asia:Tokyo"{
             ec{"Tōkyō"}
         }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
-        }
         "Asia:Vientiane"{
             ec{"Viang Chan"}
         }
@@ -272,9 +224,6 @@ gd{
         }
         "Europe:Brussels"{
             ec{"A’ Bhruiseal"}
-        }
-        "Europe:Chisinau"{
-            ec{"Chișinău"}
         }
         "Europe:Copenhagen"{
             ec{"Beirbh"}
@@ -340,9 +289,6 @@ gd{
         "Indian:Kerguelen"{
             ec{"Kergelenn"}
         }
-        "Indian:Mahe"{
-            ec{"Mahé"}
-        }
         "Indian:Maldives"{
             ec{"Na h-Eileanan Mhaladaibh"}
         }
@@ -353,22 +299,16 @@ gd{
             ec{"Rapa Nui"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Eilean Canton"}
         }
         "Pacific:Fiji"{
             ec{"Fìdi"}
-        }
-        "Pacific:Galapagos"{
-            ec{"Galápagos"}
         }
         "Pacific:Gambier"{
             ec{"Mangareva"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"HST"}
-            ss{"HST"}
         }
         "Pacific:Marquesas"{
             ec{"Eileanan a’ Mharcais"}
@@ -403,9 +343,7 @@ gd{
             ls{"Àm Afraga a Deas"}
         }
         "meta:Africa_Western"{
-            ld{"Tìde Samhraidh Afraga an Iar"}
-            lg{"Àm Afraga an Iar"}
-            ls{"Bun-àm Afraga an Iar"}
+            ls{"Àm Afraga an Iar"}
         }
         "meta:Alaska"{
             ld{"Tìde samhraidh Alaska"}
@@ -703,6 +641,10 @@ gd{
         "meta:Guyana"{
             ls{"Àm Guidheàna"}
         }
+        "meta:Hawaii"{
+            ls{"Bun-àm nan Eileanan Hawai’i ’s Aleutach"}
+            ss{"HAST"}
+        }
         "meta:Hawaii_Aleutian"{
             ld{"Tìde Samhraidh nan Eileanan Hawai’i ’s Aleutach"}
             lg{"Àm nan Eileanan Hawai’i ’s Aleutach"}
@@ -717,9 +659,9 @@ gd{
             ls{"Bun-àm Hong Kong"}
         }
         "meta:Hovd"{
-            ld{"Tìde samhraidh Hovd"}
-            lg{"Àm Hovd"}
-            ls{"Bun-àm Hovd"}
+            ld{"Tìde samhraidh Khovd"}
+            lg{"Àm Khovd"}
+            ls{"Bun-àm Khovd"}
         }
         "meta:India"{
             ls{"Àm nan Innseachan"}

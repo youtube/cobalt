@@ -271,6 +271,9 @@ yue_Hans{
         "America:Costa_Rica"{
             ec{"哥斯大黎加"}
         }
+        "America:Coyhaique"{
+            ec{"科伊艾克"}
+        }
         "America:Creston"{
             ec{"克雷斯顿"}
         }
@@ -1168,7 +1171,7 @@ yue_Hans{
             ec{"埃法特"}
         }
         "Pacific:Enderbury"{
-            ec{"恩得伯理岛"}
+            ec{"坎顿"}
         }
         "Pacific:Fakaofo"{
             ec{"法考福"}
@@ -1193,9 +1196,6 @@ yue_Hans{
         }
         "Pacific:Honolulu"{
             ec{"檀香山"}
-        }
-        "Pacific:Kanton"{
-            ec{"坎顿"}
         }
         "Pacific:Kiritimati"{
             ec{"基里地马地岛"}
@@ -1284,9 +1284,7 @@ yue_Hans{
             ls{"南非标准时间"}
         }
         "meta:Africa_Western"{
-            ld{"西非夏令时间"}
-            lg{"西非时间"}
-            ls{"西非标准时间"}
+            ls{"西非时间"}
         }
         "meta:Alaska"{
             ld{"阿拉斯加夏令时间"}
@@ -1550,6 +1548,9 @@ yue_Hans{
         }
         "meta:Guyana"{
             ls{"盖亚那时间"}
+        }
+        "meta:Hawaii"{
+            ls{"夏威夷-阿留申标准时间"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"夏威夷-阿留申夏令时间"}
@@ -1908,5 +1909,7 @@ yue_Hans{
             ls{"育空时间"}
         }
         regionFormat{"{0}时间"}
+        regionFormatDaylight{"{0}夏令时间"}
+        regionFormatStandard{"{0}标准时间"}
     }
 }

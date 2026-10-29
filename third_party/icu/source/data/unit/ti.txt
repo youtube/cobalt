@@ -41,6 +41,11 @@ ti{
                 one{"{0} ሬቮልዩሽን"}
                 other{"{0} ሬቮልዩሽን"}
             }
+            steradian{
+                dnam{"ስትራዲያን"}
+                one{"{0} ስትራዲያን"}
+                other{"{0} ስትራዲያን"}
+            }
         }
         area{
             dunam{
@@ -165,6 +170,11 @@ ti{
                 one{"{0} ካራት"}
                 other{"{0} ካራት"}
             }
+            katal{
+                dnam{"ካታል"}
+                one{"{0} ካታል"}
+                other{"{0} ካታል"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ሚሊግራም ኣብ ሓደ ዲሲሊተርትሮ"}
                 one{"{0} ሚሊግራም ኣብ ሓደ ዲሲሊተርትሮ"}
@@ -180,6 +190,26 @@ ti{
                 one{"{0} ሞል"}
                 other{"{0} ሞል"}
             }
+            ofglucose{
+                dnam{"ግሉኮስ"}
+                one{"{0} ግሉኮስ"}
+                other{"{0} ግሉኮስ"}
+            }
+            part{
+                dnam{"ክፋል"}
+                one{"{0} ክፋል"}
+                other{"{0} ክፋል"}
+            }
+            part-per-1e6{
+                dnam{"ክፍልታት ኣብ ሚልዮን"}
+                one{"{0} ክፍልታት ኣብ ሚልዮን"}
+                other{"{0} ክፍልታት ኣብ ሚልዮን"}
+            }
+            part-per-1e9{
+                dnam{"ክፍልታት ኣብ ሓደ ቢልዮን"}
+                one{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
+                other{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
+            }
             percent{
                 dnam{"ሚእታዊ"}
                 one{"{0} ሚእታዊ"}
@@ -190,20 +220,10 @@ ti{
                 one{"{0} አብ ሚሌ"}
                 other{"{0} አብ ሚሌ"}
             }
-            permillion{
-                dnam{"ክፍልታት ኣብ ሚልዮን"}
-                one{"{0} ክፍልታት ኣብ ሚልዮን"}
-                other{"{0} ክፍልታት ኣብ ሚልዮን"}
-            }
             permyriad{
                 dnam{"አብ ሚርያድ"}
                 one{"{0} አብ ሚርያድ"}
                 other{"{0} አብ ሚርያድ"}
-            }
-            portion-per-1e9{
-                dnam{"ክፍልታት ኣብ ሓደ ቢልዮን"}
-                one{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
-                other{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
             }
         }
         consumption{
@@ -331,7 +351,7 @@ ti{
             }
             month{
                 dnam{"ኣዋርሕ"}
-                one{"{0}/ወርሒ"}
+                one{"{0} ወርሒ"}
                 other{"{0}/ኣዋርሕ"}
                 per{"{0}/ወርሒ"}
             }
@@ -360,7 +380,6 @@ ti{
                 per{"{0}/ሰሙን"}
             }
             year{
-                dnam{"ዓመታት"}
                 one{"{0} ዓመት"}
                 other{"{0} ዓመታት"}
                 per{"{0}/ዓመታት"}
@@ -372,6 +391,21 @@ ti{
                 one{"{0} አምፒር"}
                 other{"{0} አምፒር"}
             }
+            coulomb{
+                dnam{"ኮለምብ"}
+                one{"{0} ኮለምብ"}
+                other{"{0} ኮለምብ"}
+            }
+            farad{
+                dnam{"ፋራድ"}
+                one{"{0} ፋራድ"}
+                other{"{0} ፋራድ"}
+            }
+            henry{
+                dnam{"ሄነሪ"}
+                one{"{0} ሄነሪ"}
+                other{"{0} ሄነሪ"}
+            }
             milliampere{
                 dnam{"ሚሊ አምፒር"}
                 one{"{0} ሚሊ አምፒር"}
@@ -382,6 +416,11 @@ ti{
                 one{"{0} ኦህም"}
                 other{"{0} ኦህም"}
             }
+            siemens{
+                dnam{"ሲመን"}
+                one{"{0} ሲመን"}
+                other{"{0} ሲመን"}
+            }
             volt{
                 dnam{"ቮልት"}
                 one{"{0} ቮልት"}
@@ -389,6 +428,11 @@ ti{
             }
         }
         energy{
+            becquerel{
+                dnam{"ቤክዌርሌስ"}
+                one{"{0} ቤክዌርሌስ"}
+                other{"{0} ቤክዌርሌስ"}
+            }
             british-thermal-unit{
                 dnam{"ናይ እንግሊዝ ናይ ሙቐት መለክዒ"}
                 one{"{0} ናይ እንግሊዝ ናይ ሙቐት መለክዒ"}
@@ -399,10 +443,20 @@ ti{
                 one{"{0} ካሎሪ"}
                 other{"{0} ካሎሪ"}
             }
+            calorie-it{
+                dnam{"ካሎሪ [IT]"}
+                one{"{0} ካሎሪ [IT]"}
+                other{"{0} ካሎሪ [IT]"}
+            }
             electronvolt{
                 dnam{"ኤሌክትሮኖቮልት"}
                 one{"{0} ኤሌክትሮኖቮልት"}
                 other{"{0} ኤሌክትሮኖቮልት"}
+            }
+            gray{
+                dnam{"ግሬይስ"}
+                one{"{0} ግሬይ"}
+                other{"{0} ግሬይስ"}
             }
             joule{
                 dnam{"ጁል"}
@@ -424,6 +478,11 @@ ti{
                 one{"{0} ኪሎዋት ሰዓት"}
                 other{"{0} ኪሎዋት-ሰዓት"}
             }
+            sievert{
+                dnam{"ሴቨርትስ"}
+                one{"{0} ሴቨርት"}
+                other{"{0} ሴቨርትስ"}
+            }
             therm-us{
                 dnam{"ናይ አመሪካ ናይ ሙቐት መለክዒ"}
                 one{"{0} ናይ አመሪካ ናይ ሙቐት መለክዒ"}
@@ -431,6 +490,11 @@ ti{
             }
         }
         force{
+            kilogram-force{
+                dnam{"ኪሎግራም-ሓይሊ"}
+                one{"{0} ኪሎግራም-ሓይሊ"}
+                other{"{0} ኪሎግራም-ሓይሊ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ኪሎዋት-ሰዓት ኣብ 100 ኪሎሜትር"}
                 one{"{0} ኪሎዋት-ሰዓት ኣብ 100 ኪሎሜትር"}
@@ -620,6 +684,18 @@ ti{
                 other{"{0} ጸሓያዊ ብርሃናት"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ቴስላ"}
+                one{"{0} ቴስላ"}
+                other{"{0} ቴስላ"}
+            }
+            weber{
+                dnam{"ዌበር"}
+                one{"{0} ዌበር"}
+                other{"{0} ዌበር"}
+            }
+        }
         mass{
             carat{
                 dnam{"ካራት"}
@@ -763,6 +839,11 @@ ti{
                 dnam{"ሚሊሜተር ሜርኩሪ"}
                 one{"{0} ሚሊሜተር ሜርኩሪ"}
                 other{"{0} ሚሊሜተር ሜርኩሪ"}
+            }
+            ofhg{
+                dnam{"ሜርኩሪ"}
+                one{"{0} ሜርኩሪ"}
+                other{"{0} ሜርኩሪ"}
             }
             pascal{
                 dnam{"ፓስካል"}
@@ -934,6 +1015,11 @@ ti{
                 one{"{0} ኢምፕ. ፈሳሲ ኦውንስ"}
                 other{"{0} ኢምፕ. ፈሳሲ ኦውንስ"}
             }
+            fluid-ounce-metric{
+                dnam{"ሜትሪክ ፈሳሲ ኦውንስ"}
+                one{"{0} ሜትሪክ ፈሳሲ ኦውንስ"}
+                other{"{0} ሜትሪክ ፈሳሲ ኦውንስ"}
+            }
             gallon{
                 dnam{"ጋሎን"}
                 one{"{0} ጋሎን"}
@@ -1044,6 +1130,11 @@ ti{
                 one{"{0}ሬቮልዩሽን"}
                 other{"{0}ሬቮልዩሽን"}
             }
+            steradian{
+                dnam{"ስትራዲያን"}
+                one{"{0} ስትራዲያን"}
+                other{"{0} ስትራዲያን"}
+            }
         }
         area{
             dunam{
@@ -1141,6 +1232,11 @@ ti{
                 one{"{0}ካራት"}
                 other{"{0}ካራት"}
             }
+            katal{
+                dnam{"ካታል"}
+                one{"{0} ካታል"}
+                other{"{0} ካታል"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ሚግ/ዲሲሊተርትሮ"}
                 one{"{0}ሚግ/ዲሲሊተርትሮ"}
@@ -1156,12 +1252,22 @@ ti{
                 one{"{0}ሞል"}
                 other{"{0}ሞል"}
             }
-            permillion{
+            ofglucose{
+                dnam{"ግሉኮስ"}
+                one{"{0} ግሉኮስ"}
+                other{"{0} ግሉኮስ"}
+            }
+            part{
+                dnam{"ክፋል"}
+                one{"{0} ክፋል"}
+                other{"{0} ክፋል"}
+            }
+            part-per-1e6{
                 dnam{"ክፍልታት ኣብ ሚልዮን"}
                 one{"{0}ክፍልታት ኣብ ሚልዮን"}
                 other{"{0}ክፍልታት ኣብ ሚልዮን"}
             }
-            portion-per-1e9{
+            part-per-1e9{
                 dnam{"ክፍልታት ኣብ ሓደ ቢልዮን"}
                 one{"{0}ክፍልታት ኣብ ሓደ ቢልዮን"}
                 other{"{0}ክፍልታት ኣብ ሓደ ቢልዮን"}
@@ -1327,6 +1433,21 @@ ti{
                 one{"{0}አምፒር"}
                 other{"{0}አምፒር"}
             }
+            coulomb{
+                dnam{"ኮለምብ"}
+                one{"{0} ኮለምብ"}
+                other{"{0} ኮለምብ"}
+            }
+            farad{
+                dnam{"ፋራድ"}
+                one{"{0} ፋራድ"}
+                other{"{0} ፋራድ"}
+            }
+            henry{
+                dnam{"ሄነሪ"}
+                one{"{0} ሄነሪ"}
+                other{"{0} ሄነሪ"}
+            }
             milliampere{
                 dnam{"ሚሊ አምፒር"}
                 one{"{0}ሚሊ አምፒር"}
@@ -1334,6 +1455,11 @@ ti{
             }
             ohm{
                 dnam{"ኦህም"}
+            }
+            siemens{
+                dnam{"ሲመን"}
+                one{"{0} ሲመን"}
+                other{"{0} ሲመን"}
             }
             volt{
                 dnam{"ቮልት"}
@@ -1346,6 +1472,11 @@ ti{
                 dnam{"ካሎሪ"}
                 one{"{0}ካሎሪ"}
                 other{"{0}ካሎሪ"}
+            }
+            calorie-it{
+                dnam{"ካል-IT"}
+                one{"{0} ካል-IT"}
+                other{"{0} ካል-IT"}
             }
             electronvolt{
                 dnam{"ኢቪ"}
@@ -1379,6 +1510,11 @@ ti{
             }
         }
         force{
+            kilogram-force{
+                dnam{"ኪሎግ-ሓ"}
+                one{"{0} ኪሎግ-ሓ"}
+                other{"{0} ኪሎግ-ሓ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ኪሎዋት-ሰዓት/100 ኪሎሜትር"}
                 one{"{0}ኪሎዋት-ሰዓት/100 ኪሎሜትር"}
@@ -1554,6 +1690,18 @@ ti{
                 other{"{0}ለክስ"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ቴስላ"}
+                one{"{0} ቴስላ"}
+                other{"{0} ቴስላ"}
+            }
+            weber{
+                dnam{"ዌበር"}
+                one{"{0} ዌበር"}
+                other{"{0} ዌበር"}
+            }
+        }
         mass{
             carat{
                 dnam{"ካራት"}
@@ -1694,10 +1842,18 @@ ti{
                 one{"{0}ሚሜ ሜርኩሪ"}
                 other{"{0}ሚሜ ሜርኩሪ"}
             }
+            ofhg{
+                dnam{"ሜርኩሪ"}
+                one{"{0} ሜርኩሪ"}
+                other{"{0} ሜርኩሪ"}
+            }
             pascal{
                 dnam{"ፓስካል"}
                 one{"{0}ፓስካል"}
                 other{"{0}ፓስካል"}
+            }
+            pound-force-per-square-inch{
+                dnam{"ፒ.ኤስ.አይ"}
             }
         }
         speed{
@@ -1971,6 +2127,11 @@ ti{
                 one{"{0} ሬቮልዩሽን"}
                 other{"{0} ሬቮልዩሽን"}
             }
+            steradian{
+                dnam{"ስትራዲያን"}
+                one{"{0} ስትራዲያን"}
+                other{"{0} ስትራዲያን"}
+            }
         }
         area{
             dunam{
@@ -2068,6 +2229,11 @@ ti{
                 one{"{0} ካራት"}
                 other{"{0} ካራት"}
             }
+            katal{
+                dnam{"ካታል"}
+                one{"{0} ካታል"}
+                other{"{0} ካታል"}
+            }
             milligram-ofglucose-per-deciliter{
                 dnam{"ሚግ/ዲሲሊተርትሮ"}
                 one{"{0} ሚግ/ዲሲሊተርትሮ"}
@@ -2083,24 +2249,34 @@ ti{
                 one{"{0} ሞል"}
                 other{"{0} ሞል"}
             }
+            ofglucose{
+                dnam{"ግሉኮስ"}
+                one{"{0} ግሉኮስ"}
+                other{"{0} ግሉኮስ"}
+            }
+            part{
+                dnam{"ክፋል"}
+                one{"{0} ክፋል"}
+                other{"{0} ክፋል"}
+            }
+            part-per-1e6{
+                dnam{"ክፍልታት/ሚልዮን"}
+                one{"{0} ክፍልታት ኣብ ሚልዮን"}
+                other{"{0} ክፍልታት ኣብ ሚልዮን"}
+            }
+            part-per-1e9{
+                dnam{"ክፍልታት/ሓደ ቢልዮን"}
+                one{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
+                other{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
+            }
             percent{
                 dnam{"ሚእታዊ"}
             }
             permille{
                 dnam{"አብ ሚሌ"}
             }
-            permillion{
-                dnam{"ክፍልታት/ሚልዮን"}
-                one{"{0} ክፍልታት ኣብ ሚልዮን"}
-                other{"{0} ክፍልታት ኣብ ሚልዮን"}
-            }
             permyriad{
                 dnam{"አብ ሚርያድ"}
-            }
-            portion-per-1e9{
-                dnam{"ክፍልታት/ሓደ ቢልዮን"}
-                one{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
-                other{"{0} ክፍልታት ኣብ ሓደ ቢልዮን"}
             }
         }
         consumption{
@@ -2269,6 +2445,21 @@ ti{
                 one{"{0} አምፒር"}
                 other{"{0} አምፒር"}
             }
+            coulomb{
+                dnam{"ኮለምብ"}
+                one{"{0} ኮለምብ"}
+                other{"{0} ኮለምብ"}
+            }
+            farad{
+                dnam{"ፋራድ"}
+                one{"{0} ፋራድ"}
+                other{"{0} ፋራድ"}
+            }
+            henry{
+                dnam{"ሄነሪ"}
+                one{"{0} ሄነሪ"}
+                other{"{0} ሄነሪ"}
+            }
             milliampere{
                 dnam{"ሚሊ አምፒር"}
                 one{"{0} ሚሊ አምፒር"}
@@ -2276,6 +2467,11 @@ ti{
             }
             ohm{
                 dnam{"ኦህም"}
+            }
+            siemens{
+                dnam{"ሲመን"}
+                one{"{0} ሲመን"}
+                other{"{0} ሲመን"}
             }
             volt{
                 dnam{"ቮልት"}
@@ -2288,6 +2484,11 @@ ti{
                 dnam{"ካሎሪ"}
                 one{"{0} ካሎሪ"}
                 other{"{0} ካሎሪ"}
+            }
+            calorie-it{
+                dnam{"ካል-IT"}
+                one{"{0} ካል-IT"}
+                other{"{0} ካል-IT"}
             }
             electronvolt{
                 dnam{"ኤሌክትሮኖቮልት"}
@@ -2321,6 +2522,11 @@ ti{
             }
         }
         force{
+            kilogram-force{
+                dnam{"ኪሎግ-ሓ"}
+                one{"{0} ኪሎግ-ሓ"}
+                other{"{0} ኪሎግ-ሓ"}
+            }
             kilowatt-hour-per-100-kilometer{
                 dnam{"ኪሎዋት-ሰዓት/100 ኪሎሜትር"}
                 one{"{0} ኪሎዋት-ሰዓት/100 ኪሎሜትር"}
@@ -2494,6 +2700,18 @@ ti{
                 dnam{"ጸሓያዊ ብርሃናት"}
             }
         }
+        magnetic{
+            tesla{
+                dnam{"ቴስላ"}
+                one{"{0} ቴስላ"}
+                other{"{0} ቴስላ"}
+            }
+            weber{
+                dnam{"ዌበር"}
+                one{"{0} ዌበር"}
+                other{"{0} ዌበር"}
+            }
+        }
         mass{
             carat{
                 dnam{"ካራት"}
@@ -2634,10 +2852,18 @@ ti{
                 one{"{0} ሚሜ ሜርኩሪ"}
                 other{"{0} ሚሜ ሜርኩሪ"}
             }
+            ofhg{
+                dnam{"ሜርኩሪ"}
+                one{"{0} ሜርኩሪ"}
+                other{"{0} ሜርኩሪ"}
+            }
             pascal{
                 dnam{"ፓስካል"}
                 one{"{0} ፓስካል"}
                 other{"{0} ፓስካል"}
+            }
+            pound-force-per-square-inch{
+                dnam{"ፒ.ኤስ.አይ"}
             }
         }
         speed{

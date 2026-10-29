@@ -14,10 +14,13 @@ zh{
         colStrength{"排序强度"}
         collation{"排序"}
         currency{"货币"}
+        em{"表情符号表示法"}
         hc{"小时制（12或24）"}
-        lb{"换行符样式"}
+        lb{"中文、日文及韩语换行规则"}
+        lw{"词内换行规则"}
         ms{"度量衡制"}
         numbers{"数字"}
+        ss{"在缩写后断句"}
         timezone{"时区"}
         va{"语言区域别名"}
         x{"专用"}
@@ -306,7 +309,7 @@ zh{
         kw{"康沃尔语"}
         kwk{"夸夸瓦拉语"}
         kxv{"库维语"}
-        ky{"柯尔克孜语"}
+        ky{"吉尔吉斯语"}
         la{"拉丁语"}
         lad{"拉迪诺语"}
         lag{"朗吉语"}
@@ -606,6 +609,12 @@ zh{
         zxx{"无语言内容"}
         zza{"扎扎语"}
     }
+    Languages%core{
+        ku{"库尔德语"}
+    }
+    Languages%extension{
+        ku{"北库尔德语"}
+    }
     Languages%long{
         zh_Hans{"现代标准汉语（简体）"}
         zh_Hant{"现代标准汉语（繁体）"}
@@ -853,9 +862,30 @@ zh{
             persian{"波斯历"}
             roc{"民国纪年"}
         }
+        calendar%core{
+            buddhist{"佛历"}
+            chinese{"农历"}
+            coptic{"科普特历"}
+            dangi{"檀纪历"}
+            ethiopic{"埃塞俄比亚历"}
+            ethiopic-amete-alem{"埃塞俄比亚阿米特阿莱姆日历"}
+            gregorian{"公历"}
+            hebrew{"希伯来历"}
+            islamic{"伊斯兰历"}
+            islamic-civil{"表格式伊斯兰历（民用纪元）"}
+            islamic-tbla{"表格式伊斯兰历（天文纪元）"}
+            islamic-umalqura{"伊斯兰历（乌姆库拉）"}
+            japanese{"和历"}
+            persian{"波斯历"}
+            roc{"民国纪年"}
+        }
         cf{
             account{"会计货币格式"}
             standard{"标准货币格式"}
+        }
+        cf%core{
+            account{"会计"}
+            standard{"标准"}
         }
         colAlternate{
             non-ignorable{"对符号进行排序"}
@@ -890,28 +920,45 @@ zh{
             tertiary{"对重音/大小写/长度进行排序"}
         }
         collation{
-            big5han{"繁体中文排序 - Big5"}
             compat{"基于兼容性沿用既往排序"}
             dictionary{"字典排序"}
-            ducet{"默认 Unicode 排序"}
+            ducet{"默认Unicode排序"}
             emoji{"表情符号排序"}
             eor{"欧洲排序规则"}
-            gb2312han{"简体中文排序 - GB2312"}
             phonebook{"电话簿排序"}
             phonetic{"语音排序"}
             pinyin{"拼音排序"}
             search{"常规搜索"}
-            searchjl{"按韩文字开首辅音来搜索"}
+            searchjl{"按谚文初声辅音搜索"}
             standard{"标准排序"}
             stroke{"笔画排序"}
             traditional{"传统排序"}
             unihan{"部首笔画排序"}
             zhuyin{"注音排序"}
         }
+        collation%core{
+            compat{"兼容性"}
+            dictionary{"字典"}
+            ducet{"默认Unicode"}
+            phonebook{"电话簿"}
+            phonetic{"语音"}
+            pinyin{"拼音"}
+            search{"搜索"}
+            standard{"标准"}
+            stroke{"笔画"}
+            traditional{"传统"}
+            unihan{"部首笔画"}
+            zhuyin{"注音"}
+        }
         d0{
             fwidth{"全角"}
             hwidth{"半角"}
             npinyin{"数字"}
+        }
+        em%core{
+            default{"默认"}
+            emoji{"表情符号"}
+            text{"文字"}
         }
         hc{
             h11{"12小时制（0–11）"}
@@ -919,16 +966,38 @@ zh{
             h23{"24小时制（0–23）"}
             h24{"24小时制（1–24）"}
         }
+        hc%core{
+            h11{"12 (0–11)"}
+            h12{"12 (1–12)"}
+            h23{"24 (0–23)"}
+            h24{"24 (1–24)"}
+        }
         lb{
-            loose{"宽松换行符样式"}
-            normal{"正常换行符样式"}
-            strict{"严格换行符样式"}
+            loose{"宽松换行样式"}
+            normal{"正常换行样式"}
+            strict{"严格换行样式"}
+        }
+        lb%core{
+            loose{"宽松"}
+            normal{"正常"}
+            strict{"严格"}
+        }
+        lw%core{
+            breakall{"允许断词换行"}
+            keepall{"不允许断词换行"}
+            normal{"正常"}
+            phrase{"保留短语"}
         }
         m0{
             bgn{"美国地名委员会 (BGN)"}
             ungegn{"联合国地名专家组 (UNGEGN)"}
         }
         ms{
+            metric{"公制"}
+            uksystem{"英制"}
+            ussystem{"美制"}
+        }
+        ms%core{
             metric{"公制"}
             uksystem{"英制"}
             ussystem{"美制"}
@@ -1018,6 +1087,10 @@ zh{
             vaii{"瓦伊文数字"}
             wara{"瓦郎奇蒂数字"}
             wcho{"万秋数字"}
+        }
+        ss%core{
+            none{"关闭"}
+            standard{"开启"}
         }
     }
     Variants{

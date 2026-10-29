@@ -45,9 +45,6 @@ sw{
         "Europe:London"{
             ld{"Saa za Majira ya Joto za Uingereza"}
         }
-        "Pacific:Enderbury"{
-            ec{"Enderbury"}
-        }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
         }
@@ -64,9 +61,7 @@ sw{
             ls{"Saa za Wastani za Afrika Kusini"}
         }
         "meta:Africa_Western"{
-            ld{"Saa za Majira ya joto za Afrika Magharibi"}
-            lg{"Saa za Afrika Magharibi"}
-            ls{"Saa za Wastani za Afrika Magharibi"}
+            ls{"Saa za Afrika Magharibi"}
         }
         "meta:Alaska"{
             ld{"Saa za Mchana za Alaska"}
@@ -309,6 +304,9 @@ sw{
         }
         "meta:Guyana"{
             ls{"Saa za Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Saa za Wastani za Hawaii-Aleutian"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Saa za Mchana za Hawaii-Aleutian"}

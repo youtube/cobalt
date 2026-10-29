@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -47,9 +48,13 @@
 #include "chrome/browser/devtools/views/devtools_floaty.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_stats.h"
+#include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/language/language_model_manager_factory.h"
 #include "chrome/browser/media/router/media_router_feature.h"
@@ -546,13 +551,14 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
        {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI, 159},
        {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS, 160},
        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
+       {IDC_CONTENT_CONTEXT_GLIC, 162},
        // To add new items:
        //   - Add one more line above this comment block, using the UMA value
        //     from the line below this comment block.
        //   - Increment the UMA value in that latter line.
        //   - Add the new item to the RenderViewContextMenuItem enum in
        //     tools/metrics/histograms/metadata/ui/enums.xml.
-       {0, 162}});
+       {0, 163}});
   // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
 
   // LINT.IfChange(ContextMenuOptionDesktop)
@@ -1044,7 +1050,7 @@ void RenderViewContextMenu::IssuePreconnectionToUrl(
   net::SchemefulSite anonymization_key_schemeful_site(anonymization_key_gurl);
   auto network_anonymization_key =
       net::NetworkAnonymizationKey::CreateCrossSite(
-          anonymization_key_schemeful_site);
+          std::move(anonymization_key_schemeful_site));
   loading_predictor->PreconnectURLIfAllowed(GURL(preconnect_url),
                                             /*allow_credentials=*/true,
                                             network_anonymization_key);
@@ -1722,8 +1728,15 @@ void RenderViewContextMenu::AppendLinkItems() {
           IDC_CONTENT_CONTEXT_OPENLINKNEWTAB,
           in_app ? IDS_CONTENT_CONTEXT_OPENLINKNEWTAB_INAPP
                  : IDS_CONTENT_CONTEXT_OPENLINKNEWTAB);
+    }
+
+    if (show_open_in_new_window) {
+      menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW,
+                                      IDS_CONTENT_CONTEXT_OPENLINKNEWWINDOW);
+    }
 
 #if !BUILDFLAG(IS_ANDROID)
+    if (show_open_in_new_tab) {
       // Opening a link in split view should also go through the same
       // constraints as opening a link in a new tab since a split view tab is a
       // new tab that is then joined with the current active tab.
@@ -1751,14 +1764,8 @@ void RenderViewContextMenu::AppendLinkItems() {
         menu_model_.SetElementIdentifierAt(command_index,
                                            kOpenLinkInSplitMenuItem);
       }
-
+    }
 #endif
-    }
-
-    if (show_open_in_new_window) {
-      menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW,
-                                      IDS_CONTENT_CONTEXT_OPENLINKNEWWINDOW);
-    }
 
     if (params_.link_url.is_valid()) {
       AppendProtocolHandlerSubMenu();
@@ -2240,6 +2247,26 @@ void RenderViewContextMenu::AppendPageItems() {
   menu_model_.AddItemWithStringId(IDC_FORWARD, IDS_CONTENT_CONTEXT_FORWARD);
   menu_model_.AddItemWithStringId(IDC_RELOAD, IDS_CONTENT_CONTEXT_RELOAD);
   menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
+  // Append an item for opening Glic
+  if (glic::GlicEnabling::IsContextualMenuItemEnabled(GetProfile())) {
+    std::string arm = features::kGlicContextMenuArm.Get();
+    bool show_summarize_page = (arm == "arm2");
+    menu_model_.AddItemWithStringIdAndIcon(
+        IDC_CONTENT_CONTEXT_GLIC,
+        show_summarize_page ? IDS_GLIC_CONTEXT_MENU_SUMMARIZE_PAGE_WITH_GEMINI
+                            : IDS_GLIC_BUTTON_ENTRYPOINT_ASK_GEMINI_LABEL,
+        ui::ImageModel::FromImageSkia(
+            gfx::ImageSkiaOperations::CreateResizedImage(
+                *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+                    IDR_GLIC_BUTTON_ALT_ICON),
+                skia::ImageOperations::RESIZE_BEST,
+                gfx::Size(kTabMenuIconSize, kTabMenuIconSize))));
+    menu_model_.SetIsNewFeatureAt(
+        menu_model_.GetItemCount() - 1,
+        UserEducationService::MaybeShowNewBadge(GetBrowserContext(),
+                                                features::kGlicContextMenu));
+    menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
+  }
   menu_model_.AddItemWithStringId(IDC_SAVE_PAGE,
                                   IDS_CONTENT_CONTEXT_SAVEPAGEAS);
   menu_model_.AddItemWithStringId(IDC_PRINT, IDS_CONTENT_CONTEXT_PRINT);
@@ -3096,6 +3123,7 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
     case IDC_CONTENT_CONTEXT_RELOAD_GLIC:
     case IDC_CONTENT_CONTEXT_CLOSE_GLIC:
     case IDC_CONTENT_CONTEXT_ARCHIVE_GLIC:
+    case IDC_CONTENT_CONTEXT_GLIC:
       return true;
 
     case IDC_CONTENT_CONTEXT_EXIT_FULLSCREEN:
@@ -3148,7 +3176,7 @@ bool RenderViewContextMenu::IsCommandIdChecked(int id) const {
     return (params_.media_flags & ContextMenuData::kMediaPictureInPicture) != 0;
   }
 
-  if (id == IDC_CONTENT_CONTEXT_EMOJI) {
+  if (id == IDC_CONTENT_CONTEXT_EMOJI || id == IDC_CONTENT_CONTEXT_GLIC) {
     return false;
   }
 
@@ -3336,6 +3364,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_SEARCHWEBFORVIDEOFRAME:
       ExecSearchForVideoFrame(event_flags, /*is_lens_query=*/false);
+      break;
+
+    case IDC_CONTENT_CONTEXT_GLIC:
+      ExecGlic();
       break;
 
     case IDC_CONTENT_CONTEXT_SEARCHWEBFORIMAGE:
@@ -4379,6 +4411,31 @@ void RenderViewContextMenu::ExecSaveAs() {
   source_web_contents_->SaveFrameWithHeaders(url, referrer, headers.ToString(),
                                              params_.suggested_filename,
                                              target_frame_host, is_subresource);
+}
+
+void RenderViewContextMenu::ExecGlic() {
+  if (glic::GlicEnabling::IsContextualMenuItemEnabled(GetProfile())) {
+    glic::GlicKeyedService* glic_service =
+        glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_context_);
+    if (glic_service) {
+      tabs::TabInterface* tab =
+          tabs::TabInterface::MaybeGetFromContents(source_web_contents_);
+      if (tab) {
+        glic::GlicInvokeOptions options(
+            glic::mojom::InvocationSource::kWebContentsContextMenu);
+        std::string arm = features::kGlicContextMenuArm.Get();
+        if (arm == "arm2") {
+          options.prompts.push_back(
+              l10n_util::GetStringUTF8(IDS_GLIC_SUMMARIZE_PAGE_PROMPT));
+          glic_service->InvokeWithAutoSubmit(
+              glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab,
+              std::move(options));
+        } else {
+          glic_service->Invoke(tab, std::move(options));
+        }
+      }
+    }
+  }
 }
 
 void RenderViewContextMenu::ExecGlicShareImage() {

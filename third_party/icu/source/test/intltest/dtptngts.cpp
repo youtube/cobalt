@@ -49,6 +49,7 @@ void IntlTestDateTimePatternGeneratorAPI::runIndexedTest( int32_t index, UBool e
         TESTCASE(13, testDateTimePatterns);
         TESTCASE(14, testISO8601);
         TESTCASE(15, testRegionOverride);
+        TESTCASE(16, testAlphabeticSubstitution23114);
         default: name = ""; break;
     }
 }
@@ -190,7 +191,7 @@ void IntlTestDateTimePatternGeneratorAPI::testAPI(/*char *par*/)
         UnicodeString("13 ene"),                              // 05: MMMd  -> "d 'de' MMM"
         UnicodeString("13 de enero"),                         // 06: MMMMd -> "d 'de' MMMM"
         UnicodeString("T1 1999"),                             // 07: yQQQ  -> "QQQ y"
-        UnicodeString(u"11:58\u202Fp.\u00A0m.", -1),          // 08: hhmm  -> "hh:mm a"
+        UnicodeString(u"11:58\u202Fp.\u202Fm.", -1),          // 08: hhmm  -> "hh:mm a"
         UnicodeString("23:58"),                               // 09: HHmm  -> "HH:mm"
         UnicodeString("23:58"),                               // 10: jjmm  -> "HH:mm"
         UnicodeString("58:59"),                               // 11: mmss  -> "mm:ss"
@@ -384,7 +385,7 @@ void IntlTestDateTimePatternGeneratorAPI::testAPI(/*char *par*/)
         UnicodeString(u"Thu, Oct 14, 1999, 6:58:59\u202FAM", -1),
         UnicodeString(u"6:58\u202FAM", -1),
         UnicodeString(u"6:58\u202FAM", -1),
-        UnicodeString(u"6:58\u202FAM GMT", -1),
+        UnicodeString(u"6:58\u202FAM GMT+00:00", -1),
         UnicodeString(""),
     };
 
@@ -1158,7 +1159,8 @@ void IntlTestDateTimePatternGeneratorAPI::testC() {
             {"en",     "CCCCCCm", "hh:mm\\u202Faaaaa"},
             {"en-BN",  "Cm",      "h:mm\\u202Fb"},
             {"gu-IN",  "Cm",      "h:mm B"},
-            {"und-IN", "Cm",      "h:mm B"}
+            {"und-IN", "Cm",      "h:mm B"},
+            {"fi",     "Cm",      "H.mm"}
     };
 
     UErrorCode status = U_ZERO_ERROR;
@@ -1374,6 +1376,10 @@ void IntlTestDateTimePatternGeneratorAPI::testJjMapping() {
             errln("FAIL: DateTimePatternGenerator::staticGetSkeleton locale %s: %s", localeID, u_errorName(status));
             continue;
         }
+        if (uprv_strcmp(localeID, "ku_Latn_IQ")==0) {
+            logKnownIssue("CLDR-19048", "ku_Latn_IQ needs either 'h' in Grego std time patterns or timeData update");
+            continue;
+        }
         const char16_t* charPtr = timeCycleChars;
         for (; *charPtr != static_cast<char16_t>(0); charPtr++) {
              if (jPatSkeleton.indexOf(*charPtr) >= 0) {
@@ -1581,7 +1587,7 @@ void IntlTestDateTimePatternGeneratorAPI::testBestPattern() {
         // ICU-21428: Bad patterns for nonstandard calendars
         { "en_GB",                   "yMd", u"dd/MM/y"          },
         { "en_GB@calendar=coptic",   "yMd", u"dd/MM/y GGGGG"    },
-        { "en_GB@calendar=japanese", "yMd", u"dd/MM/y GGGGG"    },
+        { "en_GB@calendar=japanese", "yMd", u"d/M/y GGGGG"    },
         { "en_GB@calendar=buddhist", "yMd", u"dd/MM/y GGGGG"    },
         // ICU-22757: Not inheriting availableFormats patterns from root
         { "sv_SE",                   "yMd", u"y-MM-dd"          },
@@ -1816,6 +1822,30 @@ void IntlTestDateTimePatternGeneratorAPI::doDTPatternTest(DateTimePatternGenerat
                         localeAndResultsPtr->localeID, patStyle, bExpect, bGet);
         }
     }
+}
+
+void IntlTestDateTimePatternGeneratorAPI::testAlphabeticSubstitution23114() {
+    IcuTestErrorCode status(*this, "testAlphabeticSubstitution23114");
+
+    LocalPointer<DateTimePatternGenerator> dtpg(
+        DateTimePatternGenerator::createEmptyInstance(status), status);
+    status.assertSuccess();
+
+    // Set up the DTPG with English data from CLDR 47
+    UnicodeString conflictingPattern;
+    dtpg->addPatternWithSkeleton(u"y G", u"Gy", true, conflictingPattern, status);
+    dtpg->addPatternWithSkeleton(u"M/d/y G", u"GyMd", true, conflictingPattern, status);
+    dtpg->addPatternWithSkeleton(u"MMM y G", u"GyMMM", true, conflictingPattern, status);
+    dtpg->addPatternWithSkeleton(u"MMM d, y G", u"GyMMMd", true, conflictingPattern, status);
+    dtpg->addPatternWithSkeleton(u"EEE, MMM d, y G", u"GyMMMEd", true, conflictingPattern, status);
+    status.assertSuccess();
+
+    // Test the behavior of selecting GyMEd. In ICU 77, this selected the GyMMMEd skeleton,
+    // and replaced the alphabetic month with a numeric month, which is wrong. In ICU 78,
+    // we still select GyMMMEd, but we don't change it to a numeric month.
+    UnicodeString bestPattern = dtpg->getBestPattern(u"GyMEd", status);
+    status.assertSuccess();
+    assertEquals("Should not substitute numeric for alpha", u"EEE, MMM d, y G", bestPattern);
 }
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

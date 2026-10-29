@@ -2337,48 +2337,6 @@ void GL_APIENTRY GL_RequestExtensionANGLE(const GLchar *name)
     ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
 }
 
-void GL_APIENTRY GL_DisableExtensionANGLE(const GLchar *name)
-{
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-    Context *context = GetValidGlobalContext();
-    ANGLE_UNSAFE_TODO(EVENT(context, GLDisableExtensionANGLE,
-                            "context = %d, name = 0x%016" PRIxPTR "", CID(context),
-                            (uintptr_t)name));
-
-    if (ANGLE_LIKELY(context != nullptr))
-    {
-        SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = context->skipValidation();
-        if (!isCallValid)
-        {
-            if (ANGLE_LIKELY(context->getExtensions().requestExtensionANGLE))
-            {
-#if defined(ANGLE_ENABLE_ASSERTS)
-                const uint32_t errorCount = context->getPushedErrorCount();
-#endif
-                isCallValid = ValidateDisableExtensionANGLE(
-                    context, angle::EntryPoint::GLDisableExtensionANGLE, name);
-#if defined(ANGLE_ENABLE_ASSERTS)
-                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif
-            }
-            else
-            {
-                RecordVersionErrorESEXT(context, angle::EntryPoint::GLDisableExtensionANGLE);
-            }
-        }
-        if (ANGLE_LIKELY(isCallValid))
-        {
-            context->disableExtension(name);
-        }
-        ANGLE_CAPTURE_GL(DisableExtensionANGLE, isCallValid, context, name);
-    }
-    else
-    {
-        GenerateContextLostErrorOnCurrentGlobalContext(angle::EntryPoint::GLDisableExtensionANGLE);
-    }
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-}
 
 // GL_ANGLE_rgbx_internal_format
 
@@ -3212,6 +3170,10 @@ void GL_APIENTRY GL_ReadPixelsRobustANGLE(GLint x,
     if (ANGLE_LIKELY(context != nullptr))
     {
         SCOPED_SHARE_CONTEXT_LOCK(context);
+        if (context->getState().getPixelLocalStorageActivePlanes() != 0)
+        {
+            context->endPixelLocalStorageImplicit();
+        }
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
         {
@@ -3615,278 +3577,6 @@ void GL_APIENTRY GL_TexSubImage3DRobustANGLE(GLenum target,
     {
         GenerateContextLostErrorOnCurrentGlobalContext(
             angle::EntryPoint::GLTexSubImage3DRobustANGLE);
-    }
-    egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);
-}
-
-void GL_APIENTRY GL_CompressedTexImage2DRobustANGLE(GLenum target,
-                                                    GLint level,
-                                                    GLenum internalformat,
-                                                    GLsizei width,
-                                                    GLsizei height,
-                                                    GLint border,
-                                                    GLsizei imageSize,
-                                                    GLsizei bufSize,
-                                                    const void *data)
-{
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-    Context *context = GetValidGlobalContext();
-    ANGLE_UNSAFE_TODO(
-        EVENT(context, GLCompressedTexImage2DRobustANGLE,
-              "context = %d, target = %s, level = %d, internalformat = %s, width = %d, height = "
-              "%d, border = %d, imageSize = %d, bufSize = %d, data = 0x%016" PRIxPTR "",
-              CID(context), GLenumToString(GLESEnum::TextureTarget, target), level,
-              GLenumToString(GLESEnum::InternalFormat, internalformat), width, height, border,
-              imageSize, bufSize, (uintptr_t)data));
-
-    if (ANGLE_LIKELY(context != nullptr))
-    {
-        TextureTarget targetPacked = PackParam<TextureTarget>(target);
-        SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = context->skipValidation();
-        if (!isCallValid)
-        {
-            if (ANGLE_LIKELY(context->getExtensions().robustClientMemoryANGLE))
-            {
-#if defined(ANGLE_ENABLE_ASSERTS)
-                const uint32_t errorCount = context->getPushedErrorCount();
-#endif
-                isCallValid = ValidateCompressedTexImage2DRobustANGLE(
-                    context, angle::EntryPoint::GLCompressedTexImage2DRobustANGLE, targetPacked,
-                    level, internalformat, width, height, border, imageSize, bufSize, data);
-#if defined(ANGLE_ENABLE_ASSERTS)
-                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif
-            }
-            else
-            {
-                RecordVersionErrorESEXT(context,
-                                        angle::EntryPoint::GLCompressedTexImage2DRobustANGLE);
-            }
-        }
-        if (ANGLE_LIKELY(isCallValid))
-        {
-            context->compressedTexImage2DRobust(targetPacked, level, internalformat, width, height,
-                                                border, imageSize, bufSize, data);
-        }
-        ANGLE_CAPTURE_GL(CompressedTexImage2DRobustANGLE, isCallValid, context, targetPacked, level,
-                         internalformat, width, height, border, imageSize, bufSize, data);
-    }
-    else
-    {
-        GenerateContextLostErrorOnCurrentGlobalContext(
-            angle::EntryPoint::GLCompressedTexImage2DRobustANGLE);
-    }
-    egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);
-}
-
-void GL_APIENTRY GL_CompressedTexSubImage2DRobustANGLE(GLenum target,
-                                                       GLint level,
-                                                       GLsizei xoffset,
-                                                       GLsizei yoffset,
-                                                       GLsizei width,
-                                                       GLsizei height,
-                                                       GLenum format,
-                                                       GLsizei imageSize,
-                                                       GLsizei bufSize,
-                                                       const void *data)
-{
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-    Context *context = GetValidGlobalContext();
-    ANGLE_UNSAFE_TODO(
-        EVENT(context, GLCompressedTexSubImage2DRobustANGLE,
-              "context = %d, target = %s, level = %d, xoffset = %d, yoffset = %d, width = %d, "
-              "height = %d, format = %s, imageSize = %d, bufSize = %d, data = 0x%016" PRIxPTR "",
-              CID(context), GLenumToString(GLESEnum::TextureTarget, target), level, xoffset,
-              yoffset, width, height, GLenumToString(GLESEnum::InternalFormat, format), imageSize,
-              bufSize, (uintptr_t)data));
-
-    if (ANGLE_LIKELY(context != nullptr))
-    {
-        TextureTarget targetPacked = PackParam<TextureTarget>(target);
-        SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = context->skipValidation();
-        if (!isCallValid)
-        {
-            if (ANGLE_LIKELY(context->getExtensions().robustClientMemoryANGLE))
-            {
-#if defined(ANGLE_ENABLE_ASSERTS)
-                const uint32_t errorCount = context->getPushedErrorCount();
-#endif
-                isCallValid = ValidateCompressedTexSubImage2DRobustANGLE(
-                    context, angle::EntryPoint::GLCompressedTexSubImage2DRobustANGLE, targetPacked,
-                    level, xoffset, yoffset, width, height, format, imageSize, bufSize, data);
-#if defined(ANGLE_ENABLE_ASSERTS)
-                ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif
-            }
-            else
-            {
-                RecordVersionErrorESEXT(context,
-                                        angle::EntryPoint::GLCompressedTexSubImage2DRobustANGLE);
-            }
-        }
-        if (ANGLE_LIKELY(isCallValid))
-        {
-            context->compressedTexSubImage2DRobust(targetPacked, level, xoffset, yoffset, width,
-                                                   height, format, imageSize, bufSize, data);
-        }
-        ANGLE_CAPTURE_GL(CompressedTexSubImage2DRobustANGLE, isCallValid, context, targetPacked,
-                         level, xoffset, yoffset, width, height, format, imageSize, bufSize, data);
-    }
-    else
-    {
-        GenerateContextLostErrorOnCurrentGlobalContext(
-            angle::EntryPoint::GLCompressedTexSubImage2DRobustANGLE);
-    }
-    egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);
-}
-
-void GL_APIENTRY GL_CompressedTexImage3DRobustANGLE(GLenum target,
-                                                    GLint level,
-                                                    GLenum internalformat,
-                                                    GLsizei width,
-                                                    GLsizei height,
-                                                    GLsizei depth,
-                                                    GLint border,
-                                                    GLsizei imageSize,
-                                                    GLsizei bufSize,
-                                                    const void *data)
-{
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-    Context *context = GetValidGlobalContext();
-    ANGLE_UNSAFE_TODO(
-        EVENT(context, GLCompressedTexImage3DRobustANGLE,
-              "context = %d, target = %s, level = %d, internalformat = %s, width = %d, height = "
-              "%d, depth = %d, border = %d, imageSize = %d, bufSize = %d, data = 0x%016" PRIxPTR "",
-              CID(context), GLenumToString(GLESEnum::TextureTarget, target), level,
-              GLenumToString(GLESEnum::InternalFormat, internalformat), width, height, depth,
-              border, imageSize, bufSize, (uintptr_t)data));
-
-    if (ANGLE_LIKELY(context != nullptr))
-    {
-        TextureTarget targetPacked = PackParam<TextureTarget>(target);
-        SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = context->skipValidation();
-        if (!isCallValid)
-        {
-            if (ANGLE_LIKELY(context->getExtensions().robustClientMemoryANGLE))
-            {
-                if (ANGLE_LIKELY(context->getClientVersion() >= ES_3_0 ||
-                                 context->getExtensions().texture3DOES))
-                {
-#if defined(ANGLE_ENABLE_ASSERTS)
-                    const uint32_t errorCount = context->getPushedErrorCount();
-#endif
-                    isCallValid = ValidateCompressedTexImage3DRobustANGLE(
-                        context, angle::EntryPoint::GLCompressedTexImage3DRobustANGLE, targetPacked,
-                        level, internalformat, width, height, depth, border, imageSize, bufSize,
-                        data);
-#if defined(ANGLE_ENABLE_ASSERTS)
-                    ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif
-                }
-                else
-                {
-                    RecordEntryPointBaseUnsupportedError(
-                        context, angle::EntryPoint::GLCompressedTexImage3DRobustANGLE);
-                }
-            }
-            else
-            {
-                RecordVersionErrorESEXT(context,
-                                        angle::EntryPoint::GLCompressedTexImage3DRobustANGLE);
-            }
-        }
-        if (ANGLE_LIKELY(isCallValid))
-        {
-            context->compressedTexImage3DRobust(targetPacked, level, internalformat, width, height,
-                                                depth, border, imageSize, bufSize, data);
-        }
-        ANGLE_CAPTURE_GL(CompressedTexImage3DRobustANGLE, isCallValid, context, targetPacked, level,
-                         internalformat, width, height, depth, border, imageSize, bufSize, data);
-    }
-    else
-    {
-        GenerateContextLostErrorOnCurrentGlobalContext(
-            angle::EntryPoint::GLCompressedTexImage3DRobustANGLE);
-    }
-    egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);
-}
-
-void GL_APIENTRY GL_CompressedTexSubImage3DRobustANGLE(GLenum target,
-                                                       GLint level,
-                                                       GLint xoffset,
-                                                       GLint yoffset,
-                                                       GLint zoffset,
-                                                       GLsizei width,
-                                                       GLsizei height,
-                                                       GLsizei depth,
-                                                       GLenum format,
-                                                       GLsizei imageSize,
-                                                       GLsizei bufSize,
-                                                       const void *data)
-{
-    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
-    Context *context = GetValidGlobalContext();
-    ANGLE_UNSAFE_TODO(EVENT(context, GLCompressedTexSubImage3DRobustANGLE,
-                            "context = %d, target = %s, level = %d, xoffset = %d, yoffset = %d, "
-                            "zoffset = %d, width = %d, height = %d, depth = %d, format = %s, "
-                            "imageSize = %d, bufSize = %d, data = 0x%016" PRIxPTR "",
-                            CID(context), GLenumToString(GLESEnum::TextureTarget, target), level,
-                            xoffset, yoffset, zoffset, width, height, depth,
-                            GLenumToString(GLESEnum::InternalFormat, format), imageSize, bufSize,
-                            (uintptr_t)data));
-
-    if (ANGLE_LIKELY(context != nullptr))
-    {
-        TextureTarget targetPacked = PackParam<TextureTarget>(target);
-        SCOPED_SHARE_CONTEXT_LOCK(context);
-        bool isCallValid = context->skipValidation();
-        if (!isCallValid)
-        {
-            if (ANGLE_LIKELY(context->getExtensions().robustClientMemoryANGLE))
-            {
-                if (ANGLE_LIKELY(context->getClientVersion() >= ES_3_0 ||
-                                 context->getExtensions().texture3DOES))
-                {
-#if defined(ANGLE_ENABLE_ASSERTS)
-                    const uint32_t errorCount = context->getPushedErrorCount();
-#endif
-                    isCallValid = ValidateCompressedTexSubImage3DRobustANGLE(
-                        context, angle::EntryPoint::GLCompressedTexSubImage3DRobustANGLE,
-                        targetPacked, level, xoffset, yoffset, zoffset, width, height, depth,
-                        format, imageSize, bufSize, data);
-#if defined(ANGLE_ENABLE_ASSERTS)
-                    ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
-#endif
-                }
-                else
-                {
-                    RecordEntryPointBaseUnsupportedError(
-                        context, angle::EntryPoint::GLCompressedTexSubImage3DRobustANGLE);
-                }
-            }
-            else
-            {
-                RecordVersionErrorESEXT(context,
-                                        angle::EntryPoint::GLCompressedTexSubImage3DRobustANGLE);
-            }
-        }
-        if (ANGLE_LIKELY(isCallValid))
-        {
-            context->compressedTexSubImage3DRobust(targetPacked, level, xoffset, yoffset, zoffset,
-                                                   width, height, depth, format, imageSize, bufSize,
-                                                   data);
-        }
-        ANGLE_CAPTURE_GL(CompressedTexSubImage3DRobustANGLE, isCallValid, context, targetPacked,
-                         level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize,
-                         bufSize, data);
-    }
-    else
-    {
-        GenerateContextLostErrorOnCurrentGlobalContext(
-            angle::EntryPoint::GLCompressedTexSubImage3DRobustANGLE);
     }
     egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);
 }
@@ -5303,6 +4993,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvRobustANGLE(GLint 
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -5317,7 +5008,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvRobustANGLE(GLint 
                     isCallValid = ValidateGetFramebufferPixelLocalStorageParameterfvRobustANGLE(
                         context,
                         angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameterfvRobustANGLE,
-                        plane, pname, paramCount, length, params);
+                        plane, pnamePacked, paramCount, length, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                     ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -5338,11 +5029,11 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvRobustANGLE(GLint 
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameterfvRobust(plane, pname, paramCount,
-                                                                      length, params);
+            context->getFramebufferPixelLocalStorageParameterfvRobust(plane, pnamePacked,
+                                                                      paramCount, length, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameterfvRobustANGLE, isCallValid,
-                         context, plane, pname, paramCount, length, params);
+                         context, plane, pnamePacked, paramCount, length, params);
     }
     else
     {
@@ -5369,6 +5060,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivRobustANGLE(GLint 
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -5383,7 +5075,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivRobustANGLE(GLint 
                     isCallValid = ValidateGetFramebufferPixelLocalStorageParameterivRobustANGLE(
                         context,
                         angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameterivRobustANGLE,
-                        plane, pname, paramCount, length, params);
+                        plane, pnamePacked, paramCount, length, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                     ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -5404,11 +5096,11 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivRobustANGLE(GLint 
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameterivRobust(plane, pname, paramCount,
-                                                                      length, params);
+            context->getFramebufferPixelLocalStorageParameterivRobust(plane, pnamePacked,
+                                                                      paramCount, length, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameterivRobustANGLE, isCallValid,
-                         context, plane, pname, paramCount, length, params);
+                         context, plane, pnamePacked, paramCount, length, params);
     }
     else
     {
@@ -5435,6 +5127,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivRobustANGLE(GLint
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -5449,7 +5142,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivRobustANGLE(GLint
                     isCallValid = ValidateGetFramebufferPixelLocalStorageParameteruivRobustANGLE(
                         context,
                         angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivRobustANGLE,
-                        plane, pname, paramCount, length, params);
+                        plane, pnamePacked, paramCount, length, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                     ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -5470,11 +5163,11 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivRobustANGLE(GLint
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameteruivRobust(plane, pname, paramCount,
-                                                                       length, params);
+            context->getFramebufferPixelLocalStorageParameteruivRobust(plane, pnamePacked,
+                                                                       paramCount, length, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameteruivRobustANGLE, isCallValid,
-                         context, plane, pname, paramCount, length, params);
+                         context, plane, pnamePacked, paramCount, length, params);
     }
     else
     {
@@ -6075,6 +5768,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvANGLE(GLint plane,
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -6086,7 +5780,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvANGLE(GLint plane,
 #endif
                 isCallValid = ValidateGetFramebufferPixelLocalStorageParameterfvANGLE(
                     context, angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameterfvANGLE,
-                    plane, pname, params);
+                    plane, pnamePacked, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                 ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -6099,10 +5793,10 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterfvANGLE(GLint plane,
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameterfv(plane, pname, params);
+            context->getFramebufferPixelLocalStorageParameterfv(plane, pnamePacked, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameterfvANGLE, isCallValid, context,
-                         plane, pname, params);
+                         plane, pnamePacked, params);
     }
     else
     {
@@ -6125,6 +5819,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -6136,7 +5831,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
 #endif
                 isCallValid = ValidateGetFramebufferPixelLocalStorageParameterivANGLE(
                     context, angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameterivANGLE,
-                    plane, pname, params);
+                    plane, pnamePacked, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                 ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -6149,10 +5844,10 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameteriv(plane, pname, params);
+            context->getFramebufferPixelLocalStorageParameteriv(plane, pnamePacked, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameterivANGLE, isCallValid, context,
-                         plane, pname, params);
+                         plane, pnamePacked, params);
     }
     else
     {
@@ -6175,6 +5870,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivANGLE(GLint plane
 
     if (ANGLE_LIKELY(context != nullptr))
     {
+        PlaneParameter pnamePacked = PackParam<PlaneParameter>(pname);
         SCOPED_SHARE_CONTEXT_LOCK(context);
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
@@ -6186,7 +5882,7 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivANGLE(GLint plane
 #endif
                 isCallValid = ValidateGetFramebufferPixelLocalStorageParameteruivANGLE(
                     context, angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivANGLE,
-                    plane, pname, params);
+                    plane, pnamePacked, params);
 #if defined(ANGLE_ENABLE_ASSERTS)
                 ASSERT(context->getPushedErrorCount() - errorCount == (isCallValid ? 0 : 1));
 #endif
@@ -6199,10 +5895,10 @@ void GL_APIENTRY GL_GetFramebufferPixelLocalStorageParameteruivANGLE(GLint plane
         }
         if (ANGLE_LIKELY(isCallValid))
         {
-            context->getFramebufferPixelLocalStorageParameteruiv(plane, pname, params);
+            context->getFramebufferPixelLocalStorageParameteruiv(plane, pnamePacked, params);
         }
         ANGLE_CAPTURE_GL(GetFramebufferPixelLocalStorageParameteruivANGLE, isCallValid, context,
-                         plane, pname, params);
+                         plane, pnamePacked, params);
     }
     else
     {
@@ -11087,6 +10783,10 @@ void GL_APIENTRY GL_ReadnPixelsEXT(GLint x,
     if (ANGLE_LIKELY(context != nullptr))
     {
         SCOPED_SHARE_CONTEXT_LOCK(context);
+        if (context->getState().getPixelLocalStorageActivePlanes() != 0)
+        {
+            context->endPixelLocalStorageImplicit();
+        }
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
         {
@@ -15450,6 +15150,10 @@ void GL_APIENTRY GL_ReadnPixelsKHR(GLint x,
     if (ANGLE_LIKELY(context != nullptr))
     {
         SCOPED_SHARE_CONTEXT_LOCK(context);
+        if (context->getState().getPixelLocalStorageActivePlanes() != 0)
+        {
+            context->endPixelLocalStorageImplicit();
+        }
         bool isCallValid = context->skipValidation();
         if (!isCallValid)
         {

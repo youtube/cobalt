@@ -21,9 +21,6 @@ da{
         "America:Merida"{
             ec{"Merida"}
         }
-        "America:Sao_Paulo"{
-            ec{"São Paulo"}
-        }
         "America:St_Barthelemy"{
             ec{"Saint-Barthélemy"}
         }
@@ -83,9 +80,6 @@ da{
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulan Bator"}
-        }
-        "Asia:Urumqi"{
-            ec{"Ürümqi"}
         }
         "Asia:Yakutsk"{
             ec{"Jakutsk"}
@@ -150,9 +144,6 @@ da{
         "Europe:Rome"{
             ec{"Rom"}
         }
-        "Europe:Tirane"{
-            ec{"Tirana"}
-        }
         "Europe:Ulyanovsk"{
             ec{"Uljanovsk"}
         }
@@ -181,7 +172,7 @@ da{
             ec{"Påskeøen"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Canton Island"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
@@ -204,9 +195,7 @@ da{
             ls{"Sydafrikansk tid"}
         }
         "meta:Africa_Western"{
-            ld{"Vestafrikansk sommertid"}
-            lg{"Vestafrikansk tid"}
-            ls{"Vestafrikansk normaltid"}
+            ls{"Vestafrikansk tid"}
         }
         "meta:Alaska"{
             ld{"Alaska-sommertid"}
@@ -476,6 +465,9 @@ da{
         }
         "meta:Guyana"{
             ls{"Guyana-tid"}
+        }
+        "meta:Hawaii"{
+            ls{"Hawaii-Aleutian-normaltid"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Hawaii-Aleutian-sommertid"}
@@ -774,6 +766,11 @@ da{
         }
         "meta:Truk"{
             ls{"Chuuk-tid"}
+        }
+        "meta:Turkey"{
+            ld{"Tyrkisk sommertid"}
+            lg{"Tyrkisk tid"}
+            ls{"Tyrkisk normaltid"}
         }
         "meta:Turkmenistan"{
             ld{"Turkmensk sommertid"}

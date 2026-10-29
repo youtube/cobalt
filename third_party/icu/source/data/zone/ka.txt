@@ -270,6 +270,9 @@ ka{
         "America:Costa_Rica"{
             ec{"კოსტა-რიკა"}
         }
+        "America:Coyhaique"{
+            ec{"კოიჰაიკე"}
+        }
         "America:Creston"{
             ec{"კრესტონი"}
         }
@@ -1167,7 +1170,7 @@ ka{
             ec{"ეფატე"}
         }
         "Pacific:Enderbury"{
-            ec{"ენდერბური"}
+            ec{"კანტონი"}
         }
         "Pacific:Fakaofo"{
             ec{"ფაკაოფო"}
@@ -1192,9 +1195,6 @@ ka{
         }
         "Pacific:Honolulu"{
             ec{"ჰონოლულუ"}
-        }
-        "Pacific:Kanton"{
-            ec{"კანტონი"}
         }
         "Pacific:Kiritimati"{
             ec{"კირიტიმატი"}
@@ -1278,9 +1278,7 @@ ka{
             ls{"სამხრეთ აფრიკის დრო"}
         }
         "meta:Africa_Western"{
-            ld{"დასავლეთ აფრიკის ზაფხულის დრო"}
-            lg{"დასავლეთ აფრიკის დრო"}
-            ls{"დასავლეთ აფრიკის სტანდარტული დრო"}
+            ls{"დასავლეთ აფრიკის დრო"}
         }
         "meta:Alaska"{
             ld{"ალასკის ზაფხულის დრო"}
@@ -1518,6 +1516,9 @@ ka{
         }
         "meta:Guyana"{
             ls{"გაიანის დრო"}
+        }
+        "meta:Hawaii"{
+            ls{"ჰავაისა და ალეუტის სტანდარტული დრო"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"ჰავაისა და ალეუტის ზაფხულის დრო"}

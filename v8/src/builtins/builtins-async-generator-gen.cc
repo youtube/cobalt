@@ -9,6 +9,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/microtask.h"
 
 namespace v8 {
 namespace internal {
@@ -95,18 +96,18 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   inline TNode<Smi> LoadResumeTypeFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
     return LoadObjectField<Smi>(request,
-                                AsyncGeneratorRequest::kResumeModeOffset);
+                                offsetof(AsyncGeneratorRequest, resume_mode_));
   }
 
   inline TNode<JSPromise> LoadPromiseFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
-    return LoadObjectField<JSPromise>(request,
-                                      AsyncGeneratorRequest::kPromiseOffset);
+    return LoadObjectField<JSPromise>(
+        request, offsetof(AsyncGeneratorRequest, promise_));
   }
 
   inline TNode<Object> LoadValueFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
-    return LoadObjectField(request, AsyncGeneratorRequest::kValueOffset);
+    return LoadObjectField(request, offsetof(AsyncGeneratorRequest, value_));
   }
 
   inline TNode<BoolT> IsAbruptResumeType(const TNode<Smi> resume_type) {
@@ -201,18 +202,18 @@ TNode<AsyncGeneratorRequest>
 AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
     JSAsyncGeneratorObject::ResumeMode resume_mode, TNode<Object> resume_value,
     TNode<JSPromise> promise) {
-  TNode<HeapObject> request = Allocate(AsyncGeneratorRequest::kSize);
+  TNode<HeapObject> request = Allocate(sizeof(AsyncGeneratorRequest));
   StoreMapNoWriteBarrier(request, RootIndex::kAsyncGeneratorRequestMap);
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kNextOffset,
-                                 UndefinedConstant());
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, next_), UndefinedConstant());
   StoreObjectFieldNoWriteBarrier(request,
-                                 AsyncGeneratorRequest::kResumeModeOffset,
+                                 offsetof(AsyncGeneratorRequest, resume_mode_),
                                  SmiConstant(resume_mode));
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kValueOffset,
-                                 resume_value);
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kPromiseOffset,
-                                 promise);
-  StoreObjectFieldRoot(request, AsyncGeneratorRequest::kNextOffset,
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, value_), resume_value);
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, promise_), promise);
+  StoreObjectFieldRoot(request, offsetof(AsyncGeneratorRequest, next_),
                        RootIndex::kUndefinedValue);
   return CAST(request);
 }
@@ -257,8 +258,10 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait() {
   TNode<AsyncGeneratorRequest> request =
       CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
-      request, AsyncGeneratorRequest::kPromiseOffset);
+      request, offsetof(AsyncGeneratorRequest, promise_));
 
+  // TODO(jgruber): For non-thenable values, use AsyncResumeTask with a new
+  // kAwait kind to skip AwaitContext + closure allocation.
   Await(context, async_generator_object, value, outer_promise,
         RootIndex::kAsyncGeneratorAwaitResolveClosureSharedFun,
         RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
@@ -287,12 +290,13 @@ void AsyncGeneratorBuiltinsAssembler::AddAsyncGeneratorRequestToQueue(
     Label loop_next(this), next_empty(this);
     TNode<AsyncGeneratorRequest> current = CAST(var_current.value());
     TNode<HeapObject> next = LoadObjectField<HeapObject>(
-        current, AsyncGeneratorRequest::kNextOffset);
+        current, offsetof(AsyncGeneratorRequest, next_));
 
     Branch(IsUndefined(next), &next_empty, &loop_next);
     BIND(&next_empty);
     {
-      StoreObjectField(current, AsyncGeneratorRequest::kNextOffset, request);
+      StoreObjectField(current, offsetof(AsyncGeneratorRequest, next_),
+                       request);
       Goto(&done);
     }
 
@@ -314,7 +318,7 @@ AsyncGeneratorBuiltinsAssembler::TakeFirstAsyncGeneratorRequestFromQueue(
       generator, JSAsyncGeneratorObject::kQueueOffset);
 
   TNode<Object> next =
-      LoadObjectField(request, AsyncGeneratorRequest::kNextOffset);
+      LoadObjectField(request, offsetof(AsyncGeneratorRequest, next_));
 
   StoreObjectField(generator, JSAsyncGeneratorObject::kQueueOffset, next);
   return request;
@@ -593,11 +597,42 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const TNode<JSPromise> outer_promise =
       LoadPromiseFromAsyncGeneratorRequest(request);
 
-  Await(context, generator, value, outer_promise,
-        RootIndex::kAsyncGeneratorYieldWithAwaitResolveClosureSharedFun,
-        RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
-  SetGeneratorAwaiting(generator);
-  Return(UndefinedConstant());
+  // Fast path: for non-thenable values without hooks/debug active, enqueue
+  // a specialized AsyncResumeTask instead of going through Await() which
+  // allocates closures. This saves ~3 heap allocations per yield.
+  Label slow_path(this), enqueue_resume_task(this);
+  BranchIfNonThenable(context, value, &enqueue_resume_task, &slow_path);
+
+  BIND(&enqueue_resume_task);
+  {
+    // Allocate and enqueue the specialized task directly.
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<HeapObject> task = Allocate(sizeof(AsyncResumeTask));
+    StoreMapNoWriteBarrier(task, RootIndex::kAsyncResumeTaskMap);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    StoreObjectFieldRoot(
+        task, ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,
+        RootIndex::kUndefinedValue);
+#endif
+    using Traits = ObjectTraits<AsyncResumeTask>;
+    StoreObjectFieldNoWriteBarrier(task, Traits::kGeneratorOffset, generator);
+    StoreObjectFieldNoWriteBarrier(task, Traits::kValueOffset, value);
+    StoreObjectFieldNoWriteBarrier(task, Traits::kKindOffset,
+                                   SmiConstant(AsyncResumeTask::kYield));
+    CallBuiltin(Builtin::kEnqueueMicrotask, native_context, task);
+    SetGeneratorAwaiting(generator);
+    Return(UndefinedConstant());
+  }
+
+  BIND(&slow_path);
+  {
+    // Thenable or hooks active: fall back to full Await with closures.
+    Await(context, generator, value, outer_promise,
+          RootIndex::kAsyncGeneratorYieldWithAwaitResolveClosureSharedFun,
+          RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
+    SetGeneratorAwaiting(generator);
+    Return(UndefinedConstant());
+  }
 }
 
 TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,

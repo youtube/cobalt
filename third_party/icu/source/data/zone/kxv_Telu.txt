@@ -1164,6 +1164,9 @@ kxv_Telu{
         "Pacific:Efate"{
             ec{"ఇఫేట్"}
         }
+        "Pacific:Enderbury"{
+            ec{"కాంటన్"}
+        }
         "Pacific:Fakaofo"{
             ec{"ఫాకోఫో"}
         }
@@ -1184,9 +1187,6 @@ kxv_Telu{
         }
         "Pacific:Guam"{
             ec{"గ్వామ్"}
-        }
-        "Pacific:Kanton"{
-            ec{"కాంటన్"}
         }
         "Pacific:Kiritimati"{
             ec{"కిరీటిమాటి"}
@@ -1270,9 +1270,7 @@ kxv_Telu{
             ls{"దక్షిణ ఆఫ్రికా ప్రామాణిక సమయం"}
         }
         "meta:Africa_Western"{
-            ld{"పశ్చిమ ఆఫ్రికా వేసవి సమయం"}
-            lg{"పశ్చిమ ఆఫ్రికా సమయం"}
-            ls{"పశ్చిమ ఆఫ్రికా ప్రామాణిక సమయం"}
+            ls{"పశ్చిమ ఆఫ్రికా సమయం"}
         }
         "meta:Alaska"{
             ld{"అలాస్కా పగటి వెలుతురు సమయం"}
@@ -1510,6 +1508,9 @@ kxv_Telu{
         }
         "meta:Guyana"{
             ls{"గయానా సమయం"}
+        }
+        "meta:Hawaii"{
+            ls{"హవాయ్-అల్యూషియన్ ప్రామాణిక సమయం"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"హవాయ్-అల్యూషియన్ పగటి వెలుతురు సమయం"}

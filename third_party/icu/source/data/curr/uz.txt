@@ -635,6 +635,10 @@ uz{
             "EC$",
             "Sharqiy Karib dollari",
         }
+        XCG{
+            "Cg.",
+            "Karib guldeni",
+        }
         XOF{
             "F CFA",
             "G‘arbiy Afrika CFA franki",
@@ -659,6 +663,10 @@ uz{
             "ZMW",
             "Zambiya kvachasi",
         }
+        ZWG{
+            "ZWG",
+            "Zimbabve oltini",
+        }
     }
     Currencies%narrow{
         BYN{"р."}
@@ -676,9 +684,17 @@ uz{
             one{"Yordaniya dinori"}
             other{"Iordaniya dinori"}
         }
+        XCG{
+            one{"Karib guldeni"}
+            other{"Karib guldeni"}
+        }
         XXX{
             one{"(noma’lum valyuta)"}
             other{"(noma’lum valyuta)"}
+        }
+        ZWG{
+            one{"Zimbabve oltini"}
+            other{"Zimbabve oltini"}
         }
     }
 }

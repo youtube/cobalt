@@ -17,6 +17,8 @@ ne{
         default{"deva"}
         deva{
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 percentFormat{"#,##,##0%"}
             }
         }
@@ -25,7 +27,10 @@ ne{
                 atLeast{"{0}+"}
             }
             patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##,##0.00"}
                 currencyFormat{"¤ #,##,##0.00"}
+                currencyFormat%alphaNextToNumber{"¤ #,##,##0.00"}
+                currencyFormat%noCurrency{"#,##,##0.00"}
                 currencyPatternAppendISO{"{0} ¤¤"}
                 decimalFormat{"#,##,##0.###"}
             }
@@ -206,7 +211,7 @@ ne{
                 "G y MMMM d, EEEE",
                 "G y MMMM d",
                 "G y MMM d",
-                "GGGGG y-MM-dd",
+                "G y-MM-dd",
                 "{1},{0}",
                 "{1}, {0}",
                 "{1}, {0}",
@@ -215,9 +220,15 @@ ne{
             }
             DateTimePatterns%atTime{
                 "{1}, {0}",
+                "{1} बजे {0}",
                 "{1}, {0}",
                 "{1}, {0}",
-                "{1}, {0}",
+            }
+            DateTimePatterns%relative{
+                "{1} बजे {0}",
+                "{1} बजे {0}",
+                "{1},{0}",
+                "{1},{0}",
             }
             availableFormats{
                 GyMd{"M/d/y GGGGG"}
@@ -257,6 +268,12 @@ ne{
                 "{1}, {0}",
                 "{1}, {0}",
             }
+            DateTimePatterns%relative{
+                "{1} मा {0}",
+                "{1} मा {0}",
+                "{1}, {0}",
+                "{1}, {0}",
+            }
             DateTimeSkeletons{
                 "HHmmsszzzz",
                 "HHmmssz",
@@ -269,6 +286,8 @@ ne{
             }
             availableFormats{
                 Ed{"d E"}
+                GyM{"M/y G"}
+                GyMEd{"E, M/d/y G"}
                 GyMd{"M/d/y G"}
                 MMMMW{
                     one{"MMMM को W हप्ता"}
@@ -327,12 +346,11 @@ ne{
             }
             eras{
                 abbreviated{
-                    "ईसा पूर्व",
-                    "सन्",
+                    0{"ईसा पूर्व"}
+                    1{"सन्"}
                 }
                 abbreviated%variant{
-                    "इस्वीपूर्व",
-                    "ईसा काल",
+                    1{"ईसा काल"}
                 }
             }
             intervalFormats{
@@ -421,7 +439,7 @@ ne{
         indian{
             eras{
                 abbreviated{
-                    "साक",
+                    0{"साक"}
                 }
             }
             monthNames{
@@ -908,23 +926,23 @@ ne{
         standard{
             2{"{0} र {1}"}
             end{"{0} र {1}"}
-            start{"{0},{1}"}
+            start{"{0}, {1}"}
         }
         standard-narrow{
             2{"{0}, {1}"}
             end{"{0}, {1}"}
         }
         unit{
-            2{"{0},{1}"}
+            2{"{0}, {1}"}
         }
         unit-narrow{
             end{"{0} {1}"}
-            middle{"{0}{1}"}
+            middle{"{0} {1}"}
             start{"{0} {1}"}
         }
         unit-short{
             2{"{0} {1}"}
-            end{"{0},{1}"}
+            end{"{0}, {1}"}
         }
     }
     measurementSystemNames{

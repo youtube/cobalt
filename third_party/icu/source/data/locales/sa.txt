@@ -18,9 +18,17 @@ sa{
     }
     NumberElements{
         default{"deva"}
+        deva{
+            patterns{
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
+                accountingFormat%noCurrency{"#,##0.00"}
+            }
+        }
         latn{
             patterns{
                 accountingFormat{"¤ #,##0.00"}
+                accountingFormat%alphaNextToNumber{"¤ #,##0.00"}
+                accountingFormat%noCurrency{"#,##0.00"}
                 currencyFormat{"¤#,##,##0.00"}
                 decimalFormat{"#,##,##0.###"}
                 percentFormat{"#,##,##0%"}
@@ -67,7 +75,7 @@ sa{
             }
         }
         gregorian{
-            AmPmMarkers{
+            AmPmMarkersAbbr{
                 "पूर्वाह्न",
                 "अपराह्न",
             }
@@ -166,8 +174,8 @@ sa{
             }
             eras{
                 abbreviated%variant{
-                    "इ.स.पू.",
-                    "संवत्",
+                    0{"इ.स.पू."}
+                    1{"संवत्"}
                 }
             }
             intervalFormats{

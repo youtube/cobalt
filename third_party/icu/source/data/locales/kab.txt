@@ -11,6 +11,84 @@ kab{
             patterns{
                 currencyFormat{"#,##0.00¤"}
             }
+            patternsShort{
+                currencyFormat{
+                    1000{
+                        one{"0G¤"}
+                        other{"0G¤"}
+                    }
+                    10000{
+                        one{"00G¤"}
+                        other{"00G¤"}
+                    }
+                    100000{
+                        one{"000G¤"}
+                        other{"000G¤"}
+                    }
+                    1000000000{
+                        one{"0L¤"}
+                        other{"0L¤"}
+                    }
+                    10000000000{
+                        one{"00L¤"}
+                        other{"00L¤"}
+                    }
+                    100000000000{
+                        one{"000L¤"}
+                        other{"000L¤"}
+                    }
+                }
+                currencyFormat%alphaNextToNumber{
+                    1000{
+                        one{"0G ¤"}
+                        other{"0G ¤"}
+                    }
+                    10000{
+                        one{"00G ¤"}
+                        other{"00G ¤"}
+                    }
+                    100000{
+                        one{"000G ¤"}
+                        other{"000G ¤"}
+                    }
+                    1000000{
+                        one{"0M ¤"}
+                        other{"0M ¤"}
+                    }
+                    10000000{
+                        one{"00M ¤"}
+                        other{"00M ¤"}
+                    }
+                    100000000{
+                        one{"000M ¤"}
+                        other{"000M ¤"}
+                    }
+                    1000000000{
+                        one{"0L ¤"}
+                        other{"0L ¤"}
+                    }
+                    10000000000{
+                        one{"00L ¤"}
+                        other{"00L ¤"}
+                    }
+                    100000000000{
+                        one{"000L ¤"}
+                        other{"000L ¤"}
+                    }
+                    1000000000000{
+                        one{"0T ¤"}
+                        other{"0T ¤"}
+                    }
+                    10000000000000{
+                        one{"00T ¤"}
+                        other{"00T ¤"}
+                    }
+                    100000000000000{
+                        one{"000T ¤"}
+                        other{"000T ¤"}
+                    }
+                }
+            }
             symbols{
                 decimal{","}
                 group{" "}
@@ -125,44 +203,89 @@ kab{
             dayNames{
                 format{
                     abbreviated{
-                        "Yan",
-                        "San",
-                        "Kraḍ",
-                        "Kuẓ",
-                        "Sam",
-                        "Sḍis",
-                        "Say",
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
+                    }
+                    narrow{
+                        "C",
+                        "R",
+                        "R",
+                        "H",
+                        "M",
+                        "S",
+                        "S",
+                    }
+                    short{
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
                     }
                     wide{
-                        "Yanass",
-                        "Sanass",
-                        "Kraḍass",
-                        "Kuẓass",
-                        "Samass",
-                        "Sḍisass",
-                        "Sayass",
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
+                    }
                     narrow{
-                        "Y",
+                        "C",
+                        "R",
+                        "R",
+                        "H",
+                        "M",
                         "S",
-                        "K",
-                        "K",
                         "S",
-                        "S",
-                        "S",
+                    }
+                    short{
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
+                    }
+                    wide{
+                        "Acer",
+                        "Arim",
+                        "Aram",
+                        "Ahad",
+                        "Amhad",
+                        "Sem",
+                        "Sed",
                     }
                 }
             }
             eras{
                 abbreviated{
-                    "snd. T.Ɛ",
-                    "sld. T.Ɛ",
+                    0{"snd. T.Ɛ"}
+                    1{"sld. T.Ɛ"}
                 }
                 wide{
-                    "send talalit n Ɛisa",
-                    "seld talalit n Ɛisa",
+                    0{"send talalit n Ɛisa"}
+                    1{"seld talalit n Ɛisa"}
                 }
             }
             monthNames{

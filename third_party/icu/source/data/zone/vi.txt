@@ -79,13 +79,10 @@ vi{
             ec{"Praha"}
         }
         "Pacific:Enderbury"{
-            ec{"Enderbury"}
+            ec{"Đảo Canton"}
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
-            sd{"HDT"}
-            sg{"Giờ HST"}
-            ss{"HST"}
         }
         "meta:Acre"{
             ld{"Giờ Mùa Hè Acre"}
@@ -105,9 +102,7 @@ vi{
             ls{"Giờ Chuẩn Nam Phi"}
         }
         "meta:Africa_Western"{
-            ld{"Giờ Mùa Hè Tây Phi"}
-            lg{"Giờ Tây Phi"}
-            ls{"Giờ Chuẩn Tây Phi"}
+            ls{"Giờ Tây Phi"}
         }
         "meta:Alaska"{
             ld{"Giờ Mùa Hè Alaska"}
@@ -389,6 +384,10 @@ vi{
         }
         "meta:Guyana"{
             ls{"Giờ Guyana"}
+        }
+        "meta:Hawaii"{
+            ls{"Giờ Chuẩn Hawaii-Aleut"}
+            ss{"HAST"}
         }
         "meta:Hawaii_Aleutian"{
             ld{"Giờ Mùa Hè Hawaii-Aleut"}
@@ -690,6 +689,11 @@ vi{
         }
         "meta:Truk"{
             ls{"Giờ Chuuk"}
+        }
+        "meta:Turkey"{
+            ld{"Giờ Mùa Hè Thổ Nhĩ Kỳ"}
+            lg{"Giờ Thổ Nhĩ Kỳ"}
+            ls{"Giờ Chuẩn Thổ Nhĩ Kỳ"}
         }
         "meta:Turkmenistan"{
             ld{"Giờ Mùa Hè Turkmenistan"}

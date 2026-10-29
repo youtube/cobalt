@@ -1073,6 +1073,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2673968385134502798">Igre</translation>
 <translation id="2674170444375937751">Ali ste prepričani, da želite te strani izbrisati iz svoje zgodovine?</translation>
 <translation id="2674524144218093528">Pleskanje in zaključna oprema</translation>
+<translation id="2675716371350192683">Vaša vsebina se ne bo uporabljala za izboljšanje umetne inteligence. Organizacija lahko te nastavitve kadar koli spremeni.</translation>
 <translation id="26774279487328902">Skupine zavihkov (<ph name="GROUP_COUNT" />) niso več na voljo</translation>
 <translation id="2677748264148917807">Zapusti</translation>
 <translation id="2679216653373462289">Uporaba tipal gibanja in svetlobe</translation>
@@ -2657,6 +2658,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="5190835502935405962">Vrstica z zaznamki</translation>
 <translation id="5191315092027169558">Vaš profil upravlja domena <ph name="DOMAIN" />.</translation>
 <translation id="51918995459521422"><ph name="ORIGIN" /> želi prenesti več datotek</translation>
+<translation id="519528950056409240">Dovolite Denarnici deljenje podatkov</translation>
 <translation id="5199121357983849992">Želite shraniti osebno izkaznico?</translation>
 <translation id="5200063972779787617">Shranjevanje naslova v račun</translation>
 <translation id="5201306358585911203">Vdelana stran na tej spletni strani sporoča:</translation>
@@ -3104,6 +3106,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="5910140988253729859">Razveljavi samodejno izpolnjevanje</translation>
 <translation id="5911020115933784199">Dogodki in sporedi</translation>
 <translation id="5911110632211230665">Odpiranje je blokirano</translation>
+<translation id="5912796581727968237">Odpiranje Google Denarnice</translation>
 <translation id="5914465277418006379">Oseba <ph name="MEMBER_FIRST_NAME" /> je dodala ta zavihek</translation>
 <translation id="5915189366813702112">Prožne oblike dela</translation>
 <translation id="59174027418879706">Omogočeno</translation>
@@ -3374,6 +3377,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="6326947323444967009">Nastavite Chrome kot privzeti brskalnik sistema v nastavitvah sistema iOS</translation>
 <translation id="6327065120806001832">dostop v lokalnem omrežju</translation>
 <translation id="6328639280570009161">Poskusite onemogočiti omrežno predvidevanje</translation>
+<translation id="6329742260390895689">Če želite samodejno izpolniti podatke, v nastavitvah Denarnice vklopite »Uporaba kartic v Googlu«</translation>
 <translation id="6329815962353376655">&lt;Vnesite vprašanje&gt;</translation>
 <translation id="6331597954316706229">Če želite najbolj osebno prilagojene odgovore, dovolite, da se vse niti sklicujejo na vaše ustrezne odprte zavihke.</translation>
 <translation id="633348045801643466">Pri zaključku nakupa prikaži <ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />možnosti poznejšega plačila<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" /></translation>
@@ -3461,6 +3465,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="6436994298828707228">Povezava je blokirana, ker jo je sprožila javna stran zaradi povezovanja z napravami ali strežniki v vašem lokalnem omrežju.</translation>
 <translation id="6437647869369934905">Google Risbe</translation>
 <translation id="643917412048333145">Ženske obleke</translation>
+<translation id="6440450906295708112">Vir različic</translation>
 <translation id="6440503408713884761">Prezrto</translation>
 <translation id="6443406338865242315">Katere razširitve in vtičnike ste namestili</translation>
 <translation id="6444329331928531170">Upokojitev in pokojnina</translation>
@@ -4566,6 +4571,7 @@ Dodatne podrobnosti:
 <translation id="8175796834047840627">Chrome ponuja shranjevanje kartic v račun Google, ker ste prijavljeni. To lahko spremenite v nastavitvah.</translation>
 <translation id="8176440868214972690">Skrbnik te naprave je poslal nekatere podatke, kot so nastavitve ali pravilniki, na ta spletna mesta.</translation>
 <translation id="817820454357658398">Izdelki za žensko intimno nego</translation>
+<translation id="8182470873445638343"><ph name="BEGIN_BOLD" />Vsebina s strani za zaključek nakupa se deli z Googlom, da je mogoče ponuditi te možnosti.<ph name="END_BOLD" /> Plačilni paketi so odvisni od primernosti. Če želite skriti možnosti poznejšega plačila, odprite <ph name="BEGIN_LINK" />nastavitve plačil<ph name="END_LINK" /></translation>
 <translation id="818254048113802060">{0,plural, =1{Datoteka <ph name="FILE_NAME" /> je bila blokirana zaradi vsebine}one{<ph name="FILE_COUNT" /> datoteka je bila blokirana zaradi vsebine}two{<ph name="FILE_COUNT" /> datoteki sta bili blokirani zaradi vsebine}few{<ph name="FILE_COUNT" /> datoteke so bile blokirane zaradi vsebine}other{<ph name="FILE_COUNT" /> datotek je bilo blokiranih zaradi vsebine}}</translation>
 <translation id="8183800802493617952">Družinske igre in dejavnosti</translation>
 <translation id="8184538546369750125">Uporabi globalno privzeto (Dovoli)</translation>

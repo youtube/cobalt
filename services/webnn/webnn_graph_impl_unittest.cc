@@ -101,8 +101,7 @@ class FakeWebNNTensorImpl final : public WebNNTensorImpl {
   void WriteTensorImpl(mojo_base::BigBuffer src_buffer) override {}
   // Interop is not required by tests.
   bool ImportTensorImpl(ScopedAccessPtr access) override { return false; }
-  void ExportTensorImpl(ScopedAccessPtr access,
-                        ExportTensorCallback callback) override {}
+  void ExportTensorImpl(ScopedAccessPtr access) override {}
 };
 
 // A fake WebNNContext Mojo interface implementation that binds a pipe for
@@ -171,6 +170,8 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
     return base::unexpected(mojom::Error::New(
         mojom::Error::Code::kNotSupportedError, "Not implemented"));
   }
+
+  std::string_view GetBackendName() const override { return "Fake Backend"; }
 
   base::WeakPtrFactory<FakeWebNNContextImpl> weak_factory_{this};
 };
@@ -1281,6 +1282,20 @@ TEST_F(WebNNGraphImplTest, Conv2dTest) {
         .output = {.type = OperandDataType::kFloat32,
                    .dimensions = {1, 1, 3, 3}},
         .expected = false}
+        .Test(*this);
+  }
+  {
+    // Test invalid conv2d: output_channels is not a multiple of groups.
+    // output_channels (7) % groups (2) != 0.
+    Conv2dTester{.type = mojom::Conv2d::Kind::kDirect,
+                 .input = {.type = OperandDataType::kFloat32,
+                           .dimensions = {1, 4, 5, 5}},
+                 .filter = {.type = OperandDataType::kFloat32,
+                            .dimensions = {7, 2, 3, 3}},
+                 .attributes = {.groups = 2},
+                 .output = {.type = OperandDataType::kFloat32,
+                            .dimensions = {1, 7, 3, 3}},
+                 .expected = false}
         .Test(*this);
   }
   {

@@ -153,4 +153,8 @@ ContextImplLiteRt::CreateTensorFromSharedImageImpl(
                         "WebGPU Interop is not supported."));
 }
 
+std::string_view ContextImplLiteRt::GetBackendName() const {
+  return "LiteRT";
+}
+
 }  // namespace webnn::litert
