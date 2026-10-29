@@ -304,13 +304,10 @@ test("capture_unittests") {
   }
 
   if (is_cobalt) {
-    sources -= [
-      "video/file_video_capture_device_unittest.cc",
-      "video/video_capture_device_unittest.cc",
-    ]
+    sources -= [ "video/video_capture_device_unittest.cc" ]
   }
 
-  if (!is_android) {
+  if (!is_android && !is_cobalt) {
     sources += [ "video/file_video_capture_device_unittest.cc" ]
   }
 
