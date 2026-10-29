@@ -445,6 +445,13 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   ASSERT_TRUE(relocs.InitRelocations());
   ASSERT_TRUE(relocs.ApplyAllRelocations());
 
+  // ApplyAllRelocations() alone leaves the relocation pages intact until
+  // DiscardRelocationPages() is called (after peak load memory is sampled).
+  EXPECT_TRUE(std::any_of(interior_page, interior_page + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+
+  relocs.DiscardRelocationPages();
+
   // Every byte of interior page 2 of the relocation table should be zeroed by
   // MADV_DONTNEED.
   EXPECT_TRUE(std::all_of(interior_page, interior_page + page_size,

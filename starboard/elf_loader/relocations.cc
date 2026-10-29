@@ -36,7 +36,7 @@ size_t GetRuntimePageSize() {
   return PAGE_SIZE;
 }
 
-void DiscardRelocationPages(Addr start, size_t size) {
+void DiscardRelocationTablePages(Addr start, size_t size) {
   const size_t page_size = GetRuntimePageSize();
   if (!start || size < page_size) {
     return;
@@ -193,15 +193,18 @@ bool Relocations::ApplyAllRelocations() {
     return false;
   }
 
+  return true;
+}
+
+void Relocations::DiscardRelocationPages() {
   if (relocations_ && plt_relocations_ &&
       relocations_ + relocations_size_ == plt_relocations_) {
-    DiscardRelocationPages(relocations_,
-                           relocations_size_ + plt_relocations_size_);
+    DiscardRelocationTablePages(relocations_,
+                                relocations_size_ + plt_relocations_size_);
   } else {
-    DiscardRelocationPages(relocations_, relocations_size_);
-    DiscardRelocationPages(plt_relocations_, plt_relocations_size_);
+    DiscardRelocationTablePages(relocations_, relocations_size_);
+    DiscardRelocationTablePages(plt_relocations_, plt_relocations_size_);
   }
-  return true;
 }
 
 bool Relocations::ApplyRelocations(const rel_t* rel, size_t rel_count) {
