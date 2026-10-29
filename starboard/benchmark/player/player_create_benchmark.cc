@@ -19,17 +19,20 @@
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
-namespace benchmark {
-
 namespace {
 
-void BM_PlayerCreateSync(::benchmark::State& state) {
+void BM_PlayerCreateSync(::benchmark::State& state,
+                         SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
+  SbPlayerBenchmarkHelper::GetCreationParam(&creation_param, output_mode);
+  if (!SbPlayerBenchmarkHelper::IsOutputModeSupported(creation_param)) {
+    state.SkipWithMessage("Output mode is not supported on this platform");
+    return;
+  }
 
   for (auto _ : state) {
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = SbPlayerBenchmarkHelper::Clock::now();
 
     SbPlayer player =
         SbPlayerCreate(helper.GetWindow(), &creation_param,
@@ -44,7 +47,7 @@ void BM_PlayerCreateSync(::benchmark::State& state) {
       break;
     }
 
-    auto end_time = std::chrono::high_resolution_clock::now();
+    auto end_time = SbPlayerBenchmarkHelper::Clock::now();
 
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
         end_time - start_time);
@@ -54,14 +57,19 @@ void BM_PlayerCreateSync(::benchmark::State& state) {
   }
 }
 
-void BM_PlayerCreateAsync(::benchmark::State& state) {
+void BM_PlayerCreateAsync(::benchmark::State& state,
+                          SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
+  SbPlayerBenchmarkHelper::GetCreationParam(&creation_param, output_mode);
+  if (!SbPlayerBenchmarkHelper::IsOutputModeSupported(creation_param)) {
+    state.SkipWithMessage("Output mode is not supported on this platform");
+    return;
+  }
 
   for (auto _ : state) {
     PlayerInitializationWaiter waiter;
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = SbPlayerBenchmarkHelper::Clock::now();
 
     SbPlayer player =
         SbPlayerCreate(helper.GetWindow(), &creation_param,
@@ -78,7 +86,7 @@ void BM_PlayerCreateAsync(::benchmark::State& state) {
 
     bool initialized = waiter.WaitForInitialization();
 
-    auto end_time = std::chrono::high_resolution_clock::now();
+    auto end_time = SbPlayerBenchmarkHelper::Clock::now();
 
     if (!initialized) {
       state.SkipWithError("SbPlayer initialization failed");
@@ -94,9 +102,29 @@ void BM_PlayerCreateAsync(::benchmark::State& state) {
   }
 }
 
-BENCHMARK(BM_PlayerCreateSync)->UseManualTime();
-BENCHMARK(BM_PlayerCreateAsync)->UseManualTime();
+// Explicit iteration counts bound total runtime for CreateSync: its manual time
+// is only the synchronous SbPlayerCreate() call, while each iteration also runs
+// an untimed SbPlayerDestroy() that waits for asynchronous initialization and
+// codec teardown (~200-450 ms on Android TV).
+BENCHMARK_CAPTURE(BM_PlayerCreateSync, PunchOut, kSbPlayerOutputModePunchOut)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
+BENCHMARK_CAPTURE(BM_PlayerCreateSync,
+                  DecodeToTexture,
+                  kSbPlayerOutputModeDecodeToTexture)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
+
+BENCHMARK_CAPTURE(BM_PlayerCreateAsync, PunchOut, kSbPlayerOutputModePunchOut)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMillisecond);
+BENCHMARK_CAPTURE(BM_PlayerCreateAsync,
+                  DecodeToTexture,
+                  kSbPlayerOutputModeDecodeToTexture)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMillisecond);
 
 }  // namespace
-}  // namespace benchmark
 }  // namespace starboard

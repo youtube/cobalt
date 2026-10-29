@@ -19,14 +19,17 @@
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
-namespace benchmark {
-
 namespace {
 
-void BM_PlayerDestroySync(::benchmark::State& state) {
+void BM_PlayerDestroySync(::benchmark::State& state,
+                          SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
+  SbPlayerBenchmarkHelper::GetCreationParam(&creation_param, output_mode);
+  if (!SbPlayerBenchmarkHelper::IsOutputModeSupported(creation_param)) {
+    state.SkipWithMessage("Output mode is not supported on this platform");
+    return;
+  }
 
   for (auto _ : state) {
     // 1. Create the player and wait until it is fully initialized (not timed).
@@ -54,9 +57,9 @@ void BM_PlayerDestroySync(::benchmark::State& state) {
     }
 
     // 2. Measure only the destruction time of the initialized player.
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start_time = SbPlayerBenchmarkHelper::Clock::now();
     SbPlayerDestroy(player);
-    auto end_time = std::chrono::high_resolution_clock::now();
+    auto end_time = SbPlayerBenchmarkHelper::Clock::now();
 
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
         end_time - start_time);
@@ -64,8 +67,20 @@ void BM_PlayerDestroySync(::benchmark::State& state) {
   }
 }
 
-BENCHMARK(BM_PlayerDestroySync)->UseManualTime();
+// Explicit iteration counts bound total runtime and ensure a consistent sample
+// size: each iteration runs an untimed SbPlayerCreate() + initialization wait
+// whose cost can vastly exceed DestroySync's manual time (e.g. ~114 us on
+// Linux DecodeToTexture, which would otherwise scale to >5,000 creations).
+BENCHMARK_CAPTURE(BM_PlayerDestroySync, PunchOut, kSbPlayerOutputModePunchOut)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
+BENCHMARK_CAPTURE(BM_PlayerDestroySync,
+                  DecodeToTexture,
+                  kSbPlayerOutputModeDecodeToTexture)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
 
 }  // namespace
-}  // namespace benchmark
 }  // namespace starboard

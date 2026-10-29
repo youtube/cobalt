@@ -52,8 +52,8 @@ group("gn_all") {
     deps += [
       "//starboard/benchmark",
 
-      # Built so that the SbPlayer benchmarks keep compiling on all platforms.
-      # Intentionally not listed in
+      # Built so that the SbPlayer benchmarks keep compiling wherever benchmarks
+      # are enabled. Intentionally not listed in
       # cobalt/build/testing/targets/*/test_targets.json, so they are not run
       # automatically.
       "//starboard/benchmark:player_benchmarks",
