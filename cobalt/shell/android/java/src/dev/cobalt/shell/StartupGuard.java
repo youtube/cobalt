@@ -4,6 +4,7 @@ import static dev.cobalt.shell.Shell.TAG;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.os.SystemClock;
 import android.util.Log;
 import androidx.annotation.IntDef;
@@ -12,8 +13,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 import org.chromium.base.metrics.RecordHistogram;
 
 /**
@@ -106,7 +109,13 @@ public class StartupGuard {
   public static final int PLATFORM_ERROR_RAISED = 37;
 
   public static final String METRIC_MILESTONE_REACHED = "Cobalt.Startup.MilestoneReached";
-  public static final String METRIC_MILESTONE_DURATION_PREFIX = "Cobalt.Startup.MilestoneDuration.";
+  public static final String METRIC_TIME_TO_MILESTONE_PREFIX = "Cobalt.Startup.TimeToMilestone.";
+  // Bucket layout for Cobalt.Startup.TimeToMilestone.*: 1 ms to 3 minutes in 100 buckets. The
+  // default StartupGuard timeout is 120 s and a network dialog can legitimately keep startup going
+  // beyond that; anything slower lands in the overflow bucket.
+  private static final long TIME_TO_MILESTONE_MIN_MS = 1;
+  private static final long TIME_TO_MILESTONE_MAX_MS = TimeUnit.MINUTES.toMillis(3);
+  private static final int TIME_TO_MILESTONE_BUCKETS = 100;
   public static final int MIN_LOGGED_MILESTONE = 1;
   public static final String[] MILESTONE_NAMES = {
     "", // 0 (unused)
@@ -155,8 +164,14 @@ public class StartupGuard {
   private final AtomicLong mStartupStatus = new AtomicLong(0L);
   private final Map<String, String> mDiagnosisInfo = new HashMap<>();
   private final AtomicBoolean mIsArmed = new AtomicBoolean(false);
-  private final AtomicLong mLastMilestoneTimestampMs =
-      new AtomicLong(SystemClock.elapsedRealtime());
+  // Origin for Cobalt.Startup.TimeToMilestone.*, on the SystemClock.elapsedRealtime() clock.
+  private volatile long mStartupOriginMs = getProcessStartElapsedRealtime();
+  // SystemClock.elapsedRealtime() at which each milestone was first reached; 0 if not reached.
+  private final AtomicLongArray mMilestoneTimestampsMs = new AtomicLongArray(64);
+  // Time-to-milestone samples describe a cold start only while the process is still in its first
+  // Activity. Cleared once that Activity is destroyed or a second Activity is created in this
+  // process, after which milestones reached for the first time are no longer startup events.
+  private final AtomicBoolean mIsStartupTimingActive = new AtomicBoolean(true);
   private volatile Runnable mPreCrashHook;
 
   private static class LazyHolder {
@@ -221,6 +236,11 @@ public class StartupGuard {
   /**
    * Sets a milestone bit in the startup status.
    *
+   * <p>The first time a logged milestone is reached, Cobalt.Startup.MilestoneReached records the
+   * milestone and Cobalt.Startup.TimeToMilestone.{Milestone} records the time since the process
+   * started. Every milestone shares that origin, so the samples are comparable across milestones
+   * regardless of the order in which the concurrent startup sequences reach them.
+   *
    * @param milestone The milestone to set, 0-indexed (0-63).
    */
   public void setStartupMilestone(@Milestone int milestone) {
@@ -232,24 +252,57 @@ public class StartupGuard {
     long mask = 1L << milestone;
     long previous = mStartupStatus.getAndUpdate(current -> current | mask);
     if ((previous & mask) != 0) {
+      if (milestone == JAVA_ACTIVITY_CREATED) {
+        // A second Activity in this process: this is no longer the cold start measured from the
+        // process start, so stop timing milestones that are only now being reached.
+        mIsStartupTimingActive.set(false);
+      }
       return;
     }
 
+    long now = SystemClock.elapsedRealtime();
+    mMilestoneTimestampsMs.set(milestone, now);
     if (milestone >= MIN_LOGGED_MILESTONE && milestone <= MAX_LOGGED_MILESTONE) {
-      long now = SystemClock.elapsedRealtime();
-      long previousTime = mLastMilestoneTimestampMs.getAndSet(now);
-      if (previousTime > 0) {
-        long durationMs = Math.max(0, now - previousTime);
-        RecordHistogram.recordTimesHistogram(
-            METRIC_MILESTONE_DURATION_PREFIX + MILESTONE_NAMES[milestone], durationMs);
+      if (mIsStartupTimingActive.get()) {
+        RecordHistogram.recordCustomTimesHistogram(
+            METRIC_TIME_TO_MILESTONE_PREFIX + MILESTONE_NAMES[milestone],
+            Math.max(0, now - mStartupOriginMs),
+            TIME_TO_MILESTONE_MIN_MS,
+            TIME_TO_MILESTONE_MAX_MS,
+            TIME_TO_MILESTONE_BUCKETS);
       }
       RecordHistogram.recordSparseHistogram(METRIC_MILESTONE_REACHED, milestone);
     }
+    if (milestone == ACTIVITY_ON_DESTROY) {
+      mIsStartupTimingActive.set(false);
+    }
+  }
+
+  /**
+   * Returns the process start time on the SystemClock.elapsedRealtime() clock, which predates the
+   * Activity's onCreate (zygote fork, Application creation, class loading). Falls back to the
+   * current time, i.e. the StartupGuard's creation during Activity creation, where the platform did
+   * not stamp the process start (e.g. under Robolectric).
+   */
+  private static long getProcessStartElapsedRealtime() {
+    long processStartMs = Process.getStartElapsedRealtime();
+    return processStartMs > 0 ? processStartMs : SystemClock.elapsedRealtime();
   }
 
   /** Returns the bitmask of milestones reached during startup. */
   public long getStartupStatus() {
     return mStartupStatus.get();
+  }
+
+  /**
+   * Returns the SystemClock.elapsedRealtime() at which {@code milestone} was first reached, or 0 if
+   * it has not been reached.
+   */
+  public long getMilestoneTimestampMs(@Milestone int milestone) {
+    if (milestone < 0 || milestone >= 64) {
+      return 0;
+    }
+    return mMilestoneTimestampsMs.get(milestone);
   }
 
   /** Returns the highest milestone reached during startup (0 if none reached). */
@@ -311,6 +364,12 @@ public class StartupGuard {
     return mCrashRunnable;
   }
 
+  /** Overrides the Cobalt.Startup.TimeToMilestone.* origin (SystemClock.elapsedRealtime() ms). */
+  @VisibleForTesting
+  public void setStartupOriginForTesting(long startupOriginMs) {
+    mStartupOriginMs = startupOriginMs;
+  }
+
   /** Resets internal state for testing. */
   @VisibleForTesting
   public void resetForTesting() {
@@ -319,7 +378,11 @@ public class StartupGuard {
     synchronized (mDiagnosisInfo) {
       mDiagnosisInfo.clear();
     }
-    mLastMilestoneTimestampMs.set(SystemClock.elapsedRealtime());
+    mStartupOriginMs = getProcessStartElapsedRealtime();
+    for (int i = 0; i < mMilestoneTimestampsMs.length(); i++) {
+      mMilestoneTimestampsMs.set(i, 0L);
+    }
+    mIsStartupTimingActive.set(true);
     mPreCrashHook = null;
   }
 }
