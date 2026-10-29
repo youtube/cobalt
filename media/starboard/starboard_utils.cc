@@ -309,41 +309,40 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   SbMediaMasteringMetadata sb_media_mastering_metadata = {};
 
   if (hdr_metadata) {
-    if (hdr_metadata->smpte_st_2086) {
-      const auto& mastering_metadata = *hdr_metadata->smpte_st_2086;
+    if (hdr_metadata->HasMDCV()) {
+      const auto& mastering_metadata = hdr_metadata->GetMDCV();
       sb_media_mastering_metadata.primary_r_chromaticity_x =
-          mastering_metadata.primaries.fRX;
+          mastering_metadata.fDisplayPrimaries.fRX;
       sb_media_mastering_metadata.primary_r_chromaticity_y =
-          mastering_metadata.primaries.fRY;
+          mastering_metadata.fDisplayPrimaries.fRY;
 
       sb_media_mastering_metadata.primary_g_chromaticity_x =
-          mastering_metadata.primaries.fGX;
+          mastering_metadata.fDisplayPrimaries.fGX;
       sb_media_mastering_metadata.primary_g_chromaticity_y =
-          mastering_metadata.primaries.fGY;
+          mastering_metadata.fDisplayPrimaries.fGY;
 
       sb_media_mastering_metadata.primary_b_chromaticity_x =
-          mastering_metadata.primaries.fBX;
+          mastering_metadata.fDisplayPrimaries.fBX;
       sb_media_mastering_metadata.primary_b_chromaticity_y =
-          mastering_metadata.primaries.fBY;
+          mastering_metadata.fDisplayPrimaries.fBY;
 
       sb_media_mastering_metadata.white_point_chromaticity_x =
-          mastering_metadata.primaries.fWX;
+          mastering_metadata.fDisplayPrimaries.fWX;
       sb_media_mastering_metadata.white_point_chromaticity_y =
-          mastering_metadata.primaries.fWY;
+          mastering_metadata.fDisplayPrimaries.fWY;
 
       sb_media_mastering_metadata.luminance_max =
-          mastering_metadata.luminance_max;
+          mastering_metadata.fMaximumDisplayMasteringLuminance;
       sb_media_mastering_metadata.luminance_min =
-          mastering_metadata.luminance_min;
+          mastering_metadata.fMinimumDisplayMasteringLuminance;
     }
 
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
 
-    if (hdr_metadata->cta_861_3) {
-      sb_media_color_metadata.max_cll =
-          hdr_metadata->cta_861_3->max_content_light_level;
-      sb_media_color_metadata.max_fall =
-          hdr_metadata->cta_861_3->max_frame_average_light_level;
+    if (hdr_metadata->HasCLLI()) {
+      const auto& clli = hdr_metadata->GetCLLI();
+      sb_media_color_metadata.max_cll = clli.fMaxCLL;
+      sb_media_color_metadata.max_fall = clli.fMaxFALL;
     }
   }
 

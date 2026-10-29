@@ -397,14 +397,11 @@ std::queue<Operation> MakeOperations(
               ? nullptr
               : std::make_unique<CrxInstaller::InstallParams>(
                     operation.path, operation.arguments, install_data),
-<<<<<<< HEAD
-          is_foreground, event_adder, state_tracker, install_progress_callback,
-=======
+          is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
           metadata,
 #endif
           event_adder, state_tracker, install_progress_callback,
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           install_complete_callback));
     } else if (operation.type == "run") {
       // expects: `path`

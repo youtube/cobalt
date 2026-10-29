@@ -97,15 +97,15 @@ source_set("capture_device_specific") {
     "video/video_frame_receiver_types.h",
   ]
 
-<<<<<<< HEAD
-  if (!is_android) {
-    sources += [
-=======
   if (is_cobalt) {
     sources -= [
       "video/blob_utils.cc",
       "video/blob_utils.h",
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    ]
+  }
+
+  if (!is_android) {
+    sources += [
       "video/file_video_capture_device.cc",
       "video/file_video_capture_device.h",
       "video/file_video_capture_device_factory.cc",
@@ -304,13 +304,10 @@ test("capture_unittests") {
   }
 
   if (is_cobalt) {
-    sources -= [
-      "video/file_video_capture_device_unittest.cc",
-      "video/video_capture_device_unittest.cc",
-    ]
+    sources -= [ "video/video_capture_device_unittest.cc" ]
   }
 
-  if (!is_android) {
+  if (!is_android && !is_cobalt) {
     sources += [ "video/file_video_capture_device_unittest.cc" ]
   }
 

@@ -7,12 +7,6 @@
 #include <utility>
 
 #include "base/files/file.h"
-<<<<<<< HEAD
-=======
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h" // nogncheck
-
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "services/passage_embeddings/passage_embedder.h"
 
 namespace passage_embeddings {

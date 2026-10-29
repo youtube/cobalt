@@ -20,14 +20,6 @@
 #include "components/download/public/background_service/download_params.h"
 #endif
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"  // nogncheck
-#include "components/permissions/prediction_service/prediction_model_handler.h"
-#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace permissions {
 
 using optimization_guide::proto::OptimizationTarget;

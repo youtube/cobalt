@@ -70,7 +70,6 @@ if (is_mac && use_lld) {
   }
 }
 
-<<<<<<< HEAD
 default_symbol_level = 0
 
 if (is_chromeos_device) {
@@ -105,13 +104,13 @@ if (is_chromeos_device) {
   # whereas Mac and Windows have them separate, so in Release Linux, default
   # them off.
   default_symbol_level = 2
-=======
+}
+
 # Cobalt needs to handle use_cxx17, which does not exist upstream.
 if (is_cobalt) {
   if (use_cxx17) {
     use_cxx23 = false
   }
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 declare_args() {

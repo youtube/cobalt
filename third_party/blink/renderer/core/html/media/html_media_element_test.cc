@@ -2668,7 +2668,6 @@ TEST_P(HTMLMediaElementTest, StartVideoWithDoubleTrackSelection) {
   }
 }
 
-<<<<<<< HEAD
 // crbug.com/497011407. AddTrack() crashed by invalid UTF-8.
 TEST_P(HTMLMediaElementTest, AddTrackCrash) {
   auto* element = Media();
@@ -2682,7 +2681,6 @@ TEST_P(HTMLMediaElementTest, AddTrackCrash) {
   }
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
@@ -2727,17 +2725,17 @@ TEST(HTMLMediaElementTest, RejectsCobaltProgressiveSupportQueries) {
       "audio/mp4; codecs=\"mp4a.40.2\"; channels=2");
 
   EXPECT_EQ(HTMLMediaElement::GetSupportsType(progressive_type),
-              MIMETypeRegistry::kNotSupported);
-    // Reject progressive content types when the "codecs" parameter lacks
-    // whitespace.
-    EXPECT_EQ(
-        HTMLMediaElement::GetSupportsType(progressive_type_missing_whitespace),
-        MIMETypeRegistry::kNotSupported);
-    // Continue to support adaptive content types.
-    EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_video_type),
-              MIMETypeRegistry::kNotSupported);
-    EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_audio_type),
-              MIMETypeRegistry::kNotSupported);
+            MIMETypeRegistry::kNotSupported);
+  // Reject progressive content types when the "codecs" parameter lacks
+  // whitespace.
+  EXPECT_EQ(
+      HTMLMediaElement::GetSupportsType(progressive_type_missing_whitespace),
+      MIMETypeRegistry::kNotSupported);
+  // Continue to support adaptive content types.
+  EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_video_type),
+            MIMETypeRegistry::kNotSupported);
+  EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_audio_type),
+            MIMETypeRegistry::kNotSupported);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -2798,6 +2796,4 @@ TEST_P(HTMLMediaElementTest,
   EXPECT_TRUE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
 }
 #endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace blink

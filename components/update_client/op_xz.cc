@@ -94,13 +94,16 @@ base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
-<<<<<<< HEAD
     bool is_foreground,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
         callback) {
+  // Apply background priority if this is a background task.
+  std::optional<base::ScopedBoostPriority> priority;
+  if (!is_foreground) {
+    priority.emplace(base::ThreadType::kBackground);
+  }
 #if defined(IN_MEMORY_UPDATES)
   LOG(ERROR) << "Xz decoding Operation not supported with Cobalt IN_MEMORY_UPDATES";
   Done(in_file_result, std::move(callback), event_adder, base::FilePath(), false);
@@ -111,7 +114,6 @@ base::OnceClosure XzOperation(
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
 #endif  // defined(IN_MEMORY_UPDATES)
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
