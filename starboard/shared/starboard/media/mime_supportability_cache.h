@@ -45,8 +45,6 @@ typedef enum Supportability {
 // Note: anytime the platform codec capabilities have changed, please call
 // MimeSupportabilityCache::ClearCachedMimeSupportabilities() to clear the
 // outdated results.
-//
-// TODO: add unit tests for MimeSupportabilityCache.
 class MimeSupportabilityCache {
  public:
   static MimeSupportabilityCache* GetInstance();
