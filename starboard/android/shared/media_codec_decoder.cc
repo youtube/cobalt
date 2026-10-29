@@ -1061,8 +1061,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
 
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
-    // Drm system initialization is asynchronous. If there's a drm system, we
-    // should wait until it's initialized to avoid errors.
+    // The media crypto session is normally opened when the drm system is
+    // created. If that was deferred (e.g. the device needs provisioning) or
+    // failed, it is created by the first successful session update request.
+    // Until then MediaCodec can't process any sample, including clear ones, so
+    // report NO_KEY and retry once the drm system becomes ready.
     status = MEDIA_CODEC_NO_KEY;
   } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(

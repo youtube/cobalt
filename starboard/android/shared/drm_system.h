@@ -99,7 +99,10 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
     return IsWidevineL1(key_system_.c_str());
   }
 
-  // Return true when the drm system is ready for secure input buffers.
+  // Return true when the drm system is ready for secure input buffers, i.e.
+  // once the media crypto session is created. That normally happens in the
+  // constructor, or otherwise on the first successful session update request
+  // (e.g. after provisioning).
   bool IsReady();
 
   // Observers of DRM key state changes (e.g. when IsReady() becomes true, a
