@@ -15,6 +15,7 @@
 #include "starboard/linux/shared/low_memory_kill.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <fstream>
@@ -30,6 +31,42 @@ namespace {
 
 constexpr char kTestEnvVar[] = "COBALT_WAS_LOW_MEMORY_KILLED";
 constexpr char kTmpMarkerPath[] = "/tmp/cobalt_was_low_memory_killed";
+
+constexpr SbLowMemoryKillDetails kSentinelDetails = {
+    123456789,
+    kSbLowMemoryKillForegroundStatusForeground,
+    kSbLowMemoryKillPressureSourceCobalt,
+    100,
+    200,
+    300,
+    400,
+    "sentinel reason",
+};
+
+constexpr SbLowMemoryKillDetails kEmptyDetails = {
+    0,
+    kSbLowMemoryKillForegroundStatusUnknown,
+    kSbLowMemoryKillPressureSourceUnknown,
+    -1,
+    -1,
+    -1,
+    -1,
+    "",
+};
+
+void ExpectDetailsEq(const SbLowMemoryKillDetails& expected,
+                     const SbLowMemoryKillDetails& actual) {
+  EXPECT_EQ(actual.timestamp_posix_usec, expected.timestamp_posix_usec);
+  EXPECT_EQ(actual.foreground_status, expected.foreground_status);
+  EXPECT_EQ(actual.pressure_source, expected.pressure_source);
+  EXPECT_EQ(actual.system_memory_available, expected.system_memory_available);
+  EXPECT_EQ(actual.system_memory_total, expected.system_memory_total);
+  EXPECT_EQ(actual.cobalt_memory_usage, expected.cobalt_memory_usage);
+  EXPECT_EQ(actual.cobalt_memory_limit, expected.cobalt_memory_limit);
+  ASSERT_LT(strnlen(actual.reason, sizeof(actual.reason)),
+            sizeof(actual.reason));
+  EXPECT_STREQ(actual.reason, expected.reason);
+}
 
 class LowMemoryKillTest : public ::testing::Test {
  protected:
@@ -116,20 +153,47 @@ TEST_F(LowMemoryKillTest, PublicApiSingletonAndIdempotency) {
           SbSystemGetExtension(kStarboardExtensionLowMemoryKillName));
   ASSERT_NE(extension_api, nullptr);
   EXPECT_STREQ(extension_api->name, kStarboardExtensionLowMemoryKillName);
-  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_EQ(extension_api->version, 2u);
   ASSERT_NE(extension_api->WasLowMemoryKilled, nullptr);
+  ASSERT_NE(extension_api->GetLowMemoryKillDetails, nullptr);
 
   EXPECT_FALSE(extension_api->WasLowMemoryKilled());
   // Subsequent calls should be cached and return false.
   EXPECT_FALSE(extension_api->WasLowMemoryKilled());
 
-  // Simulate a new process startup post-LMK by resetting testing state, setting
-  // marker, then verify WasLowMemoryKilled returns true and caches.
+  // Struct fields should be unchanged if WasLowMemoryKilled() is false.
+  SbLowMemoryKillDetails details = kSentinelDetails;
+  EXPECT_FALSE(extension_api->GetLowMemoryKillDetails(&details));
+  ExpectDetailsEq(kSentinelDetails, details);
+  EXPECT_FALSE(extension_api->GetLowMemoryKillDetails(nullptr));
+
+  // Simulate a new process startup post-LMK by resetting testing state and
+  // setting a marker. Verify GetLowMemoryKillDetails(nullptr) does not consume
+  // the marker, then verify WasLowMemoryKilled and GetLowMemoryKillDetails
+  // return true, report empty/unavailable stub details, and cache.
   testing::ResetLowMemoryKillStateForTesting();
   CreateTmpMarker();
+  EXPECT_FALSE(extension_api->GetLowMemoryKillDetails(nullptr));
+  EXPECT_TRUE(TmpMarkerExists());
+
   EXPECT_TRUE(extension_api->WasLowMemoryKilled());
   EXPECT_FALSE(TmpMarkerExists());
   EXPECT_TRUE(extension_api->WasLowMemoryKilled());
+  EXPECT_TRUE(extension_api->WasLowMemoryKilled());
+
+  EXPECT_FALSE(extension_api->GetLowMemoryKillDetails(nullptr));
+  details = kSentinelDetails;
+  EXPECT_TRUE(extension_api->GetLowMemoryKillDetails(&details));
+  ExpectDetailsEq(kEmptyDetails, details);
+
+  // Calling GetLowMemoryKillDetails(&details) before WasLowMemoryKilled()
+  // should also evaluate, consume the marker, and cache the state.
+  testing::ResetLowMemoryKillStateForTesting();
+  CreateTmpMarker();
+  details = kSentinelDetails;
+  EXPECT_TRUE(extension_api->GetLowMemoryKillDetails(&details));
+  EXPECT_FALSE(TmpMarkerExists());
+  ExpectDetailsEq(kEmptyDetails, details);
   EXPECT_TRUE(extension_api->WasLowMemoryKilled());
 }
 

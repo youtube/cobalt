@@ -20,6 +20,29 @@ enum UserOnExitStrategy {
   kNoExit,
 };
 
+enum LowMemoryKillForegroundStatus {
+  kUnknown,
+  kForeground,
+  kBackground,
+};
+
+enum LowMemoryKillPressureSource {
+  kUnknown,
+  kSystem,
+  kCobalt,
+};
+
+struct LowMemoryKillDetails {
+  int64 timestamp_posix_usec;
+  LowMemoryKillForegroundStatus foreground_status;
+  LowMemoryKillPressureSource pressure_source;
+  uint64? system_memory_available;
+  uint64? system_memory_total;
+  uint64? cobalt_memory_usage;
+  uint64? cobalt_memory_limit;
+  string? reason;
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
@@ -55,4 +78,9 @@ interface H5vccSystem {
   // memory pressure. If the platform does not implement the LowMemoryKill
   // extension or does not report LMK, this resolves to false.
   GetWasLowMemoryKilled() => (bool was_low_memory_killed);
+
+  // If the previous Cobalt session was killed by the system due to memory
+  // pressure and the platform provides LowMemoryKill v2 details, resolves to
+  // those details; otherwise resolves to null.
+  GetLowMemoryKillDetails() => (LowMemoryKillDetails? details);
 };
