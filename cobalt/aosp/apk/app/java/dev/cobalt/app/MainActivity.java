@@ -64,9 +64,8 @@ public class MainActivity extends BaseCobaltActivity {
       throw loadError;
     }
 
-    // Java UMA samples are cached until a native recorder takes them over. None ever does here:
-    // Cobalt's metrics are recorded in libcobalt, which Java has no access to. Discard the samples,
-    // so that the cache does not fill up and assert.
+    // TODO(https://crbug.com/579280290): Discard Java UMA samples, which would otherwise fill up
+    // the cache and assert, until they can be forwarded to libcobalt.
     UmaRecorderHolder.setNonNativeDelegate(new DiscardingUmaRecorder());
   }
 
