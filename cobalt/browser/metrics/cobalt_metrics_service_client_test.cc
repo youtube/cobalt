@@ -154,7 +154,7 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
 
     // Add LevelDatabase dump
     auto leveldb_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
-    leveldb_dump->numeric_entries["effective_size"] = 512 * 1024;
+    leveldb_dump->numeric_entries["size"] = 512 * 1024;
     browser_dump->chrome_allocator_dumps["leveldatabase"] =
         std::move(leveldb_dump);
 

@@ -18,6 +18,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_util.h"
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
@@ -102,6 +103,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // Map Android TRIM_MEMORY_RUNNING_MODERATE/LOW to MODERATE
+               // memory pressure instead of dropping them.
+               base::features::kCobaltEnableModerateMemoryPressure.name,
            },
            ",")},
       {::switches::kDisableFeatures,
