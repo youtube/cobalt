@@ -70,20 +70,15 @@ static RenderMediaClient* GetRenderMediaClient() {
 }
 
 void RenderMediaClient::Initialize() {
-<<<<<<< HEAD
   media::SetMediaClient(GetRenderMediaClient());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  GetRenderMediaClient()->InstallDecoderBufferAllocator();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void RenderMediaClient::SetGpuFeatureInfo(
     const gpu::GpuFeatureInfo& gpu_feature_info) {
   GetRenderMediaClient()->SetGpuFeatureInfoInternal(gpu_feature_info);
-=======
-  static RenderMediaClient* client = new RenderMediaClient();
-  media::SetMediaClient(client);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  client->InstallDecoderBufferAllocator();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 RenderMediaClient::RenderMediaClient()
