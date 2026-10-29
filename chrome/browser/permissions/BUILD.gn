@@ -182,9 +182,7 @@ source_set("permissions") {
     ]
   }
 
-An inspection of the upstream diff reveals that upstream Chromium removed the obsolete `build_with_tflite_lib` build flag (`Bug: 494358337`), moving the associated sources and dependencies directly into unconditional sections and `if (!is_android)`. The incoming branch re-introduced the stale `if (build_with_tflite_lib)` block due to a cherry-pick revert conflict.
 
-Accepting `HEAD` (upstream deletion) completely resolves the conflict cleanly without leaving dead or duplicate GN declarations.
   if (!is_android) {
     deps += [
       "//chrome/browser/ui/permission_bubble",
