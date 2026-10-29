@@ -25,44 +25,25 @@
 #include "components/update_client/utils.h"
 #include "components/zucchini/zucchini.h"
 
-#if defined(IN_MEMORY_UPDATES)
-#include "base/functional/callback_helpers.h"
-#include "base/logging.h"
-#endif
-
 namespace update_client {
 
 namespace {
 
-#if BUILDFLAG(IS_STARBOARD)
-void Done(const OperationResult& in_file_result,
-          base::OnceCallback<
-              void(base::expected<OperationResult, CategorizedError>)> callback,
-#else
 void Done(base::OnceCallback<
               void(base::expected<base::FilePath, CategorizedError>)> callback,
-#endif
           base::RepeatingCallback<void(base::DictValue)> event_adder,
           const base::FilePath& out_file,
           bool success) {
-#if BUILDFLAG(IS_STARBOARD)
-  using Result = base::expected<OperationResult, CategorizedError>;
-  OperationResult out_result = in_file_result;
-#if !defined(IN_MEMORY_UPDATES)
-  out_result.response = out_file;
-#endif
-#else
-  using Result = base::expected<base::FilePath, CategorizedError>;
-  const base::FilePath& out_result = out_file;
-#endif  // BUILDFLAG(IS_STARBOARD)
   const auto result =
-      success ? Result(out_result)
+      success ? base::expected<base::FilePath, CategorizedError>(out_file)
               : base::unexpected<CategorizedError>(
                     {.category = ErrorCategory::kUnpack,
                      .code = static_cast<int>(UnpackerError::kXzFailed)});
 
   base::OnceClosure done = base::BindOnce(
-      [](const Result& result, base::OnceCallback<void(Result)> callback,
+      [](const base::expected<base::FilePath, CategorizedError>& result,
+         base::OnceCallback<void(
+             base::expected<base::FilePath, CategorizedError>)> callback,
          base::RepeatingCallback<void(base::DictValue)> event_adder) {
         event_adder.Run(
             MakeSimpleOperationEvent(result, protocol_request::kEventXz));
@@ -92,27 +73,11 @@ base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
-#if BUILDFLAG(IS_STARBOARD)
-    const OperationResult& in_file_result,
-    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
-        callback) {
-#if defined(IN_MEMORY_UPDATES)
-  LOG(ERROR) << "Xz decoding Operation not supported with Cobalt IN_MEMORY_UPDATES";
-  Done(in_file_result, std::move(callback), event_adder, base::FilePath(), false);
-  return base::DoNothing();
-#else
-  state_tracker.Run(ComponentState::kDecompressing);
-  const base::FilePath& in_file = in_file_result.response;
-  base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
-#endif  // defined(IN_MEMORY_UPDATES)
-#else
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
   state_tracker.Run(ComponentState::kDecompressing);
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
-#endif  // BUILDFLAG(IS_STARBOARD)
-#if !defined(IN_MEMORY_UPDATES)
   Unzipper* unzipper_raw = unzipper.get();
   return unzipper_raw->DecodeXz(
       in_file, dest_file,
@@ -123,14 +88,8 @@ base::OnceClosure XzOperation(
             return result;
           },
           in_file, std::move(unzipper))
-#if BUILDFLAG(IS_STARBOARD)
-          .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
-              &Done, in_file_result, std::move(callback), event_adder, dest_file))));
-#else
           .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
               &Done, std::move(callback), event_adder, dest_file))));
-#endif
-#endif  // !defined(IN_MEMORY_UPDATES)
 }
 
 }  // namespace update_client

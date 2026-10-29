@@ -1008,7 +1008,8 @@ class CallSiteBuilder {
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
-                summary.byte_offset(), flags);
+                summary.byte_offset(), flags,
+                isolate_->factory()->empty_fixed_array());
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 

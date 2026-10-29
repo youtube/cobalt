@@ -22,6 +22,10 @@
 #include <zircon/threads.h>
 #endif
 
+#if V8_OS_STARBOARD
+#include <sys/time.h>
+#endif  // V8_OS_STARBOARD
+
 #include <cstring>
 #include <ostream>
 
@@ -40,6 +44,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/time.h"
+#endif
 
 namespace {
 
@@ -399,7 +406,7 @@ FILETIME Time::ToFiletime() const {
   return ft;
 }
 
-#elif V8_OS_POSIX
+#elif V8_OS_POSIX || V8_OS_STARBOARD
 
 Time Time::Now() {
   struct timeval tv;
@@ -479,7 +486,7 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
-#endif  // V8_OS_POSIX
+#endif  // V8_OS_POSIX || V8_OS_STARBOARD
 
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
@@ -743,6 +750,8 @@ TimeTicks TimeTicks::Now() {
   ticks = zx_clock_get_monotonic() / Time::kNanosecondsPerMicrosecond;
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
+#elif V8_OS_STARBOARD
+  ticks = starboard::CurrentMonotonicTime();
 #else
 #error platform does not implement TimeTicks::Now.
 #endif  // V8_OS_DARWIN
@@ -768,7 +777,9 @@ bool TimeTicks::IsHighResolution() {
 
 
 bool ThreadTicks::IsSupported() {
-#if defined(__PASE__)
+#if V8_OS_STARBOARD
+  return starboard::CurrentMonotonicThreadTime() != 0;
+#elif defined(__PASE__)
   // Thread CPU time accounting is unavailable in PASE
   return false;
 #elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
@@ -784,7 +795,12 @@ bool ThreadTicks::IsSupported() {
 
 
 ThreadTicks ThreadTicks::Now() {
-#if V8_OS_DARWIN
+#if V8_OS_STARBOARD
+  const int64_t now = starboard::CurrentMonotonicThreadTime();
+  if (now != 0)
+    return ThreadTicks(now);
+  UNREACHABLE();
+#elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
 #elif V8_OS_FUCHSIA
   return ThreadTicks(GetFuchsiaThreadTicks());

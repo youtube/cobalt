@@ -7,11 +7,6 @@
 
 #include "base/fuzzing_buildflags.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_STARBOARD)
-// TODO: b/570662409 - Cobalt: Remove this unused transitive include once
-// all downstream files directly include required Starboard headers.
-#include "starboard/common/log.h"  // nogncheck
-#endif
 
 #if !(defined(OFFICIAL_BUILD) || BUILDFLAG(IS_WIN))
 #include <stdlib.h>

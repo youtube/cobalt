@@ -11,7 +11,6 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/byte_queue.h"
 #include "media/base/media_export.h"
@@ -20,9 +19,6 @@
 
 namespace media {
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-class SegmentedByteQueue;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 class WebMClusterParser;
 
 class MEDIA_EXPORT WebMStreamParser : public StreamParser {
@@ -46,22 +42,7 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
   bool GetGenerateTimestampsFlag() const override;
   [[nodiscard]] bool AppendToParseBuffer(
       base::span<const uint8_t> buf) override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  [[nodiscard]] bool AppendToParseBuffer(
-      base::span<const uint8_t> buf,
-      base::ScopedClosureRunner release_runner) override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
- private:
-  // The following function and variable should technically be moved down.  They
-  // are kept here to make the new feature easy to review and maintain.
-  [[nodiscard]] ParseStatus ParseInternal(int max_pending_bytes_to_inspect);
-  [[nodiscard]] ParseStatus ParseInternalSegmented(
-      int max_pending_bytes_to_inspect);
-
-  bool buffers_parsed_ = false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   enum State {
@@ -82,9 +63,6 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
   // Returns 0 if more data is needed.
   // Returning > 0 indicates success & the number of bytes parsed.
   int ParseInfoAndTracks(const uint8_t* data, int size);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  int ParseInfoAndTracksSegmented(int offset, int size);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Incrementally parses WebM cluster elements. This method also skips
   // CUES elements if they are encountered since we currently don't use the
@@ -94,9 +72,6 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
   // Returns 0 if more data is needed.
   // Returning > 0 indicates success & the number of bytes parsed.
   int ParseCluster(const uint8_t* data, int size);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  int ParseClusterSegmented(int offset, int size);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Fire the encrypted event through the |encrypted_media_init_data_cb_|.
   void OnEncryptedMediaInitData(const std::string& key_id);
@@ -124,15 +99,6 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
   // since more data is needed to complete the parse.
   int uninspected_pending_bytes_ = 0;
   ByteQueue byte_queue_;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Created on the first AppendToParseBuffer() call when in-place parsing is
-  // used, after which it holds the stream instead of `byte_queue_`. The two
-  // AppendToParseBuffer() overloads must not be mixed: the overload with a
-  // release runner always uses borrow mode, while the copying overload uses
-  // copy mode when kCobaltInPlaceMediaSourceParser is enabled.
-  std::unique_ptr<SegmentedByteQueue> segmented_queue_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

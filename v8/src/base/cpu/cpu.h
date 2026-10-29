@@ -151,6 +151,9 @@ class V8_BASE_EXPORT CPU final {
   bool has_lasx() const { return has_lasx_; }
 
  private:
+#if defined(V8_OS_STARBOARD)
+  bool StarboardDetectCPU();
+#endif
   void DetectFeatures();
 
   char vendor_[13] = {};

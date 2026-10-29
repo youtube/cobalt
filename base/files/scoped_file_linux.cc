@@ -85,7 +85,6 @@ bool IsFDOwned(int fd) {
 #if !defined(COMPONENT_BUILD)
 using LibcCloseFuncPtr = int (*)(int);
 
-#if !BUILDFLAG(IS_STARBOARD)
 // Load the libc close symbol to forward to from the close wrapper.
 LibcCloseFuncPtr LoadCloseSymbol() {
 #if defined(THREAD_SANITIZER)
@@ -114,5 +113,4 @@ __attribute__((visibility("default"), noinline)) int close(int fd) {
 }
 
 }       // extern "C"
-#endif  // !BUILDFLAG(IS_STARBOARD)
 #endif  // !defined(COMPONENT_BUILD)

@@ -42,7 +42,6 @@ gclient_gn_args = [
   'checkout_android',
   'checkout_android_prebuilts_build_tools',
   'checkout_clang_coverage_tools',
-  'checkout_cobalt_internal',
   'checkout_copybara',
   'checkout_glic_e2e_tests',
   'checkout_ios_webkit',
@@ -79,9 +78,6 @@ vars = {
   # variables.
   # TODO(crbug.com/875037): Remove this once the problem in gclient is fixed.
   'checkout_fuchsia': False,
-
-  # By default, do not check out Cobalt internal.
-  'checkout_cobalt_internal': False,
 
   # For code related to internal Fuchsia images.
   'checkout_fuchsia_internal': False,
@@ -306,7 +302,6 @@ vars = {
   'boringssl_git': 'https://boringssl.googlesource.com',
   'chrome_git': 'https://chrome-internal.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
-  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
   'dawn_git': 'https://dawn.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
   'quiche_git': 'https://quiche.googlesource.com',
@@ -577,7 +572,6 @@ allowed_hosts = [
   'chrome-internal.googlesource.com',
   'chromium.googlesource.com',
   'dawn.googlesource.com',
-  'lbshell-internal.googlesource.com',
   'pdfium.googlesource.com',
   'quiche.googlesource.com',
   'skia.googlesource.com',
@@ -1252,11 +1246,10 @@ deps = {
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/compiler-rt.git' + '@' +
     Var('compiler_rt_revision'),
-# Cobalt: imported
-#  'src/third_party/libc++/src':
-#    Var('chromium_git') +
-#    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
-#    Var('libcxx_revision'),
+  'src/third_party/libc++/src':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+    Var('libcxx_revision'),
   'src/third_party/libc++abi/src':
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +
@@ -1649,11 +1642,6 @@ deps = {
     'condition': 'checkout_android and checkout_src_internal',
   },
 
-  'src/cobalt/internal': {
-    'url': Var('cobalt_internal_git') + '/cobalt/internal.git' + '@' + '0f7f447febbd7cb6d07363e90e19fe859260e899',
-    'condition': 'checkout_cobalt_internal',
-  },
-
   'src/docs/website': {
     'url': Var('chromium_git') + '/website.git' + '@' + 'fb527ddd68a83a128cb15abfd4e8c718297da6a4',
   },
@@ -1687,9 +1675,8 @@ deps = {
   'src/media/cdm/api':
     Var('chromium_git') + '/chromium/cdm.git' + '@' + '33c977516b3dfe5b065bc298aa74175e1999ab51',
 
-# Cobalt: imported
-#  'src/net/third_party/quiche/src':
-#    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
+  'src/net/third_party/quiche/src':
+    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
 
   'src/testing/libfuzzer/fuzzers/wasm_corpus':
     Var('chromium_git') + '/v8/fuzzer_wasm_corpus.git' + '@' +  '1df5e50a45db9518a56ebb42cb020a94a090258b',
@@ -1900,14 +1887,8 @@ deps = {
       'dep_type': 'cipd',
   },
 
-# Cobalt: imported
-#  'src/third_party/angle':
-#    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
-# Cobalt: Dependencies from angle's DEPS file.
-  'src/third_party/angle/third_party/rapidjson/src':
-    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
-  'src/third_party/angle/third_party/glmark2/src':
-    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + '6edcf02205fd1e8979dc3f3964257a81959b80c8',
+  'src/third_party/angle':
+    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
 
   'src/third_party/anonymous_tokens/src':
     Var('chromium_git') + '/external/github.com/google/anonymous-tokens.git' + '@' + 'fdff40da0398d2c229308aed169345f6ff1a150f',
@@ -2025,9 +2006,8 @@ deps = {
       ],
   },
 
-# Cobalt: imported
-#  'src/third_party/boringssl/src':
-#    Var('boringssl_git') + '/boringssl.git' + '@' +  Var('boringssl_revision'),
+  'src/third_party/boringssl/src':
+    Var('boringssl_git') + '/boringssl.git' + '@' +  Var('boringssl_revision'),
 
   'src/third_party/breakpad/breakpad':
     Var('chromium_git') + '/breakpad/breakpad.git' + '@' + Var('breakpad_revision'),
@@ -2075,9 +2055,8 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-# Cobalt: imported
-#  'src/third_party/cpuinfo/src':
-#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '7607ca500436b37ad23fb8d18614bec7796b68a7',
+  'src/third_party/cpuinfo/src':
+    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '7607ca500436b37ad23fb8d18614bec7796b68a7',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2184,11 +2163,6 @@ deps = {
     'condition': 'checkout_instrumented_libraries',
   },
 
-  'src/third_party/internal': {
-    'url': Var('cobalt_internal_git') + '/third_party/internal.git' + '@' + 'main',
-    'condition': 'checkout_cobalt_internal',
-  },
-
   'src/third_party/emoji-segmenter/src':
     Var('chromium_git') + '/external/github.com/google/emoji-segmenter.git' + '@' + Var('emoji_segmenter_revision'),
 
@@ -2211,9 +2185,8 @@ deps = {
       'condition': 'checkout_android',
   },
 
-# Cobalt: imported
-#  'src/third_party/googletest/src':
-#    Var('chromium_git') + '/external/github.com/google/googletest.git' + '@' + Var('googletest_revision'),
+  'src/third_party/googletest/src':
+    Var('chromium_git') + '/external/github.com/google/googletest.git' + '@' + Var('googletest_revision'),
 
   # TODO: crbug.com/431264806 - Switch to CIPD package for Windows builds.
   'src/third_party/gperf': {
@@ -2293,9 +2266,8 @@ deps = {
   'src/third_party/hunspell_dictionaries':
     Var('chromium_git') + '/chromium/deps/hunspell_dictionaries.git' + '@' + 'cccf64a8acc951afe3f47fee023908e55699bc58',
 
-# Cobalt: imported
-#  'src/third_party/icu':
-#    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'b4aae6832c06df9d538d41b249403cf0678f16b4',
+  'src/third_party/icu':
+    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'b4aae6832c06df9d538d41b249403cf0678f16b4',
 
   'src/third_party/icu4j/cipd': {
       'packages': [
@@ -2661,9 +2633,8 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-# Cobalt: imported
-#  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'f6800908d7bebd44732059ed0310f6e5965d42a6',
+  'src/third_party/perfetto':
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'f6800908d7bebd44732059ed0310f6e5965d42a6',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -2909,9 +2880,8 @@ deps = {
     'condition': 'checkout_src_internal',
   },
 
-# Cobalt: imported
-#  'src/third_party/skia':
-#    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+  'src/third_party/skia':
+    Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
 
   'src/third_party/smhasher/src':
     Var('chromium_git') + '/external/smhasher.git' + '@' + '0ff96f7835817a27d0487325b6c16033e2992eb5',
@@ -3056,9 +3026,8 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-# Cobalt: imported
-#  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '2c28168e10eccc3b709bcccf36426a6644af1621',
+  'src/third_party/webrtc':
+    Var('webrtc_git') + '/src.git' + '@' + '2c28168e10eccc3b709bcccf36426a6644af1621',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
@@ -3138,9 +3107,8 @@ deps = {
       'condition': 'checkout_mac',
   },
 
-# Cobalt: imported
-#  'src/v8':
-#    Var('chromium_git') + '/v8/v8.git' + '@' +  Var('v8_revision'),
+  'src/v8':
+    Var('chromium_git') + '/v8/v8.git' + '@' +  Var('v8_revision'),
 
 # See checkout_src_internal_infra declaration.
 # LINT.IfChange
@@ -4060,7 +4028,6 @@ deps = {
         'e4bd19f95afa6483a54906c2a3e5d329d2d81690',
       'condition': 'checkout_src_internal',
   },
-
 }
 
 
@@ -4292,10 +4259,7 @@ hooks = [
     'name': 'lastchange',
     'pattern': '.',
     'action': ['python3', 'src/build/util/lastchange.py',
-               '-o', 'src/build/util/LASTCHANGE',
-               # Cobalt addition, don't look for Change-Id in commits.
-               '--filter=\(#[1-9][0-9]*\)'
-               ],
+               '-o', 'src/build/util/LASTCHANGE'],
   },
   {
     # Update lastchange_commit_position.h (only for CrOS).
