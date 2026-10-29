@@ -298,6 +298,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   DefaultSbPlayerInterface sbplayer_interface_;
 
   TimeDelta seek_time_;
+  // True from StartPlayingFrom() until the SbPlayer reports
+  // kSbPlayerStatePresenting or kSbPlayerStateEndOfStream. While set,
+  // GetMediaTime() reports |seek_time_|, as SbPlayerGetInfo() may still return
+  // the pre-seek position.
+  bool is_seek_pending_presenting_ = false;
 
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
