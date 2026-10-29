@@ -60,28 +60,28 @@ Input (at most 64 KiB):
 
 ### Rust
 
+`testdata/test_selector/` is a complete selector in Rust (`no_std`, 911 bytes
+of Wasm), the one the tests use. The gist:
+
 ```rust
 #[no_mangle]
 pub extern "C" fn splash_abi_version() -> u32 { 1 }
 
 #[no_mangle]
-pub extern "C" fn splash_alloc(size: u32) -> *mut u8 {
-    let mut buf = Vec::<u8>::with_capacity(size as usize);
-    let ptr = buf.as_mut_ptr();
-    std::mem::forget(buf);
-    ptr
-}
+pub extern "C" fn splash_alloc(size: u32) -> *mut u8 { /* a buffer of `size` bytes */ }
 
 #[no_mangle]
 pub extern "C" fn splash_select(ptr: *const u8, len: u32) -> u64 {
-    let input = unsafe { std::slice::from_raw_parts(ptr, len as usize) };
+    let input = unsafe { core::slice::from_raw_parts(ptr, len as usize) };
     let key: &'static str = choose(input);  // The web app's logic.
-    ((key.len() as u64) << 32) | key.as_ptr() as u64
+    ((key.len() as u64) << 32) | key.as_ptr() as u32 as u64
 }
 ```
 
-Build with `cargo build --target wasm32-unknown-unknown --release`. The same
-module can be tested in a browser or Node.js with `WebAssembly.instantiate()`.
+Build with `cargo build --release --target wasm32-unknown-unknown`;
+`testdata/regenerate_test_selector.sh` shows how to do it with the Rust
+toolchain in the Chromium tree. The same module can be tested in a browser or
+Node.js with `WebAssembly.instantiate()`.
 
 ## Known limitations
 
@@ -98,5 +98,5 @@ module can be tested in a browser or Node.js with `WebAssembly.instantiate()`.
     the instruction limit.
 *   `splash_wasm_selector_browsertest.cc` (`cobalt_browsertests`): the whole
     flow, with the cache populated from JavaScript.
-*   `testdata/test_selector.c` is the test selector. Regenerate its embedded
-    bytes with `testdata/regenerate_test_selector.sh`.
+*   `testdata/test_selector/` is the test selector, in Rust. Regenerate its
+    embedded bytes with `testdata/regenerate_test_selector.sh`.
