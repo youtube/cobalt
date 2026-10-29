@@ -753,10 +753,13 @@ void Shell::LoadSplashScreenWebContents() {
         base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy);
     if (has_splash_wasm_policy) {
       // Lists the assets that the page's WebAssembly policy chooses from while
-      // the page loads.
+      // the page loads, with those in the cache of the splash screen's topic,
+      // which the page reads (see the "cache" query param below).
       SplashAssetList::GetOrCreateForBrowserContext(
           splash_screen_web_contents_->GetBrowserContext())
-          ->Start();
+          ->Start(splash_topic_.empty()
+                      ? base::UTF16ToUTF8(switches::kDefaultSplashCacheName)
+                      : splash_topic_);
     }
 
     GURL splash_screen_url = GetSplashScreenURL();

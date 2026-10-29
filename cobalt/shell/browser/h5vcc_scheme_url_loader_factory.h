@@ -15,17 +15,18 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <optional>
 #include <string>
 
-#include "base/containers/span.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-forward.h"
 
 namespace content {
 
@@ -58,11 +59,11 @@ enum class SplashWasmPolicyOutcome {
   // The policy chose an asset that the WebApp cached ("cached").
   kChoseCached = 1,
   // The page couldn't get the splash asset list, e.g., as the cached assets
-  // couldn't all be listed in time, and made its own choice
-  // ("list_unavailable").
+  // couldn't be listed in time, and made its own choice ("list_unavailable").
   kListUnavailable = 2,
-  // The policy failed, e.g., its module didn't load, or it made no or an
-  // unexpected choice, and the page made its own choice ("failed").
+  // The policy failed, e.g., its module didn't load, or it made no choice, or
+  // not the asset that the page chooses itself, and the page made its own
+  // choice ("failed").
   kFailed = 3,
   kMaxValue = kFailed,
 };
@@ -107,13 +108,24 @@ class H5vccSchemeURLLoaderFactory final
   // kEnableCachedSplashFile, unless overridden for testing.
   static bool IsCachedSplashFileEnabled();
 
-  // Returns the built-in resource `name`, e.g., "splash.webm", or an empty span
-  // if there's none. The data has static storage duration.
-  static base::span<const uint8_t> GetBuiltInResource(const std::string& name);
+  // Returns the size of the built-in resource `name`, e.g., "splash.webm", or
+  // 0 if there's none, from the resource map that the loaders serve.
+  static size_t GetBuiltInResourceSize(const std::string& name);
 
   // The origin whose Cache API holds the splash screen assets that the WebApp
   // cached, e.g., "https://www.youtube.com/".
   static std::string GetSplashDomain();
+
+  // The largest splash screen asset that the WebApp cached that the loaders
+  // serve, in bytes. They serve the built-in asset instead of a larger one.
+  static uint64_t GetSplashContentSizeLimit();
+
+  // Binds `receiver` to the Cache API of `splash_domain` in `browser_context`,
+  // where the WebApp caches its splash screen assets.
+  static void BindSplashCacheStorage(
+      BrowserContext* browser_context,
+      const std::string& splash_domain,
+      mojo::PendingReceiver<blink::mojom::CacheStorage> receiver);
 
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(

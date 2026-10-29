@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -30,21 +31,14 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
-#include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/storage_partition.h"
-#include "content/public/browser/storage_partition_config.h"
-#include "services/network/public/cpp/cross_origin_embedder_policy.h"
-#include "services/network/public/cpp/document_isolation_policy.h"
-#include "third_party/blink/public/common/storage_key/storage_key.h"
-#include "url/origin.h"
+#include "url/gurl.h"
 
 namespace content {
 
 namespace {
 
-const char kUserDataKey[] = "SplashAssetList";
+constexpr char kUserDataKey[] = "SplashAssetList";
 
 // The built-in splash screen assets, embedded with splash.html.
 struct BuiltInAsset {
@@ -96,23 +90,6 @@ base::Value::Dict MakeAsset(std::string_view source,
   return asset;
 }
 
-// Binds `receiver` to the Cache API of `splash_domain`, as the loader does to
-// read the cached splash screen assets.
-void BindCacheStorage(
-    BrowserContext* browser_context,
-    const std::string& splash_domain,
-    mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
-  StoragePartition* storage_partition = browser_context->GetStoragePartition(
-      StoragePartitionConfig::CreateDefault(browser_context));
-  const blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(
-      url::Origin::Create(GURL(splash_domain)));
-  storage_partition->GetCacheStorageControl()->AddReceiver(
-      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-      network::DocumentIsolationPolicy(), mojo::NullRemote(),
-      storage::BucketLocator::ForDefaultBucket(storage_key),
-      storage::mojom::CacheStorageOwner::kCacheAPI, std::move(receiver));
-}
-
 }  // namespace
 
 // static
@@ -122,111 +99,103 @@ SplashAssetList* SplashAssetList::GetOrCreateForBrowserContext(
   auto* list =
       static_cast<SplashAssetList*>(browser_context->GetUserData(kUserDataKey));
   if (!list) {
-    const std::string splash_domain =
-        H5vccSchemeURLLoaderFactory::GetSplashDomain();
-    // The list is the BrowserContext's, so it doesn't outlive it.
-    auto owned_list = std::make_unique<SplashAssetList>(
-        splash_domain,
-        base::BindRepeating(&BindCacheStorage,
-                            base::Unretained(browser_context), splash_domain));
+    // Unretained: the list is the BrowserContext's, so it doesn't outlive it.
+    auto owned_list = std::make_unique<SplashAssetList>(base::BindRepeating(
+        &H5vccSchemeURLLoaderFactory::BindSplashCacheStorage,
+        base::Unretained(browser_context)));
     list = owned_list.get();
     browser_context->SetUserData(kUserDataKey, std::move(owned_list));
   }
   return list;
 }
 
-SplashAssetList::SplashAssetList(const std::string& splash_domain,
-                                 CacheStorageBinder bind_cache_storage)
-    : splash_domain_(splash_domain),
-      bind_cache_storage_(std::move(bind_cache_storage)) {}
+SplashAssetList::SplashAssetList(CacheStorageBinder bind_cache_storage)
+    : bind_cache_storage_(std::move(bind_cache_storage)) {}
 
 SplashAssetList::~SplashAssetList() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-void SplashAssetList::Start() {
+void SplashAssetList::Start(const std::string& cache_name) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (state_ == State::kListing) {
     return;
   }
   state_ = State::kListing;
+  cache_name_ = cache_name;
   start_time_ = base::TimeTicks::Now();
-  cache_names_.clear();
-  cached_sizes_.clear();
+  cached_sizes_.assign(kCachedAssetCount, std::nullopt);
   pending_lookups_ = 0;
   json_.reset();
 
   // splash.html only reads the cache with kEnableCachedSplashFile.
-  if (!H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled()) {
+  reads_cache_ = H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled();
+  if (!reads_cache_) {
     Finish(/*complete=*/true);
     return;
   }
 
+  const std::string splash_domain =
+      H5vccSchemeURLLoaderFactory::GetSplashDomain();
   // Unretained: `this` owns `cache_storage_` and `timeout_`, whose callbacks
   // are dropped when Finish() resets them.
-  bind_cache_storage_.Run(cache_storage_.BindNewPipeAndPassReceiver());
-  cache_storage_.set_disconnect_handler(base::BindOnce(
-      &SplashAssetList::Finish, base::Unretained(this), /*complete=*/false));
-  timeout_.Start(FROM_HERE, kTimeout,
-                 base::BindOnce(&SplashAssetList::Finish,
-                                base::Unretained(this), /*complete=*/false));
-  cache_storage_->Keys(
-      /*trace_id=*/0,
-      base::BindOnce(&SplashAssetList::OnCacheNames, base::Unretained(this)));
-}
-
-void SplashAssetList::Get(Callback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (state_ == State::kReady) {
-    std::move(callback).Run(json_);
-    return;
-  }
-  callbacks_.push_back(std::move(callback));
-  if (state_ == State::kIdle) {
-    Start();
-  }
-}
-
-void SplashAssetList::OnCacheNames(
-    const std::vector<std::u16string>& cache_names) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  cache_names_ = cache_names;
-  cached_sizes_.assign(cache_names_.size() * kCachedAssetCount, std::nullopt);
-  pending_lookups_ = cached_sizes_.size();
-  if (!pending_lookups_) {
-    Finish(/*complete=*/true);
-    return;
-  }
-  // Looks each asset up as the loader reads it, in a given cache, which
-  // neither creates the cache, as opening it would, nor reads every entry.
-  for (size_t lookup = 0; lookup < cached_sizes_.size(); ++lookup) {
+  bind_cache_storage_.Run(splash_domain,
+                          cache_storage_.BindNewPipeAndPassReceiver());
+  cache_storage_.set_disconnect_handler(
+      base::BindOnce(&SplashAssetList::OnDisconnect, base::Unretained(this)));
+  timeout_.Start(
+      FROM_HERE, kTimeout,
+      base::BindOnce(&SplashAssetList::OnTimeout, base::Unretained(this)));
+  // Looks each asset up as the loader reads it, in the cache `cache_name`
+  // only, which doesn't create the cache, as opening it would.
+  pending_lookups_ = kCachedAssetCount;
+  for (size_t index = 0; index < kCachedAssetCount; ++index) {
     auto request = blink::mojom::FetchAPIRequest::New();
-    request->url =
-        splash_domain_.Resolve(kCachedAssets[lookup % kCachedAssetCount].name);
+    request->url = GURL(splash_domain).Resolve(kCachedAssets[index].name);
     request->method = "GET";
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
     match_options->query_options = blink::mojom::CacheQueryOptions::New();
-    match_options->cache_name = cache_names_[lookup / kCachedAssetCount];
+    match_options->cache_name = base::UTF8ToUTF16(cache_name_);
     cache_storage_->Match(std::move(request), std::move(match_options),
                           /*in_related_fetch_event=*/false,
                           /*in_range_fetch_event=*/false,
                           /*trace_id=*/0,
                           base::BindOnce(&SplashAssetList::OnCacheMatched,
-                                         base::Unretained(this), lookup));
+                                         base::Unretained(this), index));
   }
 }
 
-void SplashAssetList::OnCacheMatched(size_t lookup,
+void SplashAssetList::Get(const std::string& cache_name, Callback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (state_ == State::kIdle) {
+    callbacks_.push_back(std::move(callback));
+    Start(cache_name);
+    return;
+  }
+  if (cache_name != cache_name_) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  if (state_ == State::kReady) {
+    std::move(callback).Run(json_);
+    return;
+  }
+  callbacks_.push_back(std::move(callback));
+}
+
+void SplashAssetList::OnCacheMatched(size_t index,
                                      blink::mojom::MatchResultPtr result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (result->is_status()) {
-    // As for the loader, a missing entry, or a cache deleted since it was
-    // listed, is a cache miss, while other errors leave the list incomplete.
+    // As for the loader, a missing entry or cache is a cache miss, while
+    // other errors leave the list incomplete.
     const blink::mojom::CacheStorageError status = result->get_status();
     if (status != blink::mojom::CacheStorageError::kErrorNotFound &&
         status != blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
-      LOG(WARNING) << "Failed to list the cached splash screen assets: "
-                   << static_cast<int>(status);
+      LOG(WARNING) << "Couldn't list the cached splash screen assets: looking "
+                   << kCachedAssets[index].name << " up in cache "
+                   << cache_name_ << " failed with " << static_cast<int>(status)
+                   << ".";
       Finish(/*complete=*/false);
       return;
     }
@@ -234,36 +203,60 @@ void SplashAssetList::OnCacheMatched(size_t lookup,
     const blink::mojom::FetchAPIResponsePtr& response =
         result->is_response() ? result->get_response()
                               : result->get_eager_response()->response;
-    cached_sizes_[lookup] = response->blob ? response->blob->size : 0;
+    // Only an asset that the loader would serve, which serves the built-in
+    // asset instead of an empty or oversize one.
+    if (response->blob && response->blob->size > 0 &&
+        response->blob->size <=
+            H5vccSchemeURLLoaderFactory::GetSplashContentSizeLimit()) {
+      cached_sizes_[index] = response->blob->size;
+    }
   }
-  DCHECK_GT(pending_lookups_, 0u);
+  CHECK_GT(pending_lookups_, 0u);
   if (!--pending_lookups_) {
     Finish(/*complete=*/true);
   }
 }
 
+void SplashAssetList::OnTimeout() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  LOG(WARNING) << "Couldn't list the cached splash screen assets within "
+               << kTimeout.InMilliseconds() << " ms.";
+  Finish(/*complete=*/false);
+}
+
+void SplashAssetList::OnDisconnect() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  LOG(WARNING) << "Couldn't list the cached splash screen assets: the Cache "
+                  "API disconnected.";
+  Finish(/*complete=*/false);
+}
+
 void SplashAssetList::Finish(bool complete) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(state_ == State::kListing);
+  CHECK(state_ == State::kListing);
   timeout_.Stop();
   cache_storage_.reset();
-  const base::TimeDelta elapsed = base::TimeTicks::Now() - start_time_;
-  base::UmaHistogramTimes("Cobalt.SplashScreen.WasmPolicy.AssetListTime",
-                          elapsed);
   if (complete) {
     json_ = ToJson();
-    VLOG(1) << "Listed the splash screen assets in " << elapsed.InMilliseconds()
-            << " ms: " << *json_;
-  } else {
-    LOG(WARNING) << "Couldn't list all the cached splash screen assets, in "
-                 << elapsed.InMilliseconds() << " ms.";
+    if (reads_cache_) {
+      // How long the list took to be ready, when reading the cache.
+      const base::TimeDelta elapsed = base::TimeTicks::Now() - start_time_;
+      base::UmaHistogramTimes("Cobalt.SplashScreen.WasmPolicy.AssetListTime",
+                              elapsed);
+      VLOG(1) << "Listed the splash screen assets of cache " << cache_name_
+              << " in " << elapsed.InMilliseconds() << " ms: " << *json_;
+    } else {
+      VLOG(1) << "Listed the built-in splash screen assets: " << *json_;
+    }
   }
   state_ = State::kReady;
 
+  // A callback may start listing again, which resets `json_`.
+  const std::optional<std::string> json = json_;
   std::vector<Callback> callbacks;
   callbacks.swap(callbacks_);
   for (Callback& callback : callbacks) {
-    std::move(callback).Run(json_);
+    std::move(callback).Run(json);
   }
 }
 
@@ -271,28 +264,24 @@ std::string SplashAssetList::ToJson() const {
   base::Value::List assets;
   for (const BuiltInAsset& asset : kBuiltInAssets) {
     const size_t bytes =
-        H5vccSchemeURLLoaderFactory::GetBuiltInResource(asset.name).size();
+        H5vccSchemeURLLoaderFactory::GetBuiltInResourceSize(asset.name);
     if (bytes) {
       assets.Append(MakeAsset("builtin", "", asset.name, asset.is_video,
                               asset.topic, asset.width, asset.height, bytes));
     }
   }
-  for (size_t lookup = 0; lookup < cached_sizes_.size(); ++lookup) {
-    if (!cached_sizes_[lookup]) {
+  for (size_t index = 0; index < kCachedAssetCount; ++index) {
+    if (!cached_sizes_[index]) {
       continue;
     }
-    const std::string cache_name =
-        base::UTF16ToUTF8(cache_names_[lookup / kCachedAssetCount]);
-    const CachedAsset& asset = kCachedAssets[lookup % kCachedAssetCount];
+    const CachedAsset& asset = kCachedAssets[index];
     // The cache's name is the splash screen's topic, as for splash.html. The
     // asset's dimensions aren't known without reading it.
-    assets.Append(MakeAsset("cache", cache_name, asset.name, asset.is_video,
-                            cache_name, /*width=*/0, /*height=*/0,
-                            *cached_sizes_[lookup]));
+    assets.Append(MakeAsset("cache", cache_name_, asset.name, asset.is_video,
+                            cache_name_, /*width=*/0, /*height=*/0,
+                            *cached_sizes_[index]));
   }
-  std::string json;
-  base::JSONWriter::Write(assets, &json);
-  return json;
+  return base::WriteJson(assets).value_or("[]");
 }
 
 }  // namespace content

@@ -26,7 +26,9 @@
 //
 // The module needs no imports, nor libc. splash.html writes one Candidate per
 // asset to items_buffer(), at most max_items() of them, then calls choose(),
-// which returns the index of the asset to show.
+// which returns the index of the asset to show. splash.html also passes the
+// width and size of each asset, for policies that weigh them, which this one
+// doesn't.
 //
 // splash_policy.wasm is checked in next to splash.html. After changing this
 // file, rebuild it from cobalt/shell/embedded_resources/ with Chromium's clang:
@@ -36,6 +38,10 @@
 //     -Wl,--export=max_items -Wl,--export=choose \
 //     -o loader_embedded_resources/splash_policy.wasm \
 //     splash_policy/splash_policy.c
+// then update the following. The checked-in splash_policy.wasm was built so
+// with clang 21.0.0git, llvm-project fd3fecfc0936703f2715fe6fea890e81b0b3c2ac,
+// and its SHA-256 is:
+//   2e1f60de83c42726abb4e6d85e94e404d4d6017e3d9ee22aaaa5a0f840def0cd
 
 // Provided by the compiler, without libc.
 #include <stdint.h>
@@ -46,12 +52,12 @@ struct Candidate {
   uint8_t kind;      // 0: image, 1: video.
   uint8_t topic;     // 0: default, 1: music.
   uint8_t playable;  // Whether the platform plays it: 0 or 1.
-  uint16_t width;    // In pixels, 0 if unknown.
+  uint16_t width;    // In pixels, 0 if unknown. Unused here.
   uint16_t height;   // In pixels, 0 if unknown.
-  uint32_t bytes;    // The size of the asset.
+  uint32_t bytes;    // The size of the asset. Unused here.
 };
 
-// The flags of choose().
+// The flags of choose(). The value 2 is unused.
 enum {
   kVp9 = 1,         // The platform plays VP9 videos.
   kForceImage = 4,  // The splash screen shows its image.
@@ -84,15 +90,11 @@ int choose(int count, int flags, int topic) {
     if (!c->playable || want_image != (c->kind == 0)) {
       continue;
     }
-    // The launch's topic first, then what the WebApp cached, then the highest
-    // resolution that the platform plays.
-    int score = c->height;
-    if (c->source == 1) {
-      score += 10000;
-    }
-    if (c->topic == topic) {
-      score += 100000;
-    }
+    // In order: the launch's topic, then what the WebApp cached, then the
+    // highest resolution that the platform plays. Of equal candidates, the
+    // first wins.
+    const int score =
+        ((c->topic == topic) << 17) | ((c->source == 1) << 16) | c->height;
     if (score > best_score) {
       best_score = score;
       best = i;

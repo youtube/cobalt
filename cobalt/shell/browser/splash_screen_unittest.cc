@@ -13,14 +13,17 @@
 // limitations under the License.
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "cobalt/shell/browser/splash_asset_list.h"
 #include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -759,6 +762,56 @@ TEST_F(SplashScreenTest, SplashUrlDefaultsToBuiltInSplashScreen) {
   EXPECT_EQ(
       GetPendingSplashScreenURL(shell),
       GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// With SplashWasmPolicy, the splash screen chooses its asset with its
+// WebAssembly policy, from the assets that Shell starts listing, those of the
+// cache of the splash screen's topic. Without EnableCachedSplashFile, the list
+// is ready at once, as the cache isn't read.
+TEST_F(SplashScreenTest, SplashUrlHasWasmPolicyParameter) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {cobalt::features::kSplashWasmPolicy},
+      {cobalt::features::kForceVideoSplashScreen,
+       cobalt::features::kEnableCachedSplashFile});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL(std::string(switches::kSplashScreenURL) +
+                 "?force_image=true&wasm_policy=true"));
+  base::test::TestFuture<std::optional<std::string>> list;
+  SplashAssetList::GetOrCreateForBrowserContext(browser_context())
+      ->Get("default", list.GetCallback());
+  ASSERT_TRUE(list.IsReady());
+  EXPECT_TRUE(list.Get().has_value());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, SplashUrlHasTopicAndWasmPolicyParameters) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {cobalt::features::kSplashWasmPolicy},
+      {cobalt::features::kForceVideoSplashScreen,
+       cobalt::features::kEnableCachedSplashFile});
+  Shell* shell = CreateShellWithSplashScreen(/*topic=*/"music");
+
+  CallLoadSplashScreenWebContents(shell);
+  EXPECT_EQ(GetPendingSplashScreenURL(shell),
+            GURL(std::string(switches::kSplashScreenURL) +
+                 "?force_image=true&cache=music&wasm_policy=true"));
+  base::test::TestFuture<std::optional<std::string>> list;
+  SplashAssetList::GetOrCreateForBrowserContext(browser_context())
+      ->Get("music", list.GetCallback());
+  ASSERT_TRUE(list.IsReady());
+  EXPECT_TRUE(list.Get().has_value());
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
