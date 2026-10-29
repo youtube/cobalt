@@ -1,0 +1,71 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Hitbox: 5px total clickable area (via ::before extending beyond visible area)
+// Accent: 3px visible hover area
+// Border: 1px visible line when not hovering
+$hitbox: 2px; // Extra clickable area on each side
+$accent: 1px;
+$thickness: 1px;
+
+.pf-resize-handle {
+  z-index: 10;
+  touch-action: none;
+  position: relative;
+  background-color: var(--pf-color-border);
+  flex-shrink: 0;
+
+  &::before {
+    content: "";
+    position: absolute;
+  }
+
+  &:hover {
+    &::after {
+      content: "";
+      position: absolute;
+      background: var(--pf-color-accent);
+    }
+  }
+
+  // Vertical variant (horizontal bar for top/bottom dragging)
+  &--vertical {
+    cursor: row-resize;
+    width: 100%;
+    height: $thickness;
+
+    &::before {
+      inset: (-$hitbox) 0;
+    }
+
+    &::after {
+      inset: (-$accent) 0;
+    }
+  }
+
+  // Horizontal variant (vertical bar for left/right dragging)
+  &--horizontal {
+    cursor: col-resize;
+    width: $thickness;
+    height: 100%;
+
+    &::before {
+      inset: 0 (-$hitbox);
+    }
+
+    &::after {
+      inset: 0 (-$accent);
+    }
+  }
+}

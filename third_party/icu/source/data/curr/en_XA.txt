@@ -1,0 +1,2465 @@
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/
+en_XA{
+    Currencies{
+        ADP{
+            "ADP",
+            "[Åñðöŕŕåñ Þéšéţå one two three]",
+        }
+        AED{
+            "[ÅÉÐ one]",
+            "[Ûñîţéð Åŕåƀ Éɱîŕåţéš Ðîŕĥåɱ one two three four]",
+        }
+        AFA{
+            "AFA",
+            "[Åƒĝĥåñ Åƒĝĥåñî (①⑨②⑦–②⓪⓪②) one two three]",
+        }
+        AFN{
+            "[ÅƑÑ one]",
+            "[Åƒĝĥåñ Åƒĝĥåñî one two]",
+        }
+        ALK{
+            "ALK",
+            "[Åļƀåñîåñ Ļéķ (①⑨④⑥–①⑨⑥⑤) one two three]",
+        }
+        ALL{
+            "[ÅĻĻ one]",
+            "[Åļƀåñîåñ Ļéķ one two]",
+        }
+        AMD{
+            "[ÅṀÐ one]",
+            "[Åŕɱéñîåñ Ðŕåɱ one two]",
+        }
+        ANG{
+            "[ÅÑĜ one]",
+            "[Ñéţĥéŕļåñðš Åñţîļļéåñ Ĝûîļðéŕ one two three four]",
+        }
+        AOA{
+            "[ÅÖÅ one]",
+            "[Åñĝöļåñ Ķŵåñžå one two]",
+        }
+        AOK{
+            "AOK",
+            "[Åñĝöļåñ Ķŵåñžå (①⑨⑦⑦–①⑨⑨①) one two three]",
+        }
+        AON{
+            "AON",
+            "[Åñĝöļåñ Ñéŵ Ķŵåñžå (①⑨⑨⓪–②⓪⓪⓪) one two three four]",
+        }
+        AOR{
+            "AOR",
+            "[Åñĝöļåñ Ŕéåðĵûšţéð Ķŵåñžå (①⑨⑨⑤–①⑨⑨⑨) one two three four five]",
+        }
+        ARA{
+            "ARA",
+            "[Åŕĝéñţîñé Åûšţŕåļ one two three]",
+        }
+        ARL{
+            "ARL",
+            "[Åŕĝéñţîñé Þéšö Ļéý (①⑨⑦⓪–①⑨⑧③) one two three four]",
+        }
+        ARM{
+            "ARM",
+            "[Åŕĝéñţîñé Þéšö (①⑧⑧①–①⑨⑦⓪) one two three]",
+        }
+        ARP{
+            "ARP",
+            "[Åŕĝéñţîñé Þéšö (①⑨⑧③–①⑨⑧⑤) one two three]",
+        }
+        ARS{
+            "[ÅŔŠ one]",
+            "[Åŕĝéñţîñé Þéšö one two]",
+        }
+        ATS{
+            "ATS",
+            "[Åûšţŕîåñ Šçĥîļļîñĝ one two three]",
+        }
+        AUD{
+            "[Å€ one]",
+            "[Åûšţŕåļîåñ Ðöļļåŕ one two three]",
+        }
+        AWG{
+            "[ÅŴĜ one]",
+            "[Åŕûƀåñ Ƒļöŕîñ one two]",
+        }
+        AZM{
+            "AZM",
+            "[Åžéŕƀåîĵåñî Ṁåñåţ (①⑨⑨③–②⓪⓪⑥) one two three four]",
+        }
+        AZN{
+            "[ÅŽÑ one]",
+            "[Åžéŕƀåîĵåñî Ṁåñåţ one two three]",
+        }
+        BAD{
+            "BAD",
+            "[Ɓöšñîå‐Ĥéŕžéĝöṽîñå Ðîñåŕ (①⑨⑨②–①⑨⑨④) one two three four]",
+        }
+        BAM{
+            "[ƁÅṀ one]",
+            "[Ɓöšñîå‐Ĥéŕžéĝöṽîñå Çöñṽéŕţîƀļé Ṁåŕķ one two three four]",
+        }
+        BAN{
+            "BAN",
+            "[Ɓöšñîå‐Ĥéŕžéĝöṽîñå Ñéŵ Ðîñåŕ (①⑨⑨④–①⑨⑨⑦) one two three four five]",
+        }
+        BBD{
+            "[ƁƁÐ one]",
+            "[Ɓåŕƀåðîåñ Ðöļļåŕ one two three]",
+        }
+        BDT{
+            "[ƁÐŢ one]",
+            "[Ɓåñĝļåðéšĥî Ţåķå one two three]",
+        }
+        BEC{
+            "BEC",
+            "[Ɓéļĝîåñ Ƒŕåñç (çöñṽéŕţîƀļé) one two three four]",
+        }
+        BEF{
+            "BEF",
+            "[Ɓéļĝîåñ Ƒŕåñç one two]",
+        }
+        BEL{
+            "BEL",
+            "[Ɓéļĝîåñ Ƒŕåñç (ƒîñåñçîåļ) one two three]",
+        }
+        BGL{
+            "BGL",
+            "[Ɓûļĝåŕîåñ Ĥåŕð Ļéṽ one two three]",
+        }
+        BGM{
+            "BGM",
+            "[Ɓûļĝåŕîåñ Šöçîåļîšţ Ļéṽ one two three]",
+        }
+        BGN{
+            "[ƁĜÑ one]",
+            "[Ɓûļĝåŕîåñ Ļéṽ one two]",
+        }
+        BGO{
+            "BGO",
+            "[Ɓûļĝåŕîåñ Ļéṽ (①⑧⑦⑨–①⑨⑤②) one two three]",
+        }
+        BHD{
+            "[ƁĤÐ one]",
+            "[Ɓåĥŕåîñî Ðîñåŕ one two]",
+        }
+        BIF{
+            "[ƁÎƑ one]",
+            "[Ɓûŕûñðîåñ Ƒŕåñç one two three]",
+        }
+        BMD{
+            "[ƁṀÐ one]",
+            "[Ɓéŕɱûðåñ Ðöļļåŕ one two three]",
+        }
+        BND{
+            "[ƁÑÐ one]",
+            "[Ɓŕûñéî Ðöļļåŕ one two]",
+        }
+        BOB{
+            "[ƁÖƁ one]",
+            "[Ɓöļîṽîåñ Ɓöļîṽîåñö one two three]",
+        }
+        BOL{
+            "BOL",
+            "[Ɓöļîṽîåñ Ɓöļîṽîåñö (①⑧⑥③–①⑨⑥③) one two three four]",
+        }
+        BOP{
+            "BOP",
+            "[Ɓöļîṽîåñ Þéšö one two]",
+        }
+        BOV{
+            "BOV",
+            "[Ɓöļîṽîåñ Ṁṽðöļ one two]",
+        }
+        BRB{
+            "BRB",
+            "[Ɓŕåžîļîåñ Ñéŵ Çŕûžéîŕö (①⑨⑥⑦–①⑨⑧⑥) one two three four]",
+        }
+        BRC{
+            "BRC",
+            "[Ɓŕåžîļîåñ Çŕûžåðö (①⑨⑧⑥–①⑨⑧⑨) one two three four]",
+        }
+        BRE{
+            "BRE",
+            "[Ɓŕåžîļîåñ Çŕûžéîŕö (①⑨⑨⓪–①⑨⑨③) one two three four]",
+        }
+        BRL{
+            "[Ŕ€ one]",
+            "[Ɓŕåžîļîåñ Ŕéåļ one two]",
+        }
+        BRN{
+            "BRN",
+            "[Ɓŕåžîļîåñ Ñéŵ Çŕûžåðö (①⑨⑧⑨–①⑨⑨⓪) one two three four]",
+        }
+        BRR{
+            "BRR",
+            "[Ɓŕåžîļîåñ Çŕûžéîŕö (①⑨⑨③–①⑨⑨④) one two three four]",
+        }
+        BRZ{
+            "BRZ",
+            "[Ɓŕåžîļîåñ Çŕûžéîŕö (①⑨④②–①⑨⑥⑦) one two three four]",
+        }
+        BSD{
+            "[ƁŠÐ one]",
+            "[Ɓåĥåɱîåñ Ðöļļåŕ one two three]",
+        }
+        BTN{
+            "[ƁŢÑ one]",
+            "[Ɓĥûţåñéšé Ñĝûļţŕûɱ one two three]",
+        }
+        BUK{
+            "BUK",
+            "[Ɓûŕɱéšé Ķýåţ one two]",
+        }
+        BWP{
+            "[ƁŴÞ one]",
+            "[Ɓöţšŵåñåñ Þûļå one two]",
+        }
+        BYB{
+            "BYB",
+            "[Ɓéļåŕûšîåñ Ŕûƀļé (①⑨⑨④–①⑨⑨⑨) one two three four]",
+        }
+        BYN{
+            "[ƁÝÑ one]",
+            "[Ɓéļåŕûšîåñ Ŕûƀļé one two three]",
+        }
+        BYR{
+            "BYR",
+            "[Ɓéļåŕûšîåñ Ŕûƀļé (②⓪⓪⓪–②⓪①⑥) one two three four]",
+        }
+        BZD{
+            "[ƁŽÐ one]",
+            "[Ɓéļîžé Ðöļļåŕ one two]",
+        }
+        CAD{
+            "[ÇÅ€ one]",
+            "[Çåñåðîåñ Ðöļļåŕ one two three]",
+        }
+        CDF{
+            "[ÇÐƑ one]",
+            "[Çöñĝöļéšé Ƒŕåñç one two three]",
+        }
+        CHE{
+            "CHE",
+            "[ŴÎŔ Éûŕö one two]",
+        }
+        CHF{
+            "[ÇĤƑ one]",
+            "[Šŵîšš Ƒŕåñç one two]",
+        }
+        CHW{
+            "CHW",
+            "[ŴÎŔ Ƒŕåñç one two]",
+        }
+        CLE{
+            "CLE",
+            "[Çĥîļéåñ Éšçûðö one two]",
+        }
+        CLF{
+            "CLF",
+            "[Çĥîļéåñ Ûñîţ öƒ Åççöûñţ (ÛƑ) one two three four]",
+        }
+        CLP{
+            "[ÇĻÞ one]",
+            "[Çĥîļéåñ Þéšö one two]",
+        }
+        CNH{
+            "[ÇÑĤ one]",
+            "[Çĥîñéšé Ýûåñ (öƒƒšĥöŕé) one two three]",
+        }
+        CNX{
+            "CNX",
+            "[Çĥîñéšé Þéöþļé’š Ɓåñķ Ðöļļåŕ one two three four]",
+        }
+        CNY{
+            "[ÇÑ¥ one]",
+            "[Çĥîñéšé Ýûåñ one two]",
+        }
+        COP{
+            "[ÇÖÞ one]",
+            "[Çöļöɱƀîåñ Þéšö one two]",
+        }
+        COU{
+            "COU",
+            "[Çöļöɱƀîåñ Ŕéåļ Ṽåļûé Ûñîţ one two three]",
+        }
+        CRC{
+            "[ÇŔÇ one]",
+            "[Çöšţå Ŕîçåñ Çöļóñ one two three]",
+        }
+        CSD{
+            "CSD",
+            "[Šéŕƀîåñ Ðîñåŕ (②⓪⓪②–②⓪⓪⑥) one two three]",
+        }
+        CSK{
+            "CSK",
+            "[Çžéçĥöšļöṽåķ Ĥåŕð Ķöŕûñå one two three]",
+        }
+        CUC{
+            "[ÇÛÇ one]",
+            "[Çûƀåñ Çöñṽéŕţîƀļé Þéšö one two three]",
+        }
+        CUP{
+            "[ÇÛÞ one]",
+            "[Çûƀåñ Þéšö one two]",
+        }
+        CVE{
+            "[ÇṼÉ one]",
+            "[Çåþé Ṽéŕðéåñ Éšçûðö one two three]",
+        }
+        CYP{
+            "CYP",
+            "[Çýþŕîöţ Þöûñð one two]",
+        }
+        CZK{
+            "[ÇŽĶ one]",
+            "[Çžéçĥ Ķöŕûñå one two]",
+        }
+        DDM{
+            "DDM",
+            "[Éåšţ Ĝéŕɱåñ Ṁåŕķ one two three]",
+        }
+        DEM{
+            "DEM",
+            "[Ĝéŕɱåñ Ṁåŕķ one two]",
+        }
+        DJF{
+            "[ÐĴƑ one]",
+            "[Ðĵîƀöûţîåñ Ƒŕåñç one two three]",
+        }
+        DKK{
+            "[ÐĶĶ one]",
+            "[Ðåñîšĥ Ķŕöñé one two]",
+        }
+        DOP{
+            "[ÐÖÞ one]",
+            "[Ðöɱîñîçåñ Þéšö one two]",
+        }
+        DZD{
+            "[ÐŽÐ one]",
+            "[Åļĝéŕîåñ Ðîñåŕ one two]",
+        }
+        ECS{
+            "ECS",
+            "[Éçûåðöŕîåñ Šûçŕé one two three]",
+        }
+        ECV{
+            "ECV",
+            "[Éçûåðöŕîåñ Ûñîţ öƒ Çöñšţåñţ Ṽåļûé one two three four]",
+        }
+        EEK{
+            "EEK",
+            "[Éšţöñîåñ Ķŕööñ one two]",
+        }
+        EGP{
+            "[ÉĜÞ one]",
+            "[Éĝýþţîåñ Þöûñð one two]",
+        }
+        ERN{
+            "[ÉŔÑ one]",
+            "[Éŕîţŕéåñ Ñåķƒå one two]",
+        }
+        ESA{
+            "ESA",
+            "[Šþåñîšĥ Þéšéţå (Å åççöûñţ) one two three]",
+        }
+        ESB{
+            "ESB",
+            "[Šþåñîšĥ Þéšéţå (çöñṽéŕţîƀļé åççöûñţ) one two three four]",
+        }
+        ESP{
+            "ESP",
+            "[Šþåñîšĥ Þéšéţå one two]",
+        }
+        ETB{
+            "[ÉŢƁ one]",
+            "[Éţĥîöþîåñ Ɓîŕŕ one two]",
+        }
+        EUR{
+            "[€ one]",
+            "[Éûŕö one]",
+        }
+        FIM{
+            "FIM",
+            "[Ƒîññîšĥ Ṁåŕķķå one two]",
+        }
+        FJD{
+            "[ƑĴÐ one]",
+            "[Ƒîĵîåñ Ðöļļåŕ one two]",
+        }
+        FKP{
+            "[ƑĶÞ one]",
+            "[Ƒåļķļåñð Îšļåñðš Þöûñð one two three]",
+        }
+        FRF{
+            "FRF",
+            "[Ƒŕéñçĥ Ƒŕåñç one two]",
+        }
+        GBP{
+            "[£ one]",
+            "[Ɓŕîţîšĥ Þöûñð one two]",
+        }
+        GEK{
+            "GEK",
+            "[Ĝéöŕĝîåñ Ķûþöñ Ļåŕîţ one two three]",
+        }
+        GEL{
+            "[ĜÉĻ one]",
+            "[Ĝéöŕĝîåñ Ļåŕî one two]",
+        }
+        GHC{
+            "GHC",
+            "[Ĝĥåñåîåñ Çéðî (①⑨⑦⑨–②⓪⓪⑦) one two three]",
+        }
+        GHS{
+            "[ĜĤŠ one]",
+            "[Ĝĥåñåîåñ Çéðî one two]",
+        }
+        GIP{
+            "[ĜÎÞ one]",
+            "[Ĝîƀŕåļţåŕ Þöûñð one two three]",
+        }
+        GMD{
+            "[ĜṀÐ one]",
+            "[Ĝåɱƀîåñ Ðåļåšî one two]",
+        }
+        GNF{
+            "[ĜÑƑ one]",
+            "[Ĝûîñéåñ Ƒŕåñç one two]",
+        }
+        GNS{
+            "GNS",
+            "[Ĝûîñéåñ Šýļî one two]",
+        }
+        GQE{
+            "GQE",
+            "[Éǫûåţöŕîåļ Ĝûîñéåñ Éķŵéļé one two three]",
+        }
+        GRD{
+            "GRD",
+            "[Ĝŕééķ Ðŕåçĥɱå one two]",
+        }
+        GTQ{
+            "[ĜŢǪ one]",
+            "[Ĝûåţéɱåļåñ Ǫûéţžåļ one two three]",
+        }
+        GWE{
+            "GWE",
+            "[Þöŕţûĝûéšé Ĝûîñéå Éšçûðö one two three]",
+        }
+        GWP{
+            "GWP",
+            "[Ĝûîñéå‐Ɓîššåû Þéšö one two three]",
+        }
+        GYD{
+            "[ĜÝÐ one]",
+            "[Ĝûýåñåéšé Ðöļļåŕ one two three]",
+        }
+        HKD{
+            "[ĤĶ€ one]",
+            "[Ĥöñĝ Ķöñĝ Ðöļļåŕ one two three]",
+        }
+        HNL{
+            "[ĤÑĻ one]",
+            "[Ĥöñðûŕåñ Ļéɱþîŕå one two three]",
+        }
+        HRD{
+            "HRD",
+            "[Çŕöåţîåñ Ðîñåŕ one two]",
+        }
+        HRK{
+            "[ĤŔĶ one]",
+            "[Çŕöåţîåñ Ķûñå one two]",
+        }
+        HTG{
+            "[ĤŢĜ one]",
+            "[Ĥåîţîåñ Ĝöûŕðé one two]",
+        }
+        HUF{
+            "[ĤÛƑ one]",
+            "[Ĥûñĝåŕîåñ Ƒöŕîñţ one two three]",
+        }
+        IDR{
+            "[ÎÐŔ one]",
+            "[Îñðöñéšîåñ Ŕûþîåĥ one two three]",
+        }
+        IEP{
+            "IEP",
+            "[Îŕîšĥ Þöûñð one two]",
+        }
+        ILP{
+            "ILP",
+            "[Îšŕåéļî Þöûñð one two]",
+        }
+        ILR{
+            "ILR",
+            "[Îšŕåéļî Šĥéķéļ (①⑨⑧⓪–①⑨⑧⑤) one two three]",
+        }
+        ILS{
+            "[₪ one]",
+            "[Îšŕåéļî Ñéŵ Šĥéķéļ one two three]",
+        }
+        INR{
+            "[₹ one]",
+            "[Îñðîåñ Ŕûþéé one two]",
+        }
+        IQD{
+            "[ÎǪÐ one]",
+            "[Îŕåǫî Ðîñåŕ one two]",
+        }
+        IRR{
+            "[ÎŔŔ one]",
+            "[Îŕåñîåñ Ŕîåļ one two]",
+        }
+        ISJ{
+            "ISJ",
+            "[Îçéļåñðîç Ķŕóñå (①⑨①⑧–①⑨⑧①) one two three four]",
+        }
+        ISK{
+            "[ÎŠĶ one]",
+            "[Îçéļåñðîç Ķŕóñå one two three]",
+        }
+        ITL{
+            "ITL",
+            "[Îţåļîåñ Ļîŕå one two]",
+        }
+        JMD{
+            "[ĴṀÐ one]",
+            "[Ĵåɱåîçåñ Ðöļļåŕ one two three]",
+        }
+        JOD{
+            "[ĴÖÐ one]",
+            "[Ĵöŕðåñîåñ Ðîñåŕ one two three]",
+        }
+        JPY{
+            "[¥ one]",
+            "[Ĵåþåñéšé Ýéñ one two]",
+        }
+        KES{
+            "[ĶÉŠ one]",
+            "[Ķéñýåñ Šĥîļļîñĝ one two three]",
+        }
+        KGS{
+            "[ĶĜŠ one]",
+            "[Ķýŕĝýž Šöɱ one two]",
+        }
+        KHR{
+            "[ĶĤŔ one]",
+            "[Çåɱƀöðîåñ Ŕîéļ one two]",
+        }
+        KMF{
+            "[ĶṀƑ one]",
+            "[Çöɱöŕîåñ Ƒŕåñç one two]",
+        }
+        KPW{
+            "[ĶÞŴ one]",
+            "[Ñöŕţĥ Ķöŕéåñ Ŵöñ one two three]",
+        }
+        KRH{
+            "KRH",
+            "[Šöûţĥ Ķöŕéåñ Ĥŵåñ (①⑨⑤③–①⑨⑥②) one two three four]",
+        }
+        KRO{
+            "KRO",
+            "[Šöûţĥ Ķöŕéåñ Ŵöñ (①⑨④⑤–①⑨⑤③) one two three four]",
+        }
+        KRW{
+            "[₩ one]",
+            "[Šöûţĥ Ķöŕéåñ Ŵöñ one two three]",
+        }
+        KWD{
+            "[ĶŴÐ one]",
+            "[Ķûŵåîţî Ðîñåŕ one two]",
+        }
+        KYD{
+            "[ĶÝÐ one]",
+            "[Çåýɱåñ Îšļåñðš Ðöļļåŕ one two three]",
+        }
+        KZT{
+            "[ĶŽŢ one]",
+            "[Ķåžåķĥšţåñî Ţéñĝé one two three]",
+        }
+        LAK{
+            "[ĻÅĶ one]",
+            "[Ļåöţîåñ Ķîþ one two]",
+        }
+        LBP{
+            "[ĻƁÞ one]",
+            "[Ļéƀåñéšé Þöûñð one two]",
+        }
+        LKR{
+            "[ĻĶŔ one]",
+            "[Šŕî Ļåñķåñ Ŕûþéé one two three]",
+        }
+        LRD{
+            "[ĻŔÐ one]",
+            "[Ļîƀéŕîåñ Ðöļļåŕ one two three]",
+        }
+        LSL{
+            "[ĻŠĻ one]",
+            "[Ļéšöţĥö Ļöţî one two]",
+        }
+        LTL{
+            "LTL",
+            "[Ļîţĥûåñîåñ Ļîţåš one two three]",
+        }
+        LTT{
+            "LTT",
+            "[Ļîţĥûåñîåñ Ţåļöñåš one two three]",
+        }
+        LUC{
+            "LUC",
+            "[Ļûẋéɱƀöûŕĝîåñ Çöñṽéŕţîƀļé Ƒŕåñç one two three four]",
+        }
+        LUF{
+            "LUF",
+            "[Ļûẋéɱƀöûŕĝîåñ Ƒŕåñç one two three]",
+        }
+        LUL{
+            "LUL",
+            "[Ļûẋéɱƀöûŕĝ Ƒîñåñçîåļ Ƒŕåñç one two three]",
+        }
+        LVL{
+            "LVL",
+            "[Ļåţṽîåñ Ļåţš one two]",
+        }
+        LVR{
+            "LVR",
+            "[Ļåţṽîåñ Ŕûƀļé one two]",
+        }
+        LYD{
+            "[ĻÝÐ one]",
+            "[Ļîƀýåñ Ðîñåŕ one two]",
+        }
+        MAD{
+            "[ṀÅÐ one]",
+            "[Ṁöŕöççåñ Ðîŕĥåɱ one two three]",
+        }
+        MAF{
+            "MAF",
+            "[Ṁöŕöççåñ Ƒŕåñç one two]",
+        }
+        MCF{
+            "MCF",
+            "[Ṁöñéĝåšǫûé Ƒŕåñç one two three]",
+        }
+        MDC{
+            "MDC",
+            "[Ṁöļðöṽåñ Çûþöñ one two]",
+        }
+        MDL{
+            "[ṀÐĻ one]",
+            "[Ṁöļðöṽåñ Ļéû one two]",
+        }
+        MGA{
+            "[ṀĜÅ one]",
+            "[Ṁåļåĝåšý Åŕîåŕý one two three]",
+        }
+        MGF{
+            "MGF",
+            "[Ṁåļåĝåšý Ƒŕåñç one two]",
+        }
+        MKD{
+            "[ṀĶÐ one]",
+            "[Ṁåçéðöñîåñ Ðéñåŕ one two three]",
+        }
+        MKN{
+            "MKN",
+            "[Ṁåçéðöñîåñ Ðéñåŕ (①⑨⑨②–①⑨⑨③) one two three four]",
+        }
+        MLF{
+            "MLF",
+            "[Ṁåļîåñ Ƒŕåñç one two]",
+        }
+        MMK{
+            "[ṀṀĶ one]",
+            "[Ṁýåñɱåŕ Ķýåţ one two]",
+        }
+        MNT{
+            "[ṀÑŢ one]",
+            "[Ṁöñĝöļîåñ Ţûĝŕîķ one two three]",
+        }
+        MOP{
+            "[ṀÖÞ one]",
+            "[Ṁåçåñéšé Þåţåçå one two three]",
+        }
+        MRO{
+            "MRO",
+            "[Ṁåûŕîţåñîåñ Öûĝûîýå (①⑨⑦③–②⓪①⑦) one two three four]",
+        }
+        MRU{
+            "[ṀŔÛ one]",
+            "[Ṁåûŕîţåñîåñ Öûĝûîýå one two three]",
+        }
+        MTL{
+            "MTL",
+            "[Ṁåļţéšé Ļîŕå one two]",
+        }
+        MTP{
+            "MTP",
+            "[Ṁåļţéšé Þöûñð one two]",
+        }
+        MUR{
+            "[ṀÛŔ one]",
+            "[Ṁåûŕîţîåñ Ŕûþéé one two three]",
+        }
+        MVP{
+            "MVP",
+            "[Ṁåļðîṽîåñ Ŕûþéé (①⑨④⑦–①⑨⑧①) one two three four]",
+        }
+        MVR{
+            "[ṀṼŔ one]",
+            "[Ṁåļðîṽîåñ Ŕûƒîýåå one two three]",
+        }
+        MWK{
+            "[ṀŴĶ one]",
+            "[Ṁåļåŵîåñ Ķŵåçĥå one two three]",
+        }
+        MXN{
+            "[ṀẊ€ one]",
+            "[Ṁéẋîçåñ Þéšö one two]",
+        }
+        MXP{
+            "MXP",
+            "[Ṁéẋîçåñ Šîļṽéŕ Þéšö (①⑧⑥①–①⑨⑨②) one two three four]",
+        }
+        MXV{
+            "MXV",
+            "[Ṁéẋîçåñ Îñṽéšţɱéñţ Ûñîţ one two three]",
+        }
+        MYR{
+            "[ṀÝŔ one]",
+            "[Ṁåļåýšîåñ Ŕîñĝĝîţ one two three]",
+        }
+        MZE{
+            "MZE",
+            "[Ṁöžåɱƀîçåñ Éšçûðö one two three]",
+        }
+        MZM{
+            "MZM",
+            "[Ṁöžåɱƀîçåñ Ṁéţîçåļ (①⑨⑧⓪–②⓪⓪⑥) one two three four]",
+        }
+        MZN{
+            "[ṀŽÑ one]",
+            "[Ṁöžåɱƀîçåñ Ṁéţîçåļ one two three]",
+        }
+        NAD{
+            "[ÑÅÐ one]",
+            "[Ñåɱîƀîåñ Ðöļļåŕ one two three]",
+        }
+        NGN{
+            "[ÑĜÑ one]",
+            "[Ñîĝéŕîåñ Ñåîŕå one two]",
+        }
+        NIC{
+            "NIC",
+            "[Ñîçåŕåĝûåñ Çóŕðöƀå (①⑨⑧⑧–①⑨⑨①) one two three four]",
+        }
+        NIO{
+            "[ÑÎÖ one]",
+            "[Ñîçåŕåĝûåñ Çóŕðöƀå one two three]",
+        }
+        NLG{
+            "NLG",
+            "[Ðûţçĥ Ĝûîļðéŕ one two]",
+        }
+        NOK{
+            "[ÑÖĶ one]",
+            "[Ñöŕŵéĝîåñ Ķŕöñé one two three]",
+        }
+        NPR{
+            "[ÑÞŔ one]",
+            "[Ñéþåļéšé Ŕûþéé one two]",
+        }
+        NZD{
+            "[ÑŽ€ one]",
+            "[Ñéŵ Žéåļåñð Ðöļļåŕ one two three]",
+        }
+        OMR{
+            "[ÖṀŔ one]",
+            "[Öɱåñî Ŕîåļ one two]",
+        }
+        PAB{
+            "[ÞÅƁ one]",
+            "[Þåñåɱåñîåñ Ɓåļƀöå one two three]",
+        }
+        PEI{
+            "PEI",
+            "[Þéŕûṽîåñ Îñţî one two]",
+        }
+        PEN{
+            "[ÞÉÑ one]",
+            "[Þéŕûṽîåñ Šöļ one two]",
+        }
+        PES{
+            "PES",
+            "[Þéŕûṽîåñ Šöļ (①⑧⑥③–①⑨⑥⑤) one two three]",
+        }
+        PGK{
+            "[ÞĜĶ one]",
+            "[Þåþûå Ñéŵ Ĝûîñéåñ Ķîñå one two three]",
+        }
+        PHP{
+            "[₱ one]",
+            "[Þĥîļîþþîñé Þéšö one two three]",
+        }
+        PKR{
+            "[ÞĶŔ one]",
+            "[Þåķîšţåñî Ŕûþéé one two three]",
+        }
+        PLN{
+            "[ÞĻÑ one]",
+            "[Þöļîšĥ Žļöţý one two]",
+        }
+        PLZ{
+            "PLZ",
+            "[Þöļîšĥ Žļöţý (①⑨⑤⓪–①⑨⑨⑤) one two three]",
+        }
+        PTE{
+            "PTE",
+            "[Þöŕţûĝûéšé Éšçûðö one two three]",
+        }
+        PYG{
+            "[ÞÝĜ one]",
+            "[Þåŕåĝûåýåñ Ĝûåŕåñî one two three]",
+        }
+        QAR{
+            "[ǪÅŔ one]",
+            "[Ǫåţåŕî Ŕîýåļ one two]",
+        }
+        RHD{
+            "RHD",
+            "[Ŕĥöðéšîåñ Ðöļļåŕ one two three]",
+        }
+        ROL{
+            "ROL",
+            "[Ŕöɱåñîåñ Ļéû (①⑨⑤②–②⓪⓪⑥) one two three]",
+        }
+        RON{
+            "[ŔÖÑ one]",
+            "[Ŕöɱåñîåñ Ļéû one two]",
+        }
+        RSD{
+            "[ŔŠÐ one]",
+            "[Šéŕƀîåñ Ðîñåŕ one two]",
+        }
+        RUB{
+            "[ŔÛƁ one]",
+            "[Ŕûššîåñ Ŕûƀļé one two]",
+        }
+        RUR{
+            "RUR",
+            "[Ŕûššîåñ Ŕûƀļé (①⑨⑨①–①⑨⑨⑧) one two three]",
+        }
+        RWF{
+            "[ŔŴƑ one]",
+            "[Ŕŵåñðåñ Ƒŕåñç one two]",
+        }
+        SAR{
+            "[ŠÅŔ one]",
+            "[Šåûðî Ŕîýåļ one two]",
+        }
+        SBD{
+            "[ŠƁÐ one]",
+            "[Šöļöɱöñ Îšļåñðš Ðöļļåŕ one two three]",
+        }
+        SCR{
+            "[ŠÇŔ one]",
+            "[Šéýçĥéļļöîš Ŕûþéé one two three]",
+        }
+        SDD{
+            "SDD",
+            "[Šûðåñéšé Ðîñåŕ (①⑨⑨②–②⓪⓪⑦) one two three]",
+        }
+        SDG{
+            "[ŠÐĜ one]",
+            "[Šûðåñéšé Þöûñð one two]",
+        }
+        SDP{
+            "SDP",
+            "[Šûðåñéšé Þöûñð (①⑨⑤⑦–①⑨⑨⑧) one two three]",
+        }
+        SEK{
+            "[ŠÉĶ one]",
+            "[Šŵéðîšĥ Ķŕöñå one two]",
+        }
+        SGD{
+            "[ŠĜÐ one]",
+            "[Šîñĝåþöŕé Ðöļļåŕ one two three]",
+        }
+        SHP{
+            "[ŠĤÞ one]",
+            "[Šţ· Ĥéļéñå Þöûñð one two three]",
+        }
+        SIT{
+            "SIT",
+            "[Šļöṽéñîåñ Ţöļåŕ one two three]",
+        }
+        SKK{
+            "SKK",
+            "[Šļöṽåķ Ķöŕûñå one two]",
+        }
+        SLE{
+            "[ŠĻÉ one]",
+            "[Šîéŕŕå Ļéöñéåñ Ļéöñé one two three]",
+        }
+        SLL{
+            "[ŠĻĻ one]",
+            "[Šîéŕŕå Ļéöñéåñ Ļéöñé (①⑨⑥④—②⓪②②) one two three four]",
+        }
+        SOS{
+            "[ŠÖŠ one]",
+            "[Šöɱåļî Šĥîļļîñĝ one two three]",
+        }
+        SRD{
+            "[ŠŔÐ one]",
+            "[Šûŕîñåɱéšé Ðöļļåŕ one two three]",
+        }
+        SRG{
+            "SRG",
+            "[Šûŕîñåɱéšé Ĝûîļðéŕ one two three]",
+        }
+        SSP{
+            "[ŠŠÞ one]",
+            "[Šöûţĥ Šûðåñéšé Þöûñð one two three]",
+        }
+        STD{
+            "STD",
+            "[Šãö Ţöɱé ⅋ Þŕíñçîþé Ðöƀŕå (①⑨⑦⑦–②⓪①⑦) one two three four five]",
+        }
+        STN{
+            "[ŠŢÑ one]",
+            "[Šãö Ţöɱé ⅋ Þŕíñçîþé Ðöƀŕå one two three]",
+        }
+        SUR{
+            "SUR",
+            "[Šöṽîéţ Ŕöûƀļé one two]",
+        }
+        SVC{
+            "SVC",
+            "[Šåļṽåðöŕåñ Çöļóñ one two three]",
+        }
+        SYP{
+            "[ŠÝÞ one]",
+            "[Šýŕîåñ Þöûñð one two]",
+        }
+        SZL{
+            "[ŠŽĻ one]",
+            "[Šŵåžî Ļîļåñĝéñî one two three]",
+        }
+        THB{
+            "[ŢĤƁ one]",
+            "[Ţĥåî Ɓåĥţ one two]",
+        }
+        TJR{
+            "TJR",
+            "[Ţåĵîķîšţåñî Ŕûƀļé one two three]",
+        }
+        TJS{
+            "[ŢĴŠ one]",
+            "[Ţåĵîķîšţåñî Šöɱöñî one two three]",
+        }
+        TMM{
+            "TMM",
+            "[Ţûŕķɱéñîšţåñî Ṁåñåţ (①⑨⑨③–②⓪⓪⑨) one two three four]",
+        }
+        TMT{
+            "[ŢṀŢ one]",
+            "[Ţûŕķɱéñîšţåñî Ṁåñåţ one two three]",
+        }
+        TND{
+            "[ŢÑÐ one]",
+            "[Ţûñîšîåñ Ðîñåŕ one two]",
+        }
+        TOP{
+            "[ŢÖÞ one]",
+            "[Ţöñĝåñ Þåʻåñĝå one two]",
+        }
+        TPE{
+            "TPE",
+            "[Ţîɱöŕéšé Éšçûðö one two three]",
+        }
+        TRL{
+            "TRL",
+            "[Ţûŕķîšĥ Ļîŕå (①⑨②②–②⓪⓪⑤) one two three]",
+        }
+        TRY{
+            "[ŢŔÝ one]",
+            "[Ţûŕķîšĥ Ļîŕå one two]",
+        }
+        TTD{
+            "[ŢŢÐ one]",
+            "[Ţŕîñîðåð ⅋ Ţöƀåĝö Ðöļļåŕ one two three]",
+        }
+        TWD{
+            "[ÑŢ€ one]",
+            "[Ñéŵ Ţåîŵåñ Ðöļļåŕ one two three]",
+        }
+        TZS{
+            "[ŢŽŠ one]",
+            "[Ţåñžåñîåñ Šĥîļļîñĝ one two three]",
+        }
+        UAH{
+            "[ÛÅĤ one]",
+            "[Ûķŕåîñîåñ Ĥŕýṽñîå one two three]",
+        }
+        UAK{
+            "UAK",
+            "[Ûķŕåîñîåñ Ķåŕƀöṽåñéţš one two three]",
+        }
+        UGS{
+            "UGS",
+            "[Ûĝåñðåñ Šĥîļļîñĝ (①⑨⑥⑥–①⑨⑧⑦) one two three four]",
+        }
+        UGX{
+            "[ÛĜẊ one]",
+            "[Ûĝåñðåñ Šĥîļļîñĝ one two three]",
+        }
+        USD{
+            "[€ one]",
+            "[ÛŠ Ðöļļåŕ one two]",
+        }
+        USN{
+            "USN",
+            "[ÛŠ Ðöļļåŕ (Ñéẋţ ðåý) one two three]",
+        }
+        USS{
+            "USS",
+            "[ÛŠ Ðöļļåŕ (Šåɱé ðåý) one two three]",
+        }
+        UYI{
+            "UYI",
+            "[Ûŕûĝûåýåñ Þéšö (Îñðéẋéð Ûñîţš) one two three four]",
+        }
+        UYP{
+            "UYP",
+            "[Ûŕûĝûåýåñ Þéšö (①⑨⑦⑤–①⑨⑨③) one two three]",
+        }
+        UYU{
+            "[ÛÝÛ one]",
+            "[Ûŕûĝûåýåñ Þéšö one two]",
+        }
+        UYW{
+            "UYW",
+            "[Ûŕûĝûåýåñ Ñöɱîñåļ Ŵåĝé Îñðéẋ Ûñîţ one two three four]",
+        }
+        UZS{
+            "[ÛŽŠ one]",
+            "[Ûžƀéķîšţåñî Šöɱ one two three]",
+        }
+        VEB{
+            "VEB",
+            "[Ṽéñéžûéļåñ Ɓöļíṽåŕ (①⑧⑦①–②⓪⓪⑧) one two three four]",
+        }
+        VED{
+            "VED",
+            "[Ɓöļíṽåŕ Šöƀéŕåñö one two three]",
+        }
+        VEF{
+            "VEF",
+            "[Ṽéñéžûéļåñ Ɓöļíṽåŕ (②⓪⓪⑧–②⓪①⑧) one two three four]",
+        }
+        VES{
+            "[ṼÉŠ one]",
+            "[Ṽéñéžûéļåñ Ɓöļíṽåŕ one two three]",
+        }
+        VND{
+            "[₫ one]",
+            "[Ṽîéţñåɱéšé Ðöñĝ one two three]",
+        }
+        VNN{
+            "VNN",
+            "[Ṽîéţñåɱéšé Ðöñĝ (①⑨⑦⑧–①⑨⑧⑤) one two three four]",
+        }
+        VUV{
+            "[ṼÛṼ one]",
+            "[Ṽåñûåţû Ṽåţû one two]",
+        }
+        WST{
+            "[ŴŠŢ one]",
+            "[Šåɱöåñ Ţåļå one two]",
+        }
+        XAF{
+            "[ƑÇƑÅ one]",
+            "[Çéñţŕåļ Åƒŕîçåñ ÇƑÅ Ƒŕåñç one two three]",
+        }
+        XAG{
+            "XAG",
+            "[Šîļṽéŕ one]",
+        }
+        XAU{
+            "XAU",
+            "[Ĝöļð one]",
+        }
+        XBA{
+            "XBA",
+            "[Éûŕöþéåñ Çöɱþöšîţé Ûñîţ one two three]",
+        }
+        XBB{
+            "XBB",
+            "[Éûŕöþéåñ Ṁöñéţåŕý Ûñîţ one two three]",
+        }
+        XBC{
+            "XBC",
+            "[Éûŕöþéåñ Ûñîţ öƒ Åççöûñţ (ẊƁÇ) one two three four]",
+        }
+        XBD{
+            "XBD",
+            "[Éûŕöþéåñ Ûñîţ öƒ Åççöûñţ (ẊƁÐ) one two three four]",
+        }
+        XCD{
+            "[ÉÇ€ one]",
+            "[Éåšţ Çåŕîƀƀéåñ Ðöļļåŕ one two three]",
+        }
+        XCG{
+            "Cg.",
+            "[Çåŕîƀƀéåñ ĝûîļðéŕ one two three]",
+        }
+        XDR{
+            "XDR",
+            "[Šþéçîåļ Ðŕåŵîñĝ Ŕîĝĥţš one two three]",
+        }
+        XEU{
+            "XEU",
+            "[Éûŕöþéåñ Çûŕŕéñçý Ûñîţ one two three]",
+        }
+        XFO{
+            "XFO",
+            "[Ƒŕéñçĥ Ĝöļð Ƒŕåñç one two three]",
+        }
+        XFU{
+            "XFU",
+            "[Ƒŕéñçĥ ÛÎÇ‐Ƒŕåñç one two three]",
+        }
+        XOF{
+            "[Ƒ ÇƑÅ one]",
+            "[Ŵéšţ Åƒŕîçåñ ÇƑÅ Ƒŕåñç one two three]",
+        }
+        XPD{
+            "XPD",
+            "[Þåļļåðîûɱ one two]",
+        }
+        XPF{
+            "[ÇƑÞƑ one]",
+            "[ÇƑÞ Ƒŕåñç one two]",
+        }
+        XPT{
+            "XPT",
+            "[Þļåţîñûɱ one two]",
+        }
+        XRE{
+            "XRE",
+            "[ŔÎÑÉŢ Ƒûñðš one two]",
+        }
+        XSU{
+            "XSU",
+            "[Šûçŕé one]",
+        }
+        XTS{
+            "XTS",
+            "[Ţéšţîñĝ Çûŕŕéñçý Çöðé one two three]",
+        }
+        XUA{
+            "XUA",
+            "[ÅÐƁ Ûñîţ öƒ Åççöûñţ one two three]",
+        }
+        XXX{
+            "¤",
+            "[Ûñķñöŵñ Çûŕŕéñçý one two three]",
+        }
+        YDD{
+            "YDD",
+            "[Ýéɱéñî Ðîñåŕ one two]",
+        }
+        YER{
+            "[ÝÉŔ one]",
+            "[Ýéɱéñî Ŕîåļ one two]",
+        }
+        YUD{
+            "YUD",
+            "[Ýûĝöšļåṽîåñ Ĥåŕð Ðîñåŕ (①⑨⑥⑥–①⑨⑨⓪) one two three four]",
+        }
+        YUM{
+            "YUM",
+            "[Ýûĝöšļåṽîåñ Ñéŵ Ðîñåŕ (①⑨⑨④–②⓪⓪②) one two three four]",
+        }
+        YUN{
+            "YUN",
+            "[Ýûĝöšļåṽîåñ Çöñṽéŕţîƀļé Ðîñåŕ (①⑨⑨⓪–①⑨⑨②) one two three four five]",
+        }
+        YUR{
+            "YUR",
+            "[Ýûĝöšļåṽîåñ Ŕéƒöŕɱéð Ðîñåŕ (①⑨⑨②–①⑨⑨③) one two three four five]",
+        }
+        ZAL{
+            "ZAL",
+            "[Šöûţĥ Åƒŕîçåñ Ŕåñð (ƒîñåñçîåļ) one two three four]",
+        }
+        ZAR{
+            "[ŽÅŔ one]",
+            "[Šöûţĥ Åƒŕîçåñ Ŕåñð one two three]",
+        }
+        ZMK{
+            "ZMK",
+            "[Žåɱƀîåñ Ķŵåçĥå (①⑨⑥⑧–②⓪①②) one two three]",
+        }
+        ZMW{
+            "[ŽṀŴ one]",
+            "[Žåɱƀîåñ Ķŵåçĥå one two]",
+        }
+        ZRN{
+            "ZRN",
+            "[Žåîŕéåñ Ñéŵ Žåîŕé (①⑨⑨③–①⑨⑨⑧) one two three four]",
+        }
+        ZRZ{
+            "ZRZ",
+            "[Žåîŕéåñ Žåîŕé (①⑨⑦①–①⑨⑨③) one two three]",
+        }
+        ZWD{
+            "ZWD",
+            "[Žîɱƀåƀŵéåñ Ðöļļåŕ (①⑨⑧⓪–②⓪⓪⑧) one two three four]",
+        }
+        ZWG{
+            "[ŽŴĜ one]",
+            "[Žîɱƀåƀŵéåñ Ĝöļð one two three]",
+        }
+        ZWL{
+            "ZWL",
+            "[Žîɱƀåƀŵéåñ Ðöļļåŕ (②⓪⓪⑨–②⓪②④) one two three four]",
+        }
+        ZWR{
+            "ZWR",
+            "[Žîɱƀåƀŵéåñ Ðöļļåŕ (②⓪⓪⑧) one two three]",
+        }
+    }
+    CurrencyPlurals{
+        ADP{
+            one{"[Åñðöŕŕåñ þéšéţå one two three]"}
+            other{"[Åñðöŕŕåñ þéšéţåš one two three]"}
+        }
+        AED{
+            one{"[ÛÅÉ ðîŕĥåɱ one two]"}
+            other{"[ÛÅÉ ðîŕĥåɱš one two]"}
+        }
+        AFA{
+            one{"[Åƒĝĥåñ åƒĝĥåñî (①⑨②⑦–②⓪⓪②) one two three]"}
+            other{"[Åƒĝĥåñ åƒĝĥåñîš (①⑨②⑦–②⓪⓪②) one two three four]"}
+        }
+        AFN{
+            one{"[Åƒĝĥåñ Åƒĝĥåñî one two]"}
+            other{"[Åƒĝĥåñ Åƒĝĥåñîš one two three]"}
+        }
+        ALK{
+            one{"[Åļƀåñîåñ ļéķ (①⑨④⑥–①⑨⑥⑤) one two three]"}
+            other{"[Åļƀåñîåñ ļéķë (①⑨④⑥–①⑨⑥⑤) one two three]"}
+        }
+        ALL{
+            one{"[Åļƀåñîåñ ļéķ one two]"}
+            other{"[Åļƀåñîåñ ļéķë one two]"}
+        }
+        AMD{
+            one{"[Åŕɱéñîåñ ðŕåɱ one two]"}
+            other{"[Åŕɱéñîåñ ðŕåɱš one two]"}
+        }
+        ANG{
+            one{"[Ñéţĥéŕļåñðš Åñţîļļéåñ ĝûîļðéŕ one two three four]"}
+            other{"[Ñéţĥéŕļåñðš Åñţîļļéåñ ĝûîļðéŕš one two three four]"}
+        }
+        AOA{
+            one{"[Åñĝöļåñ ķŵåñžå one two]"}
+            other{"[Åñĝöļåñ ķŵåñžåš one two three]"}
+        }
+        AOK{
+            one{"[Åñĝöļåñ ķŵåñžå (①⑨⑦⑦–①⑨⑨①) one two three]"}
+            other{"[Åñĝöļåñ ķŵåñžåš (①⑨⑦⑦–①⑨⑨①) one two three four]"}
+        }
+        AON{
+            one{"[Åñĝöļåñ ñéŵ ķŵåñžå (①⑨⑨⓪–②⓪⓪⓪) one two three four]"}
+            other{"[Åñĝöļåñ ñéŵ ķŵåñžåš (①⑨⑨⓪–②⓪⓪⓪) one two three four]"}
+        }
+        AOR{
+            one{"[Åñĝöļåñ ŕéåðĵûšţéð ķŵåñžå (①⑨⑨⑤–①⑨⑨⑨) one two three four five]"}
+            other{"[Åñĝöļåñ ŕéåðĵûšţéð ķŵåñžåš (①⑨⑨⑤–①⑨⑨⑨) one two three four five]"}
+        }
+        ARA{
+            one{"[Åŕĝéñţîñé åûšţŕåļ one two three]"}
+            other{"[Åŕĝéñţîñé åûšţŕåļš one two three]"}
+        }
+        ARL{
+            one{"[Åŕĝéñţîñé þéšö ļéý (①⑨⑦⓪–①⑨⑧③) one two three four]"}
+            other{"[Åŕĝéñţîñé þéšöš ļéý (①⑨⑦⓪–①⑨⑧③) one two three four]"}
+        }
+        ARM{
+            one{"[Åŕĝéñţîñé þéšö (①⑧⑧①–①⑨⑦⓪) one two three]"}
+            other{"[Åŕĝéñţîñé þéšöš (①⑧⑧①–①⑨⑦⓪) one two three four]"}
+        }
+        ARP{
+            one{"[Åŕĝéñţîñé þéšö (①⑨⑧③–①⑨⑧⑤) one two three]"}
+            other{"[Åŕĝéñţîñé þéšöš (①⑨⑧③–①⑨⑧⑤) one two three four]"}
+        }
+        ARS{
+            one{"[Åŕĝéñţîñé þéšö one two]"}
+            other{"[Åŕĝéñţîñé þéšöš one two three]"}
+        }
+        ATS{
+            one{"[Åûšţŕîåñ šçĥîļļîñĝ one two three]"}
+            other{"[Åûšţŕîåñ šçĥîļļîñĝš one two three]"}
+        }
+        AUD{
+            one{"[Åûšţŕåļîåñ ðöļļåŕ one two three]"}
+            other{"[Åûšţŕåļîåñ ðöļļåŕš one two three]"}
+        }
+        AWG{
+            one{"[Åŕûƀåñ ƒļöŕîñ one two]"}
+            other{"[Åŕûƀåñ ƒļöŕîñ one two]"}
+        }
+        AZM{
+            one{"[Åžéŕƀåîĵåñî ɱåñåţ (①⑨⑨③–②⓪⓪⑥) one two three four]"}
+            other{"[Åžéŕƀåîĵåñî ɱåñåţš (①⑨⑨③–②⓪⓪⑥) one two three four]"}
+        }
+        AZN{
+            one{"[Åžéŕƀåîĵåñî ɱåñåţ one two three]"}
+            other{"[Åžéŕƀåîĵåñî ɱåñåţš one two three]"}
+        }
+        BAD{
+            one{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå ðîñåŕ (①⑨⑨②–①⑨⑨④) one two three four]"}
+            other{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå ðîñåŕš (①⑨⑨②–①⑨⑨④) one two three four five]"}
+        }
+        BAM{
+            one{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå çöñṽéŕţîƀļé ɱåŕķ one two three four]"}
+            other{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå çöñṽéŕţîƀļé ɱåŕķš one two three four]"}
+        }
+        BAN{
+            one{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå ñéŵ ðîñåŕ (①⑨⑨④–①⑨⑨⑦) one two three four five]"}
+            other{"[Ɓöšñîå‐Ĥéŕžéĝöṽîñå ñéŵ ðîñåŕš (①⑨⑨④–①⑨⑨⑦) one two three four five]"}
+        }
+        BBD{
+            one{"[Ɓåŕƀåðîåñ ðöļļåŕ one two three]"}
+            other{"[Ɓåŕƀåðîåñ ðöļļåŕš one two three]"}
+        }
+        BDT{
+            one{"[Ɓåñĝļåðéšĥî ţåķå one two three]"}
+            other{"[Ɓåñĝļåðéšĥî ţåķåš one two three]"}
+        }
+        BEC{
+            one{"[Ɓéļĝîåñ ƒŕåñç (çöñṽéŕţîƀļé) one two three four]"}
+            other{"[Ɓéļĝîåñ ƒŕåñçš (çöñṽéŕţîƀļé) one two three four]"}
+        }
+        BEF{
+            one{"[Ɓéļĝîåñ ƒŕåñç one two]"}
+            other{"[Ɓéļĝîåñ ƒŕåñçš one two]"}
+        }
+        BEL{
+            one{"[Ɓéļĝîåñ ƒŕåñç (ƒîñåñçîåļ) one two three]"}
+            other{"[Ɓéļĝîåñ ƒŕåñçš (ƒîñåñçîåļ) one two three]"}
+        }
+        BGL{
+            one{"[Ɓûļĝåŕîåñ ĥåŕð ļéṽ one two three]"}
+            other{"[Ɓûļĝåŕîåñ ĥåŕð ļéṽå one two three]"}
+        }
+        BGM{
+            one{"[Ɓûļĝåŕîåñ šöçîåļîšţ ļéṽ one two three]"}
+            other{"[Ɓûļĝåŕîåñ šöçîåļîšţ ļéṽå one two three]"}
+        }
+        BGN{
+            one{"[Ɓûļĝåŕîåñ ļéṽ one two]"}
+            other{"[Ɓûļĝåŕîåñ ļéṽå one two]"}
+        }
+        BGO{
+            one{"[Ɓûļĝåŕîåñ ļéṽ (①⑧⑦⑨–①⑨⑤②) one two three]"}
+            other{"[Ɓûļĝåŕîåñ ļéṽå (①⑧⑦⑨–①⑨⑤②) one two three]"}
+        }
+        BHD{
+            one{"[Ɓåĥŕåîñî ðîñåŕ one two]"}
+            other{"[Ɓåĥŕåîñî ðîñåŕš one two three]"}
+        }
+        BIF{
+            one{"[Ɓûŕûñðîåñ ƒŕåñç one two three]"}
+            other{"[Ɓûŕûñðîåñ ƒŕåñçš one two three]"}
+        }
+        BMD{
+            one{"[Ɓéŕɱûðåñ ðöļļåŕ one two three]"}
+            other{"[Ɓéŕɱûðåñ ðöļļåŕš one two three]"}
+        }
+        BND{
+            one{"[Ɓŕûñéî ðöļļåŕ one two]"}
+            other{"[Ɓŕûñéî ðöļļåŕš one two]"}
+        }
+        BOB{
+            one{"[Ɓöļîṽîåñ ƀöļîṽîåñö one two three]"}
+            other{"[Ɓöļîṽîåñ ƀöļîṽîåñöš one two three]"}
+        }
+        BOL{
+            one{"[Ɓöļîṽîåñ ƀöļîṽîåñö (①⑧⑥③–①⑨⑥③) one two three four]"}
+            other{"[Ɓöļîṽîåñ ƀöļîṽîåñöš (①⑧⑥③–①⑨⑥③) one two three four]"}
+        }
+        BOP{
+            one{"[Ɓöļîṽîåñ þéšö one two]"}
+            other{"[Ɓöļîṽîåñ þéšöš one two]"}
+        }
+        BOV{
+            one{"[Ɓöļîṽîåñ ɱṽðöļ one two]"}
+            other{"[Ɓöļîṽîåñ ɱṽðöļš one two three]"}
+        }
+        BRB{
+            one{"[Ɓŕåžîļîåñ ñéŵ çŕûžéîŕö (①⑨⑥⑦–①⑨⑧⑥) one two three four]"}
+            other{"[Ɓŕåžîļîåñ ñéŵ çŕûžéîŕöš (①⑨⑥⑦–①⑨⑧⑥) one two three four]"}
+        }
+        BRC{
+            one{"[Ɓŕåžîļîåñ çŕûžåðö (①⑨⑧⑥–①⑨⑧⑨) one two three four]"}
+            other{"[Ɓŕåžîļîåñ çŕûžåðöš (①⑨⑧⑥–①⑨⑧⑨) one two three four]"}
+        }
+        BRE{
+            one{"[Ɓŕåžîļîåñ çŕûžéîŕö (①⑨⑨⓪–①⑨⑨③) one two three four]"}
+            other{"[Ɓŕåžîļîåñ çŕûžéîŕöš (①⑨⑨⓪–①⑨⑨③) one two three four]"}
+        }
+        BRL{
+            one{"[Ɓŕåžîļîåñ ŕéåļ one two]"}
+            other{"[Ɓŕåžîļîåñ ŕéåļš one two three]"}
+        }
+        BRN{
+            one{"[Ɓŕåžîļîåñ ñéŵ çŕûžåðö (①⑨⑧⑨–①⑨⑨⓪) one two three four]"}
+            other{"[Ɓŕåžîļîåñ ñéŵ çŕûžåðöš (①⑨⑧⑨–①⑨⑨⓪) one two three four]"}
+        }
+        BRR{
+            one{"[Ɓŕåžîļîåñ çŕûžéîŕö (①⑨⑨③–①⑨⑨④) one two three four]"}
+            other{"[Ɓŕåžîļîåñ çŕûžéîŕöš (①⑨⑨③–①⑨⑨④) one two three four]"}
+        }
+        BRZ{
+            one{"[Ɓŕåžîļîåñ çŕûžéîŕö (①⑨④②–①⑨⑥⑦) one two three four]"}
+            other{"[Ɓŕåžîļîåñ çŕûžéîŕöš (①⑨④②–①⑨⑥⑦) one two three four]"}
+        }
+        BSD{
+            one{"[Ɓåĥåɱîåñ ðöļļåŕ one two three]"}
+            other{"[Ɓåĥåɱîåñ ðöļļåŕš one two three]"}
+        }
+        BTN{
+            one{"[Ɓĥûţåñéšé ñĝûļţŕûɱ one two three]"}
+            other{"[Ɓĥûţåñéšé ñĝûļţŕûɱš one two three]"}
+        }
+        BUK{
+            one{"[Ɓûŕɱéšé ķýåţ one two]"}
+            other{"[Ɓûŕɱéšé ķýåţš one two]"}
+        }
+        BWP{
+            one{"[Ɓöţšŵåñåñ þûļå one two]"}
+            other{"[Ɓöţšŵåñåñ þûļåš one two three]"}
+        }
+        BYB{
+            one{"[Ɓéļåŕûšîåñ ŕûƀļé (①⑨⑨④–①⑨⑨⑨) one two three four]"}
+            other{"[Ɓéļåŕûšîåñ ŕûƀļéš (①⑨⑨④–①⑨⑨⑨) one two three four]"}
+        }
+        BYN{
+            one{"[Ɓéļåŕûšîåñ ŕûƀļé one two three]"}
+            other{"[Ɓéļåŕûšîåñ ŕûƀļéš one two three]"}
+        }
+        BYR{
+            one{"[Ɓéļåŕûšîåñ ŕûƀļé (②⓪⓪⓪–②⓪①⑥) one two three four]"}
+            other{"[Ɓéļåŕûšîåñ ŕûƀļéš (②⓪⓪⓪–②⓪①⑥) one two three four]"}
+        }
+        BZD{
+            one{"[Ɓéļîžé ðöļļåŕ one two]"}
+            other{"[Ɓéļîžé ðöļļåŕš one two]"}
+        }
+        CAD{
+            one{"[Çåñåðîåñ ðöļļåŕ one two three]"}
+            other{"[Çåñåðîåñ ðöļļåŕš one two three]"}
+        }
+        CDF{
+            one{"[Çöñĝöļéšé ƒŕåñç one two three]"}
+            other{"[Çöñĝöļéšé ƒŕåñçš one two three]"}
+        }
+        CHE{
+            one{"[ŴÎŔ éûŕö one two]"}
+            other{"[ŴÎŔ éûŕöš one two]"}
+        }
+        CHF{
+            one{"[Šŵîšš ƒŕåñç one two]"}
+            other{"[Šŵîšš ƒŕåñçš one two]"}
+        }
+        CHW{
+            one{"[ŴÎŔ ƒŕåñç one two]"}
+            other{"[ŴÎŔ ƒŕåñçš one two]"}
+        }
+        CLE{
+            one{"[Çĥîļéåñ éšçûðö one two]"}
+            other{"[Çĥîļéåñ éšçûðöš one two three]"}
+        }
+        CLF{
+            one{"[Çĥîļéåñ ûñîţ öƒ åççöûñţ (ÛƑ) one two three four]"}
+            other{"[Çĥîļéåñ ûñîţš öƒ åççöûñţ (ÛƑ) one two three four]"}
+        }
+        CLP{
+            one{"[Çĥîļéåñ þéšö one two]"}
+            other{"[Çĥîļéåñ þéšöš one two]"}
+        }
+        CNH{
+            one{"[Çĥîñéšé ýûåñ (öƒƒšĥöŕé) one two three]"}
+            other{"[Çĥîñéšé ýûåñ (öƒƒšĥöŕé) one two three]"}
+        }
+        CNX{
+            one{"[Çĥîñéšé Þéöþļé’š Ɓåñķ ðöļļåŕ one two three four]"}
+            other{"[Çĥîñéšé Þéöþļé’š Ɓåñķ ðöļļåŕš one two three four]"}
+        }
+        CNY{
+            one{"[Çĥîñéšé ýûåñ one two]"}
+            other{"[Çĥîñéšé ýûåñ one two]"}
+        }
+        COP{
+            one{"[Çöļöɱƀîåñ þéšö one two]"}
+            other{"[Çöļöɱƀîåñ þéšöš one two three]"}
+        }
+        COU{
+            one{"[Çöļöɱƀîåñ ŕéåļ ṽåļûé ûñîţ one two three]"}
+            other{"[Çöļöɱƀîåñ ŕéåļ ṽåļûé ûñîţš one two three]"}
+        }
+        CRC{
+            one{"[Çöšţå Ŕîçåñ çöļóñ one two three]"}
+            other{"[Çöšţå Ŕîçåñ çöļóñš one two three]"}
+        }
+        CSD{
+            one{"[Šéŕƀîåñ ðîñåŕ (②⓪⓪②–②⓪⓪⑥) one two three]"}
+            other{"[Šéŕƀîåñ ðîñåŕš (②⓪⓪②–②⓪⓪⑥) one two three]"}
+        }
+        CSK{
+            one{"[Çžéçĥöšļöṽåķ ĥåŕð ķöŕûñå one two three]"}
+            other{"[Çžéçĥöšļöṽåķ ĥåŕð ķöŕûñåš one two three]"}
+        }
+        CUC{
+            one{"[Çûƀåñ çöñṽéŕţîƀļé þéšö one two three]"}
+            other{"[Çûƀåñ çöñṽéŕţîƀļé þéšöš one two three]"}
+        }
+        CUP{
+            one{"[Çûƀåñ þéšö one two]"}
+            other{"[Çûƀåñ þéšöš one two]"}
+        }
+        CVE{
+            one{"[Çåþé Ṽéŕðéåñ éšçûðö one two three]"}
+            other{"[Çåþé Ṽéŕðéåñ éšçûðöš one two three]"}
+        }
+        CYP{
+            one{"[Çýþŕîöţ þöûñð one two]"}
+            other{"[Çýþŕîöţ þöûñðš one two]"}
+        }
+        CZK{
+            one{"[Çžéçĥ ķöŕûñå one two]"}
+            other{"[Çžéçĥ ķöŕûñåš one two]"}
+        }
+        DDM{
+            one{"[Éåšţ Ĝéŕɱåñ ɱåŕķ one two three]"}
+            other{"[Éåšţ Ĝéŕɱåñ ɱåŕķš one two three]"}
+        }
+        DEM{
+            one{"[Ĝéŕɱåñ ɱåŕķ one two]"}
+            other{"[Ĝéŕɱåñ ɱåŕķš one two]"}
+        }
+        DJF{
+            one{"[Ðĵîƀöûţîåñ ƒŕåñç one two three]"}
+            other{"[Ðĵîƀöûţîåñ ƒŕåñçš one two three]"}
+        }
+        DKK{
+            one{"[Ðåñîšĥ ķŕöñé one two]"}
+            other{"[Ðåñîšĥ ķŕöñéŕ one two]"}
+        }
+        DOP{
+            one{"[Ðöɱîñîçåñ þéšö one two]"}
+            other{"[Ðöɱîñîçåñ þéšöš one two three]"}
+        }
+        DZD{
+            one{"[Åļĝéŕîåñ ðîñåŕ one two]"}
+            other{"[Åļĝéŕîåñ ðîñåŕš one two three]"}
+        }
+        ECS{
+            one{"[Éçûåðöŕîåñ šûçŕé one two three]"}
+            other{"[Éçûåðöŕîåñ šûçŕéš one two three]"}
+        }
+        ECV{
+            one{"[Éçûåðöŕîåñ ûñîţ öƒ çöñšţåñţ ṽåļûé one two three four]"}
+            other{"[Éçûåðöŕîåñ ûñîţš öƒ çöñšţåñţ ṽåļûé one two three four]"}
+        }
+        EEK{
+            one{"[Éšţöñîåñ ķŕööñ one two]"}
+            other{"[Éšţöñîåñ ķŕööñš one two three]"}
+        }
+        EGP{
+            one{"[Éĝýþţîåñ þöûñð one two]"}
+            other{"[Éĝýþţîåñ þöûñðš one two three]"}
+        }
+        ERN{
+            one{"[Éŕîţŕéåñ ñåķƒå one two]"}
+            other{"[Éŕîţŕéåñ ñåķƒåš one two three]"}
+        }
+        ESA{
+            one{"[Šþåñîšĥ þéšéţå (Å åççöûñţ) one two three]"}
+            other{"[Šþåñîšĥ þéšéţåš (Å åççöûñţ) one two three four]"}
+        }
+        ESB{
+            one{"[Šþåñîšĥ þéšéţå (çöñṽéŕţîƀļé åççöûñţ) one two three four]"}
+            other{"[Šþåñîšĥ þéšéţåš (çöñṽéŕţîƀļé åççöûñţ) one two three four five]"}
+        }
+        ESP{
+            one{"[Šþåñîšĥ þéšéţå one two]"}
+            other{"[Šþåñîšĥ þéšéţåš one two three]"}
+        }
+        ETB{
+            one{"[Éţĥîöþîåñ ƀîŕŕ one two]"}
+            other{"[Éţĥîöþîåñ ƀîŕŕš one two three]"}
+        }
+        EUR{
+            one{"[éûŕö one]"}
+            other{"[éûŕöš one]"}
+        }
+        FIM{
+            one{"[Ƒîññîšĥ ɱåŕķķå one two]"}
+            other{"[Ƒîññîšĥ ɱåŕķķåš one two three]"}
+        }
+        FJD{
+            one{"[Ƒîĵîåñ ðöļļåŕ one two]"}
+            other{"[Ƒîĵîåñ ðöļļåŕš one two]"}
+        }
+        FKP{
+            one{"[Ƒåļķļåñð Îšļåñðš þöûñð one two three]"}
+            other{"[Ƒåļķļåñð Îšļåñðš þöûñðš one two three]"}
+        }
+        FRF{
+            one{"[Ƒŕéñçĥ ƒŕåñç one two]"}
+            other{"[Ƒŕéñçĥ ƒŕåñçš one two]"}
+        }
+        GBP{
+            one{"[Ɓŕîţîšĥ þöûñð one two]"}
+            other{"[Ɓŕîţîšĥ þöûñðš one two]"}
+        }
+        GEK{
+            one{"[Ĝéöŕĝîåñ ķûþöñ ļåŕîţ one two three]"}
+            other{"[Ĝéöŕĝîåñ ķûþöñ ļåŕîţš one two three]"}
+        }
+        GEL{
+            one{"[Ĝéöŕĝîåñ ļåŕî one two]"}
+            other{"[Ĝéöŕĝîåñ ļåŕîš one two]"}
+        }
+        GHC{
+            one{"[Ĝĥåñåîåñ çéðî (①⑨⑦⑨–②⓪⓪⑦) one two three]"}
+            other{"[Ĝĥåñåîåñ çéðîš (①⑨⑦⑨–②⓪⓪⑦) one two three]"}
+        }
+        GHS{
+            one{"[Ĝĥåñåîåñ çéðî one two]"}
+            other{"[Ĝĥåñåîåñ çéðîš one two]"}
+        }
+        GIP{
+            one{"[Ĝîƀŕåļţåŕ þöûñð one two three]"}
+            other{"[Ĝîƀŕåļţåŕ þöûñðš one two three]"}
+        }
+        GMD{
+            one{"[Ĝåɱƀîåñ ðåļåšî one two]"}
+            other{"[Ĝåɱƀîåñ ðåļåšîš one two three]"}
+        }
+        GNF{
+            one{"[Ĝûîñéåñ ƒŕåñç one two]"}
+            other{"[Ĝûîñéåñ ƒŕåñçš one two]"}
+        }
+        GNS{
+            one{"[Ĝûîñéåñ šýļî one two]"}
+            other{"[Ĝûîñéåñ šýļîš one two]"}
+        }
+        GQE{
+            one{"[Éǫûåţöŕîåļ Ĝûîñéåñ éķŵéļé one two three]"}
+            other{"[Éǫûåţöŕîåļ Ĝûîñéåñ éķŵéļé one two three]"}
+        }
+        GRD{
+            one{"[Ĝŕééķ ðŕåçĥɱå one two]"}
+            other{"[Ĝŕééķ ðŕåçĥɱåš one two]"}
+        }
+        GTQ{
+            one{"[Ĝûåţéɱåļåñ ǫûéţžåļ one two three]"}
+            other{"[Ĝûåţéɱåļåñ ǫûéţžåļš one two three]"}
+        }
+        GWE{
+            one{"[Þöŕţûĝûéšé Ĝûîñéå éšçûðö one two three]"}
+            other{"[Þöŕţûĝûéšé Ĝûîñéå éšçûðöš one two three]"}
+        }
+        GWP{
+            one{"[Ĝûîñéå‐Ɓîššåû þéšö one two three]"}
+            other{"[Ĝûîñéå‐Ɓîššåû þéšöš one two three]"}
+        }
+        GYD{
+            one{"[Ĝûýåñåéšé ðöļļåŕ one two three]"}
+            other{"[Ĝûýåñåéšé ðöļļåŕš one two three]"}
+        }
+        HKD{
+            one{"[Ĥöñĝ Ķöñĝ ðöļļåŕ one two three]"}
+            other{"[Ĥöñĝ Ķöñĝ ðöļļåŕš one two three]"}
+        }
+        HNL{
+            one{"[Ĥöñðûŕåñ ļéɱþîŕå one two three]"}
+            other{"[Ĥöñðûŕåñ ļéɱþîŕåš one two three]"}
+        }
+        HRD{
+            one{"[Çŕöåţîåñ ðîñåŕ one two]"}
+            other{"[Çŕöåţîåñ ðîñåŕš one two three]"}
+        }
+        HRK{
+            one{"[Çŕöåţîåñ ķûñå one two]"}
+            other{"[Çŕöåţîåñ ķûñåš one two]"}
+        }
+        HTG{
+            one{"[Ĥåîţîåñ ĝöûŕðé one two]"}
+            other{"[Ĥåîţîåñ ĝöûŕðéš one two three]"}
+        }
+        HUF{
+            one{"[Ĥûñĝåŕîåñ ƒöŕîñţ one two three]"}
+            other{"[Ĥûñĝåŕîåñ ƒöŕîñţš one two three]"}
+        }
+        IDR{
+            one{"[Îñðöñéšîåñ ŕûþîåĥ one two three]"}
+            other{"[Îñðöñéšîåñ ŕûþîåĥš one two three]"}
+        }
+        IEP{
+            one{"[Îŕîšĥ þöûñð one two]"}
+            other{"[Îŕîšĥ þöûñðš one two]"}
+        }
+        ILP{
+            one{"[Îšŕåéļî þöûñð one two]"}
+            other{"[Îšŕåéļî þöûñðš one two]"}
+        }
+        ILR{
+            one{"[Îšŕåéļî šĥéķéļ (①⑨⑧⓪–①⑨⑧⑤) one two three]"}
+            other{"[Îšŕåéļî šĥéķéļš (①⑨⑧⓪–①⑨⑧⑤) one two three four]"}
+        }
+        ILS{
+            one{"[Îšŕåéļî ñéŵ šĥéķéļ one two three]"}
+            other{"[Îšŕåéļî ñéŵ šĥéķéļš one two three]"}
+        }
+        INR{
+            one{"[Îñðîåñ ŕûþéé one two]"}
+            other{"[Îñðîåñ ŕûþééš one two]"}
+        }
+        IQD{
+            one{"[Îŕåǫî ðîñåŕ one two]"}
+            other{"[Îŕåǫî ðîñåŕš one two]"}
+        }
+        IRR{
+            one{"[Îŕåñîåñ ŕîåļ one two]"}
+            other{"[Îŕåñîåñ ŕîåļš one two]"}
+        }
+        ISJ{
+            one{"[Îçéļåñðîç ķŕóñå (①⑨①⑧–①⑨⑧①) one two three four]"}
+            other{"[Îçéļåñðîç ķŕóñûŕ (①⑨①⑧–①⑨⑧①) one two three four]"}
+        }
+        ISK{
+            one{"[Îçéļåñðîç ķŕóñå one two three]"}
+            other{"[Îçéļåñðîç ķŕóñûŕ one two three]"}
+        }
+        ITL{
+            one{"[Îţåļîåñ ļîŕå one two]"}
+            other{"[Îţåļîåñ ļîŕåš one two]"}
+        }
+        JMD{
+            one{"[Ĵåɱåîçåñ ðöļļåŕ one two three]"}
+            other{"[Ĵåɱåîçåñ ðöļļåŕš one two three]"}
+        }
+        JOD{
+            one{"[Ĵöŕðåñîåñ ðîñåŕ one two three]"}
+            other{"[Ĵöŕðåñîåñ ðîñåŕš one two three]"}
+        }
+        JPY{
+            one{"[Ĵåþåñéšé ýéñ one two]"}
+            other{"[Ĵåþåñéšé ýéñ one two]"}
+        }
+        KES{
+            one{"[Ķéñýåñ šĥîļļîñĝ one two three]"}
+            other{"[Ķéñýåñ šĥîļļîñĝš one two three]"}
+        }
+        KGS{
+            one{"[Ķýŕĝýž šöɱ one two]"}
+            other{"[Ķýŕĝýž šöɱš one two]"}
+        }
+        KHR{
+            one{"[Çåɱƀöðîåñ ŕîéļ one two]"}
+            other{"[Çåɱƀöðîåñ ŕîéļš one two three]"}
+        }
+        KMF{
+            one{"[Çöɱöŕîåñ ƒŕåñç one two]"}
+            other{"[Çöɱöŕîåñ ƒŕåñçš one two three]"}
+        }
+        KPW{
+            one{"[Ñöŕţĥ Ķöŕéåñ ŵöñ one two three]"}
+            other{"[Ñöŕţĥ Ķöŕéåñ ŵöñ one two three]"}
+        }
+        KRH{
+            one{"[Šöûţĥ Ķöŕéåñ ĥŵåñ (①⑨⑤③–①⑨⑥②) one two three four]"}
+            other{"[Šöûţĥ Ķöŕéåñ ĥŵåñ (①⑨⑤③–①⑨⑥②) one two three four]"}
+        }
+        KRO{
+            one{"[Šöûţĥ Ķöŕéåñ ŵöñ (①⑨④⑤–①⑨⑤③) one two three four]"}
+            other{"[Šöûţĥ Ķöŕéåñ ŵöñ (①⑨④⑤–①⑨⑤③) one two three four]"}
+        }
+        KRW{
+            one{"[Šöûţĥ Ķöŕéåñ ŵöñ one two three]"}
+            other{"[Šöûţĥ Ķöŕéåñ ŵöñ one two three]"}
+        }
+        KWD{
+            one{"[Ķûŵåîţî ðîñåŕ one two]"}
+            other{"[Ķûŵåîţî ðîñåŕš one two]"}
+        }
+        KYD{
+            one{"[Çåýɱåñ Îšļåñðš ðöļļåŕ one two three]"}
+            other{"[Çåýɱåñ Îšļåñðš ðöļļåŕš one two three]"}
+        }
+        KZT{
+            one{"[Ķåžåķĥšţåñî ţéñĝé one two three]"}
+            other{"[Ķåžåķĥšţåñî ţéñĝéš one two three]"}
+        }
+        LAK{
+            one{"[Ļåöţîåñ ķîþ one two]"}
+            other{"[Ļåöţîåñ ķîþš one two]"}
+        }
+        LBP{
+            one{"[Ļéƀåñéšé þöûñð one two]"}
+            other{"[Ļéƀåñéšé þöûñðš one two three]"}
+        }
+        LKR{
+            one{"[Šŕî Ļåñķåñ ŕûþéé one two three]"}
+            other{"[Šŕî Ļåñķåñ ŕûþééš one two three]"}
+        }
+        LRD{
+            one{"[Ļîƀéŕîåñ ðöļļåŕ one two three]"}
+            other{"[Ļîƀéŕîåñ ðöļļåŕš one two three]"}
+        }
+        LSL{
+            one{"[Ļéšöţĥö ļöţî one two]"}
+            other{"[Ļéšöţĥö ļöţîš one two]"}
+        }
+        LTL{
+            one{"[Ļîţĥûåñîåñ ļîţåš one two three]"}
+            other{"[Ļîţĥûåñîåñ ļîţåî one two three]"}
+        }
+        LTT{
+            one{"[Ļîţĥûåñîåñ ţåļöñåš one two three]"}
+            other{"[Ļîţĥûåñîåñ ţåļöñåšéš one two three]"}
+        }
+        LUC{
+            one{"[Ļûẋéɱƀöûŕĝîåñ çöñṽéŕţîƀļé ƒŕåñç one two three four]"}
+            other{"[Ļûẋéɱƀöûŕĝîåñ çöñṽéŕţîƀļé ƒŕåñçš one two three four]"}
+        }
+        LUF{
+            one{"[Ļûẋéɱƀöûŕĝîåñ ƒŕåñç one two three]"}
+            other{"[Ļûẋéɱƀöûŕĝîåñ ƒŕåñçš one two three]"}
+        }
+        LUL{
+            one{"[Ļûẋéɱƀöûŕĝ ƒîñåñçîåļ ƒŕåñç one two three]"}
+            other{"[Ļûẋéɱƀöûŕĝ ƒîñåñçîåļ ƒŕåñçš one two three four]"}
+        }
+        LVL{
+            one{"[Ļåţṽîåñ ļåţš one two]"}
+            other{"[Ļåţṽîåñ ļåţî one two]"}
+        }
+        LVR{
+            one{"[Ļåţṽîåñ ŕûƀļé one two]"}
+            other{"[Ļåţṽîåñ ŕûƀļéš one two]"}
+        }
+        LYD{
+            one{"[Ļîƀýåñ ðîñåŕ one two]"}
+            other{"[Ļîƀýåñ ðîñåŕš one two]"}
+        }
+        MAD{
+            one{"[Ṁöŕöççåñ ðîŕĥåɱ one two three]"}
+            other{"[Ṁöŕöççåñ ðîŕĥåɱš one two three]"}
+        }
+        MAF{
+            one{"[Ṁöŕöççåñ ƒŕåñç one two]"}
+            other{"[Ṁöŕöççåñ ƒŕåñçš one two three]"}
+        }
+        MCF{
+            one{"[Ṁöñéĝåšǫûé ƒŕåñç one two three]"}
+            other{"[Ṁöñéĝåšǫûé ƒŕåñçš one two three]"}
+        }
+        MDC{
+            one{"[Ṁöļðöṽåñ çûþöñ one two]"}
+            other{"[Ṁöļðöṽåñ çûþöñ one two]"}
+        }
+        MDL{
+            one{"[Ṁöļðöṽåñ ļéû one two]"}
+            other{"[Ṁöļðöṽåñ ļéî one two]"}
+        }
+        MGA{
+            one{"[Ṁåļåĝåšý åŕîåŕý one two three]"}
+            other{"[Ṁåļåĝåšý åŕîåŕîéš one two three]"}
+        }
+        MGF{
+            one{"[Ṁåļåĝåšý ƒŕåñç one two]"}
+            other{"[Ṁåļåĝåšý ƒŕåñçš one two three]"}
+        }
+        MKD{
+            one{"[Ṁåçéðöñîåñ ðéñåŕ one two three]"}
+            other{"[Ṁåçéðöñîåñ ðéñåŕî one two three]"}
+        }
+        MKN{
+            one{"[Ṁåçéðöñîåñ ðéñåŕ (①⑨⑨②–①⑨⑨③) one two three four]"}
+            other{"[Ṁåçéðöñîåñ ðéñåŕî (①⑨⑨②–①⑨⑨③) one two three four]"}
+        }
+        MLF{
+            one{"[Ṁåļîåñ ƒŕåñç one two]"}
+            other{"[Ṁåļîåñ ƒŕåñçš one two]"}
+        }
+        MMK{
+            one{"[Ṁýåñɱåŕ ķýåţ one two]"}
+            other{"[Ṁýåñɱåŕ ķýåţš one two]"}
+        }
+        MNT{
+            one{"[Ṁöñĝöļîåñ ţûĝŕîķ one two three]"}
+            other{"[Ṁöñĝöļîåñ ţûĝŕîķš one two three]"}
+        }
+        MOP{
+            one{"[Ṁåçåñéšé þåţåçå one two three]"}
+            other{"[Ṁåçåñéšé þåţåçåš one two three]"}
+        }
+        MRO{
+            one{"[Ṁåûŕîţåñîåñ öûĝûîýå (①⑨⑦③–②⓪①⑦) one two three four]"}
+            other{"[Ṁåûŕîţåñîåñ öûĝûîýåš (①⑨⑦③–②⓪①⑦) one two three four]"}
+        }
+        MRU{
+            one{"[Ṁåûŕîţåñîåñ öûĝûîýå one two three]"}
+            other{"[Ṁåûŕîţåñîåñ öûĝûîýåš one two three]"}
+        }
+        MTL{
+            one{"[Ṁåļţéšé ļîŕå one two]"}
+            other{"[Ṁåļţéšé ļîŕå one two]"}
+        }
+        MTP{
+            one{"[Ṁåļţéšé þöûñð one two]"}
+            other{"[Ṁåļţéšé þöûñðš one two]"}
+        }
+        MUR{
+            one{"[Ṁåûŕîţîåñ ŕûþéé one two three]"}
+            other{"[Ṁåûŕîţîåñ ŕûþééš one two three]"}
+        }
+        MVP{
+            one{"[Ṁåļðîṽîåñ ŕûþéé (①⑨④⑦–①⑨⑧①) one two three four]"}
+            other{"[Ṁåļðîṽîåñ ŕûþééš (①⑨④⑦–①⑨⑧①) one two three four]"}
+        }
+        MVR{
+            one{"[Ṁåļðîṽîåñ ŕûƒîýåå one two three]"}
+            other{"[Ṁåļðîṽîåñ ŕûƒîýååš one two three]"}
+        }
+        MWK{
+            one{"[Ṁåļåŵîåñ ķŵåçĥå one two three]"}
+            other{"[Ṁåļåŵîåñ ķŵåçĥåš one two three]"}
+        }
+        MXN{
+            one{"[Ṁéẋîçåñ þéšö one two]"}
+            other{"[Ṁéẋîçåñ þéšöš one two]"}
+        }
+        MXP{
+            one{"[Ṁéẋîçåñ šîļṽéŕ þéšö (①⑧⑥①–①⑨⑨②) one two three four]"}
+            other{"[Ṁéẋîçåñ šîļṽéŕ þéšöš (①⑧⑥①–①⑨⑨②) one two three four]"}
+        }
+        MXV{
+            one{"[Ṁéẋîçåñ îñṽéšţɱéñţ ûñîţ one two three]"}
+            other{"[Ṁéẋîçåñ îñṽéšţɱéñţ ûñîţš one two three]"}
+        }
+        MYR{
+            one{"[Ṁåļåýšîåñ ŕîñĝĝîţ one two three]"}
+            other{"[Ṁåļåýšîåñ ŕîñĝĝîţš one two three]"}
+        }
+        MZE{
+            one{"[Ṁöžåɱƀîçåñ éšçûðö one two three]"}
+            other{"[Ṁöžåɱƀîçåñ éšçûðöš one two three]"}
+        }
+        MZM{
+            one{"[Ṁöžåɱƀîçåñ ɱéţîçåļ (①⑨⑧⓪–②⓪⓪⑥) one two three four]"}
+            other{"[Ṁöžåɱƀîçåñ ɱéţîçåļš (①⑨⑧⓪–②⓪⓪⑥) one two three four]"}
+        }
+        MZN{
+            one{"[Ṁöžåɱƀîçåñ ɱéţîçåļ one two three]"}
+            other{"[Ṁöžåɱƀîçåñ ɱéţîçåļš one two three]"}
+        }
+        NAD{
+            one{"[Ñåɱîƀîåñ ðöļļåŕ one two three]"}
+            other{"[Ñåɱîƀîåñ ðöļļåŕš one two three]"}
+        }
+        NGN{
+            one{"[Ñîĝéŕîåñ ñåîŕå one two]"}
+            other{"[Ñîĝéŕîåñ ñåîŕåš one two three]"}
+        }
+        NIC{
+            one{"[Ñîçåŕåĝûåñ çóŕðöƀå (①⑨⑧⑧–①⑨⑨①) one two three four]"}
+            other{"[Ñîçåŕåĝûåñ çóŕðöƀåš (①⑨⑧⑧–①⑨⑨①) one two three four]"}
+        }
+        NIO{
+            one{"[Ñîçåŕåĝûåñ çóŕðöƀå one two three]"}
+            other{"[Ñîçåŕåĝûåñ çóŕðöƀåš one two three]"}
+        }
+        NLG{
+            one{"[Ðûţçĥ ĝûîļðéŕ one two]"}
+            other{"[Ðûţçĥ ĝûîļðéŕš one two]"}
+        }
+        NOK{
+            one{"[Ñöŕŵéĝîåñ ķŕöñé one two three]"}
+            other{"[Ñöŕŵéĝîåñ ķŕöñéŕ one two three]"}
+        }
+        NPR{
+            one{"[Ñéþåļéšé ŕûþéé one two]"}
+            other{"[Ñéþåļéšé ŕûþééš one two three]"}
+        }
+        NZD{
+            one{"[Ñéŵ Žéåļåñð ðöļļåŕ one two three]"}
+            other{"[Ñéŵ Žéåļåñð ðöļļåŕš one two three]"}
+        }
+        OMR{
+            one{"[Öɱåñî ŕîåļ one two]"}
+            other{"[Öɱåñî ŕîåļš one two]"}
+        }
+        PAB{
+            one{"[Þåñåɱåñîåñ ƀåļƀöå one two three]"}
+            other{"[Þåñåɱåñîåñ ƀåļƀöåš one two three]"}
+        }
+        PEI{
+            one{"[Þéŕûṽîåñ îñţî one two]"}
+            other{"[Þéŕûṽîåñ îñţîš one two]"}
+        }
+        PEN{
+            one{"[Þéŕûṽîåñ šöļ one two]"}
+            other{"[Þéŕûṽîåñ šöļéš one two]"}
+        }
+        PES{
+            one{"[Þéŕûṽîåñ šöļ (①⑧⑥③–①⑨⑥⑤) one two three]"}
+            other{"[Þéŕûṽîåñ šöļéš (①⑧⑥③–①⑨⑥⑤) one two three]"}
+        }
+        PGK{
+            one{"[Þåþûå Ñéŵ Ĝûîñéåñ ķîñå one two three]"}
+            other{"[Þåþûå Ñéŵ Ĝûîñéåñ ķîñå one two three]"}
+        }
+        PHP{
+            one{"[Þĥîļîþþîñé þéšö one two three]"}
+            other{"[Þĥîļîþþîñé þéšöš one two three]"}
+        }
+        PKR{
+            one{"[Þåķîšţåñî ŕûþéé one two three]"}
+            other{"[Þåķîšţåñî ŕûþééš one two three]"}
+        }
+        PLN{
+            one{"[Þöļîšĥ žļöţý one two]"}
+            other{"[Þöļîšĥ žļöţýš one two]"}
+        }
+        PLZ{
+            one{"[Þöļîšĥ žļöţý (ÞĻŽ) one two three]"}
+            other{"[Þöļîšĥ žļöţýš (ÞĻŽ) one two three]"}
+        }
+        PTE{
+            one{"[Þöŕţûĝûéšé éšçûðö one two three]"}
+            other{"[Þöŕţûĝûéšé éšçûðöš one two three]"}
+        }
+        PYG{
+            one{"[Þåŕåĝûåýåñ ĝûåŕåñî one two three]"}
+            other{"[Þåŕåĝûåýåñ ĝûåŕåñîš one two three]"}
+        }
+        QAR{
+            one{"[Ǫåţåŕî ŕîýåļ one two]"}
+            other{"[Ǫåţåŕî ŕîýåļš one two]"}
+        }
+        RHD{
+            one{"[Ŕĥöðéšîåñ ðöļļåŕ one two three]"}
+            other{"[Ŕĥöðéšîåñ ðöļļåŕš one two three]"}
+        }
+        ROL{
+            one{"[Ŕöɱåñîåñ ļéû (①⑨⑤②–②⓪⓪⑥) one two three]"}
+            other{"[Ŕöɱåñîåñ Ļéî (①⑨⑤②–②⓪⓪⑥) one two three]"}
+        }
+        RON{
+            one{"[Ŕöɱåñîåñ ļéû one two]"}
+            other{"[Ŕöɱåñîåñ ļéî one two]"}
+        }
+        RSD{
+            one{"[Šéŕƀîåñ ðîñåŕ one two]"}
+            other{"[Šéŕƀîåñ ðîñåŕš one two]"}
+        }
+        RUB{
+            one{"[Ŕûššîåñ ŕûƀļé one two]"}
+            other{"[Ŕûššîåñ ŕûƀļéš one two]"}
+        }
+        RUR{
+            one{"[Ŕûššîåñ ŕûƀļé (①⑨⑨①–①⑨⑨⑧) one two three]"}
+            other{"[Ŕûššîåñ ŕûƀļéš (①⑨⑨①–①⑨⑨⑧) one two three]"}
+        }
+        RWF{
+            one{"[Ŕŵåñðåñ ƒŕåñç one two]"}
+            other{"[Ŕŵåñðåñ ƒŕåñçš one two]"}
+        }
+        SAR{
+            one{"[Šåûðî ŕîýåļ one two]"}
+            other{"[Šåûðî ŕîýåļš one two]"}
+        }
+        SBD{
+            one{"[Šöļöɱöñ Îšļåñðš ðöļļåŕ one two three]"}
+            other{"[Šöļöɱöñ Îšļåñðš ðöļļåŕš one two three]"}
+        }
+        SCR{
+            one{"[Šéýçĥéļļöîš ŕûþéé one two three]"}
+            other{"[Šéýçĥéļļöîš ŕûþééš one two three]"}
+        }
+        SDD{
+            one{"[Šûðåñéšé ðîñåŕ (①⑨⑨②–②⓪⓪⑦) one two three]"}
+            other{"[Šûðåñéšé ðîñåŕš (①⑨⑨②–②⓪⓪⑦) one two three four]"}
+        }
+        SDG{
+            one{"[Šûðåñéšé þöûñð one two]"}
+            other{"[Šûðåñéšé þöûñðš one two three]"}
+        }
+        SDP{
+            one{"[Šûðåñéšé þöûñð (①⑨⑤⑦–①⑨⑨⑧) one two three]"}
+            other{"[Šûðåñéšé þöûñðš (①⑨⑤⑦–①⑨⑨⑧) one two three four]"}
+        }
+        SEK{
+            one{"[Šŵéðîšĥ ķŕöñå one two]"}
+            other{"[Šŵéðîšĥ ķŕöñöŕ one two]"}
+        }
+        SGD{
+            one{"[Šîñĝåþöŕé ðöļļåŕ one two three]"}
+            other{"[Šîñĝåþöŕé ðöļļåŕš one two three]"}
+        }
+        SHP{
+            one{"[Šţ· Ĥéļéñå þöûñð one two three]"}
+            other{"[Šţ· Ĥéļéñå þöûñðš one two three]"}
+        }
+        SIT{
+            one{"[Šļöṽéñîåñ ţöļåŕ one two three]"}
+            other{"[Šļöṽéñîåñ ţöļåŕš one two three]"}
+        }
+        SKK{
+            one{"[Šļöṽåķ ķöŕûñå one two]"}
+            other{"[Šļöṽåķ ķöŕûñåš one two]"}
+        }
+        SLE{
+            one{"[Šîéŕŕå Ļéöñéåñ ļéöñé one two three]"}
+            other{"[Šîéŕŕå Ļéöñéåñ ļéöñéš one two three]"}
+        }
+        SLL{
+            one{"[Šîéŕŕå Ļéöñéåñ ļéöñé (①⑨⑥④—②⓪②②) one two three four]"}
+            other{"[Šîéŕŕå Ļéöñéåñ ļéöñéš (①⑨⑥④—②⓪②②) one two three four]"}
+        }
+        SOS{
+            one{"[Šöɱåļî šĥîļļîñĝ one two three]"}
+            other{"[Šöɱåļî šĥîļļîñĝš one two three]"}
+        }
+        SRD{
+            one{"[Šûŕîñåɱéšé ðöļļåŕ one two three]"}
+            other{"[Šûŕîñåɱéšé ðöļļåŕš one two three]"}
+        }
+        SRG{
+            one{"[Šûŕîñåɱéšé ĝûîļðéŕ one two three]"}
+            other{"[Šûŕîñåɱéšé ĝûîļðéŕš one two three]"}
+        }
+        SSP{
+            one{"[Šöûţĥ Šûðåñéšé þöûñð one two three]"}
+            other{"[Šöûţĥ Šûðåñéšé þöûñðš one two three]"}
+        }
+        STD{
+            one{"[Šãö Ţöɱé ⅋ Þŕíñçîþé ðöƀŕå (①⑨⑦⑦–②⓪①⑦) one two three four five]"}
+            other{"[Šãö Ţöɱé ⅋ Þŕíñçîþé ðöƀŕåš (①⑨⑦⑦–②⓪①⑦) one two three four five]"}
+        }
+        STN{
+            one{"[Šãö Ţöɱé ⅋ Þŕíñçîþé ðöƀŕå one two three]"}
+            other{"[Šãö Ţöɱé ⅋ Þŕíñçîþé ðöƀŕåš one two three]"}
+        }
+        SUR{
+            one{"[Šöṽîéţ ŕöûƀļé one two]"}
+            other{"[Šöṽîéţ ŕöûƀļéš one two]"}
+        }
+        SVC{
+            one{"[Šåļṽåðöŕåñ çöļóñ one two three]"}
+            other{"[Šåļṽåðöŕåñ çöļöñéš one two three]"}
+        }
+        SYP{
+            one{"[Šýŕîåñ þöûñð one two]"}
+            other{"[Šýŕîåñ þöûñðš one two]"}
+        }
+        SZL{
+            one{"[Šŵåžî ļîļåñĝéñî one two three]"}
+            other{"[Šŵåžî éɱåļåñĝéñî one two three]"}
+        }
+        THB{
+            one{"[Ţĥåî ƀåĥţ one two]"}
+            other{"[Ţĥåî ƀåĥţ one two]"}
+        }
+        TJR{
+            one{"[Ţåĵîķîšţåñî ŕûƀļé one two three]"}
+            other{"[Ţåĵîķîšţåñî ŕûƀļéš one two three]"}
+        }
+        TJS{
+            one{"[Ţåĵîķîšţåñî šöɱöñî one two three]"}
+            other{"[Ţåĵîķîšţåñî šöɱöñîš one two three]"}
+        }
+        TMM{
+            one{"[Ţûŕķɱéñîšţåñî ɱåñåţ (①⑨⑨③–②⓪⓪⑨) one two three four]"}
+            other{"[Ţûŕķɱéñîšţåñî ɱåñåţ (①⑨⑨③–②⓪⓪⑨) one two three four]"}
+        }
+        TMT{
+            one{"[Ţûŕķɱéñîšţåñî ɱåñåţ one two three]"}
+            other{"[Ţûŕķɱéñîšţåñî ɱåñåţ one two three]"}
+        }
+        TND{
+            one{"[Ţûñîšîåñ ðîñåŕ one two]"}
+            other{"[Ţûñîšîåñ ðîñåŕš one two three]"}
+        }
+        TOP{
+            one{"[Ţöñĝåñ þåʻåñĝå one two]"}
+            other{"[Ţöñĝåñ þåʻåñĝå one two]"}
+        }
+        TPE{
+            one{"[Ţîɱöŕéšé éšçûðö one two three]"}
+            other{"[Ţîɱöŕéšé éšçûðöš one two three]"}
+        }
+        TRL{
+            one{"[Ţûŕķîšĥ ļîŕå (①⑨②②–②⓪⓪⑤) one two three]"}
+            other{"[Ţûŕķîšĥ Ļîŕå (①⑨②②–②⓪⓪⑤) one two three]"}
+        }
+        TRY{
+            one{"[Ţûŕķîšĥ ļîŕå one two]"}
+            other{"[Ţûŕķîšĥ Ļîŕå one two]"}
+        }
+        TTD{
+            one{"[Ţŕîñîðåð ⅋ Ţöƀåĝö ðöļļåŕ one two three]"}
+            other{"[Ţŕîñîðåð ⅋ Ţöƀåĝö ðöļļåŕš one two three]"}
+        }
+        TWD{
+            one{"[Ñéŵ Ţåîŵåñ ðöļļåŕ one two three]"}
+            other{"[Ñéŵ Ţåîŵåñ ðöļļåŕš one two three]"}
+        }
+        TZS{
+            one{"[Ţåñžåñîåñ šĥîļļîñĝ one two three]"}
+            other{"[Ţåñžåñîåñ šĥîļļîñĝš one two three]"}
+        }
+        UAH{
+            one{"[Ûķŕåîñîåñ ĥŕýṽñîå one two three]"}
+            other{"[Ûķŕåîñîåñ ĥŕýṽñîåš one two three]"}
+        }
+        UAK{
+            one{"[Ûķŕåîñîåñ ķåŕƀöṽåñéţš one two three]"}
+            other{"[Ûķŕåîñîåñ ķåŕƀöṽåñţšîṽ one two three]"}
+        }
+        UGS{
+            one{"[Ûĝåñðåñ šĥîļļîñĝ (①⑨⑥⑥–①⑨⑧⑦) one two three four]"}
+            other{"[Ûĝåñðåñ šĥîļļîñĝš (①⑨⑥⑥–①⑨⑧⑦) one two three four]"}
+        }
+        UGX{
+            one{"[Ûĝåñðåñ šĥîļļîñĝ one two three]"}
+            other{"[Ûĝåñðåñ šĥîļļîñĝš one two three]"}
+        }
+        USD{
+            one{"[ÛŠ ðöļļåŕ one two]"}
+            other{"[ÛŠ ðöļļåŕš one two]"}
+        }
+        USN{
+            one{"[ÛŠ ðöļļåŕ (ñéẋţ ðåý) one two three]"}
+            other{"[ÛŠ ðöļļåŕš (ñéẋţ ðåý) one two three]"}
+        }
+        USS{
+            one{"[ÛŠ ðöļļåŕ (šåɱé ðåý) one two three]"}
+            other{"[ÛŠ ðöļļåŕš (šåɱé ðåý) one two three]"}
+        }
+        UYI{
+            one{"[Ûŕûĝûåýåñ þéšö (îñðéẋéð ûñîţš) one two three four]"}
+            other{"[Ûŕûĝûåýåñ þéšöš (îñðéẋéð ûñîţš) one two three four]"}
+        }
+        UYP{
+            one{"[Ûŕûĝûåýåñ þéšö (①⑨⑦⑤–①⑨⑨③) one two three]"}
+            other{"[Ûŕûĝûåýåñ þéšöš (①⑨⑦⑤–①⑨⑨③) one two three four]"}
+        }
+        UYU{
+            one{"[Ûŕûĝûåýåñ þéšö one two]"}
+            other{"[Ûŕûĝûåýåñ þéšöš one two three]"}
+        }
+        UYW{
+            one{"[Ûŕûĝûåýåñ ñöɱîñåļ ŵåĝé îñðéẋ ûñîţ one two three four]"}
+            other{"[Ûŕûĝûåýåñ ñöɱîñåļ ŵåĝé îñðéẋ ûñîţš one two three four]"}
+        }
+        UZS{
+            one{"[Ûžƀéķîšţåñî šöɱ one two three]"}
+            other{"[Ûžƀéķîšţåñî šöɱ one two three]"}
+        }
+        VEB{
+            one{"[Ṽéñéžûéļåñ ƀöļíṽåŕ (①⑧⑦①–②⓪⓪⑧) one two three four]"}
+            other{"[Ṽéñéžûéļåñ ƀöļíṽåŕš (①⑧⑦①–②⓪⓪⑧) one two three four]"}
+        }
+        VED{
+            one{"[Ɓöļíṽåŕ Šöƀéŕåñö one two three]"}
+            other{"[Ɓöļíṽåŕ Šöƀéŕåñöš one two three]"}
+        }
+        VEF{
+            one{"[Ṽéñéžûéļåñ ƀöļíṽåŕ (②⓪⓪⑧–②⓪①⑧) one two three four]"}
+            other{"[Ṽéñéžûéļåñ ƀöļíṽåŕš (②⓪⓪⑧–②⓪①⑧) one two three four]"}
+        }
+        VES{
+            one{"[Ṽéñéžûéļåñ ƀöļíṽåŕ one two three]"}
+            other{"[Ṽéñéžûéļåñ ƀöļíṽåŕš one two three]"}
+        }
+        VND{
+            one{"[Ṽîéţñåɱéšé ðöñĝ one two three]"}
+            other{"[Ṽîéţñåɱéšé ðöñĝ one two three]"}
+        }
+        VNN{
+            one{"[Ṽîéţñåɱéšé ðöñĝ (①⑨⑦⑧–①⑨⑧⑤) one two three four]"}
+            other{"[Ṽîéţñåɱéšé ðöñĝ (①⑨⑦⑧–①⑨⑧⑤) one two three four]"}
+        }
+        VUV{
+            one{"[Ṽåñûåţû ṽåţû one two]"}
+            other{"[Ṽåñûåţû ṽåţûš one two]"}
+        }
+        WST{
+            one{"[Šåɱöåñ ţåļå one two]"}
+            other{"[Šåɱöåñ ţåļå one two]"}
+        }
+        XAF{
+            one{"[Çéñţŕåļ Åƒŕîçåñ ÇƑÅ ƒŕåñç one two three]"}
+            other{"[Çéñţŕåļ Åƒŕîçåñ ÇƑÅ ƒŕåñçš one two three]"}
+        }
+        XAG{
+            one{"[ţŕöý öûñçé öƒ šîļṽéŕ one two three]"}
+            other{"[ţŕöý öûñçéš öƒ šîļṽéŕ one two three]"}
+        }
+        XAU{
+            one{"[ţŕöý öûñçé öƒ ĝöļð one two three]"}
+            other{"[ţŕöý öûñçéš öƒ ĝöļð one two three]"}
+        }
+        XBA{
+            one{"[Éûŕöþéåñ çöɱþöšîţé ûñîţ one two three]"}
+            other{"[Éûŕöþéåñ çöɱþöšîţé ûñîţš one two three]"}
+        }
+        XBB{
+            one{"[Éûŕöþéåñ ɱöñéţåŕý ûñîţ one two three]"}
+            other{"[Éûŕöþéåñ ɱöñéţåŕý ûñîţš one two three]"}
+        }
+        XBC{
+            one{"[Éûŕöþéåñ ûñîţ öƒ åççöûñţ (ẊƁÇ) one two three four]"}
+            other{"[Éûŕöþéåñ ûñîţš öƒ åççöûñţ (ẊƁÇ) one two three four]"}
+        }
+        XBD{
+            one{"[Éûŕöþéåñ ûñîţ öƒ åççöûñţ (ẊƁÐ) one two three four]"}
+            other{"[Éûŕöþéåñ ûñîţš öƒ åççöûñţ (ẊƁÐ) one two three four]"}
+        }
+        XCD{
+            one{"[Éåšţ Çåŕîƀƀéåñ ðöļļåŕ one two three]"}
+            other{"[Éåšţ Çåŕîƀƀéåñ ðöļļåŕš one two three]"}
+        }
+        XCG{
+            one{"[Çåŕîƀƀéåñ ĝûîļðéŕ one two three]"}
+            other{"[Çåŕîƀƀéåñ ĝûîļðéŕš one two three]"}
+        }
+        XDR{
+            one{"[šþéçîåļ ðŕåŵîñĝ ŕîĝĥţš one two three]"}
+            other{"[šþéçîåļ ðŕåŵîñĝ ŕîĝĥţš one two three]"}
+        }
+        XEU{
+            one{"[Éûŕöþéåñ çûŕŕéñçý ûñîţ one two three]"}
+            other{"[Éûŕöþéåñ çûŕŕéñçý ûñîţš one two three]"}
+        }
+        XFO{
+            one{"[Ƒŕéñçĥ ĝöļð ƒŕåñç one two three]"}
+            other{"[Ƒŕéñçĥ ĝöļð ƒŕåñçš one two three]"}
+        }
+        XFU{
+            one{"[Ƒŕéñçĥ ÛÎÇ‐ƒŕåñç one two three]"}
+            other{"[Ƒŕéñçĥ ÛÎÇ‐ƒŕåñçš one two three]"}
+        }
+        XOF{
+            one{"[Ŵéšţ Åƒŕîçåñ ÇƑÅ ƒŕåñç one two three]"}
+            other{"[Ŵéšţ Åƒŕîçåñ ÇƑÅ ƒŕåñçš one two three]"}
+        }
+        XPD{
+            one{"[ţŕöý öûñçé öƒ þåļļåðîûɱ one two three]"}
+            other{"[ţŕöý öûñçéš öƒ þåļļåðîûɱ one two three]"}
+        }
+        XPF{
+            one{"[ÇƑÞ ƒŕåñç one two]"}
+            other{"[ÇƑÞ ƒŕåñçš one two]"}
+        }
+        XPT{
+            one{"[ţŕöý öûñçé öƒ þļåţîñûɱ one two three]"}
+            other{"[ţŕöý öûñçéš öƒ þļåţîñûɱ one two three]"}
+        }
+        XRE{
+            one{"[ŔÎÑÉŢ Ƒûñðš ûñîţ one two three]"}
+            other{"[ŔÎÑÉŢ Ƒûñðš ûñîţš one two three]"}
+        }
+        XSU{
+            one{"[Šûçŕé one]"}
+            other{"[Šûçŕéš one]"}
+        }
+        XTS{
+            one{"[Ţéšţîñĝ Çûŕŕéñçý ûñîţ one two three]"}
+            other{"[Ţéšţîñĝ Çûŕŕéñçý ûñîţš one two three]"}
+        }
+        XUA{
+            one{"[ÅÐƁ ûñîţ öƒ åççöûñţ one two three]"}
+            other{"[ÅÐƁ ûñîţš öƒ åççöûñţ one two three]"}
+        }
+        XXX{
+            one{"[(ûñķñöŵñ ûñîţ öƒ çûŕŕéñçý) one two three]"}
+            other{"[(ûñķñöŵñ çûŕŕéñçý) one two three]"}
+        }
+        YDD{
+            one{"[Ýéɱéñî ðîñåŕ one two]"}
+            other{"[Ýéɱéñî ðîñåŕš one two]"}
+        }
+        YER{
+            one{"[Ýéɱéñî ŕîåļ one two]"}
+            other{"[Ýéɱéñî ŕîåļš one two]"}
+        }
+        YUD{
+            one{"[Ýûĝöšļåṽîåñ ĥåŕð ðîñåŕ (①⑨⑥⑥–①⑨⑨⓪) one two three four]"}
+            other{"[Ýûĝöšļåṽîåñ ĥåŕð ðîñåŕš (①⑨⑥⑥–①⑨⑨⓪) one two three four]"}
+        }
+        YUM{
+            one{"[Ýûĝöšļåṽîåñ ñéŵ ðîñåŕ (①⑨⑨④–②⓪⓪②) one two three four]"}
+            other{"[Ýûĝöšļåṽîåñ ñéŵ ðîñåŕš (①⑨⑨④–②⓪⓪②) one two three four]"}
+        }
+        YUN{
+            one{"[Ýûĝöšļåṽîåñ çöñṽéŕţîƀļé ðîñåŕ (①⑨⑨⓪–①⑨⑨②) one two three four five]"}
+            other{"[Ýûĝöšļåṽîåñ çöñṽéŕţîƀļé ðîñåŕš (①⑨⑨⓪–①⑨⑨②) one two three four five]"}
+        }
+        YUR{
+            one{"[Ýûĝöšļåṽîåñ ŕéƒöŕɱéð ðîñåŕ (①⑨⑨②–①⑨⑨③) one two three four five]"}
+            other{"[Ýûĝöšļåṽîåñ ŕéƒöŕɱéð ðîñåŕš (①⑨⑨②–①⑨⑨③) one two three four five]"}
+        }
+        ZAL{
+            one{"[Šöûţĥ Åƒŕîçåñ ŕåñð (ƒîñåñçîåļ) one two three four]"}
+            other{"[Šöûţĥ Åƒŕîçåñ ŕåñðš (ƒîñåñçîåļ) one two three four]"}
+        }
+        ZAR{
+            one{"[Šöûţĥ Åƒŕîçåñ ŕåñð one two three]"}
+            other{"[Šöûţĥ Åƒŕîçåñ ŕåñð one two three]"}
+        }
+        ZMK{
+            one{"[Žåɱƀîåñ ķŵåçĥå (①⑨⑥⑧–②⓪①②) one two three]"}
+            other{"[Žåɱƀîåñ ķŵåçĥåš (①⑨⑥⑧–②⓪①②) one two three four]"}
+        }
+        ZMW{
+            one{"[Žåɱƀîåñ ķŵåçĥå one two]"}
+            other{"[Žåɱƀîåñ ķŵåçĥåš one two three]"}
+        }
+        ZRN{
+            one{"[Žåîŕéåñ ñéŵ žåîŕé (①⑨⑨③–①⑨⑨⑧) one two three four]"}
+            other{"[Žåîŕéåñ ñéŵ žåîŕéš (①⑨⑨③–①⑨⑨⑧) one two three four]"}
+        }
+        ZRZ{
+            one{"[Žåîŕéåñ žåîŕé (①⑨⑦①–①⑨⑨③) one two three]"}
+            other{"[Žåîŕéåñ žåîŕéš (①⑨⑦①–①⑨⑨③) one two three]"}
+        }
+        ZWD{
+            one{"[Žîɱƀåƀŵéåñ ðöļļåŕ (①⑨⑧⓪–②⓪⓪⑧) one two three four]"}
+            other{"[Žîɱƀåƀŵéåñ ðöļļåŕš (①⑨⑧⓪–②⓪⓪⑧) one two three four]"}
+        }
+        ZWG{
+            one{"[Žîɱƀåƀŵéåñ ĝöļð one two three]"}
+            other{"[Žîɱƀåƀŵéåñ ĝöļð one two three]"}
+        }
+        ZWL{
+            one{"[Žîɱƀåƀŵéåñ ðöļļåŕ (②⓪⓪⑨–②⓪②④) one two three four]"}
+            other{"[Žîɱƀåƀŵéåñ ðöļļåŕš (②⓪⓪⑨–②⓪②④) one two three four]"}
+        }
+        ZWR{
+            one{"[Žîɱƀåƀŵéåñ ðöļļåŕ (②⓪⓪⑧) one two three]"}
+            other{"[Žîɱƀåƀŵéåñ ðöļļåŕš (②⓪⓪⑧) one two three]"}
+        }
+    }
+}
