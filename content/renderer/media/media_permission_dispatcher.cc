@@ -156,12 +156,8 @@ void MediaPermissionDispatcher::OnPermissionStatus(
   std::move(permission_status_cb).Run(true);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::move(permission_status_cb)
-<<<<<<< HEAD
       .Run(status->status == blink::mojom::PermissionStatus::GRANTED);
-=======
-      .Run(status == blink::mojom::PermissionStatus::GRANTED);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if BUILDFLAG(IS_WIN)
