@@ -29,6 +29,19 @@
 namespace starboard {
 namespace benchmark {
 
+// Drives an SbPlayer for the player benchmarks: creates it from .dmp files,
+// feeds it samples up to a media time, seeks it, and waits for the player
+// states, so that the benchmarks only contain the calls they time. All waits
+// are bounded and report failures through their return values instead of
+// aborting, so that a benchmark can report them with SkipWithError().
+//
+// Must be used from a single thread; the player callbacks may arrive on any
+// thread and are synchronized through |mutex_|.
+//
+// TODO(b/541298090): Much of this duplicates SbPlayerTestFixture and the
+// helpers in starboard/nplb/player_test_util.* and
+// starboard/nplb/player_creation_param_helpers.*. Move the shared parts into a
+// library under starboard/testing/ that both nplb and the benchmarks use.
 class SbPlayerBenchmarkHelper {
  public:
   // Default upper bound for the waits on player callbacks. Hitting it means
@@ -136,9 +149,9 @@ class SbPlayerBenchmarkHelper {
   bool video_eos_written_ = false;
 
   // Thread synchronization and state tracking. All the state below is guarded
-  // by |mutex_|, and every change is signalled through |cv_|.
+  // by |mutex_|, and every change is signalled through |condition_variable_|.
   std::mutex mutex_;
-  std::condition_variable cv_;
+  std::condition_variable condition_variable_;
 
   SbPlayerState player_state_ = kSbPlayerStateInitialized;
   int player_state_ticket_ = 0;
@@ -173,7 +186,7 @@ class PlayerInitializationWaiter {
 
  private:
   std::mutex mutex_;
-  std::condition_variable cv_;
+  std::condition_variable condition_variable_;
   bool initialized_ = false;
   bool error_occurred_ = false;
 };

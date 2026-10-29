@@ -48,6 +48,10 @@ target(_benchmark_type, "benchmark") {
 # platforms such as Linux too, where it can be run directly from the shell.
 # Any --benchmark_* flag on the command line is passed through to the
 # benchmarks, e.g. --benchmark_filter=BM_PlayerCreateSync.
+#
+# Any failure inside a benchmark is reported as a test failure, so the target
+# also serves as an endurance test of the player, e.g. by running it with
+# --benchmark_repetitions or --benchmark_min_time.
 test("player_benchmarks") {
   testonly = true
 

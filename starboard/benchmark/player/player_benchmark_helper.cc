@@ -201,7 +201,8 @@ bool SbPlayerBenchmarkHelper::FeedData(int64_t target_media_time_us,
                         << ", video_needs_data=" << video_needs_data_ << ")";
           return false;
         }
-        timed_out = cv_.wait_until(lock, deadline) == std::cv_status::timeout;
+        timed_out = condition_variable_.wait_until(lock, deadline) ==
+                    std::cv_status::timeout;
         continue;
       }
     }
@@ -242,7 +243,7 @@ bool SbPlayerBenchmarkHelper::WaitForPlayerState(SbPlayerState state,
                                                  int64_t timeout_us) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto timeout = std::chrono::microseconds(timeout_us);
-  cv_.wait_for(lock, timeout, [this, state, ticket] {
+  condition_variable_.wait_for(lock, timeout, [this, state, ticket] {
     return error_occurred_ ||
            (player_state_ == state && player_state_ticket_ == ticket);
   });
@@ -409,7 +410,7 @@ void SbPlayerBenchmarkHelper::DecoderStatusCallback(SbPlayer player,
   } else if (type == kSbMediaTypeVideo) {
     helper->video_needs_data_ = (state == kSbPlayerDecoderStateNeedsData);
   }
-  helper->cv_.notify_all();
+  helper->condition_variable_.notify_all();
 }
 
 void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
@@ -424,7 +425,7 @@ void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
   }
   helper->player_state_ = state;
   helper->player_state_ticket_ = ticket;
-  helper->cv_.notify_all();
+  helper->condition_variable_.notify_all();
 }
 
 // static
@@ -447,7 +448,7 @@ void SbPlayerBenchmarkHelper::PlayerErrorCallback(SbPlayer player,
   // between a waiter's predicate check and its wait.
   std::lock_guard<std::mutex> lock(helper->mutex_);
   helper->error_occurred_ = true;
-  helper->cv_.notify_all();
+  helper->condition_variable_.notify_all();
 }
 
 // static
@@ -462,7 +463,7 @@ void PlayerInitializationWaiter::PlayerStatusFunc(SbPlayer player,
       static_cast<PlayerInitializationWaiter*>(context);
   std::lock_guard<std::mutex> lock(waiter->mutex_);
   waiter->initialized_ = true;
-  waiter->cv_.notify_all();
+  waiter->condition_variable_.notify_all();
 }
 
 // static
@@ -476,13 +477,14 @@ void PlayerInitializationWaiter::PlayerErrorFunc(SbPlayer player,
       static_cast<PlayerInitializationWaiter*>(context);
   std::lock_guard<std::mutex> lock(waiter->mutex_);
   waiter->error_occurred_ = true;
-  waiter->cv_.notify_all();
+  waiter->condition_variable_.notify_all();
 }
 
 bool PlayerInitializationWaiter::WaitForInitialization(int64_t timeout_us) {
   std::unique_lock<std::mutex> lock(mutex_);
-  cv_.wait_for(lock, std::chrono::microseconds(timeout_us),
-               [this] { return initialized_ || error_occurred_; });
+  condition_variable_.wait_for(
+      lock, std::chrono::microseconds(timeout_us),
+      [this] { return initialized_ || error_occurred_; });
   return initialized_ && !error_occurred_;
 }
 
