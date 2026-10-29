@@ -5,10 +5,6 @@
 #ifndef SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDINGS_SERVICE_H_
 #define SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDINGS_SERVICE_H_
 
-<<<<<<< HEAD
-=======
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h" // nogncheck
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/passage_embeddings/public/mojom/passage_embeddings.mojom.h"
 
