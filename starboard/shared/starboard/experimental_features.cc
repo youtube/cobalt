@@ -21,7 +21,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental/experimental_features.h"
-#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
 namespace {
@@ -60,11 +59,6 @@ void SetExperimentalFeaturesForCurrentThread(
   }
   auto& experimental_features = GetThreadLocalExperimentalFeatures();
   experimental_features = ExperimentalFeatures(std::move(map));
-
-  if (experimental_features->GetBool(
-          kMediaEnableSimdBasedAudioFormatSwitching)) {
-    DecodedAudio::EnableSimdBasedAudioFormatSwitching();
-  }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
