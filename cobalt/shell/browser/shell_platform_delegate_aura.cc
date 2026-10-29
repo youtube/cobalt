@@ -21,6 +21,7 @@
 #include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
@@ -119,6 +120,7 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 }
 
 bool ShellPlatformDelegate::HasPlatformWindow() const {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (!platform_ || !platform_->aura || !platform_->aura->host()) {
     return false;
   }

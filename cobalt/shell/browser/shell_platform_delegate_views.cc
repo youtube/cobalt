@@ -31,6 +31,7 @@
 #include "build/buildflag.h"
 #include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -363,6 +364,7 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
   }
 }
 bool ShellPlatformDelegate::HasPlatformWindow() const {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   for (const auto& [shell, shell_data] : shell_data_map_) {
     if (!shell_data.window_widget) {
       continue;
