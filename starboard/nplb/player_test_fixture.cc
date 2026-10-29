@@ -473,11 +473,8 @@ void SbPlayerTestFixture::DrmSessionUpdateRequestCallback(
     const void* content,
     int content_size,
     const char* url) {
-  SB_DCHECK(context);
-  DrmSessionUpdateRequestEvent event;
-  event.received = true;
-  event.status = status;
-  event.type = type;
+  SB_CHECK(context);
+  DrmSessionUpdateRequestEvent event{/*received=*/true, status, type};
   if (session_id && session_id_size > 0) {
     event.session_id.assign(static_cast<const char*>(session_id),
                             session_id_size);
@@ -488,7 +485,7 @@ void SbPlayerTestFixture::DrmSessionUpdateRequestCallback(
 
 void SbPlayerTestFixture::InitializeDrmSystem() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(!key_system_.empty());
+  SB_CHECK(!key_system_.empty());
 
   constexpr int64_t kWaitForDrmSessionUpdateRequestTimeout = 5'000'000LL;
   constexpr int kDrmTicket = 1;
@@ -498,7 +495,7 @@ void SbPlayerTestFixture::InitializeDrmSystem() {
       key_system_.c_str(), this, DrmSessionUpdateRequestCallback,
       DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
       DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
-  SB_DCHECK(SbDrmSystemIsValid(drm_system_));
+  SB_CHECK(SbDrmSystemIsValid(drm_system_));
 
   // In the EME flow, a drm session is always generated before media samples
   // are written to a player with a drm system. Some platforms (e.g. Android)
