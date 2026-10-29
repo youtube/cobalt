@@ -11,9 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 
 if (current_toolchain == starboard_toolchain) {
+  if (is_cobalt_hermetic_build) {
+    _benchmark_type = "modular_executable"
+  } else {
+    _benchmark_type = "executable"
+  }
+
   source_set("player_filter_tests_sources") {
     testonly = true
 
@@ -70,7 +77,7 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 
-  target(final_executable_type, "player_filter_benchmarks") {
+  target(_benchmark_type, "player_filter_benchmarks") {
     testonly = true
 
     sources = [
