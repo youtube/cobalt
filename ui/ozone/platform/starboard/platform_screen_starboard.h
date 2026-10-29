@@ -27,7 +27,13 @@ class PlatformScreenStarboard : public PlatformScreen {
 
   ~PlatformScreenStarboard() override;
 
+  // Returns the active PlatformScreenStarboard instance, or nullptr if none.
+  static PlatformScreenStarboard* GetInstance();
+
   void InitScreen();
+
+  // Updates the primary display bounds to match the Starboard window bounds.
+  void UpdateDisplayBounds(const gfx::Rect& bounds);
 
   const std::vector<display::Display>& GetAllDisplays() const override;
 
