@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 
+#include "build/build_config.h"
 #include "ui/gl/gl_bindings.h"
 
 namespace gl {
@@ -27,6 +28,11 @@ class GPUTimingFake {
   void SetCurrentCPUTime(int64_t current_time);
   void SetCurrentGLTime(GLint64 current_time);
   void SetCPUGLOffset(int64_t offset);
+#if BUILDFLAG(IS_STARBOARD)
+  // Units per microsecond reported by glGetInteger64v(GL_TIMESTAMP_EXT).
+  // Defaults to 1000 (nanoseconds); 24 models a raw 24 MHz counter.
+  void SetGLTimestampUnitsPerMicrosecond(int64_t units_per_us);
+#endif
 
   // Used to signal a disjoint occurred for disjoint timer queries.
   void SetDisjoint();
@@ -59,6 +65,9 @@ class GPUTimingFake {
   static int64_t fake_cpu_time_;
   GLint64 current_gl_time_ = 0;
   int64_t gl_cpu_time_offset_ = 0;
+#if BUILDFLAG(IS_STARBOARD)
+  int64_t gl_timestamp_units_per_us_ = 1000;
+#endif
   GLuint next_query_id_ = 0;
   std::set<GLuint> allocated_queries_;
   struct QueryResult {

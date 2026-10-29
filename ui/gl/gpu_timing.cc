@@ -9,9 +9,16 @@
 #include "base/containers/circular_deque.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_version_info.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <cmath>
+
+#include "base/logging.h"
+#endif
 
 namespace gl {
 
@@ -22,6 +29,63 @@ int64_t NanoToMicro(uint64_t nano_seconds) {
   const uint64_t up = nano_seconds + base::Time::kNanosecondsPerMicrosecond / 2;
   return static_cast<int64_t>(up / base::Time::kNanosecondsPerMicrosecond);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+// Normalizes glGetInteger64v(GL_TIMESTAMP_EXT) to microseconds when a driver
+// (e.g. Mali on RDK) reports raw crystal ticks (24 ticks/us) from
+// glGetInteger64v while glGetQueryObjectui64v reports nanoseconds.
+class StarboardGlTimestampExtFixer {
+ public:
+  // Provides the completed GL_TIMESTAMP_EXT query result that the next
+  // ToMicroseconds() call may calibrate against. |max_latency_us| bounds how
+  // long after the query was stamped glGetInteger64v will be read. Pass a
+  // zero |query_result_ns| to skip calibration for this query.
+  void SetCalibrationSample(GLuint64 query_result_ns, int64_t max_latency_us) {
+    sample_ns_ = query_result_ns;
+    sample_max_latency_us_ = max_latency_us;
+  }
+
+  int64_t ToMicroseconds(GLint64 gl_now) {
+    // The measured ratio is inflated by (read latency / counter uptime). Keep
+    // that under 1% so llround() cannot land on a neighbouring integer for any
+    // counter up to 50 MHz; otherwise retry on a later query.
+    const bool sample_is_precise =
+        sample_ns_ > 0 && sample_max_latency_us_ * 100 < NanoToMicro(sample_ns_);
+    if (!calibrated_ && gl_now > 0 && sample_is_precise) {
+      const int64_t rate = static_cast<int64_t>(
+          std::llround(static_cast<double>(gl_now) *
+                       base::Time::kNanosecondsPerMicrosecond /
+                       static_cast<double>(sample_ns_)));
+      // Conforming nanosecond drivers yield rate >= 1000 units/us because
+      // gl_now is read after the query was stamped; unscaled MHz crystal
+      // counters yield rate << 1000 (e.g. 24 on Mali).
+      if (rate >= 1 && rate < base::Time::kNanosecondsPerMicrosecond) {
+        ticks_per_us_ = rate;
+        LOG(WARNING) << "GL_TIMESTAMP rate is " << rate
+                     << " units/us (expected 1000); rescaling.";
+      }
+      calibrated_ = true;
+    }
+    if (ticks_per_us_ == base::Time::kNanosecondsPerMicrosecond) {
+      return NanoToMicro(gl_now);
+    }
+    return gl_now / ticks_per_us_;
+  }
+
+  // Called on GL_GPU_DISJOINT_EXT: the GPU counter may have reset between the
+  // query and glGetInteger64v, so the sampled rate cannot be trusted.
+  void Reset() {
+    ticks_per_us_ = base::Time::kNanosecondsPerMicrosecond;
+    calibrated_ = false;
+  }
+
+ private:
+  GLuint64 sample_ns_ = 0;
+  int64_t sample_max_latency_us_ = 0;
+  int64_t ticks_per_us_ = base::Time::kNanosecondsPerMicrosecond;
+  bool calibrated_ = false;
+};
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 int32_t QueryTimestampBits() {
   GLint timestamp_bits = 0;
@@ -45,6 +109,13 @@ class GPUTimingImpl : public GPUTiming {
 
   uint32_t GetDisjointCount();
   int64_t CalculateTimerOffset();
+#if BUILDFLAG(IS_STARBOARD)
+  void SetGlTimestampCalibrationSample(GLuint64 query_result_ns,
+                                       int64_t max_latency_us) {
+    starboard_gl_timestamp_ext_.SetCalibrationSample(query_result_ns,
+                                                     max_latency_us);
+  }
+#endif
 
   scoped_refptr<QueryResult> BeginElapsedTimeQuery();
   void EndElapsedTimeQuery(scoped_refptr<QueryResult> result);
@@ -85,6 +156,9 @@ class GPUTimingImpl : public GPUTiming {
   uint32_t disjoint_counter_ = 0;
   int64_t offset_ = 0;  // offset cache when timer_type_ == kTimerTypeARB
   bool offset_valid_ = false;
+#if BUILDFLAG(IS_STARBOARD)
+  StarboardGlTimestampExtFixer starboard_gl_timestamp_ext_;
+#endif
   bool force_time_elapsed_query_ = false;
   int32_t timestamp_bit_count_gl_ = -1;  // gl implementation timestamp bits
 
@@ -307,6 +381,14 @@ class TimeStampTimerQuery : public TimerQuery {
     glGetQueryObjectui64v(gl_query_id_, GL_QUERY_RESULT, &result_value);
     const int64_t micro_results = NanoToMicro(result_value);
 
+#if BUILDFLAG(IS_STARBOARD)
+    // Only calibrate against queries that did not span a disjoint event. The
+    // GPU stamped the query no earlier than it was issued, which bounds the
+    // read latency.
+    gpu_timing->SetGlTimestampCalibrationSample(
+        gpu_timing->IsGoodQueryID(timer_query_id_) ? result_value : 0,
+        gpu_timing->GetCurrentCPUTime() - issued_cpu_time_);
+#endif
     const int64_t offset = gpu_timing->CalculateTimerOffset();
     const int64_t adjusted_result = micro_results + offset;
     DCHECK(query_result_.get());
@@ -315,10 +397,17 @@ class TimeStampTimerQuery : public TimerQuery {
     time_stamp_ = adjusted_result;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  void SetIssuedCpuTime(int64_t cpu_time) { issued_cpu_time_ = cpu_time; }
+#endif
+
  private:
   ~TimeStampTimerQuery() override {}
   uint32_t gl_query_id_ = 0;
   scoped_refptr<QueryResult> query_result_;
+#if BUILDFLAG(IS_STARBOARD)
+  int64_t issued_cpu_time_ = 0;
+#endif
 };
 
 GPUTimingImpl::GPUTimingImpl(GLContextReal* context) {
@@ -347,6 +436,9 @@ uint32_t GPUTimingImpl::GetDisjointCount() {
     if (disjoint_value) {
       offset_valid_ = false;
       disjoint_counter_++;
+#if BUILDFLAG(IS_STARBOARD)
+      starboard_gl_timestamp_ext_.Reset();
+#endif
     }
   }
   return disjoint_counter_;
@@ -358,7 +450,12 @@ int64_t GPUTimingImpl::CalculateTimerOffset() {
       GLint64 gl_now = 0;
       glGetInteger64v(GL_TIMESTAMP_EXT, &gl_now);
       const int64_t cpu_time = GetCurrentCPUTime();
+#if BUILDFLAG(IS_STARBOARD)
+      const int64_t micro_offset =
+          cpu_time - starboard_gl_timestamp_ext_.ToMicroseconds(gl_now);
+#else
       const int64_t micro_offset = cpu_time - NanoToMicro(gl_now);
+#endif
 
       // We cannot expect these instructions to run with the accuracy
       // within 1 microsecond, instead discard differences which are less
@@ -422,6 +519,10 @@ scoped_refptr<QueryResult> GPUTimingImpl::DoTimeStampQuery() {
   }
 
   queries_.push_back(new TimeStampTimerQuery(next_timer_query_id_++));
+#if BUILDFLAG(IS_STARBOARD)
+  static_cast<TimeStampTimerQuery*>(queries_.back().get())
+      ->SetIssuedCpuTime(GetCurrentCPUTime());
+#endif
   return static_cast<TimeStampTimerQuery*>(queries_.back().get())->DoQuery();
 }
 
@@ -478,6 +579,9 @@ void GPUTimingImpl::HandleBadQuery() {
   next_good_timer_query_id_ = next_timer_query_id_;
   offset_valid_ = false;
   query_disjoint_count_ = ++disjoint_counter_;
+#if BUILDFLAG(IS_STARBOARD)
+  starboard_gl_timestamp_ext_.Reset();
+#endif
 }
 
 bool GPUTimingImpl::IsGoodQueryID(uint32_t query_id) {
