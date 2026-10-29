@@ -188,6 +188,13 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="6" label="Skipped: cached assets disabled"/>
 </enum>
 
+<enum name="SplashWasmPolicyOutcome">
+  <int value="0" label="Chose a built-in asset"/>
+  <int value="1" label="Chose a cached asset"/>
+  <int value="2" label="Own choice: asset list unavailable"/>
+  <int value="3" label="Own choice: policy failed"/>
+</enum>
+
 <enum name="StorageInjectionResult">
   <int value="0" label="Success"/>
   <int value="1" label="Error"/>

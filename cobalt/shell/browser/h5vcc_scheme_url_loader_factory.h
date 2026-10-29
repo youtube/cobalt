@@ -15,9 +15,12 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <stdint.h>
+
 #include <optional>
 #include <string>
 
+#include "base/containers/span.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -41,6 +44,27 @@ enum class SplashScreenFetchedState {
   // cache miss.
   kSkippedCachedAssets = 6,
   kMaxValue = kSkippedCachedAssets,
+};
+
+// The outcome of splash.html's WebAssembly policy (kSplashWasmPolicy), which
+// the page reports in the "policy" query param of its request for the asset
+// that it shows. These values are persisted to logs. Entries should not be
+// renumbered and numeric values should never be reused. Keep in sync with
+// SplashWasmPolicyOutcome in
+// tools/metrics/histograms/metadata/cobalt/enums.xml.
+enum class SplashWasmPolicyOutcome {
+  // The policy chose a built-in asset ("builtin").
+  kChoseBuiltIn = 0,
+  // The policy chose an asset that the WebApp cached ("cached").
+  kChoseCached = 1,
+  // The page couldn't get the splash asset list, e.g., as the cached assets
+  // couldn't all be listed in time, and made its own choice
+  // ("list_unavailable").
+  kListUnavailable = 2,
+  // The policy failed, e.g., its module didn't load, or it made no or an
+  // unexpected choice, and the page made its own choice ("failed").
+  kFailed = 3,
+  kMaxValue = kFailed,
 };
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
@@ -82,6 +106,14 @@ class H5vccSchemeURLLoaderFactory final
   // Whether to read the splash assets that the WebApp cached:
   // kEnableCachedSplashFile, unless overridden for testing.
   static bool IsCachedSplashFileEnabled();
+
+  // Returns the built-in resource `name`, e.g., "splash.webm", or an empty span
+  // if there's none. The data has static storage duration.
+  static base::span<const uint8_t> GetBuiltInResource(const std::string& name);
+
+  // The origin whose Cache API holds the splash screen assets that the WebApp
+  // cached, e.g., "https://www.youtube.com/".
+  static std::string GetSplashDomain();
 
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(

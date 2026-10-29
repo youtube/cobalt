@@ -17,11 +17,14 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -141,6 +144,29 @@ class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
     testing::Test::TearDown();
   }
 
+  // Loads `url`, and returns its response's status and the response's
+  // Content-Security-Policy.
+  std::pair<int, std::string> LoadStatusAndContentSecurityPolicy(
+      const std::string& url) {
+    network::ResourceRequest request;
+    request.url = GURL(url);
+    mojo::PendingRemote<network::mojom::URLLoader> loader;
+    TestURLLoaderClient client;
+    factory_->CreateLoaderAndStart(
+        loader.InitWithNewPipeAndPassReceiver(), 0, 0, request,
+        client.CreateRemote(),
+        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+    client.WaitForResponse();
+    if (!client.response_head()) {
+      ADD_FAILURE() << "No response for " << url;
+      return {0, ""};
+    }
+    const net::HttpResponseHeaders& headers = *client.response_head()->headers;
+    return {
+        headers.response_code(),
+        headers.GetNormalizedHeader("Content-Security-Policy").value_or("")};
+  }
+
  protected:
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<H5vccSchemeURLLoaderFactory> factory_;
@@ -207,6 +233,48 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadNonExistingResource) {
   ASSERT_TRUE(client->completion_status());
   EXPECT_EQ(net::OK, client->completion_status()->error_code);
   EXPECT_EQ(client->GetResponseBody(), "Resource not found");
+}
+
+// splash.html can only compile WebAssembly with SplashWasmPolicy.
+TEST_F(H5vccSchemeURLLoaderFactoryTest, ContentSecurityPolicyForbidsWasm) {
+  const auto [status, csp] =
+      LoadStatusAndContentSecurityPolicy("h5vcc-embedded://test.html");
+
+  EXPECT_EQ(net::HTTP_OK, status);
+  EXPECT_NE(std::string::npos, csp.find("script-src 'self' 'unsafe-inline'; "));
+  EXPECT_EQ(std::string::npos, csp.find("wasm"));
+}
+
+TEST_F(H5vccSchemeURLLoaderFactoryTest,
+       ContentSecurityPolicyAllowsWasmWithSplashWasmPolicy) {
+  base::test::ScopedFeatureList feature_list(
+      cobalt::features::kSplashWasmPolicy);
+
+  const auto [status, csp] =
+      LoadStatusAndContentSecurityPolicy("h5vcc-embedded://test.html");
+
+  EXPECT_EQ(net::HTTP_OK, status);
+  EXPECT_NE(std::string::npos,
+            csp.find("script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "));
+}
+
+TEST_F(H5vccSchemeURLLoaderFactoryTest,
+       NoSplashAssetListWithoutSplashWasmPolicy) {
+  EXPECT_EQ(net::HTTP_NOT_FOUND, LoadStatusAndContentSecurityPolicy(
+                                     "h5vcc-embedded://splash_assets.json")
+                                     .first);
+}
+
+// The assets can't be listed without a BrowserContext, as there's no cache.
+TEST_F(H5vccSchemeURLLoaderFactoryTest,
+       SplashAssetListIsUnavailableWithoutBrowserContext) {
+  base::test::ScopedFeatureList feature_list(
+      cobalt::features::kSplashWasmPolicy);
+
+  EXPECT_EQ(
+      net::HTTP_SERVICE_UNAVAILABLE,
+      LoadStatusAndContentSecurityPolicy("h5vcc-embedded://splash_assets.json")
+          .first);
 }
 
 }  // namespace content

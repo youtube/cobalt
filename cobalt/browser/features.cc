@@ -144,6 +144,10 @@ BASE_FEATURE_PARAM(std::string,
                    "");
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+BASE_FEATURE(kSplashWasmPolicy,
+             "SplashWasmPolicy",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
