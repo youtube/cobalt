@@ -84,6 +84,11 @@ CompositorDependenciesAndroid::CompositorDependenciesAndroid()
       base::Unretained(this)));
 
   CreateVizFrameSinkManager();
+
+  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
+      FROM_HERE,
+      base::BindRepeating(&CompositorDependenciesAndroid::OnMemoryPressure,
+                          base::Unretained(this)));
 }
 
 CompositorDependenciesAndroid::~CompositorDependenciesAndroid() = default;
@@ -164,6 +169,19 @@ void CompositorDependenciesAndroid::DoLowEndBackgroundCleanup() {
   if (host) {
     host->gpu_service()->OnBackgroundCleanup();
   }
+}
+
+void CompositorDependenciesAndroid::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+  if (memory_pressure_level !=
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    return;
+  }
+  if (!visible_compositors_.empty() || visible_synchronous_compositors_ > 0u) {
+    return;
+  }
+  low_end_background_cleanup_task_.Cancel();
+  DoLowEndBackgroundCleanup();
 }
 
 void CompositorDependenciesAndroid::OnCompositorVisible(
