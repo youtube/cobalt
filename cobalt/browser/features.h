@@ -145,12 +145,13 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
 
 // Has the built-in splash screen choose the image or video that it shows with
 // a WebAssembly policy, splash_policy.wasm, from the built-in assets and those
-// that the WebApp cached, which Cobalt starts listing when the splash screen
-// starts (SplashAssetList). The policy chooses what the splash screen chooses
-// without it, so that the two differ only in how the asset is chosen, and the
-// splash screen falls back to its own choice if the policy fails. Only with
-// this feature is the list served (h5vcc-embedded://splash_assets.json), and
-// does the splash screen's Content-Security-Policy allow WebAssembly
+// that the WebApp cached for the splash screen's topic, which Cobalt starts
+// listing when the splash screen starts (SplashAssetList). The policy chooses
+// what the splash screen chooses without it, so that the two differ only in
+// how the asset is chosen, and the splash screen falls back to its own choice
+// if the policy fails. Only with this feature is the list served
+// (h5vcc-embedded://splash_assets.json), and does splash.html's
+// Content-Security-Policy, and no other's, allow WebAssembly
 // ('wasm-unsafe-eval'). Disabled by default.
 // Locally: --enable-features=SplashWasmPolicy
 BASE_DECLARE_FEATURE(kSplashWasmPolicy);

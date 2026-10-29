@@ -30,7 +30,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
-#include "url/gurl.h"
 
 namespace content {
 
@@ -39,76 +38,86 @@ class BrowserContext;
 // Lists the splash screen assets that splash.html's WebAssembly policy chooses
 // from, with cobalt::features::kSplashWasmPolicy: the built-in images and
 // videos, and those that the WebApp cached where splash.html reads them, i.e.,
-// splash.webm and splash.png in each cache of the splash domain's Cache API.
-// The cache is only listed with kEnableCachedSplashFile, as splash.html only
-// reads it then. The list is JSON, an array with one object per asset:
+// splash.webm and splash.png in the cache of the splash screen's topic, in the
+// splash domain's Cache API. The cache is only read with
+// kEnableCachedSplashFile, as splash.html only reads it then, and a cached
+// asset is only listed if the loader would serve it, i.e., if it's neither
+// empty nor larger than the loader's limit. The list is JSON, an array with
+// one object per asset:
 //   {"source": "builtin" or "cache", "cache": <the cache's name, or "">,
 //    "name": <e.g., "splash.webm">, "kind": "video" or "image",
 //    "topic": <"default", "music", or the cache's name>,
 //    "width": <in px, 0 if unknown>, "height": <in px, 0 if unknown>,
 //    "bytes": <the size>}
 //
-// Shell starts listing when the splash screen starts, so that the list is
-// usually ready when splash.html asks for it, through
-// h5vcc-embedded://splash_assets.json. Lives on the UI thread, as user data of
-// its BrowserContext.
+// Shell starts listing for its topic when the splash screen starts, so that the
+// list is usually ready when splash.html asks for it, through
+// h5vcc-embedded://splash_assets.json?cache=<topic>. The list is a snapshot
+// from then: an asset that the WebApp caches later isn't shown, as the policy's
+// choice of a built-in asset skips the cache (source=builtin). Lives on the UI
+// thread, as user data of its BrowserContext.
 class SplashAssetList : public base::SupportsUserData::Data {
  public:
-  // Runs with the list, or with std::nullopt if the cached assets couldn't
-  // all be listed, e.g., within kTimeout. splash.html then reads the cache
-  // itself, rather than miss an asset that the WebApp cached.
+  // Runs with the list, or with std::nullopt if it's unavailable: if the
+  // cached assets couldn't be listed, e.g., within kTimeout, or the list is
+  // for another cache. splash.html then reads the cache itself, rather than
+  // miss an asset that the WebApp cached.
   using Callback = base::OnceCallback<void(std::optional<std::string> json)>;
-  // Binds `receiver` to the splash domain's Cache API.
+  // Binds `receiver` to the Cache API of `splash_domain`.
   using CacheStorageBinder = base::RepeatingCallback<void(
+      const std::string& splash_domain,
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver)>;
 
   // How long listing may take before the list is unavailable.
-  static constexpr base::TimeDelta kTimeout = base::Seconds(2);
+  static constexpr base::TimeDelta kTimeout = base::Seconds(1);
 
   // Returns the list of `browser_context`, which must not be null, creating
   // it if needed.
   static SplashAssetList* GetOrCreateForBrowserContext(
       BrowserContext* browser_context);
 
-  // Lists the cached assets of `splash_domain`, e.g.,
-  // "https://www.youtube.com/", through `bind_cache_storage`. Public for
-  // testing: see GetOrCreateForBrowserContext().
-  SplashAssetList(const std::string& splash_domain,
-                  CacheStorageBinder bind_cache_storage);
+  // Lists the cached assets through `bind_cache_storage`. Public for testing:
+  // see GetOrCreateForBrowserContext().
+  explicit SplashAssetList(CacheStorageBinder bind_cache_storage);
 
   SplashAssetList(const SplashAssetList&) = delete;
   SplashAssetList& operator=(const SplashAssetList&) = delete;
 
   ~SplashAssetList() override;
 
-  // Starts listing, unless it already is. A list that's ready is listed
-  // again, so that each splash screen gets the assets of its launch.
-  void Start();
+  // Starts listing the assets of the cache `cache_name`, e.g., "default",
+  // unless it already is listing. A list that's ready is listed again, so that
+  // each splash screen gets the assets of its launch.
+  void Start(const std::string& cache_name);
 
-  // Runs `callback` with the list once it's ready, right away if it is.
-  // Starts listing if it hasn't started.
-  void Get(Callback callback);
+  // Runs `callback` with the list of the cache `cache_name` once it's ready,
+  // right away if it is, or with std::nullopt right away if the list is for
+  // another cache. Starts listing if it hasn't started.
+  void Get(const std::string& cache_name, Callback callback);
 
  private:
   enum class State { kIdle, kListing, kReady };
 
-  void OnCacheNames(const std::vector<std::u16string>& cache_names);
-  void OnCacheMatched(size_t lookup, blink::mojom::MatchResultPtr result);
+  void OnCacheMatched(size_t index, blink::mojom::MatchResultPtr result);
+  void OnTimeout();
+  void OnDisconnect();
   void Finish(bool complete);
   std::string ToJson() const;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  const GURL splash_domain_;
   const CacheStorageBinder bind_cache_storage_;
 
   State state_ = State::kIdle;
+  // The cache whose assets are, or are being, listed.
+  std::string cache_name_;
+  // Whether the listing reads the cache, with kEnableCachedSplashFile.
+  bool reads_cache_ = false;
   base::TimeTicks start_time_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_;
   base::OneShotTimer timeout_;
-  std::vector<std::u16string> cache_names_;
-  // The size of each asset that splash.html reads from each cache, or
-  // std::nullopt if it isn't cached: one lookup per cache and asset.
+  // The size of each asset that splash.html reads from the cache, or
+  // std::nullopt if the loader wouldn't serve it from there.
   std::vector<std::optional<uint64_t>> cached_sizes_;
   size_t pending_lookups_ = 0;
   // Once the state is kReady.
