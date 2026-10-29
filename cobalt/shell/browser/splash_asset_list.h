@@ -31,7 +31,8 @@ class BrowserContext;
 //   [{"source": "builtin" or "cache", "cache": <cache name, or "">,
 //     "name": <e.g., "splash.webm">, "kind": "video" or "image",
 //     "topic": <"default", "music", ...>, "width": <px, 0 if unknown>,
-//     "height": <px, 0 if unknown>, "bytes": <size>}, ...]
+//     "height": <px, 0 if unknown>, "bytes": <size, 0 if unknown>}, ...]
+// The cached assets' sizes aren't known: they'd take reading each entry.
 // Shell starts listing when the splash screen starts, so that the list is
 // usually ready by the time splash.html asks for it
 // (h5vcc-embedded://splash_assets.json). The cache is only listed with
