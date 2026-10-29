@@ -7,11 +7,8 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/browsing_topics/browsing_topics_url_loader_interceptor.h"
 #include "content/browser/interest_group/ad_auction_url_loader_interceptor.h"
-<<<<<<< HEAD
-#include "mojo/public/cpp/bindings/message.h"
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "mojo/public/cpp/bindings/message.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 
