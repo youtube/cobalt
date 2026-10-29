@@ -188,32 +188,33 @@ class Lister {
         std::make_unique<
             mojo::AssociatedRemote<blink::mojom::CacheStorageCache>>(
             std::move(result->get_cache())));
-    (*cache)->GetAllMatchedEntries(
+    // Keys(): GetAllMatchedEntries(), which would also give the entries'
+    // sizes, is only for Background Fetch's caches. CacheStorageDispatcherHost
+    // rejects it for the Cache API's (kCacheAPI) without answering.
+    (*cache)->Keys(
         /*request=*/nullptr, blink::mojom::CacheQueryOptions::New(),
         /*trace_id=*/0,
-        base::BindOnce(&Lister::OnCacheEntries, base::Unretained(this),
+        base::BindOnce(&Lister::OnCacheKeys, base::Unretained(this),
                        cache_name));
   }
 
-  void OnCacheEntries(const std::string& cache_name,
-                      blink::mojom::GetAllMatchedEntriesResultPtr result) {
+  void OnCacheKeys(const std::string& cache_name,
+                   blink::mojom::CacheKeysResultPtr result) {
     if (done_) {
       return;
     }
-    if (result->is_entries()) {
-      for (const auto& entry : result->get_entries()) {
-        const std::string path = entry->request->url.path();
+    if (result->is_keys()) {
+      for (const auto& request : result->get_keys()) {
+        const std::string path = request->url.path();
         const std::string name = path.substr(path.rfind('/') + 1);
         const bool video = base::EndsWith(name, ".webm");
         if (!video && !base::EndsWith(name, ".png")) {
           continue;
         }
-        const uint64_t bytes = entry->response && entry->response->blob
-                                   ? entry->response->blob->size
-                                   : 0;
-        // The cache's name is the topic, as for splash.html.
+        // The cache's name is the topic, as for splash.html. The size isn't
+        // known without reading the entry.
         assets_.Append(MakeAsset("cache", cache_name, name, video, cache_name,
-                                 0, 0, bytes));
+                                 0, 0, /*bytes=*/0));
         ++cached_assets_;
       }
     }
