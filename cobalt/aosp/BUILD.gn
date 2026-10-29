@@ -31,9 +31,11 @@ android_library("cobalt_apk_java") {
 
   sources = [
     "apk/app/java/dev/cobalt/app/CobaltApplication.java",
+    "apk/app/java/dev/cobalt/app/DiscardingUmaRecorder.java",
     "apk/app/java/dev/cobalt/app/MainActivity.java",
   ]
   deps = [
+    "//base:base_java",
     "//cobalt/android:cobalt_main_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
