@@ -245,11 +245,9 @@ void MP4StreamParser::Reset() {
   runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
-<<<<<<< HEAD
   for (auto& [track_id, metadata_track] : metadata_tracks_) {
     metadata_track->Reset();
   }
-=======
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Releases every retained append, so no borrowed buffer outlives the parser
@@ -261,7 +259,6 @@ void MP4StreamParser::Reset() {
   scratch_frame_buf_.clear();
   scratch_frame_buf_.shrink_to_fit();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void MP4StreamParser::Flush() {
