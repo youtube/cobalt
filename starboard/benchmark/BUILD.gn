@@ -45,13 +45,23 @@ target(_benchmark_type, "benchmark") {
 # work on Android TV: the player there needs the Java side of the Starboard
 # implementation and an activity with a video surface, which only the test APK
 # and the standard test runner provide. The same binary works on other
-# platforms such as Linux too, where it can be run directly from the shell.
-# Any --benchmark_* flag on the command line is passed through to the
-# benchmarks, e.g. --benchmark_filter=BM_PlayerCreateSync.
+# platforms where benchmarks are enabled (such as Linux), where it can be run
+# directly from the shell.
+#
+# Any --benchmark_* flag on the command line is passed through to Google
+# Benchmark, e.g.:
+#   - Linux:      out/linux-x64x11_devel/player_benchmarks \
+#                   --benchmark_filter=BM_PlayerSeek
+#   - Android TV: out/android-arm_qa/bin/run_player_benchmarks \
+#                   --benchmark_filter=BM_PlayerSeek
+# Stdout always uses the non-colored tabular console reporter; for JSON output,
+# pass --benchmark_out=<path> --benchmark_out_format=json.
 #
 # Any failure inside a benchmark is reported as a test failure, so the target
-# also serves as an endurance test of the player, e.g. by running it with
-# --benchmark_repetitions or --benchmark_min_time.
+# also serves as an endurance test of the player via --benchmark_repetitions
+# (and --benchmark_min_time for benchmarks without fixed iteration counts; pass
+# -t <seconds> to run_player_benchmarks on Android TV to raise the 120s default
+# per-test shard timeout for long runs).
 test("player_benchmarks") {
   testonly = true
 
@@ -64,26 +74,20 @@ test("player_benchmarks") {
     "player/player_seek_benchmark.cc",
   ]
 
-  public_deps = [
-    "//starboard:starboard_group",
-    "//starboard:starboard_test_main",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//starboard/testing:fake_graphics_context_provider",
-    "//testing/gtest",
-    "//third_party/google_benchmark",
-  ]
-  deps = cobalt_platform_dependencies
-
-  # The .dmp files played back by the seek benchmarks.
-  data_deps = [ "//starboard/shared/starboard/player:player_test_data" ]
+  deps = cobalt_platform_dependencies + [
+           "//starboard:starboard_group",
+           "//starboard:starboard_test_main",
+           "//starboard/common",
+           "//starboard/shared/starboard/media:media_util",
+           "//starboard/shared/starboard/player:player_test_data",
+           "//starboard/shared/starboard/player:video_dmp",
+           "//starboard/testing:fake_graphics_context_provider",
+           "//testing/gtest",
+           "//third_party/google_benchmark",
+         ]
 
   if (is_android) {
-    deps += [
-      "//cobalt/android:cobalt_testing_java",
-      "//cobalt/android:jni_headers",
-    ]
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
     android_manifest_template =
         "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
   }

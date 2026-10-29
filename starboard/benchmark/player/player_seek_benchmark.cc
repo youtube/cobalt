@@ -13,110 +13,122 @@
 // limitations under the License.
 
 #include <chrono>
+#include <cstdint>
 
 #include "starboard/benchmark/player/player_benchmark_helper.h"
+#include "starboard/player.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
-namespace benchmark {
-
 namespace {
 
 constexpr char kAudioFile[] = "beneath_the_canopy_aac_stereo.dmp";
+// 90 frames (2.967 s) at 30 fps with a single key frame at 0 s; seeking to 1 s
+// therefore exercises a mid-GOP seek that decodes and discards frames 0..29
+// before presenting at 1.0 s.
 constexpr char kVideoFile[] = "vertical_1080p_30_fps_137_avc.dmp";
-constexpr int64_t kFeedDurationUs = 2000000;  // 2 seconds
-constexpr int64_t kSeekTargetUs = 1000000;    // 1 second
+constexpr int64_t kSeekTargetUs = 1'000'000;  // 1 second
 
-// Initializes |helper|'s player and prerolls it until it is presenting. On
-// failure the error is reported to |state| and false is returned.
+// Initializes |helper|'s player in |output_mode| and prerolls it until it is
+// presenting. Reports unsupported modes via SkipWithMessage() and errors via
+// SkipWithError(), returning false in either case.
 bool InitializeAndPreroll(SbPlayerBenchmarkHelper* helper,
+                          SbPlayerOutputMode output_mode,
                           ::benchmark::State* state) {
-  if (!helper->InitializePlayer(kAudioFile, kVideoFile,
-                                kSbPlayerOutputModeDecodeToTexture)) {
-    state->SkipWithError("Player initialization failed");
-    return false;
+  switch (helper->InitializePlayer(kAudioFile, kVideoFile, output_mode)) {
+    case SbPlayerBenchmarkHelper::InitResult::kOk:
+      break;
+    case SbPlayerBenchmarkHelper::InitResult::kOutputModeNotSupported:
+      state->SkipWithMessage("Output mode is not supported on this platform");
+      return false;
+    case SbPlayerBenchmarkHelper::InitResult::kFailed:
+      state->SkipWithError("Player initialization failed");
+      return false;
   }
-  if (!helper->FeedData(kFeedDurationUs)) {
-    state->SkipWithError("Failed to feed the initial preroll data");
-    return false;
-  }
-  if (!helper->WaitForPlayerState(kSbPlayerStatePresenting,
-                                  helper->GetCurrentTicket())) {
+  if (!helper->FeedUntilPresenting()) {
     state->SkipWithError("Player did not start presenting");
     return false;
   }
   return true;
 }
 
-// Feeds data from the seek target onwards and waits until the player presents
-// again for |ticket|. On failure the error is reported to |state| and false is
-// returned.
-bool FeedAndWaitForPresenting(SbPlayerBenchmarkHelper* helper,
-                              int ticket,
-                              ::benchmark::State* state) {
-  if (!helper->FeedData(kSeekTargetUs + kFeedDurationUs)) {
-    state->SkipWithError("Failed to feed data after the seek");
-    return false;
-  }
-  if (!helper->WaitForPlayerState(kSbPlayerStatePresenting, ticket)) {
-    state->SkipWithError("Player did not resume presenting after the seek");
-    return false;
-  }
-  return true;
-}
-
-void BM_PlayerSeekSync(::benchmark::State& state) {
+void BM_PlayerSeekSync(::benchmark::State& state,
+                       SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
-  if (!InitializeAndPreroll(&helper, &state)) {
+  if (!InitializeAndPreroll(&helper, output_mode, &state)) {
     return;
   }
 
   for (auto _ : state) {
     int next_ticket = helper.PrepareSeek(kSeekTargetUs);
 
-    // Measure ONLY the SbPlayerSeek call.
-    auto start = std::chrono::high_resolution_clock::now();
+    // Measure ONLY the synchronous SbPlayerSeek() call.
+    auto start = SbPlayerBenchmarkHelper::Clock::now();
     SbPlayerSeek(helper.GetPlayer(), kSeekTargetUs, next_ticket);
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end = SbPlayerBenchmarkHelper::Clock::now();
 
     auto elapsed =
         std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
     state.SetIterationTime(elapsed.count());
 
     // Bring the player back to presenting before the next iteration.
-    if (!FeedAndWaitForPresenting(&helper, next_ticket, &state)) {
+    if (!helper.FeedUntilPresenting()) {
+      state.SkipWithError("Player did not resume presenting after the seek");
       break;
     }
   }
 }
-BENCHMARK(BM_PlayerSeekSync)->UseManualTime()->Iterations(20);
 
-void BM_PlayerSeekAsync(::benchmark::State& state) {
+void BM_PlayerSeekAsync(::benchmark::State& state,
+                        SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
-  if (!InitializeAndPreroll(&helper, &state)) {
+  if (!InitializeAndPreroll(&helper, output_mode, &state)) {
     return;
   }
 
   for (auto _ : state) {
     int next_ticket = helper.PrepareSeek(kSeekTargetUs);
 
-    // Measure from SbPlayerSeek to kSbPlayerStatePresenting
-    auto start = std::chrono::high_resolution_clock::now();
-
+    // Measure from SbPlayerSeek() to the kSbPlayerStatePresenting callback.
+    auto start = SbPlayerBenchmarkHelper::Clock::now();
     SbPlayerSeek(helper.GetPlayer(), kSeekTargetUs, next_ticket);
-    if (!FeedAndWaitForPresenting(&helper, next_ticket, &state)) {
+
+    SbPlayerBenchmarkHelper::Clock::time_point presenting_time;
+    if (!helper.FeedUntilPresenting(&presenting_time)) {
+      state.SkipWithError("Player did not resume presenting after the seek");
       break;
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-
-    auto elapsed =
-        std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+        presenting_time - start);
     state.SetIterationTime(elapsed.count());
   }
 }
-BENCHMARK(BM_PlayerSeekAsync)->UseManualTime()->Iterations(20);
+
+// Explicit iteration counts bound total runtime: BM_PlayerSeekSync's manual
+// time is only a few microseconds while each iteration performs an untimed
+// preroll, so min-time auto-scaling would run thousands of seeks.
+BENCHMARK_CAPTURE(BM_PlayerSeekSync, PunchOut, kSbPlayerOutputModePunchOut)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
+BENCHMARK_CAPTURE(BM_PlayerSeekSync,
+                  DecodeToTexture,
+                  kSbPlayerOutputModeDecodeToTexture)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMicrosecond)
+    ->Iterations(20);
+
+BENCHMARK_CAPTURE(BM_PlayerSeekAsync, PunchOut, kSbPlayerOutputModePunchOut)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMillisecond)
+    ->Iterations(20);
+BENCHMARK_CAPTURE(BM_PlayerSeekAsync,
+                  DecodeToTexture,
+                  kSbPlayerOutputModeDecodeToTexture)
+    ->UseManualTime()
+    ->Unit(::benchmark::kMillisecond)
+    ->Iterations(20);
 
 }  // namespace
-}  // namespace benchmark
 }  // namespace starboard

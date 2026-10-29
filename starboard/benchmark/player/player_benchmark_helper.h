@@ -15,28 +15,35 @@
 #ifndef STARBOARD_BENCHMARK_PLAYER_PLAYER_BENCHMARK_HELPER_H_
 #define STARBOARD_BENCHMARK_PLAYER_PLAYER_BENCHMARK_HELPER_H_
 
+#include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <string>
+#include <set>
+#include <vector>
 
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
-namespace benchmark {
 
 // Drives an SbPlayer for the player benchmarks: creates it from .dmp files,
-// feeds it samples up to a media time, seeks it, and waits for the player
-// states, so that the benchmarks only contain the calls they time. All waits
-// are bounded and report failures through their return values instead of
-// aborting, so that a benchmark can report them with SkipWithError().
+// feeds it samples until it presents, seeks it, and waits for player states,
+// so that the benchmarks only contain the calls they time. All waits on player
+// callbacks are bounded and report failures through their return values, so
+// that a benchmark can report them with SkipWithError() (note that missing
+// testdata .dmp files still fail fast via VideoDmpReader's SB_CHECKs).
 //
-// Must be used from a single thread; the player callbacks may arrive on any
-// thread and are synchronized through |mutex_|.
+// Must be used from a single thread (enforced by |thread_checker_|); the
+// player callbacks may arrive on any thread and are synchronized through
+// |mutex_|.
 //
 // TODO(b/541298090): Much of this duplicates SbPlayerTestFixture and the
 // helpers in starboard/nplb/player_test_util.* and
@@ -44,6 +51,14 @@ namespace benchmark {
 // library under starboard/testing/ that both nplb and the benchmarks use.
 class SbPlayerBenchmarkHelper {
  public:
+  using Clock = std::chrono::steady_clock;
+
+  enum class InitResult {
+    kOk,
+    kOutputModeNotSupported,
+    kFailed,
+  };
+
   // Default upper bound for the waits on player callbacks. Hitting it means
   // that the player has stalled, so the benchmark should report an error
   // rather than hang.
@@ -52,31 +67,47 @@ class SbPlayerBenchmarkHelper {
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
 
-  // Initialize the player with specific audio and video DMP files.
-  // Returns true on success.
-  bool InitializePlayer(const char* audio_file,
-                        const char* video_file,
-                        SbPlayerOutputMode output_mode);
+  // Sets experimental feature entries applied before SbPlayerCreate() and
+  // updates the current thread's configuration.
+  void SetExperimentalFeatures(
+      std::vector<StarboardExperimentalFeatureEntry> features);
 
-  // Safely destroy the player and wait for it to be fully released.
+  // Configures Starboard experimental features on the calling thread. Called
+  // automatically by the constructor and InitializePlayer(); call explicitly
+  // before invoking SbPlayerCreate() directly from another thread.
+  void ConfigureExperimentalFeaturesForCurrentThread() const;
+
+  // Initializes the player with specific audio and video DMP files.
+  InitResult InitializePlayer(const char* audio_file,
+                              const char* video_file,
+                              SbPlayerOutputMode output_mode);
+
+  // Safely destroys the player and releases loaded DMP readers.
   void DestroyPlayer();
 
-  // Generate creation parameters for standard AVC and AAC playback
-  void GetCreationParam(SbPlayerCreationParam* out_creation_param,
-                        SbPlayerOutputMode output_mode);
+  // Generates creation parameters for standard 1080p AVC and stereo AAC
+  // playback.
+  static void GetCreationParam(SbPlayerCreationParam* out_creation_param,
+                               SbPlayerOutputMode output_mode);
 
-  // Feed audio/video samples until a sample at or past |target_media_time_us|
-  // (in microseconds) has been written for every stream, or EOS is reached.
-  // Blocks the calling thread. Returns false if the player reports an error,
-  // or if it does not request more data for |timeout_us|.
-  bool FeedData(int64_t target_media_time_us,
-                int64_t timeout_us = kDefaultTimeoutUs);
+  // Returns true if |creation_param.output_mode| is supported by the platform
+  // for |creation_param|.
+  static bool IsOutputModeSupported(
+      const SbPlayerCreationParam& creation_param);
 
-  // Prepare seek by resetting DMP reader index and return the next ticket.
-  // The caller then calls SbPlayerSeek() itself, so that it can time it.
+  // Feeds audio/video samples on demand (and polls SbPlayerGetCurrentFrame() in
+  // decode-to-texture mode) until kSbPlayerStatePresenting is received for the
+  // current ticket. If |out_presenting_time| is non-null, stores the timestamp
+  // recorded inside the status callback when kSbPlayerStatePresenting arrived.
+  // Returns false if the player reports an error or stalls for |timeout_us|.
+  bool FeedUntilPresenting(Clock::time_point* out_presenting_time = nullptr,
+                           int64_t timeout_us = kDefaultTimeoutUs);
+
+  // Prepares a seek by resetting DMP reader indices and returning the next
+  // ticket. The caller then calls SbPlayerSeek() itself so that it can time it.
   int PrepareSeek(int64_t seek_time_us);
 
-  // Wait for the player to reach a specific state for a given ticket.
+  // Waits for the player to reach |state| for |ticket|.
   // Returns false if the player reports an error or the timeout expires.
   bool WaitForPlayerState(SbPlayerState state,
                           int ticket,
@@ -90,10 +121,8 @@ class SbPlayerBenchmarkHelper {
     return fake_graphics_context_provider_.decoder_target_provider();
   }
 
-  // Player callbacks. The Dummy*Func() callbacks ignore their context and can
-  // be used by benchmarks that do not track the player state; the *Callback()
-  // callbacks expect a pointer to the owning SbPlayerBenchmarkHelper as the
-  // context.
+  // No-op player callbacks that ignore their context, for benchmarks that do
+  // not track player or decoder state.
   static void DummyDeallocateSampleFunc(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer);
@@ -110,6 +139,8 @@ class SbPlayerBenchmarkHelper {
                                    void* context,
                                    SbPlayerError error,
                                    const char* message);
+
+ private:
   static void DecoderStatusCallback(SbPlayer player,
                                     void* context,
                                     SbMediaType type,
@@ -124,15 +155,21 @@ class SbPlayerBenchmarkHelper {
                                   SbPlayerError error,
                                   const char* message);
 
- private:
   // Seeks the player to |seek_time_us| and prepares the readers accordingly.
   void Seek(int64_t seek_time_us);
   void WriteSamples(SbMediaType type);
+  void PumpDecodeTarget();
   size_t FindAudioStartIndex(int64_t target_time_us);
   size_t FindVideoStartIndex(int64_t target_time_us);
-  starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 
+  ThreadChecker thread_checker_;
+  FakeGraphicsContextProvider fake_graphics_context_provider_;
+  std::vector<StarboardExperimentalFeatureEntry> experimental_features_;
+
+  // Mutated only on |thread_checker_| under |mutex_|; safe to read without
+  // |mutex_| on |thread_checker_|, and read under |mutex_| in callbacks.
   SbPlayer player_ = kSbPlayerInvalid;
+  SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
 
   std::unique_ptr<VideoDmpReader> audio_reader_;
@@ -140,10 +177,6 @@ class SbPlayerBenchmarkHelper {
 
   size_t next_audio_sample_index_ = 0;
   size_t next_video_sample_index_ = 0;
-
-  // Timestamps of the last samples written since the last seek, if any.
-  std::optional<int64_t> last_written_audio_timestamp_;
-  std::optional<int64_t> last_written_video_timestamp_;
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
@@ -153,8 +186,8 @@ class SbPlayerBenchmarkHelper {
   std::mutex mutex_;
   std::condition_variable condition_variable_;
 
-  SbPlayerState player_state_ = kSbPlayerStateInitialized;
-  int player_state_ticket_ = 0;
+  std::set<SbPlayerState> received_player_states_;
+  std::optional<Clock::time_point> presenting_time_;
 
   bool audio_needs_data_ = false;
   bool video_needs_data_ = false;
@@ -191,7 +224,6 @@ class PlayerInitializationWaiter {
   bool error_occurred_ = false;
 };
 
-}  // namespace benchmark
 }  // namespace starboard
 
 #endif  // STARBOARD_BENCHMARK_PLAYER_PLAYER_BENCHMARK_HELPER_H_
