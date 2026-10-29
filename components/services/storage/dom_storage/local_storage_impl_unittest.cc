@@ -38,6 +38,10 @@
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 namespace {
@@ -1495,5 +1499,45 @@ TEST_F(LocalStorageImplStaleDeletionTest, Orphan) {
     EXPECT_EQ(7u, GetDatabaseContents().size());
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(LocalStorageImplStaleDeletionTest,
+       CobaltSkipEmptyStaleStorageAreaDeletionCommit) {
+  const auto storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://foo.com");
+  mojo::Remote<blink::mojom::StorageArea> area;
+  context()->BindStorageArea(storage_key, area.BindNewPipeAndPassReceiver());
+  base::test::TestFuture<bool> success_future;
+  area->Put(StdStringToUint8Vector("key"), StdStringToUint8Vector("value"),
+            std::nullopt, "source", success_future.GetCallback());
+  EXPECT_TRUE(success_future.Take());
+  area.reset();
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return GetDatabaseContents().size() == 4u; }));
+
+  // When kCobaltLocalStorageReuseLogsAndSkipEmptyCommits is enabled and there
+  // are no stale storage areas, OnGotMetaDataToDeleteStaleStorageAreas() must
+  // return early without posting an empty DeleteStorageKeys() commit or
+  // emitting LocalStorage.StaleStorageAreasDeletedOnStartup*.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
+    base::HistogramTester histograms;
+    ResetStorage(storage_path());
+    context()->OverrideDeleteStaleStorageAreasDelayForTesting(base::Days(0));
+    WaitForDatabaseOpen();
+    RunUntilIdle();
+    histograms.ExpectTotalCount(
+        "LocalStorage.OrphanStorageAreasOnStartupCount", 1);
+    histograms.ExpectTotalCount(
+        "LocalStorage.StaleStorageAreasDeletedOnStartupSuccess", 0);
+    histograms.ExpectTotalCount(
+        "LocalStorage.StaleStorageAreasDeletedOnStartupCount", 0);
+    histograms.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage
