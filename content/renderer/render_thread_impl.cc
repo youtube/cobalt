@@ -20,6 +20,7 @@
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/lazy_instance.h"
@@ -1687,6 +1688,21 @@ void RenderThreadImpl::OnMemoryPressure(
       });
   if (blink_platform_impl_)
     blink::WebMemoryPressureListener::OnMemoryPressure(memory_pressure_level);
+#if BUILDFLAG(IS_COBALT)
+  // On MODERATE pressure, also drop memory that is cheap to rebuild: free
+  // (already-released) discardable chunks and Skia's CPU resource cache
+  // (scaled images, mipmaps, image filters). Glyph caches are kept so text
+  // does not need to be re-rasterized. CRITICAL handling below is unchanged.
+  if (memory_pressure_level ==
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltPurgeSkiaCachesOnModeratePressure)) {
+    discardable_memory_allocator_->ReleaseFreeMemory();
+    if (blink_platform_impl_) {
+      SkGraphics::PurgeResourceCache();
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (memory_pressure_level ==
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     discardable_memory_allocator_->ReleaseFreeMemory();

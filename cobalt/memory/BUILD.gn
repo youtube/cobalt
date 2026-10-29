@@ -44,6 +44,15 @@ source_set("memory") {
   if (is_starboard) {
     deps += [ "//starboard:starboard_headers_only" ]
   }
+
+  # SkFontMgr_Cobalt is only compiled into //skia for hermetic builds.
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "font_cache_memory_pressure_listener.cc",
+      "font_cache_memory_pressure_listener.h",
+    ]
+    deps += [ "//skia" ]
+  }
 }
 
 source_set("unit_tests") {
