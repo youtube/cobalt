@@ -130,4 +130,11 @@ void H5vccSystemImpl::GetWasLowMemoryKilled(
       StarboardBridge::GetInstance()->GetWasLowMemoryKilled(env));
 }
 
+void H5vccSystemImpl::GetLowMemoryKillDetails(
+    GetLowMemoryKillDetailsCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Stubbed.
+  std::move(callback).Run(nullptr);
+}
+
 }  // namespace h5vcc_system

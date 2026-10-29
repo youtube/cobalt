@@ -18,6 +18,31 @@ enum UserOnExitStrategy {
   "no-exit",
 };
 
+enum LowMemoryKillForegroundStatus {
+  "unknown",
+  "foreground",
+  "background",
+};
+
+enum LowMemoryKillPressureSource {
+  "unknown",
+  "system",
+  "cobalt",
+};
+
+// `timestampPosixUsec` is required. All other fields are optional; unavailable
+// memory or reason values are null.
+dictionary LowMemoryKillDetails {
+  long long timestampPosixUsec;
+  LowMemoryKillForegroundStatus foregroundStatus;
+  LowMemoryKillPressureSource pressureSource;
+  long long? systemMemoryAvailable = null;
+  long long? systemMemoryTotal = null;
+  long long? cobaltMemoryUsage = null;
+  long long? cobaltMemoryLimit = null;
+  DOMString? reason = null;
+};
+
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
@@ -83,4 +108,10 @@ interface H5vccSystem : EventTarget {
   // not implement the LowMemoryKill extension.
   [CallWith=ScriptState]
   Promise<boolean> wasLowMemoryKilled();
+
+  // If the previous Cobalt session was killed by the system due to memory
+  // pressure and the platform provides LowMemoryKill v2 details, returns a
+  // dictionary containing those details. Otherwise returns null.
+  [CallWith=ScriptState]
+  Promise<LowMemoryKillDetails?> getLowMemoryKillDetails();
 };

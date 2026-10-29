@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -100,6 +102,28 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifyWasLowMemoryKilled) {
                    .ExtractBool());
 }
 
+IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest, VerifyGetLowMemoryKillDetails) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
+
+  // Verify that getLowMemoryKillDetails() exists and returns a Promise.
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "typeof window.h5vcc.system."
+                              "getLowMemoryKillDetails === 'function'")
+                  .ExtractBool());
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "window.h5vcc.system.getLowMemoryKillDetails() "
+                              "instanceof Promise")
+                  .ExtractBool());
+
+  // Verify that the promise resolves strictly to null when not killed.
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "(async () => (await window.h5vcc.system."
+                              "getLowMemoryKillDetails()) === null)()")
+                  .ExtractBool());
+}
+
 IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
                        VerifyWasLowMemoryKilledMultipleCalls) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -110,12 +134,16 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
   // consistently and without error.
   std::string test_multiple_calls = R"(
     (async () => {
-      const [r1, r2] = await Promise.all([
+      const [r1, r2, d1, d2] = await Promise.all([
         window.h5vcc.system.wasLowMemoryKilled(),
         window.h5vcc.system.wasLowMemoryKilled(),
+        window.h5vcc.system.getLowMemoryKillDetails(),
+        window.h5vcc.system.getLowMemoryKillDetails(),
       ]);
       const r3 = await window.h5vcc.system.wasLowMemoryKilled();
-      return r1 === false && r2 === false && r3 === false;
+      const d3 = await window.h5vcc.system.getLowMemoryKillDetails();
+      return r1 === false && r2 === false && r3 === false &&
+             d1 === null && d2 === null && d3 === null;
     })()
   )";
   EXPECT_TRUE(content::EvalJs(shell()->web_contents(), test_multiple_calls)
@@ -132,6 +160,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
                                "(async () => await "
                                "window.h5vcc.system.wasLowMemoryKilled())()")
                    .ExtractBool());
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "(async () => (await window.h5vcc.system."
+                              "getLowMemoryKillDetails()) === null)()")
+                  .ExtractBool());
 
   // Navigate to a new page (new LocalDOMWindow and new H5vccSystem instance).
   GURL url2 = embedded_test_server()->GetURL("/title2.html");
@@ -141,6 +173,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
                                "(async () => await "
                                "window.h5vcc.system.wasLowMemoryKilled())()")
                    .ExtractBool());
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "(async () => (await window.h5vcc.system."
+                              "getLowMemoryKillDetails()) === null)()")
+                  .ExtractBool());
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
@@ -149,11 +185,13 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
   GURL url1 = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url1));
 
-  // Trigger wasLowMemoryKilled without awaiting and immediately initiate
-  // navigation to a second page to verify in-flight IPC cancellation and
-  // document destruction safety in single-process mode.
-  EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
-                              "window.h5vcc.system.wasLowMemoryKilled();"));
+  // Trigger LMK queries without awaiting and immediately initiate navigation
+  // to a second page to verify in-flight IPC cancellation and document
+  // destruction safety in single-process mode.
+  EXPECT_TRUE(
+      content::ExecJs(shell()->web_contents(),
+                      "window.h5vcc.system.wasLowMemoryKilled();"
+                      "window.h5vcc.system.getLowMemoryKillDetails();"));
 
   GURL url2 = embedded_test_server()->GetURL("/title2.html");
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url2));
@@ -162,6 +200,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemBrowserTest,
                                "(async () => await "
                                "window.h5vcc.system.wasLowMemoryKilled())()")
                    .ExtractBool());
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(),
+                              "(async () => (await window.h5vcc.system."
+                              "getLowMemoryKillDetails()) === null)()")
+                  .ExtractBool());
 }
 
 }  // namespace cobalt

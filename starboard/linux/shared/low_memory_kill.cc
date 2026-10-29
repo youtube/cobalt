@@ -82,10 +82,30 @@ bool WasLowMemoryKilled() {
   return g_was_killed;
 }
 
+// Stub implementation: reports empty/unavailable details when
+// WasLowMemoryKilled() is true.
+bool GetLowMemoryKillDetails(SbLowMemoryKillDetails* out_details) {
+  if (!out_details || !WasLowMemoryKilled()) {
+    return false;
+  }
+  *out_details = {
+      0,
+      kSbLowMemoryKillForegroundStatusUnknown,
+      kSbLowMemoryKillPressureSourceUnknown,
+      -1,
+      -1,
+      -1,
+      -1,
+      "",
+  };
+  return true;
+}
+
 const StarboardExtensionLowMemoryKillApi kLowMemoryKillApi = {
     kStarboardExtensionLowMemoryKillName,
-    1,  // API version that's implemented.
+    2,  // API version that's implemented.
     &WasLowMemoryKilled,
+    &GetLowMemoryKillDetails,
 };
 
 }  // namespace

@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
+#include <cstring>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
@@ -65,18 +73,91 @@ std::string GetTrackingAuthorizationStatusShared() {
   return "NOT_SUPPORTED";
 }
 
-bool GetWasLowMemoryKilledShared() {
-  const auto* low_memory_kill_extension =
-      static_cast<const StarboardExtensionLowMemoryKillApi*>(
-          SbSystemGetExtension(kStarboardExtensionLowMemoryKillName));
-  if (!low_memory_kill_extension || !low_memory_kill_extension->name ||
-      strcmp(low_memory_kill_extension->name,
-             kStarboardExtensionLowMemoryKillName) != 0 ||
-      low_memory_kill_extension->version < 1 ||
-      !low_memory_kill_extension->WasLowMemoryKilled) {
-    return false;
+const StarboardExtensionLowMemoryKillApi* GetLowMemoryKillExtension(
+    uint32_t min_version) {
+  const auto* ext = static_cast<const StarboardExtensionLowMemoryKillApi*>(
+      SbSystemGetExtension(kStarboardExtensionLowMemoryKillName));
+  if (!ext || !ext->name ||
+      strcmp(ext->name, kStarboardExtensionLowMemoryKillName) != 0 ||
+      ext->version < min_version) {
+    return nullptr;
   }
-  return low_memory_kill_extension->WasLowMemoryKilled();
+  return ext;
+}
+
+bool GetWasLowMemoryKilledShared() {
+  const auto* ext = GetLowMemoryKillExtension(1);
+  return ext && ext->WasLowMemoryKilled && ext->WasLowMemoryKilled();
+}
+
+mojom::LowMemoryKillForegroundStatus ToMojomForegroundStatus(
+    SbLowMemoryKillForegroundStatus status) {
+  switch (status) {
+    case kSbLowMemoryKillForegroundStatusForeground:
+      return mojom::LowMemoryKillForegroundStatus::kForeground;
+    case kSbLowMemoryKillForegroundStatusBackground:
+      return mojom::LowMemoryKillForegroundStatus::kBackground;
+    case kSbLowMemoryKillForegroundStatusUnknown:
+    default:
+      return mojom::LowMemoryKillForegroundStatus::kUnknown;
+  }
+}
+
+mojom::LowMemoryKillPressureSource ToMojomPressureSource(
+    SbLowMemoryKillPressureSource source) {
+  switch (source) {
+    case kSbLowMemoryKillPressureSourceSystem:
+      return mojom::LowMemoryKillPressureSource::kSystem;
+    case kSbLowMemoryKillPressureSourceCobalt:
+      return mojom::LowMemoryKillPressureSource::kCobalt;
+    case kSbLowMemoryKillPressureSourceUnknown:
+    default:
+      return mojom::LowMemoryKillPressureSource::kUnknown;
+  }
+}
+
+std::optional<int64_t> ToOptionalMemoryBytes(int64_t value) {
+  if (value < 0) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(value);
+}
+
+mojom::LowMemoryKillDetailsPtr GetLowMemoryKillDetailsShared() {
+  const auto* ext = GetLowMemoryKillExtension(2);
+  SbLowMemoryKillDetails sb_details{};
+  if (!ext || !ext->GetLowMemoryKillDetails ||
+      !ext->GetLowMemoryKillDetails(&sb_details)) {
+    return nullptr;
+  }
+
+  auto details = mojom::LowMemoryKillDetails::New();
+  details->timestamp_posix_usec = sb_details.timestamp_posix_usec;
+  details->foreground_status =
+      ToMojomForegroundStatus(sb_details.foreground_status);
+  details->pressure_source = ToMojomPressureSource(sb_details.pressure_source);
+  details->system_memory_available =
+      ToOptionalMemoryBytes(sb_details.system_memory_available);
+  details->system_memory_total =
+      ToOptionalMemoryBytes(sb_details.system_memory_total);
+  details->cobalt_memory_usage =
+      ToOptionalMemoryBytes(sb_details.cobalt_memory_usage);
+  details->cobalt_memory_limit =
+      ToOptionalMemoryBytes(sb_details.cobalt_memory_limit);
+
+  const size_t reason_len =
+      strnlen(sb_details.reason, sizeof(sb_details.reason) - 1);
+  if (reason_len > 0) {
+    const std::string_view reason_view(sb_details.reason, reason_len);
+    if (base::IsStringUTF8(reason_view)) {
+      details->reason.emplace(reason_view);
+    } else {
+      DLOG(WARNING) << "Ignoring non-UTF-8 SbLowMemoryKillDetails::reason.";
+      details->reason.emplace(
+          "Internal error: Failed to parse non-UTF-8 LMK reason.");
+    }
+  }
+  return details;
 }
 
 }  // namespace
@@ -153,6 +234,12 @@ void H5vccSystemImpl::GetWasLowMemoryKilled(
     GetWasLowMemoryKilledCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetWasLowMemoryKilledShared());
+}
+
+void H5vccSystemImpl::GetLowMemoryKillDetails(
+    GetLowMemoryKillDetailsCallback callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  std::move(callback).Run(GetLowMemoryKillDetailsShared());
 }
 
 void H5vccSystemImpl::PerformExitStrategy() {

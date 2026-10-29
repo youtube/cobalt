@@ -1,6 +1,8 @@
 import {
   H5vccSystem,
   H5vccSystemReceiver,
+  LowMemoryKillForegroundStatus,
+  LowMemoryKillPressureSource,
   UserOnExitStrategy,
 } from '/gen/cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.m.js';
 
@@ -23,6 +25,9 @@ class MockH5vccSystem {
     this.callCount_ = { [EXIT_METHOD_NAME]: 0 };
   }
 
+  ForegroundStatus = LowMemoryKillForegroundStatus;
+  PressureSource = LowMemoryKillPressureSource;
+
   STUB_KEY_ADVERTISING_ID = 'advertisingId';
   STUB_KEY_LIMIT_AD_TRACKING = 'limitAdTracking';
   STUB_KEY_FRIENDLY_NAME = 'friendlyName';
@@ -30,6 +35,7 @@ class MockH5vccSystem {
   STUB_KEY_TRACKING_AUTHORIZATION_STATUS = 'trackingAuthorizationStatus';
   STUB_KEY_USER_ON_EXIT_STRATEGY = 'userOnExitStrategy';
   STUB_KEY_WAS_LOW_MEMORY_KILLED = 'wasLowMemoryKilled';
+  STUB_KEY_LOW_MEMORY_KILL_DETAILS = 'lowMemoryKillDetails';
 
   incrementExitCallCount() {
     this.callCount_[EXIT_METHOD_NAME] += 1;
@@ -95,6 +101,10 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_WAS_LOW_MEMORY_KILLED, wasLowMemoryKilled);
   }
 
+  stubLowMemoryKillDetails(details) {
+    this.stubResult(this.STUB_KEY_LOW_MEMORY_KILL_DETAILS, details);
+  }
+
   // h5vcc_system.mojom.H5vccSystem impl.
   getAdvertisingId() {
     // VERY IMPORTANT: this should return (a resolved Promise with) a dictionary
@@ -150,6 +160,13 @@ class MockH5vccSystem {
     return Promise.resolve({
       wasLowMemoryKilled:
           this.stub_result_.get(this.STUB_KEY_WAS_LOW_MEMORY_KILLED) ?? false
+    });
+  }
+
+  getLowMemoryKillDetails() {
+    return Promise.resolve({
+      details:
+          this.stub_result_.get(this.STUB_KEY_LOW_MEMORY_KILL_DETAILS) ?? null
     });
   }
 }
