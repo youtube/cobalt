@@ -169,7 +169,7 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
-    if (param.name == "codecs") {
+    if (kMimeParamCodecs.EqualsCaseInsensitive(param.name)) {
       if (!params.empty()) {
         return std::nullopt;
       }
