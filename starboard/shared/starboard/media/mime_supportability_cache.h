@@ -34,8 +34,9 @@ typedef enum Supportability {
 } Supportability;
 
 // MimeSupportabilityCache caches the supportabilities of raw mime strings.
-// To increase cache hit rate, it strips bitrate from the raw mime string, and
-// stores a supported bitrate range for mime strings with same other attributes.
+// To increase cache hit rate, it keys the cache by the parsed and normalized
+// mime string without bitrate (see MimeType::ToStringWithout()), and stores a
+// supported bitrate range for mime strings with same other attributes.
 //
 // Note: MimeSupportabilityCache leverage the assumption that if the
 // platform can support a codec with bitrate of n, the codec should also support
@@ -45,8 +46,6 @@ typedef enum Supportability {
 // Note: anytime the platform codec capabilities have changed, please call
 // MimeSupportabilityCache::ClearCachedMimeSupportabilities() to clear the
 // outdated results.
-//
-// TODO: add unit tests for MimeSupportabilityCache.
 class MimeSupportabilityCache {
  public:
   static MimeSupportabilityCache* GetInstance();

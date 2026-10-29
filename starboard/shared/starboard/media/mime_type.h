@@ -104,6 +104,15 @@ class MimeType {
                                const std::string& pattern = "") const;
   bool ValidateBoolParameter(const MimeParam& param) const;
 
+  // Returns a mime string equivalent to this MimeType, with every parameter
+  // matching |excluded_param| (case-insensitively) removed. The result is
+  // normalized (whitespace, quoting of string values) and can be parsed by
+  // Create(). For example, excluding |kMimeParamBitrate| from
+  //   "video/mp4;codecs=avc1.640028; BITRATE=1000 ;width=1920"
+  // returns
+  //   "video/mp4; codecs=\"avc1.640028\"; width=1920".
+  std::string ToStringWithout(const MimeParam& excluded_param) const;
+
   friend std::ostream& operator<<(std::ostream& os, const MimeType& mime_type);
 
  private:
