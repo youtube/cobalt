@@ -68,6 +68,17 @@ TEST(MimeTypeTest, InvalidMimeType) {
         "param1=\" value1 \";codecs=\"abc, def\"");
     EXPECT_FALSE(mime_type);
   }
+  {  // "codecs" parameter name is case-insensitive, so "CODECS" must also be
+     // the first parameter.
+    auto mime_type =
+        MimeType::Create("audio/mp4;param1=\" value1 \";CODECS=\"abc, def\"");
+    EXPECT_FALSE(mime_type);
+  }
+  {  // More than one "codecs" parameters with different cases.
+    auto mime_type =
+        MimeType::Create("audio/mp4;codecs=\"abc, def\";Codecs=\"abc, def\"");
+    EXPECT_FALSE(mime_type);
+  }
   {
     // Parameter name must not be empty.
     auto mime_type = MimeType::Create("video/mp4; =value");
@@ -147,6 +158,21 @@ TEST(MimeTypeTest, GetCodecs) {
         MimeType::Create("audio/mp4;codecs=\"abc, def\";param1=\" value1 \"");
     ASSERT_TRUE(mime_type);
     EXPECT_EQ(2U, mime_type->GetCodecs().size());
+  }
+
+  {  // "codecs" parameter name is case-insensitive.
+    auto mime_type = MimeType::Create("audio/mp4;CODECS=\"abc, def\"");
+    ASSERT_TRUE(mime_type);
+    ASSERT_EQ(2U, mime_type->GetCodecs().size());
+    EXPECT_EQ("abc", mime_type->GetCodecs()[0]);
+    EXPECT_EQ("def", mime_type->GetCodecs()[1]);
+  }
+
+  {
+    auto mime_type = MimeType::Create("audio/mp4;Codecs=\"abc\"");
+    ASSERT_TRUE(mime_type);
+    ASSERT_EQ(1U, mime_type->GetCodecs().size());
+    EXPECT_EQ("abc", mime_type->GetCodecs()[0]);
   }
 }
 
