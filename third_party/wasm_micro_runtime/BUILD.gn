@@ -13,8 +13,13 @@
 # limitations under the License.
 
 # WAMR (WebAssembly Micro Runtime), fast interpreter only: no AOT, JIT, WASI,
-# libc-builtin, threads or SIMD. Builds from src/, fetched by fetch_wamr.sh.
+# libc-builtin, threads or SIMD. Builds from src/, fetched by fetch_wamr.py.
 # See README.cobalt.md.
+
+# Fetches WAMR's source into src/ at gn time, if it isn't there yet, so that a
+# fresh checkout builds without a manual step. Needs network access the first
+# time. Proof of concept: a real import would check the source in or use DEPS.
+exec_script("fetch_wamr.py", [], "", [ "fetch_wamr.py" ])
 
 config("wamr_config") {
   include_dirs = [ "src/core/iwasm/include" ]
