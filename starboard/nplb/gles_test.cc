@@ -14,10 +14,16 @@
 
 #include "starboard/gles.h"
 
+#include <unistd.h>
+
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
+#include "starboard/common/time.h"
+#include "starboard/egl.h"
 #include "starboard/system.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -222,6 +228,116 @@ TEST(SbGlesTest, SupportsOpenGles32OrHigher) {
   EXPECT_TRUE(major > 3 || (major == 3 && minor >= 2))
       << "Expected OpenGLES 3.2 or higher, but found OpenGLES " << major << "."
       << minor << " (version string: " << version_string << ")";
+}
+
+// Platforms advertising GL_EXT_disjoint_timer_query must report GPU time in
+// nanoseconds from both glGetInteger64v(GL_TIMESTAMP_EXT) and query results.
+TEST(SbGlesTest, DisjointTimerQueryUnitsAreNanoseconds) {
+  constexpr SbGlEnum kGlTimestampExt = 0x8E28;
+  constexpr SbGlEnum kGlQueryCounterBitsExt = 0x8864;
+  using GlQueryCounterExtFn = void (*)(SbGlUInt32, SbGlEnum);
+  using GlGetQueryObjectui64vExtFn =
+      void (*)(SbGlUInt32, SbGlEnum, SbGlUInt64*);
+
+  const SbGlesInterface* const gles = SbGetGlesInterface();
+  const SbEglInterface* const egl = SbGetEglInterface();
+  ASSERT_NE(nullptr, gles);
+  ASSERT_NE(nullptr, egl);
+  ASSERT_NE(nullptr, egl->eglGetProcAddress);
+
+  starboard::FakeGraphicsContextProvider provider;
+  bool has_gl_get_integer64v = false;
+  bool has_extension = false;
+  bool has_timestamp_queries = false;
+  GlQueryCounterExtFn query_counter = nullptr;
+  GlGetQueryObjectui64vExtFn get_query_ui64v = nullptr;
+  SbGlInt64 now_begin = 0, now_end = 0;
+  SbGlUInt64 query_begin = 0, query_end = 0;
+  int64_t cpu_begin = 0, cpu_end = 0;
+
+  provider.RunOnGlesContextThread([&]() {
+    auto resolve = [&](auto fn, const char* name) {
+      return fn ? fn
+                : reinterpret_cast<decltype(fn)>(egl->eglGetProcAddress(name));
+    };
+    const auto gl_get_integer64v =
+        resolve(gles->glGetInteger64v, "glGetInteger64v");
+    if (!gl_get_integer64v) {
+      return;
+    }
+    has_gl_get_integer64v = true;
+
+    const char* ext =
+        reinterpret_cast<const char*>(gles->glGetString(SB_GL_EXTENSIONS));
+    has_extension = ext && std::strstr(ext, "GL_EXT_disjoint_timer_query");
+    if (!has_extension) {
+      return;
+    }
+    const auto gl_get_queryiv = resolve(gles->glGetQueryiv, "glGetQueryiv");
+    const auto gl_gen_queries = resolve(gles->glGenQueries, "glGenQueries");
+    const auto gl_delete_queries =
+        resolve(gles->glDeleteQueries, "glDeleteQueries");
+    query_counter = reinterpret_cast<GlQueryCounterExtFn>(
+        egl->eglGetProcAddress("glQueryCounterEXT"));
+    get_query_ui64v = reinterpret_cast<GlGetQueryObjectui64vExtFn>(
+        egl->eglGetProcAddress("glGetQueryObjectui64vEXT"));
+    SbGlInt32 bits = 0;
+    if (gl_get_queryiv && gl_gen_queries && gl_delete_queries) {
+      gl_get_queryiv(kGlTimestampExt, kGlQueryCounterBitsExt, &bits);
+    }
+    has_timestamp_queries = bits > 0 && query_counter && get_query_ui64v;
+
+    SbGlUInt32 ids[2] = {0, 0};
+    if (has_timestamp_queries) {
+      gl_gen_queries(2, ids);
+      gles->glClear(SB_GL_COLOR_BUFFER_BIT);
+      query_counter(ids[0], kGlTimestampExt);
+      gles->glFlush();
+    }
+    gl_get_integer64v(kGlTimestampExt, &now_begin);
+    cpu_begin = starboard::CurrentMonotonicTime();
+
+    usleep(500000);
+
+    if (has_timestamp_queries) {
+      gles->glClear(SB_GL_COLOR_BUFFER_BIT);
+      query_counter(ids[1], kGlTimestampExt);
+      gles->glFlush();
+    }
+    gl_get_integer64v(kGlTimestampExt, &now_end);
+    cpu_end = starboard::CurrentMonotonicTime();
+
+    if (has_timestamp_queries) {
+      gles->glFinish();
+      get_query_ui64v(ids[0], SB_GL_QUERY_RESULT, &query_begin);
+      get_query_ui64v(ids[1], SB_GL_QUERY_RESULT, &query_end);
+      gl_delete_queries(2, ids);
+    }
+  });
+  if (!has_gl_get_integer64v) {
+    GTEST_SKIP() << "glGetInteger64v is not available.";
+  }
+  if (!has_extension) {
+    GTEST_SKIP() << "GL_EXT_disjoint_timer_query is not advertised.";
+  }
+  if (!has_timestamp_queries) {
+    // Zero GL_QUERY_COUNTER_BITS_EXT means the driver only supports
+    // GL_TIME_ELAPSED_EXT; GL_TIMESTAMP_EXT is not required to advance.
+    GTEST_SKIP() << "GL_TIMESTAMP_EXT queries are not supported.";
+  }
+
+  const double cpu_span = static_cast<double>(cpu_end - cpu_begin);
+  ASSERT_GT(cpu_span, 0.0);
+  EXPECT_NEAR(static_cast<double>(now_end - now_begin) / cpu_span, 1000.0, 50.0)
+      << "glGetInteger64v(GL_TIMESTAMP_EXT) must advance in nanoseconds.";
+  EXPECT_NEAR(static_cast<double>(query_end - query_begin) / cpu_span, 1000.0,
+              250.0)
+      << "GL_TIMESTAMP_EXT query results must advance in nanoseconds.";
+  EXPECT_LT(
+      std::abs(static_cast<double>(now_end) - static_cast<double>(query_end)) /
+          1000.0,
+      100000.0)
+      << "glGetInteger64v and query results must share the same timebase.";
 }
 
 }  // namespace
