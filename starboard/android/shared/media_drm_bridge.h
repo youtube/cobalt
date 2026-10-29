@@ -93,6 +93,9 @@ class MediaDrmBridge {
   OperationResult CreateSession(int ticket,
                                 span<const uint8_t> init_data,
                                 std::string_view mime) const;
+  // Opens the media crypto session and binds it to the MediaCrypto without
+  // creating a drm session or generating a key request.
+  OperationResult CreateMediaCryptoSession() const;
   std::string GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(span<const uint8_t> response) const;
 

@@ -92,6 +92,19 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
     return;
   }
   SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system;
+
+  // Open the media crypto session up front so that a player created with this
+  // drm system can decode as soon as it is created.  Once a MediaCodec is
+  // configured with a MediaCrypto it routes every sample through it including
+  // clear ones, so decoding fails with "Decrypt session ID not found" until a
+  // session is bound.
+  MediaDrmBridge::OperationResult result =
+      media_drm_bridge_->CreateMediaCryptoSession();
+  if (result.ok()) {
+    created_media_crypto_session_.store(true);
+  } else {
+    SB_LOG(INFO) << "Deferring media crypto session creation: " << result;
+  }
 }
 
 DrmSystem::~DrmSystem() {
