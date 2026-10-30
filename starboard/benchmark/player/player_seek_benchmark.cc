@@ -45,10 +45,12 @@ bool InitializeAndPreroll(SbPlayerBenchmarkHelper* helper,
       state->SkipWithError("Player initialization failed");
       return false;
   }
+
   if (!helper->FeedUntilPresenting()) {
     state->SkipWithError("Player did not start presenting");
     return false;
   }
+
   return true;
 }
 

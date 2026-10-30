@@ -49,6 +49,7 @@ namespace starboard {
 // library under starboard/testing/ that both nplb and the benchmarks use.
 class SbPlayerBenchmarkHelper {
  public:
+  // Benchmarks use manual timing (UseManualTime()) measured with this clock.
   using Clock = std::chrono::steady_clock;
 
   enum class InitResult {
@@ -60,7 +61,7 @@ class SbPlayerBenchmarkHelper {
   // Default upper bound for the waits on player callbacks. Hitting it means
   // that the player has stalled, so the benchmark should report an error
   // rather than hang.
-  static constexpr int64_t kDefaultTimeoutUs = 5'000'000;  // 5 seconds
+  static constexpr Clock::duration kDefaultTimeout = std::chrono::seconds(5);
 
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
@@ -76,6 +77,8 @@ class SbPlayerBenchmarkHelper {
   // Generates synthetic creation parameters for standard 1920x1080 AVC and
   // stereo AAC playback (used by the create/destroy benchmarks; the seek
   // benchmarks derive stream parameters from their .dmp files instead).
+  // TODO(b/541298090): Expand this to other formats/codecs as well as
+  // audio-only and video-only configurations.
   static void GetCreationParam(SbPlayerCreationParam* out_creation_param,
                                SbPlayerOutputMode output_mode);
 
@@ -88,9 +91,9 @@ class SbPlayerBenchmarkHelper {
   // decode-to-texture mode) until kSbPlayerStatePresenting is received for the
   // current ticket. If |out_presenting_time| is non-null, stores the timestamp
   // recorded inside the status callback when kSbPlayerStatePresenting arrived.
-  // Returns false if the player reports an error or stalls for |timeout_us|.
+  // Returns false if the player reports an error or stalls for |timeout|.
   bool FeedUntilPresenting(Clock::time_point* out_presenting_time = nullptr,
-                           int64_t timeout_us = kDefaultTimeoutUs);
+                           Clock::duration timeout = kDefaultTimeout);
 
   // Prepares a seek by resetting DMP reader indices and returning the next
   // ticket. The caller then calls SbPlayerSeek() itself so that it can time it.
@@ -100,7 +103,7 @@ class SbPlayerBenchmarkHelper {
   // Returns false if the player reports an error or the timeout expires.
   bool WaitForPlayerState(SbPlayerState state,
                           int ticket,
-                          int64_t timeout_us = kDefaultTimeoutUs);
+                          Clock::duration timeout = kDefaultTimeout);
 
   SbPlayer GetPlayer() const { return player_; }
 
@@ -193,8 +196,8 @@ class PlayerInitializationWaiter {
   // Blocks until the player reports kSbPlayerStateInitialized, reports an
   // error, or the timeout expires. Returns true only if the player was
   // initialized without an error.
-  bool WaitForInitialization(
-      int64_t timeout_us = SbPlayerBenchmarkHelper::kDefaultTimeoutUs);
+  bool WaitForInitialization(SbPlayerBenchmarkHelper::Clock::duration timeout =
+                                 SbPlayerBenchmarkHelper::kDefaultTimeout);
 
   bool HasError() const;
 
