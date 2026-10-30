@@ -395,11 +395,20 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   std::memset(mapped, 0x5A, kMappingSize);
 
   Addr mapped_base = reinterpret_cast<Addr>(mapped);
-  // Start the relocation table 64 bytes into page 1 and span 2 pages into
-  // page 3 so that page 2 is a full interior page reclaimed by MADV_DONTNEED,
-  // while the shared boundary pages (page 1 and page 3) remain untouched.
+  // Start the contiguous relocation tables (.rel(a).dyn followed immediately by
+  // .rel(a).plt) 64 bytes into page 1, split them in the middle of page 2, and
+  // end in page 3. Neither table covers a full page on its own, so page 2 is
+  // only reclaimed when Relocations::DiscardRelocationPages() merges contiguous
+  // DT_REL(A) and DT_JMPREL ranges, while the shared boundary pages (page 1 and
+  // page 3) remain untouched.
   Addr reloc_table_offset = page_size + 64;
-  size_t reloc_table_size = 2 * page_size;
+  size_t reloc_count = (2 * page_size) / sizeof(rel_t);
+  size_t dyn_reloc_count = (page_size + page_size / 2 - 64) / sizeof(rel_t);
+  size_t plt_reloc_count = reloc_count - dyn_reloc_count;
+  size_t dyn_reloc_size = dyn_reloc_count * sizeof(rel_t);
+  size_t plt_reloc_size = plt_reloc_count * sizeof(rel_t);
+  Addr jmp_rel_offset = reloc_table_offset + dyn_reloc_size;
+
   // Populate every relocation entry with r_info = 0 (R_*_NONE, a no-op
   // relocation) and non-zero r_offset (plus r_addend on RELA) so that every
   // sizeof(rel_t) slice on the interior page contains non-zero bytes before
@@ -407,7 +416,6 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   // zeroed by MADV_DONTNEED after.
   rel_t* reloc_entries =
       reinterpret_cast<rel_t*>(mapped_base + reloc_table_offset);
-  size_t reloc_count = reloc_table_size / sizeof(rel_t);
   for (size_t i = 0; i < reloc_count; ++i) {
     std::memset(&reloc_entries[i], 0, sizeof(rel_t));
     reloc_entries[i].r_offset = 0x7F7F7F7Fu;
@@ -424,20 +432,28 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
                           interior_page + page_size / 2 + sizeof(rel_t),
                           [](uint8_t b) { return b != 0u; }));
 
-  Dyn dyn_entries[3];
+  Dyn dyn_entries[6];
   std::memset(dyn_entries, 0, sizeof(dyn_entries));
 #if defined(USE_RELA)
   dyn_entries[0].d_tag = DT_RELA;
   dyn_entries[1].d_tag = DT_RELASZ;
+  dyn_entries[2].d_tag = DT_PLTREL;
+  dyn_entries[2].d_un.d_val = DT_RELA;
 #else
   dyn_entries[0].d_tag = DT_REL;
   dyn_entries[1].d_tag = DT_RELSZ;
+  dyn_entries[2].d_tag = DT_PLTREL;
+  dyn_entries[2].d_un.d_val = DT_REL;
 #endif
   dyn_entries[0].d_un.d_ptr = reloc_table_offset;
-  dyn_entries[1].d_un.d_val = reloc_table_size;
-  dyn_entries[2].d_tag = DT_NULL;
+  dyn_entries[1].d_un.d_val = dyn_reloc_size;
+  dyn_entries[3].d_tag = DT_JMPREL;
+  dyn_entries[3].d_un.d_ptr = jmp_rel_offset;
+  dyn_entries[4].d_tag = DT_PLTRELSZ;
+  dyn_entries[4].d_un.d_val = plt_reloc_size;
+  dyn_entries[5].d_tag = DT_NULL;
 
-  DynamicSection dyn_section(mapped_base, dyn_entries, 3, 0);
+  DynamicSection dyn_section(mapped_base, dyn_entries, 6, 0);
   ASSERT_TRUE(dyn_section.InitDynamicSection());
 
   ExportedSymbols symbols;
