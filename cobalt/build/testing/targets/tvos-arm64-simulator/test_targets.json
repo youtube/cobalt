@@ -21,5 +21,10 @@
     "target": "starboard:starboard_unittests_wrapper",
     "runs_on": "host",
     "test_type": "gtest"
+  },
+  {
+    "target": "starboard:nplb",
+    "runs_on": "host",
+    "test_type": "gtest"
   }
 ]
