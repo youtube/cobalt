@@ -570,7 +570,11 @@ void CobaltLifecycleManager::TrackPrimaryMainFrameForAck(
   }
 
   if (tracker->IsConnected(primary_main_frame)) {
-    pending_ack_frames_[web_contents].insert(primary_main_frame);
+    // A frame that is already in the target state has no state change to
+    // report, so it won't send an ACK. Don't wait for it.
+    if (!tracker->IsComplete(ack_type)) {
+      pending_ack_frames_[web_contents].insert(primary_main_frame);
+    }
   } else if (ack_type == PendingAck::kUnfreeze &&
              primary_main_frame->IsRenderFrameLive()) {
     LOG(WARNING) << __func__

@@ -163,7 +163,9 @@ gfx::Rect PlatformWindowStarboard::GetBoundsInDIP() const {
 }
 
 void PlatformWindowStarboard::Show(bool inactive) {
-  CreateSbWindow(/*notify_bounds_changed=*/false);
+  if (!CreateSbWindow(/*notify_bounds_changed=*/false)) {
+    return;
+  }
   EnsureAcceleratedWidgetAvailable();
 }
 
@@ -232,13 +234,15 @@ void PlatformWindowStarboard::DestroySbWindowInstance() {
 }
 
 void PlatformWindowStarboard::Restore() {
-  CreateSbWindow(/*notify_bounds_changed=*/true);
+  if (!CreateSbWindow(/*notify_bounds_changed=*/true)) {
+    return;
+  }
   EnsureAcceleratedWidgetAvailable();
 }
 
-void PlatformWindowStarboard::CreateSbWindow(bool notify_bounds_changed) {
+bool PlatformWindowStarboard::CreateSbWindow(bool notify_bounds_changed) {
   if (SbWindowIsValid(sb_window_)) {
-    return;
+    return true;
   }
 
   SbWindowOptions options{};
@@ -252,7 +256,13 @@ void PlatformWindowStarboard::CreateSbWindow(bool notify_bounds_changed) {
   }
 
   sb_window_ = SbWindowCreate(&options);
-  CHECK(SbWindowIsValid(sb_window_));
+  if (!SbWindowIsValid(sb_window_)) {
+    // The platform can lose its surface while Cobalt starts or reveals, for
+    // example when the app goes to the background. Leave the accelerated
+    // widget unavailable until a later Restore() creates the window.
+    LOG(WARNING) << "PlatformWindowStarboard: SbWindowCreate failed.";
+    return false;
+  }
 
   // Query the actual native window dimensions from Starboard and update both
   // the window bounds and primary screen display bounds.
@@ -273,6 +283,7 @@ void PlatformWindowStarboard::CreateSbWindow(bool notify_bounds_changed) {
   }
 
   (*g_created_callback).Run(sb_window_);
+  return true;
 }
 
 void PlatformWindowStarboard::EnsureAcceleratedWidgetAvailable() {

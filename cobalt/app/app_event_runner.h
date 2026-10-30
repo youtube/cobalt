@@ -62,6 +62,11 @@ class AppEventRunner {
   // Returns the currently active pending transition ACK.
   virtual PendingAck pending_ack() const = 0;
 
+  // Returns true if the application has a platform window. It has none when
+  // the platform couldn't create one during Start or Reveal, for example
+  // because the application went to the background during startup.
+  virtual bool HasValidPlatformWindow() const = 0;
+
   // Lifecycle signals called from the application.
   // These functions check and update the running, visible, focused, and frozen
   // state values and call their matching DoFoo() functions for the actual
