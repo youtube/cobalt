@@ -572,6 +572,12 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // conceal, OnContextLost() requests a new ContextProvider and blocks the
   // renderer main thread in EstablishGpuChannelSync() until reveal. Push the
   // initial page visibility so those guards apply to such players too.
+  //
+  // Note: VideoFrameCompositor's constructor has already posted
+  // InitializeSubmitter() to |vfc_task_runner_|, so the submitter's initial
+  // ContextProvider request still runs before this task. That request is made
+  // non-blocking in media_factory.cc. This task covers the later requests
+  // (OnContextLost() and the delayed retries).
   if (delegate_->IsPageHidden()) {
     PostCrossThreadTask(
         *vfc_task_runner_, FROM_HERE,
