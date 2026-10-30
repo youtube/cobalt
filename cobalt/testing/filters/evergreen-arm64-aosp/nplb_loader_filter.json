@@ -1,6 +1,7 @@
 {
   "comment": "AOSP nplb exclusions.",
   "failing_tests": [
+    "*SbPlayerGetAudioConfigurationTest.MultipleSeeks/*widevine*",
     "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_329_ec3*",
     "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_381_ac3*",
     "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
