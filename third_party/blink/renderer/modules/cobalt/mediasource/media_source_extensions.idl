@@ -16,6 +16,13 @@
 // A standby SourceBuffer buffers media that plays later, and changeTo() hands
 // playback over to it. The H5VCC setting
 // `Media.EnableMultiSourceBufferSwitching` exposes these.
+//
+// The MediaSource's duration covers the longest media buffered in any of its
+// SourceBuffers, standby ones included: buffering media in a standby
+// SourceBuffer can raise the duration, as an append to any SourceBuffer can.
+// A page that plays media of different lengths in one MediaSource keeps the
+// duration at least as long as the longest, and tracks where each item ends
+// itself.
 
 [
     Exposed=Window,

@@ -31,11 +31,13 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_SOURCE_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_SOURCE_H_
 
-#include <vector>
-
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_time_range.h"
 #include "third_party/blink/public/platform/web_url.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <vector>
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 class AudioDecoderConfig;

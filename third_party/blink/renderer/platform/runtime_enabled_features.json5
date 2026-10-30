@@ -3090,14 +3090,9 @@
       public: true,
       status: "stable",
     },
-    // Cobalt: gates exposure of SourceBuffer.changeType(DOMString). Disabled by
-    // default; enabled at runtime through the H5VCC setting
-    // `Media.EnableChangeType`, which force-enables the (token-less) origin
-    // trial on the calling document and flips the global flag for contexts
-    // created afterwards.
-    // TODO(b/571981376): Remove once experiments have run.
     // Cobalt: MediaSource.changeTo() and standby SourceBuffers
-    // (addSourceBuffer(type, {standby})), for switching between SourceBuffers.
+    // (MediaSource.addStandbySourceBuffer()), for switching between
+    // SourceBuffers.
     // Enabled at runtime through the H5VCC setting
     // `Media.EnableMultiSourceBufferSwitching`, which force-enables the
     // (token-less) origin trial on the calling document and the global flag
@@ -3108,6 +3103,12 @@
       origin_trial_feature_name: "MediaSourceChangeTo",
       public: true,
     },
+    // Cobalt: gates exposure of SourceBuffer.changeType(DOMString). Disabled by
+    // default; enabled at runtime through the H5VCC setting
+    // `Media.EnableChangeType`, which force-enables the (token-less) origin
+    // trial on the calling document and flips the global flag for contexts
+    // created afterwards.
+    // TODO(b/571981376): Remove once experiments have run.
     {
       name: "MediaSourceChangeType",
       base_feature: "none",

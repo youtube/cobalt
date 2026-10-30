@@ -224,7 +224,6 @@ bool GetAppendFirstSegmentSynchronouslySetting(
   }
   return false;
 }
-
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
