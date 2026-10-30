@@ -40,8 +40,6 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
   virtual size_t GetStreamLength() const = 0;
 
-  bool synthesizes_bold() const { return synthesizes_bold_; }
-
  protected:
   sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
 

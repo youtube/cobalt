@@ -56,9 +56,9 @@ const SimpleFontData* FontCache::PlatformFallbackFontForCharacter(
   // Synthesize bold when a bold weight is requested but the fallback typeface
   // is not bold (e.g. a Regular-only CJK font). IsSyntheticBold() alone is not
   // set for an ordinary CSS `font-weight: bold`. This matches Cobalt 25, which
-  // emboldened when the requested weight was bold and the typeface was not
-  // (SkTypeface_Cobalt::synthesizes_bold()). Typefaces that opt out via
-  // `disable_synthetic_bolding` in fonts.xml are handled by SkTypeface_Cobalt.
+  // emboldened when the requested weight was bold and the typeface was not.
+  // Typefaces that opt out via `disable_synthetic_bolding` in fonts.xml are
+  // handled by SkTypeface_Cobalt::onFilterRec().
   bool synthetic_bold = (isFontWeightBold(font_description.Weight()) ||
                          font_description.IsSyntheticBold()) &&
                         !typeface->isBold() &&
