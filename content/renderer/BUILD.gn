@@ -342,6 +342,14 @@ target(link_target_type, "renderer") {
     ]
   }
 
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "media/cobalt/wasm_hole_web_media_player.cc",
+      "media/cobalt/wasm_hole_web_media_player.h",
+    ]
+    deps += [ "//cobalt/starboard_wasm:surface_video_size" ]
+  }
+
   if (is_android) {
     deps += [
       # Used by Android WebView only.
@@ -595,6 +603,7 @@ group("for_content_tests") {
   ]
   if (is_cobalt) {
     visibility += [
+      "//cobalt:*",
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
     ]

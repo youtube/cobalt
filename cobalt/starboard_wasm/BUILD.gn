@@ -1,0 +1,71 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Starboard's SbPlayer exposed to WebAssembly guests; Blink exposes it as
+# h5vccWasmImports.
+static_library("starboard_wasm") {
+  sources = [
+    "event_queue.cc",
+    "event_queue.h",
+    "guest_memory.cc",
+    "guest_memory.h",
+    "wasm_player_host.cc",
+    "wasm_player_host.h",
+    "wasm_starboard_abi.h",
+  ]
+  public_deps = [
+    "//base",
+    "//cobalt/media/service/mojom",
+    "//mojo/public/cpp/bindings",
+    "//starboard:starboard_group",
+    "//ui/gfx/geometry",
+    "//v8",
+  ]
+  deps = [
+    ":surface_video_size",
+    "//media",
+  ]
+}
+
+# Shared with the surface's <video> element in content/renderer.
+static_library("surface_video_size") {
+  sources = [
+    "surface_video_size.cc",
+    "surface_video_size.h",
+  ]
+  public_deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "event_queue_unittest.cc",
+    "guest_memory_unittest.cc",
+    "surface_video_size_unittest.cc",
+    "wasm_player_host_unittest.cc",
+  ]
+  deps = [
+    ":starboard_wasm",
+    ":surface_video_size",
+    "//base/test:test_support",
+    "//gin:gin_test",
+    "//media",
+    "//media:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

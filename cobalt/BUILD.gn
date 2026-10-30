@@ -377,6 +377,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
+    "//content/renderer/media/cobalt/wasm_hole_web_media_player_unittest.cc",
   ]
 
   # Memory instrumentation host-side tool tests require launching external
@@ -454,6 +455,8 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
+    "//cobalt/starboard_wasm:surface_video_size",
+    "//cobalt/starboard_wasm:unit_tests",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs",
@@ -461,6 +464,7 @@ test("cobalt_unittests") {
     "//components/services/storage/public/cpp",
     "//components/variations",
     "//components/variations/service",
+    "//content/renderer:for_content_tests",
     "//content/test:test_support",
     "//gin",
     "//gin:gin_test",
