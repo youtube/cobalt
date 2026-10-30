@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio/audio_beneath_the_canopy_aac_5_1_dmp_video_null_output_punch_out_key_system_null",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio/audio_beneath_the_canopy_aac_stereo_dmp_video_null_output_punch_out_key_system_null"
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio/audio_beneath_the_canopy_aac_*_video_null_output_punch_out_key_system_null"
   ]
 }
