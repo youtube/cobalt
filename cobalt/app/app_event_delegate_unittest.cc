@@ -51,6 +51,8 @@ class MockAppEventRunner : public AppEventRunner {
     set_is_focused(false);
     set_is_frozen(true);
 
+    ON_CALL(*this, HasValidPlatformWindow())
+        .WillByDefault(testing::Return(true));
     ON_CALL(*this, DoFreeze(testing::_))
         .WillByDefault(testing::Invoke([](base::OnceClosure callback) {
           base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -87,6 +89,7 @@ class MockAppEventRunner : public AppEventRunner {
               (),
               (override));
   MOCK_METHOD(PendingAck, pending_ack, (), (const, override));
+  MOCK_METHOD(bool, HasValidPlatformWindow, (), (const, override));
 
   // These are the methods called by the base class.
   MOCK_METHOD(void, DoStart, (const SbEvent* event), (override));
@@ -598,6 +601,168 @@ TEST_F(AppEventDelegateTest, RedundantUnfreezeIgnored) {
   // App is already unfrozen (Concealed).
   EXPECT_CALL(*runner_, DoUnfreeze()).Times(0);
   SendEvent(kSbEventTypeUnfreeze);
+}
+
+TEST_F(AppEventDelegateTest, StartWithoutPlatformWindowConceals) {
+  ON_CALL(*runner_, HasValidPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, DoStart(_));
+    EXPECT_CALL(*runner_, DoBlur());
+    EXPECT_CALL(*runner_, DoConceal());
+  }
+
+  // Dispatch kSbEventTypeStart without calling RunUntilIdle() afterwards. The
+  // Blur and Conceal steps must complete before HandleEvent returns.
+  SbEvent start_event = {kSbEventTypeStart, 0, nullptr};
+  delegate_->HandleEvent(&start_event);
+  testing::Mock::VerifyAndClearExpectations(runner_);
+
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_TRUE(delegate_->IsRunning());
+  EXPECT_FALSE(delegate_->IsVisible());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+}
+
+// Verifies that a Blur after the application concealed itself without a
+// platform window doesn't reveal it. The platform doesn't know about that
+// conceal, so it can still send the Blur it thinks comes next.
+TEST_F(AppEventDelegateTest, BlurAfterConcealWithoutPlatformWindowIgnored) {
+  ON_CALL(*runner_, HasValidPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  SendEvent(kSbEventTypeStart);
+  ASSERT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  EXPECT_CALL(*runner_, DoBlur()).Times(0);
+  SendEvent(kSbEventTypeBlur);
+
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+  EXPECT_EQ(GetTargetState(), AppEventDelegate::ApplicationState::kConcealed);
+}
+
+// Verifies that a Blur that arrives while a Focus is still revealing the
+// application stops it at kBlurred. The current state is still kConcealed
+// then, so the Blur check has to look at the target state.
+TEST_F(AppEventDelegateTest, BlurDuringRevealStopsAtBlurred) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  bool sent_blur = false;
+  EXPECT_CALL(*runner_, DoReveal()).WillOnce(Invoke([&]() {
+    // The user leaves again while the reveal runs.
+    SbEvent blur_event = {kSbEventTypeBlur, 0, nullptr};
+    delegate_->HandleEvent(&blur_event);
+    sent_blur = true;
+  }));
+  EXPECT_CALL(*runner_, DoFocus()).Times(0);
+  SendEvent(kSbEventTypeFocus);
+
+  EXPECT_TRUE(sent_blur);
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kBlurred);
+}
+
+// Verifies that a Blur that arrives while the application conceals itself
+// without a platform window doesn't stop the conceal. The current state is
+// still kStarted then, so the Blur check has to look at the target state.
+TEST_F(AppEventDelegateTest, BlurDuringConcealWithoutPlatformWindowIgnored) {
+  ON_CALL(*runner_, HasValidPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  bool sent_blur = false;
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, DoStart(_));
+    EXPECT_CALL(*runner_, DoBlur()).WillOnce(Invoke([&]() {
+      // The platform doesn't know about this conceal and sends a Blur.
+      SbEvent blur_event = {kSbEventTypeBlur, 0, nullptr};
+      delegate_->HandleEvent(&blur_event);
+      sent_blur = true;
+    }));
+    EXPECT_CALL(*runner_, DoConceal());
+  }
+  SendEvent(kSbEventTypeStart);
+
+  EXPECT_TRUE(sent_blur);
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest, RevealWithoutPlatformWindowConceals) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  ON_CALL(*runner_, HasValidPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, DoReveal());
+    EXPECT_CALL(*runner_, DoConceal());
+  }
+  SendEvent(kSbEventTypeReveal);
+
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_FALSE(delegate_->IsVisible());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+  EXPECT_EQ(GetTargetState(), AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest, FocusWithoutPlatformWindowStaysConcealed) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  ON_CALL(*runner_, HasValidPlatformWindow())
+      .WillByDefault(testing::Return(false));
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, DoReveal());
+    EXPECT_CALL(*runner_, DoConceal());
+  }
+  EXPECT_CALL(*runner_, DoFocus()).Times(0);
+  SendEvent(kSbEventTypeFocus);
+
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_FALSE(delegate_->IsFocused());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+  EXPECT_EQ(GetTargetState(), AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest, FocusDuringFailedRevealRetriesReveal) {
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload);
+
+  // The first reveal finds no platform window, the retry finds one.
+  EXPECT_CALL(*runner_, HasValidPlatformWindow())
+      .WillOnce(testing::Return(false))
+      .WillRepeatedly(testing::Return(true));
+  bool sent_second_focus = false;
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, DoReveal()).WillOnce(Invoke([&]() {
+      // The platform sends another Focus while the first reveal runs.
+      SbEvent focus_event = {kSbEventTypeFocus, 0, nullptr};
+      delegate_->HandleEvent(&focus_event);
+      sent_second_focus = true;
+    }));
+    EXPECT_CALL(*runner_, DoConceal());
+    EXPECT_CALL(*runner_, DoReveal());
+    EXPECT_CALL(*runner_, DoFocus());
+  }
+  SendEvent(kSbEventTypeFocus);
+
+  EXPECT_TRUE(sent_second_focus);
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_TRUE(delegate_->IsFocused());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kStarted);
 }
 
 TEST_F(AppEventDelegateTest,
