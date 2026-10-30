@@ -98,6 +98,9 @@ class AudioTrack {
   virtual AudioDeviceChange GetAndResetAudioDeviceChange() = 0;
   virtual int GetUnderrunCount() = 0;
   virtual int GetStartThresholdInFrames() = 0;
+  virtual int SetStartThresholdInFrames(int start_threshold_in_frames) {
+    return 0;
+  }
   virtual PlayState GetPlayState() = 0;
 };
 
