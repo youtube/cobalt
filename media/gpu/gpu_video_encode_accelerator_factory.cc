@@ -31,7 +31,7 @@
 #include "media/gpu/macros.h"
 #include "media/video/video_encode_accelerator.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 #include "media/gpu/android/ndk_video_encode_accelerator.h"
 #endif
 #if BUILDFLAG(IS_MAC)
@@ -77,7 +77,9 @@ std::unique_ptr<VideoEncodeAccelerator> CreateVaapiVEA() {
 }
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
+// NdkVideoEncodeAccelerator requires API 29 and
+// Cobalt targets API 28. See //media/gpu/BUILD.gn.
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 std::unique_ptr<VideoEncodeAccelerator> CreateAndroidVEA(
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds) {
   return base::WrapUnique<VideoEncodeAccelerator>(new NdkVideoEncodeAccelerator(
@@ -183,7 +185,7 @@ std::vector<VEAFactoryFunction> GetVEAFactoryFunctions(
   vea_factory_functions->push_back(base::BindRepeating(&CreateV4L2VEA));
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   vea_factory_functions->push_back(
       base::BindRepeating(&CreateAndroidVEA, gpu_workarounds));
 #endif

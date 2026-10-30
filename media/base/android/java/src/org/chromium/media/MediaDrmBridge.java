@@ -11,6 +11,8 @@ import android.media.MediaCrypto;
 import android.media.MediaDrm;
 import android.os.Build;
 
+import androidx.annotation.RequiresApi;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.JNINamespace;
@@ -290,7 +292,15 @@ public class MediaDrmBridge {
         mMediaDrm.setOnEventListener(new EventListener());
         mMediaDrm.setOnExpirationUpdateListener(new ExpirationUpdateListener(), null);
         mMediaDrm.setOnKeyStatusChangeListener(new KeyStatusChangeListener(), null);
-        mMediaDrm.setOnSessionLostStateListener(new SessionLostStateListener(), null);
+        // MediaDrm.setOnSessionLostStateListener() and OnSessionLostStateListener require
+        // API 29 (Android Q). On Android P the session-lost callback is simply unavailable;
+        // the other three listeners above still cover event, expiration and key status.
+        //
+        // RESTORED: this guard was present in Cobalt until the 142.7403 roll (7a6e307489c)
+        // silently dropped it during conflict resolution. It is not a new invention.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mMediaDrm.setOnSessionLostStateListener(new SessionLostStateListener(), null);
+        }
 
         if (isWidevine()) {
             mMediaDrm.setPropertyString(PRIVACY_MODE, ENABLE);
@@ -1694,6 +1704,10 @@ public class MediaDrmBridge {
     // TODO(b/263310318): Add tests using setPropertyStringForTesting("drmErrorTest", "lostState")
     // which triggers this onSessionLostState for ClearKey. Android's ClearKey is not currently used
     // as we use AesDecryptor, so implement tests once we make the switch to Android's ClearKey.
+    // RESTORED: MediaDrm.OnSessionLostStateListener is API 29 (Android Q); this class is only
+    // instantiated behind an SDK_INT check. The same annotation was present until the 142.7403
+    // roll (7a6e307489c) dropped it.
+    @RequiresApi(Build.VERSION_CODES.Q)
     private class SessionLostStateListener implements MediaDrm.OnSessionLostStateListener {
 
         @Override

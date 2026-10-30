@@ -109,8 +109,15 @@ public class PowerMonitor {
                 },
                 powerConnectedFilter);
 
+        // NEW GUARD: PowerManager.addThermalStatusListener() requires API 29 (Android Q).
+        // Cobalt supports Android P (API 28), where thermal status reporting is unavailable.
+        // Nothing to restore - this call has never been guarded here, including on the
+        // min-SDK-24 main branch, which therefore carries the same latent crash.
+        //
+        // WARNING: upstream has no guard here, because upstream's floor is API 29.
+        // A roll that rewrites this code will drop the guard silently.
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        if (powerManager != null) {
+        if (powerManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             powerManager.addThermalStatusListener(
                     new PowerManager.OnThermalStatusChangedListener() {
                         @Override
@@ -301,6 +308,15 @@ public class PowerMonitor {
                         ContextUtils.getApplicationContext()
                                 .getSystemService(Context.POWER_SERVICE);
         if (powerManager == null) return -1;
+        // NEW GUARD: PowerManager.getCurrentThermalStatus() requires API 29 (Android Q).
+        // On Android P return -1, which MapToDeviceThermalState() maps to
+        // DeviceThermalState::kUnknown - the same result as the null-PowerManager case above,
+        // so the value is not invented. Nothing to restore; never guarded here.
+        // Confirmed crash on device: the app died during ContentMain startup without this.
+        //
+        // WARNING: upstream has no guard here, because upstream's floor is API 29.
+        // A roll that rewrites this code will drop the guard silently.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return -1;
         return powerManager.getCurrentThermalStatus();
     }
 

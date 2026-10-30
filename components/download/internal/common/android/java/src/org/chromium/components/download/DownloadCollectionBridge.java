@@ -11,6 +11,7 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.FileUtils;
 import android.os.ParcelFileDescriptor;
 import android.provider.BaseColumns;
@@ -19,6 +20,8 @@ import android.provider.MediaStore.Downloads;
 import android.provider.MediaStore.MediaColumns;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
+
+import androidx.annotation.RequiresApi;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -110,6 +113,16 @@ public class DownloadCollectionBridge {
             @JniType("std::string") String mimeType,
             @JniType("std::string") String originalUrl,
             @JniType("std::string") String referrer) {
+        // NEW GUARD: JNI entry point. Everything below reaches Android Q scoped-storage APIs,
+        // so the chain of @RequiresApi(29) annotations terminates here with a real runtime check
+        // rather than another annotation - native callers cannot be relied on to gate this.
+        // Returning null is already the documented "could not create" result, so no caller sees
+        // new behaviour. Nothing to restore; the historical form had no check here.
+        //
+        // WARNING: upstream has no guard here, because upstream's floor is API 29.
+        // A roll that rewrites this code will drop the guard silently.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null;
+
         Uri uri = createPendingSessionInternal(fileName, mimeType, originalUrl, referrer);
         if (uri != null) return uri.toString();
 
@@ -148,6 +161,12 @@ public class DownloadCollectionBridge {
      * @return True on success, or false otherwise.
      */
     @CalledByNative
+    // RESTORED: these methods touch Android Q scoped-storage APIs (MediaStore.Downloads,
+    // MediaStore#setIncludePending, FileUtils#copy). @RequiresApi(29) was present in Cobalt
+    // until the 143.7457 roll (00673636ae9) dropped it during conflict resolution. Note this
+    // is a different roll from the one that dropped the MediaCodecUtil / MediaDrmBridge
+    // guards (142.7403), so this is a repeating pattern rather than one accident.
+    @RequiresApi(29)
     public static boolean copyFileToIntermediateUri(
             @JniType("std::string") String sourcePath,
             @JniType("std::string") String destinationUri) {
@@ -256,6 +275,10 @@ public class DownloadCollectionBridge {
      * @return whether a download with the file name exists.
      */
     @CalledByNative
+    // NEW ANNOTATION: propagated from the annotated callee. The historical Cobalt form
+    // stopped short here, because lint never ran for cobalt_apk and nobody saw the chain was
+    // incomplete.
+    @RequiresApi(29)
     private static boolean fileNameExists(@JniType("std::string") String fileName) {
         return getDownloadUriForFileName(fileName) != null;
     }
@@ -286,6 +309,8 @@ public class DownloadCollectionBridge {
      * @return an array of download Uri and display name pair.
      */
     @CalledByNative
+    // RESTORED, see note on copyFileToIntermediateUri above.
+    @RequiresApi(29)
     private static DisplayNameInfo @Nullable [] getDisplayNamesForDownloads() {
         ContentResolver resolver = ContextUtils.getApplicationContext().getContentResolver();
         Cursor cursor = null;
@@ -323,6 +348,8 @@ public class DownloadCollectionBridge {
      * @param fileName name of the file.
      * @return Uri of the download with the given display name.
      */
+    // RESTORED, see note on copyFileToIntermediateUri above.
+    @RequiresApi(29)
     public static @Nullable Uri getDownloadUriForFileName(String fileName) {
         Cursor cursor = null;
         try {
@@ -363,6 +390,10 @@ public class DownloadCollectionBridge {
      * @param referrer Referrer of the download.
      * @return Uri created for the pending session, or null if failed.
      */
+    // NEW ANNOTATION: propagated from the annotated callee. The historical Cobalt form
+    // stopped short here, because lint never ran for cobalt_apk and nobody saw the chain was
+    // incomplete.
+    @RequiresApi(29)
     private static @Nullable Uri createPendingSessionInternal(
             final String fileName,
             final String mimeType,
@@ -388,6 +419,8 @@ public class DownloadCollectionBridge {
      * @param referrer Referrer of the download.
      * @return PendingParams needed for creating the PendingSession.
      */
+    // RESTORED, see note on copyFileToIntermediateUri above.
+    @RequiresApi(29)
     private static PendingParams createPendingParams(
             final String fileName,
             final String mimeType,

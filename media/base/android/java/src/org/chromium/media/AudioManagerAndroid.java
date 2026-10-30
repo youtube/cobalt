@@ -186,7 +186,10 @@ class AudioManagerAndroid {
         // Set the audio capture policy based on the device class.
         // For non-desktop devices, allow capture only by the system.
         // For desktop devices, use the default behavior to allow capture by all apps.
-        if (!DeviceInfo.isDesktop()) {
+        // NEW GUARD: AudioManager#setAllowedCapturePolicy and
+        // AudioAttributes.ALLOW_CAPTURE_BY_SYSTEM are API 29; the capture-policy
+        // restriction does not exist below API 29, so skip it there.
+        if (!DeviceInfo.isDesktop() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             mAudioManager.setAllowedCapturePolicy(AudioAttributes.ALLOW_CAPTURE_BY_SYSTEM);
         }
 
