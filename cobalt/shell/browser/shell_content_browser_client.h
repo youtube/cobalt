@@ -31,6 +31,10 @@
 
 class PrefService;
 
+#if BUILDFLAG(IS_IOS)
+class ApplicationLocaleStorage;
+#endif
+
 namespace content {
 class NavigationThrottleRegistry;
 class ShellBrowserContext;
@@ -80,6 +84,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       std::optional<int64_t> navigation_id) override;
   void AppendExtraCommandLineSwitches(base::CommandLine* command_line,
                                       int child_process_id) override;
+#if BUILDFLAG(IS_IOS)
+  std::string GetApplicationLocale() override;
+#endif
   std::string GetAcceptLangs(BrowserContext* context) override;
   std::string GetDefaultDownloadName() override;
   std::unique_ptr<WebContentsViewDelegate> GetWebContentsViewDelegate(
@@ -173,7 +180,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
   std::vector<base::FilePath> GetNetworkContextsParentDirectory() override;
-
+#if BUILDFLAG(IS_IOS)
+  std::unique_ptr<ApplicationLocaleStorage> application_locale_storage_;
+#endif
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
