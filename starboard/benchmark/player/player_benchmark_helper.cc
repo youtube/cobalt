@@ -15,11 +15,13 @@
 #include "starboard/benchmark/player/player_benchmark_helper.h"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
-#include <utility>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/decode_target.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -33,13 +35,6 @@ SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
   DestroyPlayer();
 }
 
-void SbPlayerBenchmarkHelper::SetExperimentalFeatures(
-    std::vector<StarboardExperimentalFeatureEntry> features) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  experimental_features_ = std::move(features);
-  ConfigureExperimentalFeaturesForCurrentThread();
-}
-
 void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread()
     const {
   // Mirror what the media pipeline does before creating a player. Go through
@@ -50,11 +45,10 @@ void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread()
       SbSystemGetExtension(
           kStarboardExtensionExperimentalFeaturesConfigurationName));
   if (experimental_features_extension &&
+      strcmp(experimental_features_extension->name,
+             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures features = {
-        experimental_features_.empty() ? nullptr
-                                       : experimental_features_.data(),
-        experimental_features_.size()};
+    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &features);
   }
@@ -115,6 +109,7 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
     return InitResult::kOutputModeNotSupported;
   }
 
+  output_mode_ = output_mode;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     error_occurred_ = false;
@@ -123,7 +118,6 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
     audio_needs_data_ = false;
     video_needs_data_ = false;
     ticket_ = SB_PLAYER_INITIAL_TICKET;
-    output_mode_ = output_mode;
   }
 
   SbPlayer player =
@@ -137,10 +131,7 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
     return InitResult::kFailed;
   }
 
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    player_ = player;
-  }
+  player_ = player;
 
   if (!WaitForPlayerState(kSbPlayerStateInitialized,
                           SB_PLAYER_INITIAL_TICKET)) {
@@ -149,7 +140,8 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
     return InitResult::kFailed;
   }
 
-  // Call Seek(0) to start the playback pipelines and decoders.
+  // Start the playback pipeline at 1.0x so seek benchmarks measure seeking an
+  // actively playing player.
   Seek(0);
   SbPlayerSetPlaybackRate(player_, 1.0);
 
@@ -158,13 +150,9 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
 
 void SbPlayerBenchmarkHelper::DestroyPlayer() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SbPlayer player_to_destroy = kSbPlayerInvalid;
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    player_to_destroy = player_;
-    player_ = kSbPlayerInvalid;
-    output_mode_ = kSbPlayerOutputModeInvalid;
-  }
+  SbPlayer player_to_destroy = player_;
+  player_ = kSbPlayerInvalid;
+  output_mode_ = kSbPlayerOutputModeInvalid;
   if (SbPlayerIsValid(player_to_destroy)) {
     SbPlayerDestroy(player_to_destroy);
   }
@@ -179,18 +167,21 @@ bool SbPlayerBenchmarkHelper::FeedUntilPresenting(
   // In decode-to-texture mode, platforms without an internal video renderer
   // sink (such as Linux) only advance VideoRendererImpl and release cached
   // frames when SbPlayerGetCurrentFrame() is polled. Poll at ~60 Hz while
-  // waiting so decoder buffers can drain.
+  // feeding/waiting so decoder buffers can drain.
   constexpr auto kDecodeTargetPollInterval = std::chrono::milliseconds(16);
+  const bool poll_decode_target =
+      output_mode_ == kSbPlayerOutputModeDecodeToTexture;
   const auto timeout = std::chrono::microseconds(timeout_us);
   // The deadline is pushed out whenever samples are written, bounding how long
   // the player may go without making progress rather than total feed time.
-  auto deadline = Clock::now() + timeout;
+  const auto initial_now = Clock::now();
+  auto deadline = initial_now + timeout;
+  auto next_decode_target_poll = initial_now + kDecodeTargetPollInterval;
 
   while (true) {
     bool write_audio = false;
     bool write_video = false;
     bool need_decode_target_poll = false;
-    Clock::time_point wait_deadline = deadline;
 
     {
       std::unique_lock<std::mutex> lock(mutex_);
@@ -213,18 +204,22 @@ bool SbPlayerBenchmarkHelper::FeedUntilPresenting(
         write_video = true;
       }
 
-      if (!write_audio && !write_video) {
-        const auto now = Clock::now();
+      const auto now = Clock::now();
+      if (poll_decode_target && now >= next_decode_target_poll) {
+        need_decode_target_poll = true;
+        next_decode_target_poll = now + kDecodeTargetPollInterval;
+      }
+
+      if (!write_audio && !write_video && !need_decode_target_poll) {
         if (now >= deadline) {
           SB_LOG(ERROR) << "Timed out waiting for kSbPlayerStatePresenting"
                         << " (audio_needs_data=" << audio_needs_data_
                         << ", video_needs_data=" << video_needs_data_ << ")";
           return false;
         }
-        if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-          need_decode_target_poll = true;
-          wait_deadline = std::min(deadline, now + kDecodeTargetPollInterval);
-        }
+        const Clock::time_point wait_deadline =
+            poll_decode_target ? std::min(deadline, next_decode_target_poll)
+                               : deadline;
         condition_variable_.wait_until(lock, wait_deadline);
       }
     }
@@ -282,59 +277,61 @@ bool SbPlayerBenchmarkHelper::WaitForPlayerState(SbPlayerState state,
 
 void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SbPlayer player = player_;
-  if (!SbPlayerIsValid(player)) {
+  if (!SbPlayerIsValid(player_)) {
     return;
   }
 
-  int max_samples = SbPlayerGetMaximumNumberOfSamplesPerWrite(player, type);
+  const bool is_audio = type == kSbMediaTypeAudio;
+  VideoDmpReader* reader = is_audio ? audio_reader_.get() : video_reader_.get();
+  if (!reader) {
+    return;
+  }
+
+  int max_samples = SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, type);
   if (max_samples <= 0) {
     max_samples = 1;
   }
 
-  // Collect the samples under the lock, but call into the player without
-  // holding it: the player callbacks acquire the same mutex, so holding it
-  // across SbPlayerWriteSamples() would deadlock with an implementation that
-  // invokes the callbacks synchronously.
+  size_t& next_sample_index =
+      is_audio ? next_audio_sample_index_ : next_video_sample_index_;
+  bool& eos_written = is_audio ? audio_eos_written_ : video_eos_written_;
+  const size_t total_samples = is_audio ? reader->number_of_audio_buffers()
+                                        : reader->number_of_video_buffers();
+
   bool write_end_of_stream = false;
   std::vector<SbPlayerSampleInfo> sample_infos;
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    const bool is_audio = type == kSbMediaTypeAudio;
-    VideoDmpReader* reader =
-        is_audio ? audio_reader_.get() : video_reader_.get();
-    if (!reader) {
+  if (next_sample_index >= total_samples) {
+    if (eos_written) {
       return;
     }
-    size_t& next_sample_index =
-        is_audio ? next_audio_sample_index_ : next_video_sample_index_;
-    bool& eos_written = is_audio ? audio_eos_written_ : video_eos_written_;
-    bool& needs_data = is_audio ? audio_needs_data_ : video_needs_data_;
-    const size_t total_samples = is_audio ? reader->number_of_audio_buffers()
-                                          : reader->number_of_video_buffers();
-
-    if (next_sample_index >= total_samples) {
-      if (eos_written) {
-        return;
-      }
-      eos_written = true;
-      write_end_of_stream = true;
-    } else {
-      const size_t samples_to_write = std::min(
-          static_cast<size_t>(max_samples), total_samples - next_sample_index);
-      sample_infos.reserve(samples_to_write);
-      for (size_t i = 0; i < samples_to_write; ++i) {
-        sample_infos.push_back(
-            reader->GetPlayerSampleInfo(type, next_sample_index++));
-      }
+    eos_written = true;
+    write_end_of_stream = true;
+  } else {
+    const size_t samples_to_write = std::min(static_cast<size_t>(max_samples),
+                                             total_samples - next_sample_index);
+    sample_infos.reserve(samples_to_write);
+    for (size_t i = 0; i < samples_to_write; ++i) {
+      sample_infos.push_back(
+          reader->GetPlayerSampleInfo(type, next_sample_index++));
     }
-    needs_data = false;
+  }
+
+  // Clear |needs_data| under |mutex_| before calling into the player, and
+  // release |mutex_| before SbPlayerWriteSamples()/SbPlayerWriteEndOfStream()
+  // so synchronous callback implementations cannot deadlock.
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (is_audio) {
+      audio_needs_data_ = false;
+    } else {
+      video_needs_data_ = false;
+    }
   }
 
   if (write_end_of_stream) {
-    SbPlayerWriteEndOfStream(player, type);
+    SbPlayerWriteEndOfStream(player_, type);
   } else {
-    SbPlayerWriteSamples(player, type, sample_infos.data(),
+    SbPlayerWriteSamples(player_, type, sample_infos.data(),
                          static_cast<int>(sample_infos.size()));
   }
 }
@@ -485,14 +482,6 @@ void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
 }
 
 // static
-void SbPlayerBenchmarkHelper::DummyPlayerErrorFunc(SbPlayer player,
-                                                   void* context,
-                                                   SbPlayerError error,
-                                                   const char* message) {
-  SB_LOG(ERROR) << "Player error " << error << ": " << (message ? message : "");
-}
-
-// static
 void SbPlayerBenchmarkHelper::PlayerErrorCallback(SbPlayer player,
                                                   void* context,
                                                   SbPlayerError error,
@@ -542,6 +531,11 @@ bool PlayerInitializationWaiter::WaitForInitialization(int64_t timeout_us) {
       lock, std::chrono::microseconds(timeout_us),
       [this] { return initialized_ || error_occurred_; });
   return initialized_ && !error_occurred_;
+}
+
+bool PlayerInitializationWaiter::HasError() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return error_occurred_;
 }
 
 }  // namespace starboard

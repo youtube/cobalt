@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -81,27 +83,55 @@ std::vector<std::string> GetBenchmarkArgs() {
   return args;
 }
 
+// Google Benchmark calls its HelperPrintf callback followed by exit(0) when a
+// recognized --benchmark_* flag has an invalid value (e.g.
+// --benchmark_out_format=invalid or --benchmark_time_unit=bad). Terminate with
+// _Exit(1) instead so malformed flags cannot pass silently and static
+// starboard::Thread destructors do not run while SbRunStarboardMain's event
+// loop is still on the stack; --help is already handled by InitGoogleTest()
+// before GetBenchmarkArgs() filters for "--benchmark_*".
+void PrintBenchmarkHelpAndFail() {
+  ::benchmark::PrintDefaultHelp();
+  std::fflush(stdout);
+  std::fflush(stderr);
+  std::_Exit(1);
+}
+
+// Initializes Google Benchmark once per process and shuts it down at process
+// exit. ::benchmark::Shutdown() deletes internal::global_context without
+// nulling the pointer, so calling Initialize()/Shutdown() per test iteration
+// would use-after-free under --gtest_repeat > 1.
+struct BenchmarkProcessState {
+  bool has_unrecognized_args = false;
+
+  BenchmarkProcessState() {
+    std::vector<std::string> args = GetBenchmarkArgs();
+    // Google Benchmark may modify argc/argv.
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (std::string& arg : args) {
+      argv.push_back(arg.data());
+    }
+    argv.push_back(nullptr);
+    int argc = static_cast<int>(argv.size()) - 1;
+
+    ::benchmark::Initialize(&argc, argv.data(), &PrintBenchmarkHelpAndFail);
+    has_unrecognized_args =
+        ::benchmark::ReportUnrecognizedArguments(argc, argv.data());
+  }
+
+  ~BenchmarkProcessState() { ::benchmark::Shutdown(); }
+};
+
 }  // namespace
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
-  std::vector<std::string> args = GetBenchmarkArgs();
-  // Google Benchmark may modify argc/argv.
-  std::vector<char*> argv;
-  for (std::string& arg : args) {
-    argv.push_back(arg.data());
-  }
-  argv.push_back(nullptr);
-  int argc = static_cast<int>(argv.size()) - 1;
-
-  ::benchmark::Initialize(&argc, argv.data());
-  if (::benchmark::ReportUnrecognizedArguments(argc, argv.data())) {
-    ::benchmark::Shutdown();
-    FAIL() << "Unrecognized --benchmark_* command-line flag";
-  }
+  static BenchmarkProcessState state;
+  ASSERT_FALSE(state.has_unrecognized_args)
+      << "Unrecognized --benchmark_* command-line flag";
 
   FailOnBenchmarkErrorReporter reporter;
   size_t benchmarks_run = ::benchmark::RunSpecifiedBenchmarks(&reporter);
-  ::benchmark::Shutdown();
   EXPECT_GT(benchmarks_run, 0u) << "No benchmark matched the filter";
 }
 

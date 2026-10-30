@@ -105,9 +105,10 @@ void BM_PlayerSeekAsync(::benchmark::State& state,
   }
 }
 
-// Explicit iteration counts bound total runtime: BM_PlayerSeekSync's manual
-// time is only a few microseconds while each iteration performs an untimed
-// preroll, so min-time auto-scaling would run thousands of seeks.
+// Explicit iteration counts bound BM_PlayerSeekSync's untimed per-iteration
+// preroll cost (its manual time is only a few microseconds, so min-time
+// auto-scaling would run thousands of seeks) and give BM_PlayerSeekAsync a
+// matching 20-sample run instead of stopping after 1-2 seeks on Android TV.
 BENCHMARK_CAPTURE(BM_PlayerSeekSync, PunchOut, kSbPlayerOutputModePunchOut)
     ->UseManualTime()
     ->Unit(::benchmark::kMicrosecond)
