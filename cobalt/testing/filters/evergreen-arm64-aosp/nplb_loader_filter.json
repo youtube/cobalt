@@ -4,7 +4,6 @@
     "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_329_ec3*",
     "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_381_ac3*",
     "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
-    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*widevine*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
     "MultiplePlayerTest.SunnyDay",
