@@ -11,13 +11,20 @@
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
+<<<<<<< HEAD
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/time/time.h"
 #include "media/base/eme_constants.h"
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+=======
+>>>>>>> f9d1ed6d705 (tvos: Add a typed URL player media resource (#13345))
 
 namespace media {
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+class UrlPlayerMediaResource;
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Abstract class that defines how to retrieve "media resources" in
 // DemuxerStream form.
@@ -48,20 +55,8 @@ class MEDIA_EXPORT MediaResource {
   DemuxerStream* GetFirstStream(DemuxerStream::Type type);
 
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Returns the media URL for URL player.
-  virtual GURL GetMediaUrl() const;
-
-  // Forwards duration change to DemuxerHost.
-  virtual void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration);
-
-  // Forwards buffered ranges to DemuxerHost.
-  virtual void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
-                                                      base::TimeDelta length);
-
-  // Forwards encrypted init data to fire the EME `encrypted` event.
-  virtual void ForwardEncryptedMediaInitData(
-      EmeInitDataType init_data_type,
-      const std::vector<uint8_t>& init_data);
+  // Returns this resource if the platform URL player renders it, or null.
+  virtual UrlPlayerMediaResource* AsUrlPlayerMediaResource();
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
