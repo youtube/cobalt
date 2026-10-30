@@ -30,6 +30,10 @@ namespace {
 // custom display reporter fixes stdout to tabular console output; JSON/CSV
 // output can still be written via --benchmark_out=<path>
 // --benchmark_out_format=json.
+//
+// Stack-owned by RunPlayerBenchmarks for the duration of
+// RunSpecifiedBenchmarks() (which borrows it without taking ownership) and used
+// exclusively on the gtest runner thread.
 class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
  public:
   // The output is consumed by test runners rather than a terminal, so never

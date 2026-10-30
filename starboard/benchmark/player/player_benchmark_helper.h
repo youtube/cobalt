@@ -39,9 +39,16 @@ namespace starboard {
 // that a benchmark can report them with SkipWithError() (note that missing
 // testdata .dmp files still fail fast via VideoDmpReader's SB_CHECKs).
 //
-// Must be used from a single thread (enforced by |thread_checker_|); the
-// player callbacks may arrive on any thread and are synchronized through
-// |mutex_|.
+// Lifetime and ownership: Typically instantiated on the stack by a benchmark
+// function for the duration of that benchmark. Owns its
+// FakeGraphicsContextProvider, any SbPlayer created via InitializePlayer(), and
+// the loaded VideoDmpReader instances, destroying them in DestroyPlayer() or on
+// destruction (benchmarks that call SbPlayerCreate() directly with
+// GetCreationParam() own that SbPlayer themselves).
+//
+// Threading model: Thread-affine; all public non-static methods must be called
+// on the construction thread (enforced by |thread_checker_|). Registered
+// SbPlayer callbacks may arrive on any thread and synchronize through |mutex_|.
 //
 // TODO(b/541298090): Much of this duplicates SbPlayerTestFixture and the
 // helpers in starboard/nplb/player_test_util.* and
@@ -177,11 +184,18 @@ class SbPlayerBenchmarkHelper {
   bool error_occurred_ = false;
 };
 
-// Tracks the asynchronous initialization and error state of a player created
-// with PlayerStatusFunc() and PlayerErrorFunc() as its status and error
-// callbacks, and a pointer to this object as the callback context. The object
-// has to outlive the player, as the callbacks may be invoked until
-// SbPlayerDestroy() returns.
+// Tracks the asynchronous initialization and error state of an SbPlayer
+// created directly by the create/destroy benchmarks with PlayerStatusFunc() and
+// PlayerErrorFunc() as its callbacks and a pointer to this object as |context|.
+//
+// Lifetime and ownership: Stack-owned by the caller creating the SbPlayer (does
+// not own the SbPlayer) and must outlive the player until SbPlayerDestroy()
+// returns, as callbacks may be invoked until teardown completes.
+//
+// Threading model: Thread-safe via |mutex_|. PlayerStatusFunc() and
+// PlayerErrorFunc() may be invoked from any thread (such as the player worker
+// thread), while WaitForInitialization() and HasError() are called on the
+// benchmark thread.
 class PlayerInitializationWaiter {
  public:
   static void PlayerStatusFunc(SbPlayer player,
