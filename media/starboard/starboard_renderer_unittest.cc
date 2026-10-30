@@ -42,6 +42,7 @@
 
 using ::base::test::RunOnceCallback;
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::NiceMock;
@@ -343,6 +344,55 @@ TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeUntilPresenting) {
   player_status_cb_(player, context_, kSbPlayerStatePresenting, seek_ticket);
   task_environment_.RunUntilIdle();
   EXPECT_EQ(renderer_->GetMediaTime(), kPlayedTime);
+}
+
+TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeAfterBackwardSeek) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  base::TimeDelta platform_media_time = base::Seconds(40);
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+        *info = {};
+        info->current_media_timestamp = platform_media_time.InMicroseconds();
+        info->duration = SB_PLAYER_NO_DURATION;
+      }));
+  int ticket = SB_PLAYER_INITIAL_TICKET;
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(player, _, _))
+      .WillRepeatedly(SaveArg<2>(&ticket));
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _))
+      .Times(AnyNumber());
+
+  // Play from 40s until presenting, then advance to 41s.
+  renderer_->StartPlayingFrom(base::Seconds(40));
+  const int first_seek_ticket = ticket;
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket);
+  task_environment_.RunUntilIdle();
+  platform_media_time = base::Seconds(41);
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(41));
+
+  // Seek back to 20s. The platform keeps reporting 41s until it presents.
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(flush_cb, Run());
+  renderer_->Flush(flush_cb.Get());
+  task_environment_.RunUntilIdle();
+  renderer_->StartPlayingFrom(base::Seconds(20));
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(20));
+
+  // A late Presenting for the previous seek has a stale ticket and must not
+  // end the override.
+  player_status_cb_(player, context_, kSbPlayerStatePresenting,
+                    first_seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(20));
+
+  platform_media_time = base::Milliseconds(20500);
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Milliseconds(20500));
 }
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
