@@ -73,6 +73,24 @@ public class StarboardBridge {
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
   private CrashContextUpdateHandler crashContextUpdateHandler;
+  private final CaptioningManager.CaptioningChangeListener captioningChangeListener =
+      new CaptioningManager.CaptioningChangeListener() {
+        @Override
+        public void onEnabledChanged(boolean enabled) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onUserStyleChanged(CaptioningManager.CaptionStyle userStyle) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onFontScaleChanged(float fontScale) {
+          onCaptionSettingsChanged();
+        }
+      };
+  private boolean captionListenerRegistered = false;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -145,16 +163,56 @@ public class StarboardBridge {
 
   private native long nativeCurrentMonotonicTime();
 
+  private native void nativeSendCaptionSettingsChangedEvent();
+
   protected void onActivityStart(Activity activity) {
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
+    registerCaptionSettingsChangeListener();
   }
 
   protected void onActivityStop(Activity activity) {
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
+      unregisterCaptionSettingsChangeListener();
     }
     sysConfigChangeReceiver.setForeground(false);
+  }
+
+  // Called on the UI thread, where CaptioningManager also delivers its callbacks.
+  private void registerCaptionSettingsChangeListener() {
+    if (captionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm == null) {
+      return;
+    }
+    cm.addCaptioningChangeListener(captioningChangeListener);
+    captionListenerRegistered = true;
+    // CaptioningManager does not replay the current state to new listeners, so notify once
+    // in case the settings changed while the listener was unregistered (e.g. the user
+    // changed them in the Settings app while this activity was stopped).
+    onCaptionSettingsChanged();
+  }
+
+  private void unregisterCaptionSettingsChangeListener() {
+    if (!captionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm != null) {
+      cm.removeCaptioningChangeListener(captioningChangeListener);
+    }
+    captionListenerRegistered = false;
+  }
+
+  private void onCaptionSettingsChanged() {
+    if (starboardApplicationReady && !starboardApplicationStopped) {
+      nativeSendCaptionSettingsChangedEvent();
+    }
   }
 
   protected void onActivityDestroy(Activity activity) {

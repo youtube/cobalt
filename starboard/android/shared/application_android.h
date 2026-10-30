@@ -82,6 +82,7 @@ class ApplicationAndroid
     Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                      nullptr, nullptr));
   }
+  void SendCaptionSettingsChangedEvent();
 
   void SendAndroidCommand(AndroidCommand::CommandType type, void* data);
   void SendAndroidCommand(AndroidCommand::CommandType type) {
