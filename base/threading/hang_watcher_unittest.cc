@@ -173,6 +173,8 @@ TEST(HangWatcherGpuEnabledTest, HangWatcherEnabledOnGpuProcessByDefault) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_LINUX)
   EXPECT_TRUE(hang_watcher.IsEnabled());
+#elif BUILDFLAG(IS_COBALT)
+  EXPECT_TRUE(hang_watcher.IsEnabled());
 #else
   EXPECT_FALSE(hang_watcher.IsEnabled());
 #endif
