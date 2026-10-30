@@ -28,6 +28,7 @@
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/trace_event/memory_infra_background_allowlist.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -49,6 +50,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/origin.h"
 
 namespace cobalt {
@@ -522,6 +524,34 @@ TEST_F(CobaltContentBrowserClientHeaderTest,
       features::kCobaltSkipTrustedHeaderClient);
 
   EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
+}
+
+TEST_F(CobaltContentBrowserClientTest, CobaltDisableParkableImagesToDisk) {
+  // Disabled by default: upstream ParkableImagesToDisk and
+  // CompressParkableStrings control disk parking.
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      base::features::kCobaltDisableParkableImagesToDisk));
+  EXPECT_TRUE(blink::features::IsParkableImagesToDiskEnabled());
+  EXPECT_TRUE(blink::features::IsParkableStringsToDiskEnabled());
+
+  // When enabled, both ParkableImagesToDisk and ParkableStringsToDisk return
+  // false so no images are written to disk and ProvideSwapFileForRenderer()
+  // does not create an unlinked swap file in DIR_CACHE, while
+  // kCompressParkableStrings remains enabled for in-RAM string compression.
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltDisableParkableImagesToDisk);
+  EXPECT_FALSE(blink::features::IsParkableImagesToDiskEnabled());
+  EXPECT_FALSE(blink::features::IsParkableStringsToDiskEnabled());
+  EXPECT_TRUE(
+      base::FeatureList::IsEnabled(blink::features::kCompressParkableStrings));
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       ParkableImagesInMemoryInfraBackgroundAllowlist) {
+  EXPECT_TRUE(
+      base::trace_event::IsMemoryDumpProviderInAllowlist("ParkableImages"));
+  EXPECT_TRUE(base::trace_event::IsMemoryAllocatorDumpNameInAllowlist(
+      "parkable_images"));
 }
 
 }  // namespace

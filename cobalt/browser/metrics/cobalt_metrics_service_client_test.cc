@@ -158,6 +158,15 @@ class TestProcessMemoryMetricsEmitter : public CobaltMemoryMetricsEmitter {
     browser_dump->chrome_allocator_dumps["leveldatabase"] =
         std::move(leveldb_dump);
 
+    // Add ParkableImages dump
+    auto parkable_images_dump =
+        memory_instrumentation::mojom::AllocatorMemDump::New();
+    parkable_images_dump->numeric_entries["on_disk_size"] = 256 * 1024;
+    parkable_images_dump->numeric_entries["unparked_size"] = 768 * 1024;
+    parkable_images_dump->numeric_entries["total_size"] = 1024 * 1024;
+    browser_dump->chrome_allocator_dumps["parkable_images"] =
+        std::move(parkable_images_dump);
+
     // Add PartitionAlloc dump
     auto pa_dump = memory_instrumentation::mojom::AllocatorMemDump::New();
     pa_dump->numeric_entries["effective_size"] = 16 * 1024 * 1024;
@@ -603,6 +612,18 @@ TEST_F(CobaltMetricsServiceClientTest, RecordMemoryMetricsRecordsHistogram) {
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Small.LevelDatabase", 512),
             0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Small.ParkableImage.OnDiskSize", 256),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize", 768),
+      0);
+  EXPECT_GT(
+      histogram_tester.GetBucketCount(
+          "Memory.Experimental.Browser2.Small.ParkableImage.TotalSize", 1024),
+      0);
   EXPECT_GT(histogram_tester.GetBucketCount(
                 "Memory.Experimental.Browser2.Malloc.AllocatedObjects", 8),
             0);

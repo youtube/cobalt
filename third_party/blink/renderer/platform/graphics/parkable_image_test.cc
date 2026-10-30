@@ -6,6 +6,9 @@
 #include "third_party/blink/renderer/platform/graphics/parkable_image.h"
 
 #include "base/containers/heap_array.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/test/bind.h"
@@ -1061,5 +1064,31 @@ TEST_F(ParkableImageWithLimitedDiskCapacityTest, ParkWithLimitedDiskCapacity) {
   RunPostedTasks();
   EXPECT_TRUE(is_on_disk(pi2));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ParkableImageTest, CobaltDisableParkableImagesToDiskPreventsParking) {
+  base::test::ScopedFeatureList cobalt_fl(
+      base::features::kCobaltDisableParkableImagesToDisk);
+  EXPECT_FALSE(ParkableImageManager::IsParkableImagesToDiskEnabled());
+
+  const size_t kDataSize = 3.5 * 4096;
+  auto data = base::HeapArray<uint8_t>::Uninit(kDataSize);
+  PrepareReferenceData(data);
+
+  auto pi = MakeParkableImageForTesting(data);
+  pi->Freeze();
+
+  // Even after reading data and waiting for parking, the image is kept in RAM
+  // and never written to disk when CobaltDisableParkableImagesToDisk is
+  // enabled.
+  pi->Data();
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi));
+  ExpectWriteStatistics(kDataSize / 1024, 0);
+  EXPECT_TRUE(IsSameContent(pi, data));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
