@@ -32,6 +32,7 @@
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -686,18 +687,23 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const std::string& video_mime = creation_parameters.video_mime();
     auto video_mime_type = MimeType::Create(video_mime);
     if (!video_mime_type ||
-        !video_mime_type->ValidateBoolParameter("tunnelmode") ||
-        !video_mime_type->ValidateBoolParameter("enableflushduringseek") ||
-        !video_mime_type->ValidateBoolParameter("enableresetaudiodecoder")) {
+        !video_mime_type->ValidateBoolParameter(kMimeParamTunnelMode) ||
+        !video_mime_type->ValidateBoolParameter(
+            kMimeParamEnableFlushDuringSeek) ||
+        !video_mime_type->ValidateBoolParameter(
+            kMimeParamEnableResetAudioDecoder)) {
       return Failure("Invalid video MIME: '" + video_mime + "'");
     }
 
     return VideoMimeParams{
-        .tunnel_mode = video_mime_type->GetParamBoolValue("tunnelmode", false),
-        .enable_flush_during_seek =
-            video_mime_type->GetParamBoolValue("enableflushduringseek", false),
-        .enable_reset_audio_decoder = video_mime_type->GetParamBoolValue(
-            "enableresetaudiodecoder", false),
+        /*tunnel_mode=*/
+        video_mime_type->GetParamBoolValue(kMimeParamTunnelMode, false),
+        /*enable_flush_during_seek=*/
+        video_mime_type->GetParamBoolValue(kMimeParamEnableFlushDuringSeek,
+                                           false),
+        /*enable_reset_audio_decoder=*/
+        video_mime_type->GetParamBoolValue(kMimeParamEnableResetAudioDecoder,
+                                           false),
     };
   }
 
@@ -724,8 +730,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return TunnelModeConfig{
-        .audio_session_id = *tunnel_mode_audio_session_id,
-        .force_secure_pipeline = force_secure_pipeline,
+        /*audio_session_id=*/*tunnel_mode_audio_session_id,
+        /*force_secure_pipeline=*/force_secure_pipeline,
     };
   }
 

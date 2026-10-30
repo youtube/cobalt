@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/media_codec_decoder.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -25,6 +26,7 @@
 #include <vector>
 
 #include "starboard/android/shared/fake_media_codec.h"
+#include "starboard/android/shared/media_codec.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -238,8 +240,11 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*max_video_input_size=*/0, /*flush_delay_usec=*/0,
         /*use_dual_threads=*/true,
         MediaCodecDecoder::VideoExperimentalOptions{
-            .enable_codec_thread_improvements =
-                enable_codec_thread_improvements()});
+            /*skip_video_frames_over_60_fps=*/false,
+            /*enable_ndk_video=*/false,
+            /*enable_trivial_optimizations=*/false,
+            /*enable_codec_thread_improvements=*/
+            enable_codec_thread_improvements()});
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
     codec_ = factory_.last_created_video_codec();
@@ -523,6 +528,40 @@ TEST_P(MediaCodecDecoderVideoDualThreadsTest,
     }
     EXPECT_EQ(events[kOutputs], CallEvent::kTick);
   }
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       BacksOffOnNoKeyAndQueuesWhenReady) {
+  codec_->set_queue_input_buffer_status(MEDIA_CODEC_NO_KEY);
+  codec_->SimulateInputBufferAvailable(2);
+  const auto start_time = std::chrono::steady_clock::now();
+  decoder_->WriteInputBuffers({CreateVideoInputBuffer(10000)});
+
+  // Over ~200ms, InputThreadFuncV2() waits 50ms per retry (~3-6 attempts),
+  // whereas Legacy InputThreadFunc() polls every 1ms (~50+ attempts).
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              std::chrono::steady_clock::now() - start_time)
+                              .count();
+  const size_t attempts = codec_->queue_input_buffer_attempts();
+  EXPECT_GE(attempts, 2U);
+  if (enable_codec_thread_improvements()) {
+    const size_t max_expected_attempts =
+        static_cast<size_t>(std::max<int64_t>(0, elapsed_ms) / 50) + 4U;
+    EXPECT_LE(attempts, max_expected_attempts);
+  } else {
+    EXPECT_GE(attempts, 20U);
+  }
+  EXPECT_FALSE(codec_->WaitForInputQueue(1, 0));
+
+  // Once the key becomes available, the held pending_input_to_retry_ is queued
+  // on the next retry without losing the input buffer or index.
+  codec_->set_queue_input_buffer_status(MEDIA_CODEC_OK);
+  ASSERT_TRUE(codec_->WaitForInputQueue(1, kMaxQueueLatencyMs));
+  auto queued = codec_->ConsumeQueuedInputs();
+  ASSERT_EQ(queued.size(), 1U);
+  EXPECT_EQ(queued[0].index, 2);
+  EXPECT_EQ(queued[0].pts, 10000);
 }
 
 INSTANTIATE_TEST_SUITE_P(,

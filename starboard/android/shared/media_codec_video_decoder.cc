@@ -608,6 +608,15 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     // return EOS frame directly.
     first_buffer_timestamp_ = 0;
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    // With no input written, the MediaCodec produces no output, so the output
+    // loop that normally drives Tick()/sink_->Render() never runs.
+    // VideoRendererImpl only fires its ended callback from within Render(), so
+    // tick the sink once here, otherwise the player never reaches
+    // kSbPlayerStateEndOfStream for a stream that receives EOS before any
+    // input.
+    if (sink_) {
+      sink_->Render();
+    }
     return;
   }
 
@@ -890,11 +899,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
       MediaCodecDecoder::VideoExperimentalOptions{
-          .skip_video_frames_over_60_fps = skip_video_frames_over_60_fps_,
-          .enable_ndk_video = enable_ndk_video_,
-          .enable_trivial_optimizations = enable_trivial_optimizations_,
-          .enable_codec_thread_improvements =
-              enable_codec_thread_improvements_});
+          /*skip_video_frames_over_60_fps=*/skip_video_frames_over_60_fps_,
+          /*enable_ndk_video=*/enable_ndk_video_,
+          /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
+          /*enable_codec_thread_improvements=*/
+          enable_codec_thread_improvements_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

@@ -55,7 +55,8 @@ int __abi_wrap_sched_getparam(musl_pid_t pid, musl_sched_param* param) {
   struct sched_param native_param;
   int result = sched_getparam(static_cast<pid_t>(pid), &native_param);
   if (result == 0) {
-    *param = {.sched_priority = native_param.sched_priority};
+    *param = {};
+    param->sched_priority = native_param.sched_priority;
   }
   return result;
 }
@@ -65,7 +66,8 @@ int __abi_wrap_sched_setparam(musl_pid_t pid, const musl_sched_param* param) {
     errno = EINVAL;
     return -1;
   }
-  struct sched_param native_param = {.sched_priority = param->sched_priority};
+  struct sched_param native_param = {};
+  native_param.sched_priority = param->sched_priority;
   return sched_setparam(static_cast<pid_t>(pid), &native_param);
 }
 

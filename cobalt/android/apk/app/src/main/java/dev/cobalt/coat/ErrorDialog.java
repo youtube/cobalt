@@ -14,15 +14,24 @@
 
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.window.BackEvent;
+import android.window.OnBackAnimationCallback;
+import android.window.OnBackInvokedDispatcher;
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import dev.cobalt.util.Log;
 import org.chromium.base.ContextUtils;
 
 /**
@@ -90,10 +99,9 @@ class ErrorDialog extends Dialog {
   }
 
   /**
-   * Suspends the app instead of cancelling. Back reaches this via Dialog.onBackPressed() on every
-   * API level: through Dialog.onKeyUp() on API < 33, and through the dialog's default
-   * OnBackInvokedCallback with predictive back (API 33+). Does not call super.cancel to prevent
-   * dismissing the dialog.
+   * Suspends the app instead of cancelling. Back reaches this via Dialog.onBackPressed(): through
+   * Dialog.onKeyUp() below API 33, and through {@link BackKeyPairingHelper} on API 34+. Does not
+   * call super.cancel to prevent dismissing the dialog.
    */
   @Override
   public void cancel() {
@@ -112,6 +120,9 @@ class ErrorDialog extends Dialog {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      BackKeyPairingHelper.register(this);
+    }
     setContentView(R.layout.coat_error_dialog);
 
     ImageView imageView = (ImageView) findViewById(R.id.image);
@@ -144,5 +155,46 @@ class ErrorDialog extends Dialog {
     }
 
     setOnDismissListener(mParams.mDismissListener);
+  }
+
+  /**
+   * On API 34+ predictive back turns any BACK key-up into onBackInvoked(). OnBackAnimationCallback
+   * also reports the key-down, so only presses that started on this dialog suspend. This helper
+   * class is stateless and not instantiated. Its lifetime is bound to the class loader. It must be
+   * called only on the application's main (UI) thread.
+   */
+  @RequiresApi(api = 34)
+  private static class BackKeyPairingHelper {
+    static void register(final ErrorDialog dialog) {
+      // PRIORITY_OVERLAY puts this above the dialog's default callback, which would otherwise call
+      // onBackPressed() -> cancel() for the stray key-up.
+      dialog
+          .getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(
+              OnBackInvokedDispatcher.PRIORITY_OVERLAY,
+              new OnBackAnimationCallback() {
+                private boolean mPressStartedHere;
+
+                @Override
+                public void onBackStarted(@NonNull BackEvent backEvent) {
+                  mPressStartedHere = true;
+                }
+
+                @Override
+                public void onBackCancelled() {
+                  mPressStartedHere = false;
+                }
+
+                @Override
+                public void onBackInvoked() {
+                  if (!mPressStartedHere) {
+                    Log.i(TAG, "Ignoring BACK key-up whose key-down did not reach the dialog.");
+                    return;
+                  }
+                  mPressStartedHere = false;
+                  dialog.cancel();
+                }
+              });
+    }
   }
 }
