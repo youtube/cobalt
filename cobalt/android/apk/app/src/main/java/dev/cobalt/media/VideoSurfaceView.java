@@ -129,26 +129,25 @@ public class VideoSurfaceView extends SurfaceView {
     return bridge != null ? bridge.getVideoSurface() : null;
   }
 
+  /**
+   * Sets the visibility of the video SurfaceControl {@code sc} in {@code transaction}.
+   *
+   * <p>Both the visibility and the alpha are set. SurfaceView keeps managing its SurfaceControl and
+   * shows it again on its own updates, e.g. when the player bounds change, which undoes
+   * setVisibility(false). However, it leaves the alpha alone unless it is z-ordered above its
+   * window, so the alpha is what keeps the surface hidden until it is shown again. Note that
+   * SurfaceView.getSurfaceControl() only documents reparenting as a supported usage.
+   */
   @RequiresApi(Build.VERSION_CODES.Q)
-  private static class Api29Helper {
-    /**
-     * Sets the visibility of the video SurfaceControl {@code sc} in {@code transaction}.
-     *
-     * <p>Both the visibility and the alpha are set. SurfaceView keeps managing its SurfaceControl
-     * and shows it again on its own updates, e.g. when the player bounds change, which undoes
-     * setVisibility(false). However, it leaves the alpha alone unless it is z-ordered above its
-     * window, so the alpha is what keeps the surface hidden until it is shown again. Note that
-     * SurfaceView.getSurfaceControl() only documents reparenting as a supported usage.
-     */
-    static SurfaceControl.Transaction setVisibility(
-        SurfaceControl.Transaction transaction, SurfaceControl sc, boolean visible) {
-      return transaction.setVisibility(sc, visible).setAlpha(sc, visible ? 1.0f : 0.0f);
-    }
+  private static SurfaceControl.Transaction setVisibilityV29(
+      SurfaceControl.Transaction transaction, SurfaceControl sc, boolean visible) {
+    return transaction.setVisibility(sc, visible).setAlpha(sc, visible ? 1.0f : 0.0f);
+  }
 
-    static void applyVisibility(SurfaceControl sc, boolean visible) {
-      try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-        setVisibility(transaction, sc, visible).apply();
-      }
+  @RequiresApi(Build.VERSION_CODES.Q)
+  private static void applyVisibilityV29(SurfaceControl sc, boolean visible) {
+    try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
+      setVisibilityV29(transaction, sc, visible).apply();
     }
   }
 
@@ -171,7 +170,7 @@ public class VideoSurfaceView extends SurfaceView {
       if (sc == null || !sc.isValid()) {
         return;
       }
-      Api29Helper.applyVisibility(sc, visible);
+      applyVisibilityV29(sc, visible);
       Log.i(TAG, "setVideoSurfaceVisible: " + visible);
     } catch (Throwable t) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
@@ -182,18 +181,16 @@ public class VideoSurfaceView extends SurfaceView {
   }
 
   @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-  private static class Api34Helper {
-    static void applyVisibilityWithNextFrame(
-        VideoSurfaceView view, SurfaceControl sc, boolean visible) {
-      SurfaceControl.Transaction transaction =
-          Api29Helper.setVisibility(new SurfaceControl.Transaction(), sc, visible);
-      try {
-        // On success, the system takes ownership of the transaction, so don't close it.
-        view.applyTransactionToFrame(transaction);
-      } catch (IllegalStateException e) {
-        transaction.close();
-        throw e;
-      }
+  private static void applyVisibilityWithNextFrameV34(
+      VideoSurfaceView view, SurfaceControl sc, boolean visible) {
+    SurfaceControl.Transaction transaction =
+        setVisibilityV29(new SurfaceControl.Transaction(), sc, visible);
+    try {
+      // On success, the system takes ownership of the transaction, so don't close it.
+      view.applyTransactionToFrame(transaction);
+    } catch (IllegalStateException e) {
+      transaction.close();
+      throw e;
     }
   }
 
@@ -220,7 +217,7 @@ public class VideoSurfaceView extends SurfaceView {
       if (sc == null || !sc.isValid()) {
         return false;
       }
-      Api34Helper.applyVisibilityWithNextFrame(view, sc, visible);
+      applyVisibilityWithNextFrameV34(view, sc, visible);
       Log.i(TAG, "setVideoSurfaceVisible: " + visible + " (with next frame)");
       return true;
     } catch (Throwable t) {

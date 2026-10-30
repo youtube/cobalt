@@ -25,25 +25,6 @@ namespace starboard {
 
 class VideoSurfaceHolder {
  public:
-  // Used by unit tests to verify how the video surface is handled. While an
-  // observer is set, CleanUpVideoSurface(), SetVideoSurfaceVisible(),
-  // ShowVideoSurfaceWithNextFrame() and ResetVideoSurface() are reported to it
-  // instead of being forwarded to the platform.
-  class TestObserver {
-   public:
-    virtual ~TestObserver() = default;
-    virtual void OnCleanUpVideoSurface() {}
-    virtual void OnSetVideoSurfaceVisible(bool visible) {}
-    virtual void OnShowVideoSurfaceWithNextFrame() {}
-    virtual void OnResetVideoSurface() {}
-  };
-
-  static void SetTestObserverForTesting(TestObserver* observer);
-
-  // Makes |holder| the current holder of the video surface, as if it had
-  // acquired the surface. Pass nullptr to clear it.
-  static void SetVideoSurfaceHolderForTesting(VideoSurfaceHolder* holder);
-
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
