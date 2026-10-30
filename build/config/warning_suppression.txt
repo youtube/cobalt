@@ -35,3 +35,28 @@
 [unnecessary-virtual-specifier]
 # Can be removed when https://github.com/google/nearby/pull/3392 is merged and rolled
 src:*/third_party/nearby/*
+
+[c++20-extensions]
+# Cobalt: //starboard/build/config:starboard enables -Wc++20-extensions for the
+# C++17 Starboard toolchains (e.g. AOSP) so that Starboard-owned code stays
+# strictly C++17 (b/576687582). Those toolchains also build, and Starboard code
+# includes, third-party and copied Chromium code that relies on C++20
+# extensions accepted by all supported compilers (e.g. omitting variadic macro
+# arguments). Exempt it; the warning is not enabled for any other code.
+src:*/third_party/*
+src:*/copied_base/*
+src:*gen/jni_headers/*
+
+[pre-c++20-compat-pedantic]
+# Cobalt: //starboard/build/config:starboard_implementation enables
+# -Wpre-c++20-compat-pedantic when built with C++20 toolchains (e.g. nplb in
+# default_toolchain) so Starboard code cannot use C++20 features. Exempt
+# non-Starboard headers (Chromium //base, third_party, etc.) included by those
+# targets.
+src:*
+src:*/starboard/*=emit
+src:*/third_party/*
+src:*gen/*
+# nplb is a Starboard client (like Cobalt) and is always built with the C++20
+# Cobalt toolchain, never with a partner C++17 toolchain.
+src:*/starboard/nplb/*

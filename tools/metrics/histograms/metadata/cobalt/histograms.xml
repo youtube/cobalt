@@ -390,22 +390,6 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the number of times a platform error was raised due to a navigation
-    timeout or other network error. This is logged every time RaisePlatformError
-    is called; each logged count is the cumulative number of times the error has
-    been raised. The actual number of sessions with a specific number of
-    platform errors raised can be raised by subtracting the values of counts
-    larger than said number. For example, sessions with 2 calls to
-    RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
-    (count for max calls). This value is reset to 0 on a successful
-    navigation/app load.
-  </summary>
-</histogram>
-
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -413,6 +397,23 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records whether a primary main frame navigation timed out before completion
     or failure. This is logged when the navigation timer fires.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.PlatformErrorCount" units="count"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of times a platform error was raised due to a navigation
+    timeout or other network error. This is logged every time RaisePlatformError
+    is called; each logged count is the cumulative number of times the error has
+    been raised. The actual number of sessions with a specific number of
+    platform errors raised can be derived by subtracting the values of counts
+    larger than said number. For example, sessions with 2 calls to
+    RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
+    (count for max calls). This value is reset to 0 on a successful
+    navigation/app load.
   </summary>
 </histogram>
 

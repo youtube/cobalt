@@ -696,12 +696,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return VideoMimeParams{
-        .tunnel_mode =
-            video_mime_type->GetParamBoolValue(kMimeParamTunnelMode, false),
-        .enable_flush_during_seek = video_mime_type->GetParamBoolValue(
-            kMimeParamEnableFlushDuringSeek, false),
-        .enable_reset_audio_decoder = video_mime_type->GetParamBoolValue(
-            kMimeParamEnableResetAudioDecoder, false),
+        /*tunnel_mode=*/
+        video_mime_type->GetParamBoolValue(kMimeParamTunnelMode, false),
+        /*enable_flush_during_seek=*/
+        video_mime_type->GetParamBoolValue(kMimeParamEnableFlushDuringSeek,
+                                           false),
+        /*enable_reset_audio_decoder=*/
+        video_mime_type->GetParamBoolValue(kMimeParamEnableResetAudioDecoder,
+                                           false),
     };
   }
 
@@ -728,8 +730,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return TunnelModeConfig{
-        .audio_session_id = *tunnel_mode_audio_session_id,
-        .force_secure_pipeline = force_secure_pipeline,
+        /*audio_session_id=*/*tunnel_mode_audio_session_id,
+        /*force_secure_pipeline=*/force_secure_pipeline,
     };
   }
 

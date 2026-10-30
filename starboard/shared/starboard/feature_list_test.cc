@@ -33,36 +33,33 @@ const SbFeature kFeatures[] = {kStarboardFeatureTestEnabled,
                                kStarboardFeatureTestDisabled};
 
 template <typename T>
-constexpr SbFeatureParam CreateParam(const char* param_name, T param_value) {
+SbFeatureParam CreateParam(const char* param_name, T param_value) {
+  SbFeatureParam param = {};
+  param.feature_name = "StarboardFeatureTestEnabled";
+  param.param_name = param_name;
   if constexpr (std::is_same_v<T, bool>) {
-    return {"StarboardFeatureTestEnabled",
-            param_name,
-            SbFeatureParamTypeBool,
-            {.bool_value = param_value}};
+    param.type = SbFeatureParamTypeBool;
+    param.value.bool_value = param_value;
   } else if constexpr (std::is_same_v<T, int>) {
-    return {"StarboardFeatureTestEnabled",
-            param_name,
-            SbFeatureParamTypeInt,
-            {.int_value = param_value}};
+    param.type = SbFeatureParamTypeInt;
+    param.value.int_value = param_value;
   } else if constexpr (std::is_same_v<T, double>) {
-    return {"StarboardFeatureTestEnabled",
-            param_name,
-            SbFeatureParamTypeDouble,
-            {.double_value = param_value}};
+    param.type = SbFeatureParamTypeDouble;
+    param.value.double_value = param_value;
   } else if constexpr (std::is_convertible_v<T, const char*>) {
-    return {"StarboardFeatureTestEnabled",
-            param_name,
-            SbFeatureParamTypeString,
-            {.string_value = param_value}};
+    param.type = SbFeatureParamTypeString;
+    param.value.string_value = param_value;
   }
+  return param;
 }
 // A specific overload for the time type to avoid ambiguity with int/int64_t
-constexpr SbFeatureParam CreateTimeParam(const char* param_name,
-                                         int64_t param_value) {
-  return {"StarboardFeatureTestEnabled",
-          param_name,
-          SbFeatureParamTypeTime,
-          {.time_value = param_value}};
+SbFeatureParam CreateTimeParam(const char* param_name, int64_t param_value) {
+  SbFeatureParam param = {};
+  param.feature_name = "StarboardFeatureTestEnabled";
+  param.param_name = param_name;
+  param.type = SbFeatureParamTypeTime;
+  param.value.time_value = param_value;
+  return param;
 }
 
 const SbFeatureParam kParams[] = {

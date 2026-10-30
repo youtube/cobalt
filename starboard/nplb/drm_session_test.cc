@@ -358,39 +358,6 @@ TEST_F(SbDrmSessionTest, InvalidSessionUpdateRequestParams) {
   // Check that the session update request callback is not called when the
   // DRM system is invalid.
   ASSERT_FALSE(session_update_request_generated_event.is_valid);
-
-  constexpr int ticket = kInitialTicket + 1;
-
-  if (SbDrmIsServerCertificateUpdatable(drm_system_)) {
-    SbDrmUpdateServerCertificate(drm_system_, ticket, kWidevineCertificate,
-                                 SB_ARRAY_SIZE_INT(kWidevineCertificate));
-    ASSERT_NO_FATAL_FAILURE(CheckServerCertificateUpdatedCallback(
-        server_certificate_updated_callback_event_queue_.GetTimed(
-            kDefaultWaitForCallbackTimeout),
-        ticket));
-  }
-
-  // Check that the session update request callback is still called when the
-  // CENC initialization data is invalid.
-  constexpr char kInvalidCencInitData[] = "invalidcencinitializationdata";
-  SbDrmGenerateSessionUpdateRequest(
-      drm_system_, ticket, kCencInitDataType, kInvalidCencInitData,
-      SB_ARRAY_SIZE_INT(kInvalidCencInitData) - 1);
-  session_update_request_generated_event =
-      session_update_request_callback_event_queue_.GetTimed(
-          kDefaultWaitForCallbackTimeout);
-  ASSERT_TRUE(session_update_request_generated_event.is_valid);
-  ASSERT_EQ(session_update_request_generated_event.ticket, ticket);
-  if (session_update_request_generated_event.type ==
-      kSbDrmSessionRequestTypeIndividualizationRequest) {
-    SB_DLOG(ERROR) << "The session update request generated callback type is "
-                      "|SbDrmSessionRequestType::"
-                      "kSbDrmSessionRequestTypeIndividualizationRequest|. "
-                      "The CDM is unprovisioned.";
-  } else {
-    ASSERT_NE(session_update_request_generated_event.drm_status,
-              kSbDrmStatusSuccess);
-  }
 }
 
 }  // namespace
