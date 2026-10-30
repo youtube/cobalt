@@ -389,9 +389,10 @@ class TestNetworkContext : public mojom::NetworkContext {
   void GetDeviceBoundSessionManager(
       mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager) override {}
-#if BUILDFLAG(IS_COBALT)
-  void FlushPersistentState(FlushPersistentStateCallback callback) override {}
-#endif  // BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  void FlushHttpServerProperties(
+      FlushHttpServerPropertiesCallback callback) override {}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
 };
 
 }  // namespace network

@@ -1791,8 +1791,9 @@ interface NetworkContext {
 
   // Writes HttpServerProperties to disk now instead of waiting for its
   // write-coalescing timer, so recent server hints survive the process being
-  // killed without running the NetworkContext destructor. The reply is sent once
-  // the write has been committed.
-  [EnableIf=is_cobalt]
-  FlushPersistentState() => ();
+  // killed without running the NetworkContext destructor. The reply is sent
+  // once the write has been committed; `flushed` is true if an update was
+  // pending (that is, it would otherwise have waited for the timer).
+  [EnableIf=is_cobalt&is_androidtv]
+  FlushHttpServerProperties() => (bool flushed);
 };

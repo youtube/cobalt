@@ -50,9 +50,11 @@ SessionStorageContext.CommitResult
 Cobalt.Storage.Cookie.LoadDuration
 Cookie.TimeBlockedOnLoad
 Cobalt.Storage.OnPause.FlushDuration
-# HttpServerProperties flush on onPause when CobaltFlushNetworkStateOnPause is
-# enabled.
-Cobalt.Storage.OnPause.NetworkStateFlushDuration
+# HttpServerProperties flush on onPause when
+# CobaltFlushHttpServerPropertiesOnPause is enabled (duration only when an
+# update was actually written; Flushed gives the pending/no-op ratio).
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushed
 Cobalt.Storage.Exit.CookieFlushDuration
 DOMStorage.CommitMeasuredDelay
 

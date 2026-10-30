@@ -1805,6 +1805,11 @@ mojom("mojom") {
     enabled_features += [ "use_network_interface_change_listener" ]
   }
 
+  # 1P Android TV only (not 3P AOSP); see cobalt/build/configs/starboard.gni.
+  if (is_cobalt && is_androidtv) {
+    enabled_features += [ "is_androidtv" ]
+  }
+
   # Typemaps which apply to both Blink and non-Blink bindings.
   shared_cpp_typemaps = []
 
