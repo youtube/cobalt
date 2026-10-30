@@ -14,11 +14,13 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include "base/barrier_closure.h"
 #include "base/logging.h"
 #include "base/threading/hang_watcher.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
+#include "cobalt/shell/browser/native_splash_video_player.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -57,6 +59,14 @@ ui::PlatformWindowStarboard* GetPlatformWindowStarboard(Shell* shell) {
       host_platform->platform_window());
 }
 #endif
+
+// Destroys every SbPlayer, then runs `done`: those of the StarboardRenderers,
+// and that of the native splash screen video, which Shell::OnConceal() stops.
+void DestroyAllSbPlayers(base::OnceClosure done) {
+  base::RepeatingClosure barrier = base::BarrierClosure(2, std::move(done));
+  media::StarboardRenderer::FlushAndSuspendActiveRenderers(barrier);
+  NativeSplashVideoPlayer::WhenSbPlayersDestroyed(barrier);
+}
 }  // namespace
 
 class ShellPlatformDelegate::WebContentsTracker final
@@ -175,10 +185,10 @@ void ShellPlatformDelegate::OnConceal() {
 
   if (pending_conceal_web_contents_.empty()) {
     is_visible_ = false;
-    // Ensure all StarboardRenderers have flushed and destroyed their SbPlayer
-    // instances before ConcealShell destroys the SbWindow and
-    // CleanupGpuProcessOnUI terminates the EGLDisplay.
-    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+    // Ensure every SbPlayer is destroyed, the StarboardRenderers' and the
+    // native splash screen video's, before ConcealShell destroys the SbWindow
+    // and CleanupGpuProcessOnUI terminates the EGLDisplay.
+    DestroyAllSbPlayers(
         base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
                        weak_factory_.GetWeakPtr(), nullptr));
     return;
@@ -382,10 +392,10 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
 
     base::WeakPtr<content::WebContents> wc_weak =
         web_contents ? web_contents->GetWeakPtr() : nullptr;
-    // Wait for StarboardRenderer to flush and destroy any remaining SbPlayer
-    // instances before unmapping the platform window (SbWindowDestroy) and
-    // tearing down GPU/EGL resources.
-    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+    // Wait for every SbPlayer to be destroyed, the StarboardRenderers' and the
+    // native splash screen video's, before unmapping the platform window
+    // (SbWindowDestroy) and tearing down GPU/EGL resources.
+    DestroyAllSbPlayers(
         base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
                        weak_factory_.GetWeakPtr(), wc_weak));
   }

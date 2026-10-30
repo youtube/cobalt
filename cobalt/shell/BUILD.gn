@@ -206,15 +206,24 @@ static_library("cobalt_shell_switches") {
 }
 
 static_library("cobalt_shell_lib") {
-  deps = [ "//cobalt/browser:features" ]
+  deps = [
+    "//cobalt/browser:features",
+    "//ui/display",
+  ]
 
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
   ]
+
+  # TODO(cobalt, b/574620132): Move the splash screen files, e.g.,
+  # browser/native_splash_video_player.* and browser/splash_screen_*, into
+  # browser/splash_screen/.
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
+    "browser/native_splash_video_player.cc",
+    "browser/native_splash_video_player.h",
     "browser/picture_in_picture/picture_in_picture_window_manager.cc",
     "browser/picture_in_picture/picture_in_picture_window_manager.h",
     "browser/shell.cc",
@@ -242,12 +251,18 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_asset_list.cc",
+    "browser/splash_asset_list.h",
+    "browser/splash_cache_reader.cc",
+    "browser/splash_cache_reader.h",
     "browser/splash_screen_metrics.cc",
     "browser/splash_screen_metrics.h",
     "browser/splash_screen_web_contents_delegate.cc",
     "browser/splash_screen_web_contents_delegate.h",
     "browser/splash_screen_web_contents_observer.cc",
     "browser/splash_screen_web_contents_observer.h",
+    "browser/splash_video_webm_indexer.cc",
+    "browser/splash_video_webm_indexer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
@@ -523,6 +538,11 @@ action("embed_loader_resources_as_header_files") {
     # For devices that do not support VP9. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/music_splash_video_placeholder.png.
     "embedded_resources/loader_embedded_resources/music_splash.png",
+
+    # DO NOT SUBMIT: benchmark only (SplashWasmPolicy). The WebAssembly policy
+    # that chooses the splash screen asset from the splash asset list, built
+    # from embedded_resources/splash_policy/splash_policy.c.
+    "embedded_resources/loader_embedded_resources/splash_policy.wasm",
   ]
 
   args = [

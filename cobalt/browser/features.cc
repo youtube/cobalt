@@ -126,6 +126,14 @@ BASE_FEATURE(kEnableCachedSplashFile,
              "EnableCachedSplashFile",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kNativeVideoSplashScreen,
+             "NativeVideoSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSplashWasmPolicy,
+             "SplashWasmPolicy",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
