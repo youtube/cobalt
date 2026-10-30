@@ -275,6 +275,7 @@ class DomStorageDatabase {
   // Returns the SQLite database path for `storage_type` under
   // `storage_partition_dir`. The path is a file:
   //
+<<<<<<< HEAD
   // `storage_partition_dir`/LocalStorage              (for `kLocalStorage`)
   // `storage_partition_dir`/SessionStorage            (for `kSessionStorage`)
   static base::FilePath GetSqlitePath(
@@ -287,6 +288,32 @@ class DomStorageDatabase {
   // in-memory database, provide an empty `database_path`.
   virtual DbStatus Open(
       const base::FilePath& database_path,
+=======
+  // NOTE: If |RewriteDB()| fails, this DomStorageDatabase may no longer be
+  // usable; in such cases, all future operations will return an IOError status.
+  Status RewriteDB();
+
+  void SetDestructionCallbackForTesting(base::OnceClosure callback) {
+    destruction_callback_ = std::move(callback);
+  }
+
+  void MakeAllCommitsFailForTesting() { fail_commits_for_testing_ = true; }
+
+#if BUILDFLAG(IS_COBALT)
+  int total_commit_count_for_testing() const {
+    return total_commit_count_for_testing_;
+  }
+
+  const leveldb_env::Options& options_for_testing() const { return options_; }
+#endif
+
+  // Use the static factory functions above to construct this class. These
+  // constructors are only public for the sake of `base::SequenceBound`.
+  DomStorageDatabase(
+      PassKey,
+      const base::FilePath& directory,
+      const std::string& name,
+>>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
       const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
           memory_dump_id) = 0;
 
@@ -462,6 +489,7 @@ class DomStorageDatabaseFactory {
   // runs `callback` (already bound to the caller's sequence) with the
   // assembled `OpenResult`.
   //
+<<<<<<< HEAD
   // For on-disk databases this may be called from any sequence: the work runs
   // on the backend's blocking sequence (selected via `GetTaskRunnerForDb()`),
   // re-posting to it if needed. For in-memory databases the caller must invoke
@@ -496,6 +524,44 @@ class DomStorageDatabaseFactory {
 
   // Allow unit tests to create a database instance without `SequenceBound`.
   static PassKey CreatePassKeyForTesting();
+=======
+  // This must be called on a sequence that allows blocking operations.
+  void Init(scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+            StatusCallback callback);
+
+  template <typename... Args>
+  static void CreateSequenceBoundDomStorageDatabase(
+      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
+      DomStorageDatabase::OpenCallback callback,
+      Args&&... args);
+
+  // base::trace_event::MemoryDumpProvider implementation:
+  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd) override;
+
+  const std::string name_;
+  const std::unique_ptr<leveldb::Env> env_;
+  leveldb_env::Options options_;
+  const std::optional<base::trace_event::MemoryAllocatorDumpGuid>
+      memory_dump_id_;
+  std::unique_ptr<leveldb::DB> db_;
+
+#if BUILDFLAG(IS_COBALT)
+  // True for persistent LocalStorage databases ("leveldb") and false for
+  // persistent SessionStorage databases ("Session Storage") or in-memory DBs.
+  const bool is_local_storage_ = false;
+  mutable int total_commit_count_for_testing_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
+
+  // Causes all calls to |Commit()| to fail with an IOError for simulated
+  // disk failures in testing.
+  bool fail_commits_for_testing_ = false;
+
+  // Callback to run on destruction in tests.
+  base::OnceClosure destruction_callback_;
+
+  SEQUENCE_CHECKER(sequence_checker_);
+>>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
 };
 
 // Creates a blocking task runner to use for `database_path`.  `database_path`

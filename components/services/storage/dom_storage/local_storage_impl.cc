@@ -34,6 +34,10 @@
 #include "storage/common/database/database_identifier.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 namespace {
 
@@ -797,6 +801,14 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
   // These are counted independently to better track errors in rollout.
   base::UmaHistogramCounts100000(
       "LocalStorage.OrphanStorageAreasOnStartupCount", orphans_found);
+
+#if BUILDFLAG(IS_COBALT)
+  if (stale_storage_keys.empty() &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Delete stale storage areas and count results.
   size_t deleted_count = stale_storage_keys.size();
