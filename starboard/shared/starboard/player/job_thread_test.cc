@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <string_view>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -41,7 +42,23 @@ void ExecutePendingJobs(JobThread* job_thread) {
   job_thread->ScheduleAndWait([]() {});
 }
 
-TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
+// The tests are run with and without JobQueue optimizations, the parameter is
+// whether they are enabled.
+class JobThreadTest : public ::testing::TestWithParam<bool> {
+ protected:
+  JobThreadTest() : scoped_optimizations_(GetParam()) {}
+
+ private:
+  JobQueue::ScopedOptimizationsForTesting scoped_optimizations_;
+};
+
+TEST_P(JobThreadTest, UsesRequestedOptimizations) {
+  auto job_thread = JobThread::Create("JobThreadTests");
+  EXPECT_EQ(job_thread->job_queue()->optimizations_enabled(), GetParam());
+  job_thread->Stop();
+}
+
+TEST_P(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   std::vector<int> values;
   auto job_thread = JobThread::Create("JobThreadTests");
   job_thread->Schedule([&]() { values.push_back(1); });
@@ -62,7 +79,7 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   job_thread->Stop();
 }
 
-TEST(JobThreadTest, ScheduleAndWaitWaits) {
+TEST_P(JobThreadTest, ScheduleAndWaitWaits) {
   int64_t start = CurrentMonotonicTime();
   std::atomic_bool job_1 = {false};
   auto job_thread = JobThread::Create("JobThreadTests");
@@ -76,7 +93,7 @@ TEST(JobThreadTest, ScheduleAndWaitWaits) {
   job_thread->Stop();
 }
 
-TEST(JobThreadTest, AcceptsMoveOnlyLambda) {
+TEST_P(JobThreadTest, AcceptsMoveOnlyLambda) {
   std::atomic_bool executed = false;
   auto move_only_obj = std::make_unique<int>(100);
   auto job_thread = JobThread::Create("JobThreadTests");
@@ -90,7 +107,7 @@ TEST(JobThreadTest, AcceptsMoveOnlyLambda) {
   job_thread->Stop();
 }
 
-TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
+TEST_P(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
   std::atomic_int counter = {0};
   {
     auto job_thread = JobThread::Create("JobThreadTests");
@@ -113,7 +130,7 @@ TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
   EXPECT_EQ(counter, end_value);
 }
 
-TEST(JobThreadTest, CanceledJobsAreCanceled) {
+TEST_P(JobThreadTest, CanceledJobsAreCanceled) {
   std::atomic_int counter_1 = {0}, counter_2 = {0};
   JobQueue::JobToken job_token_1 = JobQueue::JobToken::kUnscheduled;
   JobQueue::JobToken job_token_2 = JobQueue::JobToken::kUnscheduled;
@@ -156,7 +173,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
   job_thread->Stop();
 }
 
-TEST(JobThreadTest, QueueBelongsToCorrectThread) {
+TEST_P(JobThreadTest, QueueBelongsToCorrectThread) {
   auto job_thread = JobThread::Create("JobThreadTests");
   JobQueue job_queue;
 
@@ -186,7 +203,7 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   job_thread->Stop();
 }
 
-TEST(JobThreadTest, Stop) {
+TEST_P(JobThreadTest, Stop) {
   std::mutex mutex;
   std::condition_variable cv;
   bool started = false;
@@ -216,6 +233,13 @@ TEST(JobThreadTest, Stop) {
   // captured reference remains valid and non-null while the task is running.
   job_thread->Stop();
 }
+
+INSTANTIATE_TEST_SUITE_P(Optimizations,
+                         JobThreadTest,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Enabled" : "Disabled";
+                         });
 
 }  // namespace
 

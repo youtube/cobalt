@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace {
@@ -64,6 +65,9 @@ void SetExperimentalFeaturesForCurrentThread(
   if (experimental_features->GetBool(
           kMediaEnableSimdBasedAudioFormatSwitching)) {
     DecodedAudio::EnableSimdBasedAudioFormatSwitching();
+  }
+  if (experimental_features->GetBool(kMediaEnableTrivialOptimizations)) {
+    JobQueue::EnableOptimizations();
   }
 }
 
