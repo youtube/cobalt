@@ -9,12 +9,7 @@
 
 #include "base/scoped_observation.h"
 #include "components/keyed_service/core/keyed_service.h"
-<<<<<<< HEAD
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
-=======
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
-#include "components/passage_embeddings/core/passage_embeddings_types.h"  // nogncheck
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/permissions/request_type.h"
 
 namespace optimization_guide {
