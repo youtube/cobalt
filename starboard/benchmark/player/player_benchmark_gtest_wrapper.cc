@@ -41,6 +41,7 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
     size_t error_count = 0;
     std::string benchmark_name;
     std::string first_error_message;
+
     for (const Run& run : reports) {
       if (run.skipped == ::benchmark::internal::SkippedWithError) {
         if (error_count == 0) {
@@ -50,12 +51,14 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
         ++error_count;
       }
     }
+
     if (error_count == 1) {
       ADD_FAILURE() << benchmark_name << ": " << first_error_message;
     } else if (error_count > 1) {
       ADD_FAILURE() << benchmark_name << " (" << error_count
                     << " repetitions failed): " << first_error_message;
     }
+
     ConsoleReporter::ReportRuns(reports);
   }
 };
@@ -69,15 +72,19 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
 // Benchmark flags.
 std::vector<std::string> GetBenchmarkArgs() {
   std::vector<std::string> args = {"player_benchmarks"};
+
   for (const std::string& arg : ::testing::internal::GetArgvs()) {
     if (arg.rfind("--benchmark_", 0) == 0) {
       args.push_back(arg);
     }
   }
+
   // Ensure individual repetition runs are always delivered to
   // FailOnBenchmarkErrorReporter::ReportRuns(). In aggregates-only mode,
   // Google Benchmark omits SkippedWithError runs when >= 2 repetitions succeed,
-  // which would hide intermittent failures during endurance runs.
+  // which would hide intermittent failures during endurance runs. Note that
+  // appending these after the loop overrides any value set by the user in the
+  // command-line arguments above.
   args.push_back("--benchmark_report_aggregates_only=false");
   args.push_back("--benchmark_display_aggregates_only=false");
   return args;
@@ -106,12 +113,15 @@ struct BenchmarkProcessState {
 
   BenchmarkProcessState() {
     std::vector<std::string> args = GetBenchmarkArgs();
+
     // Google Benchmark may modify argc/argv.
     std::vector<char*> argv;
     argv.reserve(args.size() + 1);
+
     for (std::string& arg : args) {
       argv.push_back(arg.data());
     }
+
     argv.push_back(nullptr);
     int argc = static_cast<int>(argv.size()) - 1;
 
