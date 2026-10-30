@@ -26,7 +26,6 @@
 
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
-#include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features.h"
@@ -42,6 +41,7 @@ using ::jni_zero::AttachCurrentThread;
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
+using ::testing::Optional;
 using ::testing::Return;
 
 const VideoStreamInfo kDefaultVideoStreamInfo = [] {
@@ -64,13 +64,71 @@ const VideoStreamInfo kHdrVideoStreamInfo = [] {
   return info;
 }();
 
+// Fakes the video surface of VideoSurfaceView, and records how the decoder
+// uses it.
+class FakeVideoSurface : public MediaCodecVideoDecoder::VideoSurface {
+ public:
+  // Simulates another decoder holding the surface.
+  void set_held_by_another_holder(bool held_by_another_holder) {
+    held_by_another_holder_.store(held_by_another_holder);
+  }
+
+  bool held() const { return held_.load(); }
+  int clean_up_count() const { return clean_up_count_.load(); }
+  int reset_count() const { return reset_count_.load(); }
+  int show_with_next_frame_count() const {
+    return show_with_next_frame_count_.load();
+  }
+  std::vector<bool> visibility_changes() const {
+    std::lock_guard lock(mutex_);
+    return visibility_changes_;
+  }
+
+  // MediaCodecVideoDecoder::VideoSurface implementation.
+  jni_zero::ScopedJavaLocalRef<jobject> Acquire() override {
+    if (held_.load() || held_by_another_holder_.load()) {
+      return {};
+    }
+    held_.store(true);
+    return surface_.AsLocalRef(AttachCurrentThread());
+  }
+  void Release() override { held_.store(false); }
+  bool IsHeldByAnotherHolder() const override {
+    return held_by_another_holder_.load();
+  }
+  void CleanUp(SbDecodeTargetGraphicsContextProvider* gpu_provider) override {
+    clean_up_count_++;
+  }
+  void Reset() override { reset_count_++; }
+  void SetVisible(bool visible) override {
+    std::lock_guard lock(mutex_);
+    visibility_changes_.push_back(visible);
+  }
+  void ShowWithNextFrame() override { show_with_next_frame_count_++; }
+
+ private:
+  const jni_zero::ScopedJavaGlobalRef<jstring> surface_{
+      base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
+                                             "fake_video_surface")};
+  std::atomic<bool> held_{false};
+  std::atomic<bool> held_by_another_holder_{false};
+  std::atomic<int> clean_up_count_{0};
+  std::atomic<int> reset_count_{0};
+  std::atomic<int> show_with_next_frame_count_{0};
+  mutable std::mutex mutex_;
+  std::vector<bool> visibility_changes_;  // Guarded by |mutex_|.
+};
+
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
+  // The decoder renders to an AndroidOverlay surface if |use_android_overlay|
+  // is set, and to |fake_video_surface_| otherwise.
   void CreateDecoder(const std::string& max_video_capabilities = "",
                      const VideoStreamInfo* initial_stream_info = nullptr,
                      ExperimentalFeatures experimental_features = {},
                      bool enable_flush_during_seek = false,
-                     std::optional<int> tunnel_mode_audio_session_id = {}) {
+                     std::optional<int> tunnel_mode_audio_session_id = {},
+                     bool use_android_overlay = true) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
@@ -79,7 +137,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/
         &fake_graphics_context_provider_,
-        /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
+        /*surface_view=*/use_android_overlay ? dummy_surface_.obj() : nullptr,
+        max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     tunnel_config.audio_session_id = tunnel_mode_audio_session_id;
@@ -90,8 +149,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
     auto result = MediaCodecVideoDecoder::CreateForTesting(
         std::move(factory),  // Transfer ownership
-        &job_queue_, stream_config, tunnel_config, pipeline_config,
-        platform_options);
+        &fake_video_surface_, &job_queue_, stream_config, tunnel_config,
+        pipeline_config, platform_options);
 
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
@@ -99,27 +158,90 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     // Setup sink to avoid crashes in Tick() on decoder thread
     auto sink = decoder_->GetSink();
     ASSERT_NE(sink, nullptr);
-    sink->SetRenderCB(
-        [this](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
-          {
-            std::lock_guard lock(callback_mutex_);
-            render_count_++;
-            if (on_render_cb_) {
-              on_render_cb_();
-            }
-          }
-          std::lock_guard lock(render_mutex_);
-          while (!frames_to_draw_.empty()) {
-            scoped_refptr<VideoFrame> frame = std::move(frames_to_draw_.front());
-            frames_to_draw_.pop_front();
-            draw_frame_cb(frame, frame->timestamp() * 1000);
-          }
-        });
+    sink->SetRenderCB([this](
+                          const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+      {
+        std::lock_guard lock(callback_mutex_);
+        render_count_++;
+        if (on_render_cb_) {
+          on_render_cb_();
+        }
+      }
+      std::lock_guard lock(render_mutex_);
+      while (!frames_to_draw_.empty()) {
+        scoped_refptr<VideoFrame> frame = std::move(frames_to_draw_.front());
+        frames_to_draw_.pop_front();
+        draw_frame_cb(frame, frame->timestamp() * 1000);
+      }
+    });
   }
 
   void QueueFrameForDraw(const scoped_refptr<VideoFrame>& frame) {
     std::lock_guard lock(render_mutex_);
     frames_to_draw_.push_back(frame);
+  }
+
+  // Creates a decoder that renders to the video surface of VideoSurfaceView,
+  // i.e. |fake_video_surface_|, instead of an AndroidOverlay surface.
+  void CreateDecoderForVideoSurfaceView(
+      bool enable_flush_during_seek = false,
+      std::optional<int> tunnel_mode_audio_session_id = {}) {
+    CreateDecoder(/*max_video_capabilities=*/"",
+                  /*initial_stream_info=*/nullptr,
+                  /*experimental_features=*/{}, enable_flush_during_seek,
+                  tunnel_mode_audio_session_id, /*use_android_overlay=*/false);
+  }
+
+  // Initializes the decoder, which then draws the decoded frames on the next
+  // render while |draw_frames_| is set, and drops them otherwise.
+  void InitializeDecoderWithDrawing() {
+    decoder_->Initialize(
+        [this](VideoDecoder::Status status,
+               const scoped_refptr<VideoFrame>& frame) {
+          if (frame && !frame->is_end_of_stream() && draw_frames_.load()) {
+            QueueFrameForDraw(frame);
+          }
+        },
+        [this](SbPlayerError error, const std::string& msg) {
+          error_called_ = true;
+        });
+  }
+
+  // Decodes a frame at |timestamp| via the input and output buffer |index| of
+  // the current codec. Returns whether the frame was released for rendering,
+  // as opposed to being dropped, or std::nullopt on failure.
+  std::optional<bool> DecodeFrame(int index, int64_t timestamp) {
+    decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(timestamp, 1024)});
+    // Writing may have created a new codec, e.g. after a seek.
+    FakeMediaCodec* codec = GetFakeVideoCodec();
+    if (!codec) {
+      return std::nullopt;
+    }
+    codec->SimulateInputBufferAvailable(index);
+    if (!codec->WaitForInputQueue(1, 1000)) {
+      return std::nullopt;
+    }
+    codec->ConsumeQueuedInputs();
+
+    codec->SimulateOutputAvailable(index, /*flags=*/0, /*offset=*/0, timestamp,
+                                   /*size=*/1024);
+    if (!codec->WaitForOutputReleased(1, 1000)) {
+      return std::nullopt;
+    }
+    std::vector<FakeMediaCodec::ReleasedOutput> released =
+        codec->ConsumeReleasedOutputs();
+    if (released.size() != 1) {
+      return std::nullopt;
+    }
+    return released[0].render;
+  }
+
+  // Simulates Android destroying the video surface, e.g. on app suspend. Like
+  // JNI_VideoSurfaceView_OnVideoSurfaceChanged(), this notifies the decoder
+  // holding the surface, which no longer holds it afterwards.
+  void DestroyVideoSurface() {
+    decoder_->OnSurfaceDestroyed();
+    fake_video_surface_.Release();
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -162,6 +284,9 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   }
 
   std::atomic<bool> error_called_{false};
+  // Whether a decoder initialized via InitializeDecoderWithDrawing() draws the
+  // decoded frames.
+  std::atomic<bool> draw_frames_{true};
 
   std::mutex callback_mutex_;
   std::mutex render_mutex_;
@@ -171,8 +296,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   std::function<void()> on_render_cb_;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
-  // Punch-out decoders clean up the global video window on destruction, which
-  // requires a provider when the test activity's video surface exists.
+  // Punch-out decoders pass it to VideoSurface::CleanUp() on destruction.
   SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
       nullptr, nullptr,
       [](SbDecodeTargetGraphicsContextProvider*,
@@ -182,6 +306,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
       base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
                                              "dummy_surface")};
+  // Must outlive |decoder_|.
+  FakeVideoSurface fake_video_surface_;
 
   std::unique_ptr<MediaCodecVideoDecoder> decoder_;
 };
@@ -478,93 +604,20 @@ TEST_F(MediaCodecVideoDecoderTest, EndOfStreamWithoutInput) {
 }
 
 #if !BUILDFLAG(IS_STARBOARD)
-class TestVideoSurfaceObserver : public VideoSurfaceHolder::TestObserver {
- public:
-  TestVideoSurfaceObserver() {
-    VideoSurfaceHolder::SetTestObserverForTesting(this);
-  }
-  ~TestVideoSurfaceObserver() override {
-    VideoSurfaceHolder::SetTestObserverForTesting(nullptr);
-  }
-
-  void OnCleanUpVideoSurface() override { clean_up_count_++; }
-  void OnSetVideoSurfaceVisible(bool visible) override {
-    std::lock_guard lock(mutex_);
-    visibility_changes_.push_back(visible);
-  }
-  void OnShowVideoSurfaceWithNextFrame() override {
-    show_with_next_frame_count_++;
-  }
-  void OnResetVideoSurface() override { reset_count_++; }
-
-  int clean_up_count() const { return clean_up_count_.load(); }
-  int show_with_next_frame_count() const {
-    return show_with_next_frame_count_.load();
-  }
-  int reset_count() const { return reset_count_.load(); }
-  std::vector<bool> visibility_changes() const {
-    std::lock_guard lock(mutex_);
-    return visibility_changes_;
-  }
-
- private:
-  std::atomic<int> clean_up_count_{0};
-  std::atomic<int> show_with_next_frame_count_{0};
-  std::atomic<int> reset_count_{0};
-  mutable std::mutex mutex_;
-  std::vector<bool> visibility_changes_;
-};
-
-// Holds the video surface, like another decoder that has acquired it.
-class FakeVideoSurfaceHolder : public VideoSurfaceHolder {
- public:
-  FakeVideoSurfaceHolder() {
-    VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(this);
-  }
-  ~FakeVideoSurfaceHolder() {
-    VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(nullptr);
-  }
-
-  void OnSurfaceDestroyed() override {}
-};
-
 TEST_F(MediaCodecVideoDecoderTest,
        SurfaceCleanupDefaultUsesCleanUpVideoSurface) {
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder();
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
-
-  decoder_->Initialize(
-      [this](VideoDecoder::Status status,
-             const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  auto released = fake_codec->ConsumeReleasedOutputs();
-  ASSERT_EQ(released.size(), 1U);
-  EXPECT_TRUE(released[0].render);
-  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
-  EXPECT_TRUE(observer.visibility_changes().empty());
+  CreateDecoderForVideoSurfaceView();
+  InitializeDecoderWithDrawing();
+  EXPECT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
 
   decoder_.reset();
-  EXPECT_EQ(observer.clean_up_count(), 1);
-  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 1);
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
   EXPECT_FALSE(error_called_);
 }
 
@@ -574,64 +627,34 @@ TEST_F(
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder();
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
+  CreateDecoderForVideoSurfaceView();
+  InitializeDecoderWithDrawing();
 
-  std::atomic<bool> draw_frames{false};
-  decoder_->Initialize(
-      [this, &draw_frames](VideoDecoder::Status status,
-                           const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream() && draw_frames.load()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
+  // Frame 0 is dropped without drawing: should not show the surface.
+  draw_frames_.store(false);
+  EXPECT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(false));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
 
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  // Frame 0 is dropped without drawing: should not trigger
-  // ShowVideoSurfaceWithNextFrame().
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  auto released = fake_codec->ConsumeReleasedOutputs();
-  ASSERT_EQ(released.size(), 1U);
-  EXPECT_FALSE(released[0].render);
-  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
-
-  // Frame 1 is drawn: should trigger ShowVideoSurfaceWithNextFrame() on API 34+
-  // and Frame 2 should not trigger it a second time.
-  draw_frames.store(true);
-  fake_codec->SimulateOutputAvailable(1, 0, 0, 20000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  released = fake_codec->ConsumeReleasedOutputs();
-  ASSERT_EQ(released.size(), 1U);
-  EXPECT_TRUE(released[0].render);
-
-  fake_codec->SimulateOutputAvailable(2, 0, 0, 30000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  released = fake_codec->ConsumeReleasedOutputs();
-  ASSERT_EQ(released.size(), 1U);
-  EXPECT_TRUE(released[0].render);
+  // Frame 1 is drawn: should show the surface together with it on API 34+, and
+  // frame 2 should not show it a second time.
+  draw_frames_.store(true);
+  EXPECT_THAT(DecodeFrame(/*index=*/1, /*timestamp=*/20000), Optional(true));
+  EXPECT_THAT(DecodeFrame(/*index=*/2, /*timestamp=*/30000), Optional(true));
 
   if (android_get_device_api_level() >= 34) {
-    EXPECT_EQ(observer.show_with_next_frame_count(), 1);
-    EXPECT_TRUE(observer.visibility_changes().empty());
+    EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 1);
+    EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
 
     decoder_.reset();
-    EXPECT_EQ(observer.clean_up_count(), 0);
-    EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+    EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+    EXPECT_EQ(fake_video_surface_.visibility_changes(),
+              std::vector<bool>{false});
   } else {
-    EXPECT_EQ(observer.show_with_next_frame_count(), 0);
+    EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
     decoder_.reset();
-    EXPECT_EQ(observer.clean_up_count(), 1);
-    EXPECT_TRUE(observer.visibility_changes().empty());
+    EXPECT_EQ(fake_video_surface_.clean_up_count(), 1);
+    EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
   }
   EXPECT_FALSE(error_called_);
 }
@@ -645,22 +668,20 @@ TEST_F(
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
   // With enable_flush_during_seek=false, ResetForTeardown() tears down the
   // codec and releases the surface before ~MediaCodecVideoDecoder() runs.
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                /*experimental_features=*/{},
-                /*enable_flush_during_seek=*/false);
+  CreateDecoderForVideoSurfaceView(/*enable_flush_during_seek=*/false);
   InitializeDecoder();
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
 
   decoder_->ResetForTeardown();
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(fake_video_surface_.held());
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{false});
 
   decoder_.reset();
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{false});
   EXPECT_FALSE(error_called_);
 }
 
@@ -672,43 +693,23 @@ TEST_F(MediaCodecVideoDecoderTest,
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                /*experimental_features=*/{},
-                /*enable_flush_during_seek=*/false);
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
+  CreateDecoderForVideoSurfaceView(/*enable_flush_during_seek=*/false);
+  InitializeDecoderWithDrawing();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 1);
 
-  decoder_->Initialize(
-      [this](VideoDecoder::Status status,
-             const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
-
-  // A seek with enable_flush_during_seek=false tears down the codec (setting
-  // owns_video_surface_=false). If the decoder is then destroyed before the
-  // next input buffer re-initializes the codec, the surface must still be
-  // hidden because a frame was drawn and the surface was not destroyed.
+  // A seek with enable_flush_during_seek=false tears down the codec and
+  // releases the surface. If the decoder is then destroyed before the next
+  // input buffer re-initializes the codec, the surface must still be hidden
+  // because a frame was drawn and the surface was not destroyed.
   decoder_->Reset();
-  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_FALSE(fake_video_surface_.held());
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
 
   decoder_.reset();
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{false});
   EXPECT_FALSE(error_called_);
 }
 
@@ -721,38 +722,18 @@ TEST_F(
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder();
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
+  CreateDecoderForVideoSurfaceView();
+  InitializeDecoderWithDrawing();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 1);
 
-  decoder_->Initialize(
-      [this](VideoDecoder::Status status,
-             const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
-
-  // Simulate Android destroying the SurfaceView surface (e.g. on app suspend).
-  decoder_->OnSurfaceDestroyed();
+  DestroyVideoSurface();
   decoder_->ResetForTeardown();
   decoder_.reset();
 
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
   EXPECT_FALSE(error_called_);
 }
 
@@ -765,42 +746,57 @@ TEST_F(
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder();
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
-
-  decoder_->Initialize(
-      [this](VideoDecoder::Status status,
-             const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+  CreateDecoderForVideoSurfaceView();
+  InitializeDecoderWithDrawing();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 1);
 
   // Simulate Android destroying the surface (e.g. on app suspend), and the
   // decoder acquiring a new surface after a seek (e.g. on app resume).
-  decoder_->OnSurfaceDestroyed();
+  DestroyVideoSurface();
   decoder_->Reset();
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(20000, 1024)});
   ASSERT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_TRUE(fake_video_surface_.held());
 
   // The decoder holds the new surface, so it must hide it on teardown.
   decoder_.reset();
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    ApplyTransactionToFrameOnSurfaceCleanupHidesSurfaceReleasedAfterReacquiring) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+
+  CreateDecoderForVideoSurfaceView(/*enable_flush_during_seek=*/false);
+  InitializeDecoderWithDrawing();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+
+  // Simulate Android destroying the surface (e.g. on app suspend), and the
+  // decoder rendering to a new surface after a seek (e.g. on app resume).
+  DestroyVideoSurface();
+  decoder_->Reset();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/20000), Optional(true));
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 2);
+
+  // Another seek releases the new surface after rendering to it. The surface
+  // must still be hidden on teardown, as only the previous one was destroyed.
+  decoder_->Reset();
+  EXPECT_FALSE(fake_video_surface_.held());
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
+
+  decoder_.reset();
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{false});
   EXPECT_FALSE(error_called_);
 }
 
@@ -812,43 +808,22 @@ TEST_F(MediaCodecVideoDecoderTest,
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                /*experimental_features=*/{},
-                /*enable_flush_during_seek=*/false);
-  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
-  ASSERT_NE(fake_codec, nullptr);
-
-  decoder_->Initialize(
-      [this](VideoDecoder::Status status,
-             const scoped_refptr<VideoFrame>& frame) {
-        if (frame && !frame->is_end_of_stream()) {
-          QueueFrameForDraw(frame);
-        }
-      },
-      [this](SbPlayerError error, const std::string& msg) {
-        error_called_ = true;
-      });
-
-  fake_codec->SimulateInputBufferAvailable(0);
-  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
-  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
-
-  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
-  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
-  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+  CreateDecoderForVideoSurfaceView(/*enable_flush_during_seek=*/false);
+  InitializeDecoderWithDrawing();
+  ASSERT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 1);
 
   // A seek with enable_flush_during_seek=false tears down the codec and
   // releases the surface. If another decoder acquires the surface before this
   // decoder is destroyed, this decoder must not hide it, as the other decoder
   // may already be rendering to it.
   decoder_->Reset();
-  FakeVideoSurfaceHolder other_holder;
+  fake_video_surface_.set_held_by_another_holder(true);
   decoder_.reset();
 
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
   EXPECT_FALSE(error_called_);
 }
 
@@ -860,27 +835,65 @@ TEST_F(MediaCodecVideoDecoderTest,
   features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kApplyTransactionToFrameOnSurfaceCleanup);
-  TestVideoSurfaceObserver observer;
 
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                /*experimental_features=*/{},
-                /*enable_flush_during_seek=*/false,
-                /*tunnel_mode_audio_session_id=*/1);
+  CreateDecoderForVideoSurfaceView(/*enable_flush_during_seek=*/false,
+                                   /*tunnel_mode_audio_session_id=*/1);
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
 
   // A previous non-tunnel playback may have hidden the surface, so it is shown
   // when the first tunnel mode frame is ready.
   fake_codec->SimulateFirstTunnelFrameReady();
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{true});
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{true});
 
   // Tunnel mode playbacks reset the surface on teardown, instead of hiding or
   // cleaning it up.
   decoder_.reset();
-  EXPECT_EQ(observer.reset_count(), 1);
-  EXPECT_EQ(observer.clean_up_count(), 0);
-  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
-  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{true});
+  EXPECT_EQ(fake_video_surface_.reset_count(), 1);
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 0);
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
+  EXPECT_EQ(fake_video_surface_.visibility_changes(), std::vector<bool>{true});
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ApplyTransactionToFrameOnSurfaceCleanupIgnoresAndroidOverlaySurfaces) {
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+
+  // A decoder rendering to an AndroidOverlay surface, e.g. for a secondary
+  // video, must not change the visibility of VideoSurfaceView, which another
+  // decoder may be rendering to. It cleans up the surface like without the
+  // feature.
+  CreateDecoder();
+  InitializeDecoderWithDrawing();
+  EXPECT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_FALSE(fake_video_surface_.held());
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
+
+  decoder_.reset();
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 1);
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ApplyTransactionToFrameOnSurfaceCleanupIsDisabledWithExoPlayer) {
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  // ExoPlayer doesn't show the surface again after a decoder hid it.
+  scoped_feature_list.InitAndEnableFeature(features::kEnableExoPlayer);
+
+  CreateDecoderForVideoSurfaceView();
+  InitializeDecoderWithDrawing();
+  EXPECT_THAT(DecodeFrame(/*index=*/0, /*timestamp=*/10000), Optional(true));
+  EXPECT_EQ(fake_video_surface_.show_with_next_frame_count(), 0);
+
+  decoder_.reset();
+  EXPECT_EQ(fake_video_surface_.clean_up_count(), 1);
+  EXPECT_TRUE(fake_video_surface_.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
 }
 #endif  // !BUILDFLAG(IS_STARBOARD)
 

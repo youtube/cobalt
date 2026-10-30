@@ -105,7 +105,8 @@ FEATURE_LIST_START
 // If enabled on Android 14 (API level 34) and above, hides VideoSurfaceView
 // on decoder teardown and shows it together with the next playback's first
 // frame via SurfaceView.applyTransactionToFrame(), instead of clearing the
-// surface via EGL calls on the GPU thread.
+// surface via EGL calls on the GPU thread. Has no effect on playbacks
+// rendering to an AndroidOverlay, or if EnableExoPlayer is enabled.
 STARBOARD_FEATURE(kApplyTransactionToFrameOnSurfaceCleanup,
                   "ApplyTransactionToFrameOnSurfaceCleanup",
                   false)
