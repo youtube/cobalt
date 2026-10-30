@@ -46,12 +46,12 @@ branch_from_ref () {
 }
 
 
-# The branch being built. Nightly builds check out a nightly tag, so
-# KOKORO_GOB_BRANCH_src may be a tag rather than a branch.
-if [ -n "${KOKORO_GOB_BRANCH_src:-}" ]; then
-  COBALT_BRANCH="$(branch_from_ref "${KOKORO_GOB_BRANCH_src}")"
+configure_cobalt_branch () {
+  # The branch being built. Nightly builds check out a nightly tag, so
+  # KOKORO_GOB_BRANCH_src may be a tag rather than a branch.
+  COBALT_BRANCH="$(branch_from_ref "${KOKORO_GOB_BRANCH_src:-}")"
   export COBALT_BRANCH
-fi
+}
 
 
 configure_environment () {
@@ -64,17 +64,7 @@ configure_environment () {
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-  # In some instances KOKORO_GOB_BRANCH_src is not set, set by default to 'COBALT'.
-  if [ -z "${KOKORO_GOB_BRANCH_src+set}" ]; then
-    echo 'WARNING: $KOKORO_GOB_BRANCH_src is unset. Defaulting to "COBALT"'
-    export KOKORO_GOB_BRANCH_src="COBALT"
-  fi
-
-  # In some instances kokoro uses KOKORO_GOB_BRANCH instead.
-  if [ -z "${KOKORO_GOB_BRANCH+set}" ]; then
-    echo 'WARNING: $KOKORO_GOB_BRANCH is unset. Defaulting to "COBALT"'
-    export KOKORO_GOB_BRANCH="COBALT"
-  fi
+  configure_cobalt_branch
 
   env | sort
 }
@@ -95,6 +85,7 @@ configure_gob_auth () {
 }
 
 configure_dind_environment () {
+  configure_cobalt_branch
   export REGISTRY_PATH="$(get_registry_bucket_path)"
 
   # Authenticate with GCR or GAR.
