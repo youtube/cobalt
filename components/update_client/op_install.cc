@@ -313,7 +313,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
 =======
 #endif
               std::move(unzipper), crx_format,
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
               base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
@@ -335,7 +335,7 @@ base::OnceClosure InstallOperation(
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
@@ -377,7 +377,7 @@ base::OnceClosure InstallOperation(
 =======
           id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
 #endif
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

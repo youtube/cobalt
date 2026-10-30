@@ -30,7 +30,7 @@
 #include "chrome/browser/permissions/prediction_service/language_detection_observer.h"
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"  // nogncheck
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/skia/include/core/SkBitmap.h"
 
 class PredictionServiceRequest;

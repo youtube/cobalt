@@ -88,7 +88,7 @@ if (is_cobalt && is_partner_toolchain) {
     public_deps = [ "//copied_base/base/test:test_support" ]
   }
 } else {
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 static_library("test_support") {
   testonly = true
   sources = [

@@ -323,7 +323,7 @@ BASE_FEATURE(kEnableHangWatcher,
              FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Enable HangWatcher on the GPU process.
 BASE_FEATURE(kEnableHangWatcherOnGpuProcess, HangWatcherFeatureDefault());

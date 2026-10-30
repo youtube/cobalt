@@ -42,7 +42,7 @@ base::OnceClosure PuffOperation(
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
@@ -69,7 +69,7 @@ base::OnceClosure PuffOperation(
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
 #endif  // defined(IN_MEMORY_UPDATES)
   return base::DoNothing();

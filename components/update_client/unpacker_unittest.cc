@@ -109,7 +109,7 @@ TEST_P(UnpackerTest, UnpackFileNotFound) {
 =======
 #if !defined(IN_MEMORY_UPDATES)
 TEST_F(UnpackerTest, UnpackFileNotFound) {
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
 #if BUILDFLAG(IS_STARBOARD)
@@ -128,7 +128,7 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
 =======
 #endif
       crx_file::VerifierFormat::CRX3,
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
         EXPECT_EQ(result.error, UnpackerError::kInvalidFile);
@@ -170,7 +170,7 @@ TEST_P(UnpackerTest, UnpackFileHashMismatch) {
 =======
 #endif
       crx_file::VerifierFormat::CRX3,
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
         EXPECT_EQ(result.error, UnpackerError::kInvalidFile);

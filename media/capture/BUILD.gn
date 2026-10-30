@@ -105,7 +105,7 @@ source_set("capture_device_specific") {
     sources -= [
       "video/blob_utils.cc",
       "video/blob_utils.h",
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "video/file_video_capture_device.cc",
       "video/file_video_capture_device.h",
       "video/file_video_capture_device_factory.cc",

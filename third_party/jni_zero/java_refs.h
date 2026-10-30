@@ -123,7 +123,7 @@ concept IsJobject =
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 }
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Creates a new local reference frame, in which at least a given number of
 // local references can be created. Note that local references already created

@@ -54,7 +54,7 @@
 #include "components/permissions/prediction_service/prediction_model_handler.h"
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace {
 using ComputePassagesEmbeddingsCallback =
     ::passage_embeddings::Embedder::ComputePassagesEmbeddingsCallback;

@@ -432,7 +432,7 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
         *output = ::media::RendererType::kStarboard;
         return true;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     NOTREACHED();
@@ -493,7 +493,7 @@ struct EnumTraits<media::mojom::DemuxerType, ::media::DemuxerType> {
         *output = ::media::DemuxerType::kUrlPlayerDemuxer;
         return true;
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     NOTREACHED();

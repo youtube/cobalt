@@ -404,7 +404,7 @@ std::queue<Operation> MakeOperations(
           metadata,
 #endif
           event_adder, state_tracker, install_progress_callback,
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           install_complete_callback));
     } else if (operation.type == "run") {
       // expects: `path`

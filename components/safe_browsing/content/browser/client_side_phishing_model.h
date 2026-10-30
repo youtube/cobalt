@@ -30,7 +30,7 @@
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"  // nogncheck
 #endif
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace optimization_guide {
 class OptimizationGuideModelProvider;
 }  // namespace optimization_guide

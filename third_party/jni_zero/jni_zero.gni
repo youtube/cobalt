@@ -631,7 +631,7 @@ template("native_with_jni") {
                            current_toolchain == android_toolchain
   if ((_needs_cpp_codegen && _use_current_toolchain) ||
       _needs_native_dep) {
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     _subdir = rebase_path(target_gen_dir, root_gen_dir)
     _registration_cpp_codegen_output =
         "$jni_headers_dir/$_subdir/${target_name}__jni_registration_generated"
