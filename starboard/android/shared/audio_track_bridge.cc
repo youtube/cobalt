@@ -284,6 +284,12 @@ int AudioTrackBridge::GetStartThresholdInFrames() {
                                                          j_audio_track_bridge_);
 }
 
+int AudioTrackBridge::SetStartThresholdInFrames(int start_threshold_in_frames) {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_AudioTrackBridge_setStartThresholdInFrames(
+      env, j_audio_track_bridge_, start_threshold_in_frames);
+}
+
 AudioTrack::PlayState AudioTrackBridge::GetPlayState() {
   JNIEnv* env = AttachCurrentThread();
   return static_cast<PlayState>(
