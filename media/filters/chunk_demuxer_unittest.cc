@@ -49,8 +49,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <tuple>
+
 #include "base/test/bind.h"
 #include "media/base/starboard/sbmedia_interface.h"
+#include "media/filters/starboard/selected_track_stream.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::testing::AnyNumber;
@@ -5021,8 +5024,8 @@ TEST_F(ChunkDemuxerTest, AddAutoDetectIDFindsCodecs) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // Tests multi-SourceBuffer switching (SetEnableMultiSourceBufferSwitching),
-// where a page buffers upcoming media in additional SourceBuffers and switches
-// to them by selecting their tracks and seeking.
+// where a page buffers upcoming media in standby SourceBuffers and switches to
+// them with ChangeTo() and a seek.
 class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
  protected:
   ChunkDemuxerMultiSourceBufferTest() {
@@ -5033,6 +5036,31 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
 
   ~ChunkDemuxerMultiSourceBufferTest() override {
     ChunkDemuxer::SetEnableMultiSourceBufferSwitching(false);
+  }
+
+  // The MIME type of a SourceBuffer with the streams of |stream_flags|, as a
+  // page passes it to addSourceBuffer().
+  static std::string MimeType(int stream_flags) {
+    return (stream_flags & HAS_VIDEO) ? "video/webm; codecs=\"vp8\""
+                                      : "audio/webm; codecs=\"vorbis\"";
+  }
+
+  // Adds the SourceBuffer |id| with the MIME type of |stream_flags|, standby
+  // if |standby|, as Blink does.
+  ChunkDemuxer::Status AddIdWithMimeType(const std::string& id,
+                                         int stream_flags,
+                                         bool standby = false) {
+    const ChunkDemuxer::Status status =
+        standby ? demuxer_->AddStandbyId(id, MimeType(stream_flags))
+                : demuxer_->AddId(id, MimeType(stream_flags));
+    if (status == ChunkDemuxer::kOk) {
+      demuxer_->SetTracksWatcher(id, init_segment_received_cb_);
+      demuxer_->SetParseWarningCallback(
+          id, base::BindRepeating(
+                  &ChunkDemuxerMultiSourceBufferTest::OnParseWarningMock,
+                  base::Unretained(this)));
+    }
+    return status;
   }
 
   // Appends an initialization segment with one track to the SourceBuffer |id|
@@ -5053,10 +5081,7 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
   MediaTrack::Id AddSourceWithOneTrack(const std::string& id,
                                        int stream_flags,
                                        bool standby = false) {
-    EXPECT_EQ(AddId(id, stream_flags), ChunkDemuxer::kOk);
-    if (standby) {
-      EXPECT_TRUE(demuxer_->SetStandby(id));
-    }
+    EXPECT_EQ(AddIdWithMimeType(id, stream_flags, standby), ChunkDemuxer::kOk);
     return AppendInitSegmentWithOneTrack(id, stream_flags);
   }
 
@@ -5066,35 +5091,44 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
     EXPECT_CALL(*this, DemuxerOpened());
     demuxer_->Initialize(
         &host_, CreateInitDoneCallback(kDefaultDuration(), PIPELINE_OK));
-    audio1_ = AddSourceWithOneTrack("audio1", HAS_AUDIO);
-    video1_ = AddSourceWithOneTrack("video1", HAS_VIDEO);
+    // As without switching, the SourceBuffers that play now are all added
+    // before the demuxer initializes.
+    ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+    ASSERT_EQ(AddIdWithMimeType("video1", HAS_VIDEO), ChunkDemuxer::kOk);
+    audio1_ = AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
+    video1_ = AppendInitSegmentWithOneTrack("video1", HAS_VIDEO);
     AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
     AppendSingleStreamCluster("video1", kVideoTrackNum, "0K 33K 66D33K");
   }
 
-  // Adds the SourceBuffers of the media that plays next, with audio in [0,60)
-  // and video in [0,120), standby if |standby|.
-  void AddSecondSourceBuffers(bool standby = false) {
-    audio2_ = AddSourceWithOneTrack("audio2", HAS_AUDIO, standby);
-    video2_ = AddSourceWithOneTrack("video2", HAS_VIDEO, standby);
+  // Adds the standby SourceBuffers of the media that plays next, with audio
+  // in [0,60) and video in [0,120).
+  void AddSecondSourceBuffers() {
+    audio2_ = AddSourceWithOneTrack("audio2", HAS_AUDIO, /*standby=*/true);
+    video2_ = AddSourceWithOneTrack("video2", HAS_VIDEO, /*standby=*/true);
     AppendSingleStreamCluster("audio2", kAudioTrackNum, "0K 20K 40D20K");
     AppendSingleStreamCluster("video2", kVideoTrackNum, "0K 40K 80D40K");
   }
 
-  // Selects the track |track_id| of |type| and returns the streams that the
-  // demuxer reports as enabled.
-  std::vector<DemuxerStream*> SelectTrack(
-      DemuxerStream::Type type,
-      const MediaTrack::Id& track_id,
-      base::TimeDelta curr_time = base::TimeDelta()) {
+  // Enables the track |track_id| of |type|, as a page does with
+  // audioTracks[i].enabled or videoTracks[i].selected, and returns the
+  // streams that the demuxer reports as enabled.
+  std::vector<DemuxerStream*> SelectTrack(DemuxerStream::Type type,
+                                          const MediaTrack::Id& track_id) {
     std::vector<DemuxerStream*> enabled_streams;
     demuxer_->OnTracksChanged(
-        type, {track_id}, curr_time,
+        type, {track_id}, base::TimeDelta(),
         base::BindLambdaForTesting(
             [&enabled_streams](const std::vector<DemuxerStream*>& streams) {
               enabled_streams = streams;
             }));
     return enabled_streams;
+  }
+
+  // Returns the ChunkDemuxerStream that the pipeline's stream of |type| reads
+  // now.
+  ChunkDemuxerStream* GetSelectedChunkDemuxerStream(DemuxerStream::Type type) {
+    return static_cast<SelectedTrackStream*>(GetStream(type))->stream();
   }
 
   MediaTrack::Id audio1_;
@@ -5103,7 +5137,7 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
   MediaTrack::Id video2_;
 };
 
-TEST_F(ChunkDemuxerMultiSourceBufferTest, AddIdAfterInit) {
+TEST_F(ChunkDemuxerMultiSourceBufferTest, StandbyAddIdAfterInit) {
   InitWithFirstSourceBuffers();
   DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
@@ -5120,6 +5154,23 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, AddIdAfterInit) {
   CheckExpectedBuffers(video_stream, "0K 33K 66K");
 }
 
+TEST_F(ChunkDemuxerMultiSourceBufferTest, NonStandbyAddIdAfterInitFails) {
+  InitWithFirstSourceBuffers();
+  // As without switching: only standby SourceBuffers join a demuxer that has
+  // initialized.
+  EXPECT_EQ(AddIdWithMimeType("audio2", HAS_AUDIO),
+            ChunkDemuxer::kReachedIdLimit);
+  EXPECT_EQ(AddId("video2", HAS_VIDEO), ChunkDemuxer::kReachedIdLimit);
+  EXPECT_EQ(AddIdWithMimeType("video2", HAS_VIDEO, /*standby=*/true),
+            ChunkDemuxer::kOk);
+}
+
+TEST_F(ChunkDemuxerTest, StandbyNeedsSwitching) {
+  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
+  EXPECT_EQ(demuxer_->AddStandbyId("audio2", "audio/webm; codecs=\"vorbis\""),
+            ChunkDemuxer::kNotSupported);
+}
+
 TEST_F(ChunkDemuxerMultiSourceBufferTest, InitDoesNotWaitForStandbySources) {
   bool initialized = false;
   EXPECT_CALL(*this, DemuxerOpened());
@@ -5129,12 +5180,12 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, InitDoesNotWaitForStandbySources) {
                          EXPECT_EQ(status, PIPELINE_OK);
                          initialized = true;
                        }));
-  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
-  ASSERT_EQ(AddId("video1", HAS_VIDEO), ChunkDemuxer::kOk);
-  ASSERT_EQ(AddId("audio2", HAS_AUDIO), ChunkDemuxer::kOk);
-  ASSERT_TRUE(demuxer_->SetStandby("audio2"));
-  ASSERT_EQ(AddId("video2", HAS_VIDEO), ChunkDemuxer::kOk);
-  ASSERT_TRUE(demuxer_->SetStandby("video2"));
+  ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("video1", HAS_VIDEO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("audio2", HAS_AUDIO, /*standby=*/true),
+            ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("video2", HAS_VIDEO, /*standby=*/true),
+            ChunkDemuxer::kOk);
 
   // A standby SourceBuffer that initializes first doesn't become the one that
   // plays, and doesn't complete initialization...
@@ -5156,7 +5207,7 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToTakesEffectAtNextSeek) {
   InitWithFirstSourceBuffers();
   DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers(/*standby=*/true);
+  AddSecondSourceBuffers();
   CheckExpectedBuffers(audio_stream, "0K");
   CheckExpectedBuffers(video_stream, "0K");
 
@@ -5191,12 +5242,29 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToTakesEffectAtNextSeek) {
   CheckExpectedRangesForMediaSource("{ [0,60) }");
 }
 
+TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToWhileEnded) {
+  InitWithFirstSourceBuffers();
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  AddSecondSourceBuffers();
+
+  // The first media is fully buffered, so the page has called endOfStream().
+  EXPECT_CALL(host_, SetDuration(_)).Times(AnyNumber());
+  MarkEndOfStream(PIPELINE_OK);
+
+  // Blink switches, then reopens the MediaSource, then seeks.
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
+  demuxer_->UnmarkEndOfStream();
+  Seek(base::TimeDelta());
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+}
+
 TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToRejectsInvalidSources) {
   InitWithFirstSourceBuffers();
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers(/*standby=*/true);
-  ASSERT_EQ(AddId("video3", HAS_VIDEO), ChunkDemuxer::kOk);
-  ASSERT_TRUE(demuxer_->SetStandby("video3"));
+  AddSecondSourceBuffers();
+  ASSERT_EQ(AddIdWithMimeType("video3", HAS_VIDEO, /*standby=*/true),
+            ChunkDemuxer::kOk);
 
   EXPECT_FALSE(demuxer_->ChangeTo({}));
   EXPECT_FALSE(demuxer_->ChangeTo({"unknown"}));
@@ -5213,7 +5281,7 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToRejectsInvalidSources) {
 TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToHoldsPendingRead) {
   InitWithFirstSourceBuffers();
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers(/*standby=*/true);
+  AddSecondSourceBuffers();
   CheckExpectedBuffers(video_stream, "0K 33K 66K");
 
   // This read waits for more media of "video1".
@@ -5233,10 +5301,33 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToHoldsPendingRead) {
   CheckExpectedBuffers(video_stream, "0K 40K 80K");
 }
 
+TEST_F(ChunkDemuxerMultiSourceBufferTest, ReadAfterAbortDuringSwitchIsAborted) {
+  InitWithFirstSourceBuffers();
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  AddSecondSourceBuffers();
+  CheckExpectedBuffers(video_stream, "0K");
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
+
+  // The pipeline aborts the reads before it flushes the renderer and seeks.
+  // A read that arrives after the abort, while the switch waits for the seek,
+  // completes right away instead of waiting for the seek, which waits for the
+  // renderer's flush, which waits for the read.
+  demuxer_->AbortPendingReads();
+  bool read_done = false;
+  video_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(read_done);
+
+  // The seek completes the switch.
+  Seek(base::TimeDelta());
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+}
+
 TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToRejectsPartialSwitch) {
   InitWithFirstSourceBuffers();
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers(/*standby=*/true);
+  AddSecondSourceBuffers();
 
   // The timeline starts over for every media type, so all switch at once.
   EXPECT_FALSE(demuxer_->ChangeTo({"video2"}));
@@ -5255,14 +5346,14 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, InitWaitsForSourcesThatPlayNow) {
                          EXPECT_EQ(status, PIPELINE_OK);
                          initialized = true;
                        }));
-  ASSERT_EQ(AddId("audio2", HAS_AUDIO), ChunkDemuxer::kOk);
-  ASSERT_TRUE(demuxer_->SetStandby("audio2"));
+  ASSERT_EQ(AddIdWithMimeType("audio2", HAS_AUDIO, /*standby=*/true),
+            ChunkDemuxer::kOk);
 
   // Only standby SourceBuffers have initialized, so nothing plays yet.
   AppendInitSegmentWithOneTrack("audio2", HAS_AUDIO);
   EXPECT_FALSE(initialized);
 
-  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
   AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
   EXPECT_TRUE(initialized);
   EXPECT_EQ(demuxer_->GetAllStreams().size(), 1u);
@@ -5280,13 +5371,13 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, RemoveIdForgetsStandby) {
                          EXPECT_EQ(status, PIPELINE_OK);
                          initialized = true;
                        }));
-  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
-  ASSERT_TRUE(demuxer_->SetStandby("audio1"));
+  ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO, /*standby=*/true),
+            ChunkDemuxer::kOk);
   demuxer_->RemoveId("audio1");
 
   // A SourceBuffer that reuses the id isn't standby.
-  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
-  ASSERT_EQ(AddId("video1", HAS_VIDEO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("video1", HAS_VIDEO), ChunkDemuxer::kOk);
   AppendInitSegmentWithOneTrack("video1", HAS_VIDEO);
   EXPECT_FALSE(initialized);
   AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
@@ -5294,153 +5385,109 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, RemoveIdForgetsStandby) {
   EXPECT_EQ(demuxer_->GetAllStreams().size(), 2u);
 }
 
-TEST_F(ChunkDemuxerTest, ChangeToAndStandbyNeedSwitching) {
-  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
-  ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));
-  EXPECT_FALSE(demuxer_->SetStandby(kSourceId));
-  EXPECT_FALSE(demuxer_->ChangeTo({kSourceId}));
-}
-
-TEST_F(ChunkDemuxerMultiSourceBufferTest, SelectingCurrentTrackKeepsReading) {
+TEST_F(ChunkDemuxerMultiSourceBufferTest, RemoveIdFreesBufferedMedia) {
   InitWithFirstSourceBuffers();
-  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  ChunkDemuxerStream* video1_stream =
+      GetSelectedChunkDemuxerStream(DemuxerStream::VIDEO);
   AddSecondSourceBuffers();
-
-  CheckExpectedBuffers(video_stream, "0K");
-  EXPECT_THAT(SelectTrack(DemuxerStream::VIDEO, video1_),
-              ::testing::ElementsAre(video_stream));
-  CheckExpectedBuffers(video_stream, "33K 66K");
-}
-
-TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchTakesEffectAtNextSeek) {
-  InitWithFirstSourceBuffers();
-  DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
-  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers();
-  CheckExpectedBuffers(audio_stream, "0K");
-  CheckExpectedBuffers(video_stream, "0K");
-
-  // The demuxer reports the streams the pipeline already reads.
-  EXPECT_THAT(SelectTrack(DemuxerStream::AUDIO, audio2_),
-              ::testing::ElementsAre(audio_stream));
-  EXPECT_THAT(SelectTrack(DemuxerStream::VIDEO, video2_),
-              ::testing::ElementsAre(video_stream));
-
-  // Reads wait for the seek, which aborts them.
-  bool audio_read_done = false;
-  bool video_read_done = false;
-  audio_stream->Read(
-      1, base::BindOnce(&OnReadDone_AbortExpected, &audio_read_done));
-  video_stream->Read(
-      1, base::BindOnce(&OnReadDone_AbortExpected, &video_read_done));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(audio_read_done);
-  EXPECT_FALSE(video_read_done);
-
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
   Seek(base::TimeDelta());
-  EXPECT_TRUE(audio_read_done);
-  EXPECT_TRUE(video_read_done);
+  ASSERT_EQ(video1_stream->GetBufferedRanges(kInfiniteDuration).size(), 1u);
 
-  // After the seek, the streams return the configs and the media of the
-  // selected tracks.
-  ExpectConfigChanged(DemuxerStream::AUDIO);
-  ExpectConfigChanged(DemuxerStream::VIDEO);
-  CheckExpectedBuffers(audio_stream, "0K 20K 40K");
-  CheckExpectedBuffers(video_stream, "0K 40K 80K");
-  CheckExpectedRangesForMediaSource("{ [0,60) }");
+  // The demuxer keeps the streams of a removed SourceBuffer, in case the
+  // renderer still holds pointers to them, but not their media: with
+  // switching, SourceBuffers come and go for as long as the demuxer plays.
+  demuxer_->RemoveId("video1");
+  EXPECT_EQ(video1_stream->GetBufferedRanges(kInfiniteDuration).size(), 0u);
 }
 
-TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchSetsWriteHead) {
+TEST_F(ChunkDemuxerMultiSourceBufferTest, StandbyEvictionKeepsEarliestMedia) {
+  InitWithFirstSourceBuffers();
+  AddSourceWithOneTrack("audio2", HAS_AUDIO, /*standby=*/true);
+  demuxer_->SetMemoryLimitsForTest(
+      DemuxerStream::AUDIO, GetExpectedMemoryUsage(10, 10 * block_size_));
+  AppendSingleStreamCluster("audio2", kAudioTrackNum, 0, 10);
+  CheckExpectedRanges("audio2", "{ [0,230) }");
+
+  // Making room for an append while the current time, on the timeline of the
+  // media that plays now, is past the standby media doesn't treat the standby
+  // media as played: its start, which plays first if ChangeTo() selects it,
+  // stays.
+  std::ignore =
+      demuxer_->EvictCodedFrames("audio2", base::Milliseconds(1000),
+                                 GetExpectedMemoryUsage(5, 5 * block_size_));
+  Ranges<base::TimeDelta> ranges = demuxer_->GetBufferedRanges("audio2");
+  ASSERT_GT(ranges.size(), 0u);
+  EXPECT_EQ(ranges.start(0), base::TimeDelta());
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, SeekDoesNotSeekStandbySources) {
   InitWithFirstSourceBuffers();
   AddSecondSourceBuffers();
   EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::TimeDelta());
 
-  // The stream switched to is read again from the current time, as after a
-  // seek.
-  SelectTrack(DemuxerStream::VIDEO, video2_, base::Milliseconds(50));
-  EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::Milliseconds(50));
-}
+  // A seek of the media that plays now leaves the standby SourceBuffers where
+  // their media starts.
+  Seek(base::Milliseconds(50));
+  EXPECT_EQ(demuxer_->GetWriteHead("video1"), base::Milliseconds(50));
+  EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::TimeDelta());
 
-TEST_F(ChunkDemuxerTest, EnablingTrackWithoutSwitchingKeepsWriteHead) {
-  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
-  ASSERT_TRUE(InitDemuxer(HAS_VIDEO));
-  const MediaTrack::Id video_track_id("1");
-  demuxer_->OnTracksChanged(DemuxerStream::VIDEO, {}, base::TimeDelta(),
-                            base::DoNothing());
-  demuxer_->OnTracksChanged(DemuxerStream::VIDEO, {video_track_id},
-                            base::Milliseconds(50), base::DoNothing());
-  EXPECT_EQ(demuxer_->GetWriteHead(kSourceId), base::TimeDelta());
-}
-
-TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchHoldsPendingRead) {
-  InitWithFirstSourceBuffers();
-  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  AddSecondSourceBuffers();
-  CheckExpectedBuffers(video_stream, "0K 33K 66K");
-
-  // This read waits for more media of "video1".
-  bool read_done = false;
-  video_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(read_done);
-
-  // Disabling the track of "video1" doesn't end the stream the pipeline reads.
-  SelectTrack(DemuxerStream::VIDEO, video2_);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(read_done);
-
-  Seek(base::TimeDelta());
-  EXPECT_TRUE(read_done);
+  // The seek after ChangeTo() seeks the SourceBuffers it selects.
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
+  Seek(base::Milliseconds(40));
+  EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::Milliseconds(40));
   ExpectConfigChanged(DemuxerStream::VIDEO);
-  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+  CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "40K 80K");
 }
 
-TEST_F(ChunkDemuxerMultiSourceBufferTest, ReadAfterAbortDuringSwitchIsAborted) {
+TEST_F(ChunkDemuxerTest, ChangeToNeedsSwitching) {
+  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
+  ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));
+  EXPECT_FALSE(demuxer_->ChangeTo({kSourceId}));
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackChangeDoesNotSwitch) {
   InitWithFirstSourceBuffers();
+  DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
   AddSecondSourceBuffers();
   CheckExpectedBuffers(video_stream, "0K");
-  SelectTrack(DemuxerStream::VIDEO, video2_);
 
-  // The pipeline aborts the reads before it flushes the renderer and seeks.
-  // A read that arrives after the abort, while the switch waits for the seek,
-  // completes right away instead of waiting for the seek, which waits for the
-  // renderer's flush, which waits for the read.
-  demuxer_->AbortPendingReads();
-  bool read_done = false;
-  video_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(read_done);
-
-  // The seek completes the switch.
+  // Only ChangeTo() switches. Enabling the tracks of the standby SourceBuffers
+  // reports the streams the pipeline already reads, which keep reading the
+  // media of the first SourceBuffers, also after a seek.
+  EXPECT_MEDIA_LOG(HasSubstr("Track change ignored")).Times(2);
+  EXPECT_THAT(SelectTrack(DemuxerStream::AUDIO, audio2_),
+              ::testing::ElementsAre(audio_stream));
+  EXPECT_THAT(SelectTrack(DemuxerStream::VIDEO, video2_),
+              ::testing::ElementsAre(video_stream));
+  CheckExpectedBuffers(video_stream, "33K 66K");
   Seek(base::TimeDelta());
-  ExpectConfigChanged(DemuxerStream::VIDEO);
-  CheckExpectedBuffers(video_stream, "0K 40K 80K");
-}
+  CheckExpectedBuffers(audio_stream, "0K 23K 46K");
+  CheckExpectedBuffers(video_stream, "0K 33K 66K");
+  CheckExpectedRangesForMediaSource("{ [0,69) }");
 
-TEST_F(ChunkDemuxerMultiSourceBufferTest,
-       SourceInitializedDuringSeekAbortsReads) {
-  ASSERT_TRUE(InitDemuxer(HAS_VIDEO));
-  demuxer_->StartWaitingForSeek(base::TimeDelta());
-
-  // A SourceBuffer that initializes while the demuxer waits for a seek aborts
-  // reads like the other streams.
-  AddSourceWithOneTrack("audio1", HAS_AUDIO);
-  DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
-  ASSERT_TRUE(audio_stream);
-  bool read_done = false;
-  audio_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(read_done);
+  // Disabling a track doesn't end the stream either.
+  std::vector<DemuxerStream*> enabled_streams = {video_stream};
+  demuxer_->OnTracksChanged(
+      DemuxerStream::VIDEO, {}, base::TimeDelta(),
+      base::BindLambdaForTesting(
+          [&enabled_streams](const std::vector<DemuxerStream*>& streams) {
+            enabled_streams = streams;
+          }));
+  EXPECT_TRUE(enabled_streams.empty());
+  Seek(base::TimeDelta());
+  CheckExpectedBuffers(video_stream, "0K 33K 66K");
 }
 
 TEST_F(ChunkDemuxerMultiSourceBufferTest, QueuedSourcesDontAffectPlayback) {
   InitWithFirstSourceBuffers();
   AddSecondSourceBuffers();
   // A SourceBuffer without an initialization segment.
-  ASSERT_EQ(AddId("video3", HAS_VIDEO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddIdWithMimeType("video3", HAS_VIDEO, /*standby=*/true),
+            ChunkDemuxer::kOk);
 
-  // Only the SourceBuffers of the selected tracks are buffered ranges.
+  // Only the SourceBuffers that play are buffered ranges.
   CheckExpectedRangesForMediaSource("{ [0,69) }");
 
   // "audio2" has no media at 66 ms, but it doesn't hold back the seek.
@@ -5456,7 +5503,7 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ShutdownEndsHeldRead) {
   InitWithFirstSourceBuffers();
   DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
   AddSecondSourceBuffers();
-  SelectTrack(DemuxerStream::VIDEO, video2_);
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
 
   bool read_done = false;
   video_stream->Read(
@@ -5472,6 +5519,13 @@ namespace {
 
 constexpr char kVp8MimeType[] = "video/webm; codecs=\"vp8\"";
 constexpr char kVp9MimeType[] = "video/webm; codecs=\"vp9\"";
+// VP9 profile 0 (8-bit) and profile 2 (10-bit, as for HDR), at two levels.
+constexpr char kVp9Profile0Level40MimeType[] =
+    "video/webm; codecs=\"vp09.00.40.08\"";
+constexpr char kVp9Profile0Level51MimeType[] =
+    "video/webm; codecs=\"vp09.00.51.08\"";
+constexpr char kVp9Profile2MimeType[] =
+    "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"";
 
 // Same as the mock in media/base/starboard/mime_util_starboard_unittest.cc.
 class MockSbMediaInterface : public SbMediaInterface {
@@ -5509,28 +5563,26 @@ class MockSbMediaInterface : public SbMediaInterface {
               (const, override));
 };
 
-// Tests that a switch to a stream of another codec only takes effect if
-// SbMediaCanChangeType() supports the change.
+// Tests that a switch that changes the format (the codec, or the profile, bit
+// depth or color within a codec) only takes effect if SbMediaCanChangeType()
+// supports the change.
 class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
  protected:
   ~ChunkDemuxerCodecSwitchTest() override {
     SetSbMediaInterfaceForTesting(nullptr);
   }
 
-  // Adds the SourceBuffer |id| with the MIME type of |codec|, VP8 or VP9,
-  // which the demuxer passes to SbMediaCanChangeType(). Then appends an
-  // initialization segment and the video |blocks|, and returns the id of the
-  // track.
+  // Adds the SourceBuffer |id| with |mime_type|, a VP8 or VP9 type, which the
+  // demuxer passes to SbMediaCanChangeType(). Then appends an initialization
+  // segment and the video |blocks|, and returns the id of the track.
   MediaTrack::Id AddVideoSource(const std::string& id,
-                                VideoCodec codec,
+                                const std::string& mime_type,
                                 const std::string& blocks,
                                 bool standby = false) {
-    const bool is_vp9 = codec == VideoCodec::kVP9;
-    EXPECT_EQ(demuxer_->AddId(id, is_vp9 ? kVp9MimeType : kVp8MimeType),
+    const bool is_vp9 = mime_type.find("vp8") == std::string::npos;
+    EXPECT_EQ(standby ? demuxer_->AddStandbyId(id, mime_type)
+                      : demuxer_->AddId(id, mime_type),
               ChunkDemuxer::kOk);
-    if (standby) {
-      EXPECT_TRUE(demuxer_->SetStandby(id));
-    }
     demuxer_->SetTracksWatcher(id, init_segment_received_cb_);
     demuxer_->SetParseWarningCallback(
         id,
@@ -5548,7 +5600,7 @@ class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
       init_segment[codec_id + 4] = '9';
     }
     MediaTrack::Id track_id;
-    EXPECT_FOUND_CODEC_NAME(Video, GetCodecName(codec));
+    EXPECT_FOUND_CODEC_NAME(Video, is_vp9 ? "vp9" : "vp8");
     EXPECT_CALL(*this, InitSegmentReceivedMock(_))
         .WillOnce([&track_id](std::unique_ptr<MediaTracks>& tracks) {
           ASSERT_EQ(tracks->tracks().size(), 1u);
@@ -5559,45 +5611,35 @@ class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
     return track_id;
   }
 
-  // Plays "video1", with VP8 video in [0,99), and selects the track of
-  // "video2", with |codec| video in [0,120), which plays from the next seek.
-  void SelectVideo2(VideoCodec codec) {
+  // Plays "audio1" and "video1", with |video1_type| video in [0,99), and adds
+  // a standby "video2", with |video2_type| video in [0,120), for ChangeTo().
+  void AddStandbyVideo2(const std::string& video1_type,
+                        const std::string& video2_type) {
     EXPECT_CALL(*this, DemuxerOpened());
     demuxer_->Initialize(
         &host_, CreateInitDoneCallback(kDefaultDuration(), PIPELINE_OK));
-    AddSourceWithOneTrack("audio1", HAS_AUDIO);
-    AddVideoSource("video1", VideoCodec::kVP8, "0K 33K 66D33K");
+    ASSERT_EQ(AddIdWithMimeType("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+    AddVideoSource("video1", video1_type, "0K 33K 66D33K");
+    AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
     AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
-    SelectTrack(DemuxerStream::VIDEO,
-                AddVideoSource("video2", codec, "0K 40K 80D40K"));
-
+    AddVideoSource("video2", video2_type, "0K 40K 80D40K", /*standby=*/true);
     // Only now, as appends also query Starboard, for memory limits.
-    SetSbMediaInterfaceForTesting(&sb_media_interface_);
-  }
-
-  // Plays "audio1" and "video1", with VP8 video in [0,99), and adds a standby
-  // "video2", with |codec| video in [0,120), for ChangeTo().
-  void AddStandbyVideo2(VideoCodec codec) {
-    EXPECT_CALL(*this, DemuxerOpened());
-    demuxer_->Initialize(
-        &host_, CreateInitDoneCallback(kDefaultDuration(), PIPELINE_OK));
-    AddSourceWithOneTrack("audio1", HAS_AUDIO);
-    AddVideoSource("video1", VideoCodec::kVP8, "0K 33K 66D33K");
-    AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
-    AddVideoSource("video2", codec, "0K 40K 80D40K", /*standby=*/true);
     SetSbMediaInterfaceForTesting(&sb_media_interface_);
   }
 
   ::testing::NiceMock<MockSbMediaInterface> sb_media_interface_;
 };
 
-TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToSameCodecDoesNotQueryStarboard) {
+TEST_F(ChunkDemuxerCodecSwitchTest,
+       CanChangeToSameFormatDoesNotQueryStarboard) {
   SetSbMediaInterfaceForTesting(&sb_media_interface_);
   EXPECT_CALL(sb_media_interface_, CanChangeType(_, _)).Times(0);
   EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9MimeType, kVp9MimeType));
-  // Another container or profile of the same codec.
-  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9MimeType,
-                                        "video/mp4; codecs=\"vp09.00.10.08\""));
+  // Another level or container of the same format.
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9Profile0Level40MimeType,
+                                        kVp9Profile0Level51MimeType));
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9Profile0Level51MimeType,
+                                        "video/mp4; codecs=\"vp09.00.51.08\""));
   EXPECT_TRUE(ChunkDemuxer::CanChangeTo("audio/mp4; codecs=\"mp4a.40.2\"",
                                         "audio/mp4; codecs=\"mp4a.40.5\""));
 }
@@ -5611,6 +5653,48 @@ TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToCodecChangeAsksStarboard) {
       .WillOnce(Return(false));
   EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp8MimeType, kVp9MimeType));
   EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kVp8MimeType, kVp9MimeType));
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToProfileChangeAsksStarboard) {
+  SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  // VP9 profile 0 (SDR) to profile 2 (HDR) is a change within the codec that
+  // not every platform makes seamlessly.
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp9Profile0Level51MimeType),
+                            ::testing::StrEq(kVp9Profile2MimeType)))
+      .WillOnce(Return(false));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kVp9Profile0Level51MimeType,
+                                         kVp9Profile2MimeType));
+  // A codec string that doesn't name the profile and bit depth might too.
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp9MimeType),
+                            ::testing::StrEq(kVp9Profile0Level51MimeType)))
+      .WillOnce(Return(true));
+  EXPECT_TRUE(
+      ChunkDemuxer::CanChangeTo(kVp9MimeType, kVp9Profile0Level51MimeType));
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToParameterChangeAsksStarboard) {
+  SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  constexpr char kSdr[] = "video/webm; codecs=\"vp09.02.51.10\"; eotf=bt709";
+  constexpr char kHdr[] =
+      "video/webm; codecs=\"vp09.02.51.10\"; eotf=smpte2084";
+  constexpr char kAac[] = "audio/mp4; codecs=\"mp4a.40.2\"";
+  constexpr char kXheAac[] = "audio/mp4; codecs=\"mp4a.40.42\"";
+  // A change of the other MIME parameters, such as the transfer function, or
+  // to xHE-AAC, needs the platform's support.
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kSdr), ::testing::StrEq(kHdr)))
+      .WillOnce(Return(false));
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kAac), ::testing::StrEq(kXheAac)))
+      .WillOnce(Return(false));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kSdr, kHdr));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kAac, kXheAac));
+  // The same parameters, in another order or case, keep the format.
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(
+      "audio/mp4; codecs=\"ec-3\"; channels=6; foo=1",
+      "audio/mp4; Foo=1; codecs=\"ec-3\"; channels=6"));
 }
 
 TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToRejectsUnusableTypes) {
@@ -5634,7 +5718,7 @@ TEST_F(ChunkDemuxerTest, CanChangeToNeedsSwitching) {
 }
 
 TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToSupportedCodecChange) {
-  AddStandbyVideo2(VideoCodec::kVP9);
+  AddStandbyVideo2(kVp8MimeType, kVp9MimeType);
   EXPECT_CALL(sb_media_interface_,
               CanChangeType(::testing::StrEq(kVp8MimeType),
                             ::testing::StrEq(kVp9MimeType)))
@@ -5649,7 +5733,7 @@ TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToSupportedCodecChange) {
 }
 
 TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToRejectsUnsupportedCodecChange) {
-  AddStandbyVideo2(VideoCodec::kVP9);
+  AddStandbyVideo2(kVp8MimeType, kVp9MimeType);
   EXPECT_CALL(sb_media_interface_,
               CanChangeType(::testing::StrEq(kVp8MimeType),
                             ::testing::StrEq(kVp9MimeType)))
@@ -5663,54 +5747,27 @@ TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToRejectsUnsupportedCodecChange) {
   CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "0K 33K 66K");
 }
 
-TEST_F(ChunkDemuxerCodecSwitchTest, SameCodecDoesNotQueryStarboard) {
-  SelectVideo2(VideoCodec::kVP8);
+TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToSameFormatDoesNotQueryStarboard) {
+  AddStandbyVideo2(kVp9Profile0Level40MimeType, kVp9Profile0Level51MimeType);
   EXPECT_CALL(sb_media_interface_, CanChangeType(_, _)).Times(0);
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio1", "video2"}));
 
   Seek(base::TimeDelta());
   ExpectConfigChanged(DemuxerStream::VIDEO);
   CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "0K 40K 80K");
 }
 
-TEST_F(ChunkDemuxerCodecSwitchTest, SupportedCodecChange) {
-  SelectVideo2(VideoCodec::kVP9);
+TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToProfileChangeAsksStarboard) {
+  AddStandbyVideo2(kVp9Profile0Level51MimeType, kVp9Profile2MimeType);
   EXPECT_CALL(sb_media_interface_,
-              CanChangeType(::testing::StrEq(kVp8MimeType),
-                            ::testing::StrEq(kVp9MimeType)))
-      .WillOnce(Return(true));
-
-  Seek(base::TimeDelta());
-  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
-  ExpectConfigChanged(DemuxerStream::VIDEO);
-  EXPECT_EQ(video_stream->video_decoder_config().codec(), VideoCodec::kVP9);
-  CheckExpectedBuffers(video_stream, "0K 40K 80K");
-
-  // The renderer has the config of "video2" now, so the next seek doesn't
-  // query Starboard again.
-  Seek(base::TimeDelta());
-}
-
-TEST_F(ChunkDemuxerCodecSwitchTest, UnsupportedCodecChangeFailsSeek) {
-  SelectVideo2(VideoCodec::kVP9);
-  EXPECT_CALL(sb_media_interface_,
-              CanChangeType(::testing::StrEq(kVp8MimeType),
-                            ::testing::StrEq(kVp9MimeType)))
+              CanChangeType(::testing::StrEq(kVp9Profile0Level51MimeType),
+                            ::testing::StrEq(kVp9Profile2MimeType)))
       .WillOnce(Return(false));
-  EXPECT_MEDIA_LOG(HasSubstr("SourceBuffer switch rejected: vp8 ("));
+  EXPECT_MEDIA_LOG(HasSubstr("SourceBuffer switch rejected: vp9 ("));
 
-  // A read while the demuxer waits for the seek is aborted, as for any seek.
-  demuxer_->StartWaitingForSeek(base::TimeDelta());
-  bool read_done = false;
-  GetStream(DemuxerStream::VIDEO)
-      ->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
-  base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(read_done);
-
-  // The seek fails, and reads get the end of stream instead of a config change
-  // to "video2".
-  demuxer_->Seek(base::TimeDelta(), NewExpectedStatusCB(PIPELINE_ERROR_DECODE));
-  base::RunLoop().RunUntilIdle();
-  ExpectEndOfStream(DemuxerStream::VIDEO);
+  EXPECT_FALSE(demuxer_->ChangeTo({"audio1", "video2"}));
+  Seek(base::TimeDelta());
+  CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "0K 33K 66K");
 }
 
 }  // namespace

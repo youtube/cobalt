@@ -158,10 +158,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // if any, without running the callback.
   std::pair<ReadCB, uint32_t> TakePendingRead();
 
-  // Sets the write head, as Seek() does, for a stream that a track switch
-  // makes read from |time|.
-  void SetWriteHead(base::TimeDelta time);
-
   // Enables or disables a stream that was just created, before it has a
   // config. Unlike SetEnabled(), it doesn't seek: the demuxer seeks every
   // stream when it initializes, or when the stream's SourceBuffer does.
@@ -490,8 +486,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // |current_type| to one of |next_type|, for example
   // `video/webm; codecs="vp9"` to `video/mp4; codecs="av01.0.05M.08"`. Each
   // type must name exactly one codec, both of the same media type. A switch
-  // within a codec is always possible; one that changes the codec is possible
-  // if SbMediaCanChangeType() allows it. Returns false if switching is off.
+  // that keeps the format (the same codec, profile, bit depth and color; only
+  // the level may differ) is always possible; any other switch is possible if
+  // SbMediaCanChangeType() allows it. Returns false if switching is off.
   static bool CanChangeTo(const std::string& current_type,
                           const std::string& next_type);
 
@@ -509,8 +506,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // media starts. Returns false, and changes nothing, if switching is off, the
   // demuxer isn't initialized, an id is unknown or not initialized yet, two
   // ids have streams of the same type, there is no stream of that type to
-  // switch from, or a switch changes a codec and SbMediaCanChangeType()
-  // rejects the change.
+  // switch from, or a switch changes the format (see CanChangeTo()) and
+  // SbMediaCanChangeType() rejects the change.
   [[nodiscard]] bool ChangeTo(const std::vector<std::string>& ids);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -604,12 +601,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Called only when |multi_source_buffer_switching_| is true, and defined in
   // starboard/chunk_demuxer_starboard.cc.
 
-  // Returns false, after logging why, if a pending track switch changes the
-  // codec of a stream and SbMediaCanChangeType() rejects the change.
-  bool CanCompleteTrackSwitches_Locked() const;
-
   // Returns false, after logging why, if switching playback from |from| to
-  // |to| changes the codec and SbMediaCanChangeType() rejects the change.
+  // |to| changes the format (see CanChangeTo()) and SbMediaCanChangeType()
+  // rejects the change.
   bool CanSwitchStreams_Locked(ChunkDemuxerStream* from,
                                ChunkDemuxerStream* to) const;
 
@@ -627,14 +621,26 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // segment is standby, and a SourceBuffer that plays now has initialized.
   bool CanInitializeBeforeStandbySources_Locked() const;
 
-  // Switches the SelectedTrackStream of |track_type| to the stream in
-  // |enabled_streams|, if it changed. Returns |change_completed_cb| wrapped to
-  // report the SelectedTrackStream instead of the ChunkDemuxerStream.
-  TrackChangeCB OnTracksChangedForSwitching_Locked(
+  // Handles OnTracksChanged(). Only ChangeTo() switches streams, so a track
+  // change keeps playing the selected streams. Returns the streams to report
+  // as enabled: the SelectedTrackStream of |track_type|, if a track of that
+  // type is enabled.
+  std::vector<DemuxerStream*> OnTracksChangedForSwitching_Locked(
       DemuxerStream::Type track_type,
-      const std::set<ChunkDemuxerStream*>& enabled_streams,
-      base::TimeDelta curr_time,
-      TrackChangeCB change_completed_cb);
+      const std::vector<MediaTrack::Id>& track_ids);
+
+  // Called by RemoveId() before it removes the SourceBuffer |source_id|.
+  // Frees its buffered media, because its streams stay alive until the
+  // demuxer is destroyed (the renderer may still hold pointers to them), and
+  // SourceBuffers can come and go for as long as the demuxer plays.
+  void OnRemoveIdForSwitching_Locked(const std::string& source_id);
+
+  // Returns the media time that the eviction of the SourceBuffer |source_id|
+  // keeps media from. That is |media_time| (the current time) for the
+  // SourceBuffers that play now. Standby SourceBuffers, and the ones switched
+  // away from, play from where their media starts, if ChangeTo() selects them.
+  base::TimeDelta GetEvictionMediaTime_Locked(const std::string& source_id,
+                                              base::TimeDelta media_time) const;
 
   // Forward StartReturningData(), AbortPendingReads_Locked() and
   // ShutdownAllStreams(), which run with |lock_| held, to the

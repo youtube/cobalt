@@ -25,12 +25,10 @@
 #include <initializer_list>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
@@ -38,10 +36,13 @@
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_log.h"
+#include "media/base/media_types.h"
 #include "media/base/mime_util.h"
 #include "media/base/starboard/sbmedia_interface.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
+#include "media/filters/source_buffer_state.h"
 #include "media/filters/starboard/selected_track_stream.h"
 
 namespace media {
@@ -68,16 +69,24 @@ StreamCodec GetStreamCodec(ChunkDemuxerStream* stream) {
   return {GetCodecName(config.codec()), config.mime_type()};
 }
 
-// The media type and codec named by a SourceBuffer MIME type, such as
+// The media format named by a SourceBuffer MIME type, such as
 // `video/webm; codecs="vp9"`. The codec name is the one GetStreamCodec()
 // returns for the streams of a SourceBuffer of that type.
-struct MimeTypeCodec {
+struct MimeTypeFormat {
   DemuxerStream::Type type;
   std::string codec;
+  // For video, the profile, bit depth, color and so on, from the codec string.
+  std::optional<VideoType> video;
+  // For audio, whether the codec is xHE-AAC, which shares the codec name with
+  // AAC but needs another decoder.
+  bool is_xhe_aac = false;
+  // The parameters other than `codecs`, lowercased and sorted, for example
+  // `eotf=smpte2084` or `channels=6`, which Starboard reads too.
+  std::vector<std::string> parameters;
 };
 
 // Returns std::nullopt unless |mime_type| names exactly one known codec.
-std::optional<MimeTypeCodec> GetMimeTypeCodec(const std::string& mime_type) {
+std::optional<MimeTypeFormat> GetMimeTypeFormat(const std::string& mime_type) {
   const std::vector<std::string> tokens = base::SplitString(
       mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (tokens.empty()) {
@@ -86,13 +95,19 @@ std::optional<MimeTypeCodec> GetMimeTypeCodec(const std::string& mime_type) {
   const std::string container = base::ToLowerASCII(tokens[0]);
   static constexpr char kCodecs[] = "codecs=";
   std::string codecs_parameter;
+  std::vector<std::string> parameters;
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::StartsWith(tokens[i], kCodecs,
+    if (codecs_parameter.empty() &&
+        base::StartsWith(tokens[i], kCodecs,
                          base::CompareCase::INSENSITIVE_ASCII)) {
       codecs_parameter = tokens[i].substr(sizeof(kCodecs) - 1);
-      break;
+      continue;
     }
+    std::string parameter;
+    base::RemoveChars(base::ToLowerASCII(tokens[i]), " \t", &parameter);
+    parameters.push_back(std::move(parameter));
   }
+  std::sort(parameters.begin(), parameters.end());
   std::vector<std::string> codecs;
   SplitCodecs(codecs_parameter, &codecs);
   if (codecs.size() != 1) {
@@ -100,15 +115,57 @@ std::optional<MimeTypeCodec> GetMimeTypeCodec(const std::string& mime_type) {
   }
   if (const std::optional<VideoType> video = ParseVideoCodecString(
           container, codecs[0], /*allow_ambiguous_matches=*/true)) {
-    return MimeTypeCodec{DemuxerStream::VIDEO, GetCodecName(video->codec)};
+    return MimeTypeFormat{DemuxerStream::VIDEO, GetCodecName(video->codec),
+                          video, /*is_xhe_aac=*/false, std::move(parameters)};
   }
   bool is_ambiguous = false;
   AudioCodec audio_codec = AudioCodec::kUnknown;
   if (ParseAudioCodecString(container, codecs[0], &is_ambiguous,
                             &audio_codec)) {
-    return MimeTypeCodec{DemuxerStream::AUDIO, GetCodecName(audio_codec)};
+    return MimeTypeFormat{
+        DemuxerStream::AUDIO, GetCodecName(audio_codec), std::nullopt,
+        base::EqualsCaseInsensitiveASCII(codecs[0], "mp4a.40.42"),
+        std::move(parameters)};
   }
   return std::nullopt;
+}
+
+// Returns true if a switch from |current| to |next| keeps the format, so that
+// the SbPlayer handles it like a config change within one SourceBuffer, which
+// doesn't ask SbMediaCanChangeType() either. That is the same codec and, for
+// video, the same profile, bit depth, chroma subsampling, color and HDR
+// metadata: for example, a switch from VP9 profile 0 (SDR) to VP9 profile 2
+// (10-bit, maybe HDR) doesn't keep the format, and needs the platform's
+// support. Only the level may differ, as it does between the resolutions of
+// one video. The other parameters of the MIME types, such as `eotf` or
+// `channels`, must match too, and for audio, AAC and xHE-AAC differ.
+bool IsSameFormat(const MimeTypeFormat& current, const MimeTypeFormat& next) {
+  if (current.type != next.type || current.codec != next.codec ||
+      current.is_xhe_aac != next.is_xhe_aac ||
+      current.parameters != next.parameters) {
+    return false;
+  }
+  if (!current.video || !next.video) {
+    return !current.video && !next.video;
+  }
+  const VideoType& a = *current.video;
+  const VideoType& b = *next.video;
+  return a.profile == b.profile && a.bit_depth == b.bit_depth &&
+         a.subsampling == b.subsampling && a.color_space == b.color_space &&
+         a.hdr_metadata_type == b.hdr_metadata_type;
+}
+
+// As above, for the MIME types of two SourceBuffers. Identical MIME types
+// (including two empty ones, for SourceBuffers added without a MIME type)
+// always keep the format; ones that can't be parsed never do.
+bool IsSameFormat(const std::string& current_type,
+                  const std::string& next_type) {
+  if (current_type == next_type) {
+    return true;
+  }
+  const std::optional<MimeTypeFormat> current = GetMimeTypeFormat(current_type);
+  const std::optional<MimeTypeFormat> next = GetMimeTypeFormat(next_type);
+  return current && next && IsSameFormat(*current, *next);
 }
 
 }  // namespace
@@ -126,11 +183,6 @@ void ChunkDemuxerStream::SetEnabledAtCreation(bool enabled) {
   DCHECK(!stream_);
   DCHECK(!read_cb_);
   is_enabled_ = enabled;
-}
-
-void ChunkDemuxerStream::SetWriteHead(base::TimeDelta time) {
-  base::AutoLock auto_lock(lock_);
-  write_head_ = time;
 }
 
 // static
@@ -152,34 +204,19 @@ bool ChunkDemuxer::CanChangeTo(const std::string& current_type,
   if (!IsMultiSourceBufferSwitchingEnabled()) {
     return false;
   }
-  const std::optional<MimeTypeCodec> current = GetMimeTypeCodec(current_type);
-  const std::optional<MimeTypeCodec> next = GetMimeTypeCodec(next_type);
+  const std::optional<MimeTypeFormat> current = GetMimeTypeFormat(current_type);
+  const std::optional<MimeTypeFormat> next = GetMimeTypeFormat(next_type);
   if (!current || !next || current->type != next->type) {
     return false;
   }
-  // The same rule as CanSwitchStreams_Locked(), so that a page can check a
-  // switch before it buffers the media to switch to.
-  if (current->codec == next->codec) {
+  // The same rule as CanSwitchStreams_Locked(), which compares the same MIME
+  // types, so that a page can check a switch before it buffers the media to
+  // switch to.
+  if (IsSameFormat(*current, *next)) {
     return true;
   }
   return GetSbMediaInterface()->CanChangeType(current_type.c_str(),
                                               next_type.c_str());
-}
-
-bool ChunkDemuxer::CanCompleteTrackSwitches_Locked() const {
-  lock_.AssertAcquired();
-  DCHECK(multi_source_buffer_switching_);
-  for (SelectedTrackStream* selected_stream :
-       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
-    if (!selected_stream) {
-      continue;
-    }
-    if (!CanSwitchStreams_Locked(selected_stream->served_stream(),
-                                 selected_stream->stream())) {
-      return false;
-    }
-  }
-  return true;
 }
 
 bool ChunkDemuxer::CanSwitchStreams_Locked(ChunkDemuxerStream* from,
@@ -190,12 +227,18 @@ bool ChunkDemuxer::CanSwitchStreams_Locked(ChunkDemuxerStream* from,
   }
   const StreamCodec current = GetStreamCodec(from);
   const StreamCodec next = GetStreamCodec(to);
-  if (current.codec == next.codec) {
+  // A switch that keeps the format is like a config change within a
+  // SourceBuffer, which the SbPlayer handles without SbMediaCanChangeType().
+  // Not asking keeps switching available on platforms where
+  // SbMediaCanChangeType() returns false.
+  if (current.codec == next.codec &&
+      IsSameFormat(current.mime_type, next.mime_type)) {
     return true;
   }
   // Within a SourceBuffer, changeType() checks SbMediaCanChangeType() before
-  // changing codecs. Check here too so SbPlayer never receives an unsupported
-  // codec transition across SourceBuffers.
+  // changing codecs. Check here too, also for a change of profile, bit depth
+  // or color within a codec (for example SDR to HDR), so that the SbPlayer
+  // never receives a transition across SourceBuffers it can't make.
   if (GetSbMediaInterface()->CanChangeType(current.mime_type.c_str(),
                                            next.mime_type.c_str())) {
     return true;
@@ -247,6 +290,10 @@ void ChunkDemuxer::OnDemuxerStreamCreatedForSwitching_Locked(
       // Like the other streams, it aborts reads until the next seek.
       selected_stream->AbortReads();
     }
+  } else {
+    // Only the stream that the SelectedTrackStream reads is enabled. Another
+    // stream of the type stays disabled, whatever CreateDemuxerStream() did.
+    stream->SetEnabledAtCreation(false);
   }
 }
 
@@ -260,10 +307,6 @@ bool ChunkDemuxer::CanInitializeBeforeStandbySources_Locked() const {
     if (!standby_ids_.contains(id)) {
       return false;
     }
-  } else {
-    // Only the stream that the SelectedTrackStream reads is enabled. Another
-    // stream of the type stays disabled, whatever CreateDemuxerStream() did.
-    stream->SetEnabledAtCreation(false);
   }
   return true;
 }
@@ -339,47 +382,62 @@ bool ChunkDemuxer::ChangeTo(const std::vector<std::string>& ids) {
   return true;
 }
 
-Demuxer::TrackChangeCB ChunkDemuxer::OnTracksChangedForSwitching_Locked(
+std::vector<DemuxerStream*> ChunkDemuxer::OnTracksChangedForSwitching_Locked(
     DemuxerStream::Type track_type,
-    const std::set<ChunkDemuxerStream*>& enabled_streams,
-    base::TimeDelta curr_time,
-    TrackChangeCB change_completed_cb) {
+    const std::vector<MediaTrack::Id>& track_ids) {
   lock_.AssertAcquired();
   DCHECK(multi_source_buffer_switching_);
+  // A page that enables an audio track or selects a video track (for example
+  // a track of a standby SourceBuffer) doesn't switch playback: only
+  // ChangeTo() does, with the checks and the seek that a switch needs. The
+  // streams stay as they are, and the pipeline keeps reading the
+  // SelectedTrackStream, which is the only stream of |track_type| it knows.
   SelectedTrackStream* selected_stream = nullptr;
   if (track_type == DemuxerStream::AUDIO) {
     selected_stream = selected_audio_stream_.get();
   } else if (track_type == DemuxerStream::VIDEO) {
     selected_stream = selected_video_stream_.get();
   }
-  if (!selected_stream) {
-    return change_completed_cb;
+  if (!selected_stream || track_ids.empty()) {
+    return {};
   }
+  MEDIA_LOG(INFO, media_log_)
+      << "Track change ignored: with multi-SourceBuffer switching, "
+         "MediaSource.changeTo() selects the media that plays.";
+  return {selected_stream};
+}
 
-  // OnTracksChanged() enables at most one stream of each type.
-  if (!enabled_streams.empty()) {
-    ChunkDemuxerStream* stream = *enabled_streams.begin();
-    if (selected_stream->stream() != stream) {
-      LOG(INFO) << "Switching to " << DemuxerStream::GetTypeName(track_type)
-                << " stream " << stream << "; it plays from the next seek.";
-      selected_stream->SwitchTo(stream);
-      // As in Seek(), the stream is read again from |curr_time|.
-      stream->SetWriteHead(curr_time);
-    }
+void ChunkDemuxer::OnRemoveIdForSwitching_Locked(const std::string& source_id) {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  standby_ids_.erase(source_id);
+  // RemoveId() keeps the streams, in case the renderer still holds pointers to
+  // them, but nothing reads their media after this.
+  auto itr = source_state_map_.find(source_id);
+  if (itr != source_state_map_.end()) {
+    itr->second->Remove(base::TimeDelta(), kInfiniteDuration,
+                        kInfiniteDuration);
   }
+}
 
-  // The pipeline only knows the SelectedTrackStream of each type.
-  return base::BindOnce(
-      [](DemuxerStream* selected_stream, TrackChangeCB change_completed_cb,
-         const std::vector<DemuxerStream*>& streams) {
-        if (streams.empty()) {
-          std::move(change_completed_cb).Run(streams);
-          return;
-        }
-        std::move(change_completed_cb).Run({selected_stream});
-      },
-      // OnTracksChanged() runs the callback before it returns.
-      base::Unretained(selected_stream), std::move(change_completed_cb));
+base::TimeDelta ChunkDemuxer::GetEvictionMediaTime_Locked(
+    const std::string& source_id,
+    base::TimeDelta media_time) const {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  if (IsSourceUsedForPlayback_Locked(source_id)) {
+    return media_time;
+  }
+  auto itr = source_state_map_.find(source_id);
+  if (itr == source_state_map_.end()) {
+    return media_time;
+  }
+  // The current time is on the timeline of the media that plays now. Using it
+  // here would evict the media of this SourceBuffer that is earlier than it
+  // as if it had played. Eviction keeps the media from where this
+  // SourceBuffer's media starts (0 if it has none), and frees the latest
+  // media first instead.
+  return itr->second->GetLowestPresentationTimestamp();
 }
 
 void ChunkDemuxer::StartSelectedTrackStreamsReturningData_Locked() {

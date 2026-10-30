@@ -598,16 +598,6 @@ void ChunkDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
     return;
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Track switches take effect at this seek. Fail it instead of switching to
-  // a stream whose codec the SbPlayer can't change to. ReportError_Locked()
-  // runs |seek_cb_| with the error.
-  if (multi_source_buffer_switching_ && !CanCompleteTrackSwitches_Locked()) {
-    ReportError_Locked(PIPELINE_ERROR_DECODE);
-    return;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   SeekAllSources(time);
   StartReturningData();
 
@@ -956,11 +946,13 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
   base::AutoLock auto_lock(lock_);
   CHECK(IsValidId_Locked(id));
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (multi_source_buffer_switching_) {
+    OnRemoveIdForSwitching_Locked(id);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   source_state_map_.erase(id);
   pending_source_init_ids_.erase(id);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  standby_ids_.erase(id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Remove demuxer streams created for this id.
   for (const ChunkDemuxerStream* s : id_to_streams_map_[id]) {
     bool stream_found = false;
@@ -1026,6 +1018,14 @@ void ChunkDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
                                    TrackChangeCB change_completed_cb) {
   base::AutoLock auto_lock(lock_);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (multi_source_buffer_switching_) {
+    std::move(change_completed_cb)
+        .Run(OnTracksChangedForSwitching_Locked(track_type, track_ids));
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   std::set<ChunkDemuxerStream*> enabled_streams;
   for (const auto& id : track_ids) {
     auto it = track_id_to_demux_stream_map_.find(id);
@@ -1044,15 +1044,6 @@ void ChunkDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
     enabled_streams.insert(stream);
     stream->SetEnabled(true, curr_time);
   }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (multi_source_buffer_switching_) {
-    // Before the previous stream is disabled below, so that a read pending on
-    // it is held instead of returning end of stream.
-    change_completed_cb = OnTracksChangedForSwitching_Locked(
-        track_type, enabled_streams, curr_time, std::move(change_completed_cb));
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool is_audio = track_type == DemuxerStream::AUDIO;
   for (const auto& stream : is_audio ? audio_streams_ : video_streams_) {
@@ -1083,6 +1074,14 @@ void ChunkDemuxer::OnMemoryPressure(
   }
   base::AutoLock auto_lock(lock_);
   for (const auto& [source, state] : source_state_map_) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (multi_source_buffer_switching_) {
+      state->OnMemoryPressure(
+          GetEvictionMediaTime_Locked(source, currentMediaTime),
+          memory_pressure_level, force_instant_gc);
+      continue;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     state->OnMemoryPressure(currentMediaTime, memory_pressure_level,
                             force_instant_gc);
   }
@@ -1102,6 +1101,11 @@ bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
     LOG(WARNING) << __func__ << " stream " << id << " not found";
     return false;
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (multi_source_buffer_switching_) {
+    currentMediaTime = GetEvictionMediaTime_Locked(id, currentMediaTime);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
 }
 
@@ -1938,6 +1942,14 @@ void ChunkDemuxer::AbortPendingReads_Locked() {
 void ChunkDemuxer::SeekAllSources(base::TimeDelta seek_time) {
   for (auto itr = source_state_map_.begin(); itr != source_state_map_.end();
        ++itr) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // SourceBuffers of media that plays later aren't seeked with the media
+    // that plays now. The seek after ChangeTo() seeks the ones it selects.
+    if (multi_source_buffer_switching_ &&
+        !IsSourceUsedForPlayback_Locked(itr->first)) {
+      continue;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     itr->second->Seek(seek_time);
   }
 }
