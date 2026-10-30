@@ -377,7 +377,22 @@ test("cobalt_unittests") {
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
+    "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
   ]
+
+  # On tvOS (is_ios), MessagePumpType::DEFAULT uses MessagePumpCFRunLoop.
+  # LocalStorageImplTest predicates inside base::test::RunUntil() (which run
+  # from MessagePumpCFRunLoopBase::PreWaitObserver / DoIdleWork()) spin nested
+  # base::RunLoop::Run() calls in GetDatabaseContents() and DoTestGet(),
+  # triggering WorkItemScope and RunLevelTracker DCHECKs in
+  # message_pump_apple.mm and thread_controller.cc.
+  if (!is_ios) {
+    sources += [
+      "//components/services/storage/dom_storage/local_storage_impl_unittest.cc",
+      "//components/services/storage/dom_storage/storage_area_test_util.cc",
+      "//components/services/storage/dom_storage/storage_area_test_util.h",
+    ]
+  }
 
   # Memory instrumentation host-side tool tests require launching external
   # Python processes, which is not supported on Starboard and modular/Evergreen
@@ -458,6 +473,7 @@ test("cobalt_unittests") {
     "//components/metrics:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/services/storage:storage",
     "//components/services/storage/public/cpp",
     "//components/variations",
     "//components/variations/service",
