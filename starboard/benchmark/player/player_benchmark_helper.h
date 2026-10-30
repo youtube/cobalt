@@ -23,9 +23,7 @@
 #include <mutex>
 #include <optional>
 #include <set>
-#include <vector>
 
-#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -67,16 +65,6 @@ class SbPlayerBenchmarkHelper {
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
 
-  // Sets experimental feature entries applied before SbPlayerCreate() and
-  // updates the current thread's configuration.
-  void SetExperimentalFeatures(
-      std::vector<StarboardExperimentalFeatureEntry> features);
-
-  // Configures Starboard experimental features on the calling thread. Called
-  // automatically by the constructor and InitializePlayer(); call explicitly
-  // before invoking SbPlayerCreate() directly from another thread.
-  void ConfigureExperimentalFeaturesForCurrentThread() const;
-
   // Initializes the player with specific audio and video DMP files.
   InitResult InitializePlayer(const char* audio_file,
                               const char* video_file,
@@ -85,8 +73,9 @@ class SbPlayerBenchmarkHelper {
   // Safely destroys the player and releases loaded DMP readers.
   void DestroyPlayer();
 
-  // Generates creation parameters for standard 1080p AVC and stereo AAC
-  // playback.
+  // Generates synthetic creation parameters for standard 1920x1080 AVC and
+  // stereo AAC playback (used by the create/destroy benchmarks; the seek
+  // benchmarks derive stream parameters from their .dmp files instead).
   static void GetCreationParam(SbPlayerCreationParam* out_creation_param,
                                SbPlayerOutputMode output_mode);
 
@@ -114,15 +103,14 @@ class SbPlayerBenchmarkHelper {
                           int64_t timeout_us = kDefaultTimeoutUs);
 
   SbPlayer GetPlayer() const { return player_; }
-  int GetCurrentTicket() const { return ticket_; }
 
   SbWindow GetWindow() { return fake_graphics_context_provider_.window(); }
   SbDecodeTargetGraphicsContextProvider* GetDecoderTargetProvider() {
     return fake_graphics_context_provider_.decoder_target_provider();
   }
 
-  // No-op player callbacks that ignore their context, for benchmarks that do
-  // not track player or decoder state.
+  // No-op sample/decoder callbacks that ignore their context, for benchmarks
+  // that do not feed samples or track decoder readiness.
   static void DummyDeallocateSampleFunc(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer);
@@ -131,14 +119,6 @@ class SbPlayerBenchmarkHelper {
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {}
-  static void DummyPlayerStatusFunc(SbPlayer player,
-                                    void* context,
-                                    SbPlayerState state,
-                                    int ticket) {}
-  static void DummyPlayerErrorFunc(SbPlayer player,
-                                   void* context,
-                                   SbPlayerError error,
-                                   const char* message);
 
  private:
   static void DecoderStatusCallback(SbPlayer player,
@@ -155,7 +135,7 @@ class SbPlayerBenchmarkHelper {
                                   SbPlayerError error,
                                   const char* message);
 
-  // Seeks the player to |seek_time_us| and prepares the readers accordingly.
+  void ConfigureExperimentalFeaturesForCurrentThread() const;
   void Seek(int64_t seek_time_us);
   void WriteSamples(SbMediaType type);
   void PumpDecodeTarget();
@@ -164,13 +144,10 @@ class SbPlayerBenchmarkHelper {
 
   ThreadChecker thread_checker_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
-  std::vector<StarboardExperimentalFeatureEntry> experimental_features_;
 
-  // Mutated only on |thread_checker_| under |mutex_|; safe to read without
-  // |mutex_| on |thread_checker_|, and read under |mutex_| in callbacks.
+  // Accessed only on |thread_checker_|.
   SbPlayer player_ = kSbPlayerInvalid;
   SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
-  int ticket_ = SB_PLAYER_INITIAL_TICKET;
 
   std::unique_ptr<VideoDmpReader> audio_reader_;
   std::unique_ptr<VideoDmpReader> video_reader_;
@@ -181,11 +158,13 @@ class SbPlayerBenchmarkHelper {
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  // Thread synchronization and state tracking. All the state below is guarded
-  // by |mutex_|, and every change is signalled through |condition_variable_|.
+  // Thread synchronization and callback state tracking. All the state below is
+  // guarded by |mutex_|, and every callback state change is signalled through
+  // |condition_variable_|.
   std::mutex mutex_;
   std::condition_variable condition_variable_;
 
+  int ticket_ = SB_PLAYER_INITIAL_TICKET;
   std::set<SbPlayerState> received_player_states_;
   std::optional<Clock::time_point> presenting_time_;
 
@@ -195,11 +174,11 @@ class SbPlayerBenchmarkHelper {
   bool error_occurred_ = false;
 };
 
-// Tracks the asynchronous initialization of a player created with
-// PlayerStatusFunc() and PlayerErrorFunc() as its status and error callbacks,
-// and a pointer to this object as the callback context. The object has to
-// outlive the player, as the callbacks may be invoked until SbPlayerDestroy()
-// returns.
+// Tracks the asynchronous initialization and error state of a player created
+// with PlayerStatusFunc() and PlayerErrorFunc() as its status and error
+// callbacks, and a pointer to this object as the callback context. The object
+// has to outlive the player, as the callbacks may be invoked until
+// SbPlayerDestroy() returns.
 class PlayerInitializationWaiter {
  public:
   static void PlayerStatusFunc(SbPlayer player,
@@ -217,8 +196,10 @@ class PlayerInitializationWaiter {
   bool WaitForInitialization(
       int64_t timeout_us = SbPlayerBenchmarkHelper::kDefaultTimeoutUs);
 
+  bool HasError() const;
+
  private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable condition_variable_;
   bool initialized_ = false;
   bool error_occurred_ = false;

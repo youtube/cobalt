@@ -32,14 +32,15 @@ void BM_PlayerCreateSync(::benchmark::State& state,
   }
 
   for (auto _ : state) {
+    PlayerInitializationWaiter waiter;
     auto start_time = SbPlayerBenchmarkHelper::Clock::now();
 
     SbPlayer player =
         SbPlayerCreate(helper.GetWindow(), &creation_param,
                        SbPlayerBenchmarkHelper::DummyDeallocateSampleFunc,
                        SbPlayerBenchmarkHelper::DummyDecoderStatusFunc,
-                       SbPlayerBenchmarkHelper::DummyPlayerStatusFunc,
-                       SbPlayerBenchmarkHelper::DummyPlayerErrorFunc, nullptr,
+                       PlayerInitializationWaiter::PlayerStatusFunc,
+                       PlayerInitializationWaiter::PlayerErrorFunc, &waiter,
                        helper.GetDecoderTargetProvider());
 
     if (!SbPlayerIsValid(player)) {
@@ -49,11 +50,18 @@ void BM_PlayerCreateSync(::benchmark::State& state,
 
     auto end_time = SbPlayerBenchmarkHelper::Clock::now();
 
+    // SbPlayerDestroy() synchronizes with the player worker thread, so checking
+    // |waiter.HasError()| afterwards catches asynchronous initialization errors
+    // without perturbing the timed [start_time, end_time] window.
+    SbPlayerDestroy(player);
+    if (waiter.HasError()) {
+      state.SkipWithError("SbPlayer reported an error before teardown");
+      break;
+    }
+
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
         end_time - start_time);
     state.SetIterationTime(elapsed.count());
-
-    SbPlayerDestroy(player);
   }
 }
 
@@ -102,10 +110,9 @@ void BM_PlayerCreateAsync(::benchmark::State& state,
   }
 }
 
-// Explicit iteration counts bound total runtime for CreateSync: its manual time
-// is only the synchronous SbPlayerCreate() call, while each iteration also runs
-// an untimed SbPlayerDestroy() that waits for asynchronous initialization and
-// codec teardown (~200-450 ms on Android TV).
+// Explicit iteration counts bound total runtime and provide a uniform 20-sample
+// run across platforms: each iteration runs an untimed SbPlayerDestroy() whose
+// asynchronous teardown cost can vastly exceed the manually timed region.
 BENCHMARK_CAPTURE(BM_PlayerCreateSync, PunchOut, kSbPlayerOutputModePunchOut)
     ->UseManualTime()
     ->Unit(::benchmark::kMicrosecond)
@@ -119,12 +126,14 @@ BENCHMARK_CAPTURE(BM_PlayerCreateSync,
 
 BENCHMARK_CAPTURE(BM_PlayerCreateAsync, PunchOut, kSbPlayerOutputModePunchOut)
     ->UseManualTime()
-    ->Unit(::benchmark::kMillisecond);
+    ->Unit(::benchmark::kMillisecond)
+    ->Iterations(20);
 BENCHMARK_CAPTURE(BM_PlayerCreateAsync,
                   DecodeToTexture,
                   kSbPlayerOutputModeDecodeToTexture)
     ->UseManualTime()
-    ->Unit(::benchmark::kMillisecond);
+    ->Unit(::benchmark::kMillisecond)
+    ->Iterations(20);
 
 }  // namespace
 }  // namespace starboard
