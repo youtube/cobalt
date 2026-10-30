@@ -630,6 +630,25 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
   }
 }
 
+void ApplicationAndroid::SendCaptionSettingsChangedEvent() {
+  if (state() == kStateUnstarted) {
+    // Injecting events before application starts is error-prone.
+    return;
+  }
+  Inject(new Event(kSbEventTypeAccessibilityCaptionSettingsChanged, nullptr,
+                   nullptr));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeSendCaptionSettingsChangedEvent(
+    JNIEnv* env,
+    jobject unused_this) {
+  ApplicationAndroid* app = ApplicationAndroid::Get();
+  if (app) {
+    app->SendCaptionSettingsChangedEvent();
+  }
+}
+
 extern "C" SB_EXPORT_PLATFORM jlong
 Java_dev_cobalt_coat_StarboardBridge_nativeCurrentMonotonicTime(
     JNIEnv* env,
