@@ -316,7 +316,15 @@ void DesktopWindowTreeHostPlatform::Init(const Widget::InitParams& params) {
         begin_frame_adapter_.get());
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  // A Starboard platform window has no widget when SbWindowCreate() fails. It
+  // calls OnAcceleratedWidgetAvailable() once a later Restore() creates one.
+  if (GetAcceleratedWidget() != gfx::kNullAcceleratedWidget) {
+    WindowTreeHost::OnAcceleratedWidgetAvailable();
+  }
+#else
   WindowTreeHost::OnAcceleratedWidgetAvailable();
+#endif
   InitHost();
   window()->Show();
 }
