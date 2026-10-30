@@ -244,7 +244,7 @@ bool UsePassthroughCommandDecoder() {
   // as "NVIDIA Android TV" instead of "SHIELD Android TV" (b/576224535).
   if (base::MatchPattern(build_info->manufacturer(), "NVIDIA") &&
       (base::MatchPattern(build_info->model(), "SHIELD*") ||
-       base::MatchPattern(build_info->model(), "NVIDIA Android TV"))) {
+       base::MatchPattern(build_info->model(), "NVIDIA Android TV*"))) {
     return false;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
