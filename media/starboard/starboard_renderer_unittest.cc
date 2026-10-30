@@ -35,6 +35,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/test/scoped_feature_list.h"
+#include "media/base/android/mock_android_overlay.h"
+#include "media/base/media_switches.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 using ::base::test::RunOnceCallback;
 using ::testing::_;
 using ::testing::DoAll;
@@ -669,6 +675,104 @@ TEST_F(
                     SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Verifies the user journey on Android where a user starts video playback
+// (using an AndroidOverlay Video SurfaceView), immediately backgrounds/conceals
+// the app (e.g., presses Home or switches inputs) while the player is still
+// waiting for the overlay surface during startup, and then returns to the app.
+// Upon returning to the app, playback initialization must resume with a fresh
+// AndroidOverlay and start playing rather than hanging indefinitely on a
+// loading spinner / black screen when the post-reveal OverlayInfo carries the
+// same routing token.
+TEST_F(StarboardRendererTest,
+       ConcealDuringAndroidOverlayInitResetsOverlayAndResumesOnReveal) {
+  base::test::ScopedFeatureList feature_list(media::kCobaltUsingAndroidOverlay);
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  int overlay_factory_calls = 0;
+  MockAndroidOverlay::Callbacks overlay_callbacks;
+  base::android::ScopedJavaGlobalRef<jobject> dummy_surface;
+  renderer_ = std::make_unique<StarboardRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      std::make_unique<NullMediaLog>(),
+      /*overlay_plane_id=*/base::UnguessableToken::Create(),
+      /*audio_write_duration_local=*/base::Seconds(1),
+      /*audio_write_duration_remote=*/base::Seconds(1),
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      StarboardRendererConfig::ExperimentalFeatures{},
+      /*viewport_size=*/gfx::Size(1920, 1080),
+      base::BindRepeating(
+          [](int* factory_calls, MockAndroidOverlay::Callbacks* out_callbacks,
+             base::android::ScopedJavaGlobalRef<jobject>* surface,
+             const base::UnguessableToken& /*routing_token*/,
+             AndroidOverlayConfig config) -> std::unique_ptr<AndroidOverlay> {
+            ++(*factory_calls);
+            auto overlay = std::make_unique<MockAndroidOverlay>();
+            EXPECT_CALL(*overlay, GetJavaSurface())
+                .WillRepeatedly(testing::ReturnRef(*surface));
+            overlay->SetConfig(std::move(config));
+            *out_callbacks = overlay->GetCallbacks();
+            return overlay;
+          },
+          base::Unretained(&overlay_factory_calls),
+          base::Unretained(&overlay_callbacks),
+          base::Unretained(&dummy_surface)));
+  renderer_->set_decode_target_graphics_context_provider(base::BindRepeating(
+      [](SbDecodeTargetGraphicsContextProvider* provider) { return provider; },
+      base::Unretained(&decode_target_graphics_context_provider_)));
+
+  OverlayInfo overlay_info;
+  overlay_info.routing_token = base::UnguessableToken::Create();
+  int overlay_info_requests = 0;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      /*get_sb_window_handle_cb=*/base::NullCallback(),
+      base::BindRepeating(
+          [](StarboardRenderer* renderer, const OverlayInfo& info,
+             int* requests, bool /*restart_for_transitions*/) {
+            ++(*requests);
+            renderer->OnOverlayInfoChanged(info);
+          },
+          base::Unretained(renderer_.get()), overlay_info,
+          base::Unretained(&overlay_info_requests)));
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(overlay_info_requests, 1);
+  EXPECT_EQ(overlay_factory_calls, 1);
+
+  base::MockOnceClosure conceal_done_cb;
+  EXPECT_CALL(conceal_done_cb, Run());
+  StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
+
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(overlay_info_requests, 2);
+  EXPECT_EQ(overlay_factory_calls, 2);
+
+  overlay_callbacks.OverlayReady.Run();
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 

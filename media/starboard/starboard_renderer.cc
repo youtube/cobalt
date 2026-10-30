@@ -669,6 +669,13 @@ void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
 
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
+  // Defer while concealed so `overlay_info_` is not cached before bridge
+  // creation; otherwise the post-reveal `OnOverlayInfoChanged()` retry with the
+  // same routing token would be ignored as unchanged below.
+  if (init_deferred_for_conceal_ || IsApplicationConcealed()) {
+    init_deferred_for_conceal_ = true;
+    return;
+  }
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
   if (!overlay_changed) {
     return;
@@ -1353,6 +1360,14 @@ void StarboardRenderer::OnConcealFallbackSuspend() {
   if (init_cb_) {
     player_bridge_.reset();
     sb_window_ = kSbWindowInvalid;
+#if BUILDFLAG(IS_ANDROID)
+    // Clear the AndroidOverlay and cached `overlay_info_` so `OnRevealResume()`
+    // does not deduplicate the post-reveal `OnOverlayInfoChanged()` callback
+    // when it carries the same routing token.
+    overlay_.reset();
+    overlay_info_ = OverlayInfo();
+    surface_view_ = nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
     audio_read_in_progress_ = false;
     video_read_in_progress_ = false;
     audio_read_delayed_ = false;
