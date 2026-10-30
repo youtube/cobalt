@@ -21,21 +21,19 @@
 namespace blink {
 
 // static
-SourceBuffer* MediaSourceChangeTo::addSourceBuffer(
+SourceBuffer* MediaSourceChangeTo::addStandbySourceBuffer(
     MediaSource& media_source,
     const String& type,
-    const SourceBufferInit* init,
     ExceptionState& exception_state) {
-  return media_source.AddSourceBufferWithInit(type, init, exception_state);
+  return media_source.addStandbySourceBuffer(type, exception_state);
 }
 
 // static
-ScriptPromise<IDLUndefined> MediaSourceChangeTo::changeTo(
-    ScriptState* script_state,
+void MediaSourceChangeTo::changeTo(
     MediaSource& media_source,
     const HeapVector<Member<SourceBuffer>>& source_buffers,
     ExceptionState& exception_state) {
-  return media_source.changeTo(script_state, source_buffers, exception_state);
+  media_source.changeTo(source_buffers, exception_state);
 }
 
 // static

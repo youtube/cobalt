@@ -103,6 +103,13 @@ class WebMediaSource {
       const WebString& mime_type,
       AddStatus& out_status /* out */) = 0;
 
+  // Multi-SourceBuffer switching: like AddSourceBuffer() above, but the
+  // WebSourceBuffer buffers media that plays later, until ChangeTo() selects
+  // it. Unlike AddSourceBuffer(), it also works after the demuxer initialized.
+  virtual std::unique_ptr<WebSourceBuffer> AddStandbySourceBuffer(
+      const WebString& mime_type,
+      AddStatus& out_status /* out */) = 0;
+
   // Multi-SourceBuffer switching: makes playback read |source_buffers|, at
   // most one per media type, from the next seek. Returns false, and changes
   // nothing, if it can't.

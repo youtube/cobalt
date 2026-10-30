@@ -1753,8 +1753,9 @@ bool SourceBuffer::InitializationSegmentReceived(
     // This is done in Chromium code, see MediaSourceState::OnNewConfigs.
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // The tracks of a standby SourceBuffer (MediaSource.addSourceBuffer(type,
-    // {standby: true})) stay disabled until MediaSource.changeTo() selects it.
+    // The tracks of a standby SourceBuffer
+    // (MediaSource.addStandbySourceBuffer()) stay disabled until
+    // MediaSource.changeTo() selects it.
     const bool may_enable_audio_track = !standby_;
     const bool may_select_video_track = !standby_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

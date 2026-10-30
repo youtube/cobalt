@@ -89,6 +89,21 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
   return nullptr;
 }
 
+std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddStandbySourceBuffer(
+    const WebString& mime_type,
+    AddStatus& out_status /* out */) {
+  std::string id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+
+  out_status = static_cast<WebMediaSource::AddStatus>(
+      demuxer_->AddStandbyId(id, mime_type.Utf8()));
+
+  if (out_status == WebMediaSource::kAddStatusOk) {
+    return std::make_unique<WebSourceBufferImpl>(id, demuxer_);
+  }
+
+  return nullptr;
+}
+
 bool WebMediaSourceImpl::ChangeTo(
     const std::vector<WebSourceBuffer*>& source_buffers) {
   std::vector<std::string> ids;

@@ -260,18 +260,11 @@ bool ChunkDemuxer::CanInitializeBeforeStandbySources_Locked() const {
     if (!standby_ids_.contains(id)) {
       return false;
     }
+  } else {
+    // Only the stream that the SelectedTrackStream reads is enabled. Another
+    // stream of the type stays disabled, whatever CreateDemuxerStream() did.
+    stream->SetEnabledAtCreation(false);
   }
-  return true;
-}
-
-bool ChunkDemuxer::SetStandby(const std::string& id) {
-  base::AutoLock auto_lock(lock_);
-  if (!multi_source_buffer_switching_ || !IsValidId_Locked(id)) {
-    return false;
-  }
-  // The streams don't exist until the initialization segment arrives.
-  DCHECK(!id_to_streams_map_.contains(id));
-  standby_ids_.insert(id);
   return true;
 }
 
@@ -443,6 +436,11 @@ void ChunkDemuxer::InitializeLateSource_Locked(
   // Bring the new streams to the state of the others, as the initialization
   // of the demuxer does for all streams.
   SourceBufferState* source_state = source_state_map_[source_id].get();
+  if (state_ == ENDED) {
+    // MarkEndOfStream() marked the other SourceBuffers, and
+    // UnmarkEndOfStream() expects every one to be marked.
+    source_state->MarkEndOfStream();
+  }
   source_state->Seek(GetStartTime());
   if (returning_data_) {
     source_state->StartReturningData();

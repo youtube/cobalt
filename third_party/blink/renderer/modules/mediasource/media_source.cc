@@ -1699,7 +1699,10 @@ std::unique_ptr<WebSourceBuffer> MediaSource::CreateWebSourceBuffer(
     DCHECK(!type.IsNull());
     web_source_buffer =
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-        web_media_source_->AddSourceBuffer(type, add_status /* out */);
+        adding_standby_source_buffer_
+            ? web_media_source_->AddStandbySourceBuffer(type,
+                                                        add_status /* out */)
+            : web_media_source_->AddSourceBuffer(type, add_status /* out */);
 #else  // BUILDFLAG(USE_STARBOARD_MEDIA)
         web_media_source_->AddSourceBuffer(type, codecs, add_status /* out */);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

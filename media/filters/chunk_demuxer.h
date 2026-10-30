@@ -299,10 +299,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // We pass a default parameter |mime_type| to the standard AddId() call,
   // as this allows us to easily pass on the value instead of duplicating
   // existing code.
+  // |standby| is set by AddStandbyId().
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& content_type,
                              const std::string& codecs,
-                             std::string_view mime_type = "");
+                             std::string_view mime_type = "",
+                             bool standby = false);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& content_type,
@@ -479,7 +481,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // on the same media element, MediaSource, and SbPlayer. Demuxers read the
   // setting when they are created.
   //
-  // The methods below are defined in starboard/chunk_demuxer_starboard.cc.
+  // The methods below, except AddStandbyId(), are defined in
+  // starboard/chunk_demuxer_starboard.cc.
   static void SetEnableMultiSourceBufferSwitching(bool enable);
   static bool IsMultiSourceBufferSwitchingEnabled();
 
@@ -492,12 +495,13 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   static bool CanChangeTo(const std::string& current_type,
                           const std::string& next_type);
 
-  // With multi-SourceBuffer switching, marks the SourceBuffer |id| as standby:
-  // it buffers media that plays later. Its streams stay disabled, and it
-  // doesn't hold back initialization, buffered ranges or seeks, until
-  // ChangeTo() selects it. Call it right after adding |id|. Returns false if
-  // switching is off or |id| is unknown.
-  [[nodiscard]] bool SetStandby(const std::string& id);
+  // With multi-SourceBuffer switching, adds the SourceBuffer |id| of MIME type
+  // |mime_type| as standby: it buffers media that plays later. Its streams
+  // stay disabled, and it doesn't hold back initialization, buffered ranges or
+  // seeks, until ChangeTo() selects it. Unlike AddId(), it also works after
+  // the demuxer initialized. Returns kNotSupported if switching is off.
+  [[nodiscard]] Status AddStandbyId(const std::string& id,
+                                    const std::string& mime_type);
 
   // With multi-SourceBuffer switching, makes the pipeline read the streams of
   // the SourceBuffers |ids|, at most one per media type, instead of the
@@ -782,8 +786,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // while the streams return data instead of waiting for a seek.
   bool returning_data_ = false;
 
-  // The SourceBuffers set to standby by SetStandby() and not selected by
-  // ChangeTo() yet.
+  // The SourceBuffers added by AddStandbyId() and not selected by ChangeTo()
+  // yet.
   std::set<std::string> standby_ids_;
 
   // Declared after the ChunkDemuxerStreams they refer to, so that they are

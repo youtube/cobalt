@@ -21,15 +21,27 @@
     Exposed=Window,
     ImplementedAs=MediaSourceChangeTo
 ] partial interface MediaSource {
+    // Like addSourceBuffer(), but the SourceBuffer is standby: its tracks stay
+    // disabled, and it takes no part in playback (buffered ranges, seeks,
+    // activeSourceBuffers) until changeTo() selects it. Unlike
+    // addSourceBuffer(), it also works once the media element has metadata.
     [
         RaisesException,
         RuntimeEnabled=MediaSourceChangeTo
-    ] SourceBuffer addSourceBuffer(DOMString type, SourceBufferInit init);
+    ] SourceBuffer addStandbySourceBuffer(DOMString type);
+    // Hands playback over to `sourceBuffers`, one per media type that plays,
+    // and seeks to where their buffered media starts. Throws, and changes
+    // nothing, if it can't: an InvalidStateError if the MediaSource is closed,
+    // a SourceBuffer isn't in sourceBuffers or has no buffered media, or the
+    // media element has no metadata yet; a TypeError if `sourceBuffers` is
+    // empty; a NotSupportedError if the switch isn't possible (see
+    // canChangeTo()). If readyState is "ended", a successful switch makes it
+    // "open", as appendBuffer() does. The SourceBuffers switched away from
+    // become read-only, and can be removed.
     [
-        CallWith=ScriptState,
         RaisesException,
         RuntimeEnabled=MediaSourceChangeTo
-    ] Promise<undefined> changeTo(sequence<SourceBuffer> sourceBuffers);
+    ] undefined changeTo(sequence<SourceBuffer> sourceBuffers);
     // Whether changeTo() can switch from a SourceBuffer of type `currentType`
     // to one of type `nextType`. Each type names exactly one codec. A switch
     // that changes the codec needs the platform's support

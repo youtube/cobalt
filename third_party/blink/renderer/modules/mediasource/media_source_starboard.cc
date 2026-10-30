@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // MediaSource and SourceBuffer methods for multi-SourceBuffer switching:
-// standby SourceBuffers (addSourceBuffer(type, {standby: true})) and
+// standby SourceBuffers (MediaSource.addStandbySourceBuffer()) and
 // MediaSource.changeTo(). The H5VCC setting
 // `Media.EnableMultiSourceBufferSwitching` exposes them.
 
@@ -26,10 +26,9 @@
 #include <limits>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "third_party/blink/public/platform/web_source_buffer.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_source_buffer_init.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/html/time_ranges.h"
 #include "third_party/blink/renderer/core/html/track/audio_track.h"
@@ -45,54 +44,51 @@
 
 namespace blink {
 
-SourceBuffer* MediaSource::AddSourceBufferWithInit(
+SourceBuffer* MediaSource::addStandbySourceBuffer(
     const String& type,
-    const SourceBufferInit* init,
     ExceptionState& exception_state) {
-  SourceBuffer* source_buffer = addSourceBuffer(type, exception_state);
-  if (!source_buffer || !init->standby()) {
-    return source_buffer;
+  // Multi-SourceBuffer switching is only for MediaSources on the main thread,
+  // where addSourceBuffer() creates the WebSourceBuffer synchronously.
+  DCHECK(IsMainThread());
+  SourceBuffer* source_buffer = nullptr;
+  {
+    // Makes CreateWebSourceBuffer() add a standby WebSourceBuffer, which the
+    // demuxer accepts even after it initialized. Everything else is as in
+    // addSourceBuffer(), including its exceptions.
+    base::AutoReset<bool> adding_standby(&adding_standby_source_buffer_, true);
+    source_buffer = addSourceBuffer(type, exception_state);
   }
-
-  bool succeeded = false;
-  if (!RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
-          &MediaSource::SetStandby_Locked, WrapPersistent(this),
-          WrapPersistent(source_buffer), WTF::Unretained(&succeeded))) ||
-      !succeeded) {
-    // Don't leave behind a SourceBuffer that would take part in playback.
-    removeSourceBuffer(source_buffer, exception_state);
-    if (!exception_state.HadException()) {
-      LogAndThrowDOMException(exception_state,
-                              DOMExceptionCode::kNotSupportedError,
-                              "Standby SourceBuffers aren't supported.");
-    }
-    return nullptr;
+  if (source_buffer) {
+    // Before any append can create its tracks.
+    source_buffer->MarkStandby();
   }
   return source_buffer;
 }
 
-ScriptPromise<IDLUndefined> MediaSource::changeTo(
-    ScriptState* script_state,
+void MediaSource::changeTo(
     const HeapVector<Member<SourceBuffer>>& source_buffers,
     ExceptionState& exception_state) {
   // Multi-SourceBuffer switching is only for MediaSources on the main thread.
   DCHECK(IsMainThread());
-  if (!IsOpen()) {
+  // An "ended" MediaSource reopens after the switch, as for appendBuffer():
+  // the media switched to is played, and a page whose current media was fully
+  // buffered has often called endOfStream().
+  if (IsClosed()) {
     LogAndThrowDOMException(exception_state,
                             DOMExceptionCode::kInvalidStateError,
-                            "The MediaSource's readyState is not 'open'.");
-    return EmptyPromise();
+                            "The MediaSource's readyState is 'closed'.");
+    return;
   }
   if (source_buffers.empty()) {
     LogAndThrowTypeError(exception_state, "No SourceBuffers to change to.");
-    return EmptyPromise();
+    return;
   }
   for (const Member<SourceBuffer>& source_buffer : source_buffers) {
     if (!source_buffers_->Contains(source_buffer)) {
       LogAndThrowDOMException(
           exception_state, DOMExceptionCode::kInvalidStateError,
           "A SourceBuffer isn't in this MediaSource's sourceBuffers.");
-      return EmptyPromise();
+      return;
     }
     // The seek that completes the switch needs media to seek to.
     TimeRanges* ranges = source_buffer->buffered(ASSERT_NO_EXCEPTION);
@@ -100,7 +96,7 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
       LogAndThrowDOMException(exception_state,
                               DOMExceptionCode::kInvalidStateError,
                               "A SourceBuffer has no buffered media.");
-      return EmptyPromise();
+      return;
     }
   }
   // Before the media element has metadata, setting its currentTime doesn't
@@ -119,7 +115,7 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
     LogAndThrowDOMException(exception_state,
                             DOMExceptionCode::kInvalidStateError,
                             "The media element has no metadata yet.");
-    return EmptyPromise();
+    return;
   }
 
   // Switch the streams that playback reads.
@@ -136,14 +132,19 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
     LogAndThrowDOMException(exception_state,
                             DOMExceptionCode::kInvalidStateError,
                             "The MediaSource attachment is closing.");
-    return EmptyPromise();
+    return;
   }
   if (!changed) {
     LogAndThrowDOMException(exception_state,
                             DOMExceptionCode::kNotSupportedError,
                             "Can't change to these SourceBuffers.");
-    return EmptyPromise();
+    return;
   }
+
+  // The demuxer switches while ended, so that a refused switch leaves
+  // readyState as it was. Reopening unmarks the end of stream of every
+  // SourceBuffer, for the media switched to.
+  OpenIfInEndedState();
 
   UpdateTracksAfterChangeTo(source_buffers);
 
@@ -160,15 +161,6 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
     start = 0;
   }
   media_element->setCurrentTime(start);
-  return ToResolvedUndefinedPromise(script_state);
-}
-
-void MediaSource::SetStandby_Locked(
-    SourceBuffer* source_buffer,
-    bool* succeeded,
-    MediaSourceAttachmentSupplement::ExclusiveKey pass_key) {
-  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
-  *succeeded = source_buffer->SetStandby_Locked(pass_key);
 }
 
 void MediaSource::ChangeTo_Locked(
@@ -272,13 +264,6 @@ void MediaSource::UpdateTracksAfterChangeTo(
       SetSourceBufferActive(source_buffer, is_active);
     }
   }
-}
-
-bool SourceBuffer::SetStandby_Locked(
-    MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */) {
-  DCHECK(web_source_buffer_);
-  standby_ = web_source_buffer_->SetStandby();
-  return standby_;
 }
 
 void SourceBuffer::OnChangeTo(bool selected, bool was_active) {

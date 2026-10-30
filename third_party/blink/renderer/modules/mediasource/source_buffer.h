@@ -125,12 +125,10 @@ class SourceBuffer final : public EventTarget,
   // Multi-SourceBuffer switching (MediaSource.changeTo()), defined in
   // media_source_starboard.cc.
 
-  // Makes this SourceBuffer standby: its tracks start disabled, and it doesn't
-  // take part in playback until MediaSource.changeTo() selects it. Returns
-  // false if the media stack can't.
-  bool SetStandby_Locked(
-      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
-  bool IsStandby() const { return standby_; }
+  // Called by MediaSource.addStandbySourceBuffer(), right after it creates
+  // this SourceBuffer: its tracks start disabled, and it doesn't take part in
+  // playback until MediaSource.changeTo() selects it.
+  void MarkStandby() { standby_ = true; }
 
   // The WebSourceBuffer that MediaSource.changeTo() passes down.
   WebSourceBuffer* GetWebSourceBufferForChangeTo() const {
@@ -308,7 +306,7 @@ class SourceBuffer final : public EventTarget,
   void LogFirstSegmentAppendDelay();
 
   const bool append_first_segment_synchronously_;
-  // See SetStandby_Locked() and OnChangeTo().
+  // See MarkStandby() and OnChangeTo().
   bool standby_ = false;
   bool switched_away_ = false;
   bool first_segment_appended_ = false;

@@ -275,11 +275,6 @@ double WebSourceBufferImpl::GetWriteHead(
   DCHECK(demuxer_);
   return demuxer_->GetWriteHead(id_).InSecondsF();
 }
-
-bool WebSourceBufferImpl::SetStandby() {
-  DCHECK(demuxer_);
-  return demuxer_->SetStandby(id_);
-}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 WebMediaPlayer::TrackType mediaTrackTypeToBlink(media::MediaTrack::Type type) {

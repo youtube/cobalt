@@ -778,7 +778,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& content_type,
                                          const std::string& codecs,
-                                         std::string_view mime_type) {
+                                         std::string_view mime_type,
+                                         bool standby) {
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& content_type,
@@ -789,10 +790,10 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   base::AutoLock auto_lock(lock_);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // With multi-SourceBuffer switching, SourceBuffers of media that plays later
+  // With multi-SourceBuffer switching, standby SourceBuffers (AddStandbyId())
   // can also be added after initialization.
-  const bool adding_after_init =
-      multi_source_buffer_switching_ && state_ == INITIALIZED;
+  CHECK(!standby || multi_source_buffer_switching_);
+  const bool adding_after_init = standby && state_ == INITIALIZED;
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING &&
        !adding_after_init) ||
       IsValidId_Locked(id)) {
@@ -820,9 +821,14 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return AddIdInternal(id, std::move(stream_parser),
-                       ExpectedCodecs(content_type, codecs),
-                       mime_type);
+  const Status status =
+      AddIdInternal(id, std::move(stream_parser),
+                    ExpectedCodecs(content_type, codecs), mime_type);
+  if (status == kOk && standby) {
+    // Before any append can create its streams.
+    standby_ids_.insert(id);
+  }
+  return status;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   return AddIdInternal(id, std::move(stream_parser),
                        ExpectedCodecs(content_type, codecs));
@@ -862,6 +868,18 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
     return kNotSupported;
   }
   return AddId(id, type, codecs, mime_type);
+}
+
+ChunkDemuxer::Status ChunkDemuxer::AddStandbyId(const std::string& id,
+                                                const std::string& mime_type) {
+  if (!multi_source_buffer_switching_) {
+    return kNotSupported;
+  }
+  std::string type, codecs;
+  if (!ParseMimeType(mime_type, &type, &codecs)) {
+    return kNotSupported;
+  }
+  return AddId(id, type, codecs, mime_type, /*standby=*/true);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

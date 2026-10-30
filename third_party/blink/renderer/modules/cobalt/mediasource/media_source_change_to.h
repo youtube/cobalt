@@ -16,7 +16,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_MEDIA_SOURCE_CHANGE_TO_H_
 
 #include "build/build_config.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -30,9 +29,7 @@ namespace blink {
 
 class ExceptionState;
 class MediaSource;
-class ScriptState;
 class SourceBuffer;
-class SourceBufferInit;
 
 // Bindings of media_source_extensions.idl: multi-SourceBuffer switching. The
 // implementation is in MediaSource (media_source_starboard.cc).
@@ -40,15 +37,12 @@ class MediaSourceChangeTo {
   STATIC_ONLY(MediaSourceChangeTo);
 
  public:
-  static SourceBuffer* addSourceBuffer(MediaSource&,
-                                       const String& type,
-                                       const SourceBufferInit* init,
-                                       ExceptionState&);
-  static ScriptPromise<IDLUndefined> changeTo(
-      ScriptState*,
-      MediaSource&,
-      const HeapVector<Member<SourceBuffer>>& source_buffers,
-      ExceptionState&);
+  static SourceBuffer* addStandbySourceBuffer(MediaSource&,
+                                              const String& type,
+                                              ExceptionState&);
+  static void changeTo(MediaSource&,
+                       const HeapVector<Member<SourceBuffer>>& source_buffers,
+                       ExceptionState&);
   static bool canChangeTo(const String& current_type, const String& next_type);
 };
 

@@ -30,13 +30,15 @@ namespace {
 // Evaluates to true if the page has the MediaSource API that it uses to switch
 // between SourceBuffers.
 constexpr char kHasChangeTo[] =
+    "'addStandbySourceBuffer' in MediaSource.prototype && "
     "'changeTo' in MediaSource.prototype && 'canChangeTo' in MediaSource";
 
-// Evaluates to whether MediaSource.canChangeTo() allows a switch within a
-// codec, which doesn't need the platform's support.
-constexpr char kCanChangeToSameCodec[] =
-    "MediaSource.canChangeTo('video/webm; codecs=\"vp9\"', "
-    "'video/mp4; codecs=\"vp09.00.10.08\"')";
+// Evaluates to whether MediaSource.canChangeTo() allows a switch that keeps
+// the format (only the level changes), which doesn't need the platform's
+// support.
+constexpr char kCanChangeToSameFormat[] =
+    "MediaSource.canChangeTo('video/webm; codecs=\"vp09.00.10.08\"', "
+    "'video/mp4; codecs=\"vp09.00.51.08\"')";
 
 // Loads the first of two items, buffers the second in standby SourceBuffers,
 // and switches to it with MediaSource.changeTo(). Evaluates to "OK", or throws.
@@ -109,9 +111,19 @@ async function run() {
   await append(audio1, audioData);
   await append(video1, videoData);
 
+  // As without switching, SourceBuffers that play now can't be added once
+  // the media has initialized.
+  let threw = false;
+  try {
+    mediaSource.addSourceBuffer(AUDIO_TYPE);
+  } catch (e) {
+    threw = e.name == 'QuotaExceededError';
+  }
+  check(threw, 'addSourceBuffer() after initialization did not throw');
+
   // The second item buffers in standby SourceBuffers.
-  const audio2 = mediaSource.addSourceBuffer(AUDIO_TYPE, {standby: true});
-  const video2 = mediaSource.addSourceBuffer(VIDEO_TYPE, {standby: true});
+  const audio2 = mediaSource.addStandbySourceBuffer(AUDIO_TYPE);
+  const video2 = mediaSource.addStandbySourceBuffer(VIDEO_TYPE);
   audio2.timestampOffset = SECOND_START;
   video2.timestampOffset = SECOND_START;
   await append(audio2, audioData);
@@ -129,43 +141,60 @@ async function run() {
   // Two SourceBuffers of the same type can't be changed to.
   let rejected = false;
   try {
-    await mediaSource.changeTo([video1, video2]);
+    mediaSource.changeTo([video1, video2]);
   } catch (e) {
     rejected = e.name == 'NotSupportedError';
   }
-  check(rejected, 'changeTo() with two video SourceBuffers did not reject');
+  check(rejected, 'changeTo() with two video SourceBuffers did not throw');
 
   // All media types switch at once.
   rejected = false;
   try {
-    await mediaSource.changeTo([video2]);
+    mediaSource.changeTo([video2]);
   } catch (e) {
     rejected = e.name == 'NotSupportedError';
   }
-  check(rejected, 'changeTo() of only video did not reject');
+  check(rejected, 'changeTo() of only video did not throw');
 
   // SourceBuffers without buffered media can't be changed to.
-  const audio3 = mediaSource.addSourceBuffer(AUDIO_TYPE, {standby: true});
-  const video3 = mediaSource.addSourceBuffer(VIDEO_TYPE, {standby: true});
+  const audio3 = mediaSource.addStandbySourceBuffer(AUDIO_TYPE);
+  const video3 = mediaSource.addStandbySourceBuffer(VIDEO_TYPE);
   rejected = false;
   try {
-    await mediaSource.changeTo([audio3, video3]);
+    mediaSource.changeTo([audio3, video3]);
   } catch (e) {
     rejected = e.name == 'InvalidStateError';
   }
-  check(rejected, 'changeTo() of empty SourceBuffers did not reject');
+  check(rejected, 'changeTo() of empty SourceBuffers did not throw');
   mediaSource.removeSourceBuffer(audio3);
   mediaSource.removeSourceBuffer(video3);
 
-  // Switch to the second item.
-  await mediaSource.changeTo([audio2, video2]);
+  // The first item is fully buffered, so the page ends the stream. A refused
+  // switch leaves the MediaSource ended.
+  mediaSource.endOfStream();
+  check(mediaSource.readyState == 'ended', 'endOfStream() did not end');
+  rejected = false;
+  try {
+    mediaSource.changeTo([video2]);
+  } catch (e) {
+    rejected = e.name == 'NotSupportedError';
+  }
+  check(rejected && mediaSource.readyState == 'ended',
+        'A refused changeTo() changed readyState: ' + mediaSource.readyState);
+
+  // Switch to the second item. changeTo() is synchronous, and reopens the
+  // ended MediaSource.
+  check(mediaSource.changeTo([audio2, video2]) === undefined,
+        'changeTo() returned a value');
+  check(mediaSource.readyState == 'open',
+        'changeTo() did not reopen the MediaSource: ' + mediaSource.readyState);
   active = activeSourceBuffers(mediaSource);
   check(active.length == 2 && active.includes(audio2) &&
             active.includes(video2),
         'activeSourceBuffers was not updated');
 
   // The SourceBuffers switched away from are read-only.
-  let threw = false;
+  threw = false;
   try {
     audio1.appendBuffer(audioData);
   } catch (e) {
@@ -215,7 +244,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSettingsBrowserTest,
                             embedded_test_server()->GetURL("/title2.html")));
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), kHasChangeTo).ExtractBool());
-  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), kCanChangeToSameCodec)
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), kCanChangeToSameFormat)
                   .ExtractBool());
 }
 
