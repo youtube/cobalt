@@ -49,6 +49,7 @@ source_set("browsing_topics") {
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//third_party/blink/public/common",
+    "//third_party/zlib/google:compression_utils",
   ]
 }
 

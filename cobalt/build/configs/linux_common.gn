@@ -70,11 +70,6 @@ use_gtk = false
 use_gio = false
 use_pangocairo = false
 
-# Overriding from components/optimization_guide/features.gni
-# TFLite is a part of the open-source machine-learning library TensorFlow.
-# We are not using tflite in cobalt currently.
-build_with_tflite_lib = false
-
 # Override from //third_party/angle/BUILD.gn
 # This flag uses the Use the PCI lib to collect GPU information on Linux.
 # Disabling this as it causes build errors.

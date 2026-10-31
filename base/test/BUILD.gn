@@ -51,7 +51,6 @@ rust_static_library("test_rust_logger_consumer") {
   cxx_bindings = [ "logging/test_rust_logger_consumer.rs" ]
 }
 
-<<<<<<< HEAD
 rust_static_library("task_environment") {
   testonly = true
   sources = [ "task_environment.rs" ]
@@ -81,14 +80,12 @@ group("test_support_rust") {
   public_deps = [ ":task_environment" ]
 }
 
-=======
 if (is_cobalt && is_partner_toolchain) {
   group("test_support") {
     testonly = true
     public_deps = [ "//copied_base/base/test:test_support" ]
   }
 } else {
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 static_library("test_support") {
   testonly = true
   sources = [

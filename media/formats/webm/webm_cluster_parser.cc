@@ -16,11 +16,8 @@
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/types/optional_util.h"
-<<<<<<< HEAD
-#include "media/base/agtm.h"
-=======
 #include "build/build_config.h"
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "media/base/agtm.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/timestamp_constants.h"

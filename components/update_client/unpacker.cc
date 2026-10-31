@@ -57,6 +57,7 @@ Unpacker::Unpacker(const std::string& app_id,
                    const std::string& prod_id,
                    const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
+                   bool is_foreground,
                    base::OnceCallback<void(const Result& result)> callback)
     : app_id_(app_id),
       prod_id_(prod_id),
@@ -65,6 +66,7 @@ Unpacker::Unpacker(const std::string& app_id,
       path_(crx_operation_result.response),
 #endif
       unzipper_(std::move(unzipper)),
+      is_foreground_(is_foreground),
       callback_(std::move(callback)) {}
 
 Unpacker::~Unpacker() = default;
@@ -75,9 +77,11 @@ void Unpacker::Unpack(const std::string& app_id,
                       const OperationResult& crx_operation_result,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
+                      bool is_foreground,
                       base::OnceCallback<void(const Result& result)> callback) {
   base::WrapRefCounted(new Unpacker(app_id, prod_id, crx_operation_result,
-                                    std::move(unzipper), std::move(callback)))
+                                    std::move(unzipper), is_foreground,
+                                    std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
 #else
