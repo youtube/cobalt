@@ -708,6 +708,11 @@ void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
           SafeIntersectRects(visible_rect_in_content_space, padded_bounds);
     }
   }
+#if BUILDFLAG(IS_COBALT)
+  if (IsSingleTileVisibleOnlyEnabled()) {
+    visible_rect_in_content_space.Intersect(GetInitialVisibleLayerRect());
+  }
+#endif
   viewport_rect_for_tile_priority_in_content_space_ =
       visible_rect_in_content_space;
 }
@@ -1105,6 +1110,42 @@ const GlobalStateThatImpactsTilePriority& PictureLayerImpl::global_tile_state()
     const {
   return layer_tree_impl()->global_tile_state();
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool PictureLayerImpl::IsSingleTileVisibleInterestAreaEnabled() const {
+  return layer_tree_impl()->settings().single_tile_visible_interest_area;
+}
+
+bool PictureLayerImpl::IsSingleTileVisibleOnlyEnabled() const {
+  return layer_tree_impl()->settings().single_tile_visible_only;
+}
+
+gfx::Rect PictureLayerImpl::GetInitialVisibleLayerRect() const {
+  gfx::Rect visible_rect = visible_layer_rect();
+  gfx::Rect viewport_rect = layer_tree_impl()->ViewportRectForTilePriority();
+  if (viewport_rect.IsEmpty()) {
+    viewport_rect = layer_tree_impl()->GetDeviceViewport();
+  }
+  if (!viewport_rect.IsEmpty() &&
+      (visible_rect.IsEmpty() || IsSingleTileVisibleOnlyEnabled())) {
+    gfx::Transform view_to_layer;
+    if (ScreenSpaceTransform().GetInverse(&view_to_layer)) {
+      gfx::Rect projected_viewport =
+          MathUtil::ProjectEnclosingClippedRect(view_to_layer, viewport_rect);
+      if (visible_rect.IsEmpty()) {
+        visible_rect = projected_viewport;
+      } else {
+        visible_rect.Intersect(projected_viewport);
+      }
+    }
+  }
+  visible_rect.Intersect(gfx::Rect(bounds()));
+  if (raster_source_) {
+    visible_rect.Intersect(raster_source_->recorded_bounds());
+  }
+  return visible_rect;
+}
+#endif
 
 gfx::Rect PictureLayerImpl::GetEnclosingVisibleRectInTargetSpace() const {
   return GetScaledEnclosingVisibleRectInTargetSpace(
