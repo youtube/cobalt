@@ -520,6 +520,42 @@ TEST(MimeTypeTest, GetAndValidateParamWithKey) {
             mime_type->GetParamStringValue(kMimeParamEotf, "default_eotf"));
 }
 
+TEST(MimeTypeTest, ToStringWithoutRemovesParamCaseInsensitively) {
+  auto mime_type = MimeType::Create(
+      "video/mp4;codecs=avc1.640028; BITRATE=1000 ;width=1920; Bitrate=2000");
+  ASSERT_TRUE(mime_type);
+
+  EXPECT_EQ("video/mp4; codecs=\"avc1.640028\"; width=1920",
+            mime_type->ToStringWithout(kMimeParamBitrate));
+}
+
+TEST(MimeTypeTest, ToStringWithoutKeepsOtherParams) {
+  auto mime_type =
+      MimeType::Create("audio/mp4; codecs=\"mp4a.40.2\"; channels=2");
+  ASSERT_TRUE(mime_type);
+
+  EXPECT_EQ("audio/mp4; codecs=\"mp4a.40.2\"; channels=2",
+            mime_type->ToStringWithout(kMimeParamBitrate));
+}
+
+TEST(MimeTypeTest, ToStringWithoutRoundTripsParamTypes) {
+  auto mime_type = MimeType::Create(
+      "video/webm; codecs=\"vp9\"; int=1; float=1.5; bool=true; "
+      "quoted_int=\"1\"; quoted_bool=\"true\"; string=abc");
+  ASSERT_TRUE(mime_type);
+
+  auto round_tripped =
+      MimeType::Create(mime_type->ToStringWithout(MimeParam("unused")));
+  ASSERT_TRUE(round_tripped);
+  ASSERT_EQ(mime_type->GetParamCount(), round_tripped->GetParamCount());
+  for (int i = 0; i < mime_type->GetParamCount(); ++i) {
+    EXPECT_EQ(mime_type->GetParamType(i), round_tripped->GetParamType(i));
+    EXPECT_EQ(mime_type->GetParamStringValue(i),
+              round_tripped->GetParamStringValue(i));
+  }
+  EXPECT_EQ(mime_type->GetCodecs(), round_tripped->GetCodecs());
+}
+
 }  // namespace
 
 }  // namespace starboard
