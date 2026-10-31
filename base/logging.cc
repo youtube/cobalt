@@ -567,12 +567,8 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 
 #if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   // Connects Rust logging with the //base logging functionality.
-<<<<<<< HEAD
   internal::init_rust_logging();
-=======
-  internal::init_rust_log_crate();
 #endif
->>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Ignore file options unless logging to file is set.
   if ((g_logging_destination & LOG_TO_FILE) == 0) {
