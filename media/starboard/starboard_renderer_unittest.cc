@@ -268,6 +268,49 @@ TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksEnded) {
   task_environment_.RunUntilIdle();
 }
 
+TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeUntilPresenting) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  // Simulate a platform that processes SbPlayerSeek() asynchronously and keeps
+  // reporting the pre-seek position from SbPlayerGetInfo() until the seek
+  // completes.
+  constexpr base::TimeDelta kPreSeekTime = base::Seconds(40);
+  constexpr base::TimeDelta kSeekTime = base::Seconds(20);
+  constexpr base::TimeDelta kPlayedTime = kSeekTime + base::Milliseconds(500);
+  base::TimeDelta platform_media_time = kPreSeekTime;
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+        *info = {};
+        info->current_media_timestamp = platform_media_time.InMicroseconds();
+        info->duration = SB_PLAYER_NO_DURATION;
+      }));
+  int seek_ticket = SB_PLAYER_INITIAL_TICKET;
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(player, kSeekTime, _))
+      .WillOnce(SaveArg<2>(&seek_ticket));
+
+  renderer_->StartPlayingFrom(kSeekTime);
+  // The stale pre-seek position must not leak out, as the pipeline clamps
+  // media time so that it never goes backwards.
+  EXPECT_EQ(renderer_->GetMediaTime(), kSeekTime);
+
+  player_status_cb_(player, context_, kSbPlayerStatePrerolling, seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), kSeekTime);
+
+  // Once the SbPlayer presents, the platform media time is reported again.
+  platform_media_time = kPlayedTime;
+  EXPECT_CALL(renderer_client_,
+              OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
+                                     BUFFERING_CHANGE_REASON_UNKNOWN));
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), kPlayedTime);
+}
+
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
   SbPlayer player = InitializeWithAudioAndVideo();
   ASSERT_TRUE(player_status_cb_);

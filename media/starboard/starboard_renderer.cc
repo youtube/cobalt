@@ -448,6 +448,12 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  // Report |time| from GetMediaTime() until the SbPlayer finishes the seek.
+  // This is set before the delayed retry below, as the pipeline already
+  // queries media time once StartPlayingFrom() has been called.
+  seek_time_ = time;
+  is_seek_pending_presenting_ = true;
+
   if (audio_read_in_progress_ || video_read_in_progress_) {
     constexpr TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
@@ -592,6 +598,18 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     }
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  if (is_seek_pending_presenting_) {
+    // SbPlayerGetInfo() may keep reporting the pre-seek position until the
+    // SbPlayer completes the seek asynchronously. PipelineImpl clamps media
+    // time so that it never goes backwards, so leaking a stale pre-seek
+    // position here would freeze currentTime after a backwards seek until
+    // playback catches up. Report the seek time until the SbPlayer presents.
+    VLOG_IF(1, media_time != seek_time_)
+        << "SbPlayer reported media time " << media_time << " while seeking to "
+        << seek_time_ << ", reporting seek time.";
+    media_time = seek_time_;
+  }
 
   StoreMediaTime(media_time);
 
@@ -1217,6 +1235,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePrerolling:
       break;
     case kSbPlayerStatePresenting:
+      is_seek_pending_presenting_ = false;
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,
@@ -1230,6 +1249,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 #endif  // BUILDFLAG(IS_IOS_TVOS)
       break;
     case kSbPlayerStateEndOfStream:
+      is_seek_pending_presenting_ = false;
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
