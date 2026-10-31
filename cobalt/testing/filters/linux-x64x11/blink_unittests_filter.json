@@ -1,6 +1,8 @@
 {
-  "comment": "Temporarily disable Blink unit tests",
-  "failing_tests": [
-    "*"
-  ]
+  "comment": "blink_unittests are currently not supported in full. Only targeted Cobalt tests are enabled.",
+  "tests_to_run": [
+    "*HTMLMediaElementTest.ProgressEventTimerPerformsLayoutUpdateWhenFeatureDisabled*",
+    "*HTMLMediaElementTest.ProgressEventTimerSkipsLayoutUpdateWhenFeatureEnabled*"
+  ],
+  "failing_tests": []
 }
