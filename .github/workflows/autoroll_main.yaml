@@ -112,6 +112,7 @@ jobs:
             --max-commits "${MAX_COMMITS}"
             --existing-pr-sha "${FIRST_SHA}"
             --mode "${ROLL_MODE}"
+            --verbose
           )
 
           if [[ "${ROLL_MODE}" == "label" ]]; then
