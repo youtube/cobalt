@@ -23,6 +23,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
@@ -70,6 +71,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
       bool memset_on_reclaim = false;
       // Whether to advise MADV_COLD on reclamation.
       bool mark_as_cold_on_reclaim = false;
+      // Whether to track idle blocks so they are released only by an explicit
+      // decommit (e.g. on memory pressure). Unlike |enable_decommit_on_idle|,
+      // idle blocks are not decommitted incrementally on later allocations.
+      bool enable_decommit_only_on_memory_pressure = false;
     };
 
     virtual ~Strategy() {}
@@ -79,7 +84,11 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
 
-    virtual void DecommitAllDecommitableBlocks() = 0;
+    // Decommits idle blocks. When |include_retained_blocks| is true, idle
+    // blocks in the retain window are decommitted as well, regardless of the
+    // strategy's suspend configuration. Blocks in use are never affected.
+    virtual void DecommitAllDecommitableBlocks(
+        bool include_retained_blocks) = 0;
     virtual void TryToDecommitOneBlock(int cadence) {}
   };
 
@@ -155,6 +164,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   static void OnPeriodicDecommitTask(
       scoped_refptr<PeriodicDecommitState> state);
 
+  // Handles memory pressure when kCobaltDecoderBufferDecommit is enabled.
+  void OnMemoryPressure(
+      base::MemoryPressureListener::MemoryPressureLevel level);
+
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
   static void EnableConfigurableDecommitStrategy(
@@ -181,6 +194,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
   scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
       GUARDED_BY(mutex_);
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
