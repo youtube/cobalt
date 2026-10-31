@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -33,6 +34,9 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
+  SB_LOG(ERROR) << "[AVSBDL] SbDrmCreateSystem key_system=\""
+                << (key_system ? key_system : "(null)") << "\"";
+
   if (!update_request_callback || !session_updated_callback ||
       !key_statuses_changed_callback || !server_certificate_updated_callback ||
       !session_closed_callback) {
@@ -41,6 +45,9 @@ SbDrmSystem SbDrmCreateSystem(
 
   if (!starboard::MediaIsKeySystemSupported(
           kSbMediaVideoCodecNone, kSbMediaAudioCodecNone, key_system)) {
+    SB_LOG(ERROR)
+        << "[AVSBDL] Rejected, MediaIsKeySystemSupported is false for "
+        << key_system;
     return kSbDrmSystemInvalid;
   }
 
@@ -57,6 +64,7 @@ SbDrmSystem SbDrmCreateSystem(
   }
 
   if (DrmSystemPlatform::IsKeySystemSupported(key_system)) {
+    SB_LOG(ERROR) << "[AVSBDL] Using DrmSystemPlatform for " << key_system;
     return DrmSystemPlatform::Create(
         context, update_request_callback, session_updated_callback,
         key_statuses_changed_callback, server_certificate_updated_callback,
@@ -64,10 +72,12 @@ SbDrmSystem SbDrmCreateSystem(
   }
 
   if (!strstr(key_system, DrmSystemPlatform::GetName().c_str())) {
-    SB_DLOG(WARNING) << "Invalid key system " << key_system;
+    SB_LOG(ERROR) << "[AVSBDL] Rejected, invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
 
+  SB_LOG(ERROR) << "[AVSBDL] Using the application DRM system for "
+                << key_system;
   @autoreleasepool {
     SBDDrmManager* drmManager = SBDGetApplication().drmManager;
     SBDApplicationDrmSystem* drmSystem =

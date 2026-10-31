@@ -343,6 +343,14 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+  // A separate decode backend, not a sub-name of the key system above.
+  key_system_infos->push_back(
+      std::make_unique<cdm::PlatformDrmSbdlKeySystemInfo>(
+          kEncryptionSchemes,                            // Encryption schemes.
+          ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+          ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                         // identifier.
 #endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 
