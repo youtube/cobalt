@@ -14,6 +14,11 @@
 
 #include "starboard/elf_loader/relocations.h"
 
+#include <sys/mman.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <cstring>
 #include <memory>
 
 #include "starboard/elf_loader/elf.h"
@@ -376,6 +381,109 @@ TEST_F(RelocationsTest, R_X86_64_PC32) {
   VerifySymAddressPlusAddendDelta(&rel, sym_addr);
 }
 #endif  // SB_IS(ARCH_X64) && defined(USE_RELA)
+
+TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
+  long sys_page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
+  const size_t page_size = (sys_page_size > static_cast<long>(PAGE_SIZE) &&
+                            (sys_page_size & (sys_page_size - 1)) == 0)
+                               ? static_cast<size_t>(sys_page_size)
+                               : PAGE_SIZE;
+  const size_t kMappingSize = 4 * page_size;
+  void* mapped = mmap(nullptr, kMappingSize, PROT_READ | PROT_WRITE,
+                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(mapped, MAP_FAILED);
+  std::memset(mapped, 0x5A, kMappingSize);
+
+  Addr mapped_base = reinterpret_cast<Addr>(mapped);
+  // Start the contiguous relocation tables (.rel(a).dyn followed immediately by
+  // .rel(a).plt) 64 bytes into page 1, split them in the middle of page 2, and
+  // end in page 3. Neither table covers a full page on its own, so page 2 is
+  // only reclaimed when Relocations::DiscardRelocationPages() merges contiguous
+  // DT_REL(A) and DT_JMPREL ranges, while the shared boundary pages (page 1 and
+  // page 3) remain untouched.
+  Addr reloc_table_offset = page_size + 64;
+  size_t reloc_count = (2 * page_size) / sizeof(rel_t);
+  size_t dyn_reloc_count = (page_size + page_size / 2 - 64) / sizeof(rel_t);
+  size_t plt_reloc_count = reloc_count - dyn_reloc_count;
+  size_t dyn_reloc_size = dyn_reloc_count * sizeof(rel_t);
+  size_t plt_reloc_size = plt_reloc_count * sizeof(rel_t);
+  Addr jmp_rel_offset = reloc_table_offset + dyn_reloc_size;
+
+  // Populate every relocation entry with r_info = 0 (R_*_NONE, a no-op
+  // relocation) and non-zero r_offset (plus r_addend on RELA) so that every
+  // sizeof(rel_t) slice on the interior page contains non-zero bytes before
+  // ApplyAllRelocations() across 4 KiB, 16 KiB, and 64 KiB page sizes, and is
+  // zeroed by MADV_DONTNEED after.
+  rel_t* reloc_entries =
+      reinterpret_cast<rel_t*>(mapped_base + reloc_table_offset);
+  for (size_t i = 0; i < reloc_count; ++i) {
+    std::memset(&reloc_entries[i], 0, sizeof(rel_t));
+    reloc_entries[i].r_offset = 0x7F7F7F7Fu;
+#if defined(USE_RELA)
+    reloc_entries[i].r_addend = 0x7F7F7F7F;
+#endif
+  }
+
+  const uint8_t* interior_page =
+      reinterpret_cast<const uint8_t*>(mapped_base + 2 * page_size);
+  ASSERT_TRUE(std::any_of(interior_page, interior_page + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+  ASSERT_TRUE(std::any_of(interior_page + page_size / 2,
+                          interior_page + page_size / 2 + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+
+  Dyn dyn_entries[6];
+  std::memset(dyn_entries, 0, sizeof(dyn_entries));
+#if defined(USE_RELA)
+  dyn_entries[0].d_tag = DT_RELA;
+  dyn_entries[1].d_tag = DT_RELASZ;
+  dyn_entries[2].d_tag = DT_PLTREL;
+  dyn_entries[2].d_un.d_val = DT_RELA;
+#else
+  dyn_entries[0].d_tag = DT_REL;
+  dyn_entries[1].d_tag = DT_RELSZ;
+  dyn_entries[2].d_tag = DT_PLTREL;
+  dyn_entries[2].d_un.d_val = DT_REL;
+#endif
+  dyn_entries[0].d_un.d_ptr = reloc_table_offset;
+  dyn_entries[1].d_un.d_val = dyn_reloc_size;
+  dyn_entries[3].d_tag = DT_JMPREL;
+  dyn_entries[3].d_un.d_ptr = jmp_rel_offset;
+  dyn_entries[4].d_tag = DT_PLTRELSZ;
+  dyn_entries[4].d_un.d_val = plt_reloc_size;
+  dyn_entries[5].d_tag = DT_NULL;
+
+  DynamicSection dyn_section(mapped_base, dyn_entries, 6, 0);
+  ASSERT_TRUE(dyn_section.InitDynamicSection());
+
+  ExportedSymbols symbols;
+  Relocations relocs(mapped_base, &dyn_section, &symbols);
+  ASSERT_TRUE(relocs.InitRelocations());
+  ASSERT_TRUE(relocs.ApplyAllRelocations());
+
+  // ApplyAllRelocations() alone leaves the relocation pages intact until
+  // DiscardRelocationPages() is called (after peak load memory is sampled).
+  EXPECT_TRUE(std::any_of(interior_page, interior_page + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+
+  relocs.DiscardRelocationPages();
+
+  // Every byte of interior page 2 of the relocation table should be zeroed by
+  // MADV_DONTNEED.
+  EXPECT_TRUE(std::all_of(interior_page, interior_page + page_size,
+                          [](uint8_t b) { return b == 0u; }));
+
+  // Shared boundary bytes in page 1 (before relocation table) and page 3
+  // (after relocation table) must not be discarded.
+  const uint8_t* page_1 =
+      reinterpret_cast<const uint8_t*>(mapped_base + page_size);
+  const uint8_t* page_3 =
+      reinterpret_cast<const uint8_t*>(mapped_base + 3 * page_size);
+  EXPECT_EQ(page_1[0], 0x5Au);
+  EXPECT_EQ(page_3[128], 0x5Au);
+
+  munmap(mapped, kMappingSize);
+}
 
 }  // namespace
 }  // namespace elf_loader
