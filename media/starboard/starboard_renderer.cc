@@ -624,17 +624,23 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect,
+                                              int z_index) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (output_rect_ == output_rect) {
+  const bool output_rect_changed = output_rect_ != output_rect;
+  if (!output_rect_changed && z_index_ == z_index) {
     return;
   }
 
   output_rect_ = output_rect;
+  z_index_ = z_index;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (overlay_ && output_rect_) {
-    overlay_->ScheduleLayout(*output_rect_);
+  if (overlay_) {
+    // AndroidOverlay has no z-order, so only forward changes of the rect.
+    if (output_rect_changed) {
+      overlay_->ScheduleLayout(*output_rect_);
+    }
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -928,11 +934,11 @@ void StarboardRenderer::CreatePlayerBridge() {
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
-  if (!player_bridge_ || !output_rect_) {
+  if (!player_bridge_ || !z_index_ || !output_rect_) {
     return;
   }
 
-  player_bridge_->SetBounds(*output_rect_);
+  player_bridge_->SetBounds(*z_index_, *output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {

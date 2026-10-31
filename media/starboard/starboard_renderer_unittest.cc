@@ -491,6 +491,99 @@ TEST_F(StarboardRendererTest,
   task_environment_.RunUntilIdle();
 }
 
+TEST_F(StarboardRendererTest,
+       ZIndexUpdatesWhenPrimaryPlayerAddedBehindSecondaryPlayer) {
+  auto secondary_renderer = std::make_unique<StarboardRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      std::make_unique<NullMediaLog>(),
+      /*overlay_plane_id=*/base::UnguessableToken::Create(),
+      /*audio_write_duration_local=*/base::Seconds(1),
+      /*audio_write_duration_remote=*/base::Seconds(1),
+      /*max_video_capabilities=*/"width=432; height=240; framerate=15;",
+      /*max_video_resolution=*/"",
+      StarboardRendererConfig::ExperimentalFeatures{},
+      /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+  secondary_renderer->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      /*get_sb_window_handle_cb=*/base::NullCallback()
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+  secondary_renderer->set_decode_target_graphics_context_provider(
+      base::BindRepeating(
+          [](SbDecodeTargetGraphicsContextProvider* provider) {
+            return provider;
+          },
+          &decode_target_graphics_context_provider_));
+
+  // Secondary (clear) video creates its SbPlayer first, while primary
+  // (encrypted) video waits for CDM attachment.
+  NiceMock<MockMediaResource> secondary_resource;
+  auto secondary_video_stream =
+      CreateMockDemuxerStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+  std::vector<DemuxerStream*> secondary_streams = {
+      secondary_video_stream.get()};
+  EXPECT_CALL(secondary_resource, GetAllStreams())
+      .WillRepeatedly(Return(secondary_streams));
+
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/true);
+
+  SbPlayer secondary_player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbPlayer primary_player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(Return(secondary_player))
+      .WillOnce(Return(primary_player));
+
+  NiceMock<MockRendererClient> secondary_client;
+  base::MockOnceCallback<void(PipelineStatus)> secondary_init_cb;
+  secondary_renderer->Initialize(&secondary_resource, &secondary_client,
+                                 secondary_init_cb.Get());
+
+  EXPECT_CALL(renderer_client_, OnWaiting(WaitingReason::kNoCdm));
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // While only the secondary video hole is in the compositor, the
+  // VideoGeometrySetter service gives it z_index = 0.
+  EXPECT_CALL(mock_sbplayer_interface_,
+              SetBounds(secondary_player, 0, 1280, 660, 427, 240));
+  secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
+                                            /*z_index=*/0);
+
+  // Now attach CDM to primary renderer so its SbPlayer is created and its
+  // video hole is added behind the secondary one in the compositor.
+  EXPECT_CALL(set_cdm_cb_, Run(true));
+  renderer_->SetCdm(&cdm_context_, set_cdm_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // The service then gives the primary z_index = 1 and raises the secondary to
+  // z_index = 2. The secondary's rect is unchanged, but its new z-index must
+  // still reach SbPlayerSetBounds(). The order in which the two renderers are
+  // notified does not matter.
+  EXPECT_CALL(mock_sbplayer_interface_,
+              SetBounds(primary_player, 1, 0, 0, 1920, 1080));
+  EXPECT_CALL(mock_sbplayer_interface_,
+              SetBounds(secondary_player, 2, 1280, 660, 427, 240));
+  secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
+                                            /*z_index=*/2);
+  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/1);
+
+  // An identical rect and z-index doesn't reach SbPlayerSetBounds() again.
+  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/1);
+  secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
+                                            /*z_index=*/2);
+}
+
 }  // namespace
 
 }  // namespace media

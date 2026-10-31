@@ -770,6 +770,10 @@ viz_source_set("unit_tests") {
   if (is_cobalt) {
     sources += [ "display/cobalt_frame_timing_details_mojom_unittest.cc" ]
     deps += [ "//mojo/public/cpp/test_support:test_utils" ]
+    if (use_starboard_media) {
+      sources += [ "display/starboard/video_geometry_setter_unittest.cc" ]
+      deps += [ "//cobalt/media/service/mojom" ]
+    }
   }
 }
 

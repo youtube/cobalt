@@ -383,6 +383,12 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
     OverlayCandidateList* ca_layer_overlays,
     const OverlayCandidateFactory& candidate_factory) const {
   bool failed = false;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reports all the video holes punched below together, front-most first,
+  // when it goes out of scope. The VideoGeometrySetter service derives the
+  // z-index of each video from that order.
+  ScopedVideoHoleGeometryBatch video_hole_batch;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   for (auto it = quad_list->begin(); it != quad_list->end(); ++it) {
     const DrawQuad* quad = *it;
@@ -563,11 +569,10 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
   if (is_video_hole) {
     CHECK_EQ(candidate_factory.FromDrawQuad(*at, ca_layer),
              OverlayCandidate::CandidateStatus::kSuccess);
-    DCHECK(GetVideoGeometrySetter());
-    GetVideoGeometrySetter()->SetVideoGeometry(
+    ScopedVideoHoleGeometryBatch::Add(
+        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id,
         ca_layer.display_rect,
-        std::get<gfx::OverlayTransform>(ca_layer.transform),
-        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id);
+        std::get<gfx::OverlayTransform>(ca_layer.transform));
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

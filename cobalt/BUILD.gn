@@ -16,6 +16,7 @@ import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
+import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
@@ -511,6 +512,10 @@ test("cobalt_unittests") {
 
   if (is_starboard || is_androidtv) {
     deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
+  if (use_starboard_media) {
+    deps += [ "//cobalt/media/service:unit_tests" ]
   }
 
   if (is_starboard) {

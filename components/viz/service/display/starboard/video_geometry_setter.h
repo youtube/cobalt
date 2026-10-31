@@ -5,9 +5,16 @@
 #ifndef COMPONENTS_VIZ_SERVICE_DISPLAY_STARBOARD_VIDEO_GEOMETRY_SETTER_H_
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_STARBOARD_VIDEO_GEOMETRY_SETTER_H_
 
+#include <vector>
+
+#include "base/memory/stack_allocated.h"
+#include "base/unguessable_token.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "components/viz/service/viz_service_export.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/overlay_transform.h"
 
 namespace viz {
 
@@ -24,6 +31,35 @@ GetVideoGeometrySetter();
 void ConnectVideoGeometrySetter(
     mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
         video_geometry_setter);
+
+// Collects the video holes punched while a frame is processed, and reports them
+// to the VideoGeometrySetter service in one SetVideoGeometries() call when it
+// goes out of scope. Nothing is reported if no video hole was added. The
+// service derives the stacking order (z-index) of the videos from the order of
+// the holes, so they must be added front-most first, i.e., in QuadList order.
+// Batches can't be nested. Must be used on the compositor thread.
+class VIZ_SERVICE_EXPORT ScopedVideoHoleGeometryBatch {
+  STACK_ALLOCATED();
+
+ public:
+  ScopedVideoHoleGeometryBatch();
+
+  ScopedVideoHoleGeometryBatch(const ScopedVideoHoleGeometryBatch&) = delete;
+  ScopedVideoHoleGeometryBatch& operator=(const ScopedVideoHoleGeometryBatch&) =
+      delete;
+
+  ~ScopedVideoHoleGeometryBatch();
+
+  // Adds a video hole to the live batch. Must only be called while a batch is
+  // live, since the service takes each SetVideoGeometries() call as all the
+  // video holes of a frame.
+  static void Add(const base::UnguessableToken& overlay_plane_id,
+                  const gfx::RectF& rect_f,
+                  gfx::OverlayTransform transform);
+
+ private:
+  std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back_;
+};
 
 }  // namespace viz
 
