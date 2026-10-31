@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gpu/config/gpu_preferences.h"
+#include "base/system/helium_knobs.h"
 
 #include <string_view>
 
@@ -48,9 +49,13 @@ size_t GetDefaultGpuDiskCacheSize() {
     cache_size = kDefaultMaxProgramCacheMemoryBytes;
   }
 #else   // !BUILDFLAG(IS_ANDROID)
-  cache_size = base::SysInfo::IsLowEndDevice()
+  cache_size = base::helium::IsLowEndDeviceOr("shader_cache")
                    ? kLowEndMaxProgramCacheMemoryBytes
                    : kDefaultMaxProgramCacheMemoryBytes;
+  // [PoC][Helium] Explicit size.
+  if (auto kb = base::helium::GetSize("program_cache_kb")) {
+    cache_size = static_cast<size_t>(*kb) * 1024;
+  }
 #if BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
     const int size_kb = ::features::kCobaltGpuShaderDiskCacheSizeKb.Get();

@@ -75,6 +75,14 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kNumRasterThreads, "2"},
       // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
       {switches::kMaxHttpCacheSize, "26214400"},
+      // HELIUM (T2): With low-end device mode disabled, keep the 10 non-perf
+      // decision points at their low-end caps while preserving composited
+      // trivial 3D transforms, keeping background GPU state (until critical
+      // memory pressure), and sizing the GPU discardable cache to 16 MB.
+      {"helium-low-end-for",
+       "skia_cache+discardable+v8_heap+decode_limit+storage+shader_cache+"
+       "media_idle+cc_pressure_purge+raster_buffers+msaa"},
+      {"force-gpu-mem-discardable-limit-mb", "16"},
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.

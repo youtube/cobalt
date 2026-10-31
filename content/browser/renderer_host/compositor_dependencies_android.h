@@ -5,9 +5,12 @@
 #ifndef CONTENT_BROWSER_RENDERER_HOST_COMPOSITOR_DEPENDENCIES_ANDROID_H_
 #define CONTENT_BROWSER_RENDERER_HOST_COMPOSITOR_DEPENDENCIES_ANDROID_H_
 
+#include <memory>
+
 #include "base/cancelable_callback.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "components/viz/common/surfaces/frame_sink_id_allocator.h"
@@ -56,6 +59,8 @@ class CONTENT_EXPORT CompositorDependenciesAndroid {
   void CreateVizFrameSinkManager();
   void EnqueueLowEndBackgroundCleanup();
   void DoLowEndBackgroundCleanup();
+  void OnMemoryPressure(
+      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
   void OnVisibilityChanged();
 
   viz::HostFrameSinkManager host_frame_sink_manager_;
@@ -64,6 +69,10 @@ class CONTENT_EXPORT CompositorDependenciesAndroid {
   // A task which runs cleanup tasks on low-end Android after a delay. Enqueued
   // when we hide, canceled when we're shown.
   base::CancelableOnceClosure low_end_background_cleanup_task_;
+
+  // Runs DoLowEndBackgroundCleanup() if critical memory pressure arrives while
+  // the application is in the background.
+  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
 
   // A callback which connects to the viz service on the main thread.
   base::OnceClosure pending_connect_viz_on_main_thread_;

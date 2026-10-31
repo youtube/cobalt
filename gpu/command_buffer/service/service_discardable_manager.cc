@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gpu/command_buffer/service/service_discardable_manager.h"
+#include "base/system/helium_knobs.h"
 
 #include <inttypes.h>
 
@@ -67,7 +68,7 @@ size_t DiscardableCacheSizeLimit() {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::SysInfo::IsLowEndDevice()) {
+  if (base::helium::IsLowEndDeviceOr("gpu_discardable")) {
     return kLowEndCacheSizeBytes;
   } else {
     return kNormalCacheSizeBytes;

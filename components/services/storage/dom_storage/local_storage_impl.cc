@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/services/storage/dom_storage/local_storage_impl.h"
+#include "base/system/helium_knobs.h"
 
 #include <inttypes.h>
 
@@ -207,7 +208,7 @@ StorageAreaImpl::Options createOptions() {
     options.cache_mode = StorageAreaImpl::CacheMode::KEYS_ONLY_WHEN_POSSIBLE;
 #else
     options.cache_mode = StorageAreaImpl::CacheMode::KEYS_AND_VALUES;
-    if (base::SysInfo::IsLowEndDevice()) {
+    if (base::helium::IsLowEndDeviceOr("storage")) {
       options.cache_mode = StorageAreaImpl::CacheMode::KEYS_ONLY_WHEN_POSSIBLE;
     }
 #endif
@@ -348,7 +349,7 @@ LocalStorageImpl::LocalStorageImpl(
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN})),
       memory_dump_id_(base::StringPrintf("LocalStorage/0x%" PRIXPTR,
                                          reinterpret_cast<uintptr_t>(this))),
-      is_low_end_device_(base::SysInfo::IsLowEndDevice()) {
+      is_low_end_device_(base::helium::IsLowEndDeviceOr("storage")) {
   base::trace_event::MemoryDumpManager::GetInstance()
       ->RegisterDumpProviderWithSequencedTaskRunner(
           this, "LocalStorage", task_runner, MemoryDumpProvider::Options());

@@ -1653,6 +1653,8 @@ component("base") {
       "process/process_metrics.h",
       "scoped_native_library.cc",
       "scoped_native_library.h",
+      "system/helium_knobs.cc",
+      "system/helium_knobs.h",
       "system/sys_info.cc",
       "system/sys_info.h",
       "system/sys_info_internal.h",

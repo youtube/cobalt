@@ -8,6 +8,7 @@
 #endif
 
 #include "gpu/command_buffer/client/raster_implementation.h"
+#include "base/system/helium_knobs.h"
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -2201,7 +2202,7 @@ void RasterImplementation::SetActiveURLCHROMIUM(const char* url) {
 cc::ClientPaintCache* RasterImplementation::GetOrCreatePaintCache() {
   if (!paint_cache_) {
     size_t paint_cache_budget = 0u;
-    if (base::SysInfo::IsLowEndDevice()) {
+    if (base::helium::IsLowEndDeviceOr("raster_buffers")) {
       paint_cache_budget = 256 * 1024;
     } else {
       paint_cache_budget = 4 * 1024 * 1024;
