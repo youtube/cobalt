@@ -472,7 +472,7 @@ BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
 // enabled via Finch for experimentation.
 BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Skips HTMLMediaElement work that only exists to support native media
 // controls, which Cobalt never shows (ShouldShowControls() is always false).
