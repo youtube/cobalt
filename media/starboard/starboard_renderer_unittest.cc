@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_renderer.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -34,6 +35,10 @@
 #include "media/starboard/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 using ::base::test::RunOnceCallback;
 using ::testing::_;
@@ -127,6 +132,32 @@ class StarboardRendererTest : public testing::Test {
     return &decode_target_graphics_context_provider_;
   }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  SbPlayer InitializeUrlPlayer() {
+    renderer_->SetSourceUrl("https://example.com/master.m3u8");
+
+    SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+    EXPECT_CALL(mock_sbplayer_interface_, CreateUrlPlayer(_, _, _, _, _, _))
+        .WillOnce(DoAll(SaveArg<2>(&player_status_cb_),
+                        SaveArg<4>(&player_error_cb_), SaveArg<5>(&context_),
+                        Return(player)));
+    EXPECT_CALL(renderer_init_cb_, Run(_)).WillOnce(SaveArg<0>(&init_status_));
+
+    renderer_->Initialize(&media_resource_, &renderer_client_,
+                          renderer_init_cb_.Get());
+    task_environment_.RunUntilIdle();
+    return player;
+  }
+
+  void ReportPlayerError(SbPlayer player,
+                         SbPlayerError error,
+                         const char* message) {
+    ASSERT_TRUE(player_error_cb_);
+    player_error_cb_(player, context_, error, message);
+    task_environment_.RunUntilIdle();
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   base::test::TaskEnvironment task_environment_;
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
@@ -144,6 +175,9 @@ class StarboardRendererTest : public testing::Test {
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
   std::unique_ptr<StarboardRenderer> renderer_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::optional<PipelineStatus> init_status_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {
@@ -490,6 +524,37 @@ TEST_F(StarboardRendererTest,
                     SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_FALSE(init_status_.has_value());
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  ReportPlayerError(
+      player, static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported),
+      "AV key value is not loaded.");
+
+  ASSERT_TRUE(init_status_.has_value());
+  EXPECT_EQ(init_status_->code(), DEMUXER_ERROR_COULD_NOT_OPEN);
+}
+
+TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedAfterInitialization) {
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(init_status_.has_value());
+  ASSERT_EQ(init_status_->code(), PIPELINE_OK);
+
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(DEMUXER_ERROR_COULD_NOT_OPEN)));
+  ReportPlayerError(
+      player, static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported),
+      "item failed");
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 }  // namespace
 
