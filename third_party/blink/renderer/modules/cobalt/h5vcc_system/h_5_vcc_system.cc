@@ -16,11 +16,44 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_details.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_foreground_status.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_pressure_source.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 
 namespace blink {
+
+namespace {
+
+V8LowMemoryKillForegroundStatus::Enum ToV8ForegroundStatus(
+    h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus status) {
+  switch (status) {
+    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kUnknown:
+      return V8LowMemoryKillForegroundStatus::Enum::kUnknown;
+    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kForeground:
+      return V8LowMemoryKillForegroundStatus::Enum::kForeground;
+    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kBackground:
+      return V8LowMemoryKillForegroundStatus::Enum::kBackground;
+  }
+  NOTREACHED();
+}
+
+V8LowMemoryKillPressureSource::Enum ToV8PressureSource(
+    h5vcc_system::mojom::blink::LowMemoryKillPressureSource source) {
+  switch (source) {
+    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kUnknown:
+      return V8LowMemoryKillPressureSource::Enum::kUnknown;
+    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kSystem:
+      return V8LowMemoryKillPressureSource::Enum::kSystem;
+    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kCobalt:
+      return V8LowMemoryKillPressureSource::Enum::kCobalt;
+  }
+  NOTREACHED();
+}
+
+}  // namespace
 
 H5vccSystem::H5vccSystem(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
@@ -221,6 +254,42 @@ void H5vccSystem::OnGetWasLowMemoryKilled(
     ScriptPromiseResolver<IDLBoolean>* resolver,
     bool result) {
   resolver->Resolve(result);
+}
+
+ScriptPromise<IDLNullable<LowMemoryKillDetails>>
+H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state) {
+  auto* resolver = MakeGarbageCollected<
+      ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>>(script_state);
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetLowMemoryKillDetails(
+      WTF::BindOnce(&H5vccSystem::OnGetLowMemoryKillDetails,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetLowMemoryKillDetails(
+    ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>* resolver,
+    h5vcc_system::mojom::blink::LowMemoryKillDetailsPtr result) {
+  if (!result) {
+    resolver->Resolve(nullptr);
+    return;
+  }
+
+  auto* details = LowMemoryKillDetails::Create();
+  details->setTimestampPosixUsec(result->timestamp_posix_usec);
+  details->setForegroundStatus(ToV8ForegroundStatus(result->foreground_status));
+  details->setPressureSource(ToV8PressureSource(result->pressure_source));
+  details->setSystemMemoryAvailable(result->system_memory_available);
+  details->setSystemMemoryTotal(result->system_memory_total);
+  details->setCobaltMemoryUsage(result->cobalt_memory_usage);
+  details->setCobaltMemoryLimit(result->cobalt_memory_limit);
+  if (!result->reason.empty()) {
+    details->setReason(result->reason);
+  }
+  resolver->Resolve(details);
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {
