@@ -360,4 +360,7 @@ if (is_cobalt) {
       "*view_or_click_counts*",
     ]
   }
+
+  bindings_unittest_files +=
+      get_path_info([ "core/v8/js_event_listener_test.cc" ], "abspath")
 }
