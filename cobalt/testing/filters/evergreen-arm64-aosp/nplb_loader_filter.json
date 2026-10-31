@@ -1,8 +1,6 @@
 {
   "comment": "AOSP nplb exclusions.",
   "failing_tests": [
-    "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_329_ec3*",
-    "*SbPlayerGetMediaTimeTest.TimeAfterSeek/*sintel_381_ac3*",
     "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
