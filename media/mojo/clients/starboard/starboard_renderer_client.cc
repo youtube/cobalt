@@ -341,6 +341,15 @@ void StarboardRendererClient::OnBufferedTimeRangesChange(
     url_resource_->OnPlatformBufferedRangesChange(start, length);
   }
 }
+
+void StarboardRendererClient::OnUrlPlayerMetadata(
+    base::TimeDelta duration,
+    const gfx::Size& natural_size) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (url_resource_) {
+    url_resource_->OnPlatformMetadata(duration, natural_size);
+  }
+}
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #if BUILDFLAG(IS_ANDROID)

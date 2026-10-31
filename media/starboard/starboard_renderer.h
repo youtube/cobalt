@@ -118,6 +118,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   using EncryptedMediaInitDataCB =
       base::RepeatingCallback<void(const std::string& init_data_type,
                                    const std::vector<uint8_t>& init_data)>;
+  using UrlPlayerMetadataCB =
+      base::RepeatingCallback<void(base::TimeDelta duration,
+                                   const gfx::Size& natural_size)>;
 
   void SetDurationChangeCB(DurationChangeCB cb) {
     duration_change_cb_ = std::move(cb);
@@ -127,6 +130,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   }
   void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {
     encrypted_media_init_data_cb_ = std::move(cb);
+  }
+  void SetUrlPlayerMetadataCB(UrlPlayerMetadataCB cb) {
+    url_player_metadata_cb_ = std::move(cb);
   }
   void SetSourceUrl(const std::string& source_url);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -276,6 +282,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   DurationChangeCB duration_change_cb_;
   BufferedRangesCB buffered_ranges_cb_;
   EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
+  UrlPlayerMetadataCB url_player_metadata_cb_;
 
   // Cached values for change-detection; only notify upstream when they differ.
   TimeDelta last_buffer_start_;
