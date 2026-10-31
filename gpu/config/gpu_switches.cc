@@ -37,6 +37,15 @@ const char kIgnoreGpuBlocklist[] = "ignore-gpu-blocklist";
 // devices.
 const char kGpuDiskCacheSizeKB[] = "gpu-disk-cache-size-kb";
 
+#if BUILDFLAG(IS_COBALT)
+// Opens only Skia's GrShaderCache on disk; other GPU disk caches stay closed.
+const char kGpuShaderDiskCacheGrOnly[] = "gpu-shader-disk-cache-gr-only";
+
+// Keeps the GPU shader disk cache disabled on preload launches.
+const char kDisablePreloadGpuShaderDiskCache[] =
+    "disable-preload-gpu-shader-disk-cache";
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Disables the non-sandboxed GPU process for DX12 info collection
 const char kDisableGpuProcessForDX12InfoCollection[] =
     "disable-gpu-process-for-dx12-info-collection";

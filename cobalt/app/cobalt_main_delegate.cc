@@ -23,6 +23,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/process/current_process.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
@@ -109,6 +110,27 @@ CobaltMainDelegate::~CobaltMainDelegate() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+// static
+void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
+    base::CommandLine* command_line,
+    bool is_visible) {
+  // Preload launches compile the startup shaders off the user's path.
+  if (is_visible ||
+      command_line->HasSwitch(switches::kDisablePreloadGpuShaderDiskCache)) {
+    return;
+  }
+  command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
+  // GrShaderCache only.
+  command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
+  if (!command_line->HasSwitch(switches::kGpuDiskCacheSizeKB)) {
+    command_line->AppendSwitchASCII(
+        switches::kGpuDiskCacheSizeKB,
+        base::NumberToString(kPreloadGrShaderDiskCacheSizeKB));
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -118,7 +140,8 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   // Disabled unconditionally here, exactly as before kCobaltGpuShaderDiskCache
   // existed, so the control arm is unchanged. PostEarlyInitialization() removes
-  // the switch again only when the feature is enabled.
+  // the switch again only when the feature is enabled or, on Starboard, for
+  // preload launches.
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
@@ -174,6 +197,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
         switches::kDisableGpuShaderDiskCache);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
+                                 is_visible_);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
