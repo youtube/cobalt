@@ -23,6 +23,10 @@
 
 namespace starboard {
 
+// Clears the native window by drawing a black rectangle using a temporary EGL
+// context.
+void ClearNativeWindow(void* raw_context);
+
 class VideoSurfaceHolder {
  public:
   // Return true only if the video surface is available.
