@@ -34,6 +34,7 @@
 #include <memory>
 
 #include "base/format_macros.h"
+#include "base/logging.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_based_event_listener.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_event_listener.h"
@@ -44,6 +45,7 @@
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/abort_signal_registry.h"
 #include "third_party/blink/renderer/core/dom/events/add_event_listener_options_resolved.h"
+#include "third_party/blink/renderer/core/dom/events/custom_event.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_forbidden_scope.h"
 #include "third_party/blink/renderer/core/dom/events/event_target_impl.h"
@@ -51,6 +53,7 @@
 #include "third_party/blink/renderer/core/dom/observable.h"
 #include "third_party/blink/renderer/core/dom/subscriber.h"
 #include "third_party/blink/renderer/core/editing/editor.h"
+#include "third_party/blink/renderer/core/event_interface_names.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/event_util.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
@@ -65,7 +68,9 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
+#include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_activity_logger.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -372,6 +377,61 @@ void ObservableSubscribeDelegate::Trace(Visitor* visitor) const {
   visitor->Trace(options_);
 
   Observable::SubscribeDelegate::Trace(visitor);
+}
+
+// ATOM_PERF (PoC): Logs `detail.latency` ({actionType, durationMs}) of the
+// YouTube TV app's yt-virtual-list__index-change / __transition-end events.
+// Called from JS-initiated dispatch, so a current V8 context exists.
+void AtomLogKabukiLatency(Event& event, ExecutionContext* context) {
+  int64_t now_us = base::TimeTicks::Now().since_origin().InMicroseconds();
+  String action = "unknown";
+  double duration_ms = -1;
+  const char* status = "no_context";
+  v8::Isolate* isolate = context->GetIsolate();
+  if (isolate && isolate->InContext()) {
+    status = "no_detail";
+    v8::HandleScope handle_scope(isolate);
+    v8::TryCatch try_catch(isolate);
+    ScriptState* script_state = ScriptState::ForCurrentRealm(isolate);
+    v8::Local<v8::Context> v8_context = script_state->GetContext();
+    // Read `detail` from the JS event object, which works for CustomEvent and
+    // for events with an expando `detail` property.
+    v8::Local<v8::Value> wrapper = ToV8Traits<Event>::ToV8(script_state, &event);
+    v8::Local<v8::Value> detail;
+    if (wrapper.IsEmpty() || !wrapper->IsObject() ||
+        !wrapper.As<v8::Object>()
+             ->Get(v8_context, V8AtomicString(isolate, "detail"))
+             .ToLocal(&detail)) {
+      detail = v8::Local<v8::Value>();
+    }
+    if (!detail.IsEmpty() && detail->IsObject()) {
+      status = "no_latency";
+    }
+    v8::Local<v8::Value> latency;
+    if (!detail.IsEmpty() && detail->IsObject() &&
+        detail.As<v8::Object>()
+            ->Get(v8_context, V8AtomicString(isolate, "latency"))
+            .ToLocal(&latency) &&
+        latency->IsObject()) {
+      status = "ok";
+      v8::Local<v8::Object> latency_object = latency.As<v8::Object>();
+      v8::Local<v8::Value> value;
+      v8::Local<v8::String> value_string;
+      if (latency_object->Get(v8_context, V8AtomicString(isolate, "actionType"))
+              .ToLocal(&value) &&
+          value->ToString(v8_context).ToLocal(&value_string)) {
+        action = ToCoreString(isolate, value_string);
+      }
+      if (latency_object->Get(v8_context, V8AtomicString(isolate, "durationMs"))
+              .ToLocal(&value) &&
+          value->IsNumber()) {
+        duration_ms = value.As<v8::Number>()->Value();
+      }
+    }
+  }
+  LOG(INFO) << "ATOM_PERF kabuki_latency event=" << event.type().Utf8()
+            << " action=" << action.Utf8() << " duration_ms=" << duration_ms
+            << " status=" << status << " t_us=" << now_us;
 }
 
 }  // namespace
@@ -881,6 +941,12 @@ bool EventTarget::dispatchEventForBindings(Event* event,
 
   if (!GetExecutionContext())
     return false;
+
+  // ATOM_PERF (PoC): Log the YouTube TV app's own list latency measurements
+  // (R2R/T2T input and transition latency, the source of the Rasta metrics).
+  if (event->type().StartsWith("yt-virtual-list__")) {
+    AtomLogKabukiLatency(*event, GetExecutionContext());
+  }
 
   event->SetTrusted(false);
 

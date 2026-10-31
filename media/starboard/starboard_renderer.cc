@@ -1200,6 +1200,10 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
   LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
             << GetPlayerStateName(state);
+  // ATOM_PERF (PoC): Log player state transitions (monotonic us).
+  LOG(INFO) << "ATOM_PERF player_state name=" << GetPlayerStateName(state)
+            << " t_us="
+            << base::TimeTicks::Now().since_origin().InMicroseconds();
 
   // In case if state is changed when creation of the `player_bridge_` fails.
   // We may also need this for suspend/resume support.

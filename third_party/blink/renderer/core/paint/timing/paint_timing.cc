@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/callback_forward.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/default_tick_clock.h"
@@ -660,6 +661,20 @@ void PaintTiming::SetFirstContentfulPaintPresentation(
       relevant_paint_details.first_contentful_paint_presentation_.since_origin()
           .InSecondsF());
   WindowPerformance* performance = GetPerformanceInstance(GetFrame());
+  // ATOM_PERF (PoC): Log FCP and navigation start (monotonic us).
+  if (!is_soft_navigation_fcp && GetFrame() &&
+      GetFrame()->IsOutermostMainFrame()) {
+    int64_t nav_start_us =
+        performance ? performance->timingForReporting()
+                          ->NavigationStartAsMonotonicTime()
+                          .since_origin()
+                          .InMicroseconds()
+                    : 0;
+    LOG(INFO) << "ATOM_PERF fcp t_us="
+              << paint_timing_info.presentation_time.since_origin()
+                     .InMicroseconds()
+              << " nav_start_us=" << nav_start_us;
+  }
   // For soft navigations, we just want to report a performance entry, but not
   // trigger any of the other FCP observers.
   if (is_soft_navigation_fcp) {
