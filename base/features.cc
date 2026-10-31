@@ -145,6 +145,10 @@ BASE_FEATURE(kCobaltV8OptimizeForSize,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+BASE_FEATURE(kCobaltV8FlushCodeOnCriticalMemoryPressure,
+             "CobaltV8FlushCodeOnCriticalMemoryPressure",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 // Enabled by default, except on Android where the upstream Chromium defaults
 // are kept until a dedicated experiment has been run there. The memory and
 // performance tradeoff of collapsing the skewport was only validated on TV

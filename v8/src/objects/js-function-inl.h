@@ -582,8 +582,15 @@ void JSFunction::ResetIfCodeFlushed(
         gc_notify_updated_slot) {
   const bool kBytecodeCanFlush =
       v8_flags.flush_bytecode || v8_flags.stress_snapshot;
+#if BUILDFLAG(IS_COBALT)
+  // Baseline code may also be flushed by the critical memory pressure GC.
+  const bool kBaselineCodeCanFlush =
+      v8_flags.flush_baseline_code || v8_flags.stress_snapshot ||
+      v8_flags.flush_code_on_critical_memory_pressure;
+#else
   const bool kBaselineCodeCanFlush =
       v8_flags.flush_baseline_code || v8_flags.stress_snapshot;
+#endif
   if (!kBytecodeCanFlush && !kBaselineCodeCanFlush) return;
 
   DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(isolate), kBytecodeCanFlush);
