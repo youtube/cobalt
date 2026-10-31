@@ -12,6 +12,10 @@ inputs:
     description: "If logs should be ran through crash symbolization tools."
     required: false
     default: 'false'
+  required:
+    description: "Whether to fail and emit an error if no log files match."
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -39,6 +43,7 @@ runs:
       env:
         LOG_GLOB: ${{ inputs.log_glob }}
         SYMBOLIZE: ${{ inputs.symbolize }}
+        REQUIRED: ${{ inputs.required }}
         PLATFORM: ${{ matrix.platform }}
         CONFIG: ${{ matrix.config }}
       run: |
@@ -49,17 +54,29 @@ runs:
 
         log_files=(${LOG_GLOB})
         if [ ${#log_files[@]} -eq 0 ]; then
-          echo "::error::No log files were collected. The tests probably failed to run."
-          exit 1
+          if [ "${REQUIRED}" == "true" ]; then
+            echo "::error::No log files were collected. The tests probably failed to run."
+            exit 1
+          else
+            echo "No log files found matching pattern: ${LOG_GLOB}"
+          fi
         else
           for log_file in "${log_files[@]}"; do
+            echo "::group::=== ${log_file} ==="
+            echo "================================================================================"
+            echo "Log file: ${log_file}"
+            echo "================================================================================"
             if [ "${SYMBOLIZE}" == "true" ]; then
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
               cat "../${log_file}" | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/
             else
-              echo "=== ${log_file} ==="
               cat "${log_file}"
             fi
+            echo ""
+            echo "================================================================================"
+            echo "End of ${log_file}"
+            echo "================================================================================"
+            echo "::endgroup::"
           done
         fi
       shell: bash
