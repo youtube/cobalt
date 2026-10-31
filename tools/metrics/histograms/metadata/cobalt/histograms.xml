@@ -452,6 +452,31 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.ContentWaitResult.{SplashContent}"
+    enum="CobaltSplashScreenContentWaitResult" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records how the minimum splash screen duration's wait for {SplashContent}
+    ended: the content showed within SplashScreenContentWait_max_delay (2s by
+    default) of the splash screen page loading; it didn't, so the minimum
+    duration started anyway and the content may have been cut short or never
+    shown; or Cobalt switched to the main WebContents before either, e.g.,
+    because the splash screen closed itself when it couldn't fetch or decode its
+    image. Recorded once per launch that shows a splash screen and waits for its
+    content, i.e., with SplashScreenContentWait enabled and a positive
+    SplashScreenContentWait_max_delay, when switching to the main WebContents.
+    Launches that start hidden or are concealed before the switch aren't
+    recorded.
+  </summary>
+  <token key="SplashContent">
+    <variant name="Image"
+        summary="its image to be painted, including a video splash screen
+                 that shows its image as it can't play its video"/>
+    <variant name="Video"
+        summary="its video to start playing, including when it never started"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
