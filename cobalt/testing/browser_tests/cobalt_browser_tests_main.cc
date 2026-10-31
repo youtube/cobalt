@@ -26,6 +26,7 @@
 #include "base/test/test_suite.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
+#include "build/build_config.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -211,7 +212,7 @@ SB_EXPORT void SbEventHandle(const SbEvent* event) {
   }
 }
 
-#if !SB_IS(EVERGREEN)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
