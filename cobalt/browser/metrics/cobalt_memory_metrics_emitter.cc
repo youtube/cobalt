@@ -135,7 +135,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
     {"leveldatabase",
      "LevelDatabase",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
-     kEffectiveSize,
+     kSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"malloc",
