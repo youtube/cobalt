@@ -74,8 +74,6 @@ group("cobalt_shell_lib_deps") {
     "//cobalt/build/configs:buildflags",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
-    "//components/crash/content/browser",
-    "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
@@ -193,6 +191,13 @@ group("cobalt_shell_lib_deps") {
 
   if (is_starboard || is_androidtv) {
     public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
+  }
+
+  if (!is_cobalt_hermetic_build) {
+    public_deps += [
+      "//components/crash/content/browser",
+      "//components/crash/core/app",
+    ]
   }
 }
 
@@ -402,13 +407,16 @@ group("cobalt_shell_app_deps") {
 
   public_deps = [
     ":cobalt_shell_lib",
-    "//components/crash/core/app",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
     "//content/public/renderer",
     "//v8",
   ]
+
+  if (!is_cobalt_hermetic_build) {
+    public_deps += [ "//components/crash/core/app" ]
+  }
 }
 
 repack("pak") {

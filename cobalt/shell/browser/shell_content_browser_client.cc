@@ -113,11 +113,13 @@
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
-#include "components/crash/core/app/crash_switches.h"
-#include "components/crash/core/app/crashpad.h"
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "components/crash/core/app/crash_switches.h"  // nogncheck
+#include "components/crash/core/app/crashpad.h"        // nogncheck
 #include "content/public/common/content_descriptors.h"
-#endif
+#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if BUILDFLAG(ENABLE_CAST_RENDERER)
 #include "media/mojo/services/media_service_factory.h"  // nogncheck
@@ -151,7 +153,7 @@ GetShellContentBrowserClientInstancesImpl() {
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
 }
-#elif BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   int fd;
   pid_t pid;
@@ -327,7 +329,7 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
                                  kForwardSwitches);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     int fd;
@@ -338,7 +340,7 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
           base::NumberToString(pid));
     }
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 #if BUILDFLAG(IS_IOS)
@@ -604,10 +606,12 @@ void ShellContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
       base::GlobalDescriptors::GetInstance()->Get(kShellPakDescriptor),
       base::GlobalDescriptors::GetInstance()->GetRegion(kShellPakDescriptor));
 #endif
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   int crash_signal_fd = GetCrashSignalFD(command_line);
   if (crash_signal_fd >= 0) {
     mappings->Share(kCrashDumpSignal, crash_signal_fd);
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 #endif  // BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_ANDROID)
