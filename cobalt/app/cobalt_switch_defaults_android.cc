@@ -61,6 +61,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on
       // startup.
       ::switches::kUseCustomAndroidFontsXml,
+      // [Atom C14] Disable BackForwardCache for single-page TV web app.
+      ::switches::kDisableBackForwardCache,
   };
   return kCobaltToggleSwitches;
 }
@@ -126,6 +128,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // never reported as audible, meaning deferred audio focus is
                // never executed.
                media::kDeferAudioFocusUntilAudible.name,
+               // [Atom C14] Disable BackForwardCache.
+               features::kBackForwardCache.name,
            },
            ",")},
   };
