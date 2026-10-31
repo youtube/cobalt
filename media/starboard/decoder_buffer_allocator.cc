@@ -16,6 +16,8 @@
 
 #include <sys/mman.h>  // For MADV_COLD
 
+#include <algorithm>
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -72,6 +74,17 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
                             is_memory_pool_allocated_on_demand_);
 
+  if (base::FeatureList::IsEnabled(media::kCobaltDecoderBufferDecommit)) {
+    // The allocator is owned by MediaClient and lives for the lifetime of the
+    // process, and the listener is destroyed first in the destructor, so
+    // base::Unretained() is safe.
+    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
+        FROM_HERE, base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
+                                       base::Unretained(this)));
+    LOG(INFO) << "DecoderBufferAllocator decommits idle blocks on memory "
+                 "pressure.";
+  }
+
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated decoder buffer pool on demand.";
     return;
@@ -82,6 +95,7 @@ DecoderBufferAllocator::DecoderBufferAllocator(
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
+  memory_pressure_listener_.reset();
   StopPeriodicDecommitLoop();
 
   base::AutoLock scoped_lock(mutex_);
@@ -103,7 +117,7 @@ void DecoderBufferAllocator::DecommitAllDecommitableBlocks() {
   }
   base::AutoLock scoped_lock(mutex_);
   if (strategy_) {
-    strategy_->DecommitAllDecommitableBlocks();
+    strategy_->DecommitAllDecommitableBlocks(/*include_retained_blocks=*/false);
   }
 }
 
@@ -161,6 +175,22 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
               << " bytes of decoder buffer pool.";
     strategy_.reset();
+  }
+}
+
+void DecoderBufferAllocator::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    return;
+  }
+  // MODERATE releases idle blocks beyond the retain window. CRITICAL also
+  // releases retained idle blocks. Blocks holding live buffers are untouched.
+  const bool include_retained_blocks =
+      level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+      kCobaltDecoderBufferDecommitReleaseRetainedOnCritical.Get();
+  base::AutoLock scoped_lock(mutex_);
+  if (strategy_) {
+    strategy_->DecommitAllDecommitableBlocks(include_retained_blocks);
   }
 }
 
@@ -383,6 +413,30 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     }
     LOG(WARNING) << "Failed to create the requested DecoderBufferAllocator "
                     "strategy. Falling back to default.";
+  }
+
+  if (base::FeatureList::IsEnabled(media::kCobaltDecoderBufferDecommit)) {
+    // Same allocator as the default strategy, but tracking idle blocks so they
+    // can be returned to the OS. Keeps the platform's pool sizing.
+    Strategy::ExperimentConfig strategy_config;
+    strategy_config.initial_capacity = initial_capacity_;
+    strategy_config.allocation_increment = allocation_unit_;
+    // Idle blocks beyond the retain window are released immediately (no
+    // conservative window), so RSS drops as soon as pressure is signaled.
+    strategy_config.retain_blocks = static_cast<size_t>(
+        std::max(0, kCobaltDecoderBufferDecommitRetainBlocks.Get()));
+    strategy_config.allocate_with_page_alignment = true;
+    // Idle blocks are released only from OnMemoryPressure().
+    strategy_config.enable_decommit_only_on_memory_pressure = true;
+    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
+    LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
+                 "with decommit on memory pressure. initial_capacity: "
+              << initial_capacity_ << ", allocation_increment: "
+              << allocation_unit_
+              << ", retain_blocks: " << strategy_config.retain_blocks
+              << ", conservative_decommit_blocks: "
+              << strategy_config.conservative_decommit_blocks;
+    return;
   }
 
   strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(initial_capacity_,

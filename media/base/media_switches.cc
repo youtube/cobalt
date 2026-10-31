@@ -531,6 +531,28 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, DecoderBufferAllocator uses a strategy that tracks idle pool
+// blocks and returns them to the OS on memory pressure. Blocks that hold live
+// DecoderBuffers are never released. The h5vcc setting
+// "DecoderBuffer.EnableConfigurableDecommitStrategy" still overrides the
+// strategy configuration.
+BASE_FEATURE(kCobaltDecoderBufferDecommit,
+             "CobaltDecoderBufferDecommit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Number of idle pool blocks kept committed on MODERATE memory pressure, so the
+// next playback can reuse them without page faults. Ignored when the h5vcc
+// setting overrides the strategy.
+BASE_FEATURE_PARAM(int,
+                   kCobaltDecoderBufferDecommitRetainBlocks,
+                   &kCobaltDecoderBufferDecommit,
+                   "retain_blocks",
+                   4);
+// Whether CRITICAL memory pressure also releases blocks in the retain window.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltDecoderBufferDecommitReleaseRetainedOnCritical,
+                   &kCobaltDecoderBufferDecommit,
+                   "release_retained_on_critical",
+                   true);
 // When enabled, the MediaSource stream parsers parse appended data in place
 // rather than copying it into an internal byte queue. Cobalt retains the
 // ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is

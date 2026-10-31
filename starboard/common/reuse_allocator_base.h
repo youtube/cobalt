@@ -43,8 +43,12 @@ class ReuseAllocatorBase : public Allocator {
   size_t GetCapacity() const override { return capacity_; }
 
   // Immediately decommit all remaining decommitable blocks (e.g. on app
-  // suspend).
-  void DecommitAllDecommitableBlocks();
+  // suspend). Retained blocks are included if the allocator was constructed
+  // with |aggressive_decommit_on_suspend|, or if |include_retained_blocks| is
+  // true for this call (e.g. on critical memory pressure). In that case all
+  // idle blocks, including lazily freed ones, are released immediately (e.g.
+  // MADV_DONTNEED). Blocks in use are never affected.
+  void DecommitAllDecommitableBlocks(bool include_retained_blocks = false);
 
   // Attempts to decommit a single pending idle block, amortized by `cadence`.
   // When `cadence == 1`, it immediately decommits a pending block.
