@@ -45,6 +45,11 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
  protected:
   sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
 
+  // Drops synthetic bolding (SkFont::setEmbolden) for typefaces that do not
+  // synthesize bold, i.e. typefaces that are already bold or that set
+  // `disable_synthetic_bolding` in fonts.xml. This matches Cobalt 25.
+  void onFilterRec(SkScalerContextRec* rec) const override;
+
   void onCharsToGlyphs(const SkUnichar uni[],
                        int count,
                        SkGlyphID glyphs[]) const override;
