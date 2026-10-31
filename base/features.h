@@ -111,6 +111,15 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
+// When enabled, gates Cobalt LocalStorage LevelDB error recovery and
+// data-wipe prevention (repairing missing CURRENT or recoverable LevelDB
+// open errors before recreating, raising the consecutive commit error
+// threshold from 8 to 32, reopening without DestroyDB on transient I/O
+// errors, and restricting DeleteAndRecreateDatabase to genuine corruption).
+// Disabled by default to allow controlled Finch/Mendel A/B experimentation
+// (--enable-features=CobaltLocalStorageErrorRecovery).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltLocalStorageErrorRecovery);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

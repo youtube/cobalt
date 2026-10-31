@@ -87,6 +87,13 @@ const int64_t kCurrentLocalStorageSchemaVersion = 1;
 // After this many consecutive commit errors we'll throw away the entire
 // database.
 const int kCommitErrorThreshold = 8;
+#if BUILDFLAG(IS_COBALT)
+// Upstream uses 8 consecutive errors with a 5s commit debounce (~40s window).
+// Cobalt enables --enable-aggressive-domstorage-flushing (1s commit delay,
+// b/409608795), so 8 errors occur in just 8s during transient flash stalls.
+// Raising the threshold to 32 restores a ~32s tolerance window.
+const int kCobaltOptimizedCommitErrorThreshold = 32;
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
@@ -730,6 +737,15 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
   } else {
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        !status.IsCorruption()) {
+      // Do not wipe the on-disk database on a transient I/O error reading
+      // VERSION. Fall back to unbacked in-memory mode for this session.
+      database_.reset();
+      OnConnectionFinished();
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -977,8 +993,18 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
   }
 
   commit_error_count_++;
+#if BUILDFLAG(IS_COBALT)
+  const bool error_recovery_enabled = base::FeatureList::IsEnabled(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  const int commit_error_threshold = error_recovery_enabled
+                                         ? kCobaltOptimizedCommitErrorThreshold
+                                         : kCommitErrorThreshold;
+  if (commit_error_count_ > commit_error_threshold &&
+      connection_state_ != CONNECTION_SHUTDOWN) {
+#else
   if (commit_error_count_ > kCommitErrorThreshold &&
       connection_state_ != CONNECTION_SHUTDOWN) {
+#endif
     if (tried_to_recover_from_commit_errors_) {
       // We already tried to recover from a high commit error rate before, but
       // are still having problems: there isn't really anything left to try, so
@@ -991,6 +1017,16 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
+    if (error_recovery_enabled && !status.IsCorruption()) {
+      // Reopen the database without DestroyDB to clear LevelDB's latched
+      // background error while preserving existing on-disk data.
+      PurgeAllStorageAreas();
+      connection_state_ = CONNECTION_IN_PROGRESS;
+      commit_error_count_ = 0;
+      database_.reset();
+      InitiateConnection(in_memory_);
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);

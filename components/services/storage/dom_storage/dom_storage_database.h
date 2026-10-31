@@ -160,6 +160,10 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   }
 
   const leveldb_env::Options& options_for_testing() const { return options_; }
+
+  void MakeAllCommitsFailWithCorruptionForTesting() {
+    fail_commits_with_corruption_for_testing_ = true;
+  }
 #endif
 
   // Use the static factory functions above to construct this class. These
@@ -216,6 +220,10 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // Causes all calls to |Commit()| to fail with an IOError for simulated
   // disk failures in testing.
   bool fail_commits_for_testing_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  bool fail_commits_with_corruption_for_testing_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Callback to run on destruction in tests.
   base::OnceClosure destruction_callback_;
