@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,15 @@ const int kMinStablePlayedFrames = 12 * 1024;
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
+
+// If the AudioTrack doesn't consume any frames for this long while the sink
+// buffer is (almost) full and all of it has been written to the AudioTrack,
+// the AudioTrack is considered deadlocked.
+const int64_t kFullBufferStallTimeoutUs = 3'000'000;  // 3 seconds
+// The sink buffer is considered full when at most 1/|kFullBufferMarginDivisor|
+// of it is empty, as AudioRendererPcm appends audio in chunks and may not fill
+// the buffer completely.
+const int kFullBufferMarginDivisor = 8;
 
 std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
 
@@ -270,6 +280,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
 
   int64_t last_playback_head_position = 0;
+  std::optional<int64_t> stalled_with_full_buffer_since_us;
 
 #if !BUILDFLAG(IS_STARBOARD)
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
@@ -286,6 +297,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     // could lead to incorrect frame consumption calculations.
     last_playback_head_position = -1;
     last_playback_head_event_at = -1;
+    stalled_with_full_buffer_since_us.reset();
     is_flushed_ = true;
     was_playing = false;
   };
@@ -345,6 +357,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
            (audio_track_play_state == AudioTrack::PlayState::kPaused &&
             !is_flushed_));
     }
+    bool is_playback_head_stalled = false;
     if (should_update_media_time) {
       playback_head_position =
           audio_track_->GetAudioTimestamp(&frames_consumed_at);
@@ -364,6 +377,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         last_playback_head_event_at = now;
       }
       if (last_playback_head_position == playback_head_position) {
+        is_playback_head_stalled = true;
         int64_t elapsed = now - last_playback_head_event_at;
         if (elapsed > 5'000'000LL) {
           last_playback_head_event_at = now;
@@ -405,6 +419,44 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
+    }
+
+    // Detect a deadlock where the AudioTrack never consumes any frames because
+    // it waits for more frames than the sink buffer can hold. The sink buffer
+    // size (|frames_per_channel_|) is fixed when the player is created, but the
+    // platform may recreate the underlying track with a larger frame count,
+    // e.g. via AudioTrack::restoreTrack_l() when the audio route switches to a
+    // high latency output like a Cast speaker group. In that case all frames
+    // in the sink buffer are written, the AudioTrack never starts, and no
+    // frames are released to make room for more audio. Raise a capability
+    // changed error so the player is recreated with a sink buffer sized for the
+    // new route. See b/573043984.
+    const bool is_sink_buffer_full =
+        frames_in_audio_track > 0 &&
+        frames_in_audio_track == frames_in_buffer &&
+        frames_per_channel_ - frames_in_buffer <=
+            frames_per_channel_ / kFullBufferMarginDivisor;
+    if (is_playing && !is_eos_reached && is_playback_head_stalled &&
+        is_sink_buffer_full) {
+      int64_t now = CurrentMonotonicTime();
+      if (!stalled_with_full_buffer_since_us) {
+        stalled_with_full_buffer_since_us = now;
+      } else if (now - *stalled_with_full_buffer_since_us >
+                 kFullBufferStallTimeoutUs) {
+        SB_LOG(WARNING) << "AudioTrack hasn't consumed any frames for "
+                        << now - *stalled_with_full_buffer_since_us
+                        << " microseconds with a full sink buffer ("
+                        << frames_in_audio_track << " of "
+                        << frames_per_channel_
+                        << " frames written), start threshold is "
+                        << audio_track_->GetStartThresholdInFrames()
+                        << " frames. Raising a capability changed error to "
+                           "restart playback.";
+        ReportError(true, "AudioTrack stalled with a full sink buffer");
+        break;
+      }
+    } else {
+      stalled_with_full_buffer_since_us.reset();
     }
 
     // |pause_using_audio_track_state_| is enabled: pause/play AudioTrack
