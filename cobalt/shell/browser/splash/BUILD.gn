@@ -1,0 +1,70 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Proof of concept: a splash screen without a WebContents. The video is picked
+# by a Wasm module from the web app, run with WAMR, and played with a
+# Starboard player. See README.md.
+
+source_set("splash") {
+  sources = [
+    "native_splash.cc",
+    "native_splash.h",
+    "splash_cache_reader.cc",
+    "splash_cache_reader.h",
+    "splash_video_player.cc",
+    "splash_video_player.h",
+    "splash_wasm_runner.cc",
+    "splash_wasm_runner.h",
+    "splash_wasm_selector.cc",
+    "splash_wasm_selector.h",
+  ]
+  deps = [
+    "//cobalt/shell:cobalt_shell_switches",
+    "//components/services/storage/public/cpp",
+    "//components/services/storage/public/mojom",
+    "//media",
+    "//mojo/public/cpp/system",
+    "//services/network/public/cpp",
+    "//third_party/blink/public/common",
+    "//third_party/wasm_micro_runtime:wamr",
+    "//ui/display",
+    "//url",
+  ]
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public/mojom:mojom_platform",
+    "//ui/gfx/geometry",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "splash_wasm_runner_unittest.cc" ]
+  deps = [
+    ":splash",
+    ":test_selector",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}
+
+# The test selector module, embedded as bytes. See testdata/.
+source_set("test_selector") {
+  testonly = true
+  sources = [ "testdata/test_selector_wasm.h" ]
+}

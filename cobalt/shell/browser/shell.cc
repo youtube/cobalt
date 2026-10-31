@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/map_util.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -51,6 +52,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_js.h"
+#include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "content/public/browser/browser_context.h"
@@ -80,6 +82,7 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
@@ -576,7 +579,13 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 #endif
   WebContents::CreateParams create_params(browser_context, site_instance);
   bool is_visible = GetPlatform()->IsVisible();
-  create_params.initially_hidden = !is_visible;
+  // Proof of concept: the splash screen is played natively instead, and the
+  // main WebContents stays hidden until it's done.
+  const bool use_native_splash =
+      create_splash_screen_web_contents && is_visible &&
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kNativeSplashPlayer);
+  create_params.initially_hidden = !is_visible || use_native_splash;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
@@ -584,7 +593,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
   std::unique_ptr<WebContents> splash_screen_web_contents;
-  if (create_splash_screen_web_contents && is_visible) {
+  if (create_splash_screen_web_contents && is_visible && !use_native_splash) {
     // Create splash screen WebContents. ATV creates splash screen WebContents
     // in JNI_ShellManager_LaunchShell(), whereas other platforms create it in
     // ShellBrowserMainParts::InitializeMessageLoopContext().
@@ -613,6 +622,9 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
       std::move(web_contents), std::move(splash_screen_web_contents),
       AdjustWindowSize(initial_size), true /* should_set_delegate */, topic);
 
+  if (use_native_splash) {
+    shell->StartNativeSplash(browser_context);
+  }
   if (!url.is_empty()) {
     shell->LoadURL(url);
   }
@@ -645,6 +657,13 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 
 void Shell::DidFirstVisuallyNonEmptyPaint() {
   MarkStartupEvent(SplashScreenMetrics::Event::kMainFirstPaint);
+  main_has_painted_ = true;
+  if (native_splash_) {
+    LOG(INFO) << "NativeSplash: main WebContents painted.";
+    MaybeDestroyNativeSplash();
+    // The system splash is taken down by the native splash instead.
+    return;
+  }
   MaybeHideSystemSplashScreen();
 }
 
@@ -699,6 +718,7 @@ void Shell::DidStopLoading() {
   // Marked regardless of the splash screen state, so that it's also recorded
   // when there is no splash screen.
   MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
+  OnNativeSplashMainLoaded();
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -1288,6 +1308,7 @@ void Shell::LoadProgressChanged(double progress) {
     // Marked regardless of the splash screen state, so that it's also recorded
     // when there is no splash screen.
     MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
+    OnNativeSplashMainLoaded();
   }
   if (progress >= 1.0 && !is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
@@ -1394,6 +1415,94 @@ void Shell::SwitchToMainWebContents(
   }
 }
 
+void Shell::StartNativeSplash(BrowserContext* browser_context) {
+  NativeSplash::Config config;
+  config.splash_origin =
+      url::Origin::Create(GURL(switches::kDefaultURL)).GetURL();
+  config.cache_name = splash_topic_.empty()
+                          ? std::u16string(switches::kDefaultSplashCacheName)
+                          : base::UTF8ToUTF16(splash_topic_);
+  config.selector_input.topic = splash_topic_;
+  GeneratedResourceMap resources;
+  LoaderEmbeddedResources::GenerateMap(resources);
+  const std::string builtin_key =
+      splash_topic_.empty() ? "splash.webm" : splash_topic_ + "_splash.webm";
+  if (const FileContents* contents = base::FindOrNull(resources, builtin_key)) {
+    config.builtin_video.assign(contents->data,
+                                contents->data + contents->size);
+  }
+  GetPlatform()->SetNativeSplashActive(this, true);
+  native_splash_ =
+      std::make_unique<NativeSplash>(browser_context, std::move(config));
+  native_splash_->Start(base::BindOnce(&Shell::MaybeHideSystemSplashScreen),
+                        base::BindOnce(&Shell::OnNativeSplashFinished,
+                                       weak_factory_.GetWeakPtr()));
+}
+
+// How long the splash's last frame may wait for the main WebContents to load.
+constexpr base::TimeDelta kNativeSplashMaxHold = base::Seconds(5);
+// How long the splash may wait for the main WebContents to paint, once shown.
+constexpr base::TimeDelta kNativeSplashMaxPaintWait = base::Seconds(3);
+// Lets the main WebContents' frame reach the screen before the splash's last
+// frame is removed from under it.
+constexpr base::TimeDelta kNativeSplashTeardownDelay = base::Milliseconds(300);
+
+void Shell::OnNativeSplashFinished() {
+  native_splash_video_ended_ = true;
+  native_splash_timer_.Start(FROM_HERE, kNativeSplashMaxHold,
+                             base::BindOnce(&Shell::SwitchFromNativeSplash,
+                                            weak_factory_.GetWeakPtr()));
+  MaybeSwitchFromNativeSplash();
+}
+
+void Shell::OnNativeSplashMainLoaded() {
+  if (!native_splash_ || native_splash_main_loaded_) {
+    return;
+  }
+  LOG(INFO) << "NativeSplash: main WebContents loaded.";
+  native_splash_main_loaded_ = true;
+  MaybeSwitchFromNativeSplash();
+}
+
+void Shell::MaybeSwitchFromNativeSplash() {
+  if (native_splash_video_ended_ && native_splash_main_loaded_) {
+    SwitchFromNativeSplash();
+  }
+}
+
+void Shell::SwitchFromNativeSplash() {
+  if (native_splash_switched_ || !native_splash_) {
+    return;
+  }
+  LOG(INFO) << "NativeSplash: showing the main WebContents"
+            << (native_splash_main_loaded_ ? "." : " before it loaded.");
+  native_splash_switched_ = true;
+  native_splash_timer_.Stop();
+  GetPlatform()->SetNativeSplashActive(this, false);
+  web_contents_->WasShown();
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
+  native_splash_timer_.Start(
+      FROM_HERE, kNativeSplashMaxPaintWait,
+      base::BindOnce([](Shell* shell) { shell->native_splash_.reset(); },
+                     base::Unretained(this)));
+  MaybeDestroyNativeSplash();
+}
+
+void Shell::MaybeDestroyNativeSplash() {
+  if (!native_splash_switched_ || !main_has_painted_ || !native_splash_) {
+    return;
+  }
+  native_splash_timer_.Start(FROM_HERE, kNativeSplashTeardownDelay,
+                             base::BindOnce(
+                                 [](Shell* shell) {
+                                   LOG(INFO) << "NativeSplash: torn down.";
+                                   shell->native_splash_.reset();
+                                 },
+                                 base::Unretained(this)));
+}
+
 void Shell::OnSplashScreenLoadComplete() {
   MarkStartupEvent(SplashScreenMetrics::Event::kSplashLoaded);
   is_splash_screen_loaded_ = true;
@@ -1457,6 +1566,7 @@ void Shell::ClosingSplashScreenWebContents() {
 
 void Shell::OnMainReady() {
   MarkStartupEvent(SplashScreenMetrics::Event::kMainReady);
+  OnNativeSplashMainLoaded();
 }
 
 void Shell::MarkStartupEvent(SplashScreenMetrics::Event event) {
