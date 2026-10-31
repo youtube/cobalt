@@ -1140,18 +1140,9 @@ void StorageHandler::GetInterestGroupDetails(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
-<<<<<<< HEAD
   // TODO(crbug.com/496189510): Remove this completely once the DevTools
   // frontend usage is gone.
   return Response::Success();
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  interest_group_tracking_enabled_ = enable;
-  return SetInterestGroupTrackingInternal(storage_partition_, enable);
-#else
-  return Response::ServerError("Interest group storage is disabled.");
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
