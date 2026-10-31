@@ -325,7 +325,9 @@ semantics):
         delivers the deep link URL to the web application
         (`window.h5vcc.runtime.ondeeplink` / `addEventListener('deeplink', ...)`);
         it **does not** change Cobalt's lifecycle state or foreground the
-        application on its own.
+        application on its own. Exception: after a `kSbEventTypeStart` whose
+        URL carried `launch=preload` (started `Concealed`), the first
+        `kSbEventTypeLink` transitions the app to `Started`.
     -   **Foregrounding with a Deep Link:** When a deep link is meant to bring a
         preloaded (`Concealed`) or suspended (`Frozen`) Cobalt instance to the
         foreground, the platform **must separately dispatch `kSbEventTypeFocus`**
