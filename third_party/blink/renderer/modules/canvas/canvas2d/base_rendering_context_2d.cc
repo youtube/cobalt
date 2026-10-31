@@ -22,6 +22,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/buildflag.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
@@ -52,11 +53,7 @@
 #include "third_party/blink/renderer/core/html/canvas/canvas_performance_monitor.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.h"
-<<<<<<< HEAD
 #include "third_party/blink/renderer/core/html/canvas/element_image.h"
-=======
-#include "build/buildflag.h"
->>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/core/html/canvas/text_cluster.h"
