@@ -6,7 +6,6 @@
     "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
-    "*widevine*",
     "MultiplePlayerTest.SunnyDay"
   ]
 }

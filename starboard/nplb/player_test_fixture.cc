@@ -15,6 +15,8 @@
 #include "starboard/nplb/player_test_fixture.h"
 
 #include <algorithm>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -458,16 +460,75 @@ void SbPlayerTestFixture::OnError(SbPlayer player,
   error_occurred_ = true;
 }
 
+// static
+void SbPlayerTestFixture::DrmSessionUpdateRequestCallback(
+    SbDrmSystem drm_system,
+    void* context,
+    int ticket,
+    SbDrmStatus status,
+    SbDrmSessionRequestType type,
+    const char* error_message,
+    const void* session_id,
+    int session_id_size,
+    const void* content,
+    int content_size,
+    const char* url) {
+  SB_CHECK(context);
+  DrmSessionUpdateRequestEvent event{/*received=*/true, status, type};
+  if (session_id && session_id_size > 0) {
+    event.session_id.assign(static_cast<const char*>(session_id),
+                            session_id_size);
+  }
+  static_cast<SbPlayerTestFixture*>(context)
+      ->drm_session_update_request_queue_.Put(std::move(event));
+}
+
+void SbPlayerTestFixture::InitializeDrmSystem() {
+  SB_CHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(!key_system_.empty());
+
+  constexpr int64_t kWaitForDrmSessionUpdateRequestTimeout = 5'000'000LL;
+  constexpr int kDrmTicket = 1;
+  constexpr char kCencInitDataType[] = "cenc";
+
+  drm_system_ = SbDrmCreateSystem(
+      key_system_.c_str(), this, DrmSessionUpdateRequestCallback,
+      DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+      DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+  SB_CHECK(SbDrmSystemIsValid(drm_system_));
+
+  // In the EME flow, a drm session is always generated before media samples
+  // are written to a player with a drm system. Some platforms (e.g. Android)
+  // only complete drm system initialization once a session is generated.
+  // The test samples are clear, so no license is required.
+  SbDrmGenerateSessionUpdateRequest(drm_system_, kDrmTicket, kCencInitDataType,
+                                    kCencInitData,
+                                    SB_ARRAY_SIZE_INT(kCencInitData));
+  DrmSessionUpdateRequestEvent event =
+      drm_session_update_request_queue_.GetTimed(
+          kWaitForDrmSessionUpdateRequestTimeout);
+  if (!event.received) {
+    SB_LOG(WARNING) << "Timed out waiting for drm session update request.";
+    return;
+  }
+  if (event.status != kSbDrmStatusSuccess) {
+    SB_LOG(WARNING) << "Failed to generate drm session update request: status="
+                    << event.status;
+    return;
+  }
+  if (event.type == kSbDrmSessionRequestTypeIndividualizationRequest) {
+    SB_LOG(WARNING) << "Device requires provisioning; drm session is not "
+                       "created.";
+  }
+  drm_session_id_ = std::move(event.session_id);
+}
+
 void SbPlayerTestFixture::Initialize() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Initialize drm system.
   if (!key_system_.empty()) {
-    drm_system_ = SbDrmCreateSystem(
-        key_system_.c_str(), NULL /* context */, DummySessionUpdateRequestFunc,
-        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-        DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
-    SB_DCHECK(SbDrmSystemIsValid(drm_system_));
+    InitializeDrmSystem();
   }
 
   // Initialize player.
@@ -507,6 +568,10 @@ void SbPlayerTestFixture::TearDown() {
     SbPlayerDestroy(player_);
   }
   if (SbDrmSystemIsValid(drm_system_)) {
+    if (!drm_session_id_.empty()) {
+      SbDrmCloseSession(drm_system_, drm_session_id_.data(),
+                        static_cast<int>(drm_session_id_.size()));
+    }
     SbDrmDestroySystem(drm_system_);
   }
 
