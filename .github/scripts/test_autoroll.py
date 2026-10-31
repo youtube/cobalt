@@ -878,6 +878,28 @@ class TestAutorollIntegration(unittest.TestCase):
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, self.start_sha)
 
+  def test_git_verbose_logging_to_stderr(self):
+    """Verifies lib.git logs to sys.stderr when VERBOSE=True."""
+    old_verbose = lib.VERBOSE
+    try:
+      lib.VERBOSE = True
+      stderr_buf = io.StringIO()
+      with patch('sys.stderr', stderr_buf):
+        out = lib.git('rev-parse', '--is-inside-work-tree')
+      self.assertEqual(out.strip(), 'true')
+      self.assertIn('Running: git rev-parse --is-inside-work-tree',
+                    stderr_buf.getvalue())
+
+      # Verify VERBOSE=False does not log
+      lib.VERBOSE = False
+      stderr_buf = io.StringIO()
+      with patch('sys.stderr', stderr_buf):
+        out = lib.git('rev-parse', '--is-inside-work-tree')
+      self.assertEqual(out.strip(), 'true')
+      self.assertEqual(stderr_buf.getvalue(), '')
+    finally:
+      lib.VERBOSE = old_verbose
+
 
 if __name__ == '__main__':
   unittest.main()
