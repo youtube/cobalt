@@ -17,6 +17,10 @@ on: # zizmor: ignore[dangerous-triggers]
         required: true
         type: choice
         options: [android, aosp, evergreen, linux, tvos]
+      workflow_run_id:
+        description: 'Workflow run ID to publish golden refs from'
+        required: false
+        type: string
       pr_number:
         description: 'Pull request number'
         required: false
@@ -306,8 +310,8 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event.action || inputs.action) == 'completed' &&
-      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch') &&
-      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      ((github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')) &&
+      (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
     permissions:
       contents: write
       actions: read
@@ -316,7 +320,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id || inputs.workflow_run_id }}
           GIT_USER: "github-actions[bot]"
           GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
           EMPTY_TREE: "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -325,25 +329,26 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           mkdir -p digests repo
-          if [[ -n "${WORKFLOW_ID:-}" ]]; then
-            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests 2>/dev/null || exit 0
+          if [[ -z "${WORKFLOW_ID:-}" ]]; then
+            echo "::error::WORKFLOW_ID is not set."
+            exit 1
           fi
 
+          gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests
+
+          REMOTE_URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
           cd repo && git init -q
           for f in ../digests/*/*; do
             [ -f "$f" ] || continue
-            platform=$(basename "$f")
-            digest=$(tr -d '[:space:]' < "$f")
-            [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || continue
-
-            parent=()
-            if git fetch -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "refs/golden-workspace/${platform}" 2>/dev/null; then
-              [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
-              parent=(-p FETCH_HEAD)
-            fi
-
-            commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
-              commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
-
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}" || true
+            while read -r layer_key digest; do
+              [ -n "${layer_key}" ] && [ -n "${digest}" ] || continue
+              parent=()
+              if git fetch -q "${REMOTE_URL}" "refs/golden-workspace/${layer_key}" 2>/dev/null; then
+                [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
+                parent=(-p FETCH_HEAD)
+              fi
+              commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
+                commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
+              git push "${REMOTE_URL}" "${commit}:refs/golden-workspace/${layer_key}" || true
+            done < "$f"
           done

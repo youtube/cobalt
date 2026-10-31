@@ -1,4 +1,5 @@
 {
+  "target_os": "ios",
   "enable_sccache": false,
   "build_runners": [
     "macos-latest-large"
