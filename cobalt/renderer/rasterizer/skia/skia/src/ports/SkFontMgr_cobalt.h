@@ -68,6 +68,11 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   // Purges all font caching in Skia and the local stream manager.
   void PurgeCaches();
 
+  // Purges font data that is not currently referenced: unused font file memory
+  // chunks in the local stream manager and unreferenced typefaces. Unlike
+  // PurgeCaches(), this does not purge the Skia glyph cache.
+  void PurgeUnusedFontData();
+
   // NOTE: This returns NULL if a match is not found.
   sk_sp<SkTypeface> MatchFaceName(const char face_name[]);
 

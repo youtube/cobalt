@@ -65,6 +65,10 @@
 #include "cobalt/memory/android_os_signal_evaluator.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "cobalt/memory/font_cache_memory_pressure_listener.h"
+#endif
+
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 #include "base/memory/memory_pressure_monitor.h"
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
@@ -680,6 +684,16 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
   }
 #endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // SkFontMgr_Cobalt's font file chunk cache and unreferenced typefaces are
+  // otherwise never purged.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltPurgeFontManagerCachesOnMemoryPressure)) {
+    font_cache_memory_pressure_listener_ =
+        std::make_unique<cobalt::memory::FontCacheMemoryPressureListener>();
+  }
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   StartStorageMigration();
   ScheduleCobaltStorageMetricsRecording();
