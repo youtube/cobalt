@@ -209,9 +209,6 @@ void ShellPlatformDelegate::OnReveal() {
   }
   weak_factory_.InvalidateWeakPtrs();
   content::RestoreGpuProcessOnUI();
-  // Clear the concealed state in StarboardRenderer so subsequent playback or
-  // pipeline resume requests can create new SbPlayer instances.
-  media::StarboardRenderer::ResumeActiveRenderers();
   pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
@@ -232,6 +229,10 @@ void ShellPlatformDelegate::OnReveal() {
     }
     RevealShell(shell);
   }
+  // Clear the concealed state in StarboardRenderer after RevealShell() has
+  // created the new SbWindow and notified frames via WasShown(), so subsequent
+  // playback or pipeline resume requests can create new SbPlayer instances.
+  media::StarboardRenderer::ResumeActiveRenderers();
   is_visible_ = true;
 }
 
