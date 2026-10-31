@@ -191,6 +191,10 @@ BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
              "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDisableParkableImagesToDisk,
+             "CobaltDisableParkableImagesToDisk",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",

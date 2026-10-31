@@ -117,6 +117,9 @@ constexpr auto kDumpProviderAllowlist =
         "MojoHandleTable",
         "MojoLevelDB",
         "MojoMessages",
+#if BUILDFLAG(IS_COBALT)
+        "ParkableImages",
+#endif  // BUILDFLAG(IS_COBALT)
         "PartitionAlloc",
         "PartitionAlloc.AddressSpace",
         "ProcessMemoryMetrics",
@@ -277,6 +280,9 @@ constexpr auto kAllocatorDumpNameAllowlist =
         "mojo/watcher",
         "omnibox/autocomplete_controller/0x?",
         "omnibox/in_memory_url_index/0x?",
+#if BUILDFLAG(IS_COBALT)
+        "parkable_images",
+#endif  // BUILDFLAG(IS_COBALT)
         "passwords/manual_filling_controller/0x?",
         "web_cache/Image_resources",
         "web_cache/CSS stylesheet_resources",
