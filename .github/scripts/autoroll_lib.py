@@ -30,6 +30,24 @@ def get_out(cmd):
   return res.stdout
 
 
+def cleanup_conflict_branch(branch):
+  """Deletes obsolete local and remote conflict branches."""
+  remote_refs = set(
+      get_out([
+          'git', 'for-each-ref', '--format=%(refname:short)',
+          'refs/remotes/origin/'
+      ]).splitlines())
+  if branch in remote_refs or f'origin/{branch}' in remote_refs:
+    run(['git', 'push', 'origin', '--delete', branch])
+
+  local_refs = set(
+      get_out(
+          ['git', 'for-each-ref', '--format=%(refname:short)',
+           'refs/heads/']).splitlines())
+  if branch in local_refs:
+    run(['git', 'branch', '-D', branch])
+
+
 def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
   start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
