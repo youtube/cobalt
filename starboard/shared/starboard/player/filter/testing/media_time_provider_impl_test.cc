@@ -91,111 +91,90 @@ class MediaTimeProviderImplTest : public ::testing::Test {
 };
 
 TEST_F(MediaTimeProviderImplTest, DefaultStates) {
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      0));
-  EXPECT_FALSE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, 0));
+  EXPECT_FALSE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(MediaTimeProviderImplTest, GetCurrentMediaTimeWhileNotPlaying) {
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      0));
-  EXPECT_FALSE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, 0));
+  EXPECT_FALSE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(MediaTimeProviderImplTest, GetCurrentMediaTimeWhilePlaying) {
   media_time_provider_impl_.Play();
 
-  bool is_playing = false, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      0));
-  EXPECT_TRUE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, 0));
+  EXPECT_TRUE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kOneSecondInMicroseconds));
-  EXPECT_TRUE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kOneSecondInMicroseconds));
+  EXPECT_TRUE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(MediaTimeProviderImplTest, SetPlaybackRateWhilePlaying) {
   media_time_provider_impl_.Play();
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kOneSecondInMicroseconds));
-  EXPECT_EQ(playback_rate, 1.0);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kOneSecondInMicroseconds));
+  EXPECT_EQ(info.playback_rate, 1.0);
+  EXPECT_EQ(info.playback_rate, 1.0);
 
   media_time_provider_impl_.SetPlaybackRate(2.0);
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kOneSecondInMicroseconds * 3));
-  EXPECT_EQ(playback_rate, 2.0);
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(
+      AlmostEqual(info.current_media_time, kOneSecondInMicroseconds * 3));
+  EXPECT_EQ(info.playback_rate, 2.0);
 
   media_time_provider_impl_.SetPlaybackRate(0.0);
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kOneSecondInMicroseconds * 3));
-  EXPECT_EQ(playback_rate, 0.0);
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(
+      AlmostEqual(info.current_media_time, kOneSecondInMicroseconds * 3));
+  EXPECT_EQ(info.playback_rate, 0.0);
 }
 
 TEST_F(MediaTimeProviderImplTest, SeekWhileNotPlaying) {
   const int64_t kSeekToTime = 100 * kOneSecondInMicroseconds;
 
   media_time_provider_impl_.Seek(kSeekToTime);
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kSeekToTime));
-  EXPECT_FALSE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kSeekToTime));
+  EXPECT_FALSE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kSeekToTime));
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kSeekToTime));
 }
 
 TEST_F(MediaTimeProviderImplTest, SeekForwardWhilePlaying) {
@@ -204,27 +183,23 @@ TEST_F(MediaTimeProviderImplTest, SeekForwardWhilePlaying) {
   media_time_provider_impl_.Play();
 
   media_time_provider_impl_.Seek(kSeekToTime);
-  bool is_playing = false, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kSeekToTime));
-  EXPECT_TRUE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kSeekToTime));
+  EXPECT_TRUE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kSeekToTime + kOneSecondInMicroseconds));
-  EXPECT_TRUE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_EQ(playback_rate, 1.0);
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time,
+                          kSeekToTime + kOneSecondInMicroseconds));
+  EXPECT_TRUE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(MediaTimeProviderImplTest, SeekBackwardWhilePlaying) {
@@ -232,18 +207,14 @@ TEST_F(MediaTimeProviderImplTest, SeekBackwardWhilePlaying) {
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
   // Query for media time and ignore the result.
-  media_time_provider_impl_.GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                &is_underflow, &playback_rate);
+  media_time_provider_impl_.GetCurrentMediaTime();
 
   const int64_t kSeekToTime = 0;
   media_time_provider_impl_.Seek(kSeekToTime);
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kSeekToTime));
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kSeekToTime));
 }
 
 TEST_F(MediaTimeProviderImplTest, Pause) {
@@ -251,25 +222,19 @@ TEST_F(MediaTimeProviderImplTest, Pause) {
 
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
 
-  bool is_playing = true, is_eos_played = true, is_underflow = true;
-  double playback_rate = -1.0;
   // Query for media time and ignore the result.
-  media_time_provider_impl_.GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                &is_underflow, &playback_rate);
+  media_time_provider_impl_.GetCurrentMediaTime();
 
   media_time_provider_impl_.Pause();
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      kOneSecondInMicroseconds));
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, kOneSecondInMicroseconds));
 
   media_time_provider_impl_.Seek(0);
   system_time_provider_->AdvanceTime(kOneSecondInMicroseconds);
-  EXPECT_TRUE(AlmostEqual(
-      media_time_provider_impl_.GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow, &playback_rate),
-      0));
+  info = media_time_provider_impl_.GetCurrentMediaTime();
+  EXPECT_TRUE(AlmostEqual(info.current_media_time, 0));
 }
 
 }  // namespace

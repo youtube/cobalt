@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_MOCK_MEDIA_CAPABILITIES_CACHE_H_
 #define STARBOARD_ANDROID_SHARED_MOCK_MEDIA_CAPABILITIES_CACHE_H_
 
+#include <optional>
 #include <string>
 
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -64,9 +65,9 @@ class MockMediaCapabilitiesProvider final : public MediaCapabilitiesProvider {
               GetIsTunneledAudioSupported,
               (int encoding, int sampling_frequency_hz, int channels),
               (override));
-  MOCK_METHOD(bool,
+  MOCK_METHOD(std::optional<SbMediaAudioConfiguration>,
               GetAudioConfiguration,
-              (int index, SbMediaAudioConfiguration* configuration),
+              (int index),
               (override));
   MOCK_METHOD(
       void,

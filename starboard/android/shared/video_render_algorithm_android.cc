@@ -76,12 +76,9 @@ void VideoRenderAlgorithmAndroid::Render(
       break;
     }
 
-    bool is_audio_playing;
-    bool is_audio_eos_played;
-    bool is_underflow;
-    double playback_rate;
-    int64_t playback_time = media_time_provider->GetCurrentMediaTime(
-        &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+    const MediaTimeProvider::MediaTimeInfo info =
+        media_time_provider->GetCurrentMediaTime();
+    int64_t playback_time = info.current_media_time;
 
     if (release_frames_after_audio_starts_) {
       // After the first frame, stop rendering if audio isn't playing, or if
@@ -89,21 +86,21 @@ void VideoRenderAlgorithmAndroid::Render(
       // initial time 0). This ensures video doesn't run ahead if audio is
       // stalled or hasn't consumed frames yet.
       if (first_frame_released_ &&
-          (!is_audio_playing || playback_time == seek_to_time_)) {
+          (!info.is_playing || playback_time == seek_to_time_)) {
         break;
       }
     } else {
-      if (!is_audio_playing) {
+      if (!info.is_playing) {
         break;
       }
     }
 
-    if (playback_rate != playback_rate_) {
-      playback_rate_ = playback_rate;
-      video_decoder_->SetPlaybackRate(playback_rate);
+    if (info.playback_rate != playback_rate_) {
+      playback_rate_ = info.playback_rate;
+      video_decoder_->SetPlaybackRate(info.playback_rate);
     }
 
-    if (is_audio_eos_played) {
+    if (info.is_eos_played) {
       // If the audio stream has reached end of stream before the video stream,
       // we should end the video stream immediately by only keeping one frame in
       // the backlog.
@@ -121,7 +118,7 @@ void VideoRenderAlgorithmAndroid::Render(
     }
 
     jlong early_us = (frames->front()->timestamp() - playback_time) /
-                     (playback_rate != 0 ? playback_rate : 1);
+                     (info.playback_rate != 0 ? info.playback_rate : 1);
 
     auto system_time_ns = GetSystemNanoTime();
     auto unadjusted_frame_release_time_ns = system_time_ns + (early_us * 1000);
@@ -129,7 +126,7 @@ void VideoRenderAlgorithmAndroid::Render(
     auto adjusted_release_time_ns =
         video_frame_release_time_helper_.AdjustReleaseTime(
             frames->front()->timestamp(), unadjusted_frame_release_time_ns,
-            playback_rate);
+            info.playback_rate);
 
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 

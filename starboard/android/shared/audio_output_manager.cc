@@ -230,12 +230,8 @@ bool AudioOutputManager::GetDirectPlaybackSupport(JNIEnv* env,
              require_hw_av_sync) == JNI_TRUE;
 }
 
-bool AudioOutputManager::GetAudioConfiguration(
-    JNIEnv* env,
-    int index,
-    SbMediaAudioConfiguration* configuration) {
-  *configuration = {};
-
+std::optional<SbMediaAudioConfiguration>
+AudioOutputManager::GetAudioConfiguration(JNIEnv* env, int index) {
   ScopedJavaLocalRef<jobject> j_output_device_info =
       Java_OutputDeviceInfo_Constructor(env);
 
@@ -244,21 +240,22 @@ bool AudioOutputManager::GetAudioConfiguration(
       JNI_TRUE) {
     SB_LOG(WARNING)
         << "Call to AudioOutputManager.getOutputDeviceInfo() failed.";
-    return false;
+    return std::nullopt;
   }
 
-  configuration->connector = GetConnectorFromAndroidOutputType(
+  SbMediaAudioConfiguration configuration = {};
+  configuration.connector = GetConnectorFromAndroidOutputType(
       Java_OutputDeviceInfo_getType(env, j_output_device_info));
-  configuration->latency = 0;
-  configuration->coding_type = kSbMediaAudioCodingTypePcm;
-  configuration->number_of_channels =
+  configuration.latency = 0;
+  configuration.coding_type = kSbMediaAudioCodingTypePcm;
+  configuration.number_of_channels =
       Java_OutputDeviceInfo_getChannels(env, j_output_device_info);
 
-  if (configuration->connector != kSbMediaAudioConnectorHdmi) {
-    configuration->number_of_channels = 2;
+  if (configuration.connector != kSbMediaAudioConnectorHdmi) {
+    configuration.number_of_channels = 2;
   }
 
-  return true;
+  return configuration;
 }
 
 AudioOutputManager::AudioOutputManager() {

@@ -106,10 +106,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(int64_t seek_to_time) override;
-  int64_t GetCurrentMediaTime(bool* is_playing,
-                              bool* is_eos_played,
-                              bool* is_underflow,
-                              double* playback_rate) override;
+  MediaTimeInfo GetCurrentMediaTime() override;
   // Only playback rate 1.0 is supported (see SetPlaybackRate()), so timestamps
   // are never adjusted. Returning max() ensures that VideoRendererImpl never
   // holds back video inputs waiting for audio writes.

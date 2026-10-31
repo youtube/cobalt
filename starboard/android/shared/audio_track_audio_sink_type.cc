@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -77,12 +78,14 @@ bool HasRemoteAudioOutput() {
   // limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
   const int kMaxAudioConfigurations = 32;
-  SbMediaAudioConfiguration configuration;
   int index = 0;
-  while (index < kMaxAudioConfigurations &&
-         MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
-             index, &configuration)) {
-    switch (configuration.connector) {
+  while (index < kMaxAudioConfigurations) {
+    std::optional<SbMediaAudioConfiguration> configuration =
+        MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(index);
+    if (!configuration) {
+      break;
+    }
+    switch (configuration->connector) {
       case kSbMediaAudioConnectorUnknown:
       case kSbMediaAudioConnectorAnalog:
       case kSbMediaAudioConnectorBuiltIn:

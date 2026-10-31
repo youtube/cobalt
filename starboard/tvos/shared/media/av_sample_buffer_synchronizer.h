@@ -35,10 +35,7 @@ class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(int64_t seek_to_time) override;
-  int64_t GetCurrentMediaTime(bool* is_playing,
-                              bool* is_eos_played,
-                              bool* is_underflow,
-                              double* playback_rate) override;
+  MediaTimeInfo GetCurrentMediaTime() override;
   int64_t GetAudioWriteHead() override { return 0; }
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
     return timestamp;

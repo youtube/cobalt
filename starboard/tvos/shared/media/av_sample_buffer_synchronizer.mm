@@ -115,28 +115,23 @@ void AVSBSynchronizer::Seek(int64_t seek_to_time) {
   }
 }
 
-int64_t AVSBSynchronizer::GetCurrentMediaTime(bool* is_playing,
-                                              bool* is_eos_played,
-                                              bool* is_underflow,
-                                              double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
-
+MediaTimeProvider::MediaTimeInfo AVSBSynchronizer::GetCurrentMediaTime() {
   @autoreleasepool {
     std::lock_guard lock(mutex_);
-    *is_playing = !paused_ && !seeking_;
-    *is_eos_played = false;  // It's not used.
-    *is_underflow = *is_playing && is_underflow_;
-    *playback_rate = synchronizer_.rate;
+    MediaTimeInfo info;
+    info.is_playing = !paused_ && !seeking_;
+    info.is_eos_played = false;  // It's not used.
+    info.is_underflow = info.is_playing && is_underflow_;
+    info.playback_rate = synchronizer_.rate;
     if (seeking_) {
-      return seek_to_time_;
+      info.current_media_time = seek_to_time_;
+      return info;
     }
     int64_t media_time = CMTimeConvertScale(synchronizer_.currentTime, 1000000,
                                             kCMTimeRoundingMethod_QuickTime)
                              .value;
-    return std::max(media_time - media_time_offset_, 0ll);
+    info.current_media_time = std::max(media_time - media_time_offset_, 0ll);
+    return info;
   }  // @autoreleasepool
 }
 

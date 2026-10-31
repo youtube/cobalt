@@ -27,11 +27,15 @@ class MediaTimeProvider {
   virtual void Pause() = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void Seek(int64_t seek_to_pts) = 0;
+  struct MediaTimeInfo {
+    int64_t current_media_time = 0;
+    bool is_playing = false;
+    bool is_eos_played = false;
+    bool is_underflow = false;
+    double playback_rate = 0.0;
+  };
   // This function can be called from *any* thread.
-  virtual int64_t GetCurrentMediaTime(bool* is_playing,
-                                      bool* is_eos_played,
-                                      bool* is_underflow,
-                                      double* playback_rate) = 0;
+  virtual MediaTimeInfo GetCurrentMediaTime() = 0;
 
   // Returns the latest timestamp (in microseconds) that has been written to the
   // audio sink. This can be used to synchronize video frame submission with the
