@@ -86,6 +86,24 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     int64_t flush_delay_usec = 0;
   };
 
+  // Operations on the video surface of VideoSurfaceView, which punch-out
+  // decoders render to unless |StreamConfig::surface_view| is set. They are
+  // forwarded to the corresponding VideoSurfaceHolder functions, e.g. Acquire()
+  // to AcquireVideoSurface(), unless replaced via CreateForTesting().
+  class VideoSurface {
+   public:
+    virtual ~VideoSurface() = default;
+
+    virtual jni_zero::ScopedJavaLocalRef<jobject> Acquire() = 0;
+    virtual void Release() = 0;
+    virtual bool IsHeldByAnotherHolder() const = 0;
+    virtual void CleanUp(
+        SbDecodeTargetGraphicsContextProvider* gpu_provider) = 0;
+    virtual void Reset() = 0;
+    virtual void SetVisible(bool visible) = 0;
+    virtual void ShowWithNextFrame() = 0;
+  };
+
   class Sink;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
@@ -95,8 +113,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const PipelineConfig& pipeline_config,
       const PlatformOptions& platform_options);
 
+  // |video_surface| replaces the operations on the video surface of
+  // VideoSurfaceView if not null, and must outlive the decoder.
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
   CreateForTesting(std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+                   VideoSurface* video_surface,
                    JobQueue* job_queue,
                    const StreamConfig& stream_config,
                    const TunnelModeConfig& tunnel_mode_config,
@@ -106,6 +127,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   MediaCodecVideoDecoder(
       PassKey<MediaCodecVideoDecoder>,
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+      VideoSurface* video_surface,
       JobQueue* job_queue,
       const StreamConfig& stream_config,
       const TunnelModeConfig& tunnel_mode_config,
@@ -139,6 +161,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void SetPlaybackRate(double playback_rate);
 
   void OnFrameAvailable() override;
+  void OnSurfaceDestroyed() override;
 
  private:
   // Attempt to initialize the codec.
@@ -161,9 +184,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
 
-  void OnVideoFrameRelease();
+  // Called with |rendered| set to true right before a frame is released to the
+  // surface for rendering, or with false when it's released without rendering.
+  void OnVideoFrameRelease(bool rendered);
+  void MaybeHideVideoSurfaceOnTeardown();
 
-  void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
@@ -217,6 +242,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  // True if the video surface of VideoSurfaceView is hidden on teardown, and
+  // shown together with the first frame of the next playback, instead of being
+  // cleared via EGL. It's false when rendering to an AndroidOverlay surface,
+  // i.e. |surface_view_|. See |kApplyTransactionToFrameOnSurfaceCleanup|.
+  const bool apply_transaction_to_frame_on_surface_cleanup_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -255,6 +285,14 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
+
+  // Forwards to the VideoSurfaceHolder base. Null if replaced in tests.
+  class VideoSurfaceHolderAdapter;
+  const std::unique_ptr<VideoSurface> video_surface_holder_adapter_;
+  // Not null. Points to |video_surface_holder_adapter_|, unless replaced in
+  // tests.
+  VideoSurface* const video_surface_;
+
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
@@ -267,11 +305,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool end_of_stream_written_ = false;
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};
+  // Set when the first frame is drawn, or when the surface is hidden on
+  // teardown, so that the surface is shown at most once per decoder.
+  std::atomic_bool has_drawn_first_frame_{false};
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  // Only used on the decoder thread.
+  bool has_hidden_video_surface_on_teardown_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
@@ -291,6 +334,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
+      VideoSurface* video_surface,
       JobQueue* job_queue,
       const StreamConfig& stream_config,
       const TunnelModeConfig& tunnel_mode_config,

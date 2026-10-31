@@ -44,8 +44,19 @@ class VideoSurfaceHolder {
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
+  // Returns true if the surface is held by a holder other than this one.
+  bool IsVideoSurfaceHeldByAnotherHolder() const;
+
   // Cleans up the video surface, and posts the task to |gpu_provider|.
   void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  // Sets the visibility of the video surface immediately via SurfaceControl.
+  void SetVideoSurfaceVisible(bool visible);
+
+  // Shows the video surface together with the next frame rendered to it via
+  // SurfaceView.applyTransactionToFrame(), falling back to showing it
+  // immediately if attaching to the next frame fails.
+  void ShowVideoSurfaceWithNextFrame();
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
