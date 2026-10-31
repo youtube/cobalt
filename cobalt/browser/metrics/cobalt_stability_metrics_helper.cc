@@ -29,7 +29,9 @@
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/process/process_handle.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cobalt/browser/features.h"
 
 namespace cobalt {
@@ -46,6 +48,48 @@ void RecordPriorPmaFileAction(StabilityPmaFileAction action) {
   base::UmaHistogramEnumeration("Cobalt.StabilityMetrics.PriorPmaFileAction",
                                 action);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+std::string_view ExitReasonToHistogramSuffix(int reason) {
+  // Matches dev.cobalt.util.ProcessExitReasonHelper.ExitReason.
+  switch (reason) {
+    case 0:  // REASON_ANR
+      return "Anr";
+    case 1:  // REASON_CRASH
+      return "Crash";
+    case 2:  // REASON_CRASH_NATIVE
+      return "CrashNative";
+    case 3:  // REASON_DEPENDENCY_DIED
+      return "DependencyDied";
+    case 4:  // REASON_EXCESSIVE_RESOURCE_USAGE
+      return "ExcessiveResourceUsage";
+    case 5:  // REASON_EXIT_SELF
+      return "ExitSelf";
+    case 6:  // REASON_INITIALIZATION_FAILURE
+      return "InitFailure";
+    case 7:  // REASON_LOW_MEMORY
+      return "LowMemory";
+    case 8:  // REASON_OTHER
+      return "Other";
+    case 9:  // REASON_PERMISSION_CHANGE
+      return "PermissionChange";
+    case 10:  // REASON_SIGNALED
+      return "Signaled";
+    case 12:  // REASON_USER_REQUESTED
+      return "UserRequested";
+    case 13:  // REASON_USER_STOPPED
+      return "UserStopped";
+    case 15:  // REASON_FREEZER
+      return "Freezer";
+    case 16:  // REASON_PACKAGE_STATE_CHANGE
+      return "PackageStateChange";
+    case 17:  // REASON_PACKAGE_UPDATED
+      return "PackageUpdated";
+    default:
+      return "Other";
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -123,6 +167,11 @@ void ClearOtherStabilityMetricsPmaFiles(
     const base::FilePath& metrics_dir,
     const std::string& expected_allocator_name,
     base::ProcessId current_pid) {
+  int64_t total_pma_bytes =
+      GetTotalStabilityMetricsPmaDirSizeBytes(metrics_dir);
+  base::UmaHistogramMemoryKB("Cobalt.Stability.Pma.StartupTotalSizeKB",
+                             static_cast<int>(total_pma_bytes / 1024));
+
   const bool deduplicate = base::FeatureList::IsEnabled(
       features::kCobaltStabilityMetricsDeduplication);
   int merged_files_count = 0;
@@ -206,5 +255,40 @@ void ClearOtherStabilityMetricsPmaFiles(
   base::UmaHistogramCounts100(
       "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", merged_files_count);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void EmitPriorSessionExitSummaryHistograms(
+    int exit_reason,
+    const ProcessStateSummaryData& summary) {
+  if (summary.startup_guard_triggered_kill) {
+    base::UmaHistogramExactLinear(
+        "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone",
+        summary.highest_milestone, 64);
+    return;
+  }
+
+  std::string_view suffix = ExitReasonToHistogramSuffix(exit_reason);
+
+  // 1. Emit per-exit-reason histograms
+  base::UmaHistogramBoolean(
+      base::StrCat(
+          {"Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.",
+           suffix}),
+      summary.startup_guard_armed);
+  base::UmaHistogramExactLinear(
+      base::StrCat(
+          {"Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.",
+           suffix}),
+      summary.highest_milestone, 64);
+
+  // 2. Emit baseline aggregate across all exits
+  base::UmaHistogramBoolean(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.AllExits",
+      summary.startup_guard_armed);
+  base::UmaHistogramExactLinear(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.AllExits",
+      summary.highest_milestone, 64);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace cobalt

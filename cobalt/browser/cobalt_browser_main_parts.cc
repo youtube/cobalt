@@ -98,6 +98,7 @@
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -278,8 +279,18 @@ int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
                                                        deduplication_enabled);
-  return Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
-      env, last_logged_timestamp_ms);
+  int64_t recorded_timestamp_ms =
+      Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+          env, last_logged_timestamp_ms);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
+  }
+  return recorded_timestamp_ms;
 }
 #endif
 
