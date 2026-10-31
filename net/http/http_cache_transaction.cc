@@ -113,6 +113,48 @@ bool MethodUsesNoVarySearch(const std::string& method) {
   return method == "GET" || method == "HEAD";
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Identifies telemetry, ping, and MSE media chunk URLs that are never cached
+// by Cobalt so ShouldPassThrough() and UpdateAndReportCacheability() can skip
+// SimpleCache entry creation and writes.
+bool IsCobaltExcludedUrl(const GURL& url, bool enable_extended_exclusions) {
+  const std::string& spec = url.spec();
+  static constexpr std::string_view kBaselineExcludedPaths[] = {
+      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
+  for (std::string_view excluded : kBaselineExcludedPaths) {
+    if (spec.find(excluded) != std::string::npos) {
+      return true;
+    }
+  }
+
+  if (!enable_extended_exclusions) {
+    return false;
+  }
+
+  static constexpr std::string_view kExtendedExcludedPaths[] = {
+      "/api/stats/", "/generate_204", "/csi_204", "/log_event",
+      "/videoplayback"};
+  for (std::string_view excluded : kExtendedExcludedPaths) {
+    if (spec.find(excluded) != std::string::npos) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Identifies image, audio, and video requests via Sec-Fetch-Dest so
+// ShouldPassThrough() can bypass disk entry creation before response headers
+// arrive (avoiding create-then-doom flash I/O churn).
+bool IsCobaltNonCachedFetchDest(const HttpRequestHeaders& extra_headers) {
+  std::optional<std::string> dest = extra_headers.GetHeader("Sec-Fetch-Dest");
+  if (!dest.has_value()) {
+    return false;
+  }
+  return *dest == "image" || *dest == "audio" || *dest == "video";
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 
 #define CACHE_STATUS_HISTOGRAMS(type)                                      \
@@ -1174,7 +1216,13 @@ int HttpCache::Transaction::DoOpenOrCreateEntry() {
     record_entry_open_or_creation_time_ = true;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kAvoidEntryCreationForNoStore) ||
+      base::FeatureList::IsEnabled(
+          features::kCobaltHttpCacheFontAndPassThrough)) {
+#else
   if (base::FeatureList::IsEnabled(features::kAvoidEntryCreationForNoStore)) {
+#endif
     // TODO(http://crbug.com/331123686): There is no reason to make partial
     // requests exempt but for now some tests fail if we don't. Once the bug
     // is fixed and understood it will be possible to remove this line.
@@ -2631,7 +2679,16 @@ bool HttpCache::Transaction::ShouldPassThrough() {
   }
 
   if (method_ == "GET" || method_ == "HEAD") {
+#if BUILDFLAG(IS_COBALT)
+    return request_ &&
+           base::FeatureList::IsEnabled(
+               features::kCobaltHttpCacheFontAndPassThrough) &&
+           (IsCobaltExcludedUrl(request_->url,
+                                /*enable_extended_exclusions=*/true) ||
+            IsCobaltNonCachedFetchDest(request_->extra_headers));
+#else
     return false;
+#endif
   }
 
   if (method_ == "POST" && request_->upload_data_stream &&
@@ -3986,16 +4043,34 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     const HttpResponseHeaders& headers) {
   // Do not cache no-store content.
   if (headers.HasHeaderValue("cache-control", "no-store")) {
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(features::kAvoidEntryCreationForNoStore) ||
+        base::FeatureList::IsEnabled(
+            features::kCobaltHttpCacheFontAndPassThrough)) {
+#else
     if (base::FeatureList::IsEnabled(features::kAvoidEntryCreationForNoStore)) {
+#endif
       cache_->MarkKeyNoStore(cache_key_);
     }
     return true;
   }
 
 #if BUILDFLAG(IS_COBALT)
-  std::string mime_type;
-  if (!headers.GetMimeType(&mime_type)) {
-    return true;  // Reject unknown MIME types.
+  const bool font_and_pass_through_enabled = base::FeatureList::IsEnabled(
+      features::kCobaltHttpCacheFontAndPassThrough);
+
+  // Exclude Ad Impression Pings & Telemetry reporting endpoints.
+  if (request_ &&
+      IsCobaltExcludedUrl(request_->url, font_and_pass_through_enabled)) {
+    return true;
+  }
+
+  // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
+  // Check this before MarkKeyNoStore so transient server errors never poison
+  // the no-store LRU for valid assets.
+  const int response_code = headers.response_code();
+  if (response_code < 200 || response_code >= 400) {
+    return true;
   }
 
   // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
@@ -4007,7 +4082,10 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
       "application/wasm",
   };
 
-  bool is_accepted_mime_type = false;
+  std::string mime_type;
+  bool is_accepted_mime_type = headers.GetMimeType(&mime_type) &&
+                               font_and_pass_through_enabled &&
+                               mime_type.find("font") != std::string::npos;
   for (std::string_view type : accepted_asset_types) {
     if (mime_type == type ||
         base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
@@ -4016,32 +4094,19 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
   }
 
-  if (!is_accepted_mime_type) {
-    return true;  // Do not write to cache / doom existing entry
-  }
-
-  // Exclude Ad Impression Pings & Telemetry reporting endpoints.
-  static constexpr std::string_view kExcludedPaths[] = {
-      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
-  for (std::string_view excluded : kExcludedPaths) {
-    if (request_->url.spec().find(excluded) != std::string::npos) {
-      return true;
-    }
-  }
-
-  // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
-  if (headers.response_code() < 200 || headers.response_code() >= 400) {
-    return true;
-  }
-
   // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
   int64_t len = headers.GetContentLength();
-  if (len >= 0 && len < 512) {
-    return true;
+  if (is_accepted_mime_type && (len < 0 || len >= 512)) {
+    return false;
   }
-#endif
 
+  if (font_and_pass_through_enabled && response_code < 300) {
+    cache_->MarkKeyNoStore(cache_key_);
+  }
+  return true;
+#else
   return false;
+#endif
 }
 
 void HttpCache::Transaction::UpdateSecurityHeadersBeforeForwarding() {

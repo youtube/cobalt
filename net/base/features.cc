@@ -784,4 +784,10 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost,
              "RestrictAbusePortsOnLocalhost",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
+             "CobaltHttpCacheFontAndPassThrough",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace net::features

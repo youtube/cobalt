@@ -800,6 +800,12 @@ NET_EXPORT extern const base::FeatureParam<std::string>
 // Finch-controlled list of ports that should be blocked on localhost.
 NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 
+#if BUILDFLAG(IS_COBALT)
+// Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
+// Cobalt's HTTP cache.
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace net::features
 
 #endif  // NET_BASE_FEATURES_H_
