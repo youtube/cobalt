@@ -9,6 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -45,6 +46,11 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
   // Initialize is called on the UI thread when the StoragePartition is
   // being setup.
   void Initialize(const base::FilePath& path, int max_bytes);
+#if BUILDFLAG(IS_COBALT)
+  void Initialize(const base::FilePath& path,
+                  int max_bytes,
+                  int max_wasm_bytes);
+#endif
 
   void Shutdown();
 
@@ -57,7 +63,13 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
   friend class base::RefCountedThreadSafe<GeneratedCodeCacheContext>;
   ~GeneratedCodeCacheContext();
 
+#if BUILDFLAG(IS_COBALT)
+  void InitializeOnThread(const base::FilePath& path,
+                          int max_bytes,
+                          int max_wasm_bytes);
+#else
   void InitializeOnThread(const base::FilePath& path, int max_bytes);
+#endif
   void ShutdownOnThread();
 
   // Created, used and deleted on the code cache thread.

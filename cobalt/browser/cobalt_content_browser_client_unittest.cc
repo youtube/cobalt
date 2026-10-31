@@ -123,18 +123,34 @@ TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
-  // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
+  // 1. Nominal Starboard budget (24 MiB -> 11 MiB HTTP cache):
   EXPECT_EQ(
       CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(24 * 1024 * 1024),
-      12u * 1024 * 1024);
+      11u * 1024 * 1024);
 
-  // 2. Current platform constant equals budget minus the 12 MiB reserve:
+  // 2. Current platform constant equals budget minus the 13 MiB reserve:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
                 kSbMaxSystemPathCacheDirectorySize),
-            kSbMaxSystemPathCacheDirectorySize - 12u * 1024 * 1024);
+            kSbMaxSystemPathCacheDirectorySize - 13u * 1024 * 1024);
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  content::GeneratedCodeCacheSettings settings =
+      client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+  EXPECT_TRUE(settings.enabled());
+  EXPECT_EQ(settings.size_in_bytes(), 5 * 1024 * 1024);
+  EXPECT_EQ(settings.wasm_size_in_bytes(), 1 * 1024 * 1024);
+  EXPECT_EQ(settings.path(), cache_dir);
 }
 
 #if BUILDFLAG(IS_ANDROID)
