@@ -255,6 +255,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Compositing.DirectRenderer.RootDamage" units="%"
+    expires_after="2026-10-26">
+  <owner>nyardi@google.com</owner>
+  <owner>mcasas@google.com</owner>
+  <summary>
+    The area of the display that was damaged in the current frame as a
+    percentage of total viewport area, recorded on every frame in
+    DirectRenderer::DrawFrame regardless of whether partial swap is enabled.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.DirectRenderer.{FocusType}" units="pixels"
     expires_after="2025-10-12">
   <owner>petermcneeley@chromium.org</owner>
@@ -738,6 +749,18 @@ chromium-metrics-reviews@google.com.
     The number of render surfaces in the render surface layer list. Recorded
     each time the render surface layer list is constructed (in a renderer
     process).
+  </summary>
+</histogram>
+
+<histogram name="Compositing.Renderer.PaintInvalidationArea" units="%"
+    expires_after="2026-10-26">
+  <owner>nyardi@google.com</owner>
+  <owner>mcasas@google.com</owner>
+  <summary>
+    The geometric union of all layer paint invalidation regions (update_rect)
+    in screen space as a percentage of the device viewport area. Recorded in
+    LayerTreeHostImpl::PrepareToDraw for every drawn frame. Corresponds to the
+    visual region highlighted by DevTools Paint Flashing.
   </summary>
 </histogram>
 
