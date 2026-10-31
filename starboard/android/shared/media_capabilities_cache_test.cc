@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -231,28 +232,25 @@ TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_EnabledCache) {
       {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeDolbyDigitalPlus,
        6},
   };
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(0, testing::_))
-      .WillOnce(
-          testing::DoAll(testing::SetArgPointee<1>(configs[0]), Return(true)));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(0))
+      .WillOnce(Return(std::optional<SbMediaAudioConfiguration>(configs[0])));
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(1, testing::_))
-      .WillOnce(
-          testing::DoAll(testing::SetArgPointee<1>(configs[1]), Return(true)));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(1))
+      .WillOnce(Return(std::optional<SbMediaAudioConfiguration>(configs[1])));
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(2, testing::_))
-      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(2))
+      .WillOnce(Return(std::nullopt));
 
-  SbMediaAudioConfiguration config;
-  EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
-  EXPECT_EQ(config.coding_type, kSbMediaAudioCodingTypeAc3);
+  std::optional<SbMediaAudioConfiguration> config =
+      cache_->GetAudioConfiguration(0);
+  ASSERT_TRUE(config.has_value());
+  EXPECT_EQ(config->coding_type, kSbMediaAudioCodingTypeAc3);
 
-  EXPECT_TRUE(cache_->GetAudioConfiguration(1, &config));
-  EXPECT_EQ(config.coding_type, kSbMediaAudioCodingTypeDolbyDigitalPlus);
+  config = cache_->GetAudioConfiguration(1);
+  ASSERT_TRUE(config.has_value());
+  EXPECT_EQ(config->coding_type, kSbMediaAudioCodingTypeDolbyDigitalPlus);
 
-  EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(2).has_value());
 }
 
 TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_DisabledCache) {
@@ -263,33 +261,28 @@ TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_DisabledCache) {
        6},
   };
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(0, testing::_))
-      .WillOnce(
-          testing::DoAll(testing::SetArgPointee<1>(configs[0]), Return(true)));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(0))
+      .WillOnce(Return(std::optional<SbMediaAudioConfiguration>(configs[0])));
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(1, testing::_))
-      .WillOnce(
-          testing::DoAll(testing::SetArgPointee<1>(configs[1]), Return(true)));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(1))
+      .WillOnce(Return(std::optional<SbMediaAudioConfiguration>(configs[1])));
 
-  EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(2, testing::_))
-      .WillOnce(Return(false));
+  EXPECT_CALL(*mock_media_capabilities_provider_, GetAudioConfiguration(2))
+      .WillOnce(Return(std::nullopt));
 
-  SbMediaAudioConfiguration config;
-  EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
-  EXPECT_EQ(config.coding_type, kSbMediaAudioCodingTypeAc3);
+  std::optional<SbMediaAudioConfiguration> config =
+      cache_->GetAudioConfiguration(0);
+  ASSERT_TRUE(config.has_value());
+  EXPECT_EQ(config->coding_type, kSbMediaAudioCodingTypeAc3);
 
-  EXPECT_TRUE(cache_->GetAudioConfiguration(1, &config));
-  EXPECT_EQ(config.coding_type, kSbMediaAudioCodingTypeDolbyDigitalPlus);
+  config = cache_->GetAudioConfiguration(1);
+  ASSERT_TRUE(config.has_value());
+  EXPECT_EQ(config->coding_type, kSbMediaAudioCodingTypeDolbyDigitalPlus);
 
-  EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(2).has_value());
 }
 
 TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
-  SbMediaAudioConfiguration config;
-
   EXPECT_CALL(*mock_media_capabilities_provider_, GetIsWidevineSupported())
       .Times(2)
       .WillOnce(Return(true))
@@ -312,12 +305,12 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
       .WillOnce(Return(false));
 
   EXPECT_CALL(*mock_media_capabilities_provider_,
-              GetAudioConfiguration(testing::_, testing::_))
+              GetAudioConfiguration(testing::_))
       .Times(4)
-      .WillOnce(Return(true))
-      .WillOnce(Return(false))
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
+      .WillOnce(Return(SbMediaAudioConfiguration{}))
+      .WillOnce(Return(std::nullopt))
+      .WillOnce(Return(SbMediaAudioConfiguration{}))
+      .WillOnce(Return(std::nullopt));
 
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
@@ -329,7 +322,7 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_TRUE(cache_->IsHDRTransferCharacteristicsSupported(
       kSbMediaTransferIdSmpteSt2084));
   EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
-  EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
+  EXPECT_TRUE(cache_->GetAudioConfiguration(0).has_value());
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 
   // Call all cache functions again to ensure that the provider functions
@@ -339,7 +332,7 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_TRUE(cache_->IsHDRTransferCharacteristicsSupported(
       kSbMediaTransferIdSmpteSt2084));
   EXPECT_TRUE(cache_->IsPassthroughSupported(kSbMediaAudioCodecAc3));
-  EXPECT_TRUE(cache_->GetAudioConfiguration(0, &config));
+  EXPECT_TRUE(cache_->GetAudioConfiguration(0).has_value());
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 
   cache_->ClearCache();
@@ -349,7 +342,7 @@ TEST_F(MediaCapabilitiesCacheTest, ClearCacheClearsAllValues) {
   EXPECT_FALSE(cache_->IsHDRTransferCharacteristicsSupported(
       kSbMediaTransferIdAribStdB67));
   EXPECT_FALSE(cache_->IsPassthroughSupported(kSbMediaAudioCodecEac3));
-  EXPECT_FALSE(cache_->GetAudioConfiguration(2, &config));
+  EXPECT_FALSE(cache_->GetAudioConfiguration(2).has_value());
   EXPECT_FALSE(cache_->HasAudioDecoderFor("audio/mp4", 192000));
 }
 
