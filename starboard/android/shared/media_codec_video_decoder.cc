@@ -344,8 +344,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
       enable_codec_thread_improvements_(
-          pipeline_config.experimental_features.GetBool(
-              kMediaEnableCodecThreadImprovements)),
+          use_dual_threads_ && pipeline_config.experimental_features.GetBool(
+                                   kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
@@ -430,7 +430,10 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
     sink_ = make_scoped_refptr<Sink>(
-        std::bind(&MediaCodecVideoDecoder::SetPlaybackRate, this, _1));
+        std::bind(enable_codec_thread_improvements_
+                      ? &MediaCodecVideoDecoder::OnSinkPlaybackRateChanged
+                      : &MediaCodecVideoDecoder::SetPlaybackRate,
+                  this, _1));
   }
   return sink_;
 }
@@ -763,11 +766,27 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 }
 
 void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
-  if (playback_rate_ == playback_rate) {
+  if (playback_rate_.exchange(playback_rate, std::memory_order_relaxed) ==
+      playback_rate) {
     return;
   }
 
-  playback_rate_ = playback_rate;
+  if (media_decoder_) {
+    media_decoder_->SetPlaybackRate(playback_rate);
+  }
+}
+
+void MediaCodecVideoDecoder::OnSinkPlaybackRateChanged(double playback_rate) {
+  SB_DCHECK(enable_codec_thread_improvements_);
+  SB_DCHECK(BelongsToCurrentThread());
+  const double previous_sink_rate =
+      sink_playback_rate_.exchange(playback_rate, std::memory_order_relaxed);
+  const double previous_rate =
+      playback_rate_.exchange(playback_rate, std::memory_order_relaxed);
+  if (previous_rate == playback_rate && previous_sink_rate == playback_rate) {
+    return;
+  }
+
   if (media_decoder_) {
     media_decoder_->SetPlaybackRate(playback_rate);
   }
@@ -910,7 +929,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
     }
-    media_decoder_->SetPlaybackRate(playback_rate_);
+    media_decoder_->SetPlaybackRate(
+        playback_rate_.load(std::memory_order_relaxed));
 
     if (needs_fps_to_initialize_codec_) {
       SB_DCHECK(!pending_input_buffers_.empty());
@@ -1113,6 +1133,10 @@ bool MediaCodecVideoDecoder::Tick(MediaCodec* media_codec_bridge) {
   // here.
   SB_DCHECK(!tunnel_mode_audio_session_id_);
   return sink_->Render();
+}
+
+int64_t MediaCodecVideoDecoder::GetNextTickWaitDurationUs() const {
+  return next_tick_wait_duration_us_.load(std::memory_order_relaxed);
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {

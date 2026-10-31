@@ -57,6 +57,10 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     bool enable_codec_thread_improvements = false;
   };
 
+  // Default wait interval between video output thread Tick() calls (~125Hz),
+  // and default wait duration in OutputThreadFuncV2().
+  static constexpr int64_t kDefaultWaitForNextFrameIntervalUs = 8'000;
+
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
 
   // This class should be implemented by the users of MediaCodecDecoder to
@@ -75,6 +79,12 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodec* media_codec) = 0;
+    // Returns how long OutputThreadFuncV2() may wait, in microseconds, before
+    // calling Tick() again when no new output buffer arrives in the meantime.
+    // Queried on the video output thread right after each Tick().
+    virtual int64_t GetNextTickWaitDurationUs() const {
+      return kDefaultWaitForNextFrameIntervalUs;
+    }
     // This function gets called before calling Flush() on the contained
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
@@ -289,6 +299,10 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // |mutex_|.  Only used when |enable_codec_thread_improvements_| is true.
   size_t unmatched_input_thread_inputs_ = 0;
   size_t unmatched_input_thread_indices_ = 0;
+  // Set to request an extra Tick() from the video output thread, e.g. when the
+  // playback rate changes.  Guarded by |mutex_|.  Only used when
+  // |enable_codec_thread_improvements_| is true.
+  bool output_wakeup_requested_ = false;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

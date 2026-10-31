@@ -20,6 +20,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
+#include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -36,6 +37,15 @@ namespace {
 
 const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
 const int64_t kBufferReadyThreshold = 50'000;     // 50ms
+
+const int64_t kMinWaitForNextFrameIntervalUs =
+    MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs;  // 8ms
+// Target early margin one minimum poll interval inside kBufferReadyThreshold
+// (42ms) when scheduling the next Tick() for a pending frame.
+const int64_t kTargetReleaseEarlyThresholdUs =
+    kBufferReadyThreshold - kMinWaitForNextFrameIntervalUs;
+// Kept below VideoRendererImpl's 66ms render interval warning threshold.
+const int64_t kMaxWaitForNextFrameIntervalUs = 50'000;  // 50ms
 
 jlong GetSystemNanoTime() {
   timespec now;
@@ -68,6 +78,12 @@ void VideoRenderAlgorithmAndroid::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
+  // Default to the maximum sleep when no frame remains pending (empty queue,
+  // video EOS, or audio EOS); a newly decoded output buffer always wakes
+  // VidDecOut immediately.
+  int64_t next_wait_duration_us = kMaxWaitForNextFrameIntervalUs;
+  const int64_t previous_render_playback_time = last_render_playback_time_;
+
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -82,6 +98,11 @@ void VideoRenderAlgorithmAndroid::Render(
     double playback_rate;
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+    last_render_playback_time_ = playback_time;
+    // GetCurrentMediaTime() may report the buffered audio rate while paused, so
+    // also check MediaCodecVideoDecoder::is_playback_paused().
+    const bool is_paused =
+        playback_rate == 0 || video_decoder_->is_playback_paused();
 
     if (release_frames_after_audio_starts_) {
       // After the first frame, stop rendering if audio isn't playing, or if
@@ -90,15 +111,22 @@ void VideoRenderAlgorithmAndroid::Render(
       // stalled or hasn't consumed frames yet.
       if (first_frame_released_ &&
           (!is_audio_playing || playback_time == seek_to_time_)) {
+        next_wait_duration_us = is_paused ? kMaxWaitForNextFrameIntervalUs
+                                          : kMinWaitForNextFrameIntervalUs;
         break;
       }
     } else {
       if (!is_audio_playing) {
+        // Keep the 8ms cadence until the first frame after Seek() is released.
+        next_wait_duration_us = (is_paused && first_frame_released_)
+                                    ? kMaxWaitForNextFrameIntervalUs
+                                    : kMinWaitForNextFrameIntervalUs;
         break;
       }
     }
 
-    if (playback_rate != playback_rate_) {
+    if ((!video_decoder_->enable_codec_thread_improvements() || !is_paused) &&
+        playback_rate != playback_rate_) {
       playback_rate_ = playback_rate;
       video_decoder_->SetPlaybackRate(playback_rate);
     }
@@ -143,8 +171,27 @@ void VideoRenderAlgorithmAndroid::Render(
       frames->pop_front();
       first_frame_released_ = true;
     } else {
+      // Scale early_us down when a higher sink rate is pending, and keep the
+      // 8ms cadence when the playing clock has not yet advanced.
+      const double sink_rate = video_decoder_->sink_playback_rate();
+      const int64_t wait_early_us =
+          (playback_rate > 0 && sink_rate > playback_rate)
+              ? static_cast<int64_t>(early_us * (playback_rate / sink_rate))
+              : early_us;
+      const bool clock_stalled = playback_time == previous_render_playback_time;
+      next_wait_duration_us =
+          is_paused       ? kMaxWaitForNextFrameIntervalUs
+          : clock_stalled ? kMinWaitForNextFrameIntervalUs
+                          : std::clamp<int64_t>(
+                                wait_early_us - kTargetReleaseEarlyThresholdUs,
+                                kMinWaitForNextFrameIntervalUs,
+                                kMaxWaitForNextFrameIntervalUs);
       break;
     }
+  }
+
+  if (video_decoder_->enable_codec_thread_improvements()) {
+    video_decoder_->SetNextTickWaitDurationUs(next_wait_duration_us);
   }
 }
 
@@ -154,6 +201,7 @@ void VideoRenderAlgorithmAndroid::Seek(int64_t seek_to_time) {
   }
   first_frame_released_ = false;
   seek_to_time_ = seek_to_time;
+  last_render_playback_time_ = -1;
 }
 
 int VideoRenderAlgorithmAndroid::GetDroppedFrames() {

@@ -45,8 +45,8 @@ constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
 // Default wait interval between video output thread Tick() calls (~125Hz, i.e.
 // roughly twice a 60fps display refresh rate so frame release times are checked
 // at least twice per vsync interval).
-constexpr auto kDefaultWaitForNextFrameInterval =
-    std::chrono::microseconds(8'000);
+constexpr auto kDefaultWaitForNextFrameInterval = std::chrono::microseconds(
+    MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs);
 
 // Fallback timeout while waiting for a DRM key (MEDIA_CODEC_NO_KEY) in
 // InputThreadFuncV2().
@@ -437,6 +437,15 @@ void MediaCodecDecoder::WriteEndOfStream() {
 void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
+
+  if (enable_codec_thread_improvements_ && !tunnel_mode_enabled_) {
+    // Wake up the output thread so it re-evaluates the frame release schedule
+    // with the new playback rate (e.g. on resume from pause) right away instead
+    // of after its current wait expires.
+    std::lock_guard lock(mutex_);
+    output_wakeup_requested_ = true;
+    video_output_condition_variable_.notify_one();
+  }
 }
 
 bool MediaCodecDecoder::Flush() {
@@ -476,6 +485,7 @@ bool MediaCodecDecoder::Flush() {
     pending_input_to_retry_ = std::nullopt;
     unmatched_input_thread_inputs_ = 0;
     unmatched_input_thread_indices_ = 0;
+    output_wakeup_requested_ = false;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
@@ -832,6 +842,9 @@ void MediaCodecDecoder::OutputThreadFuncV2() {
   SB_DCHECK(enable_codec_thread_improvements_);
 
   std::vector<DequeueOutputResult> dequeue_output_results;
+  // How long to wait for new output before calling Tick() again.  Updated
+  // after every Tick() from the host's answer.
+  int64_t wait_duration_us = kDefaultWaitForNextFrameIntervalUs;
 
   while (!destroying_.load()) {
     dequeue_output_results.clear();
@@ -845,17 +858,17 @@ void MediaCodecDecoder::OutputThreadFuncV2() {
             return destroying_.load() || !dequeue_output_results_.empty();
           });
         } else {
-          // TODO(b/329686979): Allow Tick() to return the time to next frame
-          // release to dynamically adjust the wait duration.
           video_output_condition_variable_.wait_for(
-              lock, kDefaultWaitForNextFrameInterval, [this] {
-                return destroying_.load() || !dequeue_output_results_.empty();
+              lock, std::chrono::microseconds(wait_duration_us), [this] {
+                return destroying_.load() || !dequeue_output_results_.empty() ||
+                       output_wakeup_requested_;
               });
         }
       }
       if (destroying_.load()) {
         break;
       }
+      output_wakeup_requested_ = false;
       // Collect pending outputs before releasing |mutex_| so they are all
       // drained in one lock acquisition per wakeup.
       CollectPendingOutputData_Locked(&dequeue_output_results);
@@ -880,6 +893,10 @@ void MediaCodecDecoder::OutputThreadFuncV2() {
       // without waiting when Tick() returns true would only trigger a redundant
       // no-op Tick() call.
       host_->Tick(media_codec_bridge_.get());
+      // Guard against a host returning a non-positive duration, which would
+      // turn the loop below into a busy loop.
+      wait_duration_us =
+          std::max<int64_t>(host_->GetNextTickWaitDurationUs(), 1'000);
     }
   }
 }
