@@ -404,7 +404,7 @@ test("cobalt_unittests") {
     ]
   }
 
-  if (is_starboard || is_androidtv) {
+  if (is_starboard || is_androidtv || (is_ios && target_platform == "tvos")) {
     sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
   }
 
@@ -509,7 +509,7 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
-  if (is_starboard || is_androidtv) {
+  if (is_starboard || is_androidtv || (is_ios && target_platform == "tvos")) {
     deps += [ "//cobalt/browser/h5vcc_native_stability" ]
   }
 

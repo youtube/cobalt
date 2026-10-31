@@ -39,6 +39,18 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
       NSBundle* outer_bundle = base::apple::OuterBundle();
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       process_annotations["prod"] = "Chrome_iOS";
+#elif BUILDFLAG(IS_COBALT)
+      NSString* breakpad_product = base::apple::ObjCCast<NSString>(
+          [outer_bundle objectForInfoDictionaryKey:@"BreakpadProduct"]);
+      if (breakpad_product && breakpad_product.length) {
+        process_annotations["prod"] = base::SysNSStringToUTF8(breakpad_product);
+      } else {
+        NSString* product = base::apple::ObjCCast<NSString>(
+            [outer_bundle objectForInfoDictionaryKey:base::apple::CFToNSPtrCast(
+                                                         kCFBundleNameKey)]);
+        process_annotations["prod"] =
+            base::SysNSStringToUTF8(product).append("_").append(kPlatformName);
+      }
 #else
       NSString* product = base::apple::ObjCCast<NSString>(
           [outer_bundle objectForInfoDictionaryKey:base::apple::CFToNSPtrCast(
@@ -59,9 +71,19 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
       if (!allow_empty_channel && (!channel || !channel.length))
         channel = @"developer";
       process_annotations["channel"] = base::SysNSStringToUTF8(channel);
+#if BUILDFLAG(IS_COBALT)
+      NSString* version = base::apple::ObjCCast<NSString>([outer_bundle
+          objectForInfoDictionaryKey:@"CFBundleShortVersionString"]);
+      if (!version || !version.length) {
+        version =
+            base::apple::ObjCCast<NSString>([base::apple::FrameworkBundle()
+                objectForInfoDictionaryKey:@"CFBundleVersion"]);
+      }
+#else
       NSString* version =
           base::apple::ObjCCast<NSString>([base::apple::FrameworkBundle()
               objectForInfoDictionaryKey:@"CFBundleVersion"]);
+#endif
       process_annotations["ver"] = base::SysNSStringToUTF8(version);
       process_annotations["plat"] = kPlatformName;
       process_annotations["crashpad"] = std::string("yes");
