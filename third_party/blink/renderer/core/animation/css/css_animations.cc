@@ -35,6 +35,7 @@
 #include <tuple>
 
 #include "base/containers/contains.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_computed_effect_timing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
@@ -2458,6 +2459,9 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
       CalculateAfterChangeStyle(state, property);
 
   const RunningTransition* interrupted_transition = nullptr;
+#if BUILDFLAG(IS_COBALT)
+  const RunningTransition* cobalt_running_transition = nullptr;
+#endif
   if (state.active_transitions) {
     TransitionMap::const_iterator active_transition_iter =
         state.active_transitions->find(property);
@@ -2484,11 +2488,15 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
              !state.animating_element.GetElementAnimations()
                   ->IsAnimationStyleChange());
 
+#if BUILDFLAG(IS_COBALT)
+      cobalt_running_transition = running_transition;
+#else
       if (ComputedValuesEqual(
               property, after_change_style,
               *running_transition->reversing_adjusted_start_value)) {
         interrupted_transition = running_transition;
       }
+#endif
     }
   }
 
@@ -2601,6 +2609,17 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
   const ComputedStyle* reversing_adjusted_start_value =
       state.before_change_style;
   double reversing_shortening_factor = 1;
+#if BUILDFLAG(IS_COBALT)
+  // b/475091954: Backport https://crrev.com/c/7511243 - defer checking whether
+  // the running transition is interrupted until we know a new transition is
+  // actually starting.
+  if (cobalt_running_transition &&
+      ComputedValuesEqual(
+          property, after_change_style,
+          *cobalt_running_transition->reversing_adjusted_start_value)) {
+    interrupted_transition = cobalt_running_transition;
+  }
+#endif
   if (interrupted_transition) {
     AnimationEffect* effect = interrupted_transition->animation->effect();
     const std::optional<double> interrupted_progress =
