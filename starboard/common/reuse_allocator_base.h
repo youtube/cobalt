@@ -40,7 +40,9 @@ namespace starboard {
 class ReuseAllocatorBase : public Allocator {
  public:
   // Allocator methods.
-  size_t GetCapacity() const override { return capacity_; }
+  size_t GetCapacity() const override {
+    return capacity_ >= decommitted_bytes_ ? capacity_ - decommitted_bytes_ : 0;
+  }
 
   // Immediately decommit all remaining decommitable blocks (e.g. on app
   // suspend).
@@ -149,8 +151,17 @@ class ReuseAllocatorBase : public Allocator {
   // allocator.
   size_t capacity_ = 0;
 
+  // How many bytes in `fallback_allocations_` are currently aggressively
+  // decommitted (kIdleDecommitted via MADV_DONTNEED).
+  size_t decommitted_bytes_ = 0;
+
   // Counter to amortize decommits over multiple allocation attempts.
   size_t block_decommit_attempt_count_ = 0;
+
+  // Number of periodic decommit ticks to wait after ReclaimFallbackBlocks()
+  // before decommitting idle blocks, allowing video-to-video transitions and
+  // seeks to reuse already-committed blocks without page-fault storms.
+  size_t decommit_grace_ticks_remaining_ = 0;
 
   // Set to true when idle reclamation stages blocks for decommit.
   bool has_pending_decommits_ = false;

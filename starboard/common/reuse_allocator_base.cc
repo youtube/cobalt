@@ -25,6 +25,16 @@
 
 namespace starboard {
 
+namespace {
+
+// Wait 3 periodic ticks (15 seconds at 5s interval) after
+// ReclaimFallbackBlocks() before decommitting idle blocks in the background, so
+// consecutive playback transitions and seeks reuse committed pages without
+// MADV_DONTNEED + page-fault thrashing.
+constexpr size_t kDefaultDecommitGraceTicks = 3;
+
+}  // namespace
+
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        size_t max_capacity,
                                        size_t retain_blocks,
@@ -61,6 +71,7 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
                                       fallback_block.size,
                                       DecommitMode::kAggressive);
         fallback_block.state = kIdleDecommitted;
+        decommitted_bytes_ += fallback_block.size;
       }
     }
     has_pending_decommits_ = false;
@@ -74,6 +85,7 @@ void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
         fallback_allocator_->Decommit(it->address, it->size,
                                       DecommitMode::kAggressive);
         it->state = kIdleDecommitted;
+        decommitted_bytes_ += it->size;
       } else if (it->state == kIdlePendingFree) {
         fallback_allocator_->Decommit(it->address, it->size,
                                       DecommitMode::kConservative);
@@ -95,6 +107,10 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     if (fallback_block.state != kActiveInUse &&
         fallback_block.size >= *size_to_try &&
         MemoryIsAligned(fallback_block.address, alignment)) {
+      if (fallback_block.state == kIdleDecommitted) {
+        SB_DCHECK_GE(decommitted_bytes_, fallback_block.size);
+        decommitted_bytes_ -= fallback_block.size;
+      }
       fallback_block.state = kActiveInUse;
       *size_to_try = fallback_block.size;
       return {fallback_block.address, static_cast<intptr_t>(i)};
@@ -119,6 +135,7 @@ void ReuseAllocatorBase::ReclaimFallbackBlocks() {
   SB_LOG(INFO) << "Allocator reached idle state, reclaiming "
                << fallback_allocations_.size() << " fallback allocations.";
   block_decommit_attempt_count_ = 0;
+  decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
   for (size_t i = 0; i < fallback_allocations_.size(); ++i) {
     auto& fallback_block = fallback_allocations_[i];
 
@@ -152,6 +169,10 @@ void ReuseAllocatorBase::TryToDecommitOneBlock(int cadence) {
   if (!has_pending_decommits_) {
     return;
   }
+  if (decommit_grace_ticks_remaining_ > 0) {
+    --decommit_grace_ticks_remaining_;
+    return;
+  }
   const size_t effective_cadence = static_cast<size_t>(std::max(1, cadence));
   ++block_decommit_attempt_count_;
   if (block_decommit_attempt_count_ % effective_cadence == 0) {
@@ -161,6 +182,7 @@ void ReuseAllocatorBase::TryToDecommitOneBlock(int cadence) {
         fallback_allocator_->Decommit(it->address, it->size,
                                       DecommitMode::kAggressive);
         it->state = kIdleDecommitted;
+        decommitted_bytes_ += it->size;
         return;
       }
       if (it->state == kIdlePendingFree) {
