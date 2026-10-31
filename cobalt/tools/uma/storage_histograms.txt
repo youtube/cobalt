@@ -76,7 +76,7 @@ Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 # --- P2.1 Cold-Start Latency & Thread Congestion Guardrails ---
 Cobalt.Startup.Time.NavigationDispatchToCommit
 Cobalt.Startup.MilestoneReached
-Cobalt.Startup.MilestoneDuration.
+Cobalt.Startup.TimeToMilestone.
 Browser.MainThreadsCongestion
 
 # --- P2.2 Data Integrity & Error Guardrails ---

@@ -5,8 +5,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import android.os.SystemClock;
 import dev.cobalt.shell.StartupGuard;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.UmaRecorderHolder;
 import org.junit.After;
@@ -16,6 +18,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadows.ShadowSystemClock;
 
 /** Tests for the StartupGuard. */
 @RunWith(RobolectricTestRunner.class)
@@ -111,22 +114,114 @@ public class StartupGuardTest {
 
   @Test
   public void setStartupMilestone_recordsUmaForMilestones1To37() {
+    // ActivityOnDestroy ends startup timing, so reach it last.
     for (int milestone = 1; milestone <= 37; milestone++) {
-      mStartupGuard.setStartupMilestone(milestone);
-      assertEquals(
-          "Milestone " + milestone + " should be recorded to UMA",
-          1,
-          RecordHistogram.getHistogramValueCountForTesting(
-              StartupGuard.METRIC_MILESTONE_REACHED, milestone));
-      assertEquals(
-          "Milestone duration for "
-              + StartupGuard.MILESTONE_NAMES[milestone]
-              + " should be recorded",
-          1,
-          RecordHistogram.getHistogramTotalCountForTesting(
-              StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
-                  + StartupGuard.MILESTONE_NAMES[milestone]));
+      if (milestone != StartupGuard.ACTIVITY_ON_DESTROY) {
+        assertMilestoneRecordedToUma(milestone);
+      }
     }
+    assertMilestoneRecordedToUma(StartupGuard.ACTIVITY_ON_DESTROY);
+  }
+
+  private void assertMilestoneRecordedToUma(int milestone) {
+    mStartupGuard.setStartupMilestone(milestone);
+    assertEquals(
+        "Milestone " + milestone + " should be recorded to UMA",
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_MILESTONE_REACHED, milestone));
+    assertEquals(
+        "Time to milestone for " + StartupGuard.MILESTONE_NAMES[milestone] + " should be recorded",
+        1,
+        RecordHistogram.getHistogramTotalCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[milestone]));
+  }
+
+  @Test
+  public void setStartupMilestone_recordsTimeSinceStartupOriginNotSincePreviousMilestone() {
+    mStartupGuard.setStartupOriginForTesting(SystemClock.elapsedRealtime() - 1500);
+
+    mStartupGuard.setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT);
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.PRE_LIBRARY_LOADER_INIT],
+            1500));
+
+    ShadowSystemClock.advanceBy(250, TimeUnit.MILLISECONDS);
+    mStartupGuard.setStartupMilestone(StartupGuard.POST_LIBRARY_LOADER_INIT);
+    // Measured from the shared origin (1750 ms), not from the previous milestone (250 ms).
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.POST_LIBRARY_LOADER_INIT],
+            1750));
+    assertEquals(
+        0,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.POST_LIBRARY_LOADER_INIT],
+            250));
+  }
+
+  @Test
+  public void setStartupMilestone_recordsMilestoneTimestamp() {
+    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(StartupGuard.DID_FINISH_NAVIGATION));
+
+    long before = SystemClock.elapsedRealtime();
+    mStartupGuard.setStartupMilestone(StartupGuard.DID_FINISH_NAVIGATION);
+    assertEquals(before, mStartupGuard.getMilestoneTimestampMs(StartupGuard.DID_FINISH_NAVIGATION));
+
+    // Out-of-range milestones never have a timestamp.
+    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(-1));
+    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(64));
+  }
+
+  @Test
+  public void setStartupMilestone_stopsTimingAfterActivityDestroyed() {
+    mStartupGuard.setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
+    assertEquals(
+        "ActivityOnDestroy itself should be timed",
+        1,
+        RecordHistogram.getHistogramTotalCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.ACTIVITY_ON_DESTROY]));
+
+    mStartupGuard.setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
+    assertEquals(
+        "Milestones first reached after the Activity is destroyed are not startup timings",
+        0,
+        RecordHistogram.getHistogramTotalCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.PLATFORM_ERROR_RAISED]));
+    assertEquals(
+        "MilestoneReached is still recorded",
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_MILESTONE_REACHED, StartupGuard.PLATFORM_ERROR_RAISED));
+  }
+
+  @Test
+  public void setStartupMilestone_stopsTimingWhenSecondActivityIsCreated() {
+    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
+    // A second Activity created in the same process reports JAVA_ACTIVITY_CREATED again.
+    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
+
+    mStartupGuard.setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
+    assertEquals(
+        "Milestones first reached by a later Activity are not startup timings",
+        0,
+        RecordHistogram.getHistogramTotalCountForTesting(
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
+                + StartupGuard.MILESTONE_NAMES[StartupGuard.ACTIVITY_ON_RESUME]));
+    assertEquals(
+        "MilestoneReached is still recorded",
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            StartupGuard.METRIC_MILESTONE_REACHED, StartupGuard.ACTIVITY_ON_RESUME));
   }
 
   @Test
@@ -174,7 +269,7 @@ public class StartupGuardTest {
     assertEquals(
         1,
         RecordHistogram.getHistogramTotalCountForTesting(
-            StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
                 + StartupGuard.MILESTONE_NAMES[StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT]));
 
     // Second call with same milestone should be ignored
@@ -186,7 +281,7 @@ public class StartupGuardTest {
     assertEquals(
         1,
         RecordHistogram.getHistogramTotalCountForTesting(
-            StartupGuard.METRIC_MILESTONE_DURATION_PREFIX
+            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
                 + StartupGuard.MILESTONE_NAMES[StartupGuard.STARBOARD_BRIDGE_NATIVE_INIT]));
   }
 
