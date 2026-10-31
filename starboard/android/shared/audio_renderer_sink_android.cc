@@ -36,6 +36,15 @@ namespace {
 
 using jni_zero::AttachCurrentThread;
 
+// The minimum duration of audio the renderer can cache, i.e. write to the
+// AudioTrack before it's played. The AudioTrack may be recreated by the
+// platform with a larger frame count than requested (e.g. via
+// AudioTrack::restoreTrack_l() on a route switch to a Cast speaker group with
+// ~800ms latency). The AudioTrack doesn't start until it receives that many
+// frames, so the renderer must be able to cache at least that much audio.
+// See b/573043984.
+constexpr int64_t kMinCachedAudioDurationUs = 1'000'000;  // 1 second
+
 AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
     const AudioRendererSinkAndroid::Options& options) {
   return [=](int64_t start_media_time, int channels, int sampling_frequency_hz,
@@ -146,6 +155,12 @@ void AudioRendererSinkAndroid::GetAudioRendererParams(
   // stop working after pause.
   *max_cached_frames = min_frames_required * 2 +
                        AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+  // Keep enough headroom for an AudioTrack recreated with a larger frame
+  // count after an audio route switch. This doesn't change the AudioTrack
+  // buffer size requested, so it doesn't affect startup latency.
+  *max_cached_frames = std::max<int>(
+      *max_cached_frames,
+      output_sampling_frequency_hz * kMinCachedAudioDurationUs / 1'000'000);
   *max_cached_frames =
       AlignUp(*max_cached_frames, AudioRendererSink::kAudioSinkFramesAlignment);
 }
