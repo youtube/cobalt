@@ -15,6 +15,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "url/url_canon.h"
@@ -26,6 +28,10 @@ namespace url {
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
+// b/561702947: Disabled for unused functionality from ICU.
+// Legacy character conversion tables (.cnv files) were removed from
+// Cobalt's ICU database to conserve binary size. Cobalt only operates in UTF-8.
 TEST(URLCanonIcuTest, ICUCharsetConverter) {
   struct ICUCase {
     const wchar_t* input;
@@ -147,6 +153,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
   output.Complete();
   EXPECT_EQ("?a%20%00z%01", out_str);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
