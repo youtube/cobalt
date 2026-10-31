@@ -189,6 +189,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Triggers FlushCookiesAndLocalStorage and records
   // Cobalt.Storage.OnPause.FlushDuration.
   void FlushCookiesAndLocalStorageOnPause();
+#if BUILDFLAG(IS_ANDROIDTV)
+  // Writes HttpServerProperties to disk now and runs |callback| once it has
+  // been committed; |flushed| is true if an update was pending. See
+  // features::kCobaltFlushHttpServerPropertiesOnPause.
+  void FlushHttpServerProperties(
+      base::OnceCallback<void(bool flushed)> callback);
+#endif  // BUILDFLAG(IS_ANDROIDTV)
   void DispatchBlur();
   void DispatchFocus();
 

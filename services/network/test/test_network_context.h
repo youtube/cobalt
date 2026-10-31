@@ -14,6 +14,7 @@
 #include "base/component_export.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/address_list.h"
@@ -388,6 +389,10 @@ class TestNetworkContext : public mojom::NetworkContext {
   void GetDeviceBoundSessionManager(
       mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager) override {}
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  void FlushHttpServerProperties(
+      FlushHttpServerPropertiesCallback callback) override {}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
 };
 
 }  // namespace network
