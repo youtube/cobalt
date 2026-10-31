@@ -1,5 +1,172 @@
 <html>
   <head>
+    <script>
+      // With the SplashWasmPolicy feature, which adds the "wasm_policy" query
+      // param, the splash screen shows the asset that a WebAssembly policy,
+      // splash_policy.wasm, chooses from splash_assets.json: the built-in
+      // assets and those that the WebApp cached in the cache of the splash
+      // screen's topic. Both start loading here, as the page loads. Without
+      // the param, the page chooses its asset itself.
+      const pageParams = new URLSearchParams(window.location.search);
+      const wasmPolicy = pageParams.get('wasm_policy') === 'true';
+      // The cache of the splash screen's topic, which the page reads (see
+      // playSplashAnimation()).
+      const splashCacheName = pageParams.get('cache') ?? 'default';
+
+      function fetchOk(response) {
+        if (!response.ok) {
+          throw new Error(`${response.status} for ${response.url}`);
+        }
+        return response;
+      }
+
+      const wasmPolicyModule = wasmPolicy ?
+          fetch('h5vcc-embedded://splash_policy.wasm')
+              .then(fetchOk)
+              .then(response => response.arrayBuffer())
+              .then(bytes => WebAssembly.compile(bytes)) :
+          null;
+      const splashAssetList = wasmPolicy ?
+          fetch('h5vcc-embedded://splash_assets.json?' +
+                new URLSearchParams({cache: splashCacheName}))
+              .then(fetchOk)
+              .then(response => response.json()) :
+          null;
+      // Their errors are handled when the policy runs.
+      wasmPolicyModule?.catch(() => {});
+      splashAssetList?.catch(() => {});
+
+      // How the policy takes the candidate assets: see splash_policy.c.
+      const POLICY_CANDIDATE_BYTES = 12;
+      const POLICY_FLAG_VP9 = 1;
+      const POLICY_FLAG_FORCE_IMAGE = 4;
+
+      /**
+       * The policy's outcome, which the page reports in the "policy" query
+       * param of its request for the asset that it shows: see
+       * SplashWasmPolicyOutcome in h5vcc_scheme_url_loader_factory.h.
+       * @enum {string}
+       */
+      const PolicyOutcome = {
+        BUILT_IN: 'builtin',
+        CACHED: 'cached',
+        LIST_UNAVAILABLE: 'list_unavailable',
+        FAILED: 'failed',
+      };
+
+      /** The policy can't run, as splash_assets.json is unavailable. */
+      class SplashAssetListUnavailableError extends Error {}
+
+      /**
+       * Returns the asset of splash_assets.json that the WebAssembly policy
+       * chooses, which must be what splash.html chooses without it:
+       * - the image for `name` "splash.png", and the video for "splash.webm",
+       *   the built-in 1080p one only if `plays4k`;
+       * - `name` in the cache of the splash screen's topic (the "cache" param
+       *   of `params`), if the WebApp cached it, as splash.html reads it, and
+       *   the topic's built-in asset otherwise (the "fallback" param).
+       * Throws a SplashAssetListUnavailableError if splash_assets.json is
+       * unavailable, and another error if the policy fails, e.g., if it makes
+       * no choice or another one.
+       * @param {!URLSearchParams} params The params of splash.html's own
+       *     choice: its cache and its built-in fallback
+       * @param {string} name The asset that splash.html reads, "splash.png" or
+       *     "splash.webm"
+       * @param {boolean} plays4k Whether the platform plays 4K VP9 videos
+       * @return {!Promise<!Object>} The asset, as splash_assets.json lists it
+       */
+      async function chooseSplashAsset(params, name, plays4k) {
+        const assets = await splashAssetList.catch(error => {
+          throw new SplashAssetListUnavailableError(error.message);
+        });
+        const {memory, items_buffer, max_items, choose} =
+            (await WebAssembly.instantiate(await wasmPolicyModule)).exports;
+        const showsImage = name === 'splash.png';
+        const topic = params.get('cache');
+        // Not from other topics' caches, which splash.html doesn't read.
+        const candidates = assets.filter(
+            asset => asset.source === 'builtin' || asset.cache === topic);
+        if (candidates.length > max_items()) {
+          throw new Error(`Too many candidates: ${candidates.length}`);
+        }
+        const view = new DataView(memory.buffer, items_buffer(),
+                                  candidates.length * POLICY_CANDIDATE_BYTES);
+        candidates.forEach((asset, i) => {
+          const offset = i * POLICY_CANDIDATE_BYTES;
+          const isVideo = asset.kind === 'video';
+          // As splash.html plays videos: the built-in 1080p ones need 4K VP9.
+          const playable = !isVideo || asset.source !== 'builtin' ||
+              asset.height < 1080 || plays4k;
+          view.setUint8(offset, asset.source === 'cache' ? 1 : 0);
+          view.setUint8(offset + 1, isVideo ? 1 : 0);
+          // Music, or default, as splash.html's built-in assets for any other
+          // topic.
+          view.setUint8(offset + 2, asset.topic === 'music' ? 1 : 0);
+          view.setUint8(offset + 3, playable ? 1 : 0);
+          view.setUint16(offset + 4, asset.width, true);
+          view.setUint16(offset + 6, asset.height, true);
+          view.setUint32(offset + 8, asset.bytes, true);
+        });
+        const asset = candidates[choose(
+            candidates.length,
+            showsImage ? POLICY_FLAG_FORCE_IMAGE : POLICY_FLAG_VP9,
+            topic === 'music' ? 1 : 0)];
+        if (!asset || asset.kind !== (showsImage ? 'image' : 'video') ||
+            (asset.source === 'cache' && asset.name !== name) ||
+            (asset.source === 'builtin' &&
+             asset.name !== params.get('fallback'))) {
+          throw new Error(`Unexpected choice: ${JSON.stringify(asset)}`);
+        }
+        return asset;
+      }
+
+      /**
+       * Returns the URL of the asset that the WebAssembly policy chooses, or
+       * of splash.html's own choice if the policy can't run or fails. Either
+       * reports the policy's outcome in its query params, for Cobalt's
+       * metrics, and, if the policy chose, how long the page waited for it.
+       * @param {string} name The asset that splash.html reads, "splash.png" or
+       *     "splash.webm"
+       * @param {!URLSearchParams} urlParams The params of splash.html's own
+       *     choice, with its cache and its built-in fallback
+       * @param {boolean} plays4k Whether the platform plays 4K VP9 videos
+       * @return {!Promise<string>}
+       */
+      async function splashUrlFromWasmPolicy(name, urlParams, plays4k) {
+        // From when the page would request its own choice.
+        const startMs = performance.now();
+        // Only the params of its own choice that the loader reads.
+        const params = new URLSearchParams();
+        for (const key of ['cache', 'fallback']) {
+          if (urlParams.has(key)) {
+            params.set(key, urlParams.get(key));
+          }
+        }
+        try {
+          const asset = await chooseSplashAsset(params, name, plays4k);
+          const policyMs = Math.round(performance.now() - startMs);
+          if (asset.source === 'builtin') {
+            // Served without reading the cache, as the policy found no asset
+            // there to show instead.
+            return `h5vcc-embedded://${asset.name}?` + new URLSearchParams({
+              source: 'builtin',
+              policy: PolicyOutcome.BUILT_IN,
+              policy_ms: policyMs,
+            });
+          }
+          // From the topic's cache, as splash.html reads it.
+          params.set('policy', PolicyOutcome.CACHED);
+          params.set('policy_ms', policyMs);
+          return `h5vcc-embedded://${name}?${params}`;
+        } catch (error) {
+          console.error('Splash screen policy failed:', error);
+          params.set('policy',
+                     error instanceof SplashAssetListUnavailableError ?
+                         PolicyOutcome.LIST_UNAVAILABLE : PolicyOutcome.FAILED);
+        }
+        return `h5vcc-embedded://${name}?${params}`;
+      }
+    </script>
     <style>
       body {
         margin: 0;
@@ -89,7 +256,11 @@
           return;
         }
         urlParams.append('fallback', `${splashTopic}splash.png`);
-        fetch('h5vcc-embedded://splash.png?' + urlParams.toString())
+        const imageResponse = wasmPolicy ?
+            splashUrlFromWasmPolicy('splash.png', urlParams, /*plays4k=*/false)
+                .then(url => fetch(url)) :
+            fetch('h5vcc-embedded://splash.png?' + urlParams.toString());
+        imageResponse
         .then(response => {
           if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -136,8 +307,11 @@
           const splashFormat = (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) ? '' : '_480';
           urlParams.append('fallback', `${splashTopic}splash${splashFormat}.webm`);
           try {
-            const response = await fetch(
-                'h5vcc-embedded://splash.webm?' + urlParams.toString());
+            const url = wasmPolicy ?
+                await splashUrlFromWasmPolicy('splash.webm', urlParams,
+                                              /*plays4k=*/splashFormat === '') :
+                'h5vcc-embedded://splash.webm?' + urlParams.toString();
+            const response = await fetch(url);
             if (!response.ok) {
               throw new Error('Network response was not ok');
             }

@@ -462,7 +462,11 @@ Always run the pretty print utility on this file after editing:
     EnableCachedSplashFile feature is disabled, e.g., by default or in Finch's
     crash safe mode, the cache isn't read and the built-in resource is used,
     which is recorded as &quot;Skipped: cached assets disabled&quot;, not as
-    &quot;Success: Content from builtin&quot;, which remains a cache miss.
+    &quot;Success: Content from builtin&quot;, which remains a cache miss. With
+    the SplashWasmPolicy feature, a built-in resource that the splash screen's
+    policy chose, as the WebApp cached none to show instead, is served without
+    reading the cache, and recorded as a cache miss too, if the cache is
+    enabled.
   </summary>
 </histogram>
 
@@ -507,6 +511,53 @@ Always run the pretty print utility on this file after editing:
     <variant name="Image" summary="The splash screen showed an image."/>
     <variant name="Video" summary="The splash screen played a video."/>
   </token>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.WasmPolicy.AssetListTime" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records how long Cobalt took to list the splash screen assets that the
+    splash screen's WebAssembly policy chooses from, with the SplashWasmPolicy
+    and EnableCachedSplashFile features: the built-in assets and those that the
+    WebApp cached in the cache of the splash screen's topic, in the splash
+    domain's Cache API. The listing starts when the splash screen starts, i.e.,
+    once per launch that shows it. Recorded once per listing that read the cache
+    and completed, when the list is ready. Not recorded without
+    EnableCachedSplashFile, as the cache isn't read then, nor if the listing
+    didn't complete, e.g., at its 1-second timeout, after which the splash
+    screen makes its own choice.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.WasmPolicy.DecisionTime" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records how long the splash screen waited for its WebAssembly policy to
+    choose the asset that it shows, with the SplashWasmPolicy feature: from when
+    the splash screen page would have requested its own choice, without the
+    feature, until the policy chose, which includes getting the list of the
+    assets and loading the policy, unless they were ready. The page reports it
+    in its request for the asset, which Cobalt records when it serves the asset:
+    once per launch whose policy chose an asset, built-in or cached.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.WasmPolicy.Outcome"
+    enum="SplashWasmPolicyOutcome" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records the outcome of the splash screen's WebAssembly policy, with the
+    SplashWasmPolicy feature: the policy chose a built-in asset, or one that the
+    WebApp cached, or the splash screen made its own choice, as without the
+    feature, because it couldn't get the list of the assets, e.g., as Cobalt
+    couldn't list the cached ones in time, or because the policy failed, e.g.,
+    as its module didn't load, or as it chose no asset, or not the asset that
+    the page chooses itself. The page reports the outcome in its request for the
+    asset that it shows, which Cobalt records when it serves the asset: once per
+    launch that shows the splash screen.
+  </summary>
 </histogram>
 
 <histogram name="Cobalt.Stability.Android.SystemExitReason"

@@ -135,12 +135,26 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 // Overrides the URL loaded as the splash screen. If empty (the default) or not
 // a valid URL, the built-in splash screen (switches::kSplashScreenURL) is used.
-// The "force_image", "cache" and "timeout" query params are still appended.
-// Only available in non-gold builds; gold builds always use the built-in
-// splash screen. The value must be URL-encoded, e.g., for http://example.com:
+// The "force_image", "cache", "wasm_policy" and "timeout" query params are
+// still appended. Only available in non-gold builds; gold builds always use the
+// built-in splash screen. The value must be URL-encoded, e.g., for
+// http://example.com:
 // --enable-features=SplashScreenConfig:url/http%3A%2F%2Fexample.com
 BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+// Has the built-in splash screen choose the image or video that it shows with
+// a WebAssembly policy, splash_policy.wasm, from the built-in assets and those
+// that the WebApp cached for the splash screen's topic, which Cobalt starts
+// listing when the splash screen starts (SplashAssetList). The policy chooses
+// what the splash screen chooses without it, so that the two differ only in
+// how the asset is chosen, and the splash screen falls back to its own choice
+// if the policy fails. Only with this feature is the list served
+// (h5vcc-embedded://splash_assets.json), and does splash.html's
+// Content-Security-Policy, and no other's, allow WebAssembly
+// ('wasm-unsafe-eval'). Disabled by default.
+// Locally: --enable-features=SplashWasmPolicy
+BASE_DECLARE_FEATURE(kSplashWasmPolicy);
 
 // Enables video Picture-in-Picture support.
 extern const base::Feature kEnablePictureInPicture;

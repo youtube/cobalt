@@ -43,6 +43,7 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/browser/splash_asset_list.h"
 #include "third_party/blink/public/common/buildflags.h"
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -748,6 +749,19 @@ void Shell::LoadSplashScreenWebContents() {
     MarkStartupEvent(SplashScreenMetrics::Event::kSplashStart);
     GetPlatform()->LoadSplashScreenContents(this);
 
+    const bool has_splash_wasm_policy =
+        base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy);
+    if (has_splash_wasm_policy) {
+      // Lists the assets that the page's WebAssembly policy chooses from while
+      // the page loads, with those in the cache of the splash screen's topic,
+      // which the page reads (see the "cache" query param below).
+      SplashAssetList::GetOrCreateForBrowserContext(
+          splash_screen_web_contents_->GetBrowserContext())
+          ->Start(splash_topic_.empty()
+                      ? base::UTF16ToUTF8(switches::kDefaultSplashCacheName)
+                      : splash_topic_);
+    }
+
     GURL splash_screen_url = GetSplashScreenURL();
     if (!is_video_splash_screen_) {
       splash_screen_url =
@@ -774,6 +788,11 @@ void Shell::LoadSplashScreenWebContents() {
     if (!splash_topic_.empty()) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
+    }
+    if (has_splash_wasm_policy) {
+      // The page chooses its asset with its WebAssembly policy.
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "wasm_policy", "true");
     }
     if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
       // Lets the splash screen stay up until the timeout, instead of closing
