@@ -69,6 +69,10 @@ struct _JArrayHelper<T> {
   using type = _JObjectArray<T>;
 };
 #else
+template <typename T>
+constexpr bool IsJobject =
+    std::is_base_of_v<std::remove_pointer_t<jobject>, std::remove_pointer_t<T>>;
+
 template <typename T, std::enable_if_t<IsJobject<T>, int> = 0>
 class _JObjectArray : public _jobjectArray {};
 
