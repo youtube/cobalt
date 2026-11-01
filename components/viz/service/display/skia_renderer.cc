@@ -1038,9 +1038,11 @@ void SkiaRenderer::FinishDrawingFrame() {
 }
 
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO: b/580023385 - this function is not being called in the staging branch.
 void SkiaRenderer::DestroyPrimaryPlaneBuffers() {
   gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
-  buffer_queue_->DestroyBuffers();
+  // This does not work since 148.7778 (https://crrev.com/c/7706849).
+  // buffer_queue_->DestroyBuffers();
   for (auto it = render_pass_backings_.begin();
        it != render_pass_backings_.end(); ++it) {
     if (!it->second.is_root) {
