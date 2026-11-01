@@ -69,6 +69,9 @@ struct _JArrayHelper<T> {
   using type = _JObjectArray<T>;
 };
 #else
+template <typename T, std::enable_if_t<IsJobject<T>, int> = 0>
+class _JObjectArray : public _jobjectArray {};
+
 // Without concepts, the primary template handles jobject types and the
 // explicit specializations below handle primitive types.
 template <typename T>
