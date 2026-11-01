@@ -22,21 +22,17 @@ template <>
 struct mojo::EnumTraits<media::mojom::StarboardRenderingMode,
                         media::StarboardRenderingMode> {
  public:
-  static bool FromMojom(media::mojom::StarboardRenderingMode data,
-                        media::StarboardRenderingMode* output) {
+  static media::StarboardRenderingMode FromMojom(
+      media::mojom::StarboardRenderingMode data) {
     switch (data) {
       case media::mojom::StarboardRenderingMode::kDecodeToTexture:
-        *output = media::StarboardRenderingMode::kDecodeToTexture;
-        return true;
+        return media::StarboardRenderingMode::kDecodeToTexture;
       case media::mojom::StarboardRenderingMode::kPunchOut:
-        *output = media::StarboardRenderingMode::kPunchOut;
-        return true;
+        return media::StarboardRenderingMode::kPunchOut;
       case media::mojom::StarboardRenderingMode::kInvalid:
-        *output = media::StarboardRenderingMode::kInvalid;
-        return true;
+        return media::StarboardRenderingMode::kInvalid;
     }
     NOTREACHED();
-    return false;
   }
 
   static media::mojom::StarboardRenderingMode ToMojom(
