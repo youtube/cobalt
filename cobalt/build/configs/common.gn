@@ -71,6 +71,7 @@ enable_widevine = true
 generate_about_credits = false
 
 # Disable WebNN and some bits of TensorFlowLite.
+build_litert_with_xnnpack = false
 build_tflite_with_xnnpack = false
 webnn_use_tflite = false
 
