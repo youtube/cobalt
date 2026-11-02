@@ -17,6 +17,7 @@
 #include <string>
 #include <variant>
 
+#include "base/logging.h"
 #include "cobalt/browser/global_features.h"
 
 namespace h5vcc_settings {
