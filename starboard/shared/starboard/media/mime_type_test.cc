@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <optional>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -366,70 +368,81 @@ TEST(MimeTypeTest, ReadParamOfDifferentTypes) {
 }
 
 TEST(MimeTypeTest, ParseInvalidParamString) {
-  EXPECT_FALSE(MimeType::ParseParamString("", nullptr));
-  EXPECT_FALSE(MimeType::ParseParamString("invalid", nullptr));
-  EXPECT_FALSE(MimeType::ParseParamString("val=0;", nullptr));
-  EXPECT_FALSE(MimeType::ParseParamString("val=a|b", nullptr));
-  EXPECT_FALSE(MimeType::ParseParamString("val=", nullptr));
+  EXPECT_FALSE(MimeType::ParseParamString(""));
+  EXPECT_FALSE(MimeType::ParseParamString("invalid"));
+  EXPECT_FALSE(MimeType::ParseParamString("val=0;"));
+  EXPECT_FALSE(MimeType::ParseParamString("val=a|b"));
+  EXPECT_FALSE(MimeType::ParseParamString("val="));
 }
 
 TEST(MimeTypeTest, ParseValidParamString) {
-  MimeType::Param result;
+  std::optional<MimeType::Param> result;
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=0", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
-  EXPECT_EQ(result.int_value, 0);
+  result = MimeType::ParseParamString("val=0");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result->int_value, 0);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=1", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
-  EXPECT_EQ(result.int_value, 1);
+  result = MimeType::ParseParamString("val=1");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result->int_value, 1);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=-1", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
-  EXPECT_EQ(result.int_value, -1);
+  result = MimeType::ParseParamString("val=-1");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result->int_value, -1);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=0.0", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
-  EXPECT_EQ(result.float_value, 0.0f);
+  result = MimeType::ParseParamString("val=0.0");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result->float_value, 0.0f);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=1.0", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
-  EXPECT_EQ(result.float_value, 1.0f);
+  result = MimeType::ParseParamString("val=1.0");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result->float_value, 1.0f);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=-1.0", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
-  EXPECT_EQ(result.float_value, -1.0f);
+  result = MimeType::ParseParamString("val=-1.0");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result->float_value, -1.0f);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=true", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeBoolean);
-  EXPECT_EQ(result.bool_value, true);
+  result = MimeType::ParseParamString("val=true");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeBoolean);
+  EXPECT_EQ(result->bool_value, true);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=false", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeBoolean);
-  EXPECT_EQ(result.bool_value, false);
+  result = MimeType::ParseParamString("val=false");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeBoolean);
+  EXPECT_EQ(result->bool_value, false);
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=\"\"", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeString);
-  EXPECT_EQ(result.string_value, "");
+  result = MimeType::ParseParamString("val=\"\"");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeString);
+  EXPECT_EQ(result->string_value, "");
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=\"abc\"", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeString);
-  EXPECT_EQ(result.string_value, "abc");
+  result = MimeType::ParseParamString("val=\"abc\"");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeString);
+  EXPECT_EQ(result->string_value, "abc");
 
-  EXPECT_TRUE(MimeType::ParseParamString("val=abc", &result));
-  EXPECT_EQ(result.name, "val");
-  EXPECT_EQ(result.type, MimeType::kParamTypeString);
-  EXPECT_EQ(result.string_value, "abc");
+  result = MimeType::ParseParamString("val=abc");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->name, "val");
+  EXPECT_EQ(result->type, MimeType::kParamTypeString);
+  EXPECT_EQ(result->string_value, "abc");
 }
 
 TEST(MimeTypeTest, ValidateParamsWithPatterns) {
