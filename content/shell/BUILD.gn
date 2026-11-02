@@ -10,11 +10,7 @@ import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
 import("//build/rust/rust_static_library.gni")
-<<<<<<< HEAD
-=======
-import("//components/surface_embed/buildflags/buildflags.gni")
 import("//content/browser/devtools/features.gni")
->>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
