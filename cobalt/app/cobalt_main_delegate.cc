@@ -249,8 +249,8 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   return 0;
 }
 
-void CobaltMainDelegate::PreSandboxStartup() {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+void CobaltMainDelegate::PreSandboxStartup() {
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
   const bool initialize_crashpad = true;
 #else
@@ -288,10 +288,10 @@ void CobaltMainDelegate::PreSandboxStartup() {
 #endif
     }
   }
-#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   ShellMainDelegate::PreSandboxStartup();
 }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
