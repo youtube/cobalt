@@ -92,6 +92,60 @@ Node.js with `WebAssembly.instantiate()`.
 *   Video only (no audio), punch-out only. The main WebContents is shown when
     the video ends, whether or not it has loaded.
 
+## Trying it on a device
+
+1.  Build and install (a fresh checkout fetches WAMR at gn time):
+
+    ```sh
+    autoninja -C out/android-arm_devel cobalt_apk
+    adb install -r -d out/android-arm_devel/apks/Cobalt.apk
+    ```
+
+2.  Seed the splash cache, as the web app would. Make the demo assets (the
+    test selector and three visibly different videos), start Cobalt with the
+    web app, then put them into the cache through DevTools:
+
+    ```sh
+    T=cobalt/shell/browser/splash/tools
+    $T/make_test_assets.sh /tmp/splash_assets
+    adb shell am start -n dev.cobalt.coat/dev.cobalt.app.MainActivity
+    $T/seed_splash_cache.py /tmp/splash_assets/*
+    ```
+
+    `seed_splash_cache.py --list` shows the cache; `--clear` empties it.
+
+3.  Cold-start with the native splash:
+
+    ```sh
+    adb shell am force-stop dev.cobalt.coat
+    adb shell am start -n dev.cobalt.coat/dev.cobalt.app.MainActivity \
+        --esa commandLineArgs --native-splash-player
+    adb logcat -d | grep -E "Splash selection|NativeSplash"
+    ```
+
+    On a 1080p device the selector picks `splash_1080.webm`, the inverted
+    video; `by_wasm=1` in the log confirms it ran.
+
+## Benchmark
+
+`tools/splash_benchmark.py` cold-starts Cobalt N times per arm, round-robin,
+and reads the startup timeline that `SplashScreenMetrics` logs with
+`--vmodule=splash_screen_metrics=1`, all relative to the app's start. The
+main metric is `MainReady`: when the web app calls
+`h5vcc.system.hideSplashScreen()`. Arms: `image` (default splash.html),
+`html_video` (`ForceVideoSplashScreen`), `native_wamr` (this PoC). Seed the
+cache first, so that the selector has something to choose from.
+
+```sh
+tools/splash_benchmark.py --apk out/android-arm_devel/apks/Cobalt.apk \
+    --runs 30 --out results.csv
+tools/splash_benchmark.py --report --out results.csv
+```
+
+The report gives p50/p90 per arm, and the median difference to `image` with a
+bootstrap 95% CI and a Mann-Whitney p-value. `tools/results/` has the runs
+done so far.
+
 ## Tests
 
 *   `splash_wasm_runner_unittest.cc` (`cobalt_unittests`): the ABI, errors,
