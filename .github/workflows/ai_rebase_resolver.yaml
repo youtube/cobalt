@@ -36,12 +36,12 @@ on:
         description: 'Workhorse AI model'
         required: false
         type: string
-        default: 'gemini-3.7-flash'
+        default: 'gemini-3.8-flash'
       expert_model:
         description: 'Tier-2 Expert AI model'
         required: false
         type: string
-        default: 'gemini-3.8-flash'
+        default: 'gemini-4-argon'
 
 permissions:
   contents: read
@@ -218,8 +218,8 @@ jobs:
         continue-on-error: true
         env:
           MODE: ${{ inputs.mode }}
-          MODEL: ${{ inputs.model || 'gemini-3.7-flash' }}
-          EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-3.8-flash' }}
+          MODEL: ${{ inputs.model || 'gemini-3.8-flash' }}
+          EXPERT_MODEL: ${{ inputs.expert_model || 'gemini-4-argon' }}
         run: |
           set +e
           python3 "${RUNNER_TEMP}/rebase/run_rebase_pipeline.py" \

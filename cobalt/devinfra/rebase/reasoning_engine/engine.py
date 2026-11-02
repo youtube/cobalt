@@ -144,6 +144,12 @@ def load_skill(skill_name: str, skills_dir: Optional[str] = None) -> str:
 
 
 # pylint: disable=unused-argument
+def _is_gemini_4(model_name: str) -> bool:
+  """Returns True for Gemini 4 models (e.g. `gemini-4-argon`)."""
+  m = (model_name or "").strip().lower()
+  return "gemini-4" in m or "argon" in m
+
+
 class CobaltReasoningEngine:
   """Hosted Vertex AI Reasoning Engine service for Cobalt rebase tasks."""
 
@@ -186,7 +192,10 @@ class CobaltReasoningEngine:
 
   def set_up(self):
     """Initializes Google GenAI client in remote Vertex AI container."""
-    loc = "global" if ("gemini-3" in self.flash_model.lower() or
+    uses_global_model = any(tag in m.lower()
+                            for m in (self.flash_model, self.expert_model) if m
+                            for tag in ("gemini-3", "gemini-4", "argon"))
+    loc = "global" if (uses_global_model or
                        self.location == "global") else self.location
     self.client = genai.Client(
         vertexai=True,
@@ -290,15 +299,20 @@ class CobaltReasoningEngine:
     # 2. Gemini thinking expert; a non-Gemini expert falls back to the
     # (Gemini) workhorse model.
     target_gemini_model = (
-        expert_name if "gemini" in expert_name.lower() else self.flash_model)
+        expert_name if ("gemini" in expert_name.lower() or
+                        "argon" in expert_name.lower()) else self.flash_model)
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
         file=sys.stderr,
     )
+    if _is_gemini_4(target_gemini_model):
+      thinking_cfg = types.ThinkingConfig(thinking_level="HIGH")
+    else:
+      thinking_cfg = types.ThinkingConfig(thinking_budget=2048)
     cfg = types.GenerateContentConfig(
         system_instruction=system_instruction,
-        thinking_config=types.ThinkingConfig(thinking_budget=2048),
+        thinking_config=thinking_cfg,
     )
     resp = self._generate_content_with_retry(
         model=target_gemini_model,
@@ -388,6 +402,11 @@ class CobaltReasoningEngine:
       temperature: float = 0.1,
   ) -> types.GenerateContentConfig:
     """Constructs model-specific GenerateContentConfig."""
+    if _is_gemini_4(chosen_model):
+      return types.GenerateContentConfig(
+          system_instruction=system_instruction,
+          thinking_config=types.ThinkingConfig(thinking_level="MEDIUM"),
+      )
     if "gemini-3." in chosen_model or "thinking" in chosen_model.lower():
       return types.GenerateContentConfig(
           system_instruction=system_instruction,
@@ -700,7 +719,8 @@ class CobaltReasoningEngine:
               f"{task_inst}")
 
     if use_expert:
-      replacement_text = self._generate_expert_content(prompt, sys_inst)
+      replacement_text = self._generate_expert_content(
+          prompt, sys_inst, expert_model=chosen_model)
       return {
           "status": "SUCCESS" if replacement_text else "ERROR",
           "replacement": (replacement_text or "").strip("\n"),
