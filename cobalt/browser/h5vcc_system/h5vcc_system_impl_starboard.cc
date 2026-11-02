@@ -85,9 +85,12 @@ const StarboardExtensionLowMemoryKillApi* GetLowMemoryKillExtension(
   return ext;
 }
 
-bool GetWasLowMemoryKilledShared() {
+std::optional<bool> GetWasLowMemoryKilledShared() {
   const auto* ext = GetLowMemoryKillExtension(1);
-  return ext && ext->WasLowMemoryKilled && ext->WasLowMemoryKilled();
+  if (!ext || !ext->WasLowMemoryKilled) {
+    return std::nullopt;
+  }
+  return ext->WasLowMemoryKilled();
 }
 
 mojom::LowMemoryKillForegroundStatus ToMojomForegroundStatus(
@@ -123,11 +126,10 @@ std::optional<int64_t> ToOptionalMemoryBytes(int64_t value) {
   return static_cast<int64_t>(value);
 }
 
-mojom::LowMemoryKillDetailsPtr GetLowMemoryKillDetailsShared() {
-  const auto* ext = GetLowMemoryKillExtension(2);
+mojom::LowMemoryKillDetailsPtr GetLowMemoryKillDetailsShared(
+    const StarboardExtensionLowMemoryKillApi* ext) {
   SbLowMemoryKillDetails sb_details{};
-  if (!ext || !ext->GetLowMemoryKillDetails ||
-      !ext->GetLowMemoryKillDetails(&sb_details)) {
+  if (!ext->GetLowMemoryKillDetails(&sb_details)) {
     return nullptr;
   }
 
@@ -239,7 +241,13 @@ void H5vccSystemImpl::GetWasLowMemoryKilled(
 void H5vccSystemImpl::GetLowMemoryKillDetails(
     GetLowMemoryKillDetailsCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(GetLowMemoryKillDetailsShared());
+  const auto* ext = GetLowMemoryKillExtension(2);
+  if (!ext || !ext->GetLowMemoryKillDetails) {
+    std::move(callback).Run(/*supported=*/false, nullptr);
+    return;
+  }
+  std::move(callback).Run(/*supported=*/true,
+                          GetLowMemoryKillDetailsShared(ext));
 }
 
 void H5vccSystemImpl::PerformExitStrategy() {

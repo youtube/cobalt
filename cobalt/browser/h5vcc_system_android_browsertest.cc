@@ -84,10 +84,18 @@ class H5vccSystemAndroidBrowserTest : public content::ContentBrowserTest {
         .ExtractBool();
   }
 
-  bool IsLowMemoryKillDetailsNullFromJs() {
-    return content::EvalJs(shell()->web_contents(),
-                           "(async () => (await window.h5vcc.system."
-                           "getLowMemoryKillDetails()) === null)()")
+  bool DoesLowMemoryKillDetailsRejectNotSupportedFromJs() {
+    return content::EvalJs(
+               shell()->web_contents(),
+               "(async () => {"
+               "  try {"
+               "    await window.h5vcc.system.getLowMemoryKillDetails();"
+               "    return false;"
+               "  } catch (e) {"
+               "    return e instanceof DOMException && "
+               "           e.name === 'NotSupportedError';"
+               "  }"
+               "})()")
         .ExtractBool();
   }
 };
@@ -143,9 +151,9 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(), url));
 
   EXPECT_TRUE(QueryWasLowMemoryKilledFromJs());
-  // Android intentionally returns nullptr from GetLowMemoryKillDetails even
-  // when wasLowMemoryKilled() is true.
-  EXPECT_TRUE(IsLowMemoryKillDetailsNullFromJs());
+  // Android does not implement LowMemoryKill v2 details and rejects with
+  // NotSupportedError even when wasLowMemoryKilled() is true.
+  EXPECT_TRUE(DoesLowMemoryKillDetailsRejectNotSupportedFromJs());
 
   // Subsequent call resolves to the same true value.
   EXPECT_TRUE(QueryWasLowMemoryKilledFromJs());
@@ -203,10 +211,11 @@ IN_PROC_BROWSER_TEST_F(H5vccSystemAndroidBrowserTest,
   // Initial state without simulation: false.
   EXPECT_FALSE(QueryWasLowMemoryKilledFromJs());
 
-  // Transition to LMK: true, while getLowMemoryKillDetails() remains null.
+  // Transition to LMK: true, while getLowMemoryKillDetails() rejects with
+  // NotSupportedError.
   SimulatePriorSessionExit(kAppExitInfoReasonLowMemory);
   EXPECT_TRUE(QueryWasLowMemoryKilledFromJs());
-  EXPECT_TRUE(IsLowMemoryKillDetailsNullFromJs());
+  EXPECT_TRUE(DoesLowMemoryKillDetailsRejectNotSupportedFromJs());
 
   // Transition to non-LMK (e.g. USER_REQUESTED): false.
   SimulatePriorSessionExit(kAppExitInfoReasonUserRequested);

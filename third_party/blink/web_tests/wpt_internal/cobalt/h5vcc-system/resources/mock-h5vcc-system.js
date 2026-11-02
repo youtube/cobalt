@@ -101,8 +101,9 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_WAS_LOW_MEMORY_KILLED, wasLowMemoryKilled);
   }
 
-  stubLowMemoryKillDetails(details) {
-    this.stubResult(this.STUB_KEY_LOW_MEMORY_KILL_DETAILS, details);
+  stubLowMemoryKillDetails(details, supported = true) {
+    this.stubResult(
+        this.STUB_KEY_LOW_MEMORY_KILL_DETAILS, { supported, details });
   }
 
   // h5vcc_system.mojom.H5vccSystem impl.
@@ -157,16 +158,18 @@ class MockH5vccSystem {
   hideSplashScreen() {}
 
   getWasLowMemoryKilled() {
-    return Promise.resolve({
-      wasLowMemoryKilled:
-          this.stub_result_.get(this.STUB_KEY_WAS_LOW_MEMORY_KILLED) ?? false
-    });
+    const wasLowMemoryKilled =
+        this.stub_result_.has(this.STUB_KEY_WAS_LOW_MEMORY_KILLED) ?
+        this.stub_result_.get(this.STUB_KEY_WAS_LOW_MEMORY_KILLED) :
+        false;
+    return Promise.resolve({ wasLowMemoryKilled });
   }
 
   getLowMemoryKillDetails() {
+    const stub = this.stub_result_.get(this.STUB_KEY_LOW_MEMORY_KILL_DETAILS);
     return Promise.resolve({
-      details:
-          this.stub_result_.get(this.STUB_KEY_LOW_MEMORY_KILL_DETAILS) ?? null
+      supported: stub ? stub.supported : true,
+      details: stub ? stub.details : null,
     });
   }
 }

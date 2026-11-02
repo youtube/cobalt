@@ -22,6 +22,8 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 
 namespace blink {
 
@@ -237,9 +239,10 @@ void H5vccSystem::hideSplashScreen() {
 }
 
 ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
-    ScriptState* script_state) {
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(script_state);
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
+      script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
 
@@ -252,14 +255,22 @@ ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
 
 void H5vccSystem::OnGetWasLowMemoryKilled(
     ScriptPromiseResolver<IDLBoolean>* resolver,
-    bool result) {
-  resolver->Resolve(result);
+    std::optional<bool> result) {
+  if (!result.has_value()) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "LowMemoryKill is not supported on this platform.");
+    return;
+  }
+  resolver->Resolve(*result);
 }
 
 ScriptPromise<IDLNullable<LowMemoryKillDetails>>
-H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state) {
+H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state,
+                                     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<
-      ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>>(script_state);
+      ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>>(
+      script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
 
@@ -272,7 +283,14 @@ H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state) {
 
 void H5vccSystem::OnGetLowMemoryKillDetails(
     ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>* resolver,
+    bool supported,
     h5vcc_system::mojom::blink::LowMemoryKillDetailsPtr result) {
+  if (!supported) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "LowMemoryKill v2 is not supported on this platform.");
+    return;
+  }
   if (!result) {
     resolver->Resolve(nullptr);
     return;

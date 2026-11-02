@@ -16,7 +16,12 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
   mockH5vccSystem.stubLowMemoryKillDetails(null);
   actual = await window.h5vcc.system.getLowMemoryKillDetails();
   assert_equals(actual, null);
-}, 'getLowMemoryKillDetails() resolves to null when not low-memory killed');
+
+  // Unsupported stub rejects with NotSupportedError.
+  mockH5vccSystem.stubLowMemoryKillDetails(null, /*supported=*/false);
+  await promise_rejects_dom(
+      t, 'NotSupportedError', window.h5vcc.system.getLowMemoryKillDetails());
+}, 'getLowMemoryKillDetails() resolves to null when not low-memory killed and rejects when unsupported');
 
 h5vcc_system_tests(async (t, mockH5vccSystem) => {
   mockH5vccSystem.stubLowMemoryKillDetails({
