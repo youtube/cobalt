@@ -392,7 +392,6 @@ TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrame) {
   ASSERT_EQ(frame->shared_image()->mailbox(), shared_image->mailbox());
 }
 
-<<<<<<< HEAD
 TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrameMismatchedSize) {
   constexpr VideoPixelFormat kFormat = PIXEL_FORMAT_ARGB;
 
@@ -450,10 +449,7 @@ TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrameMismatchedSize) {
                                                          &new_frame));
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-=======
 #if BUILDFLAG(IS_LINUX)  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 TEST_F(VideoFrameStructTraitsTest, DmabufsVideoFrame) {
   constexpr gfx::Size kCodedSize = gfx::Size(256, 256);
   constexpr gfx::Rect kVisibleRect(kCodedSize);
