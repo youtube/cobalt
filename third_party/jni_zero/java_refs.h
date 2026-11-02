@@ -41,17 +41,24 @@ template <typename T>
 class _CalledByNatives;
 }
 
-<<<<<<< HEAD
 namespace jni_zero::internal {
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 template <typename T>
 struct _JArrayHelper;
 
 template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 struct _JArrayHelper<T> {
   using type = _jobjectArray;
 };
@@ -107,19 +114,6 @@ using ::jni_zero::internal::JArray;
 #define _JNI_ZERO_JArray_DEFINED
 
 namespace jni_zero {
-=======
-namespace jni_zero {
-
-namespace internal {
-#if !BUILDFLAG(IS_COBALT) || \
-    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-template <typename T>
-concept IsJobject =
-    std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
-#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
-        // >= 201907L)
-}
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Creates a new local reference frame, in which at least a given number of
 // local references can be created. Note that local references already created
