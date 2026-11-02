@@ -163,6 +163,15 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TimeDelta MapUrlPlayerDuration(TimeDelta duration) {
+  if (duration == kNoTimestamp || duration <= TimeDelta()) {
+    return kInfiniteDuration;
+  }
+  return duration;
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -678,6 +687,24 @@ void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
   client_->OnVideoNaturalSizeChange(size);
   if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
     paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
+void StarboardRenderer::OnUrlPlayerInitialized() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  TimeDelta duration;
+  SbPlayerBridge::PlayerInfo info{nullptr, nullptr, nullptr,
+                                  nullptr, nullptr, &duration};
+  player_bridge_->GetInfo(&info);
+
+  // Keep the raw value so that GetMediaTime() doesn't push it again.
+  last_duration_ = duration;
+  if (duration_change_cb_) {
+    duration_change_cb_.Run(MapUrlPlayerDuration(duration));
   }
 }
 
@@ -1257,6 +1284,11 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   switch (state) {
     case kSbPlayerStateInitialized:
       CHECK(init_cb_);
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (IsUrlPlayer()) {
+        OnUrlPlayerInitialized();
+      }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
       std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
       break;
     case kSbPlayerStatePrerolling:
