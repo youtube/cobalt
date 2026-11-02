@@ -264,10 +264,6 @@ test("url_perftests") {
     "url_parse_perftest.cc",
   ]
 
-  if (is_cobalt_hermetic_build) {
-    sources += [ "starboard/run_all_perftests.cc" ]
-    sources -= [ "run_all_perftests.cc" ]
-  }
   deps = [
     ":url",
     "//base",

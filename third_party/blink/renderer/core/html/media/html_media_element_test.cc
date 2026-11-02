@@ -2668,7 +2668,6 @@ TEST_P(HTMLMediaElementTest, StartVideoWithDoubleTrackSelection) {
   }
 }
 
-<<<<<<< HEAD
 // crbug.com/497011407. AddTrack() crashed by invalid UTF-8.
 TEST_P(HTMLMediaElementTest, AddTrackCrash) {
   auto* element = Media();
@@ -2682,7 +2681,6 @@ TEST_P(HTMLMediaElementTest, AddTrackCrash) {
   }
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
@@ -2799,5 +2797,4 @@ TEST_P(HTMLMediaElementTest,
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace blink

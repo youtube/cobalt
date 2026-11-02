@@ -182,26 +182,6 @@ source_set("permissions") {
     ]
   }
 
-<<<<<<< HEAD
-=======
-  if (build_with_tflite_lib) {
-    sources += [
-      "prediction_service/passage_embedder_delegate.cc",
-      "prediction_service/passage_embedder_delegate.h",
-      "prediction_service/prediction_model_handler_provider_factory.cc",
-      "prediction_service/prediction_model_handler_provider_factory.h",
-    ]
-    if (!is_android) {
-      deps += [ "//third_party/tflite_support" ]
-    }
-    deps += [
-      "//chrome/browser/passage_embeddings",
-      "//components/passage_embeddings/core",
-      "//components/segmentation_platform/internal:optimization_guide_segmentation_handler",
-    ]
-  }
-
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (!is_android) {
     deps += [
       "//chrome/browser/ui/permission_bubble",

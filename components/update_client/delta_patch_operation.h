@@ -56,15 +56,12 @@ class DeltaPatchOperation
       int expected_success_result,
       const base::FilePath& patch_file,
       int event_type,
-<<<<<<< HEAD
       bool is_foreground,
-=======
 #if BUILDFLAG(IS_STARBOARD)
       const OperationResult& patch_operation_result,
       base::OnceCallback<
           void(base::expected<OperationResult, CategorizedError>)> callback);
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
           callback);
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -112,15 +109,12 @@ class DeltaPatchOperation
   const int expected_success_result_;
   const base::FilePath patch_file_;
   const int event_type_;
-<<<<<<< HEAD
   const bool is_foreground_;
-=======
 #if BUILDFLAG(IS_STARBOARD)
   const OperationResult patch_operation_result_;
   base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
       callback_;
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
       callback_;
 #endif  // BUILDFLAG(IS_STARBOARD)

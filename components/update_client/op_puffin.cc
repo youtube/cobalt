@@ -35,14 +35,11 @@ base::OnceClosure PuffOperation(
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& old_hash,
     const std::string& output_hash,
-<<<<<<< HEAD
     bool is_foreground,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
@@ -62,14 +59,11 @@ base::OnceClosure PuffOperation(
       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
           base::File::FLAG_WIN_EXCLUSIVE_WRITE,
       output_hash, puffin::P_OK, patch_file, protocol_request::kEventPuff,
-<<<<<<< HEAD
-      is_foreground, std::move(callback))
-=======
+      is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
 #endif  // defined(IN_MEMORY_UPDATES)
   return base::DoNothing();

@@ -419,7 +419,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
 
-<<<<<<< HEAD
 // When enabled, NetworkContext, and all mojoms passed through it, will receive
 // IPCs directly without the intermediate I/O thread hop. This is relevant when
 // the NetworkService is run in the browser process (i.e. on Android).
@@ -428,7 +427,7 @@ BASE_DECLARE_FEATURE(kNetworkContextDirectReceiver);
 
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 bool ShouldBindNetworkContextDirectReceiver();
-=======
+
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -446,7 +445,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 

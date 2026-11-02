@@ -424,7 +424,8 @@ TEST_F(MigrationManagerTest, CookieTaskTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+      net::CookieSourceType::kOther));
 
   Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
                          std::move(cookies), state);
@@ -446,7 +447,8 @@ TEST_F(MigrationManagerTest, CookieTaskFailureTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+      net::CookieSourceType::kOther));
 
   Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
                          std::move(cookies), state);
@@ -467,7 +469,8 @@ TEST_F(MigrationManagerTest, CookieTaskTimeoutTest) {
   cookies.push_back(net::CanonicalCookie::CreateUnsafeCookieForTesting(
       "name", "value", ".example.com", "/path", base::Time(), base::Time(),
       base::Time(), base::Time(), true, true,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT));
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+      net::CookieSourceType::kOther));
 
   Task task = CookieTask(static_cast<content::StoragePartition*>(&partition),
                          std::move(cookies), state);

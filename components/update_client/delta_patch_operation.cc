@@ -42,15 +42,12 @@ DeltaPatchOperation::DeltaPatchOperation(
     int expected_success_result,
     const base::FilePath& patch_file,
     int event_type,
-<<<<<<< HEAD
     bool is_foreground,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
         callback)
 #else
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback)
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -63,16 +60,11 @@ DeltaPatchOperation::DeltaPatchOperation(
       expected_success_result_(expected_success_result),
       patch_file_(patch_file),
       event_type_(event_type),
-<<<<<<< HEAD
       is_foreground_(is_foreground),
-      callback_(std::move(callback)) {}
-=======
 #if BUILDFLAG(IS_STARBOARD)
       patch_operation_result_(patch_operation_result),
 #endif  // BUILDFLAG(IS_STARBOARD)
-      callback_(std::move(callback)) {
-}
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      callback_(std::move(callback)) {}
 
 DeltaPatchOperation::~DeltaPatchOperation() = default;
 

@@ -100,17 +100,11 @@ component("jni_zero") {
   }
 
   deps = [
-<<<<<<< HEAD
-    ":generate_jni($default_toolchain)",
-    ":system_jni_unchecked_exceptions($default_toolchain)",
-=======
     ":cobalt_for_google3_buildflags",
     ":generate_jni($android_toolchain)",
-    ":system_jni($android_toolchain)",
     ":system_jni_unchecked_exceptions($android_toolchain)",
->>>>>>> parent of 3f67ed59d9f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ]
-  public_deps = [ ":system_jni($default_toolchain)" ]
+  public_deps = [ ":system_jni($android_toolchain)" ]
 }
 
 if (enable_java_templates && is_android) {
