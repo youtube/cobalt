@@ -13,7 +13,7 @@ from typing import Callable, Dict, List, Optional
 
 from change_record import AgentChangeRecord
 from repo_guards import resolve_repo_file_path
-from upstream_cl import format_upstream_log
+from upstream_cl import format_chromium_cl_diff, format_upstream_log
 
 # Precompiled pattern matching investigation tool directives (e.g.,
 # TOOL_READ_FILE: ...).
@@ -499,6 +499,11 @@ def _tool_upstream_log(args: str, ctx: ToolContext) -> Optional[str]:
   return format_upstream_log(ctx.repo_path, target_path)
 
 
+def _tool_chromium_cl_diff(args: str, ctx: ToolContext) -> Optional[str]:
+  """TOOL_CHROMIUM_CL_DIFF: <sha> [path] - shows one upstream CL's diff."""
+  return format_chromium_cl_diff(ctx.repo_path, args)
+
+
 def _tool_get_history(args: str, ctx: ToolContext) -> Optional[str]:
   """TOOL_GET_HISTORY: <count | all | iteration | start-end | filepath>.
 
@@ -580,6 +585,7 @@ _TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
     "TOOL_UPSTREAM_DIFF:": _tool_upstream_diff,
     "TOOL_COBALT_DIFF:": _tool_cobalt_diff,
     "TOOL_UPSTREAM_LOG:": _tool_upstream_log,
+    "TOOL_CHROMIUM_CL_DIFF:": _tool_chromium_cl_diff,
     "TOOL_GET_HISTORY:": _tool_get_history,
     "TOOL_CHANGE_HISTORY:": _tool_get_history,
     "TOOL_HISTORY:": _tool_get_history,

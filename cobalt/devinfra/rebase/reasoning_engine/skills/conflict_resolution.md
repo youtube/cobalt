@@ -359,5 +359,7 @@ deps = [
 If a conflict requires inspecting external type definitions, headers, or git history before resolving, you may request tool output by returning ONE of these commands on a single line:
 - `TOOL_READ_FILE: <path_to_file> [optional line range e.g. 1-100]` -> Reads a header or source file.
 - `TOOL_GREP: <symbol_or_keyword>` -> Searches the repository for references to that symbol.
-- `TOOL_GIT_SHOW: <commit_sha_or_file>` -> Shows git commit diff or file log.
+- `TOOL_GIT_SHOW: <commit_sha_or_file>` -> Shows a local Cobalt git commit diff or file at a revision.
+- `TOOL_UPSTREAM_LOG: <path_to_file>` -> Lists the upstream Chromium CLs (crrev links and descriptions) that touched the file in this roll.
+- `TOOL_CHROMIUM_CL_DIFF: <upstream_commit_sha> [path_to_file]` -> Shows what one of those upstream CLs changed. Upstream commits are not in the local repository, so use this instead of `TOOL_GIT_SHOW` for them.
 - `ESCALATE_TO_HUMAN: <reason>` -> Flag complex or ambiguous conflicts for human review.

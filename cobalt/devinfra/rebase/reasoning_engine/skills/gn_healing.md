@@ -9,6 +9,8 @@ If you need to inspect files or locate relocated sources, output a single tool c
 - `TOOL_FIND_FILE: <pattern>` (e.g. `TOOL_FIND_FILE: *shared_image_factory*`)
 - `TOOL_GREP: <symbol_or_target>` (e.g. `TOOL_GREP: gles2_cmd_utils.h`)
 - `TOOL_GIT_SHOW: <commit>:<path>` (e.g. `TOOL_GIT_SHOW: HEAD:gpu/command_buffer/service/BUILD.gn`)
+- `TOOL_UPSTREAM_LOG: <relative_path>` - the upstream Chromium CLs (crrev links and descriptions) that touched the file in this roll.
+- `TOOL_CHROMIUM_CL_DIFF: <upstream_commit_sha> [relative_path]` - what one of those upstream CLs changed (optionally limited to one file). Upstream commits are not in the local repository, so use this instead of `TOOL_GIT_SHOW` for them.
 
 ### Upstream Differential Analysis Protocol:
 When a target definition in `BUILD.gn` fails or is suspected of merge/rebase anomalies:

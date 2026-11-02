@@ -593,7 +593,9 @@ class BaseResolver(abc.ABC):
             "- `TOOL_COBALT_DIFF: <filepath>` to inspect what Cobalt"
             "adds on top of upstream in this roll.\n"
             "- `TOOL_UPSTREAM_LOG: <filepath>` to list the upstream "
-            "Chromium CLs that touched a file in this roll.\n")
+            "Chromium CLs that touched a file in this roll.\n"
+            "- `TOOL_CHROMIUM_CL_DIFF: <sha> [filepath]` to see what one of "
+            "those upstream CLs changed.\n")
 
   @staticmethod
   def _source_context(diag: Diagnostic, radius: int = 30) -> str:
