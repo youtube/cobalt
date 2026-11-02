@@ -207,4 +207,6 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
 
         echo "UPPER_DIR=${UPPER_DIR}" >> "${GITHUB_ENV}"
-        echo "SRC_DIR=${LOWER_DIR##*:}" >> "${GITHUB_ENV}"
+        if [ -d "/runner-cache/golden-workspace/src/src/.git" ]; then
+          echo "SRC_DIR=/runner-cache/golden-workspace/src" >> "${GITHUB_ENV}"
+        fi

@@ -110,7 +110,16 @@ runs:
           fi
           gclient validate
         else
-          echo ".gclient already exists. Skipping gclient config."
+          echo ".gclient already exists. Verifying configuration."
+          if [[ -n "${TARGET_CPU}" ]]; then
+            if ! grep -q "target_cpu" .gclient; then
+              echo "target_cpu=${TARGET_CPU}" >> .gclient
+              gclient validate
+            elif ! cmp -s <(grep "target_cpu" .gclient) <(echo "target_cpu=${TARGET_CPU}"); then
+              sed -i "/target_cpu/c\target_cpu=${TARGET_CPU}" .gclient
+              gclient validate
+            fi
+          fi
         fi
       shell: bash
 
@@ -215,14 +224,32 @@ runs:
         )
 
         if [ "${PUBLISH_SRC}" = "true" ]; then
-          SRC_DIGEST=$(tar "${TAR_ARGS[@]}" -C "${SRC_DIR}" -cf - src \
-            | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          if [ -n "${SRC_DIR:-}" ] && [ -d "${SRC_DIR}/src/.git" ]; then
+            SRC_DIGEST=$(tar "${TAR_ARGS[@]}" -C "${SRC_DIR}" -cf - src \
+              | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          else
+            SRC_DIGEST=$({
+              find src/.git -print0
+              git -C src -c core.quotepath=false ls-files -z | sed -z 's|^|src/|'
+            } | LC_ALL=C sort -z | tar "${TAR_ARGS[@]}" --no-recursion --null -T - -cf - \
+              | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          fi
           upload_part "src" "${SRC_DIGEST}"
         fi
 
-        GCLIENT_DIGEST=$(tar "${TAR_ARGS[@]}" --exclude='*.wh..wh.*' \
-          -C "${UPPER_DIR}" -cf - depot_tools .gclient src \
-          | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        if [ -n "${UPPER_DIR:-}" ] && [ -d "${UPPER_DIR}" ]; then
+          GCLIENT_DIGEST=$(tar "${TAR_ARGS[@]}" --exclude='*.wh..wh.*' \
+            -C "${UPPER_DIR}" -cf - depot_tools .gclient src \
+            | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        else
+          GCLIENT_DIGEST=$({
+            printf 'depot_tools\0.gclient\0src/DEPS\0'
+            while IFS=$'\t' read -r -d '' meta path; do
+              [[ "${meta}" == 160000* ]] && [ -e "src/${path}/.git" ] && printf 'src/%s\0' "${path}"
+            done < <(git -C src -c core.quotepath=false ls-files -s -z)
+            git -C src -c core.quotepath=false ls-files --others --directory --no-empty-directory -z | sed -z 's|^|src/|'
+          } | tar "${TAR_ARGS[@]}" --null -T - -cf - | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        fi
         upload_part "gclient/${TARGET_OS}" "${GCLIENT_DIGEST}"
         echo "published=true" >> "${GITHUB_OUTPUT}"
 

@@ -2,7 +2,8 @@
   "docker_service": "linux",
   "target_cpu": [
     "x64",
-    "arm"
+    "arm",
+    "arm64"
   ],
   "platforms": [
     "evergreen-arm-softfp"
