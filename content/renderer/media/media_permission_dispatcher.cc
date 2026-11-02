@@ -161,7 +161,7 @@ void MediaPermissionDispatcher::OnPermissionStatus(
 =======
       .Run(status == blink::mojom::PermissionStatus::GRANTED);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_WIN)

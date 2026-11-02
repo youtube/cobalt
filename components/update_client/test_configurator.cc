@@ -49,7 +49,7 @@ namespace {
 =======
 
 
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 std::vector<GURL> MakeDefaultUrls() {
   return std::vector<GURL>{
       GURL(base::StringPrintf("%s://%s%s", kPostInterceptScheme,

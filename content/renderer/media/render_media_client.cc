@@ -83,7 +83,7 @@ void RenderMediaClient::SetGpuFeatureInfo(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   client->InstallDecoderBufferAllocator();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 RenderMediaClient::RenderMediaClient()

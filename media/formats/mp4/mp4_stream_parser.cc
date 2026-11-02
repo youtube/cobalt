@@ -261,7 +261,7 @@ void MP4StreamParser::Reset() {
   scratch_frame_buf_.clear();
   scratch_frame_buf_.shrink_to_fit();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void MP4StreamParser::Flush() {
