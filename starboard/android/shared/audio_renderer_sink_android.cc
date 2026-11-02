@@ -105,13 +105,11 @@ bool AudioRendererSinkAndroid::HasStarted() const {
   return !is_flushed_ && AudioRendererSinkImpl::HasStarted();
 }
 
-void AudioRendererSinkAndroid::GetAudioRendererParams(
-    const AudioStreamInfo& audio_stream_info,
-    int* max_cached_frames,
-    int* min_frames_per_append) const {
-  SB_CHECK(max_cached_frames);
-  SB_CHECK(min_frames_per_append);
-  *min_frames_per_append =
+AudioRendererSink::AudioRendererParams
+AudioRendererSinkAndroid::GetAudioRendererParams(
+    const AudioStreamInfo& audio_stream_info) const {
+  AudioRendererParams params;
+  params.min_frames_per_append =
       AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
 
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
@@ -144,10 +142,12 @@ void AudioRendererSinkAndroid::GetAudioRendererParams(
   // On Android 5.0, the size of audio renderer sink buffer need to be two
   // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
   // stop working after pause.
-  *max_cached_frames = min_frames_required * 2 +
-                       AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
-  *max_cached_frames =
-      AlignUp(*max_cached_frames, AudioRendererSink::kAudioSinkFramesAlignment);
+  params.max_cached_frames =
+      min_frames_required * 2 +
+      AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+  params.max_cached_frames = AlignUp(
+      params.max_cached_frames, AudioRendererSink::kAudioSinkFramesAlignment);
+  return params;
 }
 
 int AudioRendererSinkAndroid::GetOutputNumberOfChannels(

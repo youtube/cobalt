@@ -108,16 +108,19 @@ class AudioRendererTest : public ::testing::Test {
     EXPECT_CALL(*audio_renderer_sink_, GetNearestSupportedSampleFrequency(_))
         .Times(AnyNumber());
 
+    ON_CALL(*audio_renderer_sink_, GetAudioRendererParams(_))
+        .WillByDefault(
+            Return(AudioRendererSink::AudioRendererParams{256 * 1024, 16384}));
+    EXPECT_CALL(*audio_renderer_sink_, GetAudioRendererParams(_))
+        .Times(AnyNumber());
+
     EXPECT_CALL(*audio_decoder_, Initialize(_, _))
         .WillOnce(SaveArg<0>(&output_cb_));
 
-    const int kMaxCachedFrames = 256 * 1024;
-    const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRendererPcm(
         &job_queue_, std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend,
-        experimental_features));
+        GetDefaultAudioStreamInfo(), experimental_features));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),
