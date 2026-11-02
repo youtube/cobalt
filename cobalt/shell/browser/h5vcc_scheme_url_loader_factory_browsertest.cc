@@ -14,11 +14,16 @@
 
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
+#include <memory>
 #include <string>
+#include <string_view>
 
+#include "base/base64.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/time/time.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -28,6 +33,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 #include "url/gurl.h"
@@ -304,6 +310,74 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
         /*expected_uma_state=*/SplashScreenFetchedState::kOkCache);
   }
 
+  // Serves the splash domain from the test server, and shows one of its
+  // pages, which can populate its cache.
+  void ShowSplashDomain() {
+    ASSERT_TRUE(embedded_test_server()->Start());
+    H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
+        embedded_test_server()->base_url().spec());
+    EXPECT_TRUE(
+        NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
+  }
+
+  // Puts `content` as `name` in the cache `cache_name` of the splash domain,
+  // whose page ShowSplashDomain() shows.
+  void PutInSplashCache(const std::string& cache_name,
+                        const std::string& name,
+                        std::string_view content) {
+    std::string script = base::StringPrintf(
+        R"(
+      (async () => {
+        const bytes = Uint8Array.from(atob('%s'), c => c.charCodeAt(0));
+        const cache = await caches.open('%s');
+        await cache.put('%s', new Response(new Blob([bytes])));
+        return 'Success';
+      })();
+    )",
+        base::Base64Encode(content).c_str(), cache_name.c_str(), name.c_str());
+    EXPECT_EQ("Success", EvalJs(shell(), script));
+  }
+
+  // Shows a page of the h5vcc-embedded scheme that fetches nothing itself.
+  void ShowSafeSplashPage() {
+    test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+    LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+    (*test_resource_map_)["splash.html"] = safe_contents_;
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
+        test_resource_map_.get());
+    EXPECT_TRUE(NavigateToURL(
+        shell(), GURL(std::string(kH5vccEmbeddedScheme) + "://splash.html")));
+  }
+
+  // Returns the assets of splash_assets.json for the cache `cache_name`, the
+  // splash screen assets that the WebAssembly policy of splash.html chooses
+  // from, or the status with which fetching it failed.
+  std::string DescribeSplashAssetList(const std::string& cache_name) {
+    ShowSafeSplashPage();
+    return EvalJs(shell(), base::StringPrintf(R"(
+      (async () => {
+        try {
+          const response = await fetch(
+              'h5vcc-embedded://splash_assets.json?cache=%s');
+          if (!response.ok) {
+            return 'Fetch failed: ' + response.status;
+          }
+          const assets = await response.json();
+          return response.headers.get('Content-Type') + ': ' +
+              assets.map(asset => asset.source === 'cache' ?
+                  `cache:${asset.cache}/${asset.name}:${asset.kind}:` +
+                      asset.bytes :
+                  `builtin:${asset.name}:${asset.kind}:${asset.topic}`)
+              .join(',');
+        } catch (e) {
+          return 'Exception: ' + e.toString();
+        }
+      })();
+    )",
+                                              cache_name.c_str()))
+        .ExtractString();
+  }
+
  protected:
   explicit H5vccSchemeURLLoaderFactoryCacheBrowserTest(
       bool enable_cached_splash_file)
@@ -503,6 +577,417 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
       /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH_480",
       /*expected_uma_state=*/
       SplashScreenFetchedState::kSkippedCachedAssets);
+}
+
+// With SplashWasmPolicy, splash.html chooses its asset with a WebAssembly
+// policy, from splash_assets.json.
+class H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest
+    : public H5vccSchemeURLLoaderFactoryCacheBrowserTest {
+ public:
+  H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest()
+      : H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest(
+            /*enable_cached_splash_file=*/true) {}
+
+ protected:
+  explicit H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest(
+      bool enable_cached_splash_file)
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(enable_cached_splash_file) {
+    // In the constructor, so that the browser starts with it.
+    wasm_policy_feature_list_.InitAndEnableFeature(
+        cobalt::features::kSplashWasmPolicy);
+  }
+
+ private:
+  base::test::ScopedFeatureList wasm_policy_feature_list_;
+};
+
+// Without EnableCachedSplashFile, the policy chooses among the built-in assets.
+class H5vccSchemeURLLoaderFactoryWasmPolicyCacheDisabledBrowserTest
+    : public H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest {
+ public:
+  H5vccSchemeURLLoaderFactoryWasmPolicyCacheDisabledBrowserTest()
+      : H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest(
+            /*enable_cached_splash_file=*/false) {}
+};
+
+namespace {
+
+const char kSplashWasmPolicyOutcome[] =
+    "Cobalt.SplashScreen.WasmPolicy.Outcome";
+const char kSplashWasmPolicyDecisionTime[] =
+    "Cobalt.SplashScreen.WasmPolicy.DecisionTime";
+
+// The built-in assets, as DescribeSplashAssetList() describes them.
+const char kBuiltInSplashAssets[] =
+    "builtin:splash.webm:video:default,"
+    "builtin:splash_480.webm:video:default,"
+    "builtin:music_splash.webm:video:music,"
+    "builtin:music_splash_480.webm:video:music,"
+    "builtin:splash.png:image:default,"
+    "builtin:music_splash.png:image:music";
+
+// A PNG image of 1x1 pixel.
+const char kOnePixelPngBase64[] =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+    "AAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+// Compiles an empty WebAssembly module: "Compiled", or the error's name.
+const char kCompileWasmScript[] = R"(
+  WebAssembly.compile(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0]))
+      .then(() => 'Compiled', error => error.name);
+)";
+
+// Returns the size of the image that splash.html shows, once it does.
+const char kSplashImageSizeScript[] = R"(
+  (async () => {
+    const placeholder = document.getElementById('placeholder');
+    while (!placeholder.style.backgroundImage) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    const image = new Image();
+    image.src = placeholder.style.backgroundImage
+        .replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+    await image.decode();
+    return image.naturalWidth + 'x' + image.naturalHeight;
+  })();
+)";
+
+// The splash screen with its image, which doesn't close itself during the
+// test, with `params`.
+GURL GetSplashImageURL(const std::string& params) {
+  return GURL(std::string(kH5vccEmbeddedScheme) +
+              "://splash.html?force_image=true&timeout=60000" + params);
+}
+
+// Returns the URL of the video that splash.html requests with its policy, for
+// `params`, the params of its own choice, and `plays4k`, without the decision
+// time, which varies. Runs in the splash screen that GetSplashImageURL()
+// shows, as Android's browser tests can't play the video.
+std::string GetPolicyVideoURL(Shell* shell,
+                              const std::string& params,
+                              bool plays4k) {
+  const std::string script = base::StringPrintf(
+      R"(
+    splashUrlFromWasmPolicy('splash.webm', new URLSearchParams('%s'), %s)
+        .then(url => url.replace(/&policy_ms=\d+$/, ''));
+  )",
+      params.c_str(), plays4k ? "true" : "false");
+  return EvalJs(shell, script).ExtractString();
+}
+
+}  // namespace
+
+// The assets of the cache of the splash screen's topic, which the first
+// request for the list chooses here, as Shell isn't running. The list of
+// another cache is unavailable, so that splash.html reads that cache itself.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       ListsBuiltInAndCachedSplashAssets) {
+  ShowSplashDomain();
+  PutInSplashCache("default", "splash.webm", "aaabbbccc");
+  PutInSplashCache("music", "splash.png", "png");
+  // Not where splash.html reads its assets.
+  PutInSplashCache("default", "music_splash.png", "png");
+  PutInSplashCache("default", "tv/splash.webm", "webm");
+
+  EXPECT_EQ(std::string("application/json: ") + kBuiltInSplashAssets +
+                ",cache:default/splash.webm:video:9",
+            DescribeSplashAssetList("default"));
+  EXPECT_EQ("Fetch failed: 503", DescribeSplashAssetList("music"));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       ListsSplashAssetsOfMusicCache) {
+  ShowSplashDomain();
+  PutInSplashCache("default", "splash.webm", "aaabbbccc");
+  PutInSplashCache("music", "splash.png", "png");
+
+  EXPECT_EQ(std::string("application/json: ") + kBuiltInSplashAssets +
+                ",cache:music/splash.png:image:3",
+            DescribeSplashAssetList("music"));
+  EXPECT_EQ("Fetch failed: 503", DescribeSplashAssetList("default"));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    H5vccSchemeURLLoaderFactoryWasmPolicyCacheDisabledBrowserTest,
+    ListsOnlyBuiltInSplashAssets) {
+  ShowSplashDomain();
+  PutInSplashCache("default", "splash.webm", "aaabbbccc");
+
+  EXPECT_EQ(std::string("application/json: ") + kBuiltInSplashAssets,
+            DescribeSplashAssetList("default"));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       DoesNotServeSplashAssetListWithoutWasmPolicy) {
+  EXPECT_EQ("Fetch failed: 404", DescribeSplashAssetList("default"));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       ContentSecurityPolicyAllowsWasm) {
+  ShowSafeSplashPage();
+  EXPECT_EQ("Compiled", EvalJs(shell(), kCompileWasmScript));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       ContentSecurityPolicyForbidsWasmWithoutWasmPolicy) {
+  ShowSafeSplashPage();
+  EXPECT_EQ("CompileError", EvalJs(shell(), kCompileWasmScript));
+}
+
+// The built-in asset that the policy chose is served without reading the
+// cache, which has a splash video here.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       ServesBuiltInPolicyChoiceWithoutReadingCache) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default", /*query_param=*/"?source=builtin",
+      /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/SplashScreenFetchedState::kOkBuiltIn);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    H5vccSchemeURLLoaderFactoryWasmPolicyCacheDisabledBrowserTest,
+    ServesBuiltInPolicyChoiceWithCachedAssetsDisabled) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default", /*query_param=*/"?source=builtin",
+      /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/SplashScreenFetchedState::kSkippedCachedAssets);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       IgnoresSourceParameterWithoutWasmPolicy) {
+  VerifySplashVideoFromCache("default", "?source=builtin");
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       RecordsBuiltInPolicyChoice) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default",
+      /*query_param=*/"?source=builtin&policy=builtin&policy_ms=250",
+      /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/SplashScreenFetchedState::kOkBuiltIn);
+
+  histogram_tester.ExpectUniqueSample(
+      kSplashWasmPolicyOutcome, SplashWasmPolicyOutcome::kChoseBuiltIn, 1);
+  histogram_tester.ExpectUniqueTimeSample(kSplashWasmPolicyDecisionTime,
+                                          base::Milliseconds(250), 1);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       RecordsCachedPolicyChoice) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCache(
+      "default",
+      "?cache=default&fallback=splash_480.webm&policy=cached&policy_ms=300");
+
+  histogram_tester.ExpectUniqueSample(kSplashWasmPolicyOutcome,
+                                      SplashWasmPolicyOutcome::kChoseCached, 1);
+  histogram_tester.ExpectUniqueTimeSample(kSplashWasmPolicyDecisionTime,
+                                          base::Milliseconds(300), 1);
+}
+
+// splash.html makes its own choice, and reports why.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       RecordsUnavailableSplashAssetList) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCache("default", "?policy=list_unavailable");
+
+  histogram_tester.ExpectUniqueSample(
+      kSplashWasmPolicyOutcome, SplashWasmPolicyOutcome::kListUnavailable, 1);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       RecordsPolicyFailure) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCache("default", "?policy=failed&policy_ms=300");
+
+  histogram_tester.ExpectUniqueSample(kSplashWasmPolicyOutcome,
+                                      SplashWasmPolicyOutcome::kFailed, 1);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       RecordsNoPolicyMetricsForUntaggedRequest) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCache("default", "");
+
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyOutcome, 0);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       RecordsNoPolicyMetricsWithoutWasmPolicy) {
+  base::HistogramTester histogram_tester;
+  VerifySplashVideoFromCache("default", "?policy=cached&policy_ms=300");
+
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyOutcome, 0);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+}
+
+// The splash screen shows the image that its policy chose, the built-in one,
+// as the WebApp cached none. Unlike the splash.html tests above, these run on
+// Android too, as the image doesn't use MediaSource.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenShowsBuiltInImageThatPolicyChose) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectUniqueSample(
+      kSplashWasmPolicyOutcome, SplashWasmPolicyOutcome::kChoseBuiltIn, 1);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
+                                      SplashScreenFetchedState::kOkBuiltIn, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenShowsBuiltInMusicImageThatPolicyChose) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(
+      shell(), GetSplashImageURL("&cache=music&wasm_policy=true")));
+
+  EXPECT_EQ("724x138", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectUniqueSample(
+      kSplashWasmPolicyOutcome, SplashWasmPolicyOutcome::kChoseBuiltIn, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenShowsCachedImageThatPolicyChose) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  std::string png;
+  ASSERT_TRUE(base::Base64Decode(kOnePixelPngBase64, &png));
+  PutInSplashCache("default", "splash.png", png);
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+
+  EXPECT_EQ("1x1", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectUniqueSample(kSplashWasmPolicyOutcome,
+                                      SplashWasmPolicyOutcome::kChoseCached, 1);
+  histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
+                                      SplashScreenFetchedState::kOkCache, 1);
+}
+
+// The policy chooses the video that splash.html chooses itself: the built-in
+// one of the splash screen's topic, the 1080p one only where the platform
+// plays 4K, unless the WebApp cached one.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       PolicyChoosesBuiltInVideo) {
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+
+  EXPECT_EQ("h5vcc-embedded://splash.webm?source=builtin&policy=builtin",
+            GetPolicyVideoURL(shell(), "cache=default&fallback=splash.webm",
+                              /*plays4k=*/true));
+  EXPECT_EQ("h5vcc-embedded://splash_480.webm?source=builtin&policy=builtin",
+            GetPolicyVideoURL(shell(), "cache=default&fallback=splash_480.webm",
+                              /*plays4k=*/false));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       PolicyChoosesBuiltInMusicVideo) {
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(
+      shell(), GetSplashImageURL("&cache=music&wasm_policy=true")));
+  EXPECT_EQ("724x138", EvalJs(shell(), kSplashImageSizeScript));
+
+  EXPECT_EQ("h5vcc-embedded://music_splash.webm?source=builtin&policy=builtin",
+            GetPolicyVideoURL(shell(), "cache=music&fallback=music_splash.webm",
+                              /*plays4k=*/true));
+  EXPECT_EQ(
+      "h5vcc-embedded://music_splash_480.webm?source=builtin&policy=builtin",
+      GetPolicyVideoURL(shell(), "cache=music&fallback=music_splash_480.webm",
+                        /*plays4k=*/false));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       PolicyChoosesCachedVideo) {
+  ShowSplashDomain();
+  // Before the splash screen loads, as it lists the cached assets then.
+  PutInSplashCache("music", "splash.webm", "webm");
+  EXPECT_TRUE(NavigateToURL(
+      shell(), GetSplashImageURL("&cache=music&wasm_policy=true")));
+  EXPECT_EQ("724x138", EvalJs(shell(), kSplashImageSizeScript));
+
+  // Read from the topic's cache, as splash.html reads it, even where the
+  // platform doesn't play the built-in 1080p video.
+  EXPECT_EQ(
+      "h5vcc-embedded://"
+      "splash.webm?cache=music&fallback=music_splash_480.webm&policy=cached",
+      GetPolicyVideoURL(shell(), "cache=music&fallback=music_splash_480.webm",
+                        /*plays4k=*/false));
+}
+
+// splash.html makes its own choice if the policy chooses another asset, here
+// as the page asks for the 1080p video, which the platform doesn't play.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenChoosesItselfIfPolicyChoosesOtherVideo) {
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+
+  EXPECT_EQ(
+      "h5vcc-embedded://"
+      "splash.webm?cache=default&fallback=splash.webm&policy=failed",
+      GetPolicyVideoURL(shell(), "cache=default&fallback=splash.webm",
+                        /*plays4k=*/false));
+}
+
+// The splash screen shows its own choice if its policy fails, here as the
+// policy isn't a valid WebAssembly module.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenShowsOwnChoiceIfPolicyFails) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+  LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+  (*test_resource_map_)["splash_policy.wasm"] = safe_contents_;
+  H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
+      test_resource_map_.get());
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectUniqueSample(kSplashWasmPolicyOutcome,
+                                      SplashWasmPolicyOutcome::kFailed, 1);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+  histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
+                                      SplashScreenFetchedState::kOkBuiltIn, 1);
+}
+
+// Without the "wasm_policy" query param, the splash screen chooses its asset
+// itself, as without the feature.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest,
+                       SplashScreenChoosesItselfWithoutWasmPolicyParameter) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("")));
+
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyOutcome, 0);
+  histogram_tester.ExpectUniqueSample("Cobalt.SplashScreen.FetchedFromCache",
+                                      SplashScreenFetchedState::kOkBuiltIn, 1);
+}
+
+// Without SplashWasmPolicy, the policy can't run, as neither splash_assets.json
+// nor WebAssembly is available, and the splash screen shows its own choice.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
+                       SplashScreenShowsOwnChoiceIfPolicyCantRun) {
+  base::HistogramTester histogram_tester;
+  ShowSplashDomain();
+  EXPECT_TRUE(NavigateToURL(shell(), GetSplashImageURL("&wasm_policy=true")));
+
+  EXPECT_EQ("484x114", EvalJs(shell(), kSplashImageSizeScript));
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyOutcome, 0);
+  histogram_tester.ExpectTotalCount(kSplashWasmPolicyDecisionTime, 0);
+  // The image, and splash_assets.json, which isn't found.
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples("Cobalt.SplashScreen.FetchedFromCache"),
+      base::BucketsAre(
+          base::Bucket(SplashScreenFetchedState::kOkBuiltIn, 1),
+          base::Bucket(SplashScreenFetchedState::kErrorOnResourceNotFound, 1)));
 }
 
 }  // namespace content

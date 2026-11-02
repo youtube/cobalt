@@ -377,6 +377,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
+    "//cobalt/shell/browser/splash_asset_list_unittest.cc",
     "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
   ]
 
