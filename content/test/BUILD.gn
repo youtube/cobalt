@@ -3371,13 +3371,14 @@ test("content_unittests") {
     ]
   }
 
-<<<<<<< HEAD
   if (!is_ios) {
     sources += [
       # Most ContentSettingsTypes are not registered on iOS so these
       # tests cannot run.
       "../browser/permissions/permission_service_impl_unittest.cc",
-=======
+    ]
+  }
+
   if (!enable_devtools_backend) {
     sources -= [
       "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
@@ -3388,7 +3389,6 @@ test("content_unittests") {
       "../browser/devtools/protocol_unittest.cc",
       "../browser/devtools/request_body_collector_unittest.cc",
       "../browser/devtools/shared_storage_worklet_devtools_agent_host_unittest.cc",
->>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
   }
 
