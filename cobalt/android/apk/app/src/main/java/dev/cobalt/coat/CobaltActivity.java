@@ -461,6 +461,23 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @VisibleForTesting
   void setupStartupGuard() {
+    StartupGuard.getInstance()
+        .setObserver(
+            new StartupGuard.Observer() {
+              @Override
+              public void onMilestoneReached(int milestone) {
+                CobaltProcessStateSummary.onStartupMilestoneReached(
+                    milestone,
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().isArmed());
+              }
+
+              @Override
+              public void onArmedChanged(boolean armed) {
+                CobaltProcessStateSummary.onStartupGuardArmedChanged(
+                    armed, StartupGuard.getInstance().getStartupStatus());
+              }
+            });
     Map<String, String> switches = getJavaSwitches();
     if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
