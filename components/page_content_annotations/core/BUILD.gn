@@ -80,6 +80,8 @@ static_library("core") {
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//third_party/tensorflow_models:tflite_custom_ops",
+    "//third_party/tflite_support",
+    "//third_party/tflite_support:tflite_support_proto",
   ]
 }
 
