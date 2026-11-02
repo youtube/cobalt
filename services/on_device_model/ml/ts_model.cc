@@ -26,7 +26,7 @@
 #include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
 #include "services/on_device_model/safety/safety_util.h"
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
 #include "services/on_device_model/safety/bert_safety_model.h"
 #endif
 
@@ -198,7 +198,7 @@ void TsHolder::Reset(mojom::TextSafetyModelParamsPtr params,
                      mojo::PendingReceiver<mojom::TextSafetyModel> model) {
   model_.Clear();
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
   if (!params->safety_assets || params->safety_assets->which() ==
                                     mojom::SafetyModelAssets::Tag::kTsAssets) {
     auto impl = TsModel::Create(*chrome_ml_, std::move(params));
