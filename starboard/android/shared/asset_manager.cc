@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include <mutex>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -161,16 +162,14 @@ bool AssetManager::IsAssetDirFd(int fd) const {
   return dir_fd_to_entries_map_.count(fd) == 1;
 }
 
-bool AssetManager::GetDirectoryEntries(
-    int fd,
-    std::vector<std::string>* entries) const {
+std::optional<std::vector<std::string>> AssetManager::GetDirectoryEntries(
+    int fd) const {
   std::lock_guard scoped_lock(mutex_);
   auto search = dir_fd_to_entries_map_.find(fd);
   if (search == dir_fd_to_entries_map_.end()) {
-    return false;
+    return std::nullopt;
   }
-  *entries = search->second;
-  return true;
+  return search->second;
 }
 
 void AssetManager::RegisterAssetDir(const DIR* dir) {
