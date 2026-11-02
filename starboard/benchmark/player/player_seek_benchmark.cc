@@ -54,8 +54,7 @@ bool InitializeAndPreroll(SbPlayerBenchmarkHelper* helper,
   return true;
 }
 
-void BM_PlayerSeekSync(::benchmark::State& state,
-                       SbPlayerOutputMode output_mode) {
+void BM_PlayerSeek(::benchmark::State& state, SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   if (!InitializeAndPreroll(&helper, output_mode, &state)) {
     return;
@@ -81,8 +80,8 @@ void BM_PlayerSeekSync(::benchmark::State& state,
   }
 }
 
-void BM_PlayerSeekAsync(::benchmark::State& state,
-                        SbPlayerOutputMode output_mode) {
+void BM_PlayerSeekToPresenting(::benchmark::State& state,
+                               SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   if (!InitializeAndPreroll(&helper, output_mode, &state)) {
     return;
@@ -107,26 +106,28 @@ void BM_PlayerSeekAsync(::benchmark::State& state,
   }
 }
 
-// Explicit iteration counts bound BM_PlayerSeekSync's untimed per-iteration
-// preroll cost (its manual time is only a few microseconds, so min-time
-// auto-scaling would run thousands of seeks) and give BM_PlayerSeekAsync a
-// matching 20-sample run instead of stopping after 1-2 seeks on Android TV.
-BENCHMARK_CAPTURE(BM_PlayerSeekSync, PunchOut, kSbPlayerOutputModePunchOut)
+// Explicit iteration counts bound BM_PlayerSeek's untimed per-iteration preroll
+// cost (its manual time is only a few microseconds, so min-time auto-scaling
+// would run thousands of seeks) and give BM_PlayerSeekToPresenting a matching
+// 20-sample run instead of stopping after 1-2 seeks on Android TV.
+BENCHMARK_CAPTURE(BM_PlayerSeek, PunchOut, kSbPlayerOutputModePunchOut)
     ->UseManualTime()
     ->Unit(::benchmark::kMicrosecond)
     ->Iterations(20);
-BENCHMARK_CAPTURE(BM_PlayerSeekSync,
+BENCHMARK_CAPTURE(BM_PlayerSeek,
                   DecodeToTexture,
                   kSbPlayerOutputModeDecodeToTexture)
     ->UseManualTime()
     ->Unit(::benchmark::kMicrosecond)
     ->Iterations(20);
 
-BENCHMARK_CAPTURE(BM_PlayerSeekAsync, PunchOut, kSbPlayerOutputModePunchOut)
+BENCHMARK_CAPTURE(BM_PlayerSeekToPresenting,
+                  PunchOut,
+                  kSbPlayerOutputModePunchOut)
     ->UseManualTime()
     ->Unit(::benchmark::kMillisecond)
     ->Iterations(20);
-BENCHMARK_CAPTURE(BM_PlayerSeekAsync,
+BENCHMARK_CAPTURE(BM_PlayerSeekToPresenting,
                   DecodeToTexture,
                   kSbPlayerOutputModeDecodeToTexture)
     ->UseManualTime()

@@ -21,8 +21,8 @@
 namespace starboard {
 namespace {
 
-void BM_PlayerDestroySync(::benchmark::State& state,
-                          SbPlayerOutputMode output_mode) {
+void BM_PlayerDestroy(::benchmark::State& state,
+                      SbPlayerOutputMode output_mode) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
   SbPlayerBenchmarkHelper::GetCreationParam(&creation_param, output_mode);
@@ -69,13 +69,13 @@ void BM_PlayerDestroySync(::benchmark::State& state,
 
 // Explicit iteration counts bound total runtime and ensure a consistent sample
 // size: each iteration runs an untimed SbPlayerCreate() + initialization wait
-// whose cost can vastly exceed DestroySync's manual time (e.g. ~114 us on
+// whose cost can vastly exceed BM_PlayerDestroy's manual time (e.g. ~114 us on
 // Linux DecodeToTexture, which would otherwise scale to >5,000 creations).
-BENCHMARK_CAPTURE(BM_PlayerDestroySync, PunchOut, kSbPlayerOutputModePunchOut)
+BENCHMARK_CAPTURE(BM_PlayerDestroy, PunchOut, kSbPlayerOutputModePunchOut)
     ->UseManualTime()
     ->Unit(::benchmark::kMicrosecond)
     ->Iterations(20);
-BENCHMARK_CAPTURE(BM_PlayerDestroySync,
+BENCHMARK_CAPTURE(BM_PlayerDestroy,
                   DecodeToTexture,
                   kSbPlayerOutputModeDecodeToTexture)
     ->UseManualTime()
