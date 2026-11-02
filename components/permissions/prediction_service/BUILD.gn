@@ -72,6 +72,7 @@ source_set("unit_tests") {
     "//services/network/public/cpp",
     "//testing/gtest",
     "//third_party/protobuf:protobuf_lite",
+    "//third_party/tflite_support",
     "//ui/gfx",
   ]
   data = [ "//components/test/data/permissions/" ]
