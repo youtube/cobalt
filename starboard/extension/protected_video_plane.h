@@ -24,8 +24,9 @@
 extern "C" {
 #endif
 
-// Lets the embedder render Widevine L1 decode-to-texture frames with a
-// protected GL context and present the result on the punch-out video plane.
+// Lets the embedder render decode-to-texture frames from secure decoders,
+// whose output stays in protected memory, with a protected GL context and
+// present the result on the punch-out video plane.
 //
 // The platform has a single punch-out video plane, so there is at most one
 // protected presenter at a time.

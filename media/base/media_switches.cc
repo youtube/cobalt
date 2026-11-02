@@ -522,9 +522,9 @@ BASE_FEATURE(kCobaltUsingAndroidOverlay,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 // When enabled, pages can create a protected WebGL context
-// ({cobaltProtectedContent: true}) that renders Widevine L1 video through a
-// protected GL context onto the punch-out video plane. Needs the Starboard
-// ProtectedVideoPlane extension (Android).
+// ({cobaltProtectedContent: true}) that renders hardware-protected video
+// through a protected GL context onto the punch-out video plane. Needs the
+// Starboard ProtectedVideoPlane extension (Android).
 BASE_FEATURE(kCobaltProtectedWebGL,
              "CobaltProtectedWebGL",
              base::FEATURE_DISABLED_BY_DEFAULT);

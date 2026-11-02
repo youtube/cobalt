@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Cobalt Android: requests a protected WebGL context for Widevine L1 video.
-// Its default framebuffer is a protected window surface on the punch-out video
-// plane, and its pixels can never be read back.
+// Cobalt Android: requests a protected WebGL context for hardware-protected
+// video. Its default framebuffer is a protected window surface on the
+// punch-out video plane, and its pixels can never be read back.
 partial dictionary CanvasContextCreationAttributesModule {
   boolean cobaltProtectedContent = false;
 };

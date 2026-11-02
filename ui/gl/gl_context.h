@@ -86,8 +86,9 @@ enum class AngleContextVirtualizationGroup {
   kGLImageProcessor = 2,
   kWebViewRenderThread = 3,
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Cobalt: contexts created with EGL_PROTECTED_CONTENT_EXT (Widevine L1 video
-  // through WebGL). ANGLE gives the group its own protected native context.
+  // Cobalt: contexts created with EGL_PROTECTED_CONTENT_EXT, for
+  // hardware-protected video in WebGL. ANGLE gives the group its own protected
+  // native context.
   kCobaltProtected = 4,
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 };
