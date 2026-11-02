@@ -18,8 +18,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !BUILDFLAG(USE_EVERGREEN)
-#error Only Evergreen platforms must implement the NativeStability extension
+#if !BUILDFLAG(USE_CRASHPAD)
+#error Only builds with use_crashpad must implement the NativeStability extension
 #endif
 
 namespace nplb {

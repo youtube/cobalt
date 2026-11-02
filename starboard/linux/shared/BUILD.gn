@@ -232,7 +232,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (use_evergreen) {
+  if (use_crashpad) {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",

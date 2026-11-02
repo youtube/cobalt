@@ -35,14 +35,17 @@
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_CRASHPAD)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/native_stability.h"
-#include "starboard/extension/platform_service.h"
-#include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/native_stability.h"
-#endif
+#endif  // BUILDFLAG(USE_CRASHPAD)
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/platform_service.h"
+#include "starboard/linux/shared/platform_service.h"
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -59,20 +62,22 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApiLinux();
   }
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_CRASHPAD)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
   if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
     return starboard::GetNativeStabilityApi();
   }
+#endif  // BUILDFLAG(USE_CRASHPAD)
 
+#if BUILDFLAG(USE_EVERGREEN)
   // TODO: b/371419798 - enable for non-evergreen builds once we've resolved the
   // SIGILL in h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Has().
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::GetPlatformServiceApiLinux();
   }
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::GetMemoryMappedFileApi();
   }
