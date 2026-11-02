@@ -127,6 +127,9 @@ source_set("unit_tests") {
       "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",
     ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [ "url_player_demuxer_unittest.cc" ]
+    }
   }
   configs += [ "//media:media_config" ]
   deps = [

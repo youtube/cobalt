@@ -154,6 +154,14 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
 
   void MakeAllCommitsFailForTesting() { fail_commits_for_testing_ = true; }
 
+#if BUILDFLAG(IS_COBALT)
+  int total_commit_count_for_testing() const {
+    return total_commit_count_for_testing_;
+  }
+
+  const leveldb_env::Options& options_for_testing() const { return options_; }
+#endif
+
   // Use the static factory functions above to construct this class. These
   // constructors are only public for the sake of `base::SequenceBound`.
   DomStorageDatabase(
@@ -202,6 +210,7 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // True for persistent LocalStorage databases ("leveldb") and false for
   // persistent SessionStorage databases ("Session Storage") or in-memory DBs.
   const bool is_local_storage_ = false;
+  mutable int total_commit_count_for_testing_ = 0;
 #endif  // BUILDFLAG(IS_COBALT)
 
   // Causes all calls to |Commit()| to fail with an IOError for simulated

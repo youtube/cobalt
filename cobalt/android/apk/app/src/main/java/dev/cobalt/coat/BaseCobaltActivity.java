@@ -26,6 +26,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
@@ -55,6 +56,9 @@ public abstract class BaseCobaltActivity extends Activity {
   // The view whose surface punch-out video is rendered to. Subclasses create it. It stays null
   // when video uses an AndroidOverlay instead.
   protected VideoSurfaceView mVideoSurfaceView;
+
+  // Set in onStop() when the video surface is still alive, so onStart() replaces the view.
+  private boolean mForceCreateNewVideoSurfaceView;
 
   Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -109,6 +113,10 @@ public abstract class BaseCobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    if (mForceCreateNewVideoSurfaceView) {
+      Log.w(TAG, "Force to create a new video surface.");
+      createNewSurfaceView();
+    }
     getStarboardBridge().onActivityStart(this);
     super.onStart();
   }
@@ -117,6 +125,14 @@ public abstract class BaseCobaltActivity extends Activity {
   protected void onStop() {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
+
+    if (VideoSurfaceView.getCurrentSurface() != null) {
+      mForceCreateNewVideoSurfaceView = true;
+    }
+
+    // Set the SurfaceView to fullscreen.
+    View rootView = getWindow().getDecorView();
+    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override

@@ -83,7 +83,6 @@ if (current_toolchain == starboard_toolchain) {
     sources = [
       "//starboard/common/benchmark_main.cc",
       "audio_decoder_benchmark.cc",
-      "decoded_audio_benchmark.cc",
     ]
 
     public_deps = [
