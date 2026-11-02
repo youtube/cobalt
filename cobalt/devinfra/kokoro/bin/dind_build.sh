@@ -51,6 +51,13 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
+  # TODO(b/562551706, b/579057204): Pinned before upstream 20aff01e (2026-09-16,
+  # git --end-of-options) and 76ffeb6f3 (2026-10-27, removal of reclient_helper
+  # from autoninja).
+  git -C tools/depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+  export DEPOT_TOOLS_UPDATE=0
+  git config --global --add safe.directory '*'
+  source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then

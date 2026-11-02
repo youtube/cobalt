@@ -8,7 +8,13 @@ runs:
   using: "composite"
   steps:
       - name: Get depot tools
-        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        run: |
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          # TODO(b/562551706, b/579057204): Pinned before upstream 20aff01e (2026-09-16,
+          # git --end-of-options) and 76ffeb6f3 (2026-10-27, removal of reclient_helper
+          # from autoninja).
+          git -C depot_tools checkout 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+          echo "DEPOT_TOOLS_UPDATE=0" >> $GITHUB_ENV
         shell: bash
       - name: Bootstrap bundled python3
         run: |
