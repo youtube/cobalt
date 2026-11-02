@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_TRACKER_H_
 
+#include <cstdint>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -41,12 +42,16 @@ class AudioFrameTracker {
   int64_t GetOverflowedFrames() const;
   int64_t GetTotalOriginalFrames() const;
 
+  struct AdjustedFrameInfo {
+    int64_t adjusted_frames = 0;
+    double playback_rate = 1.0;
+  };
+
   // Calculates the adjusted frame position after |number_of_frames| additional
-  // frames have been played. |playback_rate| is set to the playback rate of
-  // the last frame played.
-  int64_t GetFutureFramesPlayedAdjustedToPlaybackRate(
-      int number_of_frames,
-      double* playback_rate) const;
+  // frames have been played, along with the playback rate of the last frame
+  // played.
+  AdjustedFrameInfo GetFutureFramesPlayedAdjustedToPlaybackRate(
+      int number_of_frames) const;
 
   // Converts a position in the original media timeline (in frames) to the
   // adjusted timeline that accounts for playback rate changes.
