@@ -19,13 +19,11 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
@@ -34,7 +32,6 @@
 #include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/sequence_local_storage_slot.h"
@@ -194,25 +191,6 @@ void BindNetworkHintsHandler(
                                                        std::move(receiver));
 }
 
-base::flat_set<url::Origin> GetIsolatedContextOriginSetFromFlag() {
-  std::string cmdline_origins(
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kIsolatedContextOrigins));
-
-  std::vector<std::string_view> origin_strings = base::SplitStringPiece(
-      cmdline_origins, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  base::flat_set<url::Origin> origin_set;
-  for (const std::string_view& origin_string : origin_strings) {
-    url::Origin allowed_origin = url::Origin::Create(GURL(origin_string));
-    if (!allowed_origin.opaque()) {
-      origin_set.insert(allowed_origin);
-    } else {
-      LOG(ERROR) << "Error parsing IsolatedContext origin: " << origin_string;
-    }
-  }
-  return origin_set;
-}
-
 }  // namespace
 
 SharedState::SharedState() {}
@@ -353,14 +331,6 @@ ShellContentBrowserClient::GetWebContentsViewDelegate(
   PerformanceManagerRegistry::GetInstance()->MaybeCreatePageNodeForWebContents(
       web_contents);
   return CreateShellWebContentsViewDelegate(web_contents);
-}
-
-bool ShellContentBrowserClient::IsIsolatedContextAllowedForUrl(
-    BrowserContext* browser_context,
-    const GURL& lock_url) {
-  static base::flat_set<url::Origin> isolated_context_origins =
-      GetIsolatedContextOriginSetFromFlag();
-  return isolated_context_origins.contains(url::Origin::Create(lock_url));
 }
 
 bool ShellContentBrowserClient::IsSharedStorageAllowed(
@@ -722,6 +692,7 @@ ShellContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
 void ShellContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         BrowserContext* browser_context,
+        const std::optional<url::Origin>& request_initiator,
         NonNetworkURLLoaderFactoryMap* factories) {
   // Registers factories for kH5vccEmbeddedScheme used to load the main script
   // for Web Workers.
