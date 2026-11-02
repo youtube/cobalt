@@ -4,20 +4,18 @@
 
 import("//components/optimization_guide/features.gni")
 
-if (!is_fuchsia) {
-  if (build_with_tflite_lib) {
-    source_set("bert_safety_op_resolver") {
-      sources = [
-        "bert_safety_op_resolver.cc",
-        "bert_safety_op_resolver.h",
-      ]
+if (!is_fuchsia && build_with_tflite_lib) {
+  source_set("bert_safety_op_resolver") {
+    sources = [
+      "bert_safety_op_resolver.cc",
+      "bert_safety_op_resolver.h",
+    ]
 
-      deps = [
-        "//components/optimization_guide/core/inference:op_resolver",
-        "//third_party/tensorflow-text:shimed_bert_model_ops",
-        "//third_party/tflite",
-      ]
-    }
+    deps = [
+      "//components/optimization_guide/core/inference:op_resolver",
+      "//third_party/tensorflow-text:shimed_bert_model_ops",
+      "//third_party/tflite",
+    ]
   }
 
   source_set("bert_safety_model") {
@@ -27,25 +25,19 @@ if (!is_fuchsia) {
     ]
 
     deps = [
+      ":bert_safety_op_resolver",
       ":safety_util",
       "//base",
-      "//components/optimization_guide:machine_learning_tflite_buildflags",
       "//components/translate/core/language_detection",
     ]
 
     public_deps = [
       "//mojo/public/cpp/bindings",
       "//services/on_device_model/public/mojom",
+      "//third_party/tflite",
+      "//third_party/tflite_support",
+      "//third_party/tflite_support:tflite_support_proto",
     ]
-
-    if (build_with_tflite_lib) {
-      deps += [ ":bert_safety_op_resolver" ]
-      public_deps += [
-        "//third_party/tflite",
-        "//third_party/tflite_support",
-        "//third_party/tflite_support:tflite_support_proto",
-      ]
-    }
   }
 }
 
