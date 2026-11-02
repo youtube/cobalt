@@ -378,6 +378,11 @@ PipelineStatus DemuxerManager::CreateDemuxer(
   // A myriad of reasons exists that prevent us from entering a suspended state
   // after metadata is reached - in this case we'll have to do a normal startup.
   if (demuxer_->GetDemuxerType() == DemuxerType::kChunkDemuxer ||
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+      // The URL player's metadata needs the renderer, which a suspended start
+      // doesn't create.
+      demuxer_->GetDemuxerType() == DemuxerType::kUrlPlayerDemuxer ||
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
       preload != DataSource::METADATA || client_->CouldPlayIfEnoughData() ||
       IsStreaming()) {
     return std::move(on_demuxer_created)
