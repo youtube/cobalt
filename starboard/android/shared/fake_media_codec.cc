@@ -207,6 +207,7 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
   }
   video_codec_create_count_++;
+  last_video_codec_ = video_codec;
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);
   last_created_video_codec_ = fake.get();

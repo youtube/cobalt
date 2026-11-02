@@ -163,6 +163,11 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
          frame_size.height > max_video_size.height;
 }
 
+bool NeedsFpsToInitializeCodec(SbMediaVideoCodec codec) {
+  return codec == kSbMediaVideoCodecAv1 &&
+         MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30();
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -331,9 +336,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
-      needs_fps_to_initialize_codec_(
-          video_codec_ == kSbMediaVideoCodecAv1 &&
-          MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
+      needs_fps_to_initialize_codec_(NeedsFpsToInitializeCodec(video_codec_)),
       skip_video_frames_over_60_fps_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipVideoFramesOver60Fps)),
@@ -535,9 +538,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  // A flushed codec keeps its configuration across a seek, so check the first
-  // input after the flush in case the codec needs to be rebuilt.
-  if (is_flushed_) {
+  // Rebuild the codec if the first input after a reset changes configuration.
+  if (is_first_input_after_reset_) {
+    is_first_input_after_reset_ = false;
+    const VideoStreamInfo& stream_info =
+        input_buffers.front()->video_stream_info();
     if (NeedsCodecTransition(input_buffers.front())) {
       SB_LOG(INFO) << "Codec configuration changed at "
                    << input_buffers.front()->timestamp()
@@ -549,7 +554,17 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       input_buffer_written_ = 0;
       video_fps_ = 0;
     }
-    is_flushed_ = false;
+    if (stream_info.codec != video_codec_) {
+      SB_CHECK(!media_decoder_);
+      SB_LOG(INFO) << "Switching video codec from "
+                   << GetMediaVideoCodecName(video_codec_) << " to "
+                   << GetMediaVideoCodecName(stream_info.codec) << ".";
+      video_codec_ = stream_info.codec;
+      needs_fps_to_initialize_codec_ = NeedsFpsToInitializeCodec(video_codec_);
+      first_output_format_changed_ = false;
+      max_buffered_output_frames_ = 0;
+      number_of_preroll_frames_ = initial_number_of_preroll_frames_;
+    }
   }
 
   if (input_buffer_written_ == 0) {
@@ -1268,10 +1283,8 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
     // initial pre-roll phase after a Flush().
     input_buffer_written_ = 0;
     video_fps_ = 0;
-    is_flushed_ = false;
-  } else {
-    is_flushed_ = true;
   }
+  is_first_input_after_reset_ = true;
   CancelPendingJobs();
 
   // TODO(b/291959069): After flush |media_decoder_|, the output buffers
@@ -1294,32 +1307,39 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
 
 // Returns true if |input_buffer| uses a configuration the current codec can't
 // decode, e.g. after a SourceBuffer.changeType() call.
-// TODO (b/564788162): Support cross-codec transitions.
 bool MediaCodecVideoDecoder::NeedsCodecTransition(
     const scoped_refptr<InputBuffer>& input_buffer) const {
-  SB_DCHECK_EQ(input_buffer->video_stream_info().codec, video_codec_);
   if (!media_decoder_) {
     return false;
   }
-  const SbMediaColorMetadata& stream_color =
-      input_buffer->video_stream_info().color_metadata;
+  const VideoStreamInfo& stream_info = input_buffer->video_stream_info();
+  if (stream_info.codec != video_codec_) {
+    return true;
+  }
+  const SbMediaColorMetadata& stream_color = stream_info.color_metadata;
   const bool stream_is_hdr = !IsIdentity(stream_color);
   const bool codec_is_hdr = color_metadata_.has_value();
   if (stream_is_hdr != codec_is_hdr) {
     return true;
   }
-  // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
-  // passes these to the Java ColorInfo, which sets the MediaFormat's color
-  // standard/transfer/range and HDR static info. Others (e.g. matrix) are
-  // unused by the codec.
-  return stream_is_hdr &&
-         (stream_color.primaries != color_metadata_->primaries ||
-          stream_color.transfer != color_metadata_->transfer ||
-          stream_color.range != color_metadata_->range ||
-          stream_color.max_cll != color_metadata_->max_cll ||
-          stream_color.max_fall != color_metadata_->max_fall ||
-          !Equal(stream_color.mastering_metadata,
-                 color_metadata_->mastering_metadata));
+  if (stream_is_hdr) {
+    // Only compare the fields that reach MediaCodec: CreateVideoMediaCodec()
+    // passes these to the Java ColorInfo, which sets the MediaFormat's color
+    // standard/transfer/range and HDR static info. Others (e.g. matrix) are
+    // unused by the codec.
+    if (stream_color.primaries != color_metadata_->primaries ||
+        stream_color.transfer != color_metadata_->transfer ||
+        stream_color.range != color_metadata_->range) {
+      return true;
+    }
+    if (stream_color.max_cll != color_metadata_->max_cll ||
+        stream_color.max_fall != color_metadata_->max_fall ||
+        !Equal(stream_color.mastering_metadata,
+               color_metadata_->mastering_metadata)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace starboard
