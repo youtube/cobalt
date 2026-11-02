@@ -145,6 +145,15 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Exceeds Max Limit"/>
 </enum>
 
+<enum name="PlatformServiceSendStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="Message too large"/>
+  <int value="2" label="Extension not implemented"/>
+  <int value="3" label="Invalid service handle"/>
+  <int value="4" label="Starboard invalid state"/>
+  <int value="5" label="Null response data"/>
+</enum>
+
 <enum name="SentinelWriteResult">
   <int value="0" label="Success"/>
   <int value="1" label="Empty Path"/>
