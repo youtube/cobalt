@@ -12,20 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [
-    "-mfloat-abi=softfp",
-    "-target",
-    "armv7a-linux-eabi",
-  ]
-  asmflags = cflags
-}
-
 config("platform_configuration") {
   configs = [
-    "//starboard/build/config/sabi",
-    ":sabi_flags",
     "//starboard/evergreen/arm/shared/platform_configuration",
+    "//starboard/build/config/modular/arm/softfp",
   ]
   ldflags = [
     "-Wl,-m",
