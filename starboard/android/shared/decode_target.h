@@ -31,9 +31,18 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   // Creates the GL texture / SurfaceTexture / Surface via |provider|'s GLES
   // context runner. Returns nullptr if the runner could not execute the
   // creation closure (e.g. the GL context could not be made current), so an
-  // uninitialized target is never handed to callers.
+  // uninitialized target is never handed to callers. With |protected_path|,
+  // the texture comes from the embedder's protected decode-target texture
+  // hooks for |provider|, if installed.
   static scoped_refptr<DecodeTarget> Create(
-      SbDecodeTargetGraphicsContextProvider* provider);
+      SbDecodeTargetGraphicsContextProvider* provider,
+      bool protected_path = false);
+
+  // Whether the texture came from the protected decode-target hooks.
+  bool uses_protected_hooks() const { return hooks_id_ != 0; }
+
+  SbDecodeTargetGraphicsContextProvider* provider() const { return provider_; }
+  uint64_t hooks_id() const { return hooks_id_; }
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
 
@@ -57,7 +66,8 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   }
 
  private:
-  explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
+  DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider,
+               bool protected_path);
   // Safe to run on a target whose CreateOnContextRunner() never ran.
   ~DecodeTarget() final;
 
@@ -70,6 +80,12 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   // Default-initialized so that the destructor is safe when
   // CreateOnContextRunner() never ran.
   ANativeWindow* native_window_ = nullptr;
+
+  SbDecodeTargetGraphicsContextProvider* const provider_;
+  const bool protected_path_;
+  // The hooks installation the texture came from, or 0 for a system-GL
+  // texture.
+  uint64_t hooks_id_ = 0;
 
   SbDecodeTargetInfo info_ = {};
 };

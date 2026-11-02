@@ -352,6 +352,14 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
         static_cast<EGLint>(angle_context_virtualization_group_number_));
   }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (attribs.protected_content) {
+    // Validated by ANGLE against EGL_EXT_protected_content.
+    context_attributes.push_back(EGL_PROTECTED_CONTENT_EXT);
+    context_attributes.push_back(EGL_TRUE);
+  }
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Append final EGL_NONE to signal the context attributes are finished
   context_attributes.push_back(EGL_NONE);
   context_attributes.push_back(EGL_NONE);

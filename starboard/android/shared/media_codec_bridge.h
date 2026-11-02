@@ -89,6 +89,7 @@ class MediaCodecBridge : public MediaCodec {
   void SetPlaybackRate(double playback_rate) override;
   bool Restart() override;
   jint Flush() override;
+  bool SetOutputSurface(const jni_zero::JavaRef<jobject>& surface) override;
   std::optional<FrameSize> GetOutputSize() override;
   std::optional<AudioOutputFormatResult> GetAudioOutputFormat() override;
 

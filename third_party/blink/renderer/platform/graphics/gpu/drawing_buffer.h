@@ -150,7 +150,12 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       WebGLVersion,
       ChromiumImageUsage,
       PredefinedColorSpace color_space,
-      gl::GpuPreference);
+      gl::GpuPreference
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      ,
+      bool cobalt_protected_content = false
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  );
 
   DrawingBuffer(const DrawingBuffer&) = delete;
   DrawingBuffer& operator=(const DrawingBuffer&) = delete;
@@ -185,6 +190,15 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
                               const gfx::Size& cur_size,
                               int max_texture_size);
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: in protected mode the drawing buffer is the context's default
+  // framebuffer, a protected window surface on the video plane. No color buffer
+  // or SharedImage is allocated, nothing is exported to the compositor, and
+  // frames are presented with an explicit swap.
+  bool IsCobaltProtectedContent() const { return cobalt_protected_content_; }
+  void PresentCobaltProtectedFrame();
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Resizes (or allocates if necessary) all buffers attached to the default
   // framebuffer. Returns whether the operation was successful.
   bool Resize(const gfx::Size&);
@@ -624,6 +638,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
   Platform::GraphicsInfo graphics_info_;
   const bool using_swap_chain_;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  bool cobalt_protected_content_ = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   bool low_latency_enabled_ = false;
   bool has_implicit_stencil_buffer_ = false;
 

@@ -47,6 +47,11 @@ struct GPU_EXPORT ContextCreationAttribs {
   bool enable_grcontext = false;
   bool enable_raster_interface = false;
   bool enable_gpu_rasterization = false;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected (EGL_PROTECTED_CONTENT_EXT) WebGL context whose default
+  // framebuffer is a protected window surface on the video plane.
+  bool protected_content = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   ContextType context_type = CONTEXT_TYPE_OPENGLES2;
 };

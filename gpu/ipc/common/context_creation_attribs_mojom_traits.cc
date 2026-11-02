@@ -4,6 +4,7 @@
 
 #include "gpu/ipc/common/context_creation_attribs_mojom_traits.h"
 
+#include "build/build_config.h"
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 #include "ui/gl/mojom/gpu_preference_mojom_traits.h"
 
@@ -25,6 +26,9 @@ bool StructTraits<gpu::mojom::ContextCreationAttribsDataView,
   out->enable_grcontext = data.enable_grcontext();
   out->enable_raster_interface = data.enable_raster_interface();
   out->enable_gpu_rasterization = data.enable_gpu_rasterization();
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  out->protected_content = data.protected_content();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   return true;
 }
 

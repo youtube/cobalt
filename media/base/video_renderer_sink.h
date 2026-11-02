@@ -5,10 +5,12 @@
 #ifndef MEDIA_BASE_VIDEO_RENDERER_SINK_H_
 #define MEDIA_BASE_VIDEO_RENDERER_SINK_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
 #include "media/base/video_frame.h"
+#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -69,6 +71,17 @@ class MEDIA_EXPORT VideoRendererSink {
   // based painting and PaintSingleFrame().
   virtual void PaintSingleFrame(scoped_refptr<VideoFrame> frame,
                                 bool repaint_duplicate_frame = false) = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt: the latest protected (DRM) decode-to-texture frame, for protected
+  // WebGL only; it is never composited. A null frame clears it.
+  virtual void SetProtectedFrame(scoped_refptr<VideoFrame> frame) {}
+
+  // Cobalt: |request_update| asks the renderer for a newer protected frame. It
+  // may be run on any thread. A null callback clears it.
+  virtual void SetProtectedFrameUpdateCallback(
+      base::RepeatingClosure request_update) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual ~VideoRendererSink() {}
 };

@@ -249,7 +249,19 @@ angle::Result RendererGL::finish()
 
 gl::GraphicsResetStatus RendererGL::getResetStatus()
 {
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    gl::GraphicsResetStatus status =
+        gl::FromGLenum<gl::GraphicsResetStatus>(mFunctions->getGraphicsResetStatus());
+    // Cobalt: called with this renderer's native context current (from ContextGL); remember a
+    // reset so that it can be checked later without making the context current.
+    if (status != gl::GraphicsResetStatus::NoError)
+    {
+        mHasBeenReset = true;
+    }
+    return status;
+#else
     return gl::FromGLenum<gl::GraphicsResetStatus>(mFunctions->getGraphicsResetStatus());
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 }
 
 void RendererGL::insertEventMarker(GLsizei length, const char *marker) {}

@@ -62,6 +62,10 @@ class RendererGL : angle::NonCopyable
     angle::Result finish();
 
     gl::GraphicsResetStatus getResetStatus();
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: whether getResetStatus() ever reported a reset for this renderer's native context.
+    bool hasBeenReset() const { return mHasBeenReset; }
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // EXT_debug_marker
     void insertEventMarker(GLsizei length, const char *marker);
@@ -146,6 +150,9 @@ class RendererGL : angle::NonCopyable
 
     // Workaround for anglebug.com/40644715
     bool mNeedsFlushBeforeDeleteTextures;
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    bool mHasBeenReset = false;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 };
 
 }  // namespace rx

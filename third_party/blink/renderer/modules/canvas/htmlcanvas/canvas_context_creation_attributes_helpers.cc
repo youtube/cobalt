@@ -5,6 +5,10 @@
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
 
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_context_creation_attributes_module.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_pixel_format.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_rendering_context_2d_settings.h"
@@ -74,6 +78,20 @@ bool ToCanvasContextCreationAttributes(
           CanvasContextCreationAttributesCore::WillReadFrequently::kUndefined;
   }
   result.xr_compatible = attrs->xrCompatible();
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Without the feature, the attribute is ignored: the GPU and media sides
+  // would not provide protected frames or a protected surface.
+  result.cobalt_protected_content =
+      attrs->cobaltProtectedContent() &&
+      base::FeatureList::IsEnabled(media::kCobaltProtectedWebGL);
+  if (result.cobalt_protected_content) {
+    // The drawing buffer is the protected window surface: no MSAA resolve
+    // target, nothing to preserve, no low-latency path.
+    result.antialias = false;
+    result.preserve_drawing_buffer = false;
+    result.desynchronized = false;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   return true;
 }
 

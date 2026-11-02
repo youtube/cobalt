@@ -321,6 +321,13 @@ void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
     // the existing one), so this is never reset.
     has_cdm_ = true;
   }
+  // A DRM player's decode targets go on the protected decode-target context.
+  // Starboard makes the matching choice per decoder, and creates the decode
+  // target after the CDM is set.
+  GetGpuFactory()
+      ->AsyncCall(&StarboardGpuFactory::SetProtectedDecodeTargets)
+      .WithArgs(cdm_context ? &decode_target_graphics_context_provider_
+                            : nullptr);
   GetRenderer()->SetCdm(cdm_context, std::move(cdm_attached_cb));
 }
 

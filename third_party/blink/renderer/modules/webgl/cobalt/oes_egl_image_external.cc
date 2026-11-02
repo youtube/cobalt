@@ -84,7 +84,17 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
-  if (!context->ValidateHTMLVideoElement(execution_context->GetSecurityOrigin(),
+#if BUILDFLAG(IS_ANDROID)
+  // A protected context is origin-tainted from creation and never reads back,
+  // so the cross-origin check, which keeps a readable canvas clean, does not
+  // apply. The player does not set crossOrigin for protected sessions.
+  const bool protected_context =
+      context->CreationAttributes().cobalt_protected_content;
+#else
+  const bool protected_context = false;
+#endif  // BUILDFLAG(IS_ANDROID)
+  if (!protected_context &&
+      !context->ValidateHTMLVideoElement(execution_context->GetSecurityOrigin(),
                                          "EGLImageTargetTexture2DOES", video,
                                          exception_state)) {
     return;
@@ -101,8 +111,11 @@ void OESEGLImageExternal::EGLImageTargetTexture2DOES(
     return;
   }
 
+  // Protected frames reach only protected contexts. Unprotected contexts keep
+  // GetCurrentFrameThenUpdate(), which returns null for any CDM-backed player.
   scoped_refptr<media::VideoFrame> media_video_frame =
-      wmp->GetCurrentFrameThenUpdate();
+      protected_context ? wmp->GetCurrentProtectedFrameThenUpdate()
+                        : wmp->GetCurrentFrameThenUpdate();
   if (!media_video_frame) {
     return;
   }

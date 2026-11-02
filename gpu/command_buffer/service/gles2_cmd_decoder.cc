@@ -1111,6 +1111,7 @@ class GLES2DecoderImpl : public GLES2Decoder,
   void DoLoseContextCHROMIUM(GLenum current, GLenum other);
 
   void DoFlushDriverCachesCHROMIUM(void);
+  void DoPresentProtectedFrameCOBALT(void);
 
   void DoFlushMappedBufferRange(
       GLenum target, GLintptr offset, GLsizeiptr size);
@@ -16430,6 +16431,10 @@ void GLES2DecoderImpl::DoLoseContextCHROMIUM(GLenum current, GLenum other) {
   MarkContextLost(GetContextLostReasonFromResetStatus(current));
   group_->LoseContexts(GetContextLostReasonFromResetStatus(other));
   reset_by_robustness_extension_ = true;
+}
+
+void GLES2DecoderImpl::DoPresentProtectedFrameCOBALT(void) {
+  // Protected WebGL contexts need the passthrough decoder.
 }
 
 void GLES2DecoderImpl::DoFlushDriverCachesCHROMIUM(void) {

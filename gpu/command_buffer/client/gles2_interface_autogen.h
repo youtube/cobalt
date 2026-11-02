@@ -950,4 +950,5 @@ virtual void PolygonModeANGLE(GLenum face, GLenum mode) = 0;
 virtual void PolygonOffsetClampEXT(GLfloat factor,
                                    GLfloat units,
                                    GLfloat clamp) = 0;
+virtual void PresentProtectedFrameCOBALT() = 0;
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_INTERFACE_AUTOGEN_H_
