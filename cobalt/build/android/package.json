@@ -17,7 +17,6 @@
                 "obj/base/base_cached_flags_java.javac.jar",
                 "obj/base/base_java.javac.jar",
                 "obj/base/base_jni_java.javac.jar",
-                "obj/base/base_minimal_jni_java.javac.jar",
                 "obj/base/base_shared_preferences_java.javac.jar",
                 "obj/base/base_switches_java.javac.jar",
                 "obj/base/build_info_java.javac.jar",
@@ -31,7 +30,9 @@
                 "obj/base/features_java.javac.jar",
                 "obj/base/file_provider_utils_java.javac.jar",
                 "obj/base/file_utils_java.javac.jar",
+                "obj/base/java_exception_reporter_jni_java.javac.jar",
                 "obj/base/jni_android_java.javac.jar",
+                "obj/base/jni_callback_jni_java.javac.jar",
                 "obj/base/jni_utils_java.javac.jar",
                 "obj/base/library_loader_java.javac.jar",
                 "obj/base/library_loader_jni_java.javac.jar",
@@ -54,6 +55,7 @@
                 "obj/base/tasks_jni_java.javac.jar",
                 "obj/base/tasks_minimal_jni_java.javac.jar",
                 "obj/base/time_utils_java.javac.jar",
+                "obj/base/token_jni_java.javac.jar",
                 "obj/base/unowned_user_data_java.javac.jar",
                 "obj/base/version_info/android/channel_enum_java.javac.jar",
                 "obj/base/version_info/android/version_constants_java.javac.jar",
@@ -214,10 +216,6 @@
                     "to_file": "jar/base_base_jni_java.jar"
                 },
                 {
-                    "from_file": "obj/base/base_minimal_jni_java.javac.jar",
-                    "to_file": "jar/base_base_minimal_jni_java.jar"
-                },
-                {
                     "from_file": "obj/base/base_shared_preferences_java.javac.jar",
                     "to_file": "jar/base_base_shared_preferences_java.jar"
                 },
@@ -270,8 +268,16 @@
                     "to_file": "jar/base_file_utils_java.jar"
                 },
                 {
+                    "from_file": "obj/base/java_exception_reporter_jni_java.javac.jar",
+                    "to_file": "jar/java_exception_reporter_jni_java.jar"
+                },
+                {
                     "from_file": "obj/base/jni_android_java.javac.jar",
                     "to_file": "jar/base_jni_android_java.jar"
+                },
+                {
+                    "from_file": "obj/base/jni_callback_jni_java.javac.jar",
+                    "to_file": "jar/base_jni_callback_jni_java.jar"
                 },
                 {
                     "from_file": "obj/base/jni_utils_java.javac.jar",
@@ -360,6 +366,10 @@
                 {
                     "from_file": "obj/base/time_utils_java.javac.jar",
                     "to_file": "jar/base_time_utils_java.jar"
+                },
+                {
+                    "from_file": "obj/base/token_jni_java.javac.jar",
+                    "to_file": "jar/token_jni_java.jar"
                 },
                 {
                     "from_file": "obj/base/unowned_user_data_java.javac.jar",
