@@ -240,6 +240,7 @@ static_library("optimization_guide_segmentation_handler") {
     "//components/optimization_guide/core",
     "//components/segmentation_platform/internal/proto",
     "//components/segmentation_platform/public",
+    "//third_party/tflite_support",
   ]
 }
 
