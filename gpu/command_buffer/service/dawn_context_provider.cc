@@ -53,12 +53,8 @@
 #include <d3d11_4.h>
 #include <d3d11on12.h>
 
-<<<<<<< HEAD
-#include "third_party/dawn/include/dawn/native/D3D11Backend.h"
-#include "third_party/dawn/include/dawn/native/D3D12Backend.h"
-=======
 #include "third_party/dawn/include/dawn/native/D3D11Backend.h" // nogncheck
->>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "third_party/dawn/include/dawn/native/D3D12Backend.h" // nogncheck
 #include "ui/gl/direct_composition_support.h"
 #include "ui/gl/gl_angle_util_win.h"
 #endif
