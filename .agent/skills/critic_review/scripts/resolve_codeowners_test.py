@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for resolve_codeowners.py."""
 
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -26,7 +25,8 @@ class ResolveCodeownersTest(unittest.TestCase):
         encoding="utf-8",
     )
     res = subprocess.run(
-        [sys.executable, str(SCRIPT), "cobalt/foo.cc", "starboard/bar.cc"],
+        [sys.executable,
+         str(SCRIPT), "cobalt/foo.cc", "starboard/bar.cc"],
         cwd=tmp,
         capture_output=True,
         text=True,
