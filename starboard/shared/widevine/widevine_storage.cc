@@ -130,7 +130,7 @@ WidevineStorage::WidevineStorage(const std::string& path_name)
       SB_LOG(WARNING) << path_name_ << " is corrupt, returns empty content.";
       return;
     }
-    cache_[*std::move(name)] = *std::move(value);
+    cache_[std::move(*name)] = std::move(*value);
   }
 
   SB_LOG(INFO) << "Loaded " << cache_.size() << " records from " << path_name_;
@@ -157,7 +157,7 @@ bool WidevineStorage::read(const std::string& name, std::string* data) {
   SB_CHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
   SB_CHECK(data);
   if (auto value = readInternal(name)) {
-    *data = *std::move(value);
+    *data = std::move(*value);
     return true;
   }
   return false;
