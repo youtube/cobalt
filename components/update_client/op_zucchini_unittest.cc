@@ -35,12 +35,6 @@
 
 namespace update_client {
 
-<<<<<<< HEAD
-class ZucchiniOperationTest : public ::testing::TestWithParam<bool> {
- public:
-  bool IsForeground() const { return GetParam(); }
-
-=======
 #if BUILDFLAG(IS_STARBOARD)
 // Starboard's ZucchiniOperation takes an OperationResult and completes with one.
 // This overload adapts the upstream call sites in this file (which pass a
@@ -51,12 +45,14 @@ base::OnceClosure ZucchiniOperation(
     base::RepeatingCallback<void(base::DictValue)> event_adder,
     const std::string& previous_hash,
     const std::string& output_hash,
+    bool is_foreground,
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
   op_result.response = patch_file;
   return ZucchiniOperation(
-      crx_cache, patcher, event_adder, previous_hash, output_hash, op_result,
+      crx_cache, patcher, event_adder, previous_hash, output_hash,
+      is_foreground, op_result,
       base::BindLambdaForTesting(
           [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
             if (result.has_value()) {
@@ -68,9 +64,9 @@ base::OnceClosure ZucchiniOperation(
 }
 #endif
 
-
-class ZucchiniOperationTest : public testing::Test {
->>>>>>> parent of 773f8941591 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+class ZucchiniOperationTest : public ::testing::TestWithParam<bool> {
+ public:
+  bool IsForeground() const { return GetParam(); }
  private:
   // env_ must be constructed before sequence_checker_.
   base::test::TaskEnvironment env_;
