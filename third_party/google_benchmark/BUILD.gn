@@ -79,11 +79,8 @@ component("google_benchmark") {
     "BENCHMARK_VERSION=\"1.9.0\"",
   ]
 
-  if (is_linux && !is_cobalt_hermetic_build) {
+  if (is_linux) {
     # Include hardware performance counter support.
-    # Cobalt's hermetic (Evergreen) build links against a custom musl whose
-    # syscall wrapper does not implement perf_event_open/ioctl, so libpfm4 and
-    # perf_counters.cc fail to compile there.
     defines += [ "HAVE_LIBPFM=1" ]
     deps = [ "//third_party/libpfm4" ]
   }

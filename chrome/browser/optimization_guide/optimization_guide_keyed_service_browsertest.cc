@@ -70,9 +70,7 @@
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_network_connection_tracker.h"
 #include "services/network/test/test_url_loader_factory.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "services/on_device_model/public/cpp/features.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "services/on_device_model/public/cpp/features.h"
 
 namespace optimization_guide {
 
@@ -208,9 +206,7 @@ class OptimizationGuideKeyedServiceBrowserTest
          {features::kOptimizationGuideModelExecution, {}},
          {features::internal::kComposeSettingsVisibility, {}},
          {features::internal::kWallpaperSearchSettingsVisibility, {}},
-#if !BUILDFLAG(IS_COBALT)
          {on_device_model::features::kUseFakeChromeML, {}},
-#endif  // !BUILDFLAG(IS_COBALT)
          {features::kLogOnDeviceMetricsOnStartup,
           {
               {"on_device_startup_metric_delay", "0"},

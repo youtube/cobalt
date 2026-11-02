@@ -66,9 +66,6 @@ namespace content {
 void RenderMediaClient::Initialize() {
   static RenderMediaClient* client = new RenderMediaClient();
   media::SetMediaClient(client);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  client->InstallDecoderBufferAllocator();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 RenderMediaClient::RenderMediaClient()

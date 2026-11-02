@@ -151,14 +151,6 @@ class MainPartitionConstructor {
     // the decision to turn the thread cache on until then.
     // Also tests, such as the ThreadCache tests create a thread cache.
     opts.thread_cache = partition_alloc::PartitionOptions::kDisabled;
-#if BUILDFLAG(IS_COBALT)
-    // Cobalt initializes PartitionAlloc with known fixed options:
-    // - use_cookie_if_supported: standard cookie support when enabled by build.
-    // - backup_ref_ptr: disabled for the main malloc partition.
-    // Initializing the root with these options up front allows ConfigurePartitions()
-    // to match settings and avoid re-creating a duplicate PartitionRoot.
-    opts.use_cookie_if_supported = partition_alloc::PartitionOptions::kEnabled;
-#endif  // BUILDFLAG(IS_COBALT)
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
     auto* new_root = new (buffer) partition_alloc::PartitionRoot(opts);
 
@@ -960,64 +952,6 @@ void EnablePartitionAllocMemoryReclaimer() {
   }
 }
 
-#if BUILDFLAG(IS_COBALT)
-bool QuarantineConfigMatches(
-    const partition_alloc::internal::SchedulerLoopQuarantineConfig& a,
-    const partition_alloc::internal::SchedulerLoopQuarantineConfig& b) {
-  if (a.enable_quarantine != b.enable_quarantine) {
-    return false;
-  }
-  if (!a.enable_quarantine) {
-    return true;  // Both disabled; capacity and other settings are inactive.
-  }
-  return a.branch_capacity_in_bytes ==
-             b.branch_capacity_in_bytes &&
-         a.enable_zapping ==
-             b.enable_zapping;
-}
-
-bool SettingsMatch(
-    const partition_alloc::PartitionRoot* current_root,
-    EnableBrp enable_brp,
-    size_t brp_extra_extras_size,
-    EnableMemoryTagging enable_memory_tagging,
-    partition_alloc::TagViolationReportingMode memory_tagging_reporting_mode,
-    const partition_alloc::internal::SchedulerLoopQuarantineConfig&
-        scheduler_loop_quarantine_global_config,
-    const partition_alloc::internal::SchedulerLoopQuarantineConfig&
-        scheduler_loop_quarantine_thread_local_config,
-    EventuallyZeroFreedMemory eventually_zero_freed_memory) {
-  // BRP is not supported on Cobalt.
-  if (enable_brp.value()) {
-    return false;
-  }
-
-  // Memory tagging is not supported on Cobalt.
-  if (enable_memory_tagging.value()) {
-    return false;
-  }
-
-  if (!QuarantineConfigMatches(
-          current_root->settings_.scheduler_loop_quarantine_global_config,
-          scheduler_loop_quarantine_global_config)) {
-    return false;
-  }
-
-  if (!QuarantineConfigMatches(
-          current_root->settings_.scheduler_loop_quarantine_thread_local_config,
-          scheduler_loop_quarantine_thread_local_config)) {
-    return false;
-  }
-
-  if (current_root->settings_.eventually_zero_freed_memory !=
-      eventually_zero_freed_memory.value()) {
-    return false;
-  }
-
-  return true;
-}
-#endif  // BUILDFLAG(IS_COBALT)
-
 void ConfigurePartitions(
     EnableBrp enable_brp,
     size_t brp_extra_extras_size,
@@ -1065,42 +999,6 @@ void ConfigurePartitions(
       enable_strict_free_size_check
           ? partition_alloc::PartitionOptions::kEnabled
           : partition_alloc::PartitionOptions::kDisabled;
-
-#if BUILDFLAG(IS_COBALT)
-  // If the initial PartitionRoots already match the required options, skip
-  // re-creating the root allocators to avoid duplicate PartitionRoot overhead.
-  bool settings_match = true;
-  for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
-       alloc_token++) {
-    // Calling Get() is actually important, even if the return value isn't
-    // used, because it has a side effect of initializing the variable, if it
-    // wasn't already.
-    if (!SettingsMatch(PA_UNSAFE_TODO(g_roots[alloc_token]).Get(), enable_brp,
-                       brp_extra_extras_size, enable_memory_tagging,
-                       memory_tagging_reporting_mode,
-                       scheduler_loop_quarantine_global_config,
-                       scheduler_loop_quarantine_thread_local_config,
-                       eventually_zero_freed_memory)) {
-      settings_match = false;
-      break;
-    }
-  }
-  if (settings_match) {
-    for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
-         alloc_token++) {
-      auto* root = PA_UNSAFE_TODO(g_roots[alloc_token]).Get();
-      // EnableThreadCacheIfSupported() no longer assigns the thread cache
-      // index, so give the reused root the one `new_main_allocators` would.
-      root->settings_.thread_cache_index = alloc_token;
-      if (distribution == BucketDistribution::kDenser) {
-        root->SwitchToDenserBucketDistribution();
-      }
-    }
-
-    PA_CHECK(!g_roots_finalized.exchange(true));  // Ensure configured once.
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
   static partition_alloc::internal::base::NoDestructor<
       partition_alloc::PartitionAllocator>
@@ -1213,7 +1111,7 @@ SHIM_ALWAYS_EXPORT int mallopt(int cmd, int value) __THROW {
 
 #endif  // !PA_BUILDFLAG(IS_APPLE) && !PA_BUILDFLAG(IS_ANDROID)
 
-#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
 SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
   partition_alloc::SimplePartitionStatsDumper allocator_dumper;
   // TODO(crbug.com/477186304): Dump stats for all alloc tokens, by accumulating
