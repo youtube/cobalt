@@ -180,6 +180,11 @@ void FakeAudioTrack::set_underrun_count(int count) {
   underrun_count_ = count;
 }
 
+void FakeAudioTrack::set_start_threshold(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+}
+
 void FakeAudioTrack::set_write_error(int error_code) {
   std::lock_guard lock(mutex_);
   write_error_code_ = error_code;

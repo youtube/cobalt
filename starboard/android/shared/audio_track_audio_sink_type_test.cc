@@ -541,5 +541,132 @@ TEST_F(AudioTrackAudioSinkTest, WritesWhilePausedWhenAllowAudioWritingOnPause) {
   EXPECT_GT(track_ptr->written_frames(), 0);
 }
 
+// Simulates the platform recreating the AudioTrack with a start threshold that
+// the sink buffer can never fill (b/573043984), e.g. after an audio route
+// switch to a Cast speaker group.
+TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(512);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), 0);
+
+  // The playback head of the fake track doesn't move, and the recreated track
+  // requires more frames than the 1024-frame sink buffer can hold.
+  track_ptr->set_start_threshold(4096);
+
+  elapsed_ms = 0;
+  while (!error_reported_ && elapsed_ms < 3000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+
+  EXPECT_TRUE(error_reported_);
+  EXPECT_TRUE(capability_changed_);
+  {
+    std::lock_guard<std::mutex> lock(error_mutex_);
+    EXPECT_EQ(error_msg_, "AudioTrack start threshold exceeds sink buffer");
+  }
+
+  sink.reset();
+}
+
+// A start threshold that is already too large at creation is not acted on, so
+// that a recreated player can't restart repeatedly.
+TEST_F(AudioTrackAudioSinkTest, InitialStartThresholdBeyondSinkBufferIgnored) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(4096);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  // Wait for several start threshold checks.
+  usleep(1'500'000);
+
+  EXPECT_GT(track_ptr->written_frames(), 0);
+  EXPECT_FALSE(error_reported_);
+
+  sink.reset();
+}
+
+// A start threshold that grows but still fits in the sink buffer doesn't
+// restart playback.
+TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsWithinSinkBufferContinues) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+  track_ptr->set_start_threshold(1024);
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  frames_in_buffer_ = 512;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (track_ptr->written_frames() == 0 && elapsed_ms < 1000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+  EXPECT_GT(track_ptr->written_frames(), 0);
+
+  track_ptr->set_start_threshold(4096);
+
+  // Wait for several start threshold checks.
+  usleep(1'500'000);
+
+  EXPECT_FALSE(error_reported_);
+
+  sink.reset();
+}
+
 }  // namespace
 }  // namespace starboard
