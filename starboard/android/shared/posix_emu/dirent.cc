@@ -58,7 +58,7 @@ DIR* MakeAssetDir(AssetManager* asset_manager, int fd) {
   }
 
   AndroidAssetDir* retdir = new AndroidAssetDir();
-  retdir->entries = *std::move(entries);
+  retdir->entries = std::move(*entries);
   retdir->index = 0;
   retdir->fd = fd;
   DIR* dir = reinterpret_cast<DIR*>(retdir);
