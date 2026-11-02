@@ -56,6 +56,12 @@ concept IsJobject =
 template <typename T, typename U>
 concept IsConvertableJObject =
     std::is_convertible_v<U, T> || std::same_as<U, jobject>;
+#else
+template <typename T>
+constexpr bool IsJobject =
+    std::is_base_of_v<std::remove_pointer_t<jobject>, std::remove_pointer_t<T>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 template <typename T>
 struct _JArrayElementType;
@@ -105,6 +111,8 @@ struct _JArrayElementType<jobjectArray> {
   using type = jobject;
 };
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
   requires internal::IsJobject<T>
 class _JObjectArray : public _jobjectArray {};
@@ -118,10 +126,6 @@ struct _JArrayHelper<T> {
   using type = _JObjectArray<T>;
 };
 #else
-template <typename T>
-constexpr bool IsJobject =
-    std::is_base_of_v<std::remove_pointer_t<jobject>, std::remove_pointer_t<T>>;
-
 template <typename T, std::enable_if_t<IsJobject<T>, int> = 0>
 class _JObjectArray : public _jobjectArray {};
 
@@ -221,6 +225,15 @@ template <typename T = jobject>
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 class JavaRef;
+
+#if BUILDFLAG(IS_COBALT) && \
+    !(defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+// Before C++20, FromJniType<To>(...) in ConvertTo() is only parsed as a
+// template call if FromJniType is already declared. It is defined in
+// type_conversions.h.
+template <typename T>
+inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj);
+#endif  // BUILDFLAG(IS_COBALT) && !(concepts)
 
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
@@ -408,23 +421,37 @@ class JavaRef : public JavaRef<jobject> {
   }
 
   int32_t GetLength(JNIEnv* env) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires std::is_convertible_v<T, jarray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     return env->GetArrayLength(this->obj());
   }
 
   ScopedJavaLocalRef<jobject> Get(JNIEnv* env, int32_t index) const
-    requires std::is_same_v<T, jobjectArray>;
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+    ;
 
   template <typename U>
   void CopyTo(JNIEnv* env, std::vector<ScopedJavaLocalRef<U>>* buf) const
-    requires std::is_convertible_v<T, jobjectArray>;
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_convertible_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+    ;
 
   // The auto return type makes this a template function.
   // The [[clang::lifetimebound]] is required because the lifetime of the
   // JArrayView cannot safely outlast the lifetime of |this|.
   auto CreateView(JNIEnv* env) const [[clang::lifetimebound]]
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires std::is_convertible_v<T, jarray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     using ElementType = typename internal::_JArrayElementType<T>::type;
     return JArrayView<ElementType>(
@@ -454,7 +481,10 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   }
 
   template <typename U>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsConvertableJObject<JArray<T>, U>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   static JavaRef<JArray<T>> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<internal::_JObjectArray<T>*>(env, obj);
   }
@@ -895,21 +925,33 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef : public JavaRef<T> {
 };
 
 template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 inline ScopedJavaLocalRef<jobject> JavaRef<T>::Get(JNIEnv* env,
                                                    int32_t index) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 {
   jobject obj = env->GetObjectArrayElement(this->obj(), index);
   return ScopedJavaLocalRef<jobject>::Adopt(env, obj);
 }
 
 template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 template <typename U>
 inline void JavaRef<T>::CopyTo(JNIEnv* env,
                                std::vector<ScopedJavaLocalRef<U>>* buf) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires std::is_convertible_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 {
   jobjectArray arr = this->obj();
   for (int32_t i = 0; i < this->GetLength(); i++) {
@@ -919,7 +961,10 @@ inline void JavaRef<T>::CopyTo(JNIEnv* env,
 }
 
 template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 inline ScopedJavaLocalRef<T> JavaRef<internal::_JObjectArray<T>*>::Get(
     JNIEnv* env,
     int32_t index) const {
