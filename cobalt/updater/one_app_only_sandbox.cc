@@ -226,6 +226,7 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
+    case kSbEventTypeAccessibilityCaptionSettingsChanged:
       break;
   }
 }

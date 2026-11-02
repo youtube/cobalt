@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -553,6 +554,74 @@ public class BaseStarboardBridgeTest {
 
     bridge.onActivityStart(activity);
     assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void captionSettingsChangeListener_lifecycleAndCallbacksForwardToNative() {
+    Activity activity = mock(Activity.class);
+    bridge.onActivityCreate(activity);
+
+    // Starting before applicationStarted() registers the listener but does not call native yet.
+    bridge.onActivityStart(activity);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, never()).sendCaptionSettingsChangedEvent();
+
+    // Once native applicationStarted() is signaled, all CaptioningChangeListener callbacks forward.
+    bridge.applicationStarted();
+    bridge.mCaptioningChangeListener.onEnabledChanged(true);
+    bridge.mCaptioningChangeListener.onUserStyleChanged(null);
+    bridge.mCaptioningChangeListener.onFontScaleChanged(1.5f);
+    verify(mockNatives, times(3)).sendCaptionSettingsChangedEvent();
+
+    // Stopping the activity unregisters the listener; re-starting syncs current state immediately.
+    bridge.onActivityStop(activity);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
+
+    bridge.onActivityStart(activity);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(4)).sendCaptionSettingsChangedEvent();
+
+    // After applicationStopping(), callbacks no longer forward to native.
+    bridge.applicationStopping();
+    bridge.mCaptioningChangeListener.onEnabledChanged(false);
+    verify(mockNatives, times(4)).sendCaptionSettingsChangedEvent();
+  }
+
+  @Test
+  public void captionSettingsChangeListener_overlappingActivities_preservesRegistration() {
+    Activity activity1 = mock(Activity.class);
+    Activity activity2 = mock(Activity.class);
+    bridge.applicationStarted();
+
+    bridge.onActivityCreate(activity1);
+    bridge.onActivityStart(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(1)).sendCaptionSettingsChangedEvent();
+
+    // Starting activity2 while activity1 is active keeps listener registered without duplicate
+    // sync.
+    bridge.onActivityCreate(activity2);
+    bridge.onActivityStart(activity2);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    verify(mockNatives, times(1)).sendCaptionSettingsChangedEvent();
+
+    // Stopping stale activity1 while activity2 is active keeps listener registered.
+    bridge.onActivityStop(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+
+    // Stopping activity2 unregisters listener.
+    bridge.onActivityStop(activity2);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
+
+    // Also verify legacy mode (without coordination switch) ignores stale activity onStop.
+    BaseStarboardBridge.setActivityLifecycleCoordinationEnabledForTesting(false);
+    bridge.onActivityStart(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    bridge.onActivityStart(activity2);
+    bridge.onActivityStop(activity1);
+    assertTrue(bridge.isCaptionListenerRegisteredForTesting());
+    bridge.onActivityStop(activity2);
+    assertFalse(bridge.isCaptionListenerRegisteredForTesting());
   }
 
   private Activity startActivity() {
