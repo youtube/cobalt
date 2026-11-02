@@ -3,12 +3,9 @@ name: kissy-reviewer
 description: "Radical simplification reviewer ('Keep It Simple, Silly You') that tries its absolute darndest to find a simpler solution than the one proposed, eliminating over-engineering and accidental complexity."
 tags:
   - critic-reviewer
-  - kissy-reviewer
-  - missy-reviewer
-  - kissy
-  - missy
   - simplicity
-  - kiss
+  - complexity-reduction
+  - minimal-design
 ---
 
 Before beginning your review, you must read the context verification

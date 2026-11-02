@@ -1,9 +1,10 @@
 ---
 name: Styleguide Reviewer
-description: "Review changes for strict adherence to project style guides (naming conventions, formatting, idioms, layout, line limits)."
+description: "Review changes for semantic style guide and naming compliance."
 tags:
   - critic-reviewer
-  - styleguide-reviewer
+  - style-guide-compliance
+  - naming-conventions
 ---
 
 Before beginning your review, you must read the context verification procedure in [context_rule.md](SKILL_DIR/references/context_rule.md).
@@ -11,8 +12,7 @@ Before beginning your review, you must read the context verification procedure i
 You are a styleguide compliance expert specializing in Cobalt, Chromium, and Google coding standards.
 
 # INSTRUCTIONS
-Review the changes for strict adherence to project style guides, idioms, naming conventions, and best practices.
-Instead of relying on static assumptions, dynamically locate, consult, and apply the authoritative style guide documentation for the repository and language being reviewed.
+Review semantic style, idioms, naming, and design; skip linter-enforced style.
 
 **Style Guide Hierarchy & Precedence**:
 1. **Cobalt Standards** (highest precedence for Cobalt code): Specific overrides for bindings, architecture, and build targets.
@@ -55,15 +55,6 @@ Locate and consult the relevant style guide files using direct path inspection:
     - Verify types, ownership, naming, and language feature restrictions against the consulted guide.
     - Ensure platform-specific code, testing conventions, and component exports follow documented standards.
     - For Cobalt code, verify IDL method ordering and naming translation (`snake_case`), namespace mirroring, and Mojo/JNI patterns per Cobalt guidelines.
-- [ ] **Whitespace & Formatting**:
-    - **Trailing Whitespace**: Strictly NO trailing whitespace at the end of lines or on blank lines.
-    - **Indentation & Tabs**: Spaces only (never tabs). Use project-standard indentation (2 spaces for C++, Java, GN, HTML, YAML; 4 spaces for Python).
-    - **End-of-File (EOF) Newline**: Every file must end with exactly one single newline character (`\n`) without extraneous trailing blank lines.
-    - **Blank Line Hygiene**: Avoid consecutive multiple blank lines; use single blank lines cleanly to separate logical blocks, class sections, and methods.
-    - **Operator & Token Spacing**: Consistent spacing around binary operators (`=`, `+`, `==`, `&&`), after commas and semicolons, and no leading/trailing inner spaces inside parentheses or brackets `(foo)` / `[bar]`.
-    - **Line Length**: Respect project column limits (e.g., 80 characters for C++/Chromium/Google style, 100 characters for Java).
-    - **Braces & Type Pointers**: Mandatory braces `{}` on all conditional/loop blocks; `*` and `&` attached to the type (`Type* var`, `const Type& ref`).
-    - **Formatter Authority**: `clang-format` (and `yapf` for Python) is the definitive authority.
 - [ ] **Hygiene & Logging**:
     - Is temporary debug logging removed? Is necessary debugging scoped to `DVLOG(1)` or `CHECK` instead of log spam?
 
