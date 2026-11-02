@@ -337,10 +337,9 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // Returns true if this widget is a HTML popup, e.g. a <select> menu.
   virtual bool IsHTMLFormPopup() const = 0;
 
-<<<<<<< HEAD
   // Returns true if this view has a saved compositor frame.
   virtual bool HasSavedCompositorFrame() const = 0;
-=======
+
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   // Whether to prevent UpdateFrameBounds() from updating the reported view
   // bounds. This is required when displaying the native search bar, otherwise
@@ -348,7 +347,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // page will appear smaller.
   virtual void SetAllowAutomaticViewBoundsUpdates(bool allowed) = 0;
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
->>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content
