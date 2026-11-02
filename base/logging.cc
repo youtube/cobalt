@@ -125,7 +125,7 @@ typedef FILE* FileHandle;
 #endif
 
 #if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
-#include "base/logging/rust_logger.rs.h"
+#include "base/logging/logger.rs.h"
 #endif
 
 namespace logging {
