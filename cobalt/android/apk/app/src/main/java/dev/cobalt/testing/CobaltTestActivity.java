@@ -26,6 +26,7 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.JNIUtils;
+import org.chromium.base.metrics.UmaRecorderHolder;
 import org.chromium.build.gtest_apk.NativeTestIntent;
 import org.chromium.native_test.NativeUnitTestActivity;
 
@@ -51,6 +52,8 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
     }
   }
 
+  private static boolean sUmaRecorderInitialized;
+
   private TestStarboardBridge mTestStarboardBridge;
 
   @Override
@@ -64,6 +67,15 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
 
     // super.onCreate loads the native shared library (.so) into memory via System.loadLibrary.
     super.onCreate(savedInstanceState);
+
+    // NativeUnitTest calls LibraryLoader.setLibrariesLoadedForNativeTests(), which bypasses
+    // LibraryLoader.ensureInitialized() and leaves UmaRecorderHolder backed by CachingUmaRecorder
+    // (which asserts after 256 samples). Switch to NativeUmaRecorder once the test library is
+    // loaded.
+    if (!sUmaRecorderInitialized) {
+      UmaRecorderHolder.onLibraryLoaded();
+      sUmaRecorderInitialized = true;
+    }
 
     // Instantiate TestStarboardBridge after super.onCreate so native JNI methods are bound.
     Holder<Activity> activityHolder = new Holder<>();
