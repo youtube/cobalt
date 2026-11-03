@@ -2888,29 +2888,30 @@ class PipelineFlagsTest(unittest.TestCase):
 
 
 class RestoreFilesOutsideBuildTest(unittest.TestCase):
-  """restore_files_outside_build with a real git repo and a fake gn."""
+  """restore_files_outside_build with a real git repo and a fake siso."""
 
-  # Fake `gn gen <dir> --ide=json`: cobalt_apk depends on :lib (a.cc and the
-  # public header b.h); :other (c.cc) is not in its closure.
-  _FAKE_GN = """#!/usr/bin/env python3
-import json, os, sys
-targets = {
-    "//cobalt/android:cobalt_apk": {"deps": ["//lib:lib"]},
-    "//cobalt/android:cobalt_apk(//build/toolchain/linux:clang_x64)": {},
-    "//lib:lib": {"sources": ["//a.cc"], "public": ["//b.h"]},
-    "//other:other": {"sources": ["//c.cc"], "public": "*"},
-}
-with open(os.path.join(sys.argv[2], "project.json"), "w") as f:
-  json.dump({"targets": targets}, f)
+  # Fake `siso query inputs -C out/android-arm_devel --include_deps cobalt_apk`:
+  # lists compiled sources and headers (from .siso_deps) as ../../<path>.
+  _FAKE_SISO = """#!/usr/bin/env python3
+import sys
+expected = [
+    "query", "inputs", "-C", "out/android-arm_devel", "--include_deps",
+    "cobalt_apk",
+]
+if sys.argv[1:] != expected:
+  sys.exit(2)
+print("../../a.cc")
+print("../../b.h")
+print("gen/foo.mojom-shared.h")
 """
 
   def test_restores_only_unbuilt_files(self):
     with tempfile.TemporaryDirectory() as repo, \
          tempfile.TemporaryDirectory() as bin_dir:
-      gn = os.path.join(bin_dir, "gn")
-      with open(gn, "w", encoding="utf-8") as f:
-        f.write(self._FAKE_GN)
-      os.chmod(gn, 0o755)
+      siso = os.path.join(bin_dir, "siso")
+      with open(siso, "w", encoding="utf-8") as f:
+        f.write(self._FAKE_SISO)
+      os.chmod(siso, 0o755)
 
       def git(*args):
         subprocess.run(["git", *args],
@@ -2936,7 +2937,6 @@ with open(os.path.join(sys.argv[2], "project.json"), "w") as f:
                                  check=True).stdout.strip()
       for rel in files:
         write(rel, "new\n")
-      write("out/android-arm_devel/args.gn", "target_os = \"android\"\n")
 
       path = bin_dir + os.pathsep + os.environ["PATH"]
       with mock.patch.dict(os.environ, {"PATH": path}):
