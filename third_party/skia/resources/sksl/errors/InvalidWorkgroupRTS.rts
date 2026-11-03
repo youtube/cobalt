@@ -1,5 +1,0 @@
-workgroup int x;
-
-/*%%*
-'workgroup' is not permitted here
-*%%*/
