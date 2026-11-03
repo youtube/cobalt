@@ -58,8 +58,11 @@ def find_runtime_deps(build_dir):
   return None
 
 
-def get_test_runner():
+def get_test_runner(build_dir=''):
   """Returns the relative path to the test runner within the build dir."""
+  loader_runner = os.path.join('bin', 'run_cobalt_browsertests_loader')
+  if build_dir and os.path.isfile(os.path.join(build_dir, loader_runner)):
+    return loader_runner
   return os.path.join('bin', 'run_cobalt_browsertests')
 
 
@@ -167,7 +170,9 @@ def main():
         logging.warning('Build directory %s not found. Skipping.', build_dir)
         continue
 
-      is_android = 'android' in os.path.basename(build_dir).lower()
+      is_android = any(
+          platform_token in os.path.basename(build_dir).lower()
+          for platform_token in ('android', 'aosp'))
       runtime_deps_path = find_runtime_deps(build_dir)
       if not runtime_deps_path:
         logging.warning('Could not find runtime_deps in %s. Skipping.',
@@ -180,7 +185,7 @@ def main():
                        os.path.join(stage_dir, 'tools/platform-tools.zip'),
                        copied_sources)
 
-      test_runner_rel = get_test_runner()
+      test_runner_rel = get_test_runner(build_dir)
       logging.info('Processing build directory: %s', build_dir)
 
       # Record target info
@@ -208,15 +213,18 @@ def main():
 
           if is_android and 'lib.unstripped' in line and line.endswith('.so'):
             stripped_name = os.path.basename(line)
-            stripped_path = os.path.join(build_dir, stripped_name)
+            rel_stripped_path = os.path.join(
+                os.path.dirname(os.path.dirname(line)), stripped_name)
+            stripped_path = os.path.join(build_dir, rel_stripped_path)
             if os.path.isfile(stripped_path):
-              logging.info('Including stripped library: %s', stripped_name)
-              # Copy the stripped version to the build root in stage.
-              copy_if_needed(stripped_path,
-                             os.path.join(src_stage, build_dir, stripped_name),
-                             copied_sources)
+              logging.info('Including stripped library: %s', rel_stripped_path)
+              # Copy the stripped version to its build root dir in stage.
+              copy_if_needed(
+                  stripped_path,
+                  os.path.join(src_stage, build_dir, rel_stripped_path),
+                  copied_sources)
               # Use the stripped path in our patched deps file.
-              original_rel_path = stripped_name
+              original_rel_path = rel_stripped_path
 
           # Copy the original file (might be unstripped) to its intended path.
           copy_if_needed(full_path, os.path.join(src_stage, full_path),

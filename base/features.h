@@ -119,6 +119,14 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 // Disabled by default for Finch/Mendel A/B experimentation
 // (--enable-features=CobaltSkipCookieUpdateAccess).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
+// When enabled, optimizes LocalStorage LevelDB options (enabling reuse_logs
+// so cold-start DB::Open() reuses the existing write-ahead log without
+// synchronously compacting on open) and skips empty 0-mutation commits
+// while preserving Cobalt's 1s commit delay and synchronous writes
+// (sync = true). Disabled by default to allow controlled Finch/Mendel A/B
+// experimentation (--enable-features=CobaltLocalStorageReuseLogsAndSkipEmptyCommits).
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type

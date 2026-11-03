@@ -122,6 +122,10 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kEnableCachedSplashFile,
+             "EnableCachedSplashFile",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -195,6 +199,10 @@ BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltPlatformServicesOffUiThread,
+             "CobaltPlatformServicesOffUiThread",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltFreezeOnBackground,
              "CobaltFreezeOnBackground",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -218,6 +226,10 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 
 BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
              "CobaltStabilityMetricsDeduplication",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltStartupPreconnect,
+             "CobaltStartupPreconnect",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

@@ -30,6 +30,9 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
 
 #include "starboard/egl.h"
 
@@ -38,7 +41,6 @@
 
 #include <cstring>
 #include <mutex>
-#include <cstring>
 #include <essos-app.h>
 
 #ifdef EGL_PLATFORM_WAYLAND_EXT
@@ -178,6 +180,33 @@ SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   return eglGetDisplay(reinterpret_cast<EGLNativeDisplayType>(display_type));
 }
 
+// Mali on RDK reports glGetInteger64v(GL_TIMESTAMP_EXT) in raw 24 MHz crystal
+// ticks (24 ticks/us) while GL_TIMESTAMP_EXT query results are in nanoseconds
+// (1000 ns/us). Normalize glGetInteger64v to nanoseconds so both match.
+void SbGlGetInteger64v(GLenum pname, GLint64* data) {
+  // Resolved at runtime so this file does not link against the ES3 symbol on
+  // RDK ports whose GL library is ES2-only.
+  static const auto gl_get_integer64v =
+      reinterpret_cast<PFNGLGETINTEGER64VPROC>(
+          eglGetProcAddress("glGetInteger64v"));
+  gl_get_integer64v(pname, data);
+  if (pname == GL_TIMESTAMP_EXT && data && *data > 0) {
+    constexpr GLint64 kNanosecondsPerMicrosecond = 1000;
+    constexpr GLint64 kMaliTicksPerMicrosecond = 24;
+    *data = (*data * kNanosecondsPerMicrosecond) / kMaliTicksPerMicrosecond;
+  }
+}
+
+SbEglCastsToProperFunctionPointerType SbEglGetProcAddress(
+    const char* procname) {
+  if (procname && std::strcmp(procname, "glGetInteger64v") == 0 &&
+      eglGetProcAddress(procname)) {
+    return reinterpret_cast<SbEglCastsToProperFunctionPointerType>(
+        &SbGlGetInteger64v);
+  }
+  return eglGetProcAddress(procname);
+}
+
 const SbEglInterface g_sb_egl_interface = {
     &eglChooseConfig,
     &SbEglCopyBuffers,
@@ -193,7 +222,7 @@ const SbEglInterface g_sb_egl_interface = {
     &eglGetCurrentSurface,
     &SbEglGetDisplay,
     &eglGetError,
-    &eglGetProcAddress,
+    &SbEglGetProcAddress,
     &eglInitialize,
     &eglMakeCurrent,
     &eglQueryContext,

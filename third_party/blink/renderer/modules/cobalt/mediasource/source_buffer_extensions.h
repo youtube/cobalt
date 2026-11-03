@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_EXTENSIONS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_EXTENSIONS_H_
 
 #include "build/build_config.h"
+#include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -24,16 +25,24 @@
 
 namespace blink {
 
+class DOMArrayBuffer;
+class DOMArrayBufferView;
 class ExceptionState;
 class SourceBuffer;
 
-class SourceBufferWriteHead {
-  STATIC_ONLY(SourceBufferWriteHead);
+class SourceBufferExtensions {
+  STATIC_ONLY(SourceBufferExtensions);
 
  public:
   static double writeHead(SourceBuffer&, ExceptionState&);
+  static void appendTransferredBuffer(SourceBuffer&,
+                                      DOMArrayBuffer* data,
+                                      ExceptionState&);
+  static void appendTransferredBuffer(SourceBuffer&,
+                                      NotShared<DOMArrayBufferView> data,
+                                      ExceptionState&);
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_EXTENSIONS_H_

@@ -51,6 +51,10 @@ class GlobalFeatures {
 
   static GlobalFeatures* GetInstance();
 
+  // Configures GlobalFeatures to use an InMemoryPrefStore instead of a
+  // disk-backed JsonPrefStore. Must be called before GetInstance().
+  static void SetUseInMemoryPrefStoreForTesting(bool use_in_memory);
+
   // Registers experiment config prefs used by this class.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 

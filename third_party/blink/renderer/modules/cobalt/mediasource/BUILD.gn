@@ -22,9 +22,9 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("mediasource") {
   sources = [
-    "source_buffer_write_head.cc",
-    "source_buffer_write_head.h",
+    "source_buffer_extensions.cc",
+    "source_buffer_extensions.h",
   ]
 
-  deps = [ "//third_party/blink/renderer/modules/mediasource:mediasource" ]
+  deps = [ "//third_party/blink/renderer/modules/mediasource" ]
 }

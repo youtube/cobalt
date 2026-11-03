@@ -38,6 +38,8 @@ _EXCLUDE_DIRS_JUNIT = [
 
 _EXCLUDE_EXTENSIONS = ('.map',)
 
+_EXCLUDE_EXTENSIONS_ANDROID = ('.apk', '.jar', '.pak.info', '.so')
+
 # Secondary toolchains write their outputs to a subfolder of the out dir.
 _TOOLCHAIN_SUBDIRS = ('starboard', 'native_target')
 
@@ -202,7 +204,9 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests'):
+    if target.endswith(':cobalt_browsertests') or (
+        use_android_deps_path and
+        target.endswith(':cobalt_browsertests_loader')):
       if not use_android_deps_path:
         _handle_browsertests(source_dir, out_dir, destination_dir, compression)
         # If this was the only target, we are done.
@@ -262,12 +266,6 @@ def create_archive(
       exclude_dirs = _EXCLUDE_DIRS_DEFAULT
       if is_junit_test:
         exclude_dirs = _EXCLUDE_DIRS_JUNIT
-      elif use_android_deps_path and target_name == 'nplb_loader':
-        # TODO(crbug.com/532068409): remove the test data exclusion and figure
-        # out a workaround for the increase in size.
-        exclude_dirs = _EXCLUDE_DIRS_DEFAULT + [
-            'test/starboard/shared/starboard/player/'
-        ]
       exclude_dirs = _under_toolchain_subdirs(exclude_dirs)
 
       raw_lines = [line.strip() for line in runtime_deps_file if line.strip()]
@@ -278,6 +276,9 @@ def create_archive(
           continue
 
         if line.endswith(_EXCLUDE_EXTENSIONS):
+          continue
+
+        if use_android_deps_path and line.endswith(_EXCLUDE_EXTENSIONS_ANDROID):
           continue
 
         # Skip redundant compressed libraries if uncompressed .so is included.

@@ -20,24 +20,18 @@ The contents of `icudtl.dat` are defined by the filter configuration in:
 4. **`coll_tree`**: Configures collation (sorting) rules, stripping redundant legacy character set collations.
 5. **`zone_tree`**: Configures timezone data, stripping unused exemplar cities to conserve space.
 
-## How to Regenerate `icudtl.dat`
+## Build-Time Generation (`generate_cobalt_icudata`)
 
-A helper script is provided to automate the configuration, host tool compilation, and data packaging:
+Rather than checking a ~4–7 MB binary `icudtl.dat` file into Git, Cobalt generates `icudtl.dat` automatically at build time from `third_party/icu/filters/cobalt.json`:
 
-```bash
-# From the Cobalt src root:
-./third_party/icu/scripts/make_data_cobalt.sh
-```
-
-### Manual Steps (What the Script Does):
-1. **Build Host Tools**: Configures and compiles ICU host generator tools (`genrb`, `gencmn`, `icupkg`, etc.) in a temporary build directory using `source/runConfigureICU Linux/gcc`.
-2. **Apply Filter**: Configures `data/Makefile` using `ICU_DATA_FILTER_FILE=third_party/icu/filters/cobalt.json`.
-3. **Compile Data**: Runs `make -C data` to compile CLDR source files into binary `.res` files and package them into `icudt<version>l.dat`.
-4. **Copy Data**: Invokes `third_party/icu/scripts/copy_data.sh cobalt` to install the resulting bundle to `third_party/icu/cobalt/icudtl.dat`.
-
-## Why `icudtl.dat` is Pre-Generated and Checked In
-
-1. **Hermetic & Fast Builds**: Compiling ICU host tools and processing ~1,000 data files from scratch takes ~40–60 seconds. Checking in the pre-built binary avoids this overhead on every clean build.
-2. **Remote Execution (Siso / RBE)**: Remote build execution requires all build actions to run within hermetic sandboxes with explicitly declared GN inputs. Autotools-based host generation pipelines cannot run inside Siso/RBE sandboxes.
-3. **Cross-Compilation**: Cobalt targets platforms across multiple architectures (Android ARM/ARM64, RDK ARM, Apple tvOS/iOS, Linux x64). Generating data during the build would require cross-compiling host tools or having platform-specific generator binaries.
-4. **Binary Assembly**: In GN (`third_party/icu/BUILD.gn`), `scripts/make_data_assembly.py` reads `icudtl.dat` and generates `icudtl_dat.S`, which is compiled directly into `libcobalt.so` and `libnplb.so`.
+1. **GN Action (`//third_party/icu:generate_cobalt_icudata`)**:
+   - Defined in `third_party/icu/BUILD.gn` under `default_toolchain` so it runs once per build output directory (`$root_build_dir/gen/third_party/icu/cobalt/icudtl.dat`), even in multi-toolchain builds (Android, Evergreen).
+   - Executes `third_party/icu/scripts/generate_cobalt_icudata.py`.
+2. **Host Tool Caching**:
+   - Compiles ICU host generator tools (`genrb`, `gencmn`, `icupkg`, etc.) once per output directory in `$root_build_dir/gen/third_party/icu/host_build` using the host compiler (`Linux/gcc` on Linux, `MacOSX` on Darwin).
+   - Subsequent edits to `third_party/icu/filters/cobalt.json` reuse the cached host tools and rebuild `icudtl.dat` in ~3–4 seconds.
+3. **Standalone / Manual Invocation**:
+   - You can also generate `icudtl.dat` manually from the command line via:
+     ```bash
+     ./third_party/icu/scripts/make_data_cobalt.sh
+     ```

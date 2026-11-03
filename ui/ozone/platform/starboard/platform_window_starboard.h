@@ -103,6 +103,8 @@ class PlatformWindowStarboard : public PlatformWindow,
     kInactive,
   };
 
+  // Creates the SbWindow if there isn't one. Returns false if that fails.
+  bool CreateSbWindow(bool notify_bounds_changed);
   void EnsureAcceleratedWidgetAvailable();
 
   SbWindow sb_window_ = kSbWindowInvalid;

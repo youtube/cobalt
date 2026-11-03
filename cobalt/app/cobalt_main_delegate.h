@@ -32,6 +32,10 @@
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
 
+namespace base {
+class CommandLine;
+}  // namespace base
+
 namespace content {
 class ContentUtilityClient;
 }  // namespace content
@@ -70,6 +74,18 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   void Shutdown();
 
   bool is_visible() const { return is_visible_; }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Maximum disk size (--gpu-disk-cache-size-kb) for the GrShaderCache kept
+  // across preload launches. ~1.2 MB measured after extensive use on a Samsung
+  // TV; 2 MB leaves headroom.
+  static constexpr int kPreloadGrShaderDiskCacheSizeKB = 2048;
+
+  // Enables the GrShaderCache for preload launches unless
+  // --disable-preload-gpu-shader-disk-cache is set.
+  static void ApplyPreloadGpuShaderDiskCache(base::CommandLine* command_line,
+                                             bool is_visible);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   ~CobaltMainDelegate() override;
 

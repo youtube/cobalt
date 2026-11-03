@@ -26,6 +26,8 @@
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/timer/elapsed_timer.h"
 #endif  // BUILDFLAG(IS_COBALT)
@@ -54,13 +56,29 @@ std::string MakeFullPersistentDBName(const base::FilePath& directory,
 }
 
 // Used for disk DBs.
+#if BUILDFLAG(IS_COBALT)
+leveldb_env::Options MakeOptions(bool is_local_storage = false) {
+#else
 leveldb_env::Options MakeOptions() {
+#endif
   leveldb_env::Options options;
   options.create_if_missing = true;
   options.max_open_files = 0;  // use minimum
   // Default write_buffer_size is 4 MB but that might leave a 3.999
   // memory allocation in RAM from a log file recovery.
   options.write_buffer_size = 64 * 1024;
+#if BUILDFLAG(IS_COBALT)
+  if (is_local_storage &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits)) {
+    // On low-end TV devices, leveldb_env::Options defaults `reuse_logs` to
+    // false (forcing a synchronous .log -> .ldb compaction, MANIFEST rewrite,
+    // and CURRENT rename on every DB::Open). Reusing the WAL on open avoids
+    // cold-start compaction churn while keeping every 1s commit synchronous
+    // (`sync = true`).
+    options.reuse_logs = true;
+  }
+#endif
 
   // We disable caching because all reads are one-offs such as in
   // `LocalStorageImpl::OnDatabaseOpened()`, or they are bulk scans (as in
@@ -159,8 +177,23 @@ DomStorageDatabase::DomStorageDatabase(
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     StatusCallback callback)
     : name_(MakeFullPersistentDBName(directory, name)),
+#if BUILDFLAG(IS_COBALT)
+      // `DomStorageDatabase` backs both persistent `Local Storage`
+      // (`name == "leveldb"`, see `kLocalStorageLeveldbName` in
+      // `local_storage_impl.cc`) and persistent `Session Storage`
+      // (`name == "Session Storage"`, see `kSessionStorageDirectory` in
+      // `session_storage_impl.cc`). Only `Local Storage` should enable
+      // `reuse_logs = true` and `LocalStorage.CommitDuration` telemetry.
+      options_(MakeOptions(name == "leveldb")),
+#else
       options_(MakeOptions()),
-      memory_dump_id_(memory_dump_id) {
+#endif
+      memory_dump_id_(memory_dump_id)
+#if BUILDFLAG(IS_COBALT)
+      ,
+      is_local_storage_(name == "leveldb")
+#endif  // BUILDFLAG(IS_COBALT)
+{
   Init(std::move(callback_task_runner), std::move(callback));
 }
 
@@ -364,10 +397,23 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
 #if BUILDFLAG(IS_COBALT)
+  static const size_t kEmptyWriteBatchSize =
+      leveldb::WriteBatch().ApproximateSize();
+  if (is_local_storage_ &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits) &&
+      batch->ApproximateSize() <= kEmptyWriteBatchSize) {
+    return Status::OK();
+  }
   base::ElapsedTimer commit_timer;
   Status status = db_->Write(CreateSyncWriteOptions(), batch);
-  base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
-                          commit_timer.Elapsed());
+  // Only record commit latency for persistent on-disk LocalStorage LevelDB
+  // databases (excluding both in-memory DBs and on-disk SessionStorage DBs).
+  if (!env_ && is_local_storage_) {
+    base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
+                            commit_timer.Elapsed());
+  }
+  ++total_commit_count_for_testing_;
   return status;
 #else
   return db_->Write(leveldb::WriteOptions(), batch);

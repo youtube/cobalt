@@ -32,6 +32,7 @@
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_service.h"
@@ -40,6 +41,12 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 namespace cobalt {
+
+namespace {
+
+bool g_use_in_memory_pref_store_for_testing = false;
+
+}  // namespace
 
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
@@ -52,6 +59,11 @@ GlobalFeatures::GlobalFeatures() {
 GlobalFeatures* GlobalFeatures::GetInstance() {
   static base::NoDestructor<GlobalFeatures> instance;
   return instance.get();
+}
+
+// static
+void GlobalFeatures::SetUseInMemoryPrefStoreForTesting(bool use_in_memory) {
+  g_use_in_memory_pref_store_for_testing = use_in_memory;
 }
 
 metrics_services_manager::MetricsServicesManager*
@@ -138,12 +150,16 @@ void GlobalFeatures::CreateExperimentConfig() {
 
   RegisterPrefs(pref_registry.get());
 
-  base::FilePath path =
-      GetPrefFilePath(kExperimentConfigFilename, "experiment config");
-
   PrefServiceFactory pref_service_factory;
-  pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<JsonPrefStore>(path));
+  if (g_use_in_memory_pref_store_for_testing) {
+    pref_service_factory.set_user_prefs(
+        base::MakeRefCounted<InMemoryPrefStore>());
+  } else {
+    base::FilePath path =
+        GetPrefFilePath(kExperimentConfigFilename, "experiment config");
+    pref_service_factory.set_user_prefs(
+        base::MakeRefCounted<JsonPrefStore>(path));
+  }
 
   experiment_config_ = pref_service_factory.Create(pref_registry);
 }
@@ -175,14 +191,19 @@ void GlobalFeatures::CreateMetricsLocalState() {
   pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                      false);
   pref_registry->RegisterInt64Pref(kLastLoggedProcessExitTimestampMs, -1);
-  base::FilePath path =
-      GetPrefFilePath(kMetricsConfigFilename, "metrics config");
 
   PrefServiceFactory pref_service_factory;
   // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
   // instead of in-memory.
-  pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<JsonPrefStore>(path));
+  if (g_use_in_memory_pref_store_for_testing) {
+    pref_service_factory.set_user_prefs(
+        base::MakeRefCounted<InMemoryPrefStore>());
+  } else {
+    base::FilePath path =
+        GetPrefFilePath(kMetricsConfigFilename, "metrics config");
+    pref_service_factory.set_user_prefs(
+        base::MakeRefCounted<JsonPrefStore>(path));
+  }
 
   metrics_local_state_ = pref_service_factory.Create(std::move(pref_registry));
 }

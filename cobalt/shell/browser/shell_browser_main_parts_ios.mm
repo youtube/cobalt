@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 
-namespace starboard {
+#include "ui/base/l10n/l10n_util_mac.h"
 
-// Starboard extension function to receive the Starboard
-// FeaturesAPI.
-const void* GetFeaturesApi();
+namespace content {
 
-}  // namespace starboard
+void ShellBrowserMainParts::PreCreateMainMessageLoop() {
+  l10n_util::OverrideLocaleWithCocoaLocale();
+}
 
-#endif  // STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
+}  // namespace content

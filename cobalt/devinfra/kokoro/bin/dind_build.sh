@@ -60,7 +60,7 @@ pipeline () {
   source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
-  if [[ "${TARGET_PLATFORM}" =~ android ]]; then
+  if [[ "${TARGET_PLATFORM}" =~ (android|aosp) ]]; then
     echo "target_os=['android']" >> .gclient
   fi
   if [[ "${TARGET_PLATFORM}" =~ evergreen-arm64 ]]; then

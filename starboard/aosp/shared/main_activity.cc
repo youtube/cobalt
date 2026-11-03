@@ -185,6 +185,9 @@ void JNI_MainActivity_NativeOnSurfaceCreated(
   SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
                << native_window;
   SetWindowSurface(native_window);
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->OnSurfaceCreated();
+  }
 }
 
 void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {

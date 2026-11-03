@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_write_head.h"
+#include "third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.h"
 
 #include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -24,8 +24,24 @@
 namespace blink {
 
 // static
-double SourceBufferWriteHead::writeHead(SourceBuffer& source_buffer,
-                                        ExceptionState& exception_state) {
+double SourceBufferExtensions::writeHead(SourceBuffer& source_buffer,
+                                         ExceptionState& exception_state) {
   return source_buffer.GetWriteHead(exception_state);
+}
+
+// static
+void SourceBufferExtensions::appendTransferredBuffer(
+    SourceBuffer& source_buffer,
+    DOMArrayBuffer* data,
+    ExceptionState& exception_state) {
+  source_buffer.appendTransferredBuffer(data, exception_state);
+}
+
+// static
+void SourceBufferExtensions::appendTransferredBuffer(
+    SourceBuffer& source_buffer,
+    NotShared<DOMArrayBufferView> data,
+    ExceptionState& exception_state) {
+  source_buffer.appendTransferredBuffer(data, exception_state);
 }
 }  // namespace blink

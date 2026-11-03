@@ -121,6 +121,9 @@ class SourceBuffer final : public EventTarget,
   // Cobalt-specific method that returns the highest presentation
   // timestamp written to the Renderer.
   double GetWriteHead(ExceptionState& exception_state) const;
+  void appendTransferredBuffer(DOMArrayBuffer* data, ExceptionState&);
+  void appendTransferredBuffer(NotShared<DOMArrayBufferView> data,
+                               ExceptionState&);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // "_Locked" requires these be called while in the scope of callback of

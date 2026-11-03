@@ -65,6 +65,14 @@ class GlobalFeatures;
 void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
                                             const base::FilePath& cache_dir);
 
+// Cleans up legacy on-disk files and directories for Chromium storage
+// subsystems that are disabled or kept in-memory on Cobalt ("SCT Auditing
+// Pending Reports", "Trust Tokens", "Shared Dictionary", "Session Storage",
+// "VideoDecodeStats", "shared_proto_db", "SharedStorage") under
+// |user_data_dir|. Fast-paths with PathExists() so subsequent launches perform
+// zero disk writes.
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
+
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {

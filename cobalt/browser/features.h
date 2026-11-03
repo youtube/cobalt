@@ -110,6 +110,15 @@ extern const base::Feature kDisableSplashScreen;
 // Forces the display of a video as the splash screen.
 extern const base::Feature kForceVideoSplashScreen;
 
+// Enables reading the splash screen assets that the WebApp cached with the
+// Cache API of the splash domain (splash.webm, splash.png). When disabled, the
+// splash screen uses its built-in assets without reading the cache. Disabled by
+// default, so that Finch's crash safe mode (the empty experiment config)
+// reverts to the built-in assets if a cached asset crashes Cobalt at startup,
+// and so that Finch can turn it off as a kill switch.
+// Locally: --enable-features=EnableCachedSplashFile
+BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
@@ -180,6 +189,10 @@ extern const base::FeatureParam<int>
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
+// Runs H5vccPlatformServiceManager and PlatformService Mojo receivers on a
+// dedicated CobaltPlatformService thread instead of the browser UI thread.
+BASE_DECLARE_FEATURE(kCobaltPlatformServicesOffUiThread);
+
 // Freezes the web app (document freeze event, JS timers stopped, freeze-time
 // memory purging) when the Android Activity is stopped, after an optional
 // delay. Disabled by default: Chrobalt currently never freezes in the
@@ -207,6 +220,12 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // authoritative startup reader/merger) and Android ApplicationExitInfo records
 // across sessions.
 BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
+
+// Preconnects to the initial launch URL origin during PreMainMessageLoopRun()
+// while WebContents creation is deferred to ShellManager.launchShell(), so DNS
+// resolution and TCP/TLS handshakes overlap with browser/UI startup before the
+// first navigation starts.
+BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
 
 }  // namespace features
 }  // namespace cobalt

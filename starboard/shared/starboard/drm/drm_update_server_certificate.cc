@@ -37,6 +37,6 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
   }
 
   drm_system->UpdateServerCertificate(
-      ticket, starboard::MakeSpan(static_cast<const uint8_t*>(certificate),
-                                  static_cast<size_t>(certificate_size)));
+      ticket, starboard::make_span(static_cast<const uint8_t*>(certificate),
+                                   static_cast<size_t>(certificate_size)));
 }

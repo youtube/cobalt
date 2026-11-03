@@ -356,7 +356,11 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypeStop:
       switch (state()) {
         case kStateUnstarted:
-          return true;
+          // Nothing has started, so there's nothing to tear down. Exit the
+          // loop, so a platform that defers Start doesn't run forever.
+          state_ = kStateStopped;
+          error_level_ = scoped_event->error_level;
+          return false;
         case kStateStarted:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
@@ -383,6 +387,14 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       return true;
     }
     default:
+      // A platform that defers Start can get other events first. Don't pass
+      // them to the app before it starts, but keep a deep link for Start.
+      if (state() == kStateUnstarted) {
+        if (scoped_event->event->type == kSbEventTypeLink) {
+          SetStartLink(static_cast<const char*>(scoped_event->event->data));
+        }
+        return true;
+      }
       break;
   }
 

@@ -257,7 +257,8 @@ class _ApkDelegate:
     command_line_file = _NullContextManager()
     if flags:
       if len(flags) > _MAX_INLINE_FLAGS_LENGTH:
-        command_line_file = device_temp_file.DeviceTempFile(device.adb)
+        command_line_file = device_temp_file.DeviceTempFile(
+            device.adb, dir=device.GetAppWritablePath(), device_utils=device)
         device.WriteFile(command_line_file.name, '_ %s' % flags)
         extras[_EXTRA_COMMAND_LINE_FILE] = command_line_file.name
       else:
@@ -266,7 +267,8 @@ class _ApkDelegate:
     test_list_file = _NullContextManager()
     if test:
       if len(test) > 1:
-        test_list_file = device_temp_file.DeviceTempFile(device.adb)
+        test_list_file = device_temp_file.DeviceTempFile(
+            device.adb, dir=device.GetAppWritablePath(), device_utils=device)
         device.WriteFile(test_list_file.name, '\n'.join(test))
         extras[_EXTRA_TEST_LIST] = test_list_file.name
       else:

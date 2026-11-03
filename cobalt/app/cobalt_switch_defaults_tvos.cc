@@ -21,7 +21,6 @@
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
-#include "ui/gl/gl_switches.h"
 
 namespace cobalt {
 
@@ -56,8 +55,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
 const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults({
-      // Use passthrough command decoder.
-      {::switches::kUseCmdDecoder, gl::kCmdDecoderPassthroughName},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
       // Enable remote Devtools access.

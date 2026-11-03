@@ -145,10 +145,33 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 
 const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
 const char kBuiltinSplash[] = "BUILTIN_SPLASH";
+const char kBuiltinSplash480[] = "BUILTIN_SPLASH_480";
 
 class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     : public H5vccSchemeURLLoaderFactoryBrowserTest {
  public:
+  H5vccSchemeURLLoaderFactoryCacheBrowserTest()
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+            /*enable_cached_splash_file=*/true) {}
+
+  void SetUp() override {
+    // Cached splash assets are only read with kEnableCachedSplashFile, which
+    // is disabled by default. Browser tests can't override features once the
+    // browser starts, e.g., with a ScopedFeatureList in
+    // CreatedBrowserMainParts(), which fails a DCHECK on Android, so this
+    // overrides it in the factory before the browser starts. Otherwise, the
+    // feature's default applies.
+    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+        enable_cached_splash_file_ ? std::optional<bool>(true) : std::nullopt);
+    H5vccSchemeURLLoaderFactoryBrowserTest::SetUp();
+  }
+
+  void TearDown() override {
+    H5vccSchemeURLLoaderFactoryBrowserTest::TearDown();
+    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+        std::nullopt);
+  }
+
   // Verifies that the splash video is correctly loaded from the cache (or
   // falls back).
   // |cache_name|: The name of the cache storage to use.
@@ -179,6 +202,7 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
     (*test_resource_map_)["splash.html"] = safe_contents_;
     (*test_resource_map_)["splash.webm"] = builtin_contents_;
+    (*test_resource_map_)["splash_480.webm"] = builtin_480_contents_;
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
         test_resource_map_.get());
 
@@ -281,12 +305,31 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
   }
 
  protected:
+  explicit H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+      bool enable_cached_splash_file)
+      : enable_cached_splash_file_(enable_cached_splash_file) {}
+
   FileContents safe_contents_ = {
       reinterpret_cast<const unsigned char*>(kSafeSplashHtml),
       sizeof(kSafeSplashHtml) - 1};
   FileContents builtin_contents_ = {
       reinterpret_cast<const unsigned char*>(kBuiltinSplash),
       sizeof(kBuiltinSplash) - 1};
+  FileContents builtin_480_contents_ = {
+      reinterpret_cast<const unsigned char*>(kBuiltinSplash480),
+      sizeof(kBuiltinSplash480) - 1};
+
+ private:
+  const bool enable_cached_splash_file_;
+};
+
+// As in Finch's crash safe mode, or with the kill switch.
+class H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest
+    : public H5vccSchemeURLLoaderFactoryCacheBrowserTest {
+ public:
+  H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest()
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+            /*enable_cached_splash_file=*/false) {}
 };
 
 // TODO(478334656): Support Media source for Android's
@@ -441,4 +484,25 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
       /*expected_uma_state=*/
       SplashScreenFetchedState::kErrorOnCacheFileOversize);
 }
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
+                       IgnoresCachedSplashVideo) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/"aaabbbccc",
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/
+      SplashScreenFetchedState::kSkippedCachedAssets);
+}
+
+// The "fallback" query param still chooses the built-in resource.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
+                       UsesFallbackParameter) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"other",
+      /*query_param=*/"?cache=other&fallback=splash_480.webm",
+      /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH_480",
+      /*expected_uma_state=*/
+      SplashScreenFetchedState::kSkippedCachedAssets);
+}
+
 }  // namespace content

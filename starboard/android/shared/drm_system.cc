@@ -95,13 +95,18 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
 }
 
 DrmSystem::~DrmSystem() {
+  {
+    std::lock_guard lock(key_state_callbacks_mutex_);
+    SB_CHECK(key_state_callbacks_.empty())
+        << "Decoders must be destroyed before the DRM system.";
+  }
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
     std::string_view mime_type,
-    Span<const uint8_t> initialization_data)
+    span<const uint8_t> initialization_data)
     : ticket_(ticket),
       init_data_(initialization_data.begin(), initialization_data.end()),
       mime_(mime_type) {}
@@ -120,7 +125,7 @@ MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
 void DrmSystem::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    Span<const uint8_t> initialization_data) {
+    span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
       ticket, type, initialization_data));
@@ -222,21 +227,30 @@ void DrmSystem::OnKeyStatusChange(
     eme_session_id = session_id_mapper_.GetEmeSessionId(session_id);
   }
 
+  bool reported_as_restricted = false;
   {
     std::lock_guard scoped_lock(mutex_);
     if (cached_drm_key_ids_[eme_session_id] != drm_key_ids) {
       cached_drm_key_ids_[eme_session_id] = drm_key_ids;
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
-        return;
+        if (!has_key_state_callbacks_.load()) {
+          return;
+        }
+        reported_as_restricted = true;
       }
     }
   }
 
-  callbacks_.key_statuses_changed(this, context_, eme_session_id.data(),
-                                  eme_session_id.size(),
-                                  static_cast<int>(drm_key_ids.size()),
-                                  drm_key_ids.data(), drm_key_statuses.data());
+  if (!reported_as_restricted) {
+    callbacks_.key_statuses_changed(
+        this, context_, eme_session_id.data(), eme_session_id.size(),
+        static_cast<int>(drm_key_ids.size()), drm_key_ids.data(),
+        drm_key_statuses.data());
+  }
+  // Notify on every path, including when HDCP is lost, so a decoder in
+  // output-protection backoff is woken up when key statuses change.
+  NotifyKeyStateChanged();
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
@@ -252,6 +266,35 @@ void DrmSystem::OnInsufficientOutputProtection() {
 
 bool DrmSystem::IsReady() {
   return created_media_crypto_session_.load();
+}
+
+void DrmSystem::RegisterKeyStateChangedCallback(
+    const void* observer,
+    KeyStateChangedCallback callback) {
+  SB_DCHECK(observer);
+  SB_DCHECK(callback);
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  key_state_callbacks_[observer] = std::move(callback);
+  has_key_state_callbacks_.store(true);
+}
+
+void DrmSystem::UnregisterKeyStateChangedCallback(const void* observer) {
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  key_state_callbacks_.erase(observer);
+}
+
+void DrmSystem::NotifyKeyStateChanged() {
+  if (!has_key_state_callbacks_.load()) {
+    return;
+  }
+  key_state_generation_.fetch_add(1, std::memory_order_release);
+  // Hold |key_state_callbacks_mutex_| while invoking callbacks so
+  // UnregisterKeyStateChangedCallback() blocks until any in-flight callback
+  // returns, allowing observers to safely unregister in their destructors.
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  for (const auto& entry : key_state_callbacks_) {
+    entry.second();
+  }
 }
 
 void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
@@ -301,6 +344,8 @@ void DrmSystem::GenerateSessionUpdateRequest(
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
       created_media_crypto_session_ = true;
+      // IsReady() just became true; decoders waiting for it may proceed.
+      NotifyKeyStateChanged();
       return;
     case DRM_OPERATION_STATUS_NOT_PROVISIONED:
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
@@ -331,7 +376,7 @@ void DrmSystem::GenerateSessionUpdateRequest(
 }
 
 void DrmSystem::UpdateSession(int ticket,
-                              Span<const uint8_t> key,
+                              span<const uint8_t> key,
                               std::string_view session_id) {
   const auto media_drm_session_id =
       [this, &session_id]() -> std::optional<std::string> {
@@ -367,6 +412,10 @@ void DrmSystem::UpdateSession(int ticket,
 
   if (provisioning_ok) {
     HandlePendingRequests();
+  } else if (result.ok()) {
+    // Wake up decoders waiting on MEDIA_CODEC_NO_KEY when a license response
+    // is accepted.
+    NotifyKeyStateChanged();
   }
 }
 

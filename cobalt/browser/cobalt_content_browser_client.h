@@ -26,6 +26,7 @@
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "starboard/window.h"
+#include "storage/browser/quota/quota_settings.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -44,6 +45,10 @@ namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
+namespace storage {
+class QuotaDeviceInfoHelper;
+}  // namespace storage
+
 namespace mojo {
 template <typename>
 class BinderMapWithContext;
@@ -57,6 +62,11 @@ class CobaltWebContentsObserver;
 
 void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
                                           GlobalFeatures* global_features);
+
+inline constexpr base::FilePath::CharType kSCTAuditingPendingReportsFileName[] =
+    FILE_PATH_LITERAL("SCT Auditing Pending Reports");
+inline constexpr base::FilePath::CharType kTrustTokenFilename[] =
+    FILE_PATH_LITERAL("Trust Tokens");
 
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
@@ -77,16 +87,19 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   static CobaltContentBrowserClient* Get();
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
   // Display-compositor shader cache; its location follows
   // kCobaltStorageCleanup. With kCobaltGpuShaderDiskCache on, GpuHostImpl only
   // opens the GrShaderCache, so this cache is never created.
   base::FilePath GetShaderDiskCacheDirectory() override;
+#endif  // BUILDFLAG(IS_ANDROID)
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache),
-  // and only under base::DIR_CACHE. Returns an empty path while the feature is
-  // off.
+  // and only under base::DIR_CACHE. Android: empty unless
+  // kCobaltGpuShaderDiskCache is enabled. Starboard: always set; the cache
+  // itself is only opened for preload launches.
   base::FilePath GetGrShaderDiskCacheDirectory() override;
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::VideoOverlayWindow>
@@ -113,6 +126,25 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::NetworkContextParams* network_context_params,
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
+  bool AllowCompressionDictionaryTransport(
+      content::BrowserContext* context) override;
+  void GetCacheQuotaSettings(
+      content::BrowserContext* browser_context,
+      const base::FilePath& cache_path,
+      ::storage::OptionalQuotaSettingsCallback callback) override;
+
+  // Service Worker and CacheStorage per-origin quota (6 MiB) and pool size
+  // (12 MiB, sized to 2x per-origin quota so single-origin usage stays below
+  // QuotaTemporaryStorageEvictor's 70% pool eviction threshold).
+  static constexpr uint32_t kCacheStorageQuotaBytes = 6 * 1024 * 1024;
+  static constexpr uint32_t kCacheStoragePoolToQuotaRatio = 2;
+  static constexpr uint32_t kCacheStoragePoolSizeBytes =
+      kCacheStorageQuotaBytes * kCacheStoragePoolToQuotaRatio;
+
+  static std::optional<::storage::QuotaSettings>
+  CalculateCacheQuotaSettingsForTesting(
+      const base::FilePath& cache_path,
+      ::storage::QuotaDeviceInfoHelper* device_info_helper);
   void OverrideWebPreferences(content::WebContents* web_contents,
                               content::SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;
@@ -152,7 +184,14 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Flushes dirty cookies and localStorage when backgrounding/exiting.
+  // Note: the completion callback is invoked when the cookie store flush
+  // completes; localStorage flush runs asynchronously on the background DB
+  // thread.
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  // Triggers FlushCookiesAndLocalStorage and records
+  // Cobalt.Storage.OnPause.FlushDuration.
+  void FlushCookiesAndLocalStorageOnPause();
   void DispatchBlur();
   void DispatchFocus();
 

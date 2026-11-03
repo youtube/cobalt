@@ -32,7 +32,7 @@ constexpr uint8_t kIamfSequenceHeaderObu = 31;
 // A lightweight, forward-only reader for a raw byte buffer.
 class BufferReader {
  public:
-  explicit BufferReader(Span<const uint8_t> buffer)
+  explicit BufferReader(span<const uint8_t> buffer)
       : view_(reinterpret_cast<const char*>(buffer.data()), buffer.size()) {}
 
   std::optional<uint8_t> ReadByte() {

@@ -1582,9 +1582,8 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   }
 
   // Maybe an old timer fired or we are already Close()'ed.
-  if (!db() || ops.empty()) {
+  if (!db() || ops.empty())
     return;
-  }
 
 #if BUILDFLAG(IS_COBALT)
   for (const auto& op : ops) {

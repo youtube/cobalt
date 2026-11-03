@@ -250,9 +250,9 @@ AudioRendererSinkAndroid::GetPlatformRequiredFormat(
 
   // Used when none of the formats below is reported as supported.
   const AudioFormat kFallbackFormat = {
-      .channels = 2,
-      .sample_type = sample_type,
-      .sampling_frequency_hz = 48000,
+      /*channels=*/2,
+      /*sample_type=*/sample_type,
+      /*sampling_frequency_hz=*/48000,
   };
 
   // In non-tunnel mode, Android's AudioMixer (MixerThread) automatically
@@ -274,9 +274,9 @@ AudioRendererSinkAndroid::GetPlatformRequiredFormat(
   if (cache->IsTunneledAudioSupported(encoding, sampling_frequency_hz,
                                       channels)) {
     return {
-        .channels = channels,
-        .sample_type = sample_type,
-        .sampling_frequency_hz = sampling_frequency_hz,
+        /*channels=*/channels,
+        /*sample_type=*/sample_type,
+        /*sampling_frequency_hz=*/sampling_frequency_hz,
     };
   }
 
@@ -284,9 +284,9 @@ AudioRendererSinkAndroid::GetPlatformRequiredFormat(
       cache->IsTunneledAudioSupported(encoding, sampling_frequency_hz,
                                       kFallbackFormat.channels)) {
     return {
-        .channels = kFallbackFormat.channels,
-        .sample_type = sample_type,
-        .sampling_frequency_hz = sampling_frequency_hz,
+        /*channels=*/kFallbackFormat.channels,
+        /*sample_type=*/sample_type,
+        /*sampling_frequency_hz=*/sampling_frequency_hz,
     };
   }
 

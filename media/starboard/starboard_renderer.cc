@@ -45,6 +45,10 @@
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 namespace media {
 
 namespace {
@@ -1249,6 +1253,17 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
   }
 
   state_ = STATE_ERROR;
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  // SbUrlPlayerError codes continue past kSbPlayerErrorMax, so the switch
+  // below cannot name them.
+  if (IsUrlPlayer() &&
+      error == static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported)) {
+    MEDIA_LOG(ERROR, media_log_) << message;
+    NotifyError(DEMUXER_ERROR_COULD_NOT_OPEN);
+    return;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   switch (error) {
     case kSbPlayerErrorDecode:

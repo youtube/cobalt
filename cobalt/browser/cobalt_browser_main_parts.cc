@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/base_paths.h"
 #include "base/check.h"
@@ -34,6 +35,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
@@ -53,13 +55,25 @@
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_service.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
 #include "net/disk_cache/cache_util.h"
+#include "sql/database.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "cobalt/memory/android_os_signal_evaluator.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/common/content_switches.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/base/network_anonymization_key.h"
+#include "net/base/schemeful_site.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
+#include "url/gurl.h"
 #endif
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
@@ -95,14 +109,13 @@
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#else
-#include "cobalt/browser/cobalt_content_browser_client.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
@@ -277,8 +290,18 @@ int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
                                                        deduplication_enabled);
-  return Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
-      env, last_logged_timestamp_ms);
+  int64_t recorded_timestamp_ms =
+      Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+          env, last_logged_timestamp_ms);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
+  }
+  return recorded_timestamp_ms;
 }
 #endif
 
@@ -305,15 +328,100 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 
 constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
 
-void CleanupOrphanedUserDataCacheDirectories() {
+// Legacy directory names created by earlier M138 Cobalt builds before those
+// subsystems were disabled or switched to in-memory backing under
+// kCobaltStorageCleanup:
+// - "Shared Dictionary": content::StoragePartitionImpl::InitNetworkContext()
+//   (content/browser/storage_partition_impl.cc) when
+//   AllowCompressionDictionaryTransport() returned true.
+// - "VideoDecodeStats": content::BrowserContext::CreateVideoDecodePerfHistory()
+//   (content/browser/browser_context.cc) before kUseInMemoryDBDefault was set
+//   to true.
+// - "shared_proto_db": leveldb_proto::ProtoDatabaseProvider
+//   (components/leveldb_proto/public/proto_database_provider.cc), instantiated
+//   solely by VideoDecodeStatsDBImpl on Cobalt.
+constexpr base::FilePath::CharType kLegacySharedDictionaryDir[] =
+    FILE_PATH_LITERAL("Shared Dictionary");
+constexpr base::FilePath::CharType kLegacyVideoDecodeStatsDir[] =
+    FILE_PATH_LITERAL("VideoDecodeStats");
+constexpr base::FilePath::CharType kLegacySharedProtoDbDir[] =
+    FILE_PATH_LITERAL("shared_proto_db");
+
+void DeleteUnusedSqliteDatabaseFiles(const base::FilePath& user_data_dir,
+                                     const base::FilePath& db_name) {
+  const base::FilePath db_path = user_data_dir.Append(db_name);
+  const base::FilePath candidates[] = {
+      db_path,
+      sql::Database::JournalPath(db_path),
+      sql::Database::WriteAheadLogPath(db_path),
+      sql::Database::SharedMemoryFilePath(db_path),
+  };
+  for (const base::FilePath& target : candidates) {
+    if (!user_data_dir.IsParent(target) || !base::PathExists(target) ||
+        base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeleteFile(target);
+  }
+}
+
+void RunDelayedStorageCleanup() {
   base::FilePath user_data_dir;
-  base::FilePath cache_dir;
-  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) ||
-      !base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir)) {
     return;
   }
-  DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+  }
+  DeleteUnusedChromiumStoragePaths(user_data_dir);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Returns the URL the Java layer navigates to from ShellManager.launchShell():
+// the --url switch when present (forwarded from the Activity intent), otherwise
+// the default YouTube TV URL.
+GURL GetStartupUrlForPreconnect(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(::switches::kBrowserTest) &&
+      !command_line.HasSwitch(switches::kInitialURL)) {
+    return GURL();
+  }
+  return GURL(switches::GetInitialURL(command_line));
+}
+
+// Preconnects one socket to the startup URL origin so DNS resolution and the
+// TCP/TLS handshake overlap with the rest of browser startup.
+void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
+  if (!browser_context) {
+    return;
+  }
+  const GURL startup_url =
+      GetStartupUrlForPreconnect(*base::CommandLine::ForCurrentProcess());
+  if (!startup_url.is_valid() || !startup_url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
+  network::mojom::NetworkContext* network_context =
+      browser_context->GetDefaultStoragePartition()->GetNetworkContext();
+  if (!network_context) {
+    return;
+  }
+
+  constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+      net::DefineNetworkTrafficAnnotation(
+          "cobalt_startup_preconnect",
+          "Preconnects to the initial launch URL origin during Cobalt browser "
+          "startup.");
+  // PreconnectSockets() only uses the scheme, host and port of `startup_url`.
+  network_context->PreconnectSockets(
+      /*num_streams=*/1, startup_url, network::mojom::CredentialsMode::kInclude,
+      net::NetworkAnonymizationKey::CreateSameSite(
+          net::SchemefulSite(startup_url)),
+      net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
+      /*keepalive_config=*/std::nullopt,
+      /*observer_client=*/mojo::NullRemote());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -340,6 +448,53 @@ void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
       LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
                  << orphaned_dir;
     }
+  }
+}
+
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir) {
+  if (user_data_dir.empty() || !base::DirectoryExists(user_data_dir)) {
+    return;
+  }
+
+  // Note: With kCobaltStorageCleanup enabled, all of the subsystems below are
+  // either disabled or configured for in-memory operation, so Cobalt will never
+  // create on-disk files for them again even if upstream Chromium changes their
+  // default filenames in the future. This cleanup exists solely to reclaim
+  // legacy files persisted by earlier M138 Cobalt builds.
+
+  // 1. Standalone file configured by CobaltContentBrowserClient (inherited from
+  // ShellContentBrowserClient) prior to kCobaltStorageCleanup.
+  const base::FilePath sct_reports_path =
+      user_data_dir.Append(kSCTAuditingPendingReportsFileName);
+  if (user_data_dir.IsParent(sct_reports_path) &&
+      base::PathExists(sct_reports_path) &&
+      !base::DirectoryExists(sct_reports_path)) {
+    base::DeleteFile(sct_reports_path);
+  }
+
+  // 2. SQLite databases and their companion -journal / -wal / -shm files:
+  // - kTrustTokenFilename: configured in
+  //   CobaltContentBrowserClient::ConfigureNetworkContextParams().
+  // - ::storage::kSharedStoragePath: created by
+  //   StoragePartitionImpl::Initialize() when
+  //   blink::features::kSharedStorageAPI was enabled.
+  DeleteUnusedSqliteDatabaseFiles(user_data_dir,
+                                  base::FilePath(kTrustTokenFilename));
+  DeleteUnusedSqliteDatabaseFiles(
+      user_data_dir, base::FilePath(::storage::kSharedStoragePath));
+
+  // 3. LevelDB / cache directories for disabled or in-memory subsystems.
+  const base::FilePath unused_directories[] = {
+      user_data_dir.Append(kLegacySharedDictionaryDir),
+      user_data_dir.AppendASCII(::storage::kSessionStorageDirectory),
+      user_data_dir.Append(kLegacyVideoDecodeStatsDir),
+      user_data_dir.Append(kLegacySharedProtoDbDir),
+  };
+  for (const base::FilePath& target : unused_directories) {
+    if (!user_data_dir.IsParent(target) || !base::DirectoryExists(target)) {
+      continue;
+    }
+    base::DeletePathRecursively(target);
   }
 }
 
@@ -411,7 +566,13 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // invokes ShellManager.launchShell() which reaches C++ via JNI.
   // On Linux, we might need the base behavior.
   // go/chrobalt-pre-initialization-storage-migration-pipeline
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  // Experiment (b/576795062): warm up the connection to the startup URL origin
+  // while WebContents creation is still deferred.
+  if (base::FeatureList::IsEnabled(features::kCobaltStartupPreconnect)) {
+    PreconnectToStartupOrigin(browser_context());
+  }
+#else
   ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
 }
@@ -474,8 +635,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::ThreadPolicy::PREFER_BACKGROUND,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories),
-        kStorageCleanupDelay);
+        base::BindOnce(&RunDelayedStorageCleanup), kStorageCleanupDelay);
   }
 
 #if BUILDFLAG(IS_ANDROID)
