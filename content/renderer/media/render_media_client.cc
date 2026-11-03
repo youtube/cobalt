@@ -71,9 +71,6 @@ static RenderMediaClient* GetRenderMediaClient() {
 
 void RenderMediaClient::Initialize() {
   media::SetMediaClient(GetRenderMediaClient());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  GetRenderMediaClient()->InstallDecoderBufferAllocator();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void RenderMediaClient::SetGpuFeatureInfo(
