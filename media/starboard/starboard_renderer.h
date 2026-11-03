@@ -202,6 +202,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                            int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
+  // Builds PipelineStatistics from the running totals reported by
+  // SbPlayerBridge::GetInfo(), and posts them to |client_| if the video frame
+  // counters changed.
+  void UpdateStatistics(const SbPlayerBridge::PlayerStatistics& totals);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   // SbPlayerBridge::Host implementation.
@@ -333,8 +337,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   double playback_rate_ = 0.;
   float volume_ = 1.0f;
 
-  uint32_t last_video_frames_decoded_ = 0;
-  uint32_t last_video_frames_dropped_ = 0;
+  // The totals from SbPlayerBridge as of the last call to UpdateStatistics().
+  SbPlayerBridge::PlayerStatistics last_reported_statistics_;
 
   SbWindow sb_window_ = kSbWindowInvalid;
 

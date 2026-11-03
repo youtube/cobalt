@@ -34,6 +34,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/starboard/starboard_renderer_config.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/sbplayer_interface.h"
@@ -65,14 +66,19 @@ class SbPlayerBridge {
     ~Host() {}
   };
 
+  // Playback statistics since the creation of the player.
+  struct PlayerStatistics {
+    uint32_t total_video_frames_decoded = 0;
+    uint32_t total_video_frames_dropped = 0;
+    uint64_t total_audio_bytes_decoded = 0;
+    uint64_t total_video_bytes_decoded = 0;
+  };
+
   // Stores playback information to be queried through GetInfo().
   struct PlayerInfo {
-    uint32_t* video_frames_decoded;
-    uint32_t* video_frames_dropped;
-    uint64_t* audio_bytes_decoded;
-    uint64_t* video_bytes_decoded;
-    base::TimeDelta* media_time;
-    base::TimeDelta* duration;
+    PlayerStatistics statistics;
+    base::TimeDelta media_time;
+    base::TimeDelta duration = kNoTimestamp;
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
@@ -145,7 +151,7 @@ class SbPlayerBridge {
 
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
-  void GetInfo(PlayerInfo* out_info);
+  PlayerInfo GetInfo();
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -349,8 +355,8 @@ class SbPlayerBridge {
   uint32_t cached_video_frames_decoded_;
   uint32_t cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
-  uint64_t cached_audio_bytes_decoded_ = 0;
-  uint64_t cached_video_bytes_decoded_ = 0;
+  uint64_t total_audio_bytes_decoded_ = 0;
+  uint64_t total_video_bytes_decoded_ = 0;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
