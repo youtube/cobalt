@@ -120,6 +120,7 @@ bool MethodUsesNoVarySearch(const std::string& method) {
   return method == "GET" || method == "HEAD";
 }
 
+<<<<<<< HEAD
 const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
     net::RequestPriority priority) {
   if (features::kNetTaskSchedulerHttpCacheTransaction.Get()) {
@@ -127,6 +128,47 @@ const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
   }
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+// Identifies telemetry, ping, and MSE media chunk URLs that are never cached
+// by Cobalt so ShouldPassThrough() and UpdateAndReportCacheability() can
+// exclude them from SimpleCache.
+bool IsCobaltExcludedUrl(const GURL& url) {
+  std::string_view path = url.path_piece();
+  static constexpr std::string_view kExcludedPaths[] = {
+      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
+  for (std::string_view excluded : kExcludedPaths) {
+    if (path.find(excluded) != std::string::npos) {
+      return true;
+    }
+  }
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltHttpCacheFontAndPassThrough)) {
+    return false;
+  }
+  static constexpr std::string_view kPassThroughExcludedPaths[] = {
+      "/api/stats/", "/generate_204", "/csi_204", "/log_event",
+      "/videoplayback"};
+  for (std::string_view excluded : kPassThroughExcludedPaths) {
+    if (path.find(excluded) != std::string::npos) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Identifies image, audio, and video requests via Sec-Fetch-Dest so
+// ShouldPassThrough() can bypass disk entry creation before response headers
+// arrive (avoiding create-then-doom flash I/O churn).
+bool IsCobaltNonCachedFetchDest(const HttpRequestHeaders& extra_headers) {
+  std::optional<std::string> dest = extra_headers.GetHeader("Sec-Fetch-Dest");
+  if (!dest.has_value()) {
+    return false;
+  }
+  return *dest == "image" || *dest == "audio" || *dest == "video";
+}
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> 3b3b431911b (net: Cache web fonts and pass through non-cached requests in HTTP cache (#13660))
 
 }  // namespace
 
@@ -2917,7 +2959,17 @@ bool HttpCache::Transaction::ShouldPassThrough() {
   }
 
   if (method_ == "GET" || method_ == "HEAD") {
+#if BUILDFLAG(IS_COBALT)
+    // Bypass the disk cache upfront for requests UpdateAndReportCacheability()
+    // would later reject, avoiding create-then-doom entry churn.
+    return request_ &&
+           base::FeatureList::IsEnabled(
+               features::kCobaltHttpCacheFontAndPassThrough) &&
+           (IsCobaltExcludedUrl(request_->url) ||
+            IsCobaltNonCachedFetchDest(request_->extra_headers));
+#else
     return false;
+#endif
   }
 
   if (method_ == "POST" && request_->upload_data_stream &&
@@ -4408,17 +4460,18 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
   }
 
+  if (!is_accepted_mime_type && mime_type.find("font") != std::string::npos) {
+    is_accepted_mime_type = base::FeatureList::IsEnabled(
+        features::kCobaltHttpCacheFontAndPassThrough);
+  }
+
   if (!is_accepted_mime_type) {
     return true;  // Do not write to cache / doom existing entry
   }
 
-  // Exclude Ad Impression Pings & Telemetry reporting endpoints.
-  static constexpr std::string_view kExcludedPaths[] = {
-      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
-  for (std::string_view excluded : kExcludedPaths) {
-    if (request_->url.spec().find(excluded) != std::string::npos) {
-      return true;
-    }
+  // Exclude Ad Impression Pings, Telemetry reporting, and MSE chunk endpoints.
+  if (IsCobaltExcludedUrl(request_->url)) {
+    return true;
   }
 
   // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
