@@ -103,23 +103,17 @@ component("jni_zero") {
     public_configs = [ "//third_party/jdk:jdk" ]
   }
 
-<<<<<<< HEAD
-  deps = [ ":generate_jni($default_toolchain)" ]
+  deps = [
+    ":cobalt_for_google3_buildflags",
+    ":generate_jni($android_toolchain)"
+  ]
   if (build_with_chromium) {
     deps += [ "//base:base_static" ]
   }
   public_deps = [
-    ":system_jni($default_toolchain)",
-    ":system_jni_unchecked_exceptions($default_toolchain)",
-  ]
-=======
-  deps = [
-    ":cobalt_for_google3_buildflags",
-    ":generate_jni($android_toolchain)",
+    ":system_jni($android_toolchain)",
     ":system_jni_unchecked_exceptions($android_toolchain)",
   ]
-  public_deps = [ ":system_jni($android_toolchain)" ]
->>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 if (enable_java_templates && is_android) {
