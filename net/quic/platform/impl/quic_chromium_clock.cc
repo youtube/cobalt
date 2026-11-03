@@ -13,6 +13,7 @@ namespace quic {
 #if defined(STARBOARD)
 namespace {
 QuicTime s_approximate_now{QuicTime::Zero()};
+int s_approximate_now_scopes = 0;
 }  // namespace
 #endif
 
@@ -26,9 +27,16 @@ QuicChromiumClock::QuicChromiumClock() = default;
 QuicChromiumClock::~QuicChromiumClock() = default;
 
 #if defined(STARBOARD)
-void QuicChromiumClock::ZeroApproximateNow() {
-  s_approximate_now = QuicTime::Zero();
-};
+QuicChromiumClock::ScopedApproximateNow::ScopedApproximateNow() {
+  ++s_approximate_now_scopes;
+}
+
+QuicChromiumClock::ScopedApproximateNow::~ScopedApproximateNow() {
+  DCHECK_GT(s_approximate_now_scopes, 0);
+  if (--s_approximate_now_scopes == 0) {
+    s_approximate_now = QuicTime::Zero();
+  }
+}
 #endif
 
 QuicTime QuicChromiumClock::ApproximateNow() const {
@@ -46,8 +54,11 @@ QuicTime QuicChromiumClock::Now() const {
   int64_t ticks = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   DCHECK_GE(ticks, 0);
 #if defined(STARBOARD)
-  s_approximate_now = CreateTimeFromMicroseconds(ticks);
-  return s_approximate_now;
+  QuicTime now = CreateTimeFromMicroseconds(ticks);
+  if (s_approximate_now_scopes > 0) {
+    s_approximate_now = now;
+  }
+  return now;
 #else
   return CreateTimeFromMicroseconds(ticks);
 #endif

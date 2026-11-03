@@ -49,6 +49,8 @@ QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 
 #if defined(STARBOARD)
 int QuicChromiumPacketReader::StartReadingMultiplePackets() {
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   for (;;) {
     if (read_pending_)
       return OK;
@@ -96,7 +98,7 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -153,6 +155,8 @@ void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
 
 void QuicChromiumPacketReader::StartReading() {
 #if defined(STARBOARD)
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   if (try_reading_multiple_packets_) {
     int rv = StartReadingMultiplePackets();
     if (rv == OK || rv == ERR_IO_PENDING) {
@@ -208,7 +212,7 @@ void QuicChromiumPacketReader::StartReading() {
 
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
 #if defined(STARBOARD)
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
 #endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
