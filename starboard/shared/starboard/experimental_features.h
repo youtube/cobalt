@@ -204,10 +204,6 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableResetAudioDecoder(
     "Media.EnableResetAudioDecoder");
 
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaEnableSimdBasedAudioFormatSwitching(
-        "Media.EnableSimdBasedAudioFormatSwitching");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableTrivialOptimizations(
     "Media.EnableTrivialOptimizations");
 

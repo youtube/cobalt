@@ -399,6 +399,33 @@ TEST_F(CobaltLifecycleManagerTest, FreezeAndUnfreezeAck) {
   base::RunLoop().RunUntilIdle();
 }
 
+// Verifies that a connected frame that is already in the target state doesn't
+// hold up the ACK, since it won't report a state change.
+TEST_F(CobaltLifecycleManagerTest, ImmediateCompletionWhenAlreadyInState) {
+  std::unique_ptr<content::WebContents> contents =
+      CreateScopedTestWebContents();
+  content::RenderFrameHost* main_rfh = contents->GetPrimaryMainFrame();
+  content::RenderFrameHostTester::For(main_rfh)
+      ->InitializeRenderFrameIfNeeded();
+
+  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> main_remote;
+  manager_->BindReceiver(main_rfh, main_remote.BindNewPipeAndPassReceiver());
+  main_remote->OnFrameReady();
+  main_remote->OnPageFrozen();
+  base::RunLoop().RunUntilIdle();
+
+  MockCobaltLifecycleObserver observer;
+  manager_->AddObserver(&observer);
+
+  EXPECT_CALL(observer, OnAllFramesFrozen(contents.get())).Times(1);
+  manager_->StartWaitingForAck(contents.get(), PendingAck::kFreeze);
+  base::RunLoop().RunUntilIdle();
+
+  manager_->RemoveObserver(&observer);
+  main_remote.reset();
+  base::RunLoop().RunUntilIdle();
+}
+
 // Verifies that if a WebContents has no active connected frames when a freeze
 // transition is requested, the manager completes the freeze ACK immediately.
 TEST_F(CobaltLifecycleManagerTest, ImmediateCompletionOnFreeze) {

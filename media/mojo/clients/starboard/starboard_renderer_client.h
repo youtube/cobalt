@@ -43,6 +43,9 @@ class RendererClient;
 class MediaLog;
 class MediaResource;
 class MojoRenderer;
+#if BUILDFLAG(IS_IOS_TVOS)
+class UrlPlayerMediaResource;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 class VideoFrame;
 class VideoOverlayFactory;
 
@@ -181,7 +184,7 @@ class MEDIA_EXPORT StarboardRendererClient
 
   raw_ptr<RendererClient> client_ = nullptr;
 #if BUILDFLAG(IS_IOS_TVOS)
-  raw_ptr<MediaResource> media_resource_ = nullptr;
+  raw_ptr<UrlPlayerMediaResource> url_resource_ = nullptr;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   PipelineStatusCallback init_cb_;
 

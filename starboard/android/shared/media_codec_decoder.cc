@@ -18,6 +18,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <iterator>
@@ -46,6 +47,14 @@ constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
 // at least twice per vsync interval).
 constexpr auto kDefaultWaitForNextFrameInterval =
     std::chrono::microseconds(8'000);
+
+// Fallback timeout while waiting for a DRM key (MEDIA_CODEC_NO_KEY) in
+// InputThreadFuncV2().
+constexpr int64_t kDrmKeyWaitFallbackIntervalUs = 50'000;  // 50 msec
+// Exponential backoff bounds while the output is restricted
+// (MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION, e.g. HDCP is lost).
+constexpr int64_t kMinOutputRestrictedBackoffUs = 10'000;   // 10 msec
+constexpr int64_t kMaxOutputRestrictedBackoffUs = 250'000;  // 250 msec
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -265,6 +274,12 @@ MediaCodecDecoder::MediaCodecDecoder(
                   << *error_message;
     return;
   }
+  if (enable_codec_thread_improvements_ && drm_system_) {
+    // Wake up InputThreadFuncV2() when DRM key state changes instead of
+    // polling.
+    drm_system_->RegisterKeyStateChangedCallback(
+        this, [this] { OnDrmKeyStateChanged(); });
+  }
   SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
                << ToString(tunnel_mode_enabled_)
                << ", video_decoder_poll_interval(msec)="
@@ -278,6 +293,12 @@ MediaCodecDecoder::MediaCodecDecoder(
 
 MediaCodecDecoder::~MediaCodecDecoder() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
+
+  if (enable_codec_thread_improvements_ && drm_system_) {
+    // Unregister before joining decoder threads; this blocks until any
+    // in-flight OnDrmKeyStateChanged() callback returns.
+    drm_system_->UnregisterKeyStateChangedCallback(this);
+  }
 
   TerminateDecoderThread();
 
@@ -681,13 +702,45 @@ void MediaCodecDecoder::InputThreadFuncV2() {
            (!pending_inputs.empty() && !input_buffer_indices.empty());
   };
 
+  int64_t output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+
   while (!destroying_.load()) {
     if (can_process_input()) {
-      if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
-        // TODO(b/329686979): Replace 1ms polling with event-driven DRM key
-        // state wait.
-        // Sleep for 1 ms to avoid busy looping.
+      // Snapshot the DRM key state generation before queueing so an update
+      // racing with a failed queue attempt is detected by the wait predicate.
+      const uint64_t observed_drm_generation =
+          drm_system_ ? drm_system_->GetKeyStateGeneration() : 0;
+      if (ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
+        output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+        continue;
+      }
+      if (!pending_input_to_retry_) {
+        // The input wasn't held for retry: either its input buffer index was
+        // unusable (e.g. stale after flush) and the input was returned to
+        // |pending_inputs|, or a fatal capacity error was reported.  Sleep 1 ms
+        // to avoid busy looping.
         usleep(1'000);
+        continue;
+      }
+      // Wait until the DRM key state changes or the fallback interval elapses
+      // (or back off exponentially while output protection is restricted); also
+      // paces retries after a reported fatal error until teardown.
+      std::unique_lock lock(mutex_);
+      const int64_t wait_duration_us = is_output_restricted_
+                                           ? output_restricted_backoff_us
+                                           : kDrmKeyWaitFallbackIntervalUs;
+      const bool woke_on_event = video_input_condition_variable_.wait_for(
+          lock, std::chrono::microseconds(wait_duration_us),
+          [this, observed_drm_generation] {
+            return destroying_.load() ||
+                   (drm_system_ && drm_system_->GetKeyStateGeneration() !=
+                                       observed_drm_generation);
+          });
+      if (!is_output_restricted_) {
+        output_restricted_backoff_us = kMinOutputRestrictedBackoffUs;
+      } else if (!woke_on_event) {
+        output_restricted_backoff_us = std::min(
+            output_restricted_backoff_us * 2, kMaxOutputRestrictedBackoffUs);
       }
       continue;
     }
@@ -1090,7 +1143,10 @@ void MediaCodecDecoder::HandleError(const char* action_name, jint status) {
     SB_LOG(INFO) << "|" << action_name << "| failed with status: "
                  << GetNameForMediaCodecStatus(status)
                  << ", will try again after a delay.";
-    sched_yield();
+    // InputThreadFuncV2() waits for a DRM key state change instead of spinning.
+    if (!enable_codec_thread_improvements_) {
+      sched_yield();
+    }
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
                   << GetNameForMediaCodecStatus(status) << ".";
@@ -1114,6 +1170,13 @@ void MediaCodecDecoder::ReportError(const SbPlayerError error,
   if (error_cb_) {
     error_cb_(error_, error_message_);
   }
+}
+
+void MediaCodecDecoder::OnDrmKeyStateChanged() {
+  // Acquire |mutex_| before signaling so the wakeup cannot be lost between
+  // InputThreadFuncV2()'s generation predicate check and its wait.
+  std::lock_guard lock(mutex_);
+  video_input_condition_variable_.notify_one();
 }
 
 void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,

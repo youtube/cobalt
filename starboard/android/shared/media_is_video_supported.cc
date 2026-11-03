@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
@@ -54,11 +55,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (mime_type) {
     // Allows for enabling tunneled playback. Disabled by default.
     // https://source.android.com/devices/tv/multimedia-tunneling
-    if (!mime_type->ValidateBoolParameter("tunnelmode")) {
+    if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
       return false;
     }
     must_support_tunnel_mode =
-        mime_type->GetParamBoolValue("tunnelmode", false);
+        mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {

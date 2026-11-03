@@ -56,7 +56,7 @@ std::string DrmSessionIdMapper::CreateOrGetBridgeEmeSessionId() {
   }
 
   bridge_session_id_map_.emplace(
-      SessionIdMap{.eme_id = GenerateBridgeSessionId()});
+      SessionIdMap{/*eme_id=*/GenerateBridgeSessionId()});
   SB_LOG(INFO) << __func__ << " created new bridge session: eme_id="
                << bridge_session_id_map_->eme_id;
   return bridge_session_id_map_->eme_id;

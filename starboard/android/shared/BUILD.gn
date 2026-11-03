@@ -211,6 +211,7 @@ static_library("starboard_platform") {
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
     "microphone_impl.cc",
+    "mime_param.h",
     "ndk_audio_track.cc",
     "ndk_audio_track.h",
     "ndk_media_codec.cc",
@@ -306,6 +307,7 @@ static_library("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
     "//cobalt/android:app_event_bridge",
+    "//cobalt/android:cobalt_process_state_summary_jni",
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
