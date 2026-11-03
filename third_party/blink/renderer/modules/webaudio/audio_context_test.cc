@@ -3,12 +3,9 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
-<<<<<<< HEAD
+#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/web/web_heap.h"
 #include "third_party/blink/renderer/modules/webaudio/delay_node.h"
-=======
-#include "third_party/blink/public/common/buildflags.h"
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #include <array>
 #include <memory>
