@@ -412,8 +412,9 @@ def format_chromium_cl_diff(repo_path: str, args: str) -> str:
   if diff is None:
     return (f"[ERROR] Could not fetch upstream commit {commit} from "
             f"{host}.googlesource.com/{project}.")
-  title = (cl.ref_line() if cl is not None else
-           f"https://{host}.googlesource.com/{project}/+/{commit}")
+  title = (
+      cl.ref_line() if cl is not None else
+      f"https://{host}.googlesource.com/{project}/+/{commit}")
   scope = f" (limited to {rel_path})" if rel_path else ""
   if not diff.strip():
     return f"Upstream CL {title}{scope}: no changes."

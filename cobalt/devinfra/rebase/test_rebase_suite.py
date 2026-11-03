@@ -4173,7 +4173,8 @@ deps = {
     v8_sha = "89ad1535c3430000000000000000000000000000"
     log_json = {
         "log": [{
-            "commit": v8_sha,
+            "commit":
+                v8_sha,
             "message": ("[base] Refactor CPU detection\n\n"
                         "Reviewed-on: https://chromium-review"
                         ".googlesource.com/c/v8/v8/+/7683553\n"),
@@ -4196,8 +4197,8 @@ deps = {
               upstream_cl, "_gitiles_text", side_effect=fake_text):
         log_out = execute_local_tool("TOOL_UPSTREAM_LOG: v8/src/base/cpu/cpu.h",
                                      tmpdir)
-        self.assertIn(
-            "TOOL_CHROMIUM_CL_DIFF: <sha> v8/src/base/cpu/cpu.h", log_out)
+        self.assertIn("TOOL_CHROMIUM_CL_DIFF: <sha> v8/src/base/cpu/cpu.h",
+                      log_out)
 
         # With a path: the file's repo (v8) and path inside it are used, and a
         # short SHA from TOOL_UPSTREAM_LOG is expanded from the lookup cache.
@@ -4228,8 +4229,8 @@ deps = {
         self.assertEqual(len(texts), 3)
 
         self.assertIn(
-            "[ERROR]", execute_local_tool("TOOL_CHROMIUM_CL_DIFF: HEAD~1",
-                                          tmpdir))
+            "[ERROR]",
+            execute_local_tool("TOOL_CHROMIUM_CL_DIFF: HEAD~1", tmpdir))
         self.assertEqual(len(texts), 3)
 
       with mock.patch.object(upstream_cl, "_gitiles_text", return_value=None):
