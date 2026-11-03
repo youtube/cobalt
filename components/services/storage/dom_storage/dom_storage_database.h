@@ -22,6 +22,7 @@
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/env.h"
@@ -196,6 +197,12 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   const std::optional<base::trace_event::MemoryAllocatorDumpGuid>
       memory_dump_id_;
   std::unique_ptr<leveldb::DB> db_;
+
+#if BUILDFLAG(IS_COBALT)
+  // True for persistent LocalStorage databases ("leveldb") and false for
+  // persistent SessionStorage databases ("Session Storage") or in-memory DBs.
+  const bool is_local_storage_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Causes all calls to |Commit()| to fail with an IOError for simulated
   // disk failures in testing.

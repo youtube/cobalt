@@ -299,6 +299,20 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
   params.wm_class_name = params.wm_class_class;
 #endif  // BUILDFLAG(IS_LINUX)
   shell_data.window_widget->Init(std::move(params));
+#if BUILDFLAG(IS_STARBOARD)
+  // Sync the shell content size with the actual Starboard window bounds
+  // queried via SbWindowGetSize() during widget initialization so that
+  // SetContents() does not resize the native window back to the fallback size.
+  if (auto* native_window = shell_data.window_widget->GetNativeWindow();
+      native_window && native_window->GetHost()) {
+    gfx::Size actual_size =
+        native_window->GetHost()->GetBoundsInPixels().size();
+    if (!actual_size.IsEmpty()) {
+      shell_data.content_size = actual_size;
+      shell_data.initial_size_ = actual_size;
+    }
+  }
+#endif
 
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
