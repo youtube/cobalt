@@ -2,6 +2,7 @@
 """Comprehensive test suite for Cobalt Chromium rebase automation tools."""
 
 import ast
+import io
 import os
 import subprocess
 import tempfile
@@ -4167,6 +4168,109 @@ deps = {
             "https://crrev.com/c/7683553 "
             "(89ad1535c343 [base] Refactor CPU detection)",
         ])
+
+  def test_tool_chromium_cl_diff_fetches_commit_from_gitiles(self):
+    v8_sha = "89ad1535c3430000000000000000000000000000"
+    log_json = {
+        "log": [{
+            "commit":
+                v8_sha,
+            "message": ("[base] Refactor CPU detection\n\n"
+                        "Reviewed-on: https://chromium-review"
+                        ".googlesource.com/c/v8/v8/+/7683553\n"),
+        }]
+    }
+    patch = ("commit 89ad1535c343\n\n    [base] Refactor CPU detection\n\n"
+             "diff --git a/src/base/cpu/cpu.h b/src/base/cpu/cpu.h\n"
+             "-  bool has_sse_;\n+  bool has_sse_ = false;\n")
+    texts = []
+
+    def fake_text(host, path):
+      texts.append((host, path))
+      return patch
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      self._make_roll_repo(tmpdir)
+      with mock.patch.object(
+          upstream_cl, "_gerrit_json",
+          return_value=log_json), mock.patch.object(
+              upstream_cl, "_gitiles_text", side_effect=fake_text):
+        log_out = execute_local_tool("TOOL_UPSTREAM_LOG: v8/src/base/cpu/cpu.h",
+                                     tmpdir)
+        self.assertIn("TOOL_CHROMIUM_CL_DIFF: <sha> v8/src/base/cpu/cpu.h",
+                      log_out)
+
+        # With a path: the file's repo (v8) and path inside it are used, and a
+        # short SHA from TOOL_UPSTREAM_LOG is expanded from the lookup cache.
+        out = execute_local_tool(
+            "TOOL_CHROMIUM_CL_DIFF: 89ad1535c343 v8/src/base/cpu/cpu.h", tmpdir)
+        self.assertEqual(texts[-1], (
+            "chromium.googlesource.com",
+            f"v8/v8/+/{v8_sha}%5E%21/src/base/cpu/cpu.h?format=TEXT",
+        ))
+        self.assertIn("https://crrev.com/c/7683553", out)
+        self.assertIn("(limited to v8/src/base/cpu/cpu.h)", out)
+        self.assertIn("+  bool has_sse_ = false;", out)
+
+        # Without a path: the whole commit, from the project the CL came from.
+        execute_local_tool("TOOL_CHROMIUM_CL_DIFF: 89ad1535c343", tmpdir)
+        self.assertEqual(texts[-1], (
+            "chromium.googlesource.com",
+            f"v8/v8/+/{v8_sha}%5E%21/?format=TEXT",
+        ))
+
+        # An unknown SHA defaults to chromium/src.
+        execute_local_tool("TOOL_CHROMIUM_CL_DIFF: abcdef1234567 base/foo.h",
+                           tmpdir)
+        self.assertEqual(texts[-1], (
+            "chromium.googlesource.com",
+            "chromium/src/+/abcdef1234567%5E%21/base/foo.h?format=TEXT",
+        ))
+        self.assertEqual(len(texts), 3)
+
+        self.assertIn(
+            "[ERROR]",
+            execute_local_tool("TOOL_CHROMIUM_CL_DIFF: HEAD~1", tmpdir))
+        self.assertEqual(len(texts), 3)
+
+      with mock.patch.object(upstream_cl, "_gitiles_text", return_value=None):
+        self.assertIn(
+            "[ERROR] Could not fetch upstream commit",
+            execute_local_tool("TOOL_CHROMIUM_CL_DIFF: abcdef1234567", tmpdir))
+
+      max_chars = upstream_cl._MAX_CL_DIFF_CHARS  # pylint: disable=protected-access
+      with mock.patch.object(
+          upstream_cl, "_gitiles_text", return_value="x" * (max_chars + 10)):
+        self.assertIn(
+            "[... truncated; pass a file path",
+            execute_local_tool("TOOL_CHROMIUM_CL_DIFF: abcdef1234567", tmpdir))
+        # With a path already given, the hint to pass one is left out.
+        out = execute_local_tool(
+            "TOOL_CHROMIUM_CL_DIFF: abcdef1234567 base/foo.h", tmpdir)
+        self.assertIn("[... truncated]", out)
+        self.assertNotIn("pass a file path", out)
+
+  def test_gitiles_text_decodes_base64_with_gerrit_util(self):
+    gu = upstream_cl.gerrit_util
+    with mock.patch.object(gu, "CreateHttpConn") as create, mock.patch.object(
+        gu, "ReadHttpResponse",
+        return_value=io.StringIO("ZGlmZiAtLWdpdA==")) as read:
+      res = upstream_cl._gitiles_text(  # pylint: disable=protected-access
+          "chromium.googlesource.com", "chromium/src/+/abc%5E%21/?format=TEXT")
+    self.assertEqual(res, "diff --git")
+    create.assert_called_once_with(
+        "chromium.googlesource.com",
+        "chromium/src/+/abc%5E%21/?format=TEXT",
+        timeout=30)
+    read.assert_called_once_with(create.return_value)
+
+    with mock.patch.object(
+        gu, "CreateHttpConn",
+        side_effect=gu.GerritError(404, "missing")), self.assertLogs(
+            upstream_cl.log, "WARNING"):
+      self.assertIsNone(
+          upstream_cl._gitiles_text(  # pylint: disable=protected-access
+              "chromium.googlesource.com", "x"))
 
   def test_gerrit_json_uses_gerrit_util_default_auth(self):
     gu = upstream_cl.gerrit_util

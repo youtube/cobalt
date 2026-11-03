@@ -17,6 +17,7 @@ and fix commit messages), this module:
    up) so they are not throttled as anonymous traffic.
 """
 
+import base64
 import dataclasses
 import logging
 import os
@@ -49,6 +50,12 @@ log = logging.getLogger(__name__)
 
 # Maximum body lines kept per CL when formatting `TOOL_UPSTREAM_LOG` output.
 _MAX_BODY_LINES = 12
+
+# Maximum characters of one upstream CL's diff returned by
+# `TOOL_CHROMIUM_CL_DIFF`.
+_MAX_CL_DIFF_CHARS = 8000
+
+_COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -339,7 +346,82 @@ def format_upstream_log(repo_path: str, rel_path: str, limit: int = 5) -> str:
     body = _clean_commit_body(cl.message)
     if body:
       blocks.append(body)
+  blocks.append(f"Use `TOOL_CHROMIUM_CL_DIFF: <sha> {clean_path}` to see what "
+                "one of these CLs changed in this file.")
   return "\n".join(blocks)
+
+
+def _gitiles_text(host: str, path: str) -> Optional[str]:
+  """GETs a Gitiles `?format=TEXT` resource and returns it base64-decoded.
+
+  Uses `gerrit_util` like `_gerrit_json`, so it is authenticated the same way.
+  Returns None if the request fails.
+  """
+  try:
+    conn = gerrit_util.CreateHttpConn(host, path, timeout=30)
+    body = gerrit_util.ReadHttpResponse(conn).read()
+    return base64.b64decode(body).decode("utf-8", errors="replace")
+  except Exception as e:  # pylint: disable=broad-exception-caught
+    log.warning("Gitiles request to %s/%s failed: %s", host, path, e)
+    return None
+
+
+def _cached_cl(commit: str) -> Optional[UpstreamCL]:
+  """The CL an earlier `lookup_upstream_cls` call found for `commit`."""
+  for cls in _CL_CACHE.values():
+    for cl in cls:
+      if cl.commit.startswith(commit):
+        return cl
+  return None
+
+
+def format_chromium_cl_diff(repo_path: str, args: str) -> str:
+  """Shows one upstream CL's diff (`TOOL_CHROMIUM_CL_DIFF: <sha> [path]`).
+
+  Upstream commits are not in the Cobalt repository (a roll is one squashed
+  `Update to <milestone>.` commit), so `git show <sha>` cannot see them; this
+  fetches the commit from Gitiles instead. With `path`, the diff is limited to
+  that file and fetched from the repository that owns it (chromium/src, or a
+  `DEPS` subrepo such as v8 or skia).
+  """
+  tokens = [t.strip("`'\",") for t in (args or "").split()]
+  commit = tokens[0].lower() if tokens else ""
+  rel_path = tokens[1].lstrip("./") if len(tokens) > 1 else ""
+  if not _COMMIT_SHA_RE.match(commit):
+    return ("[ERROR] TOOL_CHROMIUM_CL_DIFF expects an upstream commit SHA "
+            f"(7-40 hex chars) and an optional file path, got: {args!r}")
+
+  cl = _cached_cl(commit)
+  if cl is not None:
+    commit = cl.commit
+  host, project, sub_path = "chromium", "chromium/src", ""
+  roll = _get_roll_range(repo_path)
+  if rel_path and roll is not None:
+    host, project, sub_path, _, _ = _resolve_target_repo(roll, rel_path)
+  elif cl is not None and cl.project != "chromium/src":
+    project = cl.project
+    for entry in (roll.subrepos.values() if roll else []):
+      if entry.project == cl.project:
+        host = entry.host
+        break
+
+  # Gitiles revision `<commit>^!` is the commit's diff against its parent.
+  revision = urllib.parse.quote(f"{commit}^!")
+  path = f"{project}/+/{revision}/{urllib.parse.quote(sub_path)}"
+  diff = _gitiles_text(f"{host}.googlesource.com", f"{path}?format=TEXT")
+  if diff is None:
+    return (f"[ERROR] Could not fetch upstream commit {commit} from "
+            f"{host}.googlesource.com/{project}.")
+  title = (
+      cl.ref_line() if cl is not None else
+      f"https://{host}.googlesource.com/{project}/+/{commit}")
+  scope = f" (limited to {rel_path})" if rel_path else ""
+  if not diff.strip():
+    return f"Upstream CL {title}{scope}: no changes."
+  if len(diff) > _MAX_CL_DIFF_CHARS:
+    hint = "" if rel_path else "; pass a file path to see the diff of one file"
+    diff = f"{diff[:_MAX_CL_DIFF_CHARS]}\n[... truncated{hint}]"
+  return f"Upstream CL {title}{scope}:\n{diff}"
 
 
 # Matches `- <sha> | <url> | <subject>` lines emitted by `format_upstream_log`

@@ -540,10 +540,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
         json.dump([rec.to_dict() for rec in shared_session_changes],
                   f,
                   indent=2)
-      log.info("  - Change History: %s (%s records)", history_file,
+      log.info("[REPORT] Change History: %s (%s records)", history_file,
                len(shared_session_changes))
     except OSError as e:
-      log.info("  - Warning: Failed to write change history: %s", e)
+      log.warning("[REPORT] Failed to write change history: %s", e)
 
   phase_status: Dict[str, str] = {
       phase: "Skipped" for phase, skipped in (
@@ -650,10 +650,14 @@ def run_pipeline(args: argparse.Namespace) -> int:
       return 1
     restored = restore_files_outside_build(args.repo_path, restore_sha, out_dir,
                                            effective_target)
-    log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
-             len(restored), effective_target)
-    for rel in restored:
-      log.info("  - %s", rel)
+    if restored:
+      log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
+               len(restored), effective_target)
+      for rel in restored:
+        log.info("  - %s", rel)
+    else:
+      log.info("[pipeline] No changed files outside %s to restore.",
+               effective_target)
     if restored and args.commit_per_fix:
       # The edits being undone are already in fix commits, so the undo
       # needs a commit of its own.

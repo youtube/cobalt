@@ -19,6 +19,8 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
 - `TOOL_GIT_SHOW: <commit>:<path>` (e.g. `TOOL_GIT_SHOW: HEAD:skia/BUILD.gn`)
 - `TOOL_UPSTREAM_DIFF: <relative_path>` - what **upstream Chromium** changed in this milestone roll.
 - `TOOL_COBALT_DIFF: <relative_path>` - what **Cobalt adds on top of upstream** in this roll.
+- `TOOL_UPSTREAM_LOG: <relative_path>` - the upstream Chromium CLs (crrev links and descriptions) that touched the file in this roll.
+- `TOOL_CHROMIUM_CL_DIFF: <upstream_commit_sha> [relative_path]` - what one of those upstream CLs changed (optionally limited to one file). Upstream commits are not in the local repository, so use this instead of `TOOL_GIT_SHOW` for them.
 
 **Roll anatomy.** A roll lands as three commits: `Revert Cobalt.`, then `Update to <milestone>.` (pure upstream), then `CONFLICTED Cherry pick ...: Update to <milestone>.` (Cobalt re-applied). `TOOL_UPSTREAM_DIFF` shows the second; `TOOL_COBALT_DIFF` shows the third.
 
