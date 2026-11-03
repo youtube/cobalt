@@ -39,9 +39,9 @@ BASE_FEATURE(kCobaltAsyncAudioSinkCreate,
 // destroys Starboard audio sinks, or nullptr when kCobaltAsyncAudioSinkCreate
 // is disabled and those operations should stay on the calling thread. One
 // sequence is shared by all sinks so creations and destructions are ordered.
-// TODO: The cached task runner stays bound to the first ThreadPool instance.
-// Tests that enable the feature across multiple TaskEnvironments would post to
-// a destroyed pool; add a test-only override before adding such tests.
+// TODO(b/581424327): The cached task runner stays bound to the first ThreadPool
+// instance, so tests that enable the feature across multiple TaskEnvironments
+// would post to a destroyed pool. Fix this before adding unit tests.
 scoped_refptr<base::SequencedTaskRunner> GetAudioSinkTaskRunner() {
   if (!base::FeatureList::IsEnabled(kCobaltAsyncAudioSinkCreate)) {
     return nullptr;

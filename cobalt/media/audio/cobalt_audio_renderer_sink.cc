@@ -176,7 +176,7 @@ void CobaltAudioRendererSink::StartInternal() {
       frames_per_channel_ * params_.channels() *
       GetStarboardSampleTypeSize(output_sample_type_));
 
-  DCHECK_EQ(frames_per_channel_ % frames_per_render_buffer, 0);
+  CHECK_EQ(frames_per_channel_ % frames_per_render_buffer, 0);
 
   int nearest_supported_sample_rate =
       SbAudioSinkGetNearestSupportedSampleFrequency(params_.sample_rate());
@@ -298,23 +298,26 @@ void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
   base::AutoLock lock(callback_lock_);
-  if (callback_ && pending_flushes_.load() == 0) {
-    while ((frames_per_channel_ - *frames_in_buffer) >=
-           params_.frames_per_buffer()) {
-      int frames_filled =
-          callback_->Render(base::TimeDelta(), base::TimeTicks(),
-                            /*glitch_info=*/{}, input_audio_bus_.get());
+  if (!callback_ || pending_flushes_.load() != 0) {
+    *offset_in_frames = frames_consumed_ % frames_per_channel_;
+    return;
+  }
 
-      if (frames_filled == 0) {
-        break;
-      }
+  while ((frames_per_channel_ - *frames_in_buffer) >=
+         params_.frames_per_buffer()) {
+    int frames_filled =
+        callback_->Render(base::TimeDelta(), base::TimeTicks(),
+                          /*glitch_info=*/{}, input_audio_bus_.get());
 
-      DCHECK_EQ(params_.frames_per_buffer(), frames_filled);
-      FillOutputAudioBuffer(frames_filled);
-
-      frames_rendered_ += frames_filled;
-      *frames_in_buffer += frames_filled;
+    if (frames_filled == 0) {
+      break;
     }
+
+    DCHECK_EQ(params_.frames_per_buffer(), frames_filled);
+    FillOutputAudioBuffer(frames_filled);
+
+    frames_rendered_ += frames_filled;
+    *frames_in_buffer += frames_filled;
   }
   *offset_in_frames = frames_consumed_ % frames_per_channel_;
 }
