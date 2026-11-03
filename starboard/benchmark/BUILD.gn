@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/modular_executable.gni")
+import("//testing/test.gni")
 
 if (is_cobalt_hermetic_build) {
   _benchmark_type = "modular_executable"
@@ -36,6 +37,61 @@ target(_benchmark_type, "benchmark") {
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
+# The SbPlayer benchmarks, wrapped in a gtest. The gtest is what makes them
+# work on Android TV: the player there needs the Java side of the Starboard
+# implementation and an activity with a video surface, which only the test APK
+# and the standard test runner provide. The same binary works on other
+# platforms where benchmarks are enabled (such as Linux), where it can be run
+# directly from the shell.
+#
+# Any --benchmark_* flag on the command line is passed through to Google
+# Benchmark, e.g.:
+#   - Linux:      out/linux-x64x11_devel/player_benchmarks \
+#                   --benchmark_filter=BM_PlayerSeek
+#   - Android TV: out/android-arm_qa/bin/run_player_benchmarks \
+#                   --benchmark_filter=BM_PlayerSeek
+# Stdout always uses the non-colored tabular console reporter; for JSON output,
+# pass --benchmark_out=<path> --benchmark_out_format=json (on Android TV,
+# <path> is relative to the test app sandbox and can be pulled with
+# run_player_benchmarks's --app-data-file / --app-data-file-dir flags).
+#
+# Any failure inside a benchmark is reported as a test failure, so the target
+# also serves as an endurance test of the player via --benchmark_repetitions
+# (pass -t <seconds> to run_player_benchmarks on Android TV to raise the 120s
+# default per-test shard timeout on slower devices or multi-repetition runs).
+test("player_benchmarks") {
+  testonly = true
+
+  sources = [
+    "player/player_benchmark_gtest_wrapper.cc",
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
+  ]
+
+  deps = cobalt_platform_dependencies + [
+           "//starboard:starboard_group",
+           "//starboard:starboard_test_main",
+           "//starboard/common",
+           "//starboard/shared/starboard/media:media_util",
+           "//starboard/shared/starboard/player:player_test_data",
+           "//starboard/shared/starboard/player:video_dmp",
+           "//starboard/testing:fake_graphics_context_provider",
+           "//testing/gtest",
+           "//third_party/google_benchmark",
+         ]
+
+  if (is_android) {
+    deps += [ "//cobalt/android:cobalt_testing_java" ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
