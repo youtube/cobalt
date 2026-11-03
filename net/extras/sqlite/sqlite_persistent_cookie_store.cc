@@ -53,6 +53,7 @@
 #include "url/third_party/mozilla/url_parse.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -1164,7 +1165,17 @@ void SQLitePersistentCookieStore::Backend::AddCookie(
 
 void SQLitePersistentCookieStore::Backend::UpdateCookieAccessTime(
     const CanonicalCookie& cc) {
+<<<<<<< HEAD
   BatchOperation(PendingOperation::OperationType::kUpdateLastAccessTime, cc);
+=======
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltSkipCookieUpdateAccess)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+  BatchOperation(PendingOperation::COOKIE_UPDATEACCESS, cc);
+>>>>>>> c4750f7c969 ([Cobalt] Skip Cookie Access-Time SQLite Writes to Reduce Commit Churn (#13538))
 }
 
 void SQLitePersistentCookieStore::Backend::DeleteCookie(
@@ -1254,6 +1265,13 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     num_pending_ = 0;
   }
 
+<<<<<<< HEAD
+=======
+  // Maybe an old timer fired or we are already Close()'ed.
+  if (!db() || ops.empty())
+    return;
+
+>>>>>>> c4750f7c969 ([Cobalt] Skip Cookie Access-Time SQLite Writes to Reduce Commit Churn (#13538))
 #if BUILDFLAG(IS_COBALT)
   for (const auto& op : ops) {
     op_count += op.second.size();

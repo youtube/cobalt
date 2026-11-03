@@ -202,6 +202,17 @@ BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
              FEATURE_DISABLED_BY_DEFAULT);
 
+<<<<<<< HEAD
+=======
+BASE_FEATURE(kCobaltSkipCookieUpdateAccess,
+             "CobaltSkipCookieUpdateAccess",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
+             "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+>>>>>>> c4750f7c969 ([Cobalt] Skip Cookie Access-Time SQLite Writes to Reduce Commit Churn (#13538))
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",
