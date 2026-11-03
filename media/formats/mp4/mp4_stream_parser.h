@@ -8,10 +8,10 @@
 #include <stdint.h>
 
 #include <memory>
-#include <set>
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
@@ -35,6 +35,7 @@ struct Movie;
 struct MovieHeader;
 struct TrackHeader;
 class BoxReader;
+class HdrMetadataTrack;
 
 class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
@@ -116,7 +117,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
   bool EmitConfigs();
   ParseResult EnqueueSample(BufferQueueMap* buffers);
-  bool SendAndFlushSamples(BufferQueueMap* buffers);
+  bool SendAndFlushSamples(BufferQueueMap* buffers,
+                           bool all_samples_in_segment_received);
 
   void Reset();
 
@@ -188,8 +190,9 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
   bool has_audio_;
   bool has_video_;
-  std::set<uint32_t> audio_track_ids_;
-  std::set<uint32_t> video_track_ids_;
+  base::flat_set<uint32_t> audio_track_ids_;
+  base::flat_set<uint32_t> video_track_ids_;
+  base::flat_map<uint32_t, std::unique_ptr<HdrMetadataTrack>> metadata_tracks_;
 
   // The object types allowed for audio tracks. For FLAC indication, use
   // |has_flac_|. If this is a nullopt, then strict object type assertion will

@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "call/flexfec_receive_stream.h"

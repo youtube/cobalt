@@ -18,12 +18,12 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
@@ -208,7 +208,7 @@ class AudioCodingModuleTestOldApi : public ::testing::Test {
     const uint8_t kPayload[kPayloadSizeBytes] = {0};
     ASSERT_EQ(0, neteq_->InsertPacket(
                      rtp_header_,
-                     ArrayView<const uint8_t>(kPayload, kPayloadSizeBytes),
+                     std::span<const uint8_t>(kPayload, kPayloadSizeBytes),
                      /*receive_time=*/Timestamp::MinusInfinity()));
     rtp_utility_->Forward(&rtp_header_);
   }
@@ -577,7 +577,7 @@ class AcmSenderBitExactnessOldApi : public ::testing::Test,
     Buffer checksum_result =
         Buffer::CreateWithCapacity(payload_checksum_->Size());
     checksum_result.AppendData(
-        payload_checksum_->Size(), [&](ArrayView<uint8_t> checksum_view) {
+        payload_checksum_->Size(), [&](std::span<uint8_t> checksum_view) {
           payload_checksum_->Finish(checksum_view.data(), checksum_view.size());
           return checksum_view.size();
         });
@@ -1117,7 +1117,7 @@ TEST_F(AcmSenderBitExactnessOldApi, External_Pcmu_20ms) {
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(
           &encoder, static_cast<AudioEncoder::EncodedInfo (AudioEncoder::*)(
-                        uint32_t, ArrayView<const int16_t>, Buffer*)>(
+                        uint32_t, std::span<const int16_t>, Buffer*)>(
                         &AudioEncoderPcmU::Encode)));
   ASSERT_TRUE(SetUpSender(kTestFileMono32kHz, 32000));
   ASSERT_NO_FATAL_FAILURE(

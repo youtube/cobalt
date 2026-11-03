@@ -14,10 +14,10 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
@@ -83,7 +83,7 @@ TEST_P(AudioEncoderFactoryTest, CanRunAllSupportedEncoders) {
                                               encoder->NumChannels() / 100);
     Buffer out;
     BufferT<int16_t> audio;
-    audio.SetData(num_samples, [](ArrayView<int16_t> audio) {
+    audio.SetData(num_samples, [](std::span<int16_t> audio) {
       for (size_t i = 0; i != audio.size(); ++i) {
         // Just put some numbers in there, ensure they're within range.
         audio[i] =

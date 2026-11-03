@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,7 +26,6 @@
 #include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
 #include "api/media_types.h"
@@ -1343,7 +1343,7 @@ void Call::DeliverRtcpPacket(CopyOnWriteBuffer packet) {
 
   receive_stats_.AddReceivedRtcpBytes(static_cast<int>(packet.size()));
   bool rtcp_delivered = false;
-  ArrayView<const uint8_t> packet_view(packet.cdata(), packet.size());
+  std::span<const uint8_t> packet_view(packet.cdata(), packet.size());
   for (VideoReceiveStream2* stream : video_receive_streams_) {
     if (stream->DeliverRtcp(packet_view))
       rtcp_delivered = true;

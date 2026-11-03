@@ -55,27 +55,6 @@ bool IsDockingPromoV2Enabled() {
   return base::FeatureList::IsEnabled(kIOSDockingPromoV2);
 }
 
-const char kIOSDockingPromoExperimentType[] = "IOSDockingPromoExperimentType";
-const char kIOSDockingPromoNewUserInactiveThresholdHours[] =
-    "IOSDockingPromoNewUserInactiveThresholdHours";
-const char kIOSDockingPromoOldUserInactiveThresholdHours[] =
-    "IOSDockingPromoOldUserInactiveThresholdHours";
-const char kIOSDockingPromoNewUserInactiveThreshold[] =
-    "IOSDockingPromoNewUserInactiveThreshold";
-const char kIOSDockingPromoOldUserInactiveThreshold[] =
-    "IOSDockingPromoOldUserInactiveThreshold";
-
-BASE_FEATURE(kIOSDockingPromo, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSDockingPromoForEligibleUsersOnly,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSDockingPromoFixedTriggerLogicKillswitch,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSDockingPromoPreventDeregistrationKillswitch,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableLensInOmniboxCopiedImage,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -105,11 +84,6 @@ BASE_FEATURE(kTCRexKillSwitch,
              "kTCRexKillSwitch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabGridDragAndDrop, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabGridDragAndDropEnabled() {
-  return base::FeatureList::IsEnabled(kTabGridDragAndDrop);
-}
 
 BASE_FEATURE(kTabGridNewTransitions, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -246,59 +220,6 @@ const char kBackgroundRefreshIntervalInSeconds[] =
     "BackgroundRefreshIntervalInSeconds";
 const char kBackgroundRefreshMaxAgeInSeconds[] =
     "BackgroundRefreshMaxAgeInSeconds";
-
-bool IsDockingPromoEnabled() {
-  return base::FeatureList::IsEnabled(kIOSDockingPromo);
-}
-
-bool IsDockingPromoForEligibleUsersOnlyEnabled() {
-  return base::FeatureList::IsEnabled(kIOSDockingPromoForEligibleUsersOnly);
-}
-
-BASE_FEATURE_PARAM(int,
-                   kIOSDockingPromoExperimentTypeFeatureParam,
-                   &kIOSDockingPromo,
-                   kIOSDockingPromoExperimentType,
-                   static_cast<int>(DockingPromoDisplayTriggerArm::kAfterFRE));
-
-DockingPromoDisplayTriggerArm DockingPromoExperimentTypeEnabled() {
-  return static_cast<DockingPromoDisplayTriggerArm>(
-      kIOSDockingPromoExperimentTypeFeatureParam.Get());
-}
-
-const base::TimeDelta InactiveThresholdForNewUsersUntilDockingPromoShown() {
-  return base::GetFieldTrialParamByFeatureAsTimeDelta(
-      kIOSDockingPromo, kIOSDockingPromoNewUserInactiveThreshold,
-      /*default_value=*/
-      base::Hours(HoursInactiveForNewUsersUntilShowingDockingPromo()));
-}
-
-const base::TimeDelta InactiveThresholdForOldUsersUntilDockingPromoShown() {
-  return base::GetFieldTrialParamByFeatureAsTimeDelta(
-      kIOSDockingPromo, kIOSDockingPromoOldUserInactiveThreshold,
-      /*default_value=*/
-      base::Hours(HoursInactiveForOldUsersUntilShowingDockingPromo()));
-}
-
-BASE_FEATURE_PARAM(int,
-                   kIOSDockingPromoNewUserInactiveThresholdHoursFeatureParam,
-                   &kIOSDockingPromo,
-                   kIOSDockingPromoNewUserInactiveThresholdHours,
-                   24);
-
-BASE_FEATURE_PARAM(int,
-                   kIOSDockingPromoOldUserInactiveThresholdHoursFeatureParam,
-                   &kIOSDockingPromo,
-                   kIOSDockingPromoOldUserInactiveThresholdHours,
-                   72);
-
-int HoursInactiveForNewUsersUntilShowingDockingPromo() {
-  return kIOSDockingPromoNewUserInactiveThresholdHoursFeatureParam.Get();
-}
-
-int HoursInactiveForOldUsersUntilShowingDockingPromo() {
-  return kIOSDockingPromoOldUserInactiveThresholdHoursFeatureParam.Get();
-}
 
 bool IsWebChannelsEnabled() {
   return false;
@@ -651,7 +572,7 @@ bool IsIPHGestureRecognitionImprovementEnabled() {
       kIPHGestureRecognitionAblation, kIPHGestureRecognitionImprovement, false);
 }
 
-BASE_FEATURE(kIOSOneTapMiniMapRestrictions, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSOneTapMiniMapRestrictions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kIOSOneTapMiniMapRestrictionCrossValidateParamName[] =
     "ios-one-tap-minimap-cross-validate";
@@ -673,7 +594,7 @@ BASE_FEATURE_PARAM(int,
                    kIOSOneTapMiniMapRestrictionMinCharsParam,
                    &kIOSOneTapMiniMapRestrictions,
                    kIOSOneTapMiniMapRestrictionMinCharsParamName,
-                   0);
+                   14);
 const char kIOSOneTapMiniMapRestrictionMaxSectionsParamName[] =
     "ios-one-tap-minimap-max-section";
 BASE_FEATURE_PARAM(int,
@@ -694,7 +615,7 @@ constexpr base::FeatureParam<double>
     kIOSOneTapMiniMapRestrictionMinAlphanumProportionParam{
         &kIOSOneTapMiniMapRestrictions,
         /*name=*/kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName,
-        /*default_value=*/0};
+        /*default_value=*/0.8};
 
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
@@ -1133,7 +1054,8 @@ const base::FeatureParam<base::TimeDelta> kIOSSoftLockBackgroundThreshold{
 BASE_FEATURE(kAimCobrowse, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAimCobrowseEnabled() {
-  return base::FeatureList::IsEnabled(kAimCobrowse);
+  return IsAssistantContainerEnabled() ||
+         base::FeatureList::IsEnabled(kAimCobrowse);
 }
 
 BASE_FEATURE(kDisableU18FeedbackIos, base::FEATURE_DISABLED_BY_DEFAULT);

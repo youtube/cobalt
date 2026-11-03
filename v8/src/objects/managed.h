@@ -8,17 +8,18 @@
 #include <memory>
 #include <utility>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-external-memory-accounter.h"
+#include "include/v8-object.h"
 #include "include/v8config.h"
-#include "src/api/api.h"
 #include "src/base/compiler-specific.h"
-#include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 #include "src/sandbox/external-pointer-table.h"
 
 namespace v8::internal {
+
+class Isolate;
 
 // Mechanism for associating an ExternalPointerTag with a C++ type that is
 // referenced via a Managed. Every such C++ type must have a unique
@@ -137,8 +138,9 @@ class Managed : public Foreign {
       return ptr_.get();
     }
 
+    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() { return ptr_; }
+
     V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
-    V8_INLINE bool operator!=(std::nullptr_t) const { return ptr_ != nullptr; }
 
    private:
     friend class Managed;
@@ -148,10 +150,6 @@ class Managed : public Foreign {
 
     std::shared_ptr<CppType> ptr_;
   };
-
-  Managed() : Foreign() {}
-  V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
-      : Foreign(ptr, SkipTypeCheckTag{}) {}
 
   // Deprecated. Get a raw pointer to the C++ object.
   // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
@@ -223,10 +221,6 @@ class Managed : public Foreign {
 template <class CppType>
 class TrustedManaged : public TrustedForeign {
  public:
-  TrustedManaged() : TrustedForeign() {}
-  V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
-      : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
-
   // For every object, add a `->` operator which returns a pointer to this
   // object. This will allow smoother transition between T and Tagged<T>.
   TrustedManaged* operator->() { return this; }
@@ -249,7 +243,7 @@ class TrustedManaged : public TrustedForeign {
 
   // Internally the {TrustedForeign} stores a pointer to the
   // {std::shared_ptr<CppType>}.
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  std::shared_ptr<CppType>* GetSharedPtrPtr() const {
     auto destructor =
         reinterpret_cast<ManagedPtrDestructor*>(foreign_address());
     return reinterpret_cast<std::shared_ptr<CppType>*>(

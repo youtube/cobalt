@@ -16,8 +16,10 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -28,57 +30,69 @@ ScopedOperationsBatcher::ScopedOperationsBatcher(Thread* target_thread)
 }
 
 ScopedOperationsBatcher::~ScopedOperationsBatcher() {
-  Run();
+  RTCError error = Run();
+  if (!error.ok()) {
+    RTC_LOG(LS_ERROR) << "Batcher failed: " << error.message();
+  }
 }
 
-void ScopedOperationsBatcher::Run() {
+RTCError ScopedOperationsBatcher::Run() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
-  std::vector<absl::AnyInvocable<void() &&>> return_tasks;
+  std::vector<FinalizerTask> return_tasks;
 
   size_t task_idx = 0;
   bool target_thread_is_current = target_thread_->IsCurrent();
 
+  RTCError error = RTCError::OK();
   while (task_idx < tasks_.size()) {
     target_thread_->BlockingCall([&] {
       while (task_idx < tasks_.size()) {
-        if (auto* void_task =
-                std::get_if<absl::AnyInvocable<void() &&>>(&tasks_[task_idx])) {
+        if (auto* void_task = std::get_if<SimpleBatchTask>(&tasks_[task_idx])) {
           std::move (*void_task)();
         } else {
-          auto* returning_task = std::get_if<
-              absl::AnyInvocable<absl::AnyInvocable<void() &&>() &&>>(
-              &tasks_[task_idx]);
+          auto* returning_task =
+              std::get_if<BatchTaskWithFinalizer>(&tasks_[task_idx]);
           RTC_DCHECK(returning_task);
           auto ret = std::move(*returning_task)();
-          if (ret) {
-            return_tasks.push_back(std::move(ret));
+          if (ret.ok()) {
+            if (ret.value()) {
+              return_tasks.push_back(std::move(ret.value()));
+            }
+          } else {
+            error = ret.MoveError();
           }
         }
         ++task_idx;
-        if (!target_thread_is_current && target_thread_->IsYieldRequested()) {
+        if (!error.ok()) {
+          return;
+        }
+        if (!target_thread_is_current && target_thread_->HasPendingTasks()) {
           return;
         }
       }
     });
+    if (!error.ok()) {
+      break;
+    }
   }
 
-  RTC_DCHECK_EQ(task_idx, tasks_.size());
   tasks_.clear();
 
   for (auto& task : return_tasks) {
     std::move(task)();
   }
+
+  return error;
 }
 
-void ScopedOperationsBatcher::push_back(absl::AnyInvocable<void() &&> task) {
+void ScopedOperationsBatcher::Add(SimpleBatchTask task) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (task) {
     tasks_.emplace_back(std::move(task));
   }
 }
 
-void ScopedOperationsBatcher::push_back(
-    absl::AnyInvocable<absl::AnyInvocable<void() &&>() &&> task) {
+void ScopedOperationsBatcher::AddWithFinalizer(BatchTaskWithFinalizer task) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (task) {
     tasks_.emplace_back(std::move(task));

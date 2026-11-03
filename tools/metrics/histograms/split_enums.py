@@ -19,7 +19,7 @@ import os
 import sys
 from xml.dom import minidom
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 import chromium_src.tools.metrics.common.path_util as path_util
 import chromium_src.tools.metrics.histograms.extract_histograms as extract_histograms
@@ -69,7 +69,7 @@ def _get_enums_from_files(files):
   merged = merge_xml.MergeFiles(files)
   histograms, _ = extract_histograms.ExtractHistogramsFromDom(merged)
   enums_used_in_file = set()
-  for histogram_name, data in histograms.items():
+  for _, data in histograms.items():
     # Skip non-enum histograms.
     if 'enumDetails' not in data:
       continue

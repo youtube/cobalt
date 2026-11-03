@@ -777,6 +777,11 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDohFallbackAllowedWithLocalNameservers);
 // well-known DoH provider before using insecure DNS.
 NET_EXPORT BASE_DECLARE_FEATURE(kAddAutomaticWithDohFallbackMode);
 
+// When enabled, and when the configured secure_dns_mode is AUTOMATIC, the DoH
+// fallback setting (dns_over_https.automatic_mode_fallback_to_doh) should be
+// forced to be interpreted as enabled.
+NET_EXPORT BASE_DECLARE_FEATURE(kForceSecureDnsDohFallback);
+
 // If true, a CONNECT-UDP response is not needed to start sending datagrams.
 NET_EXPORT BASE_DECLARE_FEATURE(
     kUseQuicProxiesWithoutWaitingForConnectResponse);
@@ -789,8 +794,11 @@ NET_EXPORT BASE_DECLARE_FEATURE(kEnableBootstrapIPRandomizationForDoh);
 // lock-free certificate verification mechanism.
 NET_EXPORT BASE_DECLARE_FEATURE(kUseLockFreeX509Verification);
 
-// When enabled, at the same time that DoH probes are started, a canary domain
-// will be probed to check whether Secure DNS is allowed by the network.
+// When enabled, and when Secure DNS Automatic mode is selected *with DoH
+// fallback*, then a canary domain will be probed to check whether DoH fallback
+// is allowed by the network. This will happen at the same time that DoH probes
+// are started. When disabled, the canary domain check is entirely inactive
+// (killswitch).
 NET_EXPORT BASE_DECLARE_FEATURE(kProbeSecureDnsCanaryDomain);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kSecureDnsCanaryDomainHost);
 
@@ -833,6 +841,16 @@ NET_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkPermissionCheck);
 NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolProxyLimit);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitNormal);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitWebSocket);
+
+// If enabled, QuicCryptoClientConfigOwner will ignore memory pressure events
+// for the kDnsOverHttps partition.
+NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreQuicCryptoConfigMemoryPressureForDoh);
+
+// If enabled, cookie parsing will reject a cookie line whose first
+// semicolon-separated substring looks like "=Foo=Bar", i.e. starts with an
+// equals sign and has another equals sign. Such cookies have an ambiguous
+// serialization.
+NET_EXPORT BASE_DECLARE_FEATURE(kCookieParseRejectEmptyNameAmbiguous);
 
 }  // namespace net::features
 

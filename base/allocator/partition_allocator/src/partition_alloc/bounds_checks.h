@@ -14,6 +14,8 @@
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
+#include "partition_alloc/partition_alloc_base/numerics/checked_math.h"
+#include "partition_alloc/partition_alloc_base/numerics/safe_conversions.h"
 
 namespace partition_alloc {
 
@@ -44,23 +46,43 @@ PtrPosWithinAlloc IsPtrWithinSameAllocInBRPPool(uintptr_t orig_address,
                                                 uintptr_t test_address,
                                                 size_t type_size);
 
-// Similar to the above, but pool-agnostic and with different semantics.
-// Used to support Checked Span (https://crbug.com/484171909).
+// Prefer to use the templated version below this function.
 //
-// Note that this simply returns `false` for memory not managed by
-// PartitionAlloc.
-#if PA_BUILDFLAG(CHECKED_SPAN)
+// Pool-agnostic version of `IsPtrWithinSameAllocInBRPPool()`. Primarily
+// used to support Checked Span (https://crbug.com/484171909).
+//
+// Note:
+//
+// *  This function returns `false` for memory not managed by
+//    PartitionAlloc.
+//
+// *  TODO(crbug.com/484171909): This function currently only supports
+//    64-bit platforms. It always returns `false` on 32-bit.
+//
+// *  TODO(crbug.com/484171909): This function must be used after
+//    PartitionAlloc (specifically, the AddressPoolManager) is
+//    initialized. Data races will occur if this function is called too
+//    early. (See the TSan trybots on https://crrev.com/c/7673121 for
+//    examples.)
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 bool IsExtentOutOfBounds(const void* ptr,
                          size_t extent_bytes,
                          size_t type_size);
-#else
-PA_ALWAYS_INLINE constexpr bool IsExtentOutOfBounds(const void* ptr,
-                                                    size_t extent_bytes,
-                                                    size_t type_size) {
-  return false;
+
+// Suitable for external callers. Has the same caveats as
+// `IsExtentOutOfBounds()` (but inverted).
+//
+// Given a `T* elems` and a max `index`, call
+// ```
+// CHECK(IsExtentInBounds(elems, index));
+// ```
+template <typename T>
+bool IsExtentInBounds(const T* ptr,
+                      internal::base::StrictNumeric<size_t> index) {
+  internal::base::CheckedNumeric<size_t> size_bytes = index;
+  size_bytes *= sizeof(T);
+  return !IsExtentOutOfBounds(ptr, size_bytes.ValueOrDie(), sizeof(T));
 }
-#endif  // PA_BUILDFLAG(CHECKED_SPAN)
 
 }  // namespace partition_alloc
 

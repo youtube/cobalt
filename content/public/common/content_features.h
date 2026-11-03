@@ -98,9 +98,6 @@ CONTENT_EXPORT extern const base::FeatureParam<bool>
     kCreateSpeculativeRFHFilterRestore;
 CONTENT_EXPORT extern const base::FeatureParam<int>
     kCreateSpeculativeRFHDelayMs;
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach);
-CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
-    kRfhDestructionsOnUnloadAndDetachTaskDelay;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kDeviceBoundSessionTerminationEvictBackForwardCache);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDevToolsLiveEdit);
@@ -154,6 +151,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kIgnoreDuplicateNavs);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kInitialWebUI);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                           kInitialWebUIUseSeparateProcess);
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                          kInitialWebUIHighStreamPriority);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kInitialWebUISyncNavStartToCommit);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
                                           kIgnoreDuplicateNavsOrigins);

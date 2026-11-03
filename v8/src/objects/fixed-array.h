@@ -258,6 +258,12 @@ V8_OBJECT class FixedArray
   V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
       Isolate* isolate, HandleType<FixedArray> array, uint32_t index,
       DirectHandle<Object> value);
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+  V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
+      Isolate* isolate, HandleType<FixedArray> array, uint32_t index,
+      Tagged<Smi> value);
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
@@ -289,6 +295,13 @@ V8_OBJECT class FixedArray
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
  private:
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+  static HandleType<FixedArray> Grow(Isolate* isolate,
+                                     HandleType<FixedArray> array,
+                                     uint32_t index);
+
   inline static Handle<FixedArray> Resize(
       Isolate* isolate, DirectHandle<FixedArray> xs, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung,
@@ -567,7 +580,7 @@ V8_OBJECT class WeakHomomorphicFixedArray
  public:
   template <class IsolateT>
   static inline Handle<WeakHomomorphicFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       MaybeDirectHandle<Object> initial_value = {});
 
@@ -848,7 +861,7 @@ V8_OBJECT class ByteArray
 
   template <class IsolateT>
   static inline Handle<ByteArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       AllocationAlignment alignment = kTaggedAligned);
 
@@ -857,7 +870,7 @@ V8_OBJECT class ByteArray
 
   // Given the full object size in bytes, return the length that should be
   // passed to New s.t. an object of the same size is created.
-  static constexpr int LengthFor(int size_in_bytes) {
+  static constexpr uint32_t LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));
     DCHECK_GE(size_in_bytes, sizeof(Header));
     return size_in_bytes - sizeof(Header);
@@ -890,7 +903,7 @@ class TrustedByteArray
 
   template <class IsolateT>
   static inline Handle<TrustedByteArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation_type = AllocationType::kTrusted);
 
   inline uint32_t get_int(int offset) const;

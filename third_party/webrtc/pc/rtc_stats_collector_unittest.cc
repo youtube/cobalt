@@ -2743,7 +2743,7 @@ TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   auto stats_of_my_type = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   ASSERT_EQ(2U, stats_of_my_type.size());
   std::string id_of_first_ssrc;
-  for (const auto* outbound_rtp : stats_of_my_type) {
+  for (const RTCOutboundRtpStreamStats* outbound_rtp : stats_of_my_type) {
     if (outbound_rtp->ssrc.value_or(0) == 1) {
       id_of_first_ssrc = outbound_rtp->id();
       break;
@@ -2803,7 +2803,7 @@ TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   // Find the sub-stats for the second simulcast outbound RTP stream and verify
   // that its `media_source_id` is set.
   std::string id_of_second_ssrc;
-  for (const auto* outbound_rtp : stats_of_my_type) {
+  for (const RTCOutboundRtpStreamStats* outbound_rtp : stats_of_my_type) {
     if (outbound_rtp->ssrc.value_or(0) == 2) {
       id_of_second_ssrc = outbound_rtp->id();
       break;

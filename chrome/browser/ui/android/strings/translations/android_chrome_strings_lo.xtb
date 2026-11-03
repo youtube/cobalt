@@ -462,6 +462,7 @@
 <translation id="2932150158123903946">ບ່ອນເກັບຂໍ້ມູນ Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">ແປ້ນພິມຂອງທ່ານຈະບໍ່ປ່ຽນແປງ</translation>
 <translation id="2936980480904111527">ການແຈ້ງເຕືອນ Chrome ເຮັດໃຫ້ສິ່ງຕ່າງໆງ່າຍຂຶ້ນ</translation>
+<translation id="2939908794993783865">ເວັບໄຊທີ່ບໍ່ເຄື່ອນໄຫວເພີ່ມເຕີມ</translation>
 <translation id="2940075786175545812">ຕົວເລືອກເພື່ອອະນຸມັດ ຫຼື ບໍ່ອະນຸມັດ</translation>
 <translation id="2942036813789421260">ແຖບສະແດງຕົວຢ່າງປິດຢູ່</translation>
 <translation id="2951071800649516099">ເພີ່ມໜ້າໃສ່ລາຍຊື່ການອ່ານສຳລັບພາຍຫຼັງ</translation>
@@ -699,6 +700,7 @@
 <translation id="3985215325736559418">ທ່ານຕ້ອງການດາວໂຫຼດ <ph name="FILE_NAME" /> ອີກຄັ້ງບໍ?</translation>
 <translation id="3987993985790029246">ອັດ​ສຳ​ເນົາລິ້ງເຊື່ອມໂຍງ</translation>
 <translation id="3994236846568425219">ເປີດຮູບແບບສີສັນມືດເມື່ອຮູບແບບສີສັນມືດຂອງອຸປະກອນຂອງທ່ານເປີດຢູ່</translation>
+<translation id="399788104667917863">ປັກໝຸດໄວ້ຢູ່ແຖບເຄື່ອງມື</translation>
 <translation id="4000212216660919741">ໜ້າຫຼັກອອບລາຍຢູ່</translation>
 <translation id="4000670338830950598">ປັບແຕ່ງ ແລະ ຄວບຄຸມ Google Chrome ດ້ວຍລາຍການທີ່ໄຮໄລ້</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 ລະຫັດຜ່ານທີ່ຖືກລະເມີດໃນບັນຊີ Google}other{# ລະຫັດຜ່ານທີ່ຖືກລະເມີດໃນບັນຊີ Google}}</translation>
@@ -1394,7 +1396,6 @@
 <translation id="6746338529702829275">ກວດສອບຂໍ້ມູນບັນຊີຂອງທ່ານ</translation>
 <translation id="6746834324024491643">ເພື່ອເຂົ້າເຖິງລະຫັດຜ່ານຂອງທ່ານ ແລະ ຂໍ້ມູນອື່ນໆໃນທຸກອຸປະກອນຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">ເປີດແຖບໃໝ່ແບບໄວໆ. ເພື່ອແກ້ໄຂທາງລັດນີ້, ໃຫ້ແຕະຄ້າງໄວ້.</translation>
-<translation id="6752130751133944215">ເພື່ອກູ້ຄືນໜ້າຈໍໃໝ່, ໃຫ້ຫຼຸດຈຳນວນໜ້າຈໍທັງໝົດທັງໜ້າຈໍທີ່ນຳໃຊ້ຢູ່ ແລະ ໜ້າຈໍທີ່ບໍ່ໄດ້ນຳໃຊ້ໃຫ້ເຫຼືອບໍ່ເກີນ <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ລາຍການ. ລະບົບຈະລຶບໜ້າຈໍທີ່ບໍ່ໄດ້ນຳໃຊ້ອອກຫຼັງຈາກຜ່ານໄປ 6 ເດືອນ.</translation>
 <translation id="6754359471209693699">ເລີ່ມການຊອກຫາໃໝ່</translation>
 <translation id="6756507620369789050">ແບ່ງປັນຄຳຕິຊົມ</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@
 <translation id="7388615499319468910">ເວັບໄຊ ແລະ ຜູ້ລົງໂຄສະນາສາມາດຮູ້ໄດ້ວ່າໂຄສະນາມີປະສິດທິພາບແນວໃດ. ການຕັ້ງຄ່ານີ້ປິດຢູ່.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{ອີກ 1 ໄຟລ໌ໃນລາຍຊື່}other{ອີກ # ໄຟລ໌ໃນລາຍຊື່}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">ເພື່ອເປີດໜ້າຈໍໃໝ່, ໃຫ້ຫຼຸດຈຳນວນໜ້າຈໍທັງໝົດທັງໜ້າຈໍທີ່ນຳໃຊ້ຢູ່ ແລະ ໜ້າຈໍທີ່ບໍ່ໄດ້ນຳໃຊ້ໃຫ້ເຫຼືອບໍ່ເກີນ <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ລາຍການ.</translation>
 <translation id="7403691278183511381">ປະສົບການເປີດໃຊ້ Chrome ຄັ້ງທຳອິດ</translation>
 <translation id="7411224099004328643">ບັນຊີຜູ້ໃຊ້ Google</translation>
 <translation id="7419565702166471774">ໃຊ້ການເຊື່ອມຕໍ່ທີ່ປອດໄພທຸກເທື່ອ</translation>

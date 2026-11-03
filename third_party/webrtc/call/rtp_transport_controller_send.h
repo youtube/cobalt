@@ -16,11 +16,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
 #include "api/frame_transformer_interface.h"
@@ -129,7 +129,7 @@ class RtpTransportControllerSend final
   void OnReceiverEstimatedMaxBitrate(Timestamp receive_time,
                                      DataRate bitrate) override;
   void OnReport(Timestamp receive_time,
-                ArrayView<const ReportBlockData> report_blocks) override;
+                std::span<const ReportBlockData> report_blocks) override;
   void OnRttUpdate(Timestamp receive_time, TimeDelta rtt) override;
   void OnTransportFeedback(Timestamp receive_time,
                            const rtcp::TransportFeedback& feedback) override;

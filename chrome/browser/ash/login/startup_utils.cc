@@ -26,7 +26,6 @@
 #include "chrome/browser/ash/login/oobe_metrics_helper.h"
 #include "chrome/browser/ash/login/oobe_quick_start/oobe_quick_start_pref_names.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_token_provider.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/login_display_host_common.h"
 #include "chrome/common/chrome_paths.h"
@@ -44,29 +43,28 @@
 namespace ash {
 namespace {
 
-constexpr char kDisableHIDDetectionScreenForTests[] =
-    "oobe.disable_hid_detection_screen_for_tests";
-
 // Saves boolean "Local State" preference and forces its persistence to disk.
-void SaveBoolPreferenceForced(const char* pref_name, bool value) {
-  PrefService* prefs = g_browser_process->local_state();
-  prefs->SetBoolean(pref_name, value);
-  prefs->CommitPendingWrite();
+void SaveBoolPreferenceForced(PrefService& local_state,
+                              const char* pref_name,
+                              bool value) {
+  local_state.SetBoolean(pref_name, value);
+  local_state.CommitPendingWrite();
 }
 
 // Saves integer "Local State" preference and forces its persistence to disk.
-void SaveIntegerPreferenceForced(const char* pref_name, int value) {
-  PrefService* prefs = g_browser_process->local_state();
-  prefs->SetInteger(pref_name, value);
-  prefs->CommitPendingWrite();
+void SaveIntegerPreferenceForced(PrefService& local_state,
+                                 const char* pref_name,
+                                 int value) {
+  local_state.SetInteger(pref_name, value);
+  local_state.CommitPendingWrite();
 }
 
 // Saves string "Local State" preference and forces its persistence to disk.
-void SaveStringPreferenceForced(const char* pref_name,
+void SaveStringPreferenceForced(PrefService& local_state,
+                                const char* pref_name,
                                 const std::string& value) {
-  PrefService* prefs = g_browser_process->local_state();
-  prefs->SetString(pref_name, value);
-  prefs->CommitPendingWrite();
+  local_state.SetString(pref_name, value);
+  local_state.CommitPendingWrite();
 }
 
 // Returns the path to flag file indicating that both parts of OOBE were
@@ -110,7 +108,6 @@ void StartupUtils::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(ash::prefs::kDeviceRegistered, -1);
   registry->RegisterBooleanPref(ash::prefs::kEnrollmentRecoveryRequired, false);
   registry->RegisterStringPref(::prefs::kInitialLocale, "en-US");
-  registry->RegisterBooleanPref(kDisableHIDDetectionScreenForTests, false);
   registry->RegisterBooleanPref(prefs::kOobeGuestMetricsEnabled, false);
   registry->RegisterBooleanPref(prefs::kOobeCriticalUpdateCompleted, false);
   registry->RegisterBooleanPref(prefs::kOobeIsConsumerSegment, false);
@@ -188,44 +185,47 @@ void StartupUtils::RegisterOobeProfilePrefs(PrefRegistrySimple* registry) {
 }
 
 // static
-bool StartupUtils::IsEulaAccepted() {
-  return g_browser_process->local_state()->GetBoolean(::prefs::kEulaAccepted);
+bool StartupUtils::IsEulaAccepted(const PrefService& local_state) {
+  return local_state.GetBoolean(::prefs::kEulaAccepted);
 }
 
 // static
-bool StartupUtils::IsOobeCompleted() {
-  return g_browser_process->local_state()->GetBoolean(prefs::kOobeComplete);
+bool StartupUtils::IsOobeCompleted(const PrefService& local_state) {
+  return local_state.GetBoolean(prefs::kOobeComplete);
 }
 
 // static
-void StartupUtils::MarkEulaAccepted() {
-  SaveBoolPreferenceForced(::prefs::kEulaAccepted, true);
+void StartupUtils::MarkEulaAccepted(PrefService& local_state) {
+  SaveBoolPreferenceForced(local_state, ::prefs::kEulaAccepted, true);
 }
 
 // static
-void StartupUtils::MarkOobeCompleted() {
+void StartupUtils::MarkOobeCompleted(PrefService& local_state) {
   // Forcing the second pref will force this one as well. Even if this one
   // doesn't end up synced it is only going to eat up a couple of bytes with no
   // side-effects.
-  SaveBoolPreferenceForced(prefs::kOobeComplete, true);
+  SaveBoolPreferenceForced(local_state, prefs::kOobeComplete, true);
 
   // Successful enrollment implies that recovery is not required.
-  SaveBoolPreferenceForced(ash::prefs::kEnrollmentRecoveryRequired, false);
+  SaveBoolPreferenceForced(local_state, ash::prefs::kEnrollmentRecoveryRequired,
+                           false);
 
   // If `kOobeComplete` is already true, the `kAutoEnrollmentCheckExited` pref
   // is no longer needed as its purpose is to potentially block OOBE completion.
-  g_browser_process->local_state()->ClearPref(
-      prefs::kAutoEnrollmentCheckExited);
+  local_state.ClearPref(prefs::kAutoEnrollmentCheckExited);
 }
 
 // static
-void StartupUtils::SaveOobePendingScreen(const std::string& screen) {
-  SaveStringPreferenceForced(prefs::kOobeScreenPending, screen);
+void StartupUtils::SaveOobePendingScreen(PrefService& local_state,
+                                         const std::string& screen) {
+  SaveStringPreferenceForced(local_state, prefs::kOobeScreenPending, screen);
 }
 
 // static
-void StartupUtils::SaveScreenAfterConsumerUpdate(const std::string& screen) {
-  SaveStringPreferenceForced(prefs::kOobeScreenAfterConsumerUpdate, screen);
+void StartupUtils::SaveScreenAfterConsumerUpdate(PrefService& local_state,
+                                                 const std::string& screen) {
+  SaveStringPreferenceForced(local_state, prefs::kOobeScreenAfterConsumerUpdate,
+                             screen);
 }
 
 // static
@@ -246,9 +246,8 @@ base::TimeDelta StartupUtils::GetTimeSinceOobeFlagFileCreation() {
 }
 
 // static
-bool StartupUtils::IsDeviceRegistered() {
-  int value = g_browser_process->local_state()->GetInteger(
-      ash::prefs::kDeviceRegistered);
+bool StartupUtils::IsDeviceRegistered(PrefService& local_state) {
+  int value = local_state.GetInteger(ash::prefs::kDeviceRegistered);
   if (value > 0) {
     // Recreate flag file in case it was lost.
     base::ThreadPool::PostTask(
@@ -263,33 +262,28 @@ bool StartupUtils::IsDeviceRegistered() {
     base::ScopedAllowBlocking allow_blocking;
     const base::FilePath oobe_complete_flag_path = GetOobeCompleteFlagPath();
     bool file_exists = base::PathExists(oobe_complete_flag_path);
-    SaveIntegerPreferenceForced(ash::prefs::kDeviceRegistered,
+    SaveIntegerPreferenceForced(local_state, ash::prefs::kDeviceRegistered,
                                 file_exists ? 1 : 0);
     return file_exists;
   }
 }
 
-void StartupUtils::ClearSpecificOobePrefs() {
-  g_browser_process->local_state()->ClearPref(prefs::kOobeScreenPending);
-  g_browser_process->local_state()->ClearPref(prefs::kOobeIsConsumerSegment);
-  g_browser_process->local_state()->ClearPref(
-      prefs::kOobeConsumerUpdateCompleted);
-  g_browser_process->local_state()->ClearPref(
-      prefs::kOobeScreenAfterConsumerUpdate);
-  g_browser_process->local_state()->ClearPref(
-      prefs::kOobeCriticalUpdateCompleted);
-}
-
 // static
-void StartupUtils::MarkDeviceRegistered(base::OnceClosure done_callback) {
-  SaveIntegerPreferenceForced(ash::prefs::kDeviceRegistered, 1);
+void StartupUtils::MarkDeviceRegistered(PrefService& local_state,
+                                        base::OnceClosure done_callback) {
+  SaveIntegerPreferenceForced(local_state, ash::prefs::kDeviceRegistered, 1);
 
   auto* host = LoginDisplayHost::default_host();
   if (host) {
     host->GetOobeMetricsHelper()->RecordDeviceRegistered();
   }
 
-  ClearSpecificOobePrefs();
+  // clear specific oobe preference from Local state.
+  local_state.ClearPref(prefs::kOobeScreenPending);
+  local_state.ClearPref(prefs::kOobeIsConsumerSegment);
+  local_state.ClearPref(prefs::kOobeConsumerUpdateCompleted);
+  local_state.ClearPref(prefs::kOobeScreenAfterConsumerUpdate);
+  local_state.ClearPref(prefs::kOobeCriticalUpdateCompleted);
 
   if (policy::GetEnrollmentToken(OobeConfiguration::Get()).has_value()) {
     VLOG(0) << "Clearing Flex OOBE config after enrollment.";
@@ -308,34 +302,24 @@ void StartupUtils::MarkDeviceRegistered(base::OnceClosure done_callback) {
 }
 
 // static
-void StartupUtils::MarkEnrollmentRecoveryRequired() {
-  SaveBoolPreferenceForced(ash::prefs::kEnrollmentRecoveryRequired, true);
+void StartupUtils::MarkEnrollmentRecoveryRequired(PrefService& local_state) {
+  SaveBoolPreferenceForced(local_state, ash::prefs::kEnrollmentRecoveryRequired,
+                           true);
 }
 
 // static
-void StartupUtils::DisableHIDDetectionScreenForTests() {
-  SaveBoolPreferenceForced(kDisableHIDDetectionScreenForTests, true);
-}
-
-// static
-bool StartupUtils::IsHIDDetectionScreenDisabledForTests() {
-  return g_browser_process->local_state()->GetBoolean(
-      kDisableHIDDetectionScreenForTests);
-}
-
-// static
-std::string StartupUtils::GetInitialLocale() {
-  std::string locale =
-      g_browser_process->local_state()->GetString(::prefs::kInitialLocale);
+std::string StartupUtils::GetInitialLocale(const PrefService& local_state) {
+  std::string locale = local_state.GetString(::prefs::kInitialLocale);
   if (!l10n_util::IsValidLocaleSyntax(locale))
     locale = "en-US";
   return locale;
 }
 
 // static
-void StartupUtils::SetInitialLocale(const std::string& locale) {
+void StartupUtils::SetInitialLocale(PrefService& local_state,
+                                    const std::string& locale) {
   if (l10n_util::IsValidLocaleSyntax(locale)) {
-    SaveStringPreferenceForced(::prefs::kInitialLocale, locale);
+    SaveStringPreferenceForced(local_state, ::prefs::kInitialLocale, locale);
   } else {
     NOTREACHED();
   }

@@ -91,10 +91,10 @@ namespace internal {
   V(FastNewObject)                                              \
   V(FindNonDefaultConstructorOrConstruct)                       \
   V(ForInPrepare)                                               \
+  V(ForOfNextResultDeoptContinuation)                           \
   V(ForOfNextLoadDoneLazyDeoptContinuation)                     \
-  V(ForOfNextLoadValueLazyDeoptContinuation)                    \
-  V(ForOfNextLoadDoneEagerDeoptContinuation)                    \
   V(ForOfNextLoadValueEagerDeoptContinuation)                   \
+  V(ForOfNextLoadValueLazyDeoptContinuation)                    \
   V(GetIteratorStackParameter)                                  \
   V(GetProperty)                                                \
   V(GrowArrayElements)                                          \
@@ -162,6 +162,7 @@ namespace internal {
   IF_WASM(V, WasmFXResumeThrow)                                 \
   IF_WASM(V, WasmFXResumeThrowRef)                              \
   IF_WASM(V, WasmFXSuspend)                                     \
+  IF_WASM(V, WasmFXSwitch)                                      \
   IF_WASM(V, WasmFXReturn)                                      \
   V(WasmDummy)                                                  \
   V(WasmFloat32ToNumber)                                        \
@@ -977,11 +978,31 @@ class WasmFXSuspendDescriptor final
       MachineType::TaggedPointer(),  // Param 0: tag.
       MachineType::TaggedPointer(),  // Param 1: continuation.
       MachineType::IntPtr(),         // Param 2: arg buffer.
-      MachineType::IntPtr())         // Param 3: sig.
+      MachineType::Int32())          // Param 3: canonical sig index.
   DECLARE_DESCRIPTOR(WasmFXSuspendDescriptor)
 
   static constexpr bool kNoStackScan = true;
   static constexpr int kMaxRegisterParams = 3;
+  static constexpr inline auto registers();
+};
+
+class WasmFXSwitchDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXSwitchDescriptor> {
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTag, kContinuation, kTargetStack, kArgBuffer,
+                               kSig)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),         // Result: arg buffer
+      MachineType::TaggedPointer(),  // Param 0: tag.
+      MachineType::TaggedPointer(),  // Param 1: continuation.
+      MachineType::IntPtr(),         // Param 2: target stack.
+      MachineType::IntPtr(),         // Param 3: arg buffer.
+      MachineType::Int32())          // Param 4: canonical sig index.
+  DECLARE_DESCRIPTOR(WasmFXSwitchDescriptor)
+
+  static constexpr bool kNoStackScan = true;
+  static constexpr int kMaxRegisterParams = 4;
   static constexpr inline auto registers();
 };
 
@@ -1823,6 +1844,22 @@ class GetIteratorStackParameterDescriptor final
   static constexpr auto registers();
 };
 
+class ForOfNextResultDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextResultDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kResultObject)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kValueDoneReg
+                                    MachineType::AnyTagged())  // kResultObject
+  DECLARE_DESCRIPTOR(ForOfNextResultDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
 class ForOfNextLoadDoneLazyDeoptContinuationDescriptor final
     : public StaticCallInterfaceDescriptor<
           ForOfNextLoadDoneLazyDeoptContinuationDescriptor> {
@@ -1840,38 +1877,6 @@ class ForOfNextLoadDoneLazyDeoptContinuationDescriptor final
   static constexpr auto registers();
 };
 
-class ForOfNextLoadValueLazyDeoptContinuationDescriptor final
-    : public StaticCallInterfaceDescriptor<
-          ForOfNextLoadValueLazyDeoptContinuationDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kValue)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
-                                    MachineType::AnyTagged(),  // kValueDoneReg
-                                    MachineType::AnyTagged())  // kValue
-  DECLARE_DESCRIPTOR(ForOfNextLoadValueLazyDeoptContinuationDescriptor)
-
-  static constexpr auto registers();
-};
-
-class ForOfNextLoadDoneEagerDeoptContinuationDescriptor final
-    : public StaticCallInterfaceDescriptor<
-          ForOfNextLoadDoneEagerDeoptContinuationDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
-                                    MachineType::AnyTagged(),  // kResultObject
-                                    MachineType::AnyTagged())  // kValueDoneReg
-  DECLARE_DESCRIPTOR(ForOfNextLoadDoneEagerDeoptContinuationDescriptor)
-
-  static constexpr auto registers();
-};
-
 class ForOfNextLoadValueEagerDeoptContinuationDescriptor final
     : public StaticCallInterfaceDescriptor<
           ForOfNextLoadValueEagerDeoptContinuationDescriptor> {
@@ -1884,6 +1889,22 @@ class ForOfNextLoadValueEagerDeoptContinuationDescriptor final
                                     MachineType::AnyTagged(),  // kResultObject
                                     MachineType::AnyTagged())  // kValueDoneReg
   DECLARE_DESCRIPTOR(ForOfNextLoadValueEagerDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ForOfNextLoadValueLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextLoadValueLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kValueDoneReg
+                                    MachineType::AnyTagged())  // kValue
+  DECLARE_DESCRIPTOR(ForOfNextLoadValueLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

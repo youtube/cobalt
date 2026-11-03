@@ -64,6 +64,7 @@ NetworkControlUpdate ScreamNetworkController::CreateFirstUpdate(Timestamp now) {
   RTC_DCHECK(network_available_);
   RTC_DCHECK(!first_update_created_);
   first_update_created_ = true;
+  padding_interval_end_time_ = Timestamp::MinusInfinity();
   if (allow_initial_bwe_before_media_) {
     initial_bwe_probe_end_time_ = now + params_.initial_probing_duration.Get();
   }
@@ -237,9 +238,9 @@ std::optional<PacerConfig> ScreamNetworkController::MaybeCreatePacerConfig(
           now + params_.periodic_padding_duration.Get();
       allow_padding = true;
     }
-  } else {
+  } else if (now < padding_interval_end_time_) {
     // Stop padding immediately if a congestion event occurred recently.
-    padding_interval_end_time_ = Timestamp::MinusInfinity();
+    padding_interval_end_time_ = now;
   }
 
   DataRate padding_rate = DataRate::Zero();

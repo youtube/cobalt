@@ -13,6 +13,8 @@
 class BrowserFrameView;
 
 namespace glic {
+inline constexpr int kToolbarGlicIconSize = 16;
+
 class ToolbarGlicButton : public GlicButton<ToolbarButton> {
   METADATA_HEADER(ToolbarGlicButton, ToolbarButton)
  public:
@@ -44,7 +46,12 @@ class ToolbarGlicButton : public GlicButton<ToolbarButton> {
   void SetLeftRightCornerRadii(int left, int right) override;
   float GetCornerRadiusFor(ToolbarButton::Edge edge) const override;
   int GetSplitRoundedEdgeRadius() override;
+  int GetIconSize() const override;
+  int GetGlicIconSize() override;
   ui::ColorId GetBackgroundColor();
+
+  void Collapse() override;
+  void Expand() override;
 
  private:
   void UpdateBackground();

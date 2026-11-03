@@ -38,6 +38,7 @@
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/priority.h"
 #include "api/ref_count.h"
 #include "api/rtc_error.h"
@@ -1110,7 +1111,7 @@ TEST_P(WebRtcVoiceEngineTestFake, ChangeRecvCodecPayloadType) {
   parameters.codecs.push_back(kOpusCodec);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
 
-  ++parameters.codecs[0].id;
+  parameters.codecs[0].id = PayloadType(parameters.codecs[0].id + 1);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
 }
 

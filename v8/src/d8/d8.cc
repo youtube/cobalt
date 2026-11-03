@@ -1891,13 +1891,22 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
 
   // Loop until module execution finishes
-  while (isolate->HasPendingBackgroundTasks() ||
-         (i::ValueHelper::HandleAsValue(global_result_promise)->State() ==
-              Promise::kPending &&
-          reinterpret_cast<i::Isolate*>(isolate)
-                  ->default_microtask_queue()
-                  ->size() > 0)) {
+  while (!try_catch.HasTerminated() &&
+         (isolate->HasPendingBackgroundTasks() ||
+          (i::ValueHelper::HandleAsValue(global_result_promise)->State() ==
+               Promise::kPending &&
+           reinterpret_cast<i::Isolate*>(isolate)
+                   ->default_microtask_queue()
+                   ->size() > 0))) {
     Shell::CompleteMessageLoop(isolate);
+  }
+
+  if (try_catch.HasTerminated()) {
+    // Re-request terminate execution as it's been cleared, so
+    // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
+    // and microtasks.
+    isolate->TerminateExecution();
+    return true;
   }
 
   {
@@ -2693,7 +2702,7 @@ void Shell::RealmSharedGet(Local<Name> property,
 }
 
 void Shell::RealmSharedSet(Local<Name> property, Local<Value> value,
-                           const PropertyCallbackInfo<void>& info) {
+                           const PropertyCallbackInfo<Boolean>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -2991,10 +3000,11 @@ void Shell::WasmSerializeModule(
   i::DirectHandle<i::WasmModuleObject> module_obj =
       i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
 
-  i::wasm::NativeModule* native_module = module_obj->native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      module_obj->native_module();
   DCHECK(!native_module->compilation_state()->failed());
 
-  i::wasm::WasmSerializer wasm_serializer(native_module);
+  i::wasm::WasmSerializer wasm_serializer(native_module.raw());
 
   // The content of the serialized byte buffer is nondeterministic (depends
   // e.g. on timing, but also on the platform and on enabled features).
@@ -3397,6 +3407,7 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   for (int i = 0; i < info.Length(); i++) {
+    if (isolate->IsExecutionTerminating()) return;
     HandleScope handle_scope(isolate);
     String::Utf8Value file_name(isolate, info[i]);
     if (*file_name == nullptr) {
@@ -4865,7 +4876,8 @@ void WriteWasmLcovData(v8::Isolate* isolate, const char* file) {
     debug::Coverage::ScriptData script_data = coverage.GetScriptData(i_script);
     Local<debug::Script> script = script_data.GetScript();
     auto wasm_script = Utils::OpenDirectHandle(*script);
-    i::wasm::NativeModule* native_module = wasm_script->wasm_native_module();
+    i::Managed<i::wasm::NativeModule>::Ptr native_module =
+        wasm_script->wasm_native_module();
     const i::wasm::WasmModule* wasm_module = native_module->module();
 
     constexpr int kMaxDisasmFileNameSize = 33;

@@ -4,6 +4,7 @@
 
 #include "components/update_client/delta_patch_operation.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -17,6 +18,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/threading/scoped_thread_priority.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/update_client/crx_cache.h"
@@ -40,6 +42,7 @@ DeltaPatchOperation::DeltaPatchOperation(
     int expected_success_result,
     const base::FilePath& patch_file,
     int event_type,
+    bool is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
@@ -57,11 +60,11 @@ DeltaPatchOperation::DeltaPatchOperation(
       expected_success_result_(expected_success_result),
       patch_file_(patch_file),
       event_type_(event_type),
+      is_foreground_(is_foreground),
 #if BUILDFLAG(IS_STARBOARD)
       patch_operation_result_(patch_operation_result),
 #endif  // BUILDFLAG(IS_STARBOARD)
-      callback_(std::move(callback)) {
-}
+      callback_(std::move(callback)) {}
 
 DeltaPatchOperation::~DeltaPatchOperation() = default;
 
@@ -103,6 +106,12 @@ void DeltaPatchOperation::CacheLookupDone(
 }
 
 void DeltaPatchOperation::Patch(const base::FilePath& old_file) {
+  // Apply background priority if this is a background task.
+  std::optional<base::ScopedBoostPriority> priority;
+  if (!is_foreground_) {
+    priority.emplace(base::ThreadType::kBackground);
+  }
+
   base::FilePath new_file =
       patch_file_.DirName().Append(FILE_PATH_LITERAL("delta_patch_out"));
 

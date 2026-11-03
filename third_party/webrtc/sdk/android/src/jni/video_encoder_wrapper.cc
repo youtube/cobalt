@@ -458,9 +458,10 @@ ScopedJavaLocalRef<jobject> VideoEncoderWrapper::ToJavaBitrateAllocation(
       ScopedJavaLocalRef<jobjectArray>::Adopt(
           jni, jni->NewObjectArray(kMaxSpatialLayers, int_array_class_.obj(),
                                    nullptr /* initial */));
-  for (int spatial_i = 0; spatial_i < kMaxSpatialLayers; ++spatial_i) {
+  for (size_t spatial_i = 0; spatial_i < kMaxSpatialLayers; ++spatial_i) {
     std::array<int32_t, kMaxTemporalStreams> spatial_layer;
-    for (int temporal_i = 0; temporal_i < kMaxTemporalStreams; ++temporal_i) {
+    for (size_t temporal_i = 0; temporal_i < kMaxTemporalStreams;
+         ++temporal_i) {
       spatial_layer[temporal_i] = allocation.GetBitrate(spatial_i, temporal_i);
     }
 

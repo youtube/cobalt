@@ -13,7 +13,6 @@
 #include <array>
 #include <vector>
 
-#include "api/array_view.h"
 #include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "modules/audio_processing/test/performance_timer.h"

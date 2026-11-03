@@ -394,6 +394,17 @@ constexpr const char *kNoMaintenance9SkippedMessages[] = {
     "WARNING-VkImageSubresourceRange-layerCount-compatibility",
 };
 
+// Validation messages that should be ignored only when VK_KHR_swapchain_maintenance1 is not
+// present.
+constexpr const char *kNoSwapchainMaintenance1SkippedMessages[] = {
+    // Without VK_KHR_swapchain_maintenance1, there is technically no correct way to know when a
+    // VkSwapchainKHR can be destroyed.  If vkDeviceWaitIdle() is called, that's blessed as "good
+    // enough", but ANGLE does not call that function.  With VK_KHR_swapchain_maintenance1, the last
+    // present's fence is appropriately waited on.  This technicality with older drivers is ignored.
+    // See https://gitlab.khronos.org/vulkan/vulkan/-/issues/4761
+    "VUID-vkDestroySwapchainKHR-swapchain-01282",
+};
+
 // Validation messages that should be ignored only when preferBGR565ToRGB565 is enabled.
 constexpr const char *kPreferBGR565SkippedMessages[] = {
     // http://anglebug.com/42264464
@@ -764,6 +775,18 @@ constexpr vk::SkippedSyncvalMessage kSkippedSyncvalMessagesWithMSRTTEmulation[] 
          "prior_command = vkCmdEndRenderPass",
          "old_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL",
          "new_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL",
+     }},
+    // Unknown whether ANGLE or syncval bug.  See http://anglebug.com/495832130
+    {"SYNC-HAZARD-WRITE-AFTER-WRITE",
+     false,
+     {
+         "message_type = ImageSubresourceRangeError",
+         "access = VK_PIPELINE_STAGE_2_CLEAR_BIT(VK_ACCESS_2_TRANSFER_WRITE_BIT)",
+         "prior_access = "
+         "VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT(VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_"
+         "BIT)",
+         "command = vkCmdClearDepthStencilImage",
+         "prior_command = vkCmdNextSubpass",
      }},
 };
 
@@ -4865,6 +4888,14 @@ void Renderer::initializeValidationMessageSuppressions()
             kNoMaintenance9SkippedMessages + ArraySize(kNoMaintenance9SkippedMessages));
     }
 
+    if (!getFeatures().supportsSwapchainMaintenance1.enabled)
+    {
+        mSkippedValidationMessages.insert(mSkippedValidationMessages.end(),
+                                          kNoSwapchainMaintenance1SkippedMessages,
+                                          kNoSwapchainMaintenance1SkippedMessages +
+                                              ArraySize(kNoSwapchainMaintenance1SkippedMessages));
+    }
+
     if (getFeatures().preferBGR565ToRGB565.enabled)
     {
         mSkippedValidationMessages.insert(
@@ -5462,13 +5493,15 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // http://anglebug.com/42266183
     //
     // http://b/381285096. On Intel platforms, we want to prevent protected queues being used as
-    // we cannot handle the teardown scenario if PXP termination occurs.
+    // we cannot handle the teardown scenario if PXP termination occurs. However, enable this for
+    // Android, since the issue is rare and the fallout is isolated to the specific app (rather than
+    // crashing the whole system like in ChromeOS).
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsProtectedMemory,
         mProtectedMemoryFeatures.protectedMemory == VK_TRUE &&
             (!isARMProprietary ||
              mPipelineProtectedAccessFeatures.pipelineProtectedAccess == VK_TRUE) &&
-            !isIntel);
+            (!isIntel || IsAndroid()));
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsHostQueryReset,
                             mHostQueryResetFeatures.hostQueryReset == VK_TRUE);
@@ -5706,7 +5739,8 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     ANGLE_FEATURE_CONDITION(
         &mFeatures, preferMSRTSSFlagByDefault,
         mFeatures.supportsMultisampledRenderToSingleSampled.enabled && !isMesaPanVK &&
-            !(isQualcommProprietary && driverVersion < angle::VersionTriple(512, 777, 0)));
+            (isARMProprietary ||
+             isQualcommProprietary && driverVersion >= angle::VersionTriple(512, 777, 0)));
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsImage2dViewOf3d,
                             mImage2dViewOf3dFeatures.image2DViewOf3D == VK_TRUE);
@@ -6481,8 +6515,6 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // decoration. Guard against this by parsing shader for "sample" decoration and explicitly
     // enabling per-sample shading pipeline state.
     ANGLE_FEATURE_CONDITION(&mFeatures, explicitlyEnablePerSampleShading, !isQualcommProprietary);
-
-    ANGLE_FEATURE_CONDITION(&mFeatures, explicitlyCastMediumpFloatTo16Bit, isARMProprietary);
 
     // Force to create swapchain with continuous refresh on shared present. Disabled by default.
     // Only enable it on integrations without EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID passthrough.

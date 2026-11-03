@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -20,6 +21,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/rtp_parameters.h"
 #include "api/video_codecs/av1_profile.h"
 #include "api/video_codecs/h264_profile_level_id.h"
@@ -57,12 +59,6 @@ std::string H264GetPacketizationModeOrDefault(const CodecParameterMap& params) {
   // If packetization-mode is not present, default to "0".
   // https://tools.ietf.org/html/rfc6184#section-6.2
   return GetFmtpParameterOrDefault(params, kH264FmtpPacketizationMode, "0");
-}
-
-bool H264IsSamePacketizationMode(const CodecParameterMap& left,
-                                 const CodecParameterMap& right) {
-  return H264GetPacketizationModeOrDefault(left) ==
-         H264GetPacketizationModeOrDefault(right);
 }
 
 std::string AV1GetTierOrDefault(const CodecParameterMap& params) {
@@ -104,7 +100,7 @@ bool IsSameCodecSpecific(const std::string& name1,
   };
   if (either_name_matches(kH264CodecName))
     return H264IsSameProfile(params1, params2) &&
-           H264IsSamePacketizationMode(params1, params2);
+           IsSameH264PacketizationMode(params1, params2);
   if (either_name_matches(kVp9CodecName))
     return VP9IsSameProfile(params1, params2);
   // https://aomediacodec.github.io/av1-rtp-spec/#723-usage-with-the-sdp-offeranswer-model
@@ -125,9 +121,9 @@ bool IsSameCodecSpecific(const std::string& name1,
 }
 
 bool ReferencedCodecsMatch(const std::vector<Codec>& codecs1,
-                           const int codec1_id,
+                           const PayloadType codec1_id,
                            const std::vector<Codec>& codecs2,
-                           const int codec2_id) {
+                           const PayloadType codec2_id) {
   const Codec* codec1 = FindCodecById(codecs1, codec1_id);
   const Codec* codec2 = FindCodecById(codecs2, codec2_id);
   return codec1 != nullptr && codec2 != nullptr && codec1->Matches(*codec2);
@@ -136,21 +132,25 @@ bool ReferencedCodecsMatch(const std::vector<Codec>& codecs1,
 bool MatchesWithReferenceAttributesAndComparator(
     const Codec& codec_to_match,
     const Codec& potential_match,
-    absl::AnyInvocable<bool(int, int)> reference_comparator) {
+    absl::AnyInvocable<bool(PayloadType, PayloadType)> reference_comparator) {
   if (!MatchesWithCodecRules(codec_to_match, potential_match)) {
     return false;
   }
   Codec::ResiliencyType resiliency_type = codec_to_match.GetResiliencyType();
   if (resiliency_type == Codec::ResiliencyType::kRtx) {
-    int apt_value_1 = 0;
-    int apt_value_2 = 0;
+    int apt_value_1_int = 0;
+    int apt_value_2_int = 0;
     if (!codec_to_match.GetParam(kCodecParamAssociatedPayloadType,
-                                 &apt_value_1) ||
+                                 &apt_value_1_int) ||
         !potential_match.GetParam(kCodecParamAssociatedPayloadType,
-                                  &apt_value_2)) {
+                                  &apt_value_2_int)) {
       RTC_LOG(LS_WARNING) << "RTX missing associated payload type.";
       return false;
     }
+    PayloadType apt_value_1 =
+        PayloadType(static_cast<uint8_t>(apt_value_1_int));
+    PayloadType apt_value_2 =
+        PayloadType(static_cast<uint8_t>(apt_value_2_int));
     if (reference_comparator(apt_value_1, apt_value_2)) {
       return true;
     }
@@ -202,8 +202,8 @@ bool MatchesWithReferenceAttributesAndComparator(
     // codecs has an unassigned payload type or they have the same ID.
     if (codec_to_match.type == Codec::Type::kAudio &&
         codec_to_match.name == kRedCodecName &&
-        (codec_to_match.id == Codec::kIdNotSet ||
-         potential_match.id == Codec::kIdNotSet ||
+        (codec_to_match.id == PayloadType::NotSet() ||
+         potential_match.id == PayloadType::NotSet() ||
          codec_to_match.id == potential_match.id)) {
       return true;
     }
@@ -303,7 +303,8 @@ bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
 
   bool matches_id;
   if ((is_id_in_dynamic_range && is_codec_id_in_dynamic_range) ||
-      left_codec.id == Codec::kIdNotSet || right_codec.id == Codec::kIdNotSet) {
+      left_codec.id == PayloadType::NotSet() ||
+      right_codec.id == PayloadType::NotSet()) {
     matches_id = absl::EqualsIgnoreCase(left_codec.name, right_codec.name);
   } else {
     matches_id = (left_codec.id == right_codec.id);
@@ -336,7 +337,7 @@ bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
 
 bool MatchesWithReferenceAttributes(const Codec& codec1, const Codec& codec2) {
   return MatchesWithReferenceAttributesAndComparator(
-      codec1, codec2, [](int a, int b) { return a == b; });
+      codec1, codec2, [](PayloadType a, PayloadType b) { return a == b; });
 }
 
 // Finds a codec in `codecs2` that matches `codec_to_match`, which is
@@ -354,7 +355,7 @@ std::optional<Codec> FindMatchingCodec(const std::vector<Codec>& codecs1,
   for (const Codec& potential_match : codecs2) {
     if (MatchesWithReferenceAttributesAndComparator(
             codec_to_match, potential_match,
-            [&codecs1, &codecs2](int a, int b) {
+            [&codecs1, &codecs2](PayloadType a, PayloadType b) {
               return ReferencedCodecsMatch(codecs1, a, codecs2, b);
             })) {
       return potential_match;
@@ -415,6 +416,12 @@ bool IsSameRtpCodecIgnoringLevel(const Codec& codec,
   }
 
   return params1 == params2;
+}
+
+bool IsSameH264PacketizationMode(const CodecParameterMap& left,
+                                 const CodecParameterMap& right) {
+  return H264GetPacketizationModeOrDefault(left) ==
+         H264GetPacketizationModeOrDefault(right);
 }
 
 }  // namespace webrtc

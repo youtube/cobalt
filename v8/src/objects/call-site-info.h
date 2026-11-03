@@ -51,8 +51,9 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   bool IsNative() const;
 
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(Tagged<HeapObject> code,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_code_object(
+      Tagged<Union<Code, BytecodeArray, Undefined>> code,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<JSAny> receiver_or_instance() const;
   inline void set_receiver_or_instance(
@@ -75,6 +76,13 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
 
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
+
+  // For delayed CallSiteInfo creation (storing the raw data for several
+  // CallSiteInfos in a FixedArray).
+  enum Fields { kCode = 0, kReceiver, kFunction, kOffset, kFlags, kCount };
+
+  static DirectHandle<CallSiteInfo> ConstructFromRawData(
+      Isolate* isolate, DirectHandle<FixedArray> frames, int index);
 
   V8_EXPORT_PRIVATE static int GetLineNumber(DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static int GetColumnNumber(DirectHandle<CallSiteInfo> info);

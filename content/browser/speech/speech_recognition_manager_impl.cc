@@ -133,6 +133,17 @@ class FrameSessionTracker
     tracker->RemoveSession(session_id);
   }
 
+  static int GetSessionCountForTesting(int render_process_id,  // IN-TEST
+                                       int render_frame_id) {  // IN-TEST
+    RenderFrameHost* render_frame_host =
+        RenderFrameHost::FromID(render_process_id, render_frame_id);
+    if (!render_frame_host) {
+      return 0;
+    }
+    FrameSessionTracker* tracker = GetForCurrentDocument(render_frame_host);
+    return tracker ? tracker->sessions_.size() : 0;
+  }
+
  private:
   explicit FrameSessionTracker(content::RenderFrameHost* rfh)
       : DocumentUserData<FrameSessionTracker>(rfh) {}
@@ -163,6 +174,14 @@ SpeechRecognitionManager* SpeechRecognitionManager::GetInstance() {
 void SpeechRecognitionManager::SetManagerForTesting(
     SpeechRecognitionManager* manager) {
   manager_for_tests_ = manager;
+}
+
+// static
+int SpeechRecognitionManagerImpl::GetSessionTrackerCountForTesting(  // IN-TEST
+    int render_process_id,
+    int render_frame_id) {
+  return FrameSessionTracker::GetSessionCountForTesting(  // IN-TEST
+      render_process_id, render_frame_id);
 }
 
 SpeechRecognitionManagerImpl* SpeechRecognitionManagerImpl::GetInstance() {
@@ -594,9 +613,11 @@ int SpeechRecognitionManagerImpl::CreateSession(
 
 #if !BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_FUCHSIA)
+  const bool use_gemini_nano =
+      base::FeatureList::IsEnabled(media::kOnDeviceWebSpeechGeminiNano) &&
+      config.quality == media::mojom::SpeechRecognitionQuality::kConversation;
   if (UseOnDeviceSpeechRecognition(config) &&
-      audio_forwarder_config.has_value() &&
-      !base::FeatureList::IsEnabled(media::kOnDeviceWebSpeechGeminiNano)) {
+      audio_forwarder_config.has_value() && !use_gemini_nano) {
     CHECK_GT(audio_forwarder_config.value().channel_count, 0);
     CHECK_GT(audio_forwarder_config.value().sample_rate, 0);
     // The speech recognition service process will create and manage the speech
@@ -645,7 +666,7 @@ int SpeechRecognitionManagerImpl::CreateSession(
 
 #if !BUILDFLAG(IS_FUCHSIA)
   if (UseOnDeviceSpeechRecognition(config)) {
-    if (base::FeatureList::IsEnabled(media::kOnDeviceWebSpeechGeminiNano)) {
+    if (use_gemini_nano) {
       speech_recognition_engine =
           std::make_unique<OnDeviceSpeechRecognitionEngine>(config);
     } else {
@@ -918,6 +939,13 @@ void SpeechRecognitionManagerImpl::SessionDelete(Session* session) {
   }
   if (!session->context.label.empty())
     media_stream_manager_->CancelRequest(session->context.label);
+  GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&FrameSessionTracker::RemoveObserverForSession,
+                     session->config.initial_context.render_process_id,
+                     session->config.initial_context.render_frame_id,
+                     session->id));
+
   sessions_.erase(session->id);
 }
 

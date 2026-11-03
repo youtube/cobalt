@@ -10,7 +10,8 @@
 
 #include "modules/audio_processing/agc2/rnn_vad/rnn.h"
 
-#include "api/array_view.h"
+#include <span>
+
 #include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/rnn_fc.h"
@@ -79,7 +80,7 @@ void RnnVad::Reset() {
 }
 
 float RnnVad::ComputeVadProbability(
-    ArrayView<const float, kFeatureVectorSize> feature_vector,
+    std::span<const float, kFeatureVectorSize> feature_vector,
     bool is_silence) {
   if (is_silence) {
     Reset();

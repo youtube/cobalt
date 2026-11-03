@@ -77,6 +77,7 @@ chromium-metrics-reviews@google.com.
   <variant name="BlingPrototyping" summary="Bling Prototyping"/>
   <variant name="Compose" summary="Compose"/>
   <variant name="ContentAnnotation" summary="Content Annotation"/>
+  <variant name="ContextualCueing" summary="Contextual Cueing"/>
   <variant name="EnhancedCalendar" summary="Enhanced Calendar"/>
   <variant name="Finds" summary="Chrome finds"/>
   <variant name="FormsAnnotations" summary="Forms Annotations"/>
@@ -116,6 +117,8 @@ chromium-metrics-reviews@google.com.
   <variant name="Compose" summary="Weights for On-Device Compose"/>
   <variant name="ContextualPageActionPriceTracking"
       summary="Contextual Page Action: Show price tracking"/>
+  <variant name="ContextualTasksTabRelevance"
+      summary="Contextual Tasks Tab Relevance"/>
   <variant name="EduClassifier" summary="Education classifier"/>
   <variant name="ExperimentalEmbedder"
       summary="Embedder for performance experiments"/>
@@ -217,6 +220,7 @@ chromium-metrics-reviews@google.com.
   <variant name="SegmentationTabletProductivityUser"
       summary="Segmentation: Tablet Productivity user"/>
   <variant name="SegmentationVoice" summary="Segmentation: Voice user"/>
+  <variant name="ShoppingClassifier" summary="Shopping classifier"/>
   <variant name="TextClassifier" summary="Smart text selection"/>
   <variant name="TextEmbedder" summary="Generic Text Embedding"/>
   <variant name="TextSafety" summary="Classifies safety of the text"/>
@@ -334,7 +338,7 @@ chromium-metrics-reviews@google.com.
   <variant name="BuyNowPayLaterAllowlistAffirmAndroid"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Affirm
-               on Android OS."/>
+               on Chrome Android."/>
   <variant name="BuyNowPayLaterAllowlistAffirmDesktop"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Affirm
@@ -342,7 +346,7 @@ chromium-metrics-reviews@google.com.
   <variant name="BuyNowPayLaterAllowlistKlarnaAndroid"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Klarna
-               on Android OS."/>
+               on Chrome Android."/>
   <variant name="BuyNowPayLaterAllowlistKlarnaDesktop"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Klarna
@@ -350,20 +354,34 @@ chromium-metrics-reviews@google.com.
   <variant name="BuyNowPayLaterAllowlistZipAndroid"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Zip on
-               Android OS."/>
+               Chrome Android."/>
   <variant name="BuyNowPayLaterAllowlistZipDesktop"
       summary="This optimization helps determine if this merchant page is a
                good candidate for enabling buy now pay later flow with Zip on
                desktop."/>
-  <variant name="BuyNowPayLaterBlocklistAffirm"
+  <variant name="BuyNowPayLaterBlocklistAffirmAndroid"
       summary="This optimization helps determine if this merchant page should
-               be blocked for the buy now pay later flow with Affirm."/>
-  <variant name="BuyNowPayLaterBlocklistKlarna"
+               be blocked for the buy now pay later flow with Affirm on
+               Chrome Android."/>
+  <variant name="BuyNowPayLaterBlocklistAffirmDesktop"
       summary="This optimization helps determine if this merchant page should
-               be blocked for the buy now pay later flow with Klarna."/>
-  <variant name="BuyNowPayLaterBlocklistZip"
+               be blocked for the buy now pay later flow with Affirm on
+               desktop."/>
+  <variant name="BuyNowPayLaterBlocklistKlarnaAndroid"
       summary="This optimization helps determine if this merchant page should
-               be blocked for the buy now pay later flow with Zip."/>
+               be blocked for the buy now pay later flow with Klarna on
+               Chrome Android."/>
+  <variant name="BuyNowPayLaterBlocklistKlarnaDesktop"
+      summary="This optimization helps determine if this merchant page should
+               be blocked for the buy now pay later flow with Klarna on
+               desktop."/>
+  <variant name="BuyNowPayLaterBlocklistZipAndroid"
+      summary="This optimization helps determine if this merchant page should
+               be blocked for the buy now pay later flow with Zip on Chrome
+               Android."/>
+  <variant name="BuyNowPayLaterBlocklistZipDesktop"
+      summary="This optimization helps determine if this merchant page should
+               be blocked for the buy now pay later flow with Zip on desktop."/>
   <variant name="CapitalOneCreditCardBenefitsBlocked"
       summary="This optimization provides information about whether a
                merchant url is eligible to display Capital One credit card
@@ -1108,7 +1126,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceBaseModelLoadVersion"
-    enum="OnDeviceBaseModelVersion" expires_after="2026-07-19">
+    enum="OnDeviceBaseModelVersion" expires_after="2026-09-20">
   <owner>rajendrant@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1269,7 +1287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceModelStatusAtUseTime"
-    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-07-19">
+    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-09-20">
   <owner>holte@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1295,7 +1313,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelValidationResult"
-    enum="OnDeviceModelValidationResult" expires_after="2026-07-19">
+    enum="OnDeviceModelValidationResult" expires_after="2026-09-20">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1504,7 +1522,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.ExecutionThreadTime.{OptimizationTarget}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -1765,7 +1783,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.AnnotateVisitResultCached"
-    enum="BooleanCacheHit" expires_after="M145">
+    enum="BooleanCacheHit" expires_after="M155">
   <owner>mcrouse@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1777,7 +1795,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.BatchRequestedSize.{AnnotationType}"
-    units="counts" expires_after="2025-08-24">
+    units="counts" expires_after="2026-08-24">
   <owner>robertogden@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1789,7 +1807,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.BatchSuccess.{AnnotationType}"
-    enum="BooleanSuccess" expires_after="2025-08-24">
+    enum="BooleanSuccess" expires_after="2026-08-24">
   <owner>robertogden@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1835,7 +1853,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.JobExecutionTime.{AnnotationType}"
-    units="ms" expires_after="2025-08-24">
+    units="ms" expires_after="2026-08-24">
   <owner>robertogden@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1847,7 +1865,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.JobScheduleTime.{AnnotationType}"
-    units="ms" expires_after="M145">
+    units="ms" expires_after="M155">
   <owner>robertogden@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1860,7 +1878,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotationsService.ContentAnnotated"
-    enum="BooleanAnnotated" expires_after="M145">
+    enum="BooleanAnnotated" expires_after="M155">
   <owner>sophiechang@chromium.org</owner>
   <owner>mcrouse@chromium.org</owner>
   <summary>
@@ -1872,7 +1890,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotationsService.ContentAnnotationsStorageStatus"
-    enum="PageContentAnnotationsStorageStatus" expires_after="M145">
+    enum="PageContentAnnotationsStorageStatus" expires_after="M155">
   <owner>sophiechang@chromium.org</owner>
   <owner>mcrouse@chromium.org</owner>
   <summary>
@@ -1885,7 +1903,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotationsService.ContentAnnotationsStorageStatus.{PageContentAnnotationsStorageType}"
-    enum="PageContentAnnotationsStorageStatus" expires_after="M145">
+    enum="PageContentAnnotationsStorageStatus" expires_after="M155">
   <owner>sophiechang@chromium.org</owner>
   <owner>mcrouse@chromium.org</owner>
   <summary>
@@ -1899,7 +1917,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotationsService.RelatedSearchesCache.CacheHit"
-    enum="BooleanCacheHit" expires_after="2025-07-06">
+    enum="BooleanCacheHit" expires_after="2026-07-06">
   <owner>khalidpeer@chromium.org</owner>
   <owner>sophiechang@chromium.org</owner>
   <summary>
@@ -1911,7 +1929,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotationsService.RelatedSearchesExtracted"
-    enum="BooleanAnnotated" expires_after="M145">
+    enum="BooleanAnnotated" expires_after="M155">
   <owner>mahmadi@chromium.org</owner>
   <owner>sophiechang@chromium.org</owner>
   <summary>

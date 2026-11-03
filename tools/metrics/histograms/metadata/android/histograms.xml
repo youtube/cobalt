@@ -1211,7 +1211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BrowserControls.OutstandingChangedOnFinish"
-    enum="BooleanChanged" expires_after="2026-03-01">
+    enum="BooleanChanged" expires_after="2027-03-25">
   <owner>skym@chromium.org</owner>
   <owner>pnoland@chromium.org</owner>
   <summary>
@@ -1237,7 +1237,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BrowserControls.OutstandingNavigationsOnFinish"
-    units="navigations" expires_after="2026-05-03">
+    units="navigations" expires_after="2027-03-24">
   <owner>skym@chromium.org</owner>
   <owner>pnoland@chromium.org</owner>
   <summary>
@@ -1346,7 +1346,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessBinding.SetPriorityLatency"
-    units="microseconds" expires_after="2026-07-19">
+    units="microseconds" expires_after="2026-09-20">
   <owner>kawasin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -1790,7 +1790,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DesktopWindowHeuristicResult4"
-    enum="DesktopWindowHeuristicResult" expires_after="2026-07-19">
+    enum="DesktopWindowHeuristicResult" expires_after="2026-09-20">
   <owner>aishwaryarj@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -2055,7 +2055,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DragDrop.TabOrGroup.MaxInstanceFailureCount"
-    units="failures" expires_after="2026-05-05">
+    units="failures" expires_after="2027-03-27">
   <owner>aishwaryarj@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -2096,24 +2096,6 @@ chromium-metrics-reviews@google.com.
   <token key="TabObjectType" variants="TabObjectType"/>
 </histogram>
 
-<histogram
-    name="Android.DragDrop{TabObjectType}.FromStrip.Result.DesktopWindow"
-    enum="DragDropResult" expires_after="2026-05-05">
-  <owner>aishwaryarj@google.com</owner>
-  <owner>zheliooo@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Records the {TabObjectType} drag and drop results in desktop windowing mode,
-    including successful drops and failed drops with varied reasons. For failed
-    drops, it is recorded during ACTION_DROP. For successful drops, it is
-    recored during ACTION_DRAG_ENDED. Note that the successful drops count can
-    be recorded more often than Android.DragDrop.Tab.Type.DesktopWindow or
-    Android.DragDrop.TabGroup.Type.DesktopWindow, such as reorder within strip
-    or tabs being consumed as text by EditText in native pages.
-  </summary>
-  <token key="TabObjectType" variants="TabObjectType"/>
-</histogram>
-
 <histogram name="Android.DragDrop{TabObjectType}.ReorderStripWithDragDrop"
     enum="Boolean" expires_after="2026-07-05">
   <owner>shuyng@google.com</owner>
@@ -2129,7 +2111,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DragDrop{TabObjectType}.SourceWindowClosed"
-    enum="Boolean" expires_after="2026-05-05">
+    enum="Boolean" expires_after="2027-03-27">
   <owner>aishwaryarj@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>zheliooo@google.com</owner>
@@ -2151,18 +2133,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the drag source and drop target when a {TabObjectType} is dropped
     successfully.
-  </summary>
-  <token key="TabObjectType" variants="TabObjectType"/>
-</histogram>
-
-<histogram name="Android.DragDrop{TabObjectType}.Type.DesktopWindow"
-    enum="DragDropType" expires_after="2026-05-05">
-  <owner>aishwaryarj@google.com</owner>
-  <owner>zheliooo@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Records the drag source and drop target when a {TabObjectType} is dropped
-    successfully in desktop windowing mode.
   </summary>
   <token key="TabObjectType" variants="TabObjectType"/>
 </histogram>
@@ -2741,7 +2711,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.NewSequenceTransferredByOS"
-    enum="TransferredSequenceType" expires_after="2026-07-19">
+    enum="TransferredSequenceType" expires_after="2026-09-20">
   <owner>amanvr@google.com</owner>
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -2753,7 +2723,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.NumEventsInDroppedSequence2"
-    units="counts" expires_after="2026-07-19">
+    units="counts" expires_after="2026-09-20">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2764,7 +2734,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.SequenceDroppedReason3"
-    enum="InputOnVizSequenceDroppedReason" expires_after="2026-07-19">
+    enum="InputOnVizSequenceDroppedReason" expires_after="2026-09-20">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2904,6 +2874,36 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.InputStream.LastGetByteArrayRegionTime" units="ms"
+    expires_after="2026-10-01">
+  <owner>peconn@chromium.org</owner>
+  <owner>webview-team@google.com</owner>
+  <summary>
+    Time spent on the final call to getByteArrayRegion when copying data from
+    the InputStream. Recorded when the InputStream is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputStream.TotalGetByteArrayRegionTime" units="ms"
+    expires_after="2026-10-01">
+  <owner>peconn@chromium.org</owner>
+  <owner>webview-team@google.com</owner>
+  <summary>
+    Time spent on all calls to getByteArrayRegion when copying data from the
+    InputStream. Recorded when the InputStream is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputStream.TotalJavaReadTime" units="ms"
+    expires_after="2026-10-01">
+  <owner>peconn@chromium.org</owner>
+  <owner>webview-team@google.com</owner>
+  <summary>
+    Total wall clock time spent reading from the Java InputStream into the
+    temporary buffer. Recorded when the InputStream is destroyed.
+  </summary>
+</histogram>
+
 <histogram name="Android.InputStream.TotalRead.SizeKB" units="KB"
     expires_after="2026-06-01">
   <owner>peconn@chromium.org</owner>
@@ -2911,6 +2911,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records how much data has been transferred through
     embedder_support::InputStream. Recorded when that object is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Android.InputStream.TotalTransferTime" units="ms"
+    expires_after="2026-10-01">
+  <owner>peconn@chromium.org</owner>
+  <owner>webview-team@google.com</owner>
+  <summary>
+    Sum total of the wall clock time spent in all InputStream::Read calls.
+    Recorded when that object is destroyed.
   </summary>
 </histogram>
 
@@ -3016,7 +3026,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.IsolatedSplits.ContextCreateTime2.{AndroidFeatureModuleName}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>cduvall@chromium.org</owner>
   <owner>agrieve@chromium.org</owner>
   <owner>smaier@chromium.org</owner>
@@ -3151,7 +3161,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MaybeCopyContentAreaAsBitmap.Time" units="ms"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <owner>clank-app-team@google.com</owner>
@@ -3389,7 +3399,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.TimeToFullyShow{MessageIdentifier}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3450,6 +3460,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.MultiInstance.MigrationAttempts" units="count"
+    expires_after="2026-10-01">
+  <owner>zheliooo@google.com</owner>
+  <owner>aishwaryarj@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    The total number of attempts made to migrate multi-instance data from
+    SharedPreferences to Protobuf. Recorded when the migration successfully
+    completes, or when it reaches the terminal attempt limit (3) and gives up.
+  </summary>
+</histogram>
+
 <histogram name="Android.MultiInstance.NumActivities" units="activities"
     expires_after="2026-09-06">
   <owner>jinsukkim@chromium.org</owner>
@@ -3466,7 +3488,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumActivities.DesktopWindow"
-    units="activities" expires_after="2026-07-19">
+    units="activities" expires_after="2026-09-20">
   <owner>aishwaryarj@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -3532,7 +3554,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumInstances.DesktopWindow"
-    units="instances" expires_after="2026-07-19">
+    units="instances" expires_after="2026-09-20">
   <owner>aishwaryarj@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -3603,7 +3625,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.WindowManager.DesktopWindowModeState"
-    enum="DesktopWindowModeState" expires_after="2026-07-19">
+    enum="DesktopWindowModeState" expires_after="2026-09-20">
   <owner>aishwaryarj@google.com</owner>
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -4225,7 +4247,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Omnibox.SuggestionView.CreatedType"
-    enum="OmniboxSuggestionUiType" expires_after="2026-07-01">
+    enum="OmniboxSuggestionUiType" expires_after="2026-09-20">
   <owner>ender@google.com</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>rongtan@chromium.org</owner>
@@ -4294,7 +4316,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Omnibox.SuggestionView.ReusedType"
-    enum="OmniboxSuggestionUiType" expires_after="2026-07-01">
+    enum="OmniboxSuggestionUiType" expires_after="2026-09-20">
   <owner>ender@google.com</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>rongtan@chromium.org</owner>
@@ -4790,7 +4812,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.AssistContent.IsWorkProfile" enum="Boolean"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -4802,7 +4824,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.DocumentLoad" enum="Boolean"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -4824,7 +4846,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.DocumentLoadResult.Detail"
-    enum="AndroidPdfLoadResult" expires_after="2026-07-19">
+    enum="AndroidPdfLoadResult" expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -4880,7 +4902,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.FindInPageCounts" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -4892,7 +4914,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.IsFrozenWhenDisplayed" enum="Boolean"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -5299,7 +5321,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.RequestDesktopSite.Changed" enum="SiteLayout"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -5310,7 +5332,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.RequestDesktopSite.DomainSettingChanged"
-    enum="Boolean" expires_after="2026-07-19">
+    enum="Boolean" expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -5783,7 +5805,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Sync.ActualSyncedTabCountPercentage"
-    units="% of tab count" expires_after="2026-05-03">
+    units="% of tab count" expires_after="2026-11-03">
   <owner>bjfong@google.com</owner>
   <owner>ckitagawa@chromium.org</owner>
   <summary>
@@ -5854,7 +5876,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabGroupParity.TabGroupColorChangeActionType"
-    enum="TabGroupColorChangeActionType" expires_after="2026-05-02">
+    enum="TabGroupColorChangeActionType" expires_after="2026-11-03">
   <owner>ckitagawa@chromium.org</owner>
   <owner>bjfong@google.com</owner>
   <owner>fredmello@chromium.org</owner>
@@ -5866,7 +5888,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabGroupParity.TabGroupCreationDialogResultAction"
-    enum="TabGroupCreationDialogResultAction" expires_after="2026-05-02">
+    enum="TabGroupCreationDialogResultAction" expires_after="2026-11-03">
   <owner>ckitagawa@chromium.org</owner>
   <owner>bjfong@google.com</owner>
   <owner>fredmello@chromium.org</owner>
@@ -5878,7 +5900,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabGroupParity.TabGroupCreationFinalSelections"
-    enum="TabGroupCreationFinalSelections" expires_after="2026-05-02">
+    enum="TabGroupCreationFinalSelections" expires_after="2026-11-03">
   <owner>ckitagawa@chromium.org</owner>
   <owner>bjfong@google.com</owner>
   <owner>fredmello@chromium.org</owner>
@@ -5901,7 +5923,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.ActiveTabs.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>bbetini@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5912,7 +5934,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.ActiveTabsPicked.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>bbetini@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5922,7 +5944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.BackgroundTabs.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>ckitagawa@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5933,7 +5955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.CachedTabs.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>bbetini@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5944,7 +5966,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.CachedTabsPicked.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>bbetini@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5954,7 +5976,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.SelectableTabs.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>haileywang@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5964,7 +5986,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabItemPicker.SelectedTabs.Count" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>haileywang@google.com</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -5997,7 +6019,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabMultiSelectV2.SharingState"
-    enum="TabListEditorShareActionState" expires_after="2026-05-03">
+    enum="TabListEditorShareActionState" expires_after="2026-11-03">
   <owner>ckitagawa@chromium.org</owner>
   <owner>bjfong@google.com</owner>
   <owner>fredmello@chromium.org</owner>
@@ -6008,7 +6030,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabMultiSelectV2.TimeSinceLastShown" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-11-03">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <summary>
@@ -6288,7 +6310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ThumbnailCache.InMemoryCacheEntries"
-    units="thumbnails" expires_after="2026-07-19">
+    units="thumbnails" expires_after="2026-09-20">
   <owner>ckitagawa@chromium.org</owner>
   <owner>dtrainor@chromium.org</owner>
   <summary>
@@ -6299,7 +6321,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ThumbnailCache.InMemoryCacheSize" units="KiB"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>ckitagawa@chromium.org</owner>
   <owner>dtrainor@chromium.org</owner>
   <summary>
@@ -6333,7 +6355,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Toolbar.BitmapCapture" enum="ToolbarCaptureType"
-    expires_after="2026-05-03">
+    expires_after="2027-03-24">
   <owner>skym@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <summary>
@@ -6614,7 +6636,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.AndroidX.Profile.ExtraHeaderAttached"
-    enum="BooleanUsage" expires_after="2026-05-01">
+    enum="BooleanUsage" expires_after="2027-03-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -6635,7 +6657,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.AndroidX.Profile.ExtraHeaderTargetsCorsPreflight"
-    enum="Boolean" expires_after="2026-05-01">
+    enum="Boolean" expires_after="2027-03-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7557,40 +7579,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.WebView.GeolocationRetained.Granted"
-    enum="BooleanGranted" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records whether geolocation permission was granted by the embedded app if
-    and only if the app also decided to persist the decision.
-
-    This histogram is emitted when the app calls the result callback for the
-    permission prompt with a true value for the retain parameter.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.GeolocationRetained.ResponseTime" units="ms"
-    expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records the response time from the embedding app to a
-    onGeoLocationPermissionShowPrompt callback on responses the app decides to
-    retain the value.
-
-    This metric will help us determine if apps are likely responding based on
-    internal logic or if they are showing a UI prompt to the user, as the latter
-    will be reflected in longer response times. Since geo-location requires an
-    Android permission, we might see two peaks in this histogram for apps that
-    only show the Android permission prompt. The aim of this analysis is to
-    determine the impact of potentially removing the retain feature.
-
-    This histogram is emitted when the app calls the result callback for the
-    permission prompt if the retain value is true.
-  </summary>
-</histogram>
-
 <histogram name="Android.WebView.GetCacheQuotaSizeTime" units="ms"
     expires_after="2026-06-01">
   <owner>abhijithnair@chromium.org</owner>
@@ -8165,6 +8153,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.WebView.Memory.FaviconJavaAllocatedMemory" units="KB"
+    expires_after="2026-05-17">
+  <owner>isaacmadgwick@chromium.org</owner>
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records the memory usage by mFavicon in AwContents in the java side. This is
+    to determine how much memory is being used by favicons in Java.
+
+    This histogram is logged everytime onReceivedIcon is called.
+  </summary>
+</histogram>
+
 <histogram name="Android.WebView.Memory.FunctorReclaim.OtherPrivateDirty"
     units="MB" expires_after="2024-11-03">
   <owner>lizeb@chromium.org</owner>
@@ -8263,119 +8264,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.WebView.OnGeolocationPermissionsShowPrompt.Granted"
-    enum="BooleanGranted" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
+<histogram name="Android.WebView.OnPageStarted.FaviconIsNull" enum="Boolean"
+    expires_after="2026-06-19">
+  <owner>isaacmadgwick@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
-    Records whether geolocation permission was granted by the embedded app.
+    Records if the favicon that would be passed into onPageStarted is null or
+    not. The actual favicon passed to onPageStarted may still be null regardless
+    of the value of this histogram, depending on experiment configurations.
 
-    This histogram is emitted when the app calls the result callback for the
-    permission prompt.
-
-    Note: This histogram was not recorded correctly prior to M133.
-  </summary>
-</histogram>
-
-<histogram
-    name="Android.WebView.OnGeolocationPermissionsShowPrompt.ResponseTime"
-    units="ms" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records the response time from the embedding app to a
-    onGeoLocationPermissionShowPrompt callback. This metric will help us
-    determine if apps are likely responding based on internal logic or if they
-    are showing a UI prompt to the user, as the latter will be reflected in
-    longer response times. Since geo-location requires an Android permission, we
-    might see two peaks in this histogram for apps that only show the Android
-    permission prompt.
-
-    This histogram is emitted when the app calls the result callback for the
-    permission prompt.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.OnGeolocationPermissionsShowPrompt.Retain"
-    enum="BooleanRetain" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records whether the app indicated that geolocation permission decision
-    should be retained by WebView.
-
-    This histogram is emitted when the app calls the result callback for the
-    permission prompt.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.OnPermissionRequest.Granted"
-    enum="BooleanGranted" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records if the permissions requested by the web contents were granted by the
-    embedding app. We only record this histogram if the app responds, so it will
-    not contain any default implementation results. The intention of the
-    histogram is to understand how apps interact with the current permission
-    APIs.
-
-    This histogram is emitted when the app calls either the grant or deny
-    callback method.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.OnPermissionRequest.RequestedResourceCount"
-    units="resources" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records how many resources are in a callback to onPermissionRequest. The
-    onPermissionRequests callback method supports requests for more than one
-    resource at a time, and requires that the app grants all permissions,
-    otherwise the whole request is denied. This histogram will help us
-    understand how often apps actually see more than a single resource in a
-    request, to help us plan a new permission solution.
-
-    This histogram is emitted when the WebChromeClient.onPermissionRequest
-    callback is invoked by WebView.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.OnPermissionRequest.RequestedResources"
-    enum="PermissionResourceBitfield" expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records which resources are in a callback to onPermissionRequest. The
-    histogram is a sparse histogram and records the set of resources as a
-    bitfield, which is how it is also represented internally.
-
-    The onPermissionRequests callback method supports requests for more than one
-    resource at a time, and requires that the app grants all permissions,
-    otherwise the whole request is denied. This histogram will help us
-    understand which resources are requested together, to help us plan a new
-    permission solution.
-
-    This histogram is emitted when the WebChromeClient.onPermissionRequest
-    callback is invoked by WebView.
-  </summary>
-</histogram>
-
-<histogram name="Android.WebView.OnPermissionRequest.ResponseTime" units="ms"
-    expires_after="2026-05-01">
-  <owner>pbirk@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Records the response time from the embedding app to a onPermissionRequest
-    callback. This metric will help us determine if apps are likely responding
-    based on internal logic or if they are showing a UI prompt to the user, as
-    the latter will be reflected in longer response times. Since video and
-    microphone requires an Android permission, we might see two peaks in this
-    histogram for apps that only show the Android permission prompt.
-
-    This histogram is emitted when the app calls either the grant or deny
-    callback method.
+    This histogram is emitted when onPageStarted is called in
+    WebViewContentsClientAdapter.
   </summary>
 </histogram>
 
@@ -8730,7 +8629,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.ShouldInterceptRequest.DidIncludeMultiCookieHeader"
-    enum="BooleanIncluded" expires_after="2026-05-01">
+    enum="BooleanIncluded" expires_after="2027-03-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>

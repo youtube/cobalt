@@ -14,10 +14,10 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -142,7 +142,7 @@ class ChannelReceiveTest : public Test {
   }
 
   void HandleGeneratedRtcp(ChannelReceiveInterface& /* channel */,
-                           ArrayView<const uint8_t> packet) {
+                           std::span<const uint8_t> packet) {
     if (packet[1] == rtcp::ReceiverReport::kPacketType) {
       // Ignore RR, it requires no response
     } else {
@@ -185,7 +185,7 @@ TEST_F(ChannelReceiveTest, ReceiveReportGeneratedOnTime) {
 
   bool receiver_report_sent = false;
   EXPECT_CALL(transport_, SendRtcp)
-      .WillRepeatedly([&](ArrayView<const uint8_t> packet,
+      .WillRepeatedly([&](std::span<const uint8_t> packet,
                           const PacketOptions& options) {
         if (packet.size() >= 2 &&
             packet[1] == rtcp::ReceiverReport::kPacketType) {
@@ -205,7 +205,7 @@ TEST_F(ChannelReceiveTest, CaptureStartTimeBecomesValid) {
 
   EXPECT_CALL(transport_, SendRtcp)
       .WillRepeatedly(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             HandleGeneratedRtcp(*channel, packet);
             return true;
           });

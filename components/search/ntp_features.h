@@ -27,7 +27,6 @@ BASE_DECLARE_FEATURE(kCustomizeChromeWallpaperSearchButton);
 BASE_DECLARE_FEATURE(kCustomizeChromeWallpaperSearchInspirationCard);
 BASE_DECLARE_FEATURE(kRealboxCr23Theming);
 BASE_DECLARE_FEATURE(kRealboxMatchOmniboxTheme);
-BASE_DECLARE_FEATURE(kRealboxUseGoogleGIcon);
 BASE_DECLARE_FEATURE(kNtpAlphaBackgroundCollections);
 BASE_DECLARE_FEATURE(kNtpAnimatedCaret);
 BASE_DECLARE_FEATURE(kNtpBackgroundImageErrorDetection);
@@ -57,7 +56,6 @@ BASE_DECLARE_FEATURE(kNtpPhotosModuleCustomizedOptInArtWork);
 BASE_DECLARE_FEATURE(kNtpPhotosModuleSplitSvgOptInArtWork);
 BASE_DECLARE_FEATURE(kNtpFeedModule);
 BASE_DECLARE_FEATURE(kNtpOneGoogleBar);
-BASE_DECLARE_FEATURE(kNtpSafeBrowsingModule);
 BASE_DECLARE_FEATURE(kNtpSharepointModule);
 enum class NtpSharepointModuleDataType {
   kTrendingInsights,
@@ -144,11 +142,6 @@ extern const char kNtpPhotosModuleDataParam[];
 extern const char kNtpPhotosModuleOptInArtWorkParam[];
 // Parameter determining the title for the opt-in card.
 extern const char kNtpPhotosModuleOptInTitleParam[];
-// Parameter determining the number of times a module is shown to a user
-// before cooldown starts.
-extern const char kNtpSafeBrowsingModuleCountMaxParam[];
-// Parameter determining the cooldown period (in days) for a target user.
-extern const char kNtpSafeBrowsingModuleCooldownPeriodDaysParam[];
 // Parameter determining the variation of the omnibox theme matching.
 extern const char kRealboxMatchOmniboxThemeVariantParam[];
 extern const char kNtpMostRelevantTabResumptionModuleDataParam[];
@@ -258,13 +251,6 @@ extern const base::FeatureParam<bool> kNtpNextShowDeepDiveSuggestionsParam;
 // Parameter determining if the recent tab should be run through client-side
 // sensitivity check.
 extern const base::FeatureParam<bool> kNtpNextClientSensitivityCheckParam;
-
-// Parameter determining if the suggestions are retrieved from the newly
-// implemented search suggestions endpoint. If true, the new one is used.
-// If false, an existing endpoint (used by ZPS) is used for deep dive chips,
-// and static data is used for steady state chips.
-extern const base::FeatureParam<bool>
-    kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam;
 
 // Parameter determining if the Canvas action chip should be enabled.
 extern const base::FeatureParam<bool> kNtpNextEnableCanvasChipParam;

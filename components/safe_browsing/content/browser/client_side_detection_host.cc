@@ -19,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -984,6 +983,11 @@ void ClientSideDetectionHost::PrimaryPageChanged(content::Page& page) {
   last_request_type_ =
       ClientSideDetectionType::CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED;
 
+  if (base::FeatureList::IsEnabled(kClientSideDetectionOnlyESBClassification) &&
+      !IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
+    return;
+  }
+
   if (base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)) {
     if (did_first_visually_non_empty_paint_ ^ on_first_contentful_paint_) {
       auto value = did_first_visually_non_empty_paint_
@@ -1217,14 +1221,6 @@ void ClientSideDetectionHost::KeyboardLockRequested() {
     MaybeStartPreClassification(
         ClientSideDetectionType::KEYBOARD_LOCK_REQUESTED);
   }
-}
-
-void ClientSideDetectionHost::PointerLockRequested() {
-  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
-    return;
-  }
-
-  MaybeStartPreClassification(ClientSideDetectionType::POINTER_LOCK_REQUESTED);
 }
 
 void ClientSideDetectionHost::VibrationRequested() {

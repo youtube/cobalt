@@ -264,14 +264,14 @@ VideoBitrateAllocation UpdateAllocationFromEncoderInfo(
     return allocation;
   }
   VideoBitrateAllocation new_allocation;
-  for (int si = 0; si < kMaxSpatialLayers; ++si) {
+  for (size_t si = 0; si < kMaxSpatialLayers; ++si) {
     if (encoder_info.fps_allocation[si].size() == 1 &&
         allocation.IsSpatialLayerUsed(si)) {
       // One TL is signalled to be used by the encoder. Do not distribute
       // bitrate allocation across TLs (use sum at ti:0).
       new_allocation.SetBitrate(si, 0, allocation.GetSpatialLayerSum(si));
     } else {
-      for (int ti = 0; ti < kMaxTemporalStreams; ++ti) {
+      for (size_t ti = 0; ti < kMaxTemporalStreams; ++ti) {
         if (allocation.HasBitrate(si, ti))
           new_allocation.SetBitrate(si, ti, allocation.GetBitrate(si, ti));
       }
@@ -351,7 +351,7 @@ VideoLayersAllocation CreateVideoLayersAllocation(
 
     std::vector<DataRate> aggregated_spatial_bitrate(kMaxTemporalStreams,
                                                      DataRate::Zero());
-    for (int si = 0; si < kMaxSpatialLayers; ++si) {
+    for (size_t si = 0; si < kMaxSpatialLayers; ++si) {
       layers_allocation.resolution_and_frame_rate_is_valid = true;
       if (!target_bitrate.IsSpatialLayerUsed(si) ||
           target_bitrate.GetSpatialLayerSum(si) == 0) {

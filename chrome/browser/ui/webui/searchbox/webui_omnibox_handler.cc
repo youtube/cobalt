@@ -76,16 +76,14 @@ searchbox::mojom::SelectionLineState ConvertLineState(
     case OmniboxPopupSelection::LineState::KEYWORD_MODE:
       return searchbox::mojom::SelectionLineState::kKeywordMode;
     case OmniboxPopupSelection::LineState::FOCUSED_BUTTON_AIM:
-      // WebUi currently only cares about popup matches' selection states. No
-      // need to pipe in a selection state that's unique to the omnibox input.
-      return searchbox::mojom::SelectionLineState::kNormal;
+      return searchbox::mojom::SelectionLineState::kFocusedButtonAim;
     case OmniboxPopupSelection::LineState::FOCUSED_BUTTON_ACTION:
       return searchbox::mojom::SelectionLineState::kFocusedButtonAction;
     case OmniboxPopupSelection::LineState::FOCUSED_BUTTON_REMOVE_SUGGESTION:
       return searchbox::mojom::SelectionLineState::
           kFocusedButtonRemoveSuggestion;
     default:
-      // Realbox doesn't support the other UIs and their focus states.
+      // WebUI omnibox doesn't support the other UIs and their focus states.
       NOTREACHED() << state;
   }
 }
@@ -117,13 +115,13 @@ WebuiOmniboxHandler::WebuiOmniboxHandler(
   if (aim_eligibility_service) {
     aim_eligibility_subscription_ =
         aim_eligibility_service->RegisterEligibilityChangedCallback(
-            base::BindRepeating(&WebuiOmniboxHandler::OnAimEligibilityChanged,
-                                weak_ptr_factory_.GetWeakPtr()));
+            base::BindRepeating(&WebuiOmniboxHandler::OnAimPopupEligibilityChanged,
+                                base::Unretained(this)));
   }
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
       omnibox::kShowAiModeOmniboxButton,
-      base::BindRepeating(&WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged,
+      base::BindRepeating(&WebuiOmniboxHandler::OnAimPopupEligibilityChanged,
                           base::Unretained(this)));
   pref_change_registrar_.Add(
       contextual_search::kSearchContentSharingSettings,
@@ -207,8 +205,7 @@ void WebuiOmniboxHandler::AddTabContext(int32_t tab_id,
 void WebuiOmniboxHandler::SetPage(
     mojo::PendingRemote<searchbox::mojom::Page> pending_page) {
   ContextualSearchboxHandler::SetPage(std::move(pending_page));
-  OnAimEligibilityChanged();
-  OnShowAiModeButtonPrefChanged();
+  OnAimPopupEligibilityChanged();
   OnContentSharingPolicyChanged();
 }
 void WebuiOmniboxHandler::StepSelection(
@@ -390,13 +387,10 @@ void WebuiOmniboxHandler::OnCharTyped(base::TimeTicks timestamp) {
   }
 }
 
-void WebuiOmniboxHandler::OnTabStripModelChanged(
-    TabStripModel* tab_strip_model,
-    const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {
-  web_contents_observer_.ScopedObserve(selection.new_contents);
-  ContextualSearchboxHandler::OnTabStripModelChanged(tab_strip_model, change,
-                                                     selection);
+void WebuiOmniboxHandler::OnActiveTabChanged(TabListInterface& tab_list,
+                                             tabs::TabInterface* tab) {
+  web_contents_observer_.ScopedObserve(tab->GetContents());
+  ContextualSearchboxHandler::OnActiveTabChanged(tab_list, tab);
 }
 
 WebuiOmniboxHandler::WebContentsObserver::WebContentsObserver(
@@ -406,8 +400,11 @@ WebuiOmniboxHandler::WebContentsObserver::WebContentsObserver(
   auto* browser_window_interface =
       webui::GetBrowserWindowInterface(web_contents);
   if (browser_window_interface) {
-    Observe(
-        browser_window_interface->GetTabStripModel()->GetActiveWebContents());
+    if (auto* tab_list = TabListInterface::From(browser_window_interface)) {
+      if (auto* active_tab = tab_list->GetActiveTab()) {
+        Observe(active_tab->GetContents());
+      }
+    }
   }
 }
 
@@ -431,15 +428,6 @@ int WebuiOmniboxHandler::GetContextMenuMaxTabSuggestions() {
   return omnibox::kContextMenuMaxTabSuggestions.Get();
 }
 
-void WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged() {
-  if (!IsRemoteBound()) {
-    return;
-  }
-  bool show =
-      profile_->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton);
-  page_->OnShowAiModePrefChanged(show);
-}
-
 void WebuiOmniboxHandler::OnContentSharingPolicyChanged() {
   // Ignore the call until the page remote is bound and ready to receive calls.
   if (!IsRemoteBound()) {
@@ -451,21 +439,14 @@ void WebuiOmniboxHandler::OnContentSharingPolicyChanged() {
           profile_->GetPrefs()));
 }
 
-void WebuiOmniboxHandler::OnAimEligibilityChanged() {
-  auto* aim_eligibility_service =
-      AimEligibilityServiceFactory::GetForProfile(profile_);
-  if (!aim_eligibility_service) {
-    return;
-  }
+void WebuiOmniboxHandler::OnAimPopupEligibilityChanged() {
   InitializeInputStateModel();
 
-  // Ignore the call until the page remote is bound and ready to receive calls.
-  if (!IsRemoteBound()) {
-    return;
+  if (IsRemoteBound()) {
+    page_->UpdateAimPopupEligibility(
+        omnibox::IsAimPopupEnabled(profile_) &&
+        profile_->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton));
   }
-  bool eligible = aim_eligibility_service->IsAimEligible() &&
-                  aim_eligibility_service->IsFuseboxEligible();
-  page_->UpdateAimEligibility(eligible);
 }
 
 void WebuiOmniboxHandler::OnNavigationFinished(

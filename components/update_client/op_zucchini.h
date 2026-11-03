@@ -43,6 +43,7 @@ base::OnceClosure ZucchiniOperation(
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& previous_hash,
     const std::string& output_hash,
+    bool is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& patch_operation_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>

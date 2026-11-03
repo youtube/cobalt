@@ -205,41 +205,68 @@ func BuildCRenamingInclude(syms cSymbolData) []byte {
 #define OPENSSL_HEADER_PREFIX_SYMBOLS_H
 
 
-#define BORINGSSL_ADD_PREFIX_CONCAT_INNER(a, b) a##_##b
-#define BORINGSSL_ADD_PREFIX_CONCAT(a, b) \
-  BORINGSSL_ADD_PREFIX_CONCAT_INNER(a, b)
-#define BORINGSSL_ADD_PREFIX(s) BORINGSSL_ADD_PREFIX_CONCAT(BORINGSSL_PREFIX, s)
+#include <openssl/opensslconf.h>  // For BORINGSSL_ALWAYS_USE_STATIC_INLINE.
 
-#if defined(__APPLE__)
-#define BORINGSSL_SYMBOL_INNER(s) _##s
-#define BORINGSSL_SYMBOL(s) BORINGSSL_SYMBOL_INNER(s)
-#else  // __APPLE__
-#define BORINGSSL_SYMBOL(s) s
-#endif  // __APPLE__
+#if defined(BORINGSSL_PREFIX)
 
+#if defined(__USER_LABEL_PREFIX__)
+#define BORINGSSL_USER_LABEL_PREFIX __USER_LABEL_PREFIX__
+#else
+#define BORINGSSL_USER_LABEL_PREFIX
+#endif
+
+#define BORINGSSL_CONCAT_INNER(a, b) a##b
+#define BORINGSSL_CONCAT(a, b) BORINGSSL_CONCAT_INNER(a, b)
+#define BORINGSSL_ADD_PREFIX(s) BORINGSSL_CONCAT(BORINGSSL_PREFIX, BORINGSSL_CONCAT(_, s))
+#define BORINGSSL_ADD_USER_LABEL_AND_PREFIX(s) BORINGSSL_CONCAT(BORINGSSL_USER_LABEL_PREFIX, BORINGSSL_ADD_PREFIX(s))
 `)
-	output.WriteString("#if defined(__PRAGMA_REDEFINE_EXTNAME)\n")
+
+	// Extern functions: use #pragma redefine_extname if supported, macros if not.
+	// They may be called by asm code.
+	output.WriteString("\n")
+	output.WriteString("#if defined(__PRAGMA_REDEFINE_EXTNAME) && !defined(__ASSEMBLER__)\n")
 	output.WriteString("\n")
 	for _, sym := range slices.Sorted(maps.Keys(syms.externDeclarations)) {
-		fmt.Fprintf(&output, "#pragma redefine_extname %s BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(%s))\n", sym, sym)
+		fmt.Fprintf(&output, "#pragma redefine_extname %s BORINGSSL_ADD_USER_LABEL_AND_PREFIX(%s)\n", sym, sym)
 	}
 	output.WriteString("\n")
-	output.WriteString("#else  // __PRAGMA_REDEFINE_EXTNAME\n")
+	output.WriteString("#else  // __PRAGMA_REDEFINE_EXTNAME && !__ASSEMBLER__\n")
 	output.WriteString("\n")
 	for _, sym := range slices.Sorted(maps.Keys(syms.externDeclarations)) {
 		fmt.Fprintf(&output, "#define %s BORINGSSL_ADD_PREFIX(%s)\n", sym, sym)
 	}
 	output.WriteString("\n")
-	output.WriteString("#endif  // __PRAGMA_REDEFINE_EXTNAME\n")
+	output.WriteString("#endif  // __PRAGMA_REDEFINE_EXTNAME && !__ASSEMBLER__\n")
+
+	// Inline functions: they only need renaming in C++ when using inline (nothing to do when using static inline).
+	// In that case, use #pragma redefine_extname if supported (only clang supports it on inline functions), macros if not.
+	// They may not be called by asm code as they usually aren't even generated.
 	output.WriteString("\n")
-	output.WriteString("#if !defined(BORINGSSL_ALWAYS_USE_STATIC_INLINE)\n")
+	output.WriteString("#if !defined(BORINGSSL_ALWAYS_USE_STATIC_INLINE) && !defined(__ASSEMBLER__)\n")
+	output.WriteString("\n")
+	// Extern functions: use #pragma redefine_extname.
+	output.WriteString("#if defined(__PRAGMA_REDEFINE_EXTNAME) && defined(__clang__)\n")
+	output.WriteString("\n")
+	for _, sym := range slices.Sorted(maps.Keys(syms.inlineDefinitions)) {
+		fmt.Fprintf(&output, "#pragma redefine_extname %s BORINGSSL_ADD_USER_LABEL_AND_PREFIX(%s)\n", sym, sym)
+	}
+	output.WriteString("\n")
+	output.WriteString("#else  // __PRAGMA_REDEFINE_EXTNAME && __clang__\n")
 	output.WriteString("\n")
 	for _, sym := range slices.Sorted(maps.Keys(syms.inlineDefinitions)) {
 		fmt.Fprintf(&output, "#define %s BORINGSSL_ADD_PREFIX(%s)\n", sym, sym)
 	}
 	output.WriteString("\n")
-	output.WriteString("#endif  // !BORINGSSL_ALWAYS_USE_STATIC_INLINE\n")
+	output.WriteString("#endif  // __PRAGMA_REDEFINE_EXTNAME && __clang__\n")
+	output.WriteString("\n")
+	output.WriteString("#endif  // !BORINGSSL_ALWAYS_USE_STATIC_INLINE && !__ASSEMBLER__\n")
+
+	// In theory there could be a third category for types etc. that always uses #define.
+	// However, such a category is not necessary yet.
+
 	output.WriteString(`
+#endif  // BORINGSSL_PREFIX
+
 #endif  // OPENSSL_HEADER_PREFIX_SYMBOLS_H
 `)
 	return output.Bytes()

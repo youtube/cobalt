@@ -64,6 +64,11 @@ class CORE_EXPORT HTMLImageElement
   HTMLImageElement(Document&, const CreateElementFlags);
   explicit HTMLImageElement(Document&, bool created_by_parser = false);
   ~HTMLImageElement() override;
+
+  HTMLElementType GetHTMLElementType() const final {
+    return HTMLElementType::kHTMLImageElement;
+  }
+
   void Trace(Visitor*) const override;
 
   unsigned width();
@@ -128,6 +133,7 @@ class CORE_EXPORT HTMLImageElement
   virtual void EnsureCollapsedOrFallbackContent();
   virtual void EnsureFallbackForGeneratedContent();
   virtual void EnsurePrimaryContent();
+  void ResetLayoutDisposition();
   bool IsCollapsed() const;
   bool IsPrimaryContent() const;
 

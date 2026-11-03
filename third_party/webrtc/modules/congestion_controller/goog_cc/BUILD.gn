@@ -125,7 +125,6 @@ rtc_library("loss_based_bwe_v2") {
     "loss_based_bwe_v2.h",
   ]
   deps = [
-    "../../../api:array_view",
     "../../../api:field_trials_view",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",

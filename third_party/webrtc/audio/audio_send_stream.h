@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -103,7 +103,7 @@ class AudioSendStream final : public webrtc::AudioSendStream,
   webrtc::AudioSendStream::Stats GetStats(
       bool has_remote_tracks) const override;
 
-  void DeliverRtcp(ArrayView<const uint8_t> packet);
+  void DeliverRtcp(std::span<const uint8_t> packet);
 
   // Implements BitrateAllocatorObserver.
   uint32_t OnBitrateUpdated(BitrateAllocationUpdate update) override;

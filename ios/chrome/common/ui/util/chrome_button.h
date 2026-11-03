@@ -12,6 +12,7 @@ typedef NS_ENUM(NSInteger, ChromeButtonStyle) {
   ChromeButtonStylePrimary,
   ChromeButtonStylePrimaryDestructive,
   ChromeButtonStyleSecondary,
+  ChromeButtonStyleSecondaryDestructive,
   ChromeButtonStyleTertiary,
 };
 
@@ -23,6 +24,8 @@ typedef NS_ENUM(NSInteger, PrimaryButtonImage) {
   PrimaryButtonImageSpinner,
   // Confirmation state, a checkmark is shown.
   PrimaryButtonImageCheckmark,
+  // Custom image.
+  PrimaryButtonImageCustom,
 };
 
 // A chrome implementation of a UIButton.
@@ -39,6 +42,8 @@ typedef NS_ENUM(NSInteger, PrimaryButtonImage) {
 @property(nonatomic, copy) UIFont* font;
 
 // The button's image. This property can only be set for primary style buttons.
+// When setting PrimaryButtonImageCustom, the caller must configure the custom
+// image directly via the `configuration` property before setting this value.
 @property(nonatomic, assign) PrimaryButtonImage primaryButtonImage;
 
 // Whether the button has a tuned-down state. Default is NO. Takes precedence

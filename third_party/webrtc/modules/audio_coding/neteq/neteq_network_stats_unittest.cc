@@ -13,10 +13,10 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_decoder.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -76,7 +76,7 @@ class MockAudioDecoder final : public AudioDecoder {
     size_t Duration() const override { return kPacketDuration; }
 
     std::optional<DecodeResult> Decode(
-        ArrayView<int16_t> decoded) const override {
+        std::span<int16_t> decoded) const override {
       const size_t output_size =
           sizeof(int16_t) * kPacketDuration * num_channels_;
       if (decoded.size() >= output_size) {

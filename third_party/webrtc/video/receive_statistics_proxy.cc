@@ -609,11 +609,13 @@ void ReceiveStatisticsProxy::OnCname(uint32_t ssrc, absl::string_view cname) {
   stats_.c_name = std::string(cname);
 }
 
-void ReceiveStatisticsProxy::OnDecodedFrame(const VideoFrame& frame,
-                                            std::optional<uint8_t> qp,
-                                            TimeDelta decode_time,
-                                            VideoContentType content_type,
-                                            VideoFrameType frame_type) {
+void ReceiveStatisticsProxy::OnDecodedFrame(
+    const VideoFrame& frame,
+    std::optional<uint8_t> qp,
+    TimeDelta decode_time,
+    VideoContentType content_type,
+    VideoFrameType frame_type,
+    const TimingFrameInfo& timing_frame_info) {
   TimeDelta processing_delay = TimeDelta::Zero();
   Timestamp current_time = clock_->CurrentTime();
   // TODO(bugs.webrtc.org/13984): some tests do not fill packet_infos().
@@ -637,10 +639,12 @@ void ReceiveStatisticsProxy::OnDecodedFrame(const VideoFrame& frame,
   // "com.apple.coremedia.decompressionsession.clientcallback"
   VideoFrameMetaData meta(frame, current_time);
   worker_thread_->PostTask(SafeTask(
-      task_safety_.flag(), [meta, qp, decode_time, processing_delay,
-                            assembly_time, content_type, frame_type, this]() {
+      task_safety_.flag(),
+      [meta, qp, decode_time, processing_delay, assembly_time, content_type,
+       frame_type, timing_frame_info, this]() {
         OnDecodedFrame(meta, qp, decode_time, processing_delay, assembly_time,
                        content_type, frame_type);
+        OnTimingFrameInfoUpdated(timing_frame_info);
       }));
 }
 

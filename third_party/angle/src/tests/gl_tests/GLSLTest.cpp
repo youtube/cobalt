@@ -12893,6 +12893,71 @@ void main()
     EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(127, 127, 0, 255), 1);
 }
 
+// Test that dead code elimination can handle ternary
+TEST_P(GLSLTest_ES31, DeadCodeTernary)
+{
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+out vec4 color;
+
+uniform int zero;
+uniform int inactive1;
+uniform int inactive2;
+uniform int inactive3[3];
+uniform struct Inactive {
+    int v[5];
+} inactive4;
+
+void main()
+{
+    inactive1 == 0 ? inactive2 : inactive3[inactive2];
+
+    inactive4.v[0] == 0
+        ? inactive2 == 0
+            ? float(inactive3[1]) + vec4(inactive4.v[1]).y
+            : float(inactive1) * 3.0
+        : inactive1 == 0
+            ? inactive2 == 0
+                ? sin(float(inactive1)) * faceforward(mat2(inactive2)[0], vec2(1), vec2(-1)).x
+                : clamp(float(inactive3[1]), 0., 1.)
+            : 1.;
+
+    // The condition of a ternary is a ternary itself
+    (inactive1 == 0 ? inactive2 == 0 : inactive3[0] == 0) ? inactive1 : 0;
+
+    zero == 0 ? 1.0 : 0.0;
+
+    color = zero != 0 ? vec4(1, 0, 0, 1) : vec4(0, 1, 0, 1);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+
+    GLint activeUniforms = 0;
+    glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &activeUniforms);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(activeUniforms, 1);
+
+    GLuint index = glGetProgramResourceIndex(program, GL_UNIFORM, "zero");
+    EXPECT_NE(index, GL_INVALID_INDEX);
+
+    index = glGetProgramResourceIndex(program, GL_UNIFORM, "inactive1");
+    EXPECT_EQ(index, GL_INVALID_INDEX);
+
+    index = glGetProgramResourceIndex(program, GL_UNIFORM, "inactive2");
+    EXPECT_EQ(index, GL_INVALID_INDEX);
+
+    index = glGetProgramResourceIndex(program, GL_UNIFORM, "inactive3");
+    EXPECT_EQ(index, GL_INVALID_INDEX);
+
+    index = glGetProgramResourceIndex(program, GL_UNIFORM, "inactive4");
+    EXPECT_EQ(index, GL_INVALID_INDEX);
+}
+
 // Regression test based on fuzzer issue.  If a case has statements that are pruned, and those
 // pruned statements in turn have branches, and another case follows, a prior implementation of
 // dead-code elimination doubly pruned some statements.
@@ -17046,6 +17111,9 @@ class GLSLTestLoops : public GLSLTest
     }
 };
 
+class GLSLTestLoops_ES31 : public GLSLTest_ES31
+{};
+
 // Test basic for loops
 TEST_P(GLSLTestLoops, BasicFor)
 {
@@ -17822,6 +17890,221 @@ void main()
 })";
 
     runTest(kFS);
+}
+
+// Test for loops where the continue block is never executed
+TEST_P(GLSLTestLoops_ES31, ForLoopWithDeadContinue)
+{
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+out vec4 color;
+
+uniform int u1;
+uniform int u2;
+uniform int u3;
+uniform int u4;
+
+void main()
+{
+    int a = 0;
+    // ++a is never executed:
+    for (int b = 0; b < 1; ++a)
+    {
+        break;
+    }
+    // a += u1 + 2 is never executed:
+    for (int b = 0; b < 1; a += u1 + 2)
+    {
+        // Always false
+        if (u3 == 1)
+        {
+            return;
+        }
+        else
+        {
+            break;
+        }
+        discard;
+    }
+    // a += u2 + 4 is never executed:
+    for (int b = 0; b < 1; a += u2 + 4)
+    {
+        // Always false
+        if (u3 == 1)
+        {
+            return;
+        }
+        // a += 100 **is** executed once
+        for (int c = 0; c < 1; ++c, a += 100)
+        {
+            // Always true
+            if (u3 == 0)
+            {
+                continue;
+            }
+            return;
+        }
+        // Always false
+        if (u4 == 1)
+        {
+            discard;
+        }
+        else
+        {
+            // Always true
+            if (u4 == 0)
+            {
+                break;
+            }
+        }
+        discard;
+    }
+
+    // `a` should be 100.  `u1` and `u2` are effectively inactive uniforms
+    color = a == 100 ? vec4(0, 1, 0, 1) : vec4(1, 0, 0, 1);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+
+    // `u1` and `u2` can be inactive, which is only detected by the IR
+    if (getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        GLuint index = glGetProgramResourceIndex(program, GL_UNIFORM, "u1");
+        EXPECT_EQ(index, GL_INVALID_INDEX);
+
+        index = glGetProgramResourceIndex(program, GL_UNIFORM, "u2");
+        EXPECT_EQ(index, GL_INVALID_INDEX);
+    }
+}
+
+// Test for loops where the continue block should be executed
+TEST_P(GLSLTestLoops_ES31, ForLoopWithLiveContinue)
+{
+    // The test fails in the AST path, but only on NVIDIA/GL
+    ANGLE_SKIP_TEST_IF(!getEGLWindow()->isFeatureEnabled(Feature::UseIr) && IsOpenGL() &&
+                       IsNVIDIA());
+
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+out vec4 color;
+
+uniform int u1;
+uniform int u2;
+uniform int u3;
+uniform int u4;
+uniform int u5;
+
+void main()
+{
+    int a = 0;
+    // ++a is executed once:
+    for (int b = 0; b < 1; ++b, ++a)
+    {
+        continue;
+    }
+    // a += u1 + 2 is executed once:
+    for (int b = 0; b < 1; ++b, a += u1 + 2)
+    {
+        // Always false
+        if (u3 == 1)
+        {
+            return;
+        }
+        else
+        {
+            continue;
+        }
+        discard;
+    }
+    // a += u2 + 4 is executed once:
+    for (int b = 0; b < 1; ++b, a += u2 + 4)
+    {
+        // Always false
+        if (u3 == 1)
+        {
+            return;
+        }
+        switch (u3)
+        {
+            // Never matches
+            case 1:
+                a += u3 + 8;
+                break;
+            // Never matches
+            default:
+                a += u3 + 16;
+                break;
+            // Always matches
+            case 0:
+                a += u3 + 32;
+                continue;
+        }
+        // Always false
+        if (u4 == 1)
+        {
+            discard;
+        }
+        else
+        {
+            // Always true, but the `continue` in `switch` makes this never execute
+            if (u4 == 0)
+            {
+                a = 10000;
+                break;
+            }
+        }
+        discard;
+    }
+    // a += u5 + 64 is never executed, but the compiler cannot know that:
+    for (int b = 0; b < 1; ++b, a += u5 + 64)
+    {
+        switch (u3)
+        {
+            // Never matches
+            case 1:
+                a += u3 + 128;
+                continue;
+            // Always matches
+            default:
+                a += u3 + 256;
+                break;
+        }
+        // Always false
+        if (u4 == 1)
+        {
+            discard;
+        }
+        else
+        {
+            // Always true
+            if (u4 == 0)
+            {
+                break;
+            }
+        }
+        discard;
+    }
+
+    // `a` should be 1+2+4+32+256
+    color = a == 295 ? vec4(0, 1, 0, 1) : vec4(1, 0, 0, 1);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+
+    // Even though `u5` is never really accessed, the compiler wouldn't know that.
+    // I.e. the `a += u5 + 64` code cannot be dead-code-eliminated
+    GLuint index = glGetProgramResourceIndex(program, GL_UNIFORM, "u5");
+    EXPECT_NE(index, GL_INVALID_INDEX);
 }
 
 // Test that precision is retained for constants (which are constant folded).  Adapted from a WebGL
@@ -22439,9 +22722,6 @@ void main()
 // it is no-op.
 TEST_P(GLSLTest_ES3, EmptyLastCaseInSwitch)
 {
-    // Incorrect translation before IR.
-    ANGLE_SKIP_TEST_IF(!getEGLWindow()->isFeatureEnabled(Feature::UseIr));
-
     constexpr char kFS[] = R"(#version 300 es
 uniform int ui;
 out mediump vec4 color;
@@ -22466,6 +22746,36 @@ void main(void)
     ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
     drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Regression test for codegen errors when the last case of a switch is dead-code-eliminated.
+TEST_P(GLSLTest_ES3, EmptyLastCaseInSwitch2)
+{
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+uniform int a, b;
+out vec4 color;
+void main() {
+    float r = 0.25;
+    switch(a) {
+        case 0:
+            switch(b) {
+                default:
+                    r = 0.75;
+                case 0:
+                    switch(b) { }
+            }
+            break;
+        default:
+            r = 0.5;
+    }
+    color = vec4(r, 0, 0, 1);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(63, 0, 0, 255), 1);
     ASSERT_GL_NO_ERROR();
 }
 
@@ -22891,6 +23201,9 @@ ANGLE_INSTANTIATE_TEST_ES3_AND(
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLTestLoops);
 ANGLE_INSTANTIATE_TEST_ES3(GLSLTestLoops);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GLSLTestLoops_ES31);
+ANGLE_INSTANTIATE_TEST_ES31(GLSLTestLoops_ES31);
 
 ANGLE_INSTANTIATE_TEST_ES2(WebGLGLSLTest);
 

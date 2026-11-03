@@ -1567,6 +1567,10 @@ ci.builder(
         mixins = [
             "linux-jammy",
             "arm64",
+            "gce",  # So as not to take up baremetal arm bots for VM testing.
+            # TODO(crbug.com/493903786): Can remove the increased expirations
+            # if/when the full resources are delivered.
+            "very_limited_capacity_bot",
         ],
         per_test_modifications = {
             "remoting_unittests": targets.remove(
@@ -2196,7 +2200,7 @@ fyi_mac_builder(
         chromium_config = builder_config.chromium_config(
             config = "chromium",
             apply_configs = ["mb"],
-            build_config = builder_config.build_config.DEBUG,
+            build_config = builder_config.build_config.RELEASE,
             target_arch = builder_config.target_arch.ARM,
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
@@ -2206,10 +2210,9 @@ fyi_mac_builder(
         configs = [
             "arm64",
             "gpu_tests",
-            "debug_static_builder",
+            "release_builder",
             "remoteexec",
-            "dcheck_off",
-            "shared",
+            "minimal_symbols",
             "mac",
         ],
     ),

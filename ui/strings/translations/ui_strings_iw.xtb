@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="iw">
-<translation id="1028699632127661925">הכרטיסייה נשלחת אל <ph name="DEVICE_NAME" />...</translation>
 <translation id="111910763555783249">הגדרות של הודעות</translation>
 <translation id="1127811143501539442">{DAYS,plural, =1{לפני יום אחד}one{לפני # ימים}two{לפני יומיים}other{לפני # ימים}}</translation>
 <translation id="1156623771253174079">{SECONDS,plural, =1{לפני דקה אחת}one{לפני # דקות}two{לפני # דקות}other{לפני # דקות}}</translation>
@@ -70,7 +69,6 @@
 <translation id="2586657967955657006">לוח</translation>
 <translation id="2653844658857826081">חדש</translation>
 <translation id="2666092431469916601">למעלה</translation>
-<translation id="2701330563083355633">שותפה מהמכשיר <ph name="DEVICE_NAME" /></translation>
 <translation id="2824719307700604149">{YEARS,plural, =1{לפני שנה אחת}one{לפני # שנים}two{לפני שנתיים}other{לפני # שנים}}</translation>
 <translation id="2878511608894704031">מחיקת הכול</translation>
 <translation id="2907671656515444832">{DAYS,plural, =1{עוד יום אחד}one{עוד יום אחד}two{עוד 2 ימים}other{עוד # ימים}}</translation>
@@ -110,6 +108,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{הודעה אחת שלא נקראה}one{# הודעות שלא נקראו}two{2 הודעות שלא נקראו}other{# הודעות שלא נקראו}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{מפעילים את התוסף הבא במצב פרטי:}one{מפעילים את התוספים הבאים במצב פרטי:}two{מפעילים את התוספים הבאים במצב פרטי:}other{מפעילים את התוספים הבאים במצב פרטי:}}</translation>
+<translation id="4230098358142093034">דף הבית</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{לפני חודש אחד}one{לפני # חודשים}two{לפני חודשיים}other{לפני # חודשים}}</translation>
 <translation id="4277033906326892359">העמודה <ph name="COLUMN_NAME" /> ממוינת בסדר עולה</translation>
 <translation id="4289300219472526559">יש להתחיל לדבר</translation>

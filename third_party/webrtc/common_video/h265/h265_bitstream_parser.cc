@@ -14,9 +14,9 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "common_video/h265/h265_common.h"
 #include "common_video/h265/h265_pps_parser.h"
 #include "common_video/h265/h265_sps_parser.h"
@@ -84,7 +84,7 @@ H265BitstreamParser::~H265BitstreamParser() = default;
 // section 7.3.6.1. You can find it on this page:
 // http://www.itu.int/rec/T-REC-H.265
 H265BitstreamParser::Result H265BitstreamParser::ParseNonParameterSetNalu(
-    ArrayView<const uint8_t> source,
+    std::span<const uint8_t> source,
     uint8_t nalu_type) {
   last_slice_qp_delta_ = std::nullopt;
   last_slice_pps_id_ = std::nullopt;
@@ -520,7 +520,7 @@ const H265SpsParser::SpsState* H265BitstreamParser::GetSPS(uint32_t id) const {
   return &it->second;
 }
 
-void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
+void H265BitstreamParser::ParseSlice(std::span<const uint8_t> slice) {
   if (slice.empty()) {
     RTC_LOG(LS_WARNING) << "Empty slice in H265 bitstream.";
     return;
@@ -594,7 +594,7 @@ void H265BitstreamParser::ParseSlice(ArrayView<const uint8_t> slice) {
 
 std::optional<uint32_t>
 H265BitstreamParser::ParsePpsIdFromSliceSegmentLayerRbsp(
-    ArrayView<const uint8_t> data,
+    std::span<const uint8_t> data,
     uint8_t nalu_type) {
   std::vector<uint8_t> unpacked_buffer = H265::ParseRbsp(data);
   BitstreamReader slice_reader(unpacked_buffer);
@@ -622,7 +622,7 @@ H265BitstreamParser::ParsePpsIdFromSliceSegmentLayerRbsp(
 }
 
 std::optional<bool> H265BitstreamParser::IsFirstSliceSegmentInPic(
-    ArrayView<const uint8_t> data) {
+    std::span<const uint8_t> data) {
   std::vector<uint8_t> unpacked_buffer = H265::ParseRbsp(data);
   BitstreamReader slice_reader(unpacked_buffer);
 
@@ -635,7 +635,7 @@ std::optional<bool> H265BitstreamParser::IsFirstSliceSegmentInPic(
   return first_slice_segment_in_pic_flag;
 }
 
-void H265BitstreamParser::ParseBitstream(ArrayView<const uint8_t> bitstream) {
+void H265BitstreamParser::ParseBitstream(std::span<const uint8_t> bitstream) {
   std::vector<H265::NaluIndex> nalu_indices = H265::FindNaluIndices(bitstream);
   for (const H265::NaluIndex& index : nalu_indices)
     ParseSlice(

@@ -20,6 +20,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
@@ -37,7 +38,6 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/split_tab_util.h"
-#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -53,10 +53,10 @@
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/groups/tab_group_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_group_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -66,6 +66,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
+#include "components/omnibox/browser/autocomplete_match.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -182,9 +184,12 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
   model_->SetTabStripUI(this);
 
   // Add all pinned / unpinned tabs regardless of group / split affiliation.
-  std::vector<std::pair<tabs::TabInterface*, int>> tabs_to_add;
+  std::vector<TabStrip::AddTabData> tabs_to_add;
   for (int i = 0; i < model_->count(); ++i) {
-    tabs_to_add.emplace_back(model_->GetTabAtIndex(i), i);
+    tabs::TabInterface* const tab_interface = model_->GetTabAtIndex(i);
+    tabs_to_add.push_back({.index = i,
+                           .handle = tab_interface->GetHandle(),
+                           .is_pinned = tab_interface->IsPinned()});
   }
   AddTabs(tabs_to_add);
 
@@ -209,6 +214,11 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
   for (const split_tabs::SplitTabId& split_id : model_->ListSplits()) {
     split_tabs::SplitTabData* data = model_->GetSplitData(split_id);
     tabstrip_->OnSplitCreated(data->GetIndexRange().ToIntVector(), split_id);
+  }
+
+  // Set the active selected tab.
+  if (!model_->empty()) {
+    tabstrip_->SetSelection(GetSelectionModel());
   }
 
   tabstrip_->StopAnimating();
@@ -548,6 +558,20 @@ void BrowserTabStripController::CreateNewTab(NewTabTypes context) {
   chrome::NewTab(browser_view_->browser(), context);
 }
 
+void BrowserTabStripController::CreateNewTabWithLocation(
+    const std::u16string& location) {
+  // Use autocomplete to clean up the text, going so far as to turn it into
+  // a search query if necessary.
+  AutocompleteMatch match;
+  AutocompleteClassifierFactory::GetForProfile(
+      GetBrowserWindowInterface()->GetProfile())
+      ->Classify(location, false, false, metrics::OmniboxEventProto::BLANK,
+                 &match, nullptr);
+  if (match.destination_url.is_valid()) {
+    model_->delegate()->AddTabAt(match.destination_url, -1, true);
+  }
+}
+
 void BrowserTabStripController::OnStartedDragging() {
   if (!immersive_reveal_lock_.get()) {
     // The top-of-window views should be revealed while the user is dragging
@@ -655,10 +679,13 @@ void BrowserTabStripController::OnTabStripModelChanged(
     const TabStripSelectionChange& selection) {
   switch (change.type()) {
     case TabStripModelChange::kInserted: {
-      std::vector<std::pair<tabs::TabInterface*, int>> tabs_to_add;
+      std::vector<TabStrip::AddTabData> tabs_to_add;
       for (const auto& contents : change.GetInsert()->contents) {
         DCHECK(model_->ContainsIndex(contents.index));
-        tabs_to_add.emplace_back(contents.tab, contents.index);
+        tabs::TabInterface* const tab_interface = contents.tab;
+        tabs_to_add.push_back({.index = contents.index,
+                               .handle = tab_interface->GetHandle(),
+                               .is_pinned = tab_interface->IsPinned()});
       }
       AddTabs(tabs_to_add);
       break;
@@ -681,12 +708,7 @@ void BrowserTabStripController::OnTabStripModelChanged(
       auto* move = change.GetMove();
       // Cancel any pending tab transition.
       hover_tab_selector_.CancelTabTransition();
-
-      // A move may have resulted in the pinned state changing, so pass in a
-      // tabs::TabData.
-      tabstrip_->MoveTab(move->from_index, move->to_index,
-                         tabs::TabData::FromTabInterface(
-                             model_->GetTabAtIndex(move->to_index)));
+      tabstrip_->MoveTab(move->from_index, move->to_index);
       break;
     }
     case TabStripModelChange::kReplaced:
@@ -884,18 +906,11 @@ const BrowserFrameView* BrowserTabStripController::GetFrameView() const {
 }
 
 void BrowserTabStripController::AddTabs(
-    std::vector<std::pair<tabs::TabInterface*, int>> contents_list) {
+    const std::vector<TabStrip::AddTabData>& tabs_data) {
   // Cancel any pending tab transition.
   hover_tab_selector_.CancelTabTransition();
 
-  std::vector<TabStrip::AddTabData> tabs_data;
-  for (const auto& [tab, index] : contents_list) {
-    tabs_data.push_back({.index = index,
-                         .handle = tab->GetHandle(),
-                         .data = tabs::TabData::FromTabInterface(tab)});
-  }
-
-  tabstrip_->AddTabsAt(std::move(tabs_data));
+  tabstrip_->AddTabsAt(tabs_data);
 }
 
 bool BrowserTabStripController::IsContextMenuCommandChecked(

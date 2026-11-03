@@ -135,14 +135,14 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
   return Isolate::Current()->js_dispatch_table().GetCode(dispatch_handle(tag));
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate) const {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
-                                    AcquireLoadTag tag) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate,
+                                              AcquireLoadTag tag) const {
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);
@@ -356,11 +356,9 @@ Tagged<NativeContext> JSFunction::native_context() {
   return context()->native_context();
 }
 
-RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunctionWithPrototype,
-                                  prototype_or_initial_map,
-                                  (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
-                                  kPrototypeOrInitialMapOffset,
-                                  map()->has_prototype_slot())
+RELEASE_ACQUIRE_ACCESSORS(JSFunctionWithPrototype, prototype_or_initial_map,
+                          (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
+                          kPrototypeOrInitialMapOffset)
 
 RELEASE_ACQUIRE_ACCESSORS_CHECKED(
     JSFunction, prototype_or_initial_map,
@@ -370,9 +368,7 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED(
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
   // It's slightly cheaper to check for JSFunctionWithoutPrototype because
   // there's only one such instance type.
-  bool result = !IsJSFunctionWithoutPrototypeMap(*map(cage_base));
-  DCHECK_EQ(result, map(cage_base)->has_prototype_slot());
-  return result;
+  return !IsJSFunctionWithoutPrototypeMap(*map(cage_base));
 }
 
 DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {

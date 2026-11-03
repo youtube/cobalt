@@ -646,8 +646,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
                          closure_feedback_cell_array)
     ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
 
-    ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
-    ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, TrustedForeign::kSize, trusted_foreign)
+    ALLOCATE_MAP(FOREIGN_TYPE, sizeof(Foreign), foreign)
+    ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, sizeof(TrustedForeign), trusted_foreign)
     ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, MegaDomHandler::kSize, mega_dom_handler)
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
@@ -664,11 +664,11 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_VARSIZE_MAP(INSTRUCTION_STREAM_TYPE, instruction_stream)
 
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
+    ALLOCATE_MAP(CELL_TYPE, sizeof(Cell), cell);
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
       AllocationResult alloc =
-          AllocateRaw(Cell::kSize, AllocationType::kReadOnly);
+          AllocateRaw(sizeof(Cell), AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(isolate(), roots.cell_map(),
                                     SKIP_WRITE_BARRIER);
@@ -765,9 +765,9 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
                  atom_regexp_data);
     ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, IrRegExpData::kSize, ir_regexp_data);
 
-    ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
+    ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, sizeof(SourceTextModule),
                  source_text_module)
-    ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
+    ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, sizeof(SyntheticModule),
                  synthetic_module)
 
     ALLOCATE_MAP(CONTEXT_CELL_TYPE, sizeof(ContextCell), context_cell)
@@ -994,7 +994,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
                                   SKIP_WRITE_BARRIER);
-    int flags = ScopeInfo::IsEmptyBit::encode(true);
+    int flags = 0;
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
               VariableAllocationInfo::NONE);

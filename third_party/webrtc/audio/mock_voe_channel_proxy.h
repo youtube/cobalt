@@ -16,11 +16,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_encoder.h"
@@ -208,7 +208,7 @@ class MockChannelSend : public voe::ChannelSendInterface {
               RegisterPacketOverhead,
               (int packet_byte_overhead),
               (override));
-  MOCK_METHOD(void, SetCsrcs, (ArrayView<const uint32_t> csrcs), (override));
+  MOCK_METHOD(void, SetCsrcs, (std::span<const uint32_t> csrcs), (override));
 };
 }  // namespace test
 }  // namespace webrtc

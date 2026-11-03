@@ -53,6 +53,10 @@ class BrowserContext;
 class WebContents;
 }  // namespace content
 
+namespace network {
+class TestNetworkConnectionTracker;
+}  // namespace network
+
 #if defined(TOOLKIT_VIEWS)
 namespace views {
 class ViewsDelegate;
@@ -186,6 +190,14 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   // BrowserMain(), this will return nullptr unless another browser instance is
   // created at a later time and `SetBrowser()` is called.
   Browser* browser() const { return browser_; }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Similar to browser(), but it returns BrowserWindowInterface, instead.
+  // On Android platform, the compatible API is defined in AndroidBrowserTest.
+  BrowserWindowInterface* GetBrowserWindowInterface() const {
+    return browser_.get();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Sets the default `browser_` instance for the fixture.
   void SetBrowser(BrowserWindowInterface* browser);
@@ -373,6 +385,9 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   void SetUpProtocolHandlerTestFactories(content::BrowserContext* context);
 
   static SetUpBrowserFunction* global_browser_set_up_function_;
+
+  std::unique_ptr<network::TestNetworkConnectionTracker>
+      test_network_connection_tracker_;
 
   // Usually references the browser created in BrowserMain().
   // If no browser is created in BrowserMain(), then `browser_` will remain

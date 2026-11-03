@@ -461,8 +461,7 @@ ViewTransitionStyleTracker::ViewTransitionStyleTracker(
   VectorOf<AtomicString> transition_names;
   transition_names.ReserveInitialCapacity(captured_name_count_);
   for (const auto& transition_state_element : transition_state.elements) {
-    auto name =
-        AtomicString::FromUtf8(transition_state_element.tag_name.c_str());
+    auto name = AtomicString::FromUtf8(transition_state_element.tag_name);
     transition_names.push_back(name);
 
     DCHECK(!element_data_map_.Contains(name));
@@ -493,7 +492,7 @@ ViewTransitionStyleTracker::ViewTransitionStyleTracker(
 
           for (const auto& [id, value] : source) {
             builder.Insert(FromTransitionPropertyId(id),
-                           String::FromUTF8(value));
+                           String::FromUtf8(value));
           }
           destination = std::move(builder).Finish();
         };
@@ -511,15 +510,14 @@ ViewTransitionStyleTracker::ViewTransitionStyleTracker(
     element_data->border_offset = transition_state_element.border_offset;
 
     for (const auto& class_name : transition_state_element.class_list) {
-      element_data->class_list.push_back(
-          AtomicString::FromUtf8(class_name.c_str()));
+      element_data->class_list.push_back(AtomicString::FromUtf8(class_name));
     }
 
     element_data->containing_group_name =
         transition_state_element.containing_group_name.empty()
             ? AtomicString()
             : AtomicString::FromUtf8(
-                  transition_state_element.containing_group_name.c_str());
+                  transition_state_element.containing_group_name);
     element_data->CacheStateForOldSnapshot();
 
     element_data_map_.insert(name, std::move(element_data));
@@ -945,11 +943,11 @@ bool ViewTransitionStyleTracker::HasContainmentBoundary(
     }
     node = FlatTreeTraversal::Parent(*node);
     // Sanity check in case we have missed anything.
-    if (!node) {
+    if (!node && root_node) {
       StringBuilder sb;
       sb.Append(child_object.GetNode()->nodeName());
       sb.Append(" / ");
-      sb.Append(!!root_node ? root_node->nodeName() : "<null>");
+      sb.Append(root_node->nodeName());
       String message = sb.ReleaseString();
       DCHECK(false) << "Failed traversal: " << message;
       auto* key = base::debug::AllocateCrashKeyString(

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/ecn_marking.h"
@@ -44,6 +45,7 @@ namespace {
 
 using ::testing::Eq;
 using ::testing::Ge;
+using ::testing::HasSubstr;
 
 constexpr bool kMuxDisabled = false;
 constexpr bool kMuxEnabled = true;
@@ -363,6 +365,30 @@ TEST(RtpTransportTest, RegisterAndUnregisterRtpHeaderExtensionMap) {
       observer.last_recv_rtp_packet().HasExtension<AbsoluteSendTime>());
 
   transport.UnregisterRtpDemuxerSink(&observer);
+}
+
+TEST(RtpTransportTest, VerifyRtpHeaderExtensionMapRejectsIdReassignment) {
+  test::RunLoop loop;
+  RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
+  RtpHeaderExtensions extensions1 = {
+      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
+  RtpHeaderExtensions extensions2 = {RtpExtension(
+      "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", 1)};
+
+  // Registering the first map should succeed.
+  EXPECT_TRUE(
+      transport.RegisterRtpHeaderExtensionMap("audio", extensions1).ok());
+
+  // Verifying a map that tries to reassign ID 1 to a different URI should fail.
+  RTCError error = transport.VerifyRtpHeaderExtensionMap(extensions2);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
+  EXPECT_THAT(error.message(), HasSubstr("RTP extension ID reassignment"));
+
+  // Registering the second map should also fail.
+  error = transport.RegisterRtpHeaderExtensionMap("video", extensions2);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
 }
 
 // Test that SignalPacketReceived fires with rtcp=true when a RTCP packet is

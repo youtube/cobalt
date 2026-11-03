@@ -259,7 +259,7 @@ TEST(RTCErrorOrTest, BuildString) {
   EXPECT_STREQ(error.message(), "StringyBuilder #2");
 }
 
-// Tests a non macro based alternative to `LOG_AND_RETURN_ERROR`.
+// Tests `LOG_ERROR`.
 TEST(RTCErrorOrTest, BuildStringLog) {
   class LogSinkImpl : public LogSink {
    public:

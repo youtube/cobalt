@@ -221,6 +221,9 @@ const char kDisablePromptOnRepost[] = "disable-prompt-on-repost";
 // build that has it disabled by default.
 const char kDisableStackProfiler[] = "disable-stack-profiler";
 
+// Disable startup of the updater process.
+const char kDisableUpdaterScheduler[] = "disable-updater-scheduler";
+
 // Some tests seem to require the application to close when the last
 // browser window is closed. Thus, we need a switch to force this behavior
 // for ChromeOS Aura, disable "zero window mode".
@@ -644,12 +647,12 @@ const char kCaptureAutoReject[] = "auto-reject-capture";
 // Custom delay for memory log. This should be used only for testing purpose.
 const char kTestMemoryLogDelayInMinutes[] = "test-memory-log-delay-in-minutes";
 
-// Passes the name of the current running automated test to Chrome.
-const char kTestName[] = "test-name";
-
 // Identifies a list of download sources as trusted, but only if proper group
 // policy is set.
 const char kTrustedDownloadSources[] = "trusted-download-sources";
+
+// Specifies the TalkToChrome bundle URL.
+const char kTtcBundleUrl[] = "ttc-bundle-url";
 
 // Overrides per-origin quota settings to unlimited storage for any
 // apps/origins.  This should be used only for testing purpose.

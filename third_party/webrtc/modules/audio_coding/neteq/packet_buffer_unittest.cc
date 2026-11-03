@@ -17,10 +17,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_decoder.h"
 #include "api/neteq/tick_timer.h"
 #include "modules/audio_coding/neteq/mock/mock_decoder_database.h"
@@ -47,7 +47,7 @@ class MockEncodedAudioFrame : public AudioDecoder::EncodedAudioFrame {
 
   MOCK_METHOD(std::optional<DecodeResult>,
               Decode,
-              (ArrayView<int16_t> decoded),
+              (std::span<int16_t> decoded),
               (const, override));
 };
 

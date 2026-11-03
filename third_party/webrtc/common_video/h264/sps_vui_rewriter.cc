@@ -15,9 +15,9 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/video/color_space.h"
 #include "common_video/h264/h264_common.h"
 #include "common_video/h264/sps_parser.h"
@@ -134,7 +134,7 @@ void SpsVuiRewriter::UpdateStats(ParseResult result, Direction direction) {
 }
 
 SpsVuiRewriter::ParseResult SpsVuiRewriter::ParseAndRewriteSps(
-    ArrayView<const uint8_t> buffer,
+    std::span<const uint8_t> buffer,
     std::optional<SpsParser::SpsState>* sps,
     const ColorSpace* color_space,
     Buffer* destination) {
@@ -211,7 +211,7 @@ SpsVuiRewriter::ParseResult SpsVuiRewriter::ParseAndRewriteSps(
 }
 
 SpsVuiRewriter::ParseResult SpsVuiRewriter::ParseAndRewriteSps(
-    ArrayView<const uint8_t> buffer,
+    std::span<const uint8_t> buffer,
     std::optional<SpsParser::SpsState>* sps,
     const ColorSpace* color_space,
     Buffer* destination,
@@ -223,7 +223,7 @@ SpsVuiRewriter::ParseResult SpsVuiRewriter::ParseAndRewriteSps(
 }
 
 Buffer SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
-    ArrayView<const uint8_t> buffer,
+    std::span<const uint8_t> buffer,
     const ColorSpace* color_space) {
   std::vector<H264::NaluIndex> nalus = H264::FindNaluIndices(buffer);
 
@@ -233,10 +233,10 @@ Buffer SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
 
   for (const H264::NaluIndex& nalu_index : nalus) {
     // Copy NAL unit start code.
-    ArrayView<const uint8_t> start_code = buffer.subspan(
+    std::span<const uint8_t> start_code = buffer.subspan(
         nalu_index.start_offset,
         nalu_index.payload_start_offset - nalu_index.start_offset);
-    ArrayView<const uint8_t> nalu = buffer.subspan(
+    std::span<const uint8_t> nalu = buffer.subspan(
         nalu_index.payload_start_offset, nalu_index.payload_size);
     if (nalu.empty()) {
       continue;

@@ -868,24 +868,24 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularExportsOffset);
+        module, offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_exports, export_index));
-    SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
+    SetAccumulator(LoadObjectField(cell, offsetof(Cell, maybe_value_)));
     Goto(&end);
   }
 
   BIND(&if_import);
   {
     TNode<FixedArray> regular_imports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularImportsOffset);
+        module, offsetof(SourceTextModule, regular_imports_));
     // The actual array index is (-cell_index - 1).
     TNode<IntPtrT> import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_imports, import_index));
-    SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
+    SetAccumulator(LoadObjectField(cell, offsetof(Cell, maybe_value_)));
     Goto(&end);
   }
 
@@ -913,12 +913,12 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
-        module, SourceTextModule::kRegularExportsOffset);
+        module, offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<HeapObject> cell =
         CAST(LoadFixedArrayElement(regular_exports, export_index));
-    StoreObjectField(cell, Cell::kValueOffset, value);
+    StoreObjectField(cell, offsetof(Cell, maybe_value_), value);
     Goto(&end);
   }
 

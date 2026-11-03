@@ -25,9 +25,9 @@ namespace update_client {
 
 struct CrxComponent;
 
-extern const char kArchAmd64[];
-extern const char kArchIntel[];
-extern const char kArchArm64[];
+inline constexpr char kArchAmd64[] = "x86_64";
+inline constexpr char kArchIntel[] = "x86";
+inline constexpr char kArchArm64[] = "arm64";
 
 #if BUILDFLAG(IS_STARBOARD)
 enum class UpdaterStatus {

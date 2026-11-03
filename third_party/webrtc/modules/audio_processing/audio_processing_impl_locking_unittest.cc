@@ -11,9 +11,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/environment/environment_factory.h"
@@ -226,7 +226,7 @@ struct TestConfig {
 
       std::vector<TestConfig> out;
       for (auto test_config : in) {
-        auto available_rates = ArrayView<const int>(sample_rates);
+        auto available_rates = std::span<const int>(sample_rates);
 
         for (auto rate : available_rates) {
           test_config.initial_sample_rate_hz = rate;
@@ -460,7 +460,7 @@ void PopulateAudioFrame(float** frame,
 void PopulateAudioFrame(float amplitude,
                         size_t num_channels,
                         size_t samples_per_channel,
-                        ArrayView<int16_t> frame,
+                        std::span<int16_t> frame,
                         RandomGenerator* rand_gen) {
   ASSERT_GT(amplitude, 0);
   ASSERT_LE(amplitude, 32767);

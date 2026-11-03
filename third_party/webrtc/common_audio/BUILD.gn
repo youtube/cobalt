@@ -45,7 +45,6 @@ rtc_library("common_audio") {
   deps = [
     ":common_audio_c",
     ":sinc_resampler",
-    "../api:array_view",
     "../api/audio:audio_frame_api",
     "../api/units:timestamp",
     "../rtc_base:checks",

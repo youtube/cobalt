@@ -13,10 +13,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/rtp_packet_infos.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
@@ -44,7 +44,7 @@ namespace {
 MATCHER_P2(HasIdAndRefs, id, refs, "") {
   return Matches(Eq(id))(arg->Id()) &&
          Matches(UnorderedElementsAreArray(refs))(
-             ArrayView<int64_t>(arg->references, arg->num_references));
+             std::span<int64_t>(arg->references, arg->num_references));
 }
 
 Matcher<const std::vector<std::unique_ptr<EncodedFrame>>&>

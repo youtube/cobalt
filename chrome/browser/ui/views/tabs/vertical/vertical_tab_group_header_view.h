@@ -8,8 +8,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-#include "chrome/browser/ui/views/tabs/hover_card_anchor_target.h"
-#include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_tracker.h"
+#include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_tracker.h"
+#include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -54,8 +54,9 @@ class VerticalTabGroupHeaderView : public views::FlexLayoutView,
     virtual bool ContinueHeaderDrag(const ui::LocatedEvent& event) = 0;
     virtual void CancelHeaderDrag() = 0;
     virtual const TabGroup& GetTabGroup() const = 0;
-    virtual void UpdateHoverCard() const = 0;
-    virtual void HideHoverCard() const = 0;
+    virtual void UpdateHoverCard(int update_type) const = 0;
+    virtual void HideHoverCard(int update_type) const = 0;
+    virtual bool IsFocusInTabStrip() = 0;
 
     virtual void ShiftGroupUp() = 0;
     virtual void ShiftGroupDown() = 0;

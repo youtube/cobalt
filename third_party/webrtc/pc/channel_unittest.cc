@@ -69,6 +69,7 @@ namespace {
 using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::webrtc::CreateTestFieldTrials;
 using ::webrtc::DtlsTransportInternal;
 using ::webrtc::FakeVoiceMediaReceiveChannel;
@@ -708,8 +709,7 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     RTCError error = channel1_->SetLocalContent(&local, SdpType::kOffer);
     EXPECT_FALSE(error.ok());
-    EXPECT_THAT(error.message(),
-                ::testing::HasSubstr("Duplicate RTP extension ID"));
+    EXPECT_THAT(error.message(), HasSubstr("Duplicate extension ID"));
   }
 
   void TestInvalidRtpHeaderExtensionIds() {
@@ -722,7 +722,7 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     RTCError error = channel1_->SetLocalContent(&local, SdpType::kOffer);
     EXPECT_FALSE(error.ok());
-    EXPECT_THAT(error.message(), ::testing::HasSubstr("Bad RTP extension ID"));
+    EXPECT_THAT(error.message(), HasSubstr("Bad extension ID"));
   }
 
   void TestRtpHeaderExtensionIdReassignment() {
@@ -743,8 +743,7 @@ class ChannelTest : public ::testing::Test {
     RTCError error =
         channel1_->SetLocalContent(&local_updated, SdpType::kOffer);
     EXPECT_FALSE(error.ok());
-    EXPECT_THAT(error.message(),
-                ::testing::HasSubstr("RTP extension ID reassignment"));
+    EXPECT_THAT(error.message(), HasSubstr("RTP extension ID reassignment"));
   }
 
   void TestRtpHeaderExtensionIdHistoryReassignment() {
@@ -770,8 +769,7 @@ class ChannelTest : public ::testing::Test {
     RTCError error =
         channel1_->SetLocalContent(&local_updated, SdpType::kOffer);
     EXPECT_FALSE(error.ok());
-    EXPECT_THAT(error.message(),
-                ::testing::HasSubstr("RTP extension ID reassignment"));
+    EXPECT_THAT(error.message(), HasSubstr("RTP extension ID reassignment"));
   }
 
   // Test that SetLocalContent and SetRemoteContent properly configure

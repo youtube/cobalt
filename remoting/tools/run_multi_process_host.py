@@ -105,25 +105,6 @@ def handle_signal(signum, frame):
     sys.exit(0)
 
 
-def systemctl_user(action, unit):
-    run_command(["systemctl", "--user", action, unit])
-
-
-def unset_bad_systemd_env_vars():
-    env_vars_to_unset = [
-        "PIPEWIRE_REMOTE",
-        "PULSE_RUNTIME_PATH",
-        "PULSE_SINK",
-        "GDK_BACKEND",
-        "SSH_CONNECTION",
-    ]
-    if env_vars_to_unset:
-        print("Unsetting systemd user environment variables: "
-              f"{' '.join(env_vars_to_unset)}")
-        run_command(["systemctl", "--user", "unset-environment"] +
-                    env_vars_to_unset)
-
-
 def user_main(out_dir, keep_sessions=False):
     try:
         run_command(["systemctl", "is-active", "--quiet", "gdm3"])
@@ -133,20 +114,6 @@ def user_main(out_dir, keep_sessions=False):
         print("    sudo systemctl unmask gdm3.service")
         print("    sudo systemctl start gdm3.service")
         sys.exit(1)
-
-    # The single process host overrides the PipeWire remote, which will break
-    # the multi-process host. So we unset these environment variables and
-    # restart PipeWire.
-    print("Restarting PipeWire...")
-
-    systemctl_user("stop", "pipewire.socket")
-    systemctl_user("stop", "pipewire-pulse.socket")
-
-    unset_bad_systemd_env_vars()
-
-    systemctl_user("start", "pipewire.service")
-    systemctl_user("start", "pipewire-pulse.service")
-    systemctl_user("start", "wireplumber.service")
 
     print("Re-running script with sudo...")
     script_path = os.path.abspath(__file__)
@@ -235,29 +202,6 @@ def root_main(out_dir, user_home, keep_sessions=False):
         else:
             print("ACLs updated but permissions still failing.",
                   file=sys.stderr)
-
-    # Add an autostart entry for the login session reporter.
-    # TODO: crbug.com/488713023 - remove this once we no longer need this for
-    # development (everyone is on GDM 49+).
-    if is_gdm_version_ge_49():
-        print("GDM version is 49 or higher. Skipping login session reporter "
-              "autostart.")
-    else:
-        login_reporter_desktop_path = "/usr/share/gdm/greeter/autostart/"\
-            "crd-login-session-reporter.desktop"
-        if not os.path.exists(login_reporter_desktop_path):
-            print(f"Creating {login_reporter_desktop_path}...")
-            desktop_content = f"""[Desktop Entry]
-Type=Application
-Name=CRD Login Session Reporter
-Exec={abs_out_dir}/login_session_reporter
-NoDisplay=true
-"""
-            os.makedirs(os.path.dirname(login_reporter_desktop_path),
-                        exist_ok=True)
-            with open(login_reporter_desktop_path, "w", encoding='utf-8') as f:
-                f.write(desktop_content)
-            print(f"{login_reporter_desktop_path} created.")
 
     daemon_command = [remoting_host_path, "--type=daemon"]
     print(f"Starting CRD host daemon: {' '.join(daemon_command)}")

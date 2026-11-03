@@ -21,6 +21,7 @@
 #include <memory>
 #include <ostream>
 #include <set>
+#include <span>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -28,7 +29,6 @@
 
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/environment/environment_factory.h"
@@ -434,7 +434,7 @@ int NetEqQualityTest::Transmit() {
     if (!PacketLost()) {
       int ret = neteq_->InsertPacket(
           rtp_header_,
-          ArrayView<const uint8_t>(payload_.data(), payload_size_bytes_),
+          std::span<const uint8_t>(payload_.data(), payload_size_bytes_),
           Timestamp::Millis(packet_input_time_ms));
       if (ret != NetEq::kOK)
         return -1;

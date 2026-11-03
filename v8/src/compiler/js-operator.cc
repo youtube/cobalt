@@ -152,15 +152,13 @@ const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op) {
   return OpParameter<CallRuntimeParameters>(op);
 }
 
-
 ContextAccess::ContextAccess(size_t depth, size_t index, bool immutable)
-    : immutable_(immutable),
-      depth_(static_cast<uint16_t>(depth)),
+    : immutable_and_depth_(ImmutableField::encode(immutable) |
+                           DepthField::encode(static_cast<uint32_t>(depth))),
       index_(static_cast<uint32_t>(index)) {
-  DCHECK(depth <= std::numeric_limits<uint16_t>::max());
+  CHECK_EQ(depth, DepthField::decode(immutable_and_depth_));
   DCHECK(index <= std::numeric_limits<uint32_t>::max());
 }
-
 
 bool operator==(ContextAccess const& lhs, ContextAccess const& rhs) {
   return lhs.depth() == rhs.depth() && lhs.index() == rhs.index() &&
@@ -950,6 +948,18 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
   }
 CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
+
+// AsyncFunctionAwait never throws, but the typed lowering reduction wires a
+// Branch/Merge diamond into the control chain, which requires a control output.
+// Define it manually with control_out=1 to bypass ZeroIfNoThrow.
+const Operator* JSOperatorBuilder::AsyncFunctionAwait() {
+  static constexpr auto kProperties = Operator::kNoDeopt | Operator::kNoThrow;
+  return zone()->New<Operator>(                      // --
+      IrOpcode::kJSAsyncFunctionAwait, kProperties,  // opcode
+      "JSAsyncFunctionAwait",                        // name
+      2, 1, 1,                                       // inputs
+      1, 1, 1);                                      // outputs
+}
 
 #define UNARY_OP(JSName, Name)                                                \
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \

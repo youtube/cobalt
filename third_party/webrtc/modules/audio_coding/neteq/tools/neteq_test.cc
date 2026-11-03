@@ -19,7 +19,6 @@
 #include <optional>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_format.h"

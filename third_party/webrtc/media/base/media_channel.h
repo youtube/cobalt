@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -705,7 +706,8 @@ struct BandwidthEstimationInfo {
 };
 
 // Maps from payload type to `RtpCodecParameters`.
-typedef std::map<int, RtpCodecParameters> RtpCodecParametersMap;
+typedef absl::flat_hash_map<decltype(Codec::id), RtpCodecParameters>
+    RtpCodecParametersMap;
 
 // Stats returned from VoiceMediaSendChannel.GetStats()
 struct VoiceMediaSendInfo {

@@ -441,7 +441,7 @@ class TemporalLayersReferenceTest : public TemporalLayersTest,
 
 INSTANTIATE_TEST_SUITE_P(DefaultTemporalLayersTest,
                          TemporalLayersReferenceTest,
-                         ::testing::Range(1, kMaxTemporalStreams + 1));
+                         ::testing::Range(1, int{kMaxTemporalStreams} + 1));
 
 TEST_P(TemporalLayersReferenceTest, ValidFrameConfigs) {
   const int num_layers = GetParam();

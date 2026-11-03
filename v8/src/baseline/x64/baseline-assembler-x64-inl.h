@@ -523,16 +523,19 @@ void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
     LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
   if (cell_index > 0) {
-    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
+    LoadTaggedField(tagged, tagged,
+                    offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     cell_index -= 1;
   } else {
-    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularImportsOffset);
+    LoadTaggedField(tagged, tagged,
+                    offsetof(SourceTextModule, regular_imports_));
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
   LoadFixedArrayElement(tagged, tagged, cell_index);
-  LoadTaggedField(kInterpreterAccumulatorRegister, tagged, Cell::kValueOffset);
+  LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
+                  offsetof(Cell, maybe_value_));
 }
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
@@ -551,12 +554,13 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
     }
     LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
-  LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
+  LoadTaggedField(tagged, tagged, offsetof(SourceTextModule, regular_exports_));
 
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   LoadFixedArrayElement(context, tagged, cell_index);
-  StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
+  StoreTaggedFieldWithWriteBarrier(context, offsetof(Cell, maybe_value_),
+                                   value);
 }
 
 void BaselineAssembler::IncrementSmi(MemOperand lhs) {

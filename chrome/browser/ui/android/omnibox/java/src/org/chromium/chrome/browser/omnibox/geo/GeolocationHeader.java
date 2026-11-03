@@ -64,6 +64,7 @@ public class GeolocationHeader {
         HeaderState.NOT_HTTPS,
         HeaderState.LOCATION_PERMISSION_BLOCKED,
         HeaderState.HEADER_ENABLED_ONLY_COARSE,
+        HeaderState.HEADER_DISABLED,
     })
     @Retention(RetentionPolicy.SOURCE)
     private @interface HeaderState {
@@ -73,6 +74,7 @@ public class GeolocationHeader {
         int NOT_HTTPS = 3;
         int LOCATION_PERMISSION_BLOCKED = 4;
         int HEADER_ENABLED_ONLY_COARSE = 5;
+        int HEADER_DISABLED = 6;
     }
 
     /** The maximum age in milliseconds of a location that we'll send in an X-Geo header. */
@@ -95,21 +97,16 @@ public class GeolocationHeader {
 
     private static final String DUMMY_URL_QUERY = "some_query";
 
-    private static final LocationListener sLocationListener = GeolocationHeader::onLocationUpate;
+    private static final LocationListener sLocationListener = GeolocationHeader::onLocationUpdate;
     private static boolean sGeolocationPrimed;
+    private static boolean sCurrentLocationRequested;
+
     private static boolean sHasCoarsePermissionForTesting;
     private static boolean sHasFinePermissionForTesting;
     private static boolean sUseFakePermissionForTesting;
-    private static boolean sCurrentLocationRequested;
     private static @Nullable Location sFusedLocation;
     private static @Nullable Runnable sPrimeLocationForGeoHeaderIfEnabledForTesting;
     private static @Nullable Runnable sStopListeningForLocationUpdatesForTesting;
-
-    public static void setPrimeLocationForGeoHeaderIfEnabledForTesting(
-            @Nullable Runnable runnable) {
-        sPrimeLocationForGeoHeaderIfEnabledForTesting = runnable;
-        ResettersForTesting.register(() -> sPrimeLocationForGeoHeaderIfEnabledForTesting = null);
-    }
 
     /**
      * Requests a location refresh so that a valid location will be available for constructing an
@@ -195,11 +192,6 @@ public class GeolocationHeader {
         return sCurrentLocationRequested;
     }
 
-    public static void setStopListeningForLocationUpdatesForTesting(@Nullable Runnable runnable) {
-        sStopListeningForLocationUpdatesForTesting = runnable;
-        ResettersForTesting.register(() -> sStopListeningForLocationUpdatesForTesting = null);
-    }
-
     /** Stop requesting and listening for location updates from FusedLocationProvider. */
     public static void stopListeningForLocationUpdates() {
         if (sStopListeningForLocationUpdatesForTesting != null) {
@@ -214,7 +206,7 @@ public class GeolocationHeader {
         sCurrentLocationRequested = false;
     }
 
-    private static void onLocationUpate(Location location) {
+    private static void onLocationUpdate(Location location) {
         sFusedLocation = location;
     }
 
@@ -227,6 +219,10 @@ public class GeolocationHeader {
     private static @HeaderState int geoHeaderStateForUrl(
             Profile profile, @Nullable TemplateUrlService service, String url) {
         try (TraceEvent e = TraceEvent.scoped("GeolocationHeader.geoHeaderStateForUrl")) {
+            if (OmniboxFeatures.sPlatformAgnosticXGeo.isEnabled()) {
+                return HeaderState.HEADER_DISABLED;
+            }
+
             // Only send X-Geo to search engines associated with the current profile.
             if (profile == null || service == null) return HeaderState.UNSUITABLE_URL;
 
@@ -372,16 +368,6 @@ public class GeolocationHeader {
         }
     }
 
-    static void setAppPermissionsForTesting(boolean hasCoarse, boolean hasFine) {
-        sHasCoarsePermissionForTesting = hasCoarse;
-        sHasFinePermissionForTesting = hasFine;
-        sUseFakePermissionForTesting = true;
-    }
-
-    static boolean isGeolocationPrimedForTesting() {
-        return sGeolocationPrimed;
-    }
-
     @VisibleForTesting
     static @Nullable Location getLastKnownLocation(boolean hasFineSitePermission) {
         if (OmniboxFeatures.sUseFusedLocationProvider.isEnabled() && sFusedLocation != null) {
@@ -445,5 +431,37 @@ public class GeolocationHeader {
             PartnerLocationDescriptor.LocationDescriptor locationDescriptor) {
         return Base64.encodeToString(
                 locationDescriptor.toByteArray(), Base64.NO_WRAP | Base64.URL_SAFE);
+    }
+
+    public static void setPrimeLocationForGeoHeaderIfEnabledForTesting(
+            @Nullable Runnable runnable) {
+        sPrimeLocationForGeoHeaderIfEnabledForTesting = runnable;
+        ResettersForTesting.register(() -> sPrimeLocationForGeoHeaderIfEnabledForTesting = null);
+    }
+
+    public static void setStopListeningForLocationUpdatesForTesting(@Nullable Runnable runnable) {
+        sStopListeningForLocationUpdatesForTesting = runnable;
+        ResettersForTesting.register(() -> sStopListeningForLocationUpdatesForTesting = null);
+    }
+
+    /* package */ static void setAppPermissionsForTesting(boolean hasCoarse, boolean hasFine) {
+        sHasCoarsePermissionForTesting = hasCoarse;
+        sHasFinePermissionForTesting = hasFine;
+        sUseFakePermissionForTesting = true;
+        ResettersForTesting.register(
+                () -> {
+                    sHasCoarsePermissionForTesting = false;
+                    sHasFinePermissionForTesting = false;
+                    sUseFakePermissionForTesting = false;
+                });
+    }
+
+    /* package */ static boolean isGeolocationPrimedForTesting() {
+        return sGeolocationPrimed;
+    }
+
+    /* package */ static void resetStateForTesting() {
+        sGeolocationPrimed = false;
+        sCurrentLocationRequested = false;
     }
 }

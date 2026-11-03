@@ -139,13 +139,6 @@ BASE_FEATURE(kDocumentProviderEnterpriseEligibilityWhenUnknown,
              "OmniboxDocumentProviderEnterpriseEligibilityWhenUnknown",
              DISABLED);
 
-// If enabled, the requirement to be in an active Sync state is removed and
-// Drive suggestions are available to all clients who meet the other
-// requirements.
-BASE_FEATURE(kDocumentProviderNoSyncRequirement,
-             "OmniboxDocumentProviderNoSyncRequirement",
-             ENABLED);
-
 // If enabled, the omnibox popup is not presented until the mouse button is
 // released.
 BASE_FEATURE(kShowPopupOnMouseReleased,
@@ -391,6 +384,7 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kPostDelayedTaskFocusTab,
       &kOmniboxMobileParityUpdateV2,
       &kOmniboxXGeoPermissionGranularity,
+      &kPlatformAgnosticXGeo,
       &kOmniboxSiteSearch,
       &kOmniboxMultimodalInput,
       &kMultilineEditField,
@@ -404,6 +398,12 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
 }
 }  // namespace android
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// If enabled, X-Geo headers are sent using the platform-agnostic C++
+// implementation. On Android, enabling this flag will disable the legacy Java
+// implementation.
+BASE_FEATURE(kPlatformAgnosticXGeo, DISABLED);
+
 // Note: no new flags beyond this point.
 
 namespace flag_descriptions {

@@ -626,8 +626,8 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  Tagged<ProtectedFixedArray> array;
-  if (!TryCast(obj, &array)) return false;
+  if (!Is<ProtectedFixedArray>(obj)) return false;
+  Tagged<ProtectedFixedArray> array = TrustedCast<ProtectedFixedArray>(obj);
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
@@ -1272,7 +1272,7 @@ inline auto HeapObject::ReadTrustedPointerField(
 }
 
 template <IndirectPointerTagRange tag_range>
-Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
+auto HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
   return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag_range>(
@@ -2187,12 +2187,12 @@ Relocatable::~Relocatable() {
 
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
-static inline uint32_t ObjectAddressForHashing(Address object) {
+inline uint32_t ObjectAddressForHashing(Address object) {
   return MemoryChunk::AddressToOffset(object);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
-                                                 DirectHandle<Object> value) {
+inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
+                                          DirectHandle<Object> value) {
   DirectHandle<Object> key = isolate->factory()->SizeToString(index);
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
@@ -2203,9 +2203,9 @@ static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                                     PACKED_ELEMENTS, 2);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate,
-                                                 DirectHandle<Object> key,
-                                                 DirectHandle<Object> value) {
+inline DirectHandle<Object> MakeEntryPair(Isolate* isolate,
+                                          DirectHandle<Object> key,
+                                          DirectHandle<Object> value) {
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);

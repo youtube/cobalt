@@ -13,9 +13,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_processing/test/conversational_speech/wavreader_interface.h"
 
@@ -31,11 +31,11 @@ class WavReaderAdaptor final : public WavReaderInterface {
       : wav_reader_(filepath) {}
   ~WavReaderAdaptor() override = default;
 
-  size_t ReadFloatSamples(ArrayView<float> samples) override {
+  size_t ReadFloatSamples(std::span<float> samples) override {
     return wav_reader_.ReadSamples(samples.size(), samples.data());
   }
 
-  size_t ReadInt16Samples(ArrayView<int16_t> samples) override {
+  size_t ReadInt16Samples(std::span<int16_t> samples) override {
     return wav_reader_.ReadSamples(samples.size(), samples.data());
   }
 

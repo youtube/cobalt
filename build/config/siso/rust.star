@@ -197,12 +197,7 @@ def __step_config(ctx, step_config):
         # TODO(b/285225184): use precomputed subtree
         "third_party/rust-toolchain:toolchain",
     ]
-    rust_inputs = [
-        "build/action_helpers.py",
-        "build/gn_helpers.py",
-        "build/rust/gni_impl/rustc_wrapper.py",
-    ] + rust_toolchain
-    rust_indirect_inputs = {
+    rust_link_indirect_inputs = {
         "includes": [
             # https://crbug.com/488158799#comment21 explains why `rustc` requires
             # access to `.rlib`s of all transitive dependencies.  (It also
@@ -222,12 +217,31 @@ def __step_config(ctx, step_config):
             "*.wasm",
         ],
     }
+    rust_compile_indirect_inputs = {
+        "includes": [
+            # `rustc` only needs `.rmeta` for compilation.
+            # `.rlib` is only required for final linking.
+            # See https://crbug.com/488158799#comment21
+            "*.rmeta",
+            # Proc-macros are compiled into dynamic libraries.  These are
+            # required to be present when compiling crates that depend on the
+            # proc-macros.  Host-platform-specific extensions below (for host
+            # platforms supported by Chromium) are mostly based on
+            # https://doc.rust-lang.org/std/env/consts/constant.DLL_EXTENSION.html
+            # `*.wasm` is present to future-proof this list against adoption of
+            # https://github.com/rust-lang/compiler-team/issues/876
+            "*.so",
+            "*.dll",
+            "*.dylib",
+            "*.wasm",
+        ],
+    }
     step_config["rules"].extend([
         {
             "name": "rust_bin",
             "action": "(.*_)?rust_bin",
-            "inputs": rust_inputs + clang_inputs,
-            "indirect_inputs": rust_indirect_inputs,
+            "inputs": rust_toolchain + clang_inputs,
+            "indirect_inputs": rust_link_indirect_inputs,
             "handler": "rust_link_handler",
             "deps": "none",  # disable gcc scandeps
             "remote": remote_link,
@@ -237,8 +251,8 @@ def __step_config(ctx, step_config):
         {
             "name": "rust_cdylib",
             "action": "(.*_)?rust_cdylib",
-            "inputs": rust_inputs + clang_inputs,
-            "indirect_inputs": rust_indirect_inputs,
+            "inputs": rust_toolchain + clang_inputs,
+            "indirect_inputs": rust_link_indirect_inputs,
             "handler": "rust_link_handler",
             "deps": "none",  # disable gcc scandeps
             "remote": remote_link,
@@ -248,8 +262,8 @@ def __step_config(ctx, step_config):
         {
             "name": "rust_macro",
             "action": "(.*_)?rust_macro",
-            "inputs": rust_inputs + clang_inputs,
-            "indirect_inputs": rust_indirect_inputs,
+            "inputs": rust_toolchain + clang_inputs,
+            "indirect_inputs": rust_link_indirect_inputs,
             "handler": "rust_link_handler",
             "deps": "none",  # disable gcc scandeps
             "remote": remote_link,
@@ -259,8 +273,8 @@ def __step_config(ctx, step_config):
         {
             "name": "rust_rlib",
             "action": "(.*_)?rust_rlib",
-            "inputs": rust_inputs,
-            "indirect_inputs": rust_indirect_inputs,
+            "inputs": rust_toolchain,
+            "indirect_inputs": rust_compile_indirect_inputs,
             "deps": "none",  # disable gcc scandeps
             "remote": remote,
             "timeout": "2m",
@@ -269,8 +283,8 @@ def __step_config(ctx, step_config):
         {
             "name": "rust_staticlib",
             "action": "(.*_)?rust_staticlib",
-            "inputs": rust_inputs,
-            "indirect_inputs": rust_indirect_inputs,
+            "inputs": rust_toolchain,
+            "indirect_inputs": rust_compile_indirect_inputs,
             "deps": "none",  # disable gcc scandeps
             "remote": remote,
             "timeout": "2m",
@@ -300,11 +314,11 @@ def __step_config(ctx, step_config):
         {
             "name": "rust/clippy",
             "command_prefix": "python3 ../../build/rust/gni_impl/clippy_wrapper.py",
-            "inputs": rust_inputs + [
+            "inputs": rust_toolchain + [
                 "third_party/rust-toolchain/bin/clippy-driver",
                 "build/rust/gni_impl/clippy_wrapper.py",
             ],
-            "indirect_inputs": rust_indirect_inputs,
+            "indirect_inputs": rust_compile_indirect_inputs,
             # TODO: Enable remote execution after enablling clippy by default.
             "remote": False,
         },

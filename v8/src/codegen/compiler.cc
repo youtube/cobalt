@@ -1795,7 +1795,8 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                     &eval_from_shared_or_wrapped_arguments)) {
           visited_.insert(eval_from_shared_or_wrapped_arguments);
         }
-      } else if (Tagged<BytecodeArray> bytes; TryCast(current, &bytes)) {
+      } else if (Is<BytecodeArray>(current)) {
+        auto bytes = TrustedCast<BytecodeArray>(current);
         Tagged<HeapObject> constants = bytes->constant_pool();
         QueueVisit(constants, kConstantPool);
       }
@@ -2767,12 +2768,6 @@ bool BackgroundCompileTask::FinalizeFunction(
   DirectHandle<SharedFunctionInfo> input_shared_info =
       input_shared_info_.ToHandleChecked();
 
-  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
-  // the LazyCompileDispatcher Job that launched this task, which will now be
-  // considered complete, so clear that regardless of whether the finalize
-  // succeeds or not.
-  input_shared_info->ClearUncompiledDataJobPointer(isolate);
-
   // We might not have been able to finalize all jobs on the background
   // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
   if (FinalizeDeferredUnoptimizedCompilationJobs(
@@ -2798,15 +2793,6 @@ bool BackgroundCompileTask::FinalizeFunction(
   input_shared_info->CopyFrom(*result, isolate);
 
   return true;
-}
-
-void BackgroundCompileTask::AbortFunction() {
-  // The UncompiledData on the input SharedFunctionInfo will have a pointer to
-  // the LazyCompileDispatcher Job that launched this task, which is about to be
-  // deleted, so clear that to avoid the SharedFunctionInfo from pointing to
-  // deallocated memory.
-  input_shared_info_.ToHandleChecked()->ClearUncompiledDataJobPointer(
-      isolate_for_local_isolate_);
 }
 
 void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {

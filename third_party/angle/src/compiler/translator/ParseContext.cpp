@@ -1246,7 +1246,7 @@ bool TParseContext::checkConstructorArguments(const TSourceLoc &line,
         markStaticUseIfSymbol(arg);
         const TIntermTyped *argTyped = arg->getAsTyped();
         ASSERT(argTyped != nullptr);
-        if (type.getBasicType() != EbtStruct && IsOpaqueType(argTyped->getBasicType()))
+        if (IsOpaqueType(argTyped->getBasicType()))
         {
             std::string reason("cannot convert a variable with type ");
             reason += getBasicString(argTyped->getBasicType());
@@ -1261,6 +1261,11 @@ bool TParseContext::checkConstructorArguments(const TSourceLoc &line,
         if (argTyped->getBasicType() == EbtVoid)
         {
             error(line, "cannot convert a void", "constructor");
+            return false;
+        }
+        else if (argTyped->getBasicType() == EbtYuvCscStandardEXT)
+        {
+            error(line, "cannot convert a yuvCscStandardEXT", "constructor");
             return false;
         }
     }
@@ -8326,6 +8331,19 @@ TIntermSwitch *TParseContext::addSwitch(TIntermTyped *init,
         error(loc, "no statement between the last case label and the end of the switch statement",
               "switch");
         return nullptr;
+    }
+
+    // In case the last statement isn't already a branch, add |break| automatically.  Some AST
+    // transformations may dead-code-eliminate the contents of the last |case| and leave the switch
+    // statements ending in a case (which is what the check above forbids).  Most generators do not
+    // handle this unexpected situation.
+    //
+    // Note that a branch may be present inside a nested block, but that's ok, the extra branch
+    // added here gets eliminated in |PruneNoOps|.
+    if (statementCount > 0 &&
+        statementList->getChildNode(statementCount - 1)->getAsBranchNode() == nullptr)
+    {
+        statementList->appendStatement(new TIntermBranch(EOpBreak, nullptr));
     }
 
     mIRBuilder.endSwitch();

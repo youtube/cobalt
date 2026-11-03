@@ -9,10 +9,7 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 build_webui("build") {
   grd_prefix = "ai_overlay_dialog_untrusted"
 
-  static_files = [
-    "ai_overlay_dialog.html",
-    "api_config.json",
-  ]
+  static_files = [ "ai_overlay_dialog.html" ]
 
   css_files = [ "app.css" ]
 
@@ -39,6 +36,8 @@ build_webui("build") {
     "//chrome/browser/ui/webui/ai_overlay_dialog:mojo_bindings_ts__generator",
   ]
   mojo_files = [ "$root_gen_dir/chrome/browser/ui/webui/ai_overlay_dialog/ai_overlay_dialog.mojom-webui.ts" ]
+
+  ts_composite = true
 
   webui_context_type = "untrusted"
 }

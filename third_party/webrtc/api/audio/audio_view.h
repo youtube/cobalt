@@ -49,10 +49,9 @@ using MonoView = ArrayView<T>;
 
 // The maximum number of audio channels supported by WebRTC encoders, decoders
 // and the AudioFrame class.
-// TODO(peah, tommi): Should kMaxNumberOfAudioChannels be 16 rather than 24?
-// The reason is that AudioFrame's max number of samples is 7680, which can
-// hold 16 10ms 16bit channels at 48 kHz (and not 24 channels).
-static constexpr size_t kMaxNumberOfAudioChannels = 24;
+// AudioFrame's max number of samples is 7680, which can hold 16 10ms 16bit
+// channels at 48 kHz.
+static constexpr size_t kMaxNumberOfAudioChannels = 16;
 
 // InterleavedView<> is a view over an interleaved audio buffer (e.g. from
 // AudioFrame).

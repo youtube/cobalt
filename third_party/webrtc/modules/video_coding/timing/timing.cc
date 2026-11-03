@@ -259,16 +259,6 @@ VCMTiming::VideoDelayTimings VCMTiming::GetTimings() const {
       .current_delay = current_delay_};
 }
 
-void VCMTiming::SetTimingFrameInfo(const TimingFrameInfo& info) {
-  MutexLock lock(&mutex_);
-  timing_frame_info_.emplace(info);
-}
-
-std::optional<TimingFrameInfo> VCMTiming::GetTimingFrameInfo() {
-  MutexLock lock(&mutex_);
-  return timing_frame_info_;
-}
-
 void VCMTiming::SetMaxCompositionDelayInFrames(
     std::optional<int> max_composition_delay_in_frames) {
   MutexLock lock(&mutex_);

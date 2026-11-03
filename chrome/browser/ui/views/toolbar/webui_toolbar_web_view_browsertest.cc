@@ -18,10 +18,13 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -30,11 +33,13 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -63,9 +68,11 @@
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"
+#include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/base/ui_base_switches.h"
@@ -170,22 +177,32 @@ std::string DispatchEventScript(const std::string& selector,
       options.c_str());
 }
 
-// Simulates a full physical click cycle (press + release) using PointerEvents.
-// Required for back/forward buttons because they listen for 'pointerup'
-// to trigger navigation, which a standard 'element.click()' does not fire.
-std::string DispatchPointerClick(const std::string& selector,
-                                 const std::string& opts = "button: 0") {
+// Dispatches a pointerup or pointerdown event based on `event`name`.
+std::string DispatchPointerEvent(
+    const std::string& event_name,
+    const std::string& selector,
+    const std::string& pointer_type = "mouse",
+    const std::string& opts = "detail: 1, button: 0") {
   const std::string el = GetButtonIconJS(selector);
   return base::StringPrintf(
-      "%s.dispatchEvent(new PointerEvent('pointerdown', {%s}));"
-      "%s.dispatchEvent(new PointerEvent('pointerup', {%s}));",
-      el.c_str(), opts.c_str(), el.c_str(), opts.c_str());
+      "%s.dispatchEvent(new PointerEvent('%s', {bubbles: true, cancelable: "
+      "true, view: window, pointerType: '%s', %s}));",
+      el.c_str(), event_name.c_str(), pointer_type.c_str(), opts.c_str());
 }
 
-bool ClickButton(content::WebContents* web_contents,
-                 const std::string& selector) {
-  return content::ExecJs(
-      web_contents, base::StrCat({GetButtonIconJS(selector), "?.click();"}));
+// Simulates a full physical click cycle (press + release) using PointerEvents.
+std::string DispatchPointerClick(
+    const std::string& selector,
+    const std::string& pointer_type = "mouse",
+    const std::string& opts = "detail: 1, button: 0") {
+  const std::string el = GetButtonIconJS(selector);
+  return base::StringPrintf(
+      "%s.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, "
+      "cancelable: true, view: window, pointerType: '%s', %s}));"
+      "%s.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, "
+      "cancelable: true, view: window, pointerType: '%s', %s}));",
+      el.c_str(), pointer_type.c_str(), opts.c_str(), el.c_str(),
+      pointer_type.c_str(), opts.c_str());
 }
 
 class NavigationCounter : public content::WebContentsObserver {
@@ -350,15 +367,20 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Basic) {
+// TODO(crbug.com/493362471): Deflake and reenable it.
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, DISABLED_Basic) {
   BasicPixelTest(browser(), "Basic");
 }
 
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, IncognitoBasic) {
+// TODO(crbug.com/493362471): Deflake and reenable it.
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       DISABLED_IncognitoBasic) {
   BasicPixelTest(CreateIncognitoBrowser(), "IncognitoBasic");
 }
 
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
+// TODO(crbug.com/493362471): Deflake and reenable it.
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       DISABLED_Accessibility) {
   content::ScopedAccessibilityModeOverride mode_override(ui::kAXModeComplete);
   ui::TrackedElement* element = nullptr;
   WebUIToolbarWebView* webui_toolbar_view = nullptr;
@@ -543,6 +565,123 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   // Verify reload button background returns to transparent.
   EXPECT_TRUE(base::test::RunUntil([&]() {
     return GetCenterPixelColor(web_view, control_rect) == SK_ColorTRANSPARENT;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       CheckBackButtonColor) {
+  ui::TrackedElement* element = nullptr;
+  WebUIToolbarWebView* webui_toolbar_view = nullptr;
+  views::WebView* web_view = nullptr;
+  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kToolbarBackButtonElementId, &element,
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
+
+  gfx::Rect control_rect = element->GetScreenBounds();
+  gfx::Rect view_rect = webui_toolbar_view->GetBoundsInScreen();
+
+  // Wait for the back button to finish laying out.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    control_rect = element->GetScreenBounds();
+    return control_rect.width() >=
+           GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+  }));
+
+  control_rect.Offset(-view_rect.OffsetFromOrigin());
+
+  // Sample a point in the background area (e.g. 5,5 from top-left).
+  gfx::Rect background_probe_rect(control_rect.x() + 5, control_rect.y() + 5, 1,
+                                  1);
+
+  // Verify back button background is transparent when not highlighted.
+  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
+            SK_ColorTRANSPARENT);
+
+  // Show back button context menu.
+  webui_toolbar_view->HandleContextMenu(
+      toolbar_ui_api::mojom::ContextMenuType::kBack, gfx::RectF(control_rect),
+      ui::mojom::MenuSourceType::kMouse);
+
+  // Verify back button state updates.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_view->GetWebContents(),
+                           base::StrCat({GetButtonAppJS(kBackSelector),
+                                         ".state.isContextMenuVisible"}))
+        .ExtractBool();
+  }));
+
+  // Verify back button is now highlighted.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) !=
+           SK_ColorTRANSPARENT;
+  }));
+
+  // Close back button context menu.
+  webui_toolbar_view->back_control_.menu_runner_->Cancel();
+
+  // Verify back button background returns to transparent.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       CheckForwardButtonColor) {
+  ui::TrackedElement* element = nullptr;
+  WebUIToolbarWebView* webui_toolbar_view = nullptr;
+  views::WebView* web_view = nullptr;
+  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kToolbarForwardButtonElementId, &element,
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
+
+  gfx::Rect control_rect = element->GetScreenBounds();
+  gfx::Rect view_rect = webui_toolbar_view->GetBoundsInScreen();
+
+  // Wait for the back button to finish laying out, which should
+  // push the forward button over by at least one button width.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    control_rect = element->GetScreenBounds();
+    return (control_rect.x() - view_rect.x()) >=
+           GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+  }));
+
+  control_rect.Offset(-view_rect.OffsetFromOrigin());
+
+  // Sample a point in the background area (e.g. 5,5 from top-left).
+  gfx::Rect background_probe_rect(control_rect.x() + 5, control_rect.y() + 5, 1,
+                                  1);
+
+  // Verify forward button background is transparent when not highlighted.
+  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
+            SK_ColorTRANSPARENT);
+
+  // Show forward button context menu.
+  webui_toolbar_view->HandleContextMenu(
+      toolbar_ui_api::mojom::ContextMenuType::kForward,
+      gfx::RectF(control_rect), ui::mojom::MenuSourceType::kMouse);
+
+  // Verify forward button state updates.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_view->GetWebContents(),
+                           base::StrCat({GetButtonAppJS(kForwardSelector),
+                                         ".state.isContextMenuVisible"}))
+        .ExtractBool();
+  }));
+
+  // Verify forward button is now highlighted.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) !=
+           SK_ColorTRANSPARENT;
+  }));
+
+  // Close forward button context menu.
+  webui_toolbar_view->forward_control_.menu_runner_->Cancel();
+
+  // Verify forward button background returns to transparent.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
   }));
 }
 
@@ -740,43 +879,59 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                      browser()));
   PinButton(browser(), web_view, prefs::kShowForwardButton);
 
-  // Create navigation history.
-  GURL url1("chrome://version/");
-  GURL url2("chrome://flags/");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url1));
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url2));
+  const struct {
+    const char* name;
+    std::string back_script;
+    std::string forward_script;
+  } test_cases[] = {
+      {"Mouse Click", DispatchPointerClick(kBackSelector),
+       DispatchPointerClick(kForwardSelector)},
+      {"Keyboard Click",
+       DispatchEventScript(kBackSelector, "MouseEvent", "click", "detail: 0"),
+       DispatchEventScript(kForwardSelector, "MouseEvent", "click",
+                           "detail: 0")}};
 
-  // Wait for the back button to be enabled.
-  ASSERT_TRUE(WaitForButtonEnabled(web_view->GetWebContents(), kBackSelector));
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE(test_case.name);
+    // Create navigation history.
+    GURL url1("chrome://version/");
+    GURL url2("chrome://flags/");
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url1));
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url2));
 
-  // Click Back.
-  {
-    content::TestNavigationObserver nav_observer(
-        browser()->tab_strip_model()->GetActiveWebContents());
-    EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(),
-                                DispatchPointerClick(kBackSelector)));
-    nav_observer.Wait();
-    EXPECT_EQ(url1, browser()
-                        ->tab_strip_model()
-                        ->GetActiveWebContents()
-                        ->GetLastCommittedURL());
-  }
+    // Wait for the back button to be enabled.
+    ASSERT_TRUE(
+        WaitForButtonEnabled(web_view->GetWebContents(), kBackSelector));
 
-  // Wait for the forward button to be enabled.
-  ASSERT_TRUE(
-      WaitForButtonEnabled(web_view->GetWebContents(), kForwardSelector));
+    // Click Back.
+    {
+      content::TestNavigationObserver nav_observer(
+          browser()->tab_strip_model()->GetActiveWebContents());
+      EXPECT_TRUE(
+          content::ExecJs(web_view->GetWebContents(), test_case.back_script));
+      nav_observer.Wait();
+      EXPECT_EQ(url1, browser()
+                          ->tab_strip_model()
+                          ->GetActiveWebContents()
+                          ->GetLastCommittedURL());
+    }
 
-  // Click Forward.
-  {
-    content::TestNavigationObserver nav_observer(
-        browser()->tab_strip_model()->GetActiveWebContents());
-    EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(),
-                                DispatchPointerClick(kForwardSelector)));
-    nav_observer.Wait();
-    EXPECT_EQ(url2, browser()
-                        ->tab_strip_model()
-                        ->GetActiveWebContents()
-                        ->GetLastCommittedURL());
+    // Wait for the forward button to be enabled.
+    ASSERT_TRUE(
+        WaitForButtonEnabled(web_view->GetWebContents(), kForwardSelector));
+
+    // Click Forward.
+    {
+      content::TestNavigationObserver nav_observer(
+          browser()->tab_strip_model()->GetActiveWebContents());
+      EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(),
+                                  test_case.forward_script));
+      nav_observer.Wait();
+      EXPECT_EQ(url2, browser()
+                          ->tab_strip_model()
+                          ->GetActiveWebContents()
+                          ->GetLastCommittedURL());
+    }
   }
 }
 
@@ -806,7 +961,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   // On Mac, Ctrl+Click opens a context menu and does not navigate.
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(kBackSelector, "button: 0, ctrlKey: true")));
+      DispatchPointerClick(kBackSelector, "mouse",
+                           "detail: 1, button: 0, ctrlKey: true")));
 
   auto* back_control = &webui_toolbar_view->back_control_;
   back_control->menu_runner_->Cancel();
@@ -825,7 +981,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(kBackSelector, "button: 0, ctrlKey: true")));
+      DispatchPointerClick(kBackSelector, "mouse",
+                           "detail: 1, button: 0, ctrlKey: true")));
 
   nav_observer.Wait();
 
@@ -854,7 +1011,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(kForwardSelector, "button: 0, shiftKey: true")));
+      DispatchPointerClick(kForwardSelector, "mouse",
+                           "detail: 1, button: 0, shiftKey: true")));
 
   Browser* new_browser = new_browser_observer.Wait();
   ASSERT_TRUE(new_browser);
@@ -985,6 +1143,28 @@ class WebUIToolbarWebViewStabilityTest : public InProcessBrowserTest {
  private:
   base::test::ScopedFeatureList feature_list_;
 };
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
+                       ShutdownBrowserBeforeInit) {
+  base::SimpleTestTickClock clock;
+  WebUIToolbarWebView* toolbar_view = GetWebUIToolbarWebView();
+  toolbar_view->SetTickClockForTesting(&clock);
+
+  auto* web_contents = GetWebContents(toolbar_view);
+  content::TestNavigationObserver observer(web_contents);
+  // Sets the browser window interface on the web content to simulate a
+  // browser shutdown.
+  webui::SetBrowserWindowInterface(web_contents, nullptr);
+
+  // Force a reload of the web content by killing it.
+  KillRendererUntilExceedingLimit(toolbar_view, web_contents);
+  clock.Advance(base::Seconds(1) + kRecoveryRetryInterval);
+
+  observer.WaitForNavigationFinished();
+  // Succeeded, but not really. Browser should be shutting down at this point
+  // so we just have to make sure it doesn't crash.
+  ASSERT_TRUE(observer.last_navigation_succeeded());
+}
 
 // Verify that the crash is recovered by reloading the page until it hits the
 // limit set in `WebUIReloadButtonMaxCrashRecoveryTimes`, after that it will
@@ -1214,15 +1394,14 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
 
 class WebUIToolbarWebViewBrowserTest : public InProcessBrowserTest {
  public:
-  WebUIToolbarWebViewBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {features::kInitialWebUI, features::kWebUIReloadButton,
-         features::kWebUISplitTabsButton, features::kWebUIHomeButton,
-         features::kSkipIPCChannelPausingForNonGuests,
-         features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
-        {});
-  }
+  WebUIToolbarWebViewBrowserTest()
+      : WebUIToolbarWebViewBrowserTest(
+            {features::kInitialWebUI, features::kWebUIReloadButton,
+             features::kWebUISplitTabsButton, features::kWebUIHomeButton,
+             features::kSkipIPCChannelPausingForNonGuests,
+             features::kWebUIInProcessResourceLoadingV2,
+             features::kInitialWebUISyncNavStartToCommit},
+            {}) {}
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -1230,7 +1409,13 @@ class WebUIToolbarWebViewBrowserTest : public InProcessBrowserTest {
         ->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kLight);
   }
 
- private:
+ protected:
+  WebUIToolbarWebViewBrowserTest(
+      const std::vector<base::test::FeatureRef>& enabled,
+      const std::vector<base::test::FeatureRef>& disabled) {
+    feature_list_.InitWithFeatures(enabled, disabled);
+  }
+
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -1411,17 +1596,6 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewBrowserTest,
       "InitialWebUI.Toolbar.ParseFinishedToFirstUpdate", 1);
 }
 
-class WebUIReloadButtonBrowserTest : public InProcessBrowserTest {
- public:
-  WebUIReloadButtonBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {features::kInitialWebUI, features::kWebUIReloadButton}, {});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewBrowserTest, ContextMenuPositionE2E) {
   // Setup the WebUI and wait for it to render.
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
@@ -1486,6 +1660,52 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewBrowserTest, ContextMenuPositionE2E) {
   run_loop.Run();
 
   EXPECT_EQ(captured_bounds, expected_screen_bounds);
+}
+
+class WebUIReloadButtonBrowserTest : public InProcessBrowserTest {
+ public:
+  WebUIReloadButtonBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUIReloadButton}, {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIReloadButtonBrowserTest, ClickReloadButton) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* webui_contents = web_view->GetWebContents();
+
+  EXPECT_TRUE(WaitForButtonVisible(webui_contents, kReloadButtonSelector));
+
+  const struct {
+    const char* name;
+    std::string script;
+  } test_cases[] = {
+      {"Mouse Click", DispatchPointerClick(kReloadButtonSelector)},
+      {"Keyboard Click",
+       DispatchEventScript(kReloadButtonSelector, "MouseEvent", "click",
+                           "detail: 0")}};
+
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE(test_case.name);
+    const std::string& script = test_case.script;
+    // Navigate to a known good URL before reloading to ensure a clean state
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(browser(), GURL("chrome://version/")));
+
+    // Create a navigation observer on the active tab.
+    content::WebContents* active_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    content::TestNavigationObserver nav_observer(active_contents);
+
+    EXPECT_TRUE(content::ExecJs(webui_contents, script));
+
+    nav_observer.Wait();
+    // If the navigation happened, it means the reload button was activated.
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIReloadButtonBrowserTest, NoCrashOnCommandUpdate) {
@@ -1562,17 +1782,11 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
        DispatchEventScript(kSplitTabsSelector, "MouseEvent", "click",
                            "detail: 0"),
        ui::mojom::MenuSourceType::kKeyboard},
-      {"Mouse Click",
-       DispatchEventScript(kSplitTabsSelector, "MouseEvent", "click",
-                           "detail: 1"),
+      {"Mouse Click", DispatchPointerClick(kSplitTabsSelector),
        ui::mojom::MenuSourceType::kMouse},
-      {"Touch Click",
-       DispatchEventScript(kSplitTabsSelector, "PointerEvent", "click",
-                           "pointerType: 'touch', detail: 1"),
+      {"Touch Click", DispatchPointerClick(kSplitTabsSelector, "touch"),
        ui::mojom::MenuSourceType::kTouch},
-      {"Pen Click",
-       DispatchEventScript(kSplitTabsSelector, "PointerEvent", "click",
-                           "pointerType: 'pen', detail: 1"),
+      {"Pen Click", DispatchPointerClick(kSplitTabsSelector, "pen"),
        ui::mojom::MenuSourceType::kTouch},
       {"Keyboard Context Menu",
        DispatchEventScript(kSplitTabsSelector, "MouseEvent", "contextmenu",
@@ -1596,10 +1810,17 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
     SCOPED_TRACE(test_case.name);
     EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(), test_case.script));
     EXPECT_TRUE(base::test::RunUntil([&]() {
-      return split_tabs_control->last_source_type_for_testing_ ==
-             test_case.expected_source;
+      return split_tabs_control->last_source_type_for_testing_ !=
+             ui::mojom::MenuSourceType::kNone;
     }));
+    EXPECT_EQ(test_case.expected_source,
+              split_tabs_control->last_source_type_for_testing_);
     split_tabs_control->menu_runner_->Cancel();
+    // Reset last_source_type_for_testing_ to kNone to ensure the next
+    // iteration correctly checks for a new value instead of preserving
+    // the old one.
+    split_tabs_control->last_source_type_for_testing_ =
+        ui::mojom::MenuSourceType::kNone;
   }
 }
 
@@ -1611,15 +1832,41 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
   EXPECT_TRUE(
       WaitForButtonVisible(web_view->GetWebContents(), kSplitTabsSelector));
 
-  // Ensure NOT in split view initially.
   auto* tab_strip_model = browser()->tab_strip_model();
-  EXPECT_FALSE(tab_strip_model->GetActiveTab()->IsSplit());
 
-  EXPECT_TRUE(ClickButton(web_view->GetWebContents(), kSplitTabsSelector));
+  const struct {
+    const char* name;
+    std::string script;
+    std::string cleanup_script;
+  } test_cases[] = {
+      {"Mouse Click", DispatchPointerEvent("pointerdown", kSplitTabsSelector),
+       DispatchPointerEvent("pointerup", kSplitTabsSelector)},
+      {"Keyboard Click",
+       DispatchEventScript(kSplitTabsSelector, "MouseEvent", "click",
+                           "detail: 0"),
+       ""}};
 
-  // Verify entered split view. This might take a moment, so need to wait.
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE(test_case.name);
+    // Ensure NOT in split view initially by opening a new tab.
+    ui_test_utils::NavigateToURLWithDisposition(
+        browser(), GURL("chrome://version/"),
+        WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+    EXPECT_FALSE(tab_strip_model->GetActiveTab()->IsSplit());
+
+    EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(), test_case.script));
+
+    // Verify entered split view. This might take a moment, so need to wait.
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+
+    if (!test_case.cleanup_script.empty()) {
+      // Dispatch cleanup script to complete the interaction cleanly.
+      EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(),
+                                  test_case.cleanup_script));
+    }
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
@@ -1636,10 +1883,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
       base::StrCat({GetButtonIconJS(kSplitTabsSelector),
                     "?.getAttribute('aria-haspopup') || 'false'"});
   EXPECT_EQ("false", content::EvalJs(web_contents, kGetAriaHasPopup));
-
-  EXPECT_TRUE(content::ExecJs(
-      web_contents, DispatchEventScript(kSplitTabsSelector, "MouseEvent",
-                                        "click", "detail: 1")));
+  EXPECT_TRUE(
+      content::ExecJs(web_contents, DispatchPointerClick(kSplitTabsSelector)));
 
   auto* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(base::test::RunUntil(
@@ -1692,10 +1937,15 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
 
-  // Click the button while in split mode.
-  EXPECT_TRUE(ClickButton(web_view->GetWebContents(), kSplitTabsSelector));
+  // Click the button while in split mode using ONLY pointerdown.
+  EXPECT_TRUE(
+      content::ExecJs(web_view->GetWebContents(),
+                      DispatchPointerEvent("pointerdown", kSplitTabsSelector)));
 
-  // Verify no crash.
+  // Verify no crash by ensuring we can cleanly dispatch the pointerup.
+  EXPECT_TRUE(
+      content::ExecJs(web_view->GetWebContents(),
+                      DispatchPointerEvent("pointerup", kSplitTabsSelector)));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
@@ -1834,22 +2084,32 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 
   GURL home_url = GetHomeURL();
 
-  // Navigate away so clicking home actually does something.
-  ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser(), GURL("chrome://version")));
+  const struct {
+    const char* name;
+    std::string script;
+  } test_cases[] = {
+      {"Mouse Click", DispatchPointerClick(kHomeSelector)},
+      {"Keyboard Click",
+       DispatchEventScript(kHomeSelector, "MouseEvent", "click", "detail: 0")}};
 
-  // Click the button.
-  content::TestNavigationObserver nav_observer(
-      browser()->tab_strip_model()->GetActiveWebContents());
-  EXPECT_TRUE(
-      content::ExecJs(web_view->GetWebContents(),
-                      DispatchPointerClick(kHomeSelector, "button: 0")));
-  nav_observer.Wait();
+  for (const auto& test_case : test_cases) {
+    SCOPED_TRACE(test_case.name);
+    const std::string& script = test_case.script;
+    // Navigate away so clicking home actually does something.
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(browser(), GURL("chrome://version")));
 
-  EXPECT_EQ(home_url, browser()
-                          ->tab_strip_model()
-                          ->GetActiveWebContents()
-                          ->GetLastCommittedURL());
+    // Click the button.
+    content::TestNavigationObserver nav_observer(
+        browser()->tab_strip_model()->GetActiveWebContents());
+    EXPECT_TRUE(content::ExecJs(web_view->GetWebContents(), script));
+    nav_observer.Wait();
+
+    EXPECT_EQ(home_url, browser()
+                            ->tab_strip_model()
+                            ->GetActiveWebContents()
+                            ->GetLastCommittedURL());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
@@ -1910,8 +2170,9 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(kHomeSelector,
-                           base::StrCat({"button: 0, ", kModifier}))));
+      DispatchPointerClick(
+          kHomeSelector, "mouse",
+          base::StrCat({"detail: 1, button: 0, ", kModifier}))));
 
   tab_add_waiter.Wait();
 
@@ -1946,9 +2207,9 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(
-          kHomeSelector,
-          base::StrCat({"button: 0, ", kModifier, ", shiftKey: true"}))));
+      DispatchPointerClick(kHomeSelector, "mouse",
+                           base::StrCat({"detail: 1, button: 0, ", kModifier,
+                                         ", shiftKey: true"}))));
 
   tab_add_waiter.Wait();
 
@@ -1966,6 +2227,43 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+                       TouchModeChangesIcon) {
+  WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton();
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  std::string get_icon_js =
+      base::StrCat({"window.getComputedStyle(", GetButtonIconJS(kHomeSelector),
+                    ").getPropertyValue('--cr-icon-image')"});
+
+  // Verify standard mode icon
+  EXPECT_TRUE(content::EvalJs(web_contents, get_icon_js)
+                  .ExtractString()
+                  .find("home_20.svg") != std::string::npos);
+
+  {
+    ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper(true);
+
+    // Wait and verify Touch mode icon
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      std::string current_icon =
+          content::EvalJs(web_contents, get_icon_js).ExtractString();
+      return current_icon.find("home_24.svg") != std::string::npos;
+    }));
+  }
+
+  // Revert to non-touch mode happens automatically when scoper goes out of
+  // scope
+
+  // Wait and verify standard mode icon again
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    std::string current_icon =
+        content::EvalJs(web_contents, get_icon_js).ExtractString();
+    return current_icon.find("home_20.svg") != std::string::npos;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
                        ShiftClickHomeButton) {
   WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton();
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
@@ -1976,7 +2274,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 
   EXPECT_TRUE(content::ExecJs(
       web_view->GetWebContents(),
-      DispatchPointerClick(kHomeSelector, "button: 0, shiftKey: true")));
+      DispatchPointerClick(kHomeSelector, "mouse",
+                           "detail: 1, button: 0, shiftKey: true")));
 
   Browser* new_browser = new_browser_observer.Wait();
   ASSERT_TRUE(new_browser);
@@ -1988,4 +2287,300 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
     observer.WaitForNavigationFinished();
   }
   EXPECT_EQ(home_url, new_tab->GetLastCommittedURL());
+}
+
+class WebUIPinnedToolbarActionsBrowserTest
+    : public WebUIToolbarWebViewBrowserTest {
+ public:
+  WebUIPinnedToolbarActionsBrowserTest()
+      : WebUIToolbarWebViewBrowserTest(
+            {features::kInitialWebUI, features::kWebUIPinnedToolbarActions,
+             features::kSkipIPCChannelPausingForNonGuests,
+             features::kWebUIInProcessResourceLoadingV2,
+             features::kInitialWebUISyncNavStartToCommit,
+             tabs::kHorizontalTabStripComboButton},
+            {}) {}
+
+  void SetUpOnMainThread() override {
+    WebUIToolbarWebViewBrowserTest::SetUpOnMainThread();
+    model_ = PinnedToolbarActionsModel::Get(browser()->profile());
+  }
+
+  void TearDownOnMainThread() override {
+    model_ = nullptr;
+    WebUIToolbarWebViewBrowserTest::TearDownOnMainThread();
+  }
+
+ protected:
+  content::EvalJsResult EvalJsOnPinnedButton(
+      content::WebContents* web_contents,
+      toolbar_ui_api::mojom::PinnedToolbarAction action,
+      const std::string& script_body) {
+    return content::EvalJs(
+        web_contents,
+        base::StringPrintf(R"(
+      (() => {
+        const container = %s?.shadowRoot;
+        if (!container) return false;
+        const actionEl = Array.from(container.querySelectorAll(
+                                 'pinned-toolbar-action'))
+                        .find(el => el.state && el.state.action === %d);
+        if (!actionEl) return false;
+        const btn = actionEl.shadowRoot.querySelector('cr-icon-button');
+        %s
+      })();
+    )",
+                           GetButtonAppJS("#pinnedToolbarActions").c_str(),
+                           static_cast<int>(action), script_body.c_str()));
+  }
+
+  bool IsPinnedButtonVisible(
+      content::WebContents* web_contents,
+      toolbar_ui_api::mojom::PinnedToolbarAction action) {
+    return EvalJsOnPinnedButton(web_contents, action,
+                                "return !!btn && btn.checkVisibility();")
+        .ExtractBool();
+  }
+
+  bool ClickPinnedButton(content::WebContents* web_contents,
+                         toolbar_ui_api::mojom::PinnedToolbarAction action) {
+    return EvalJsOnPinnedButton(
+               web_contents, action,
+               "if (!btn || !btn.checkVisibility()) return false; btn.click(); "
+               "return true;")
+        .ExtractBool();
+  }
+
+  raw_ptr<PinnedToolbarActionsModel> model_;
+
+  const std::vector<
+      std::pair<actions::ActionId, toolbar_ui_api::mojom::PinnedToolbarAction>>
+      kActionMappings = {
+          {kActionNewIncognitoWindow,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kNewIncognitoWindow},
+          {kActionShowPasswordsBubbleOrPage,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kShowPasswordsBubbleOrPage},
+          {kActionShowPaymentsBubbleOrPage,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kShowPaymentsBubbleOrPage},
+          {kActionShowAddressesBubbleOrPage,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kShowAddressesBubbleOrPage},
+          {kActionSidePanelShowBookmarks,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowBookmarks},
+          {kActionSidePanelShowReadingList,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kSidePanelShowReadingList},
+          {kActionSidePanelShowHistoryCluster,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kSidePanelShowHistoryCluster},
+// ChromeOS doesn't support download button.
+#if !BUILDFLAG(IS_CHROMEOS)
+          {kActionShowDownloads,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kShowDownloads},
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+          {kActionClearBrowsingData,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kClearBrowsingData},
+          {kActionPrint, toolbar_ui_api::mojom::PinnedToolbarAction::kPrint},
+          {kActionSidePanelShowLensOverlayResults,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kSidePanelShowLensOverlayResults},
+          {kActionShowTranslate,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kShowTranslate},
+          {kActionQrCodeGenerator,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kQrCodeGenerator},
+          {kActionRouteMedia,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMedia},
+          {kActionSidePanelShowReadAnything,
+           toolbar_ui_api::mojom::PinnedToolbarAction::
+               kSidePanelShowReadAnything},
+          {kActionCopyUrl,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kCopyUrl},
+          {kActionSendTabToSelf,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kSendTabToSelf},
+          {kActionTaskManager,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kTaskManager},
+          {kActionDevTools,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kDevTools},
+      };
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       PinUnpinIndividually) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  for (const auto& [action_id, mojom_action] : kActionMappings) {
+    model_->UpdatePinnedState(action_id, true);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+    // Verify it's not highlighted.
+    EXPECT_TRUE(EvalJsOnPinnedButton(web_contents, mojom_action,
+                                     "return !!btn && "
+                                     "!btn.hasAttribute('is-menu-open');")
+                    .ExtractBool());
+
+    model_->UpdatePinnedState(action_id, false);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, PinAllTogether) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  for (const auto& [action_id, mojom_action] : kActionMappings) {
+    model_->UpdatePinnedState(action_id, true);
+  }
+
+  for (const auto& [action_id, mojom_action] : kActionMappings) {
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, InvokeActions) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  // QR code generator and translate actions only work with a legitimate
+  // non-chrome:// URL
+  net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
+  https_server.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
+  ASSERT_TRUE(https_server.Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server.GetURL("/href_translate_test.html")));
+
+  for (const auto& [action_id, mojom_action] : kActionMappings) {
+    auto* action_item = actions::ActionManager::Get().FindAction(
+        action_id, browser()->GetActions()->root_action_item());
+    ASSERT_TRUE(action_item);
+    action_item->SetEnabled(true);
+    bool invoked = false;
+    action_item->SetInvokeActionCallback(base::BindLambdaForTesting(
+        [&](actions::ActionItem* item,
+            actions::ActionInvocationContext context) { invoked = true; }));
+
+    model_->UpdatePinnedState(action_id, true);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+    EXPECT_TRUE(ClickPinnedButton(web_contents, mojom_action));
+    ASSERT_TRUE(base::test::RunUntil([&]() { return invoked; }));
+    model_->UpdatePinnedState(action_id, false);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, EphemeralActions) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  actions::ActionId action_id = kActionPrint;
+  toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
+      toolbar_ui_api::mojom::PinnedToolbarAction::kPrint;
+
+  // Initially not pinned and not visible.
+  ASSERT_FALSE(model_->Contains(action_id));
+  ASSERT_FALSE(IsPinnedButtonVisible(web_contents, mojom_action));
+
+  // Show ephemerally.
+  webui_toolbar_view->GetPinnedToolbarActions()->ShowActionEphemerallyInToolbar(
+      action_id, true);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+  // Verify it's highlighted.
+  EXPECT_TRUE(EvalJsOnPinnedButton(web_contents, mojom_action,
+                                   "return !!btn && "
+                                   "btn.hasAttribute('is-menu-open');")
+                  .ExtractBool());
+
+  // Hide ephemerally.
+  webui_toolbar_view->GetPinnedToolbarActions()->ShowActionEphemerallyInToolbar(
+      action_id, false);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       ButtonEnabledState) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  actions::ActionId action_id = kActionPrint;
+  toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
+      toolbar_ui_api::mojom::PinnedToolbarAction::kPrint;
+
+  model_->UpdatePinnedState(action_id, true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+  auto* action_item = actions::ActionManager::Get().FindAction(
+      action_id, browser()->GetActions()->root_action_item());
+  ASSERT_TRUE(action_item);
+
+  // Disable the action.
+  action_item->SetEnabled(false);
+
+  // Verify button is disabled in WebUI.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return EvalJsOnPinnedButton(web_contents, mojom_action,
+                                "return !!btn && btn.disabled;")
+        .ExtractBool();
+  }));
+
+  // Re-enable.
+  action_item->SetEnabled(true);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !EvalJsOnPinnedButton(web_contents, mojom_action,
+                                 "return !!btn && btn.disabled;")
+                .ExtractBool();
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, StateAccessors) {
+  PinnedToolbarActions* view =
+      GetWebUIToolbarWebView(browser())->GetPinnedToolbarActions();
+
+  // Pin then pop out.
+  EXPECT_FALSE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+  model_->UpdatePinnedState(kActionPrint, true);
+  EXPECT_TRUE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+  view->ShowActionEphemerallyInToolbar(kActionPrint, true);
+  EXPECT_TRUE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+  model_->UpdatePinnedState(kActionPrint, false);
+  EXPECT_FALSE(view->IsActionPinned(kActionPrint));
+  EXPECT_TRUE(view->IsActionPoppedOut(kActionPrint));
+  view->ShowActionEphemerallyInToolbar(kActionPrint, false);
+  EXPECT_FALSE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+
+  // Pop out then pin.
+  view->ShowActionEphemerallyInToolbar(kActionPrint, true);
+  EXPECT_FALSE(view->IsActionPinned(kActionPrint));
+  EXPECT_TRUE(view->IsActionPoppedOut(kActionPrint));
+  model_->UpdatePinnedState(kActionPrint, true);
+  EXPECT_TRUE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+  view->ShowActionEphemerallyInToolbar(kActionPrint, false);
+  EXPECT_TRUE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
+  model_->UpdatePinnedState(kActionPrint, false);
+  EXPECT_FALSE(view->IsActionPinned(kActionPrint));
+  EXPECT_FALSE(view->IsActionPoppedOut(kActionPrint));
 }

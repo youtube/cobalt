@@ -90,7 +90,6 @@ if (rtc_enable_protobuf) {
       "../../api:rtc_error_matchers",
       "../../api/environment",
       "../../api/environment:environment_factory",
-      "../../rtc_base:gunit_helpers",
       "../../rtc_base:random",
       "../../rtc_base:threading",
       "../../rtc_base:timeutils",

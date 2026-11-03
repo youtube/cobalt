@@ -13,8 +13,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -31,7 +31,7 @@ void TestRingBuffer() {
   SCOPED_TRACE(S);
   std::array<T, S> prev_pushed_array;
   std::array<T, S> pushed_array;
-  ArrayView<const T, S> pushed_array_view(pushed_array.data(), S);
+  std::span<const T, S> pushed_array_view(pushed_array.data(), S);
 
   // Init.
   RingBuffer<T, S, N> ring_buf;

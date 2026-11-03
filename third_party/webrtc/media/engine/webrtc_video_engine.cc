@@ -1715,13 +1715,13 @@ void WebRtcVideoSendChannel::FillSendCodecStats(
   // we can omit the codec information for those here and only insert the
   // primary codec that is being used to send here.
   video_media_info->send_codecs.insert(std::make_pair(
-      send_codec()->codec.id, send_codec()->codec.ToCodecParameters()));
+      send_codec()->codec.id.value(), send_codec()->codec.ToCodecParameters()));
 
   for (const auto& it : send_codecs_) {
     auto codec_param_it = video_media_info->send_codecs.find(it.codec.id);
     if (codec_param_it == video_media_info->send_codecs.end()) {
       video_media_info->send_codecs.insert(
-          std::make_pair(it.codec.id, it.codec.ToCodecParameters()));
+          std::make_pair(it.codec.id.value(), it.codec.ToCodecParameters()));
     }
   }
 }
@@ -2472,7 +2472,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
   VideoSenderInfo common_info;
   if (parameters_.codec_settings) {
     common_info.codec_name = parameters_.codec_settings->codec.name;
-    common_info.codec_payload_type = parameters_.codec_settings->codec.id;
+    common_info.codec_payload_type =
+        parameters_.codec_settings->codec.id.value();
   }
   // If SVC is used, one stream is configured but multiple encodings exist. This
   // is not spec-compliant, but it is how we've implemented SVC so this affects
@@ -3223,7 +3224,7 @@ void WebRtcVideoReceiveChannel::FillReceiveCodecStats(
                  *receiver.codec_payload_type == c.id;
         });
     if (codec != recv_params_.codecs.end()) {
-      video_media_info->receive_codecs.insert(
+      video_media_info->receive_codecs.emplace(
           std::make_pair(codec->id, codec->ToCodecParameters()));
     }
   }

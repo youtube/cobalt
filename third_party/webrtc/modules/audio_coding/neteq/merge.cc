@@ -15,8 +15,8 @@
 #include <cstring>  // memmove, memcpy, memset, size_t
 #include <limits>
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "common_audio/signal_processing/dot_product_with_scale.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "common_audio/signal_processing/include/spl_inl.h"
@@ -66,7 +66,7 @@ size_t Merge::Process(int16_t* input,
   // Transfer input signal to an AudioMultiVector.
   AudioMultiVector input_vector(num_channels_);
   input_vector.PushBackInterleaved(
-      ArrayView<const int16_t>(input, input_length));
+      std::span<const int16_t>(input, input_length));
   size_t input_length_per_channel = input_vector.Size();
   RTC_DCHECK_EQ(input_length_per_channel, input_length / num_channels_);
 

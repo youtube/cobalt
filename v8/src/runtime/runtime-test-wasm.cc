@@ -573,12 +573,15 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {
-      // Note: This will leak string views to JS. This should be fine for a
-      // debugging function.
-      if (Is<WasmContinuationObject>(value)) {
+      // When fuzzers use this function, don't leak anything that the JS side
+      // can't handle.
+      if (IsByteArray(*value) ||  // Probably a stringview_wtf8.
+          IsWasmContinuationObject(*value) || IsWasmExceptionPackage(*value) ||
+          IsWasmStringViewIter(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
       value = wasm::WasmToJSObject(isolate, value);
+      DCHECK(IsPrimitiveHeapObject(*value) || IsJSReceiver(*value));
     }
     externalized_values->set(i, *value);
   }
@@ -607,17 +610,19 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSObject> argument = args.at<JSObject>(0);
-  wasm::NativeModule* native_module;
+  size_t num_spaces;
   if (IsWasmInstanceObject(*argument)) {
-    native_module = Cast<WasmInstanceObject>(*argument)
-                        ->trusted_data(isolate)
-                        ->native_module();
+    num_spaces = Cast<WasmInstanceObject>(*argument)
+                     ->trusted_data(isolate)
+                     ->native_module()
+                     ->GetNumberOfCodeSpacesForTesting();
   } else if (IsWasmModuleObject(*argument)) {
-    native_module = Cast<WasmModuleObject>(*argument)->native_module();
+    num_spaces = Cast<WasmModuleObject>(*argument)
+                     ->native_module()
+                     ->GetNumberOfCodeSpacesForTesting();
   } else {
     return CrashUnlessFuzzing(isolate);
   }
-  size_t num_spaces = native_module->GetNumberOfCodeSpacesForTesting();
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
@@ -800,6 +805,12 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   DCHECK(!v8_flags.wasm_jitless);
+
+  if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
+                  v8_flags.trace_wasm_generate_compilation_hints)) {
+    // These flags expect functions to remain compiled with Liftoff.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   HandleScope scope(isolate);
   if (args.length() != 1 ||

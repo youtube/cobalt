@@ -104,7 +104,7 @@ CSPCheckResult CSPSourceListAllows(
     String url_string = url.GetString();
     wtf_size_t comma = url_string.find(',');
     String header =
-        (comma != kNotFound) ? url_string.Left(comma) : url_string;
+        (comma != kNotFound) ? url_string.substr(0, comma) : url_string;
     if (header.contains("application/x-mpegurl") ||
         header.contains("application/vnd.apple.mpegurl")) {
       return network::CSPCheckResult(true);

@@ -151,7 +151,7 @@
     },
 
     // Specify how the flag value is updated from the base::Feature value. This
-    // field is used only if base_feature is not empty.
+    // field works only if base_feature is not "none".
     //
     // * "enabled_or_overridden"
     // - If the base::Feature status is overridden to the enabled or disabled
@@ -171,9 +171,10 @@
     //
     //   This is useful for Blink origin trial features especially those
     //   implemented in both Chromium and Blink. As origin trial only controls
-    //   the Blink features, for now we require the base::Feature to be enabled
-    //   by default, but we don't want the default enabled status affect the
-    //   Blink feature. See also https://crbug.com/1048656#c10.
+    //   the Blink features, we require the base::Feature to be enabled
+    //   by default, but we don't want the default enabled status to affect the
+    //   Blink feature. See RuntimeEnabledFeatures.md for a detailed explanation
+    //   of how this works. See also https://crbug.com/1048656#c10.
     //   This can also be used for features that are enabled by default in
     //   Chromium but not in Blink on all platforms and we want to use the Blink
     //   status. However, we would prefer consistent Chromium and Blink status
@@ -868,14 +869,6 @@
       name: "BlockSelectPopupUnfocusedWindow",
       status: "stable",
     },
-    // Makes <body> marginwidth/marginheight take precedence over
-    // left/right/top/bottom presentational margin attributes, and prevents
-    // iframe marginwidth/marginheight injection when body margin attrs exist.
-    // Added in M147, remove in M149. See crbug.com/41310601.
-    {
-      name: "BodyMarginAttributePrecedence",
-      status: "stable",
-    },
     // https://crbug.com/415304289: Mouse and Pointer boundary event dispatch
     // (i.e. dispatch of enter, leave, over, out events) tracks DOM node removal
     // to fix event pairing on ancestor nodes.
@@ -1325,6 +1318,7 @@
     {
       name: "ContainerTiming",
       origin_trial_feature_name: "ContainerTiming",
+      origin_trial_allows_third_party: true,
       status: "experimental",
     },
     {
@@ -1459,6 +1453,10 @@
       // https://drafts.csswg.org/css-counter-styles/#counter-style-speak-as
       name: "CSSAtRuleCounterStyleSpeakAsDescriptor",
       status: "test",
+    },
+    {
+      name: "CSSBackgroundClipBorderArea",
+      status: "experimental",
     },
     // https://chromestatus.com/feature/5459864205393920
     {
@@ -1735,6 +1733,11 @@
       status: "stable",
     },
     {
+      name: "CSSPseudoElementViewTransitions",
+      depends_on: ["CSSPseudoElementInterface"],
+      status: "test",
+    },
+    {
       // Enables the :has-slotted pseudo-selector.
       // https://chromestatus.com/feature/5134941143433216
       name: "CSSPseudoHasSlotted",
@@ -1900,7 +1903,7 @@
     {
       // https://issues.chromium.org/40675832: CSS `text-decoration-skip-ink: all` value
       name: "CSSTextDecorationSkipInkAll",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/434361099
@@ -2330,13 +2333,6 @@
       status: "stable",
     },
     {
-      // Enable drag and drop delegation to child frames in HTMLPlugInElements
-      // (object/embed elements). Fixes drag and drop from text inputs/textareas
-      // to elements inside object frames.
-      name: "DragAndDropPluginElementSupport",
-      status: "stable",
-    },
-    {
       // See https://crbug.com/443612843
       name: "EditContextAssignmentAsPerSpec",
       status: "test"
@@ -2749,6 +2745,12 @@
       status: "stable",
     },
     {
+      // Fix a bug in the <map> element's caching of the name attribute. This
+      // flag was added in M148, and can be removed in M150.
+      name: "FixMapElementEmptyNameBug",
+      status: "stable",
+    },
+    {
       // This fixes the suppression of markers for <details> and
       // list items for appearance:auto.
       // This was added in M146 and can be removed after M148.
@@ -2896,7 +2898,7 @@
     },
     {
       name: "FontFormatAvar2",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/41170551
@@ -3328,6 +3330,11 @@
       // https://chromestatus.com/feature/5152834368700416
       name: "InstallElement",
       status: {"Android": "", "default": "test"},
+      origin_trial_feature_name: "InstallElement",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      public: true,
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
     },
     {
       name: "InstallOnDeviceSpeechRecognition",
@@ -3586,8 +3593,6 @@
     },
     {
       name: "MachineLearningNeuralNetwork",
-      origin_trial_feature_name: "WebMachineLearningNeuralNetwork",
-      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       // Enabled by webnn::mojom::features::kWebMachineLearningNeuralNetwork.
       base_feature: "none",
     },
@@ -3819,10 +3824,6 @@
       status: "stable",
     },
     {
-      name: "MoveToParagraphStartOrEndSkipsNonEditable",
-      status: "stable",
-    },
-    {
       name: "MulticolColumnWrapping",
       status: "stable",
     },
@@ -3915,6 +3916,13 @@
       status: "stable",
     },
     {
+      // Converts mid-word U+00A0 (NBSP) to a regular space on paste and drop.
+      // This will be shipped in M148, and it can be removed in M150.
+      // See https://issues.chromium.org/issues/444065314.
+      name: "NormalizeNbspForPasteAndDrop",
+      status: "stable",
+    },
+    {
       name: "NotificationConstructor",
       // Android won't be able to reliably support non-persistent notifications, the
       // intended behavior for which is in flux by itself.
@@ -3965,6 +3973,10 @@
     {
       name: "OnDeviceWebSpeechAvailable",
       status: "stable",
+    },
+    {
+      name: "OnDeviceWebSpeechQuality",
+      status: "experimental",
     },
     {
       // The OpaqueRange interface provides a live AbstractRange subtype
@@ -4171,16 +4183,10 @@
       status: "stable",
     },
     {
-      // Fix for https://crbug.com/40716515.
-      // Killswitch M141.
-      name: "PaintOffsetTranslationForBackdropFilterWithInlineElement",
-      status: "stable",
-    },
-    {
-      // Killswitch M142. Overrides the above to enable PaintOffsetTranslation
-      // for all composited LayoutObjects.
+      // Enable PaintOffsetTranslation for all composited LayoutObjects.
+      // Killswitch M148.
       name: "PaintOffsetTranslationForComposited",
-      status: "test",
+      status: "stable",
     },
     {
       name: "PaintTimingMixin",
@@ -4559,6 +4565,11 @@
       status: "stable",
     },
     {
+      // Shipping in M148, so should be removed around M150.
+      name: "RecheckParentDuringNodeVectorInsertion",
+      status: "stable",
+    },
+    {
       name: "RecordSameDocumentPresentationTimeOnce",
       status: "stable",
     },
@@ -4832,6 +4843,14 @@
       status: "stable",
     },
     {
+      // Runs a microtask checkpoint before prepare script in
+      // XML Parser. This was added in M148 and can be removed
+      // after M150.
+      // https://issues.chromium.org/issues/439639184
+      name: "RunMicrotaskBeforeXmlScript",
+      status: "stable",
+    },
+    {
       // HTML event loop invoking 'Run snapshot post-layout state steps' from
       // the CSSOM View per spec proposal.
       name: "RunSnapshotPostLayoutStateSteps",
@@ -4979,13 +4998,7 @@
     },
     {
       name: "SecurePaymentConfirmationCapabilities",
-      status: {
-        "Android": "experimental",
-        "Mac": "experimental",
-        "Win": "experimental",
-        "iOS": "",
-        "default": "test",
-      },
+      status: "stable",
     },
     {
       name: "SecurePaymentConfirmationDebug",
@@ -5270,13 +5283,6 @@
       status: "experimental",
     },
     {
-      // Skip field disabled checks in DateTimeEditElement.
-      // This will be shipped in M143, and it can be removed in M145.
-      // See https://issues.chromium.org/issues/442293382.
-      name: "SkipDateTimeFieldDisableChecks",
-      status: "stable",
-    },
-    {
       // Improves performance of event dispatching by skipping the capture
       // phase if there are no capture listeners registered on the page.
       name: "SkipEventCapture",
@@ -5509,6 +5515,10 @@
     },
     {
       name: "SvgFallBackToContainerSize",
+      status: "stable",
+    },
+    {
+      name: "SvgFeImageSkipHiddenContainerViewportDependence",
       status: "stable",
     },
     {
@@ -5852,6 +5862,16 @@
       name: "TransferableRTCDataChannel",
       status: "stable",
     },
+    // Fixing detection of unhandled promise rejections for view-transitions
+    // created a spike in unhandled rejections for cross-document view
+    // transitions. The transition on the old document is skipped, but as the
+    // old document is only used to capture the snapshot, and a skip is
+    // imminent, the promise rejection is not indicative of unexpected behavior.
+    // crbug.com/496115780
+    {
+      name: "TransitionNavigationQuietSkip",
+      status: "stable"
+    },
     // This is conditionally set if the platform supports translation.
     {
       name: "TranslateService",
@@ -6149,6 +6169,7 @@
       status: {"Android": "", "default": "test"},
       origin_trial_feature_name: "WebAppInstallation",
       origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      public: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },

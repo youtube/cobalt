@@ -460,11 +460,13 @@ MaybeDirectHandle<String> Intl::ConvertToUpper(Isolate* isolate,
     {
       DisallowGarbageCollection no_gc;
       String::FlatContent flat = s->GetFlatContent(no_gc);
-      prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
-          reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
-          length);
-      if (prefix == length) {
-        return indirect_handle(s, isolate);
+      if (flat.IsOneByte()) {
+        prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
+            reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
+            length);
+        if (prefix == length) {
+          return indirect_handle(s, isolate);
+        }
       }
     }
     Handle<SeqOneByteString> result =
@@ -1082,13 +1084,13 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   MaybeDirectHandle<JSCollator> maybe_collator =
       New<JSCollator>(isolate, constructor, locales, options, method_name);
   if (!maybe_collator.ToHandle(&collator)) return {};
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            collator->icu_collator()->get()));
+        icu_collator.as_shared_ptr());
   }
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2,
                               compare_strings_options);
 }
@@ -1564,7 +1566,7 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt =
           std::make_shared<icu::number::LocalizedNumberFormatter>(
               *cached_number_format);
-      return JSNumberFormat::FormatNumeric(isolate, lfmt, numeric_obj);
+      return JSNumberFormat::FormatNumeric(isolate, lfmt.get(), numeric_obj);
     }
   }
 
@@ -1585,17 +1587,18 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name));
 
+  Managed<icu::number::LocalizedNumberFormatter>::Ptr lfmt =
+      number_format->icu_number_formatter()->ptr();
+
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            number_format->icu_number_formatter()->get()));
+        lfmt.as_shared_ptr());
   }
 
   // Return FormatNumber(numberFormat, x).
 
-  return JSNumberFormat::FormatNumeric(
-      isolate, number_format->icu_number_formatter()->get(), numeric_obj);
+  return JSNumberFormat::FormatNumeric(isolate, lfmt.raw(), numeric_obj);
 }
 
 namespace {

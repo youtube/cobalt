@@ -14,9 +14,9 @@
 #include <cstdint>
 #include <memory>
 #include <numbers>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "test/gtest.h"
@@ -26,7 +26,7 @@ namespace {
 constexpr int kSampleRateHz = 48000;
 constexpr size_t kBlockSizeSamples = kSampleRateHz / 100;
 
-std::unique_ptr<RmsLevel> RunTest(ArrayView<const int16_t> input) {
+std::unique_ptr<RmsLevel> RunTest(std::span<const int16_t> input) {
   std::unique_ptr<RmsLevel> level(new RmsLevel);
   for (size_t n = 0; n + kBlockSizeSamples <= input.size();
        n += kBlockSizeSamples) {
@@ -35,7 +35,7 @@ std::unique_ptr<RmsLevel> RunTest(ArrayView<const int16_t> input) {
   return level;
 }
 
-std::unique_ptr<RmsLevel> RunTest(ArrayView<const float> input) {
+std::unique_ptr<RmsLevel> RunTest(std::span<const float> input) {
   std::unique_ptr<RmsLevel> level(new RmsLevel);
   for (size_t n = 0; n + kBlockSizeSamples <= input.size();
        n += kBlockSizeSamples) {

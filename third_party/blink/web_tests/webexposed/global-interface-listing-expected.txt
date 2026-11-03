@@ -576,12 +576,14 @@ interface CSPViolationReportBody : ReportBody
     getter disposition
     getter documentURL
     getter effectiveDirective
+    getter evalHash
     getter lineNumber
     getter originalPolicy
     getter referrer
     getter sample
     getter sourceFile
     getter statusCode
+    getter urlHash
     method constructor
     method toJSON
 interface CSSAnimation : Animation
@@ -5337,12 +5339,14 @@ interface HTMLTableSectionElement : HTMLElement
 interface HTMLTemplateElement : HTMLElement
     attribute @@toStringTag
     getter content
+    getter htmlFor
     getter shadowRootClonable
     getter shadowRootCustomElementRegistry
     getter shadowRootDelegatesFocus
     getter shadowRootMode
     getter shadowRootSerializable
     method constructor
+    setter htmlFor
     setter shadowRootClonable
     setter shadowRootCustomElementRegistry
     setter shadowRootDelegatesFocus
@@ -5449,6 +5453,7 @@ interface HTMLUserMediaElement : HTMLElement
     getter onstream
     getter onvalidationstatuschange
     getter permissionStatus
+    getter stream
     getter type
     method constructor
     method setConstraints
@@ -6698,7 +6703,6 @@ interface ModelContext
     attribute @@toStringTag
     method constructor
     method registerTool
-    method unregisterTool
 interface Mojo
     static method bindInterface
     static method createDataPipe
@@ -9862,6 +9866,7 @@ interface SecurityPolicyViolationEvent : Event
     getter sample
     getter sourceFile
     getter statusCode
+    getter urlHash
     getter violatedDirective
     method constructor
 interface Selection
@@ -10166,6 +10171,7 @@ interface SpeechRecognition : EventTarget
     getter onstart
     getter phrases
     getter processLocally
+    getter quality
     method abort
     method constructor
     method start
@@ -10188,6 +10194,7 @@ interface SpeechRecognition : EventTarget
     setter onstart
     setter phrases
     setter processLocally
+    setter quality
 interface SpeechRecognitionErrorEvent : Event
     attribute @@toStringTag
     getter error
@@ -10267,11 +10274,9 @@ interface SpeechSynthesisVoice
     method constructor
 interface SpellCheckCustomDictionary
     attribute @@toStringTag
-    getter words
     method addWords
     method constructor
     method removeWords
-    setter words
 interface StaticRange : AbstractRange
     attribute @@toStringTag
     method constructor
@@ -13390,6 +13395,7 @@ interface webkitSpeechRecognition : EventTarget
     getter onstart
     getter phrases
     getter processLocally
+    getter quality
     method abort
     method constructor
     method start
@@ -13412,6 +13418,7 @@ interface webkitSpeechRecognition : EventTarget
     setter onstart
     setter phrases
     setter processLocally
+    setter quality
 interface webkitSpeechRecognitionError : Event
     attribute @@toStringTag
     getter error

@@ -16,9 +16,9 @@
 
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
+#include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
-#include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "pc/session_description.h"
@@ -48,7 +48,8 @@ class SdpPayloadTypeSuggesterTest : public testing::Test {
 };
 
 TEST_F(SdpPayloadTypeSuggesterTest, SuggestPayloadTypeBasic) {
-  Codec pcmu_codec = CreateAudioCodec(-1, kPcmuCodecName, 8000, 1);
+  Codec pcmu_codec =
+      CreateAudioCodec(PayloadType::NotSet(), kPcmuCodecName, 8000, 1);
   RTCErrorOr<PayloadType> pcmu_pt =
       suggester_.SuggestPayloadType("mid", pcmu_codec);
   ASSERT_TRUE(pcmu_pt.ok());
@@ -63,7 +64,8 @@ TEST_F(SdpPayloadTypeSuggesterTest, SuggestPayloadTypeReusesRemotePayloadType) {
   offer->contents()[0].media_description()->set_codecs({remote_lyra_codec});
   EXPECT_TRUE(
       suggester_.Update(offer.get(), /* local= */ false, SdpType::kOffer).ok());
-  Codec local_lyra_codec = CreateAudioCodec(-1, "lyra", 8000, 1);
+  Codec local_lyra_codec =
+      CreateAudioCodec(PayloadType::NotSet(), "lyra", 8000, 1);
   RTCErrorOr<PayloadType> lyra_pt =
       suggester_.SuggestPayloadType(kAudioMid1, local_lyra_codec);
   ASSERT_TRUE(lyra_pt.ok());
@@ -81,12 +83,14 @@ TEST_F(SdpPayloadTypeSuggesterTest,
   EXPECT_TRUE(
       suggester_.Update(offer.get(), /* local= */ false, SdpType::kOffer).ok());
   // Check that we get the Opus codec back with the remote PT
-  Codec local_opus_codec = CreateAudioCodec(-1, "opus", 48000, 2);
+  Codec local_opus_codec =
+      CreateAudioCodec(PayloadType::NotSet(), "opus", 48000, 2);
   RTCErrorOr<PayloadType> local_opus_pt =
       suggester_.SuggestPayloadType(kAudioMid1, local_opus_codec);
   EXPECT_EQ(local_opus_pt.value(), remote_opus_pt);
   // Check that we don't get 110 allocated for DTMF, since it's in use for opus
-  Codec local_other_codec = CreateAudioCodec(-1, kDtmfCodecName, 48000, 1);
+  Codec local_other_codec =
+      CreateAudioCodec(PayloadType::NotSet(), kDtmfCodecName, 48000, 1);
   RTCErrorOr<PayloadType> other_pt =
       suggester_.SuggestPayloadType(kAudioMid1, local_other_codec);
   ASSERT_TRUE(other_pt.ok());

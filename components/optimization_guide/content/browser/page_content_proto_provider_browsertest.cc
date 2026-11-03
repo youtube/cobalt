@@ -57,6 +57,8 @@ namespace optimization_guide {
 
 namespace {
 
+using ::testing::IsEmpty;
+
 // Allow 1px differences from rounding.
 #define EXPECT_ALMOST_EQ(a, b) EXPECT_LE(abs(a - b), 1);
 
@@ -650,6 +652,7 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
 
   // aria-checked should also be treated as a toggle signal so we cover both
   // toggle-related ARIA attributes.
+  ASSERT_EQ(ActionableContentRootNode().children_nodes().size(), 10u);
   const auto& aria_checked = ActionableContentRootNode().children_nodes()[5];
   ASSERT_TRUE(aria_checked.content_attributes().has_interaction_info());
   EXPECT_THAT(aria_checked.content_attributes()
@@ -657,6 +660,36 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
                   .clickability_reasons(),
               testing::Contains(
                   optimization_guide::proto::CLICKABILITY_REASON_ARIA_TOGGLE));
+  const auto& focusable_only = ActionableContentRootNode().children_nodes()[6];
+  ASSERT_TRUE(focusable_only.content_attributes().has_interaction_info());
+  EXPECT_TRUE(
+      focusable_only.content_attributes().interaction_info().is_focusable());
+  EXPECT_FALSE(
+      focusable_only.content_attributes().interaction_info().is_tabbable());
+
+  const auto& tabbable = ActionableContentRootNode().children_nodes()[7];
+  ASSERT_TRUE(tabbable.content_attributes().has_interaction_info());
+  EXPECT_TRUE(tabbable.content_attributes().interaction_info().is_focusable());
+  EXPECT_TRUE(tabbable.content_attributes().interaction_info().is_tabbable());
+
+  const auto& activedescendant =
+      ActionableContentRootNode().children_nodes()[8];
+  ASSERT_TRUE(activedescendant.content_attributes().has_interaction_info());
+  EXPECT_TRUE(activedescendant.content_attributes()
+                  .interaction_info()
+                  .has_aria_activedescendant());
+
+  const auto& split_action = ActionableContentRootNode().children_nodes()[9];
+  ASSERT_TRUE(split_action.content_attributes().has_interaction_info());
+  ASSERT_EQ(split_action.content_attributes()
+                .interaction_info()
+                .aria_action_target_node_ids_size(),
+            1);
+  const auto& close_action = split_action.children_nodes()[1];
+  EXPECT_EQ(split_action.content_attributes()
+                .interaction_info()
+                .aria_action_target_node_ids(0),
+            close_action.content_attributes().common_ancestor_dom_node_id());
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
@@ -864,6 +897,31 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
   EXPECT_TRUE(iframe.content_attributes().is_ad_related());
 
   EXPECT_EQ(iframe.children_nodes().size(), 1);
+}
+
+// TODO(crbug.com/447642858): An end-to-end ad tagging test that uses the
+// subresource filter should be added.
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       AIPageContentAdIframeExcluded) {
+  LoadPage(https_server()->GetURL("a.com", "/iframe_ad.html"));
+
+  // Mark the iframe as an ad frame.
+  ASSERT_TRUE(content::ExecJs(web_contents(), R"(
+                          const iframe = document.getElementById('iframe1');
+                          window.internals.setIsAdFrame(iframe.contentDocument);
+                        )"));
+
+  // Pre-check: Verify that without exclusion, the iframe content is included.
+  LoadData(GetAIPageContentOptions());
+  EXPECT_EQ(page_content().root_node().children_nodes().size(), 1u);
+
+  auto options = GetAIPageContentOptions();
+  options->non_salient_content_config =
+      blink::mojom::NonSalientContentConfig::New();
+  options->non_salient_content_config->exclude_ad_related = true;
+
+  LoadData(std::move(options));
+  EXPECT_THAT(page_content().root_node().children_nodes(), IsEmpty());
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
@@ -1268,6 +1326,43 @@ IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
                    cross_site_frame_geometry.outer_bounding_box().y());
   EXPECT_NE(same_site_geometry.outer_bounding_box().x(),
             cross_site_frame_geometry.outer_bounding_box().x());
+}
+
+IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
+                       AIPageContentAdIframeExcluded) {
+  LoadPage(https_server()->GetURL(
+      "a.com",
+      "/paragraph_iframe_partially_offscreen.html?domain=/cross-site/b.com/"));
+
+  content::RenderFrameHost* child_rfh =
+      ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
+
+  // Mark the iframe as an ad frame from its own process.
+  ASSERT_TRUE(
+      content::ExecJs(child_rfh, "window.internals.setIsAdFrame(document);"));
+
+  // Pre-check: Verify that without exclusion, the iframe content is included.
+  LoadData(GetAIPageContentOptions());
+  ASSERT_EQ(page_content().root_node().children_nodes().size(), 1u);
+  EXPECT_EQ(
+      page_content().root_node().children_nodes()[0].children_nodes().size(),
+      1u);
+
+  auto options = GetAIPageContentOptions();
+  options->non_salient_content_config =
+      blink::mojom::NonSalientContentConfig::New();
+  options->non_salient_content_config->exclude_ad_related = true;
+
+  LoadData(std::move(options));
+
+  // The iframe element itself is in the main frame, and it's not marked as
+  // ad-related in the main frame's process. Thus it's included.
+  // However, its content (the sub-document) is in its own process and is marked
+  // as an ad frame. It should be skipped by AIPageContentAgent in that process.
+  ASSERT_EQ(page_content().root_node().children_nodes().size(), 1u);
+  // The iframe should have no children because its content was skipped.
+  EXPECT_THAT(page_content().root_node().children_nodes()[0].children_nodes(),
+              IsEmpty());
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

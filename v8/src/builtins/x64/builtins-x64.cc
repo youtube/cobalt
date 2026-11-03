@@ -727,8 +727,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {CODE_TYPE, &is_code, Label::kNear},
 #endif
       });
-  // Fallthrough means none of the types matched. The destination register is
-  // zeroed.
+  // Fallthrough means none of the types matched or the field was invalid.
+  // The destination register is zeroed.
   __ jmp(is_unavailable);
 
 #if !V8_JITLESS_BOOL
@@ -1266,7 +1266,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
   __ int3();  // Should not return.
 
 #ifndef V8_JITLESS
@@ -3794,7 +3794,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
 void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ addq(
       kWasmTrapHandlerFaultAddressRegister,
-      Immediate(WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
+      Immediate(WasmFrameConstants::kTrappingInstructionReturnAddressOffset));
   __ pushq(kWasmTrapHandlerFaultAddressRegister);
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   // This landing pad pushes kWasmTrapHandlerFaultAddressRegister to the stack
@@ -4122,6 +4122,69 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(WasmFXSuspendDescriptor::GetStackParameterCount() *
          kSystemPointerSize);
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(rbp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(9);
+#ifdef V8_TARGET_OS_WIN
+    __ movq(MemOperand(rsp, 4 * kSystemPointerSize), tag);
+    __ movq(MemOperand(rsp, 5 * kSystemPointerSize), cont);
+    __ movq(MemOperand(rsp, 6 * kSystemPointerSize), target_stack_reg);
+    __ movq(MemOperand(rsp, 7 * kSystemPointerSize), arg_buffer_reg);
+    __ movq(kScratchRegister, sig_op);
+    __ movq(MemOperand(rsp, 8 * kSystemPointerSize), kScratchRegister);
+#else
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ movq(MemOperand(rsp, 0), target_stack_reg);
+    __ movq(MemOperand(rsp, kSystemPointerSize), arg_buffer_reg);
+    __ movq(kScratchRegister, sig_op);
+    __ movq(MemOperand(rsp, 2 * kSystemPointerSize), kScratchRegister);
+#endif
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], rsp);
+    __ Move(kCArgRegs[2], rbp);
+    __ leaq(kCArgRegs[3], MemOperand(&resume, 0));
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  // Standard JumpIf macro does a 32bit compare, not 64bit.
+  __ testq(kReturnRegister0, kReturnRegister0);
+  __ j(not_zero, &ok);
+
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  __ Pop(kScratchRegister);  // Discard saved context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  __ Move(target_stack, kReturnRegister0);
+  // Load the arg buffer to set up resume of target stack
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Move(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, rsp, rbp));
+  LoadJumpBuffer(masm, target_stack, true);
+  __ Trap();
+  __ bind(&resume);
+  __ endbr64();
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ ret(WasmFXSwitchDescriptor::GetStackParameterCount() * kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {

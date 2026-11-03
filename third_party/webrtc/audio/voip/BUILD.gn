@@ -16,7 +16,6 @@ rtc_library("voip_core") {
   deps = [
     ":audio_channel",
     "..:audio",
-    "../../api:array_view",
     "../../api:make_ref_counted",
     "../../api:scoped_refptr",
     "../../api:transport_api",
@@ -43,7 +42,6 @@ rtc_library("audio_channel") {
   deps = [
     ":audio_egress",
     ":audio_ingress",
-    "../../api:array_view",
     "../../api:ref_count",
     "../../api:rtp_headers",
     "../../api:scoped_refptr",
@@ -67,7 +65,6 @@ rtc_library("audio_ingress") {
   ]
   deps = [
     "..:audio",
-    "../../api:array_view",
     "../../api:scoped_refptr",
     "../../api/audio:audio_mixer_api",
     "../../api/audio_codecs:audio_codecs_api",
@@ -97,7 +94,6 @@ rtc_library("audio_egress") {
   ]
   deps = [
     "..:audio",
-    "../../api:array_view",
     "../../api:sequence_checker",
     "../../api/audio:audio_frame_api",
     "../../api/audio_codecs:audio_codecs_api",

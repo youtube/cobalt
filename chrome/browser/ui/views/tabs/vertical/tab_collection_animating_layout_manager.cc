@@ -17,6 +17,7 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/widget.h"
 
 DEFINE_UI_CLASS_PROPERTY_TYPE(
     TabCollectionAnimatingLayoutManager::SourceLayoutInfo*)
@@ -66,7 +67,8 @@ TabCollectionAnimatingLayoutManager::TabCollectionAnimatingLayoutManager(
     Delegate& delegate,
     AnimationAxis animation_axis,
     bool animate_host_size)
-    : target_layout_manager_(
+    : views::AnimationDelegateViews(target_layout_manager->host_view()),
+      target_layout_manager_(
           CHECK_DEREF(AddOwnedLayout(std::move(target_layout_manager)))),
       animation_(this),
       delegate_(delegate),
@@ -592,9 +594,19 @@ void TabCollectionAnimatingLayoutManager::
   }
 
   // Remove any pending delete views no longer in `starting_layout_`.
+  int removed_child_count = 0;
   for (auto& [child, should_remove] : pending_delete_child_view_map) {
     if (should_remove) {
       host_view()->RemoveChildViewT(child);
+      removed_child_count++;
+    }
+  }
+
+  // Dispatch synthesized mouse move event using the current mouse location
+  // to refresh hover status.
+  if (removed_child_count > 0) {
+    if (views::Widget* widget = host_view()->GetWidget()) {
+      widget->SynthesizeMouseMoveEvent();
     }
   }
 }

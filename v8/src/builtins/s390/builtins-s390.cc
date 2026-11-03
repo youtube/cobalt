@@ -63,6 +63,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       data,
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
+  __ JumpIfSmi(data, is_unavailable);
   __ LoadMap(scratch1, data);
   __ LoadU16(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
 
@@ -1595,7 +1596,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
 
   __ bind(&stack_overflow);
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -3709,6 +3710,66 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Drop(WasmFXSuspendDescriptor::GetStackParameterCount());
+  __ Ret();
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(fp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg, arg_buffer_reg));
+    __ PrepareCallCFunction(9, r0);
+    __ Move(kCArgRegs[4], tag);
+    __ StoreU64(cont,
+                MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
+    __ StoreU64(
+        target_stack_reg,
+        MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
+    __ StoreU64(arg_buffer_reg, MemOperand(sp, (kStackFrameExtraParamSlot + 2) *
+                                                   kSystemPointerSize));
+    Register scratch = r3;
+    __ LoadU64(scratch, sig_op);
+    __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 3) *
+                                            kSystemPointerSize));
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ CmpU64(kReturnRegister0, Operand(0));
+  __ bne(&ok);
+
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  __ Drop(1);  // Drop saved context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  // Load the arg buffer to set up resume of target stack
+  __ Move(target_stack, kReturnRegister0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Move(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, r3, sp, fp));
+  LoadJumpBuffer(masm, target_stack, true, r3);
+  __ Trap();
+  __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSwitchDescriptor::GetStackParameterCount());
   __ Ret();
 }
 

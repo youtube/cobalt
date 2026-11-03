@@ -712,13 +712,22 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
+    const ZoneVector<CFunctionInfoWithDetails> overloads =
+        function_template_info_.c_functions_with_signatures(broker());
+    const size_t overloads_count = overloads.size();
+    ZoneVector<Address> c_functions(overloads_count, graph()->zone());
+    ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                  graph()->zone());
+    for (size_t i = 0; i < overloads_count; ++i) {
+      c_functions[i] = overloads[i].address;
+      c_signatures[i] = overloads[i].signature;
+    }
+
     ApiFunction api_function(function_template_info_.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
-        function_template_info_.c_functions(broker()).data(),
-        function_template_info_.c_signatures(broker()).data(),
-        static_cast<unsigned>(
-            function_template_info_.c_functions(broker()).size()));
+        c_functions.data(), c_signatures.data(),
+        static_cast<unsigned>(overloads_count));
 
     // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.
@@ -3506,9 +3515,10 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  if (arity != 2) return NoChange();
+  if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
+  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
@@ -3531,20 +3541,35 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         frame_state, efalse, if_false);
   }
 
-  // Otherwise just use the existing GetPropertyStub.
+  // Otherwise just use the existing GetPropertyStub or GetPropertyWithReceiver.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
   Node* vtrue;
   {
-    Callable callable = Builtins::CallableFor(isolate(), Builtin::kGetProperty);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(),
-        CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
-    vtrue = etrue = if_true =
-        graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
-                         key, context, frame_state, etrue, if_true);
+    if (arity == 3) {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetPropertyWithReceiver);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      Node* on_non_existent = jsgraph()->SmiConstant(1);  // kReturnUndefined
+      vtrue = etrue = if_true = graph()->NewNode(
+          common()->Call(call_descriptor), stub_code, target, key, receiver,
+          on_non_existent, context, frame_state, etrue, if_true);
+    } else {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetProperty);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      vtrue = etrue = if_true =
+          graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
+                           key, context, frame_state, etrue, if_true);
+    }
   }
 
   // Rewire potential exception edges.
@@ -3975,7 +4000,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   }
 
   // Read the trusted object only once to ensure a consistent view on it.
-  Tagged<Object> trusted_data = shared.object()->GetTrustedData(isolate());
+  auto trusted_data = shared.object()->GetTrustedData(isolate());
   Tagged<WasmExportedFunctionData> function_data;
   if (!TryCast(trusted_data, &function_data)) return NoChange();
 

@@ -11,7 +11,7 @@
 #import <Foundation/Foundation.h>
 #import <OCMock/OCMock.h>
 
-#include "rtc_base/gunit.h"
+#include "test/gtest.h"
 
 // Width and height don't play any role so lets use predefined values throughout
 // the tests.

@@ -81,10 +81,6 @@ source_set("capture_device_specific") {
     "video/fake_video_capture_device.h",
     "video/fake_video_capture_device_factory.cc",
     "video/fake_video_capture_device_factory.h",
-    "video/file_video_capture_device.cc",
-    "video/file_video_capture_device.h",
-    "video/file_video_capture_device_factory.cc",
-    "video/file_video_capture_device_factory.h",
     "video/mappable_shared_image_utils.cc",
     "video/mappable_shared_image_utils.h",
     "video/video_capture_buffer_handle.cc",
@@ -101,15 +97,28 @@ source_set("capture_device_specific") {
     "video/video_frame_receiver_types.h",
   ]
 
-  if (is_cobalt) {
-    sources -= [
-      "video/blob_utils.cc",
-      "video/blob_utils.h",
+  if (!is_android) {
+    sources += [
       "video/file_video_capture_device.cc",
       "video/file_video_capture_device.h",
       "video/file_video_capture_device_factory.cc",
       "video/file_video_capture_device_factory.h",
     ]
+  }
+  if (is_cobalt) {
+    sources -= [
+      "video/blob_utils.cc",
+      "video/blob_utils.h",
+    ]
+
+    if (!is_android) {
+      sources -= [
+        "video/file_video_capture_device.cc",
+        "video/file_video_capture_device.h",
+        "video/file_video_capture_device_factory.cc",
+        "video/file_video_capture_device_factory.h",
+      ]
+    }
   }
 
   public_deps = [ ":capture_base" ]
@@ -292,7 +301,6 @@ test("capture_unittests") {
     "content/video_capture_oracle_unittest.cc",
     "run_all_unittests.cc",
     "video/fake_video_capture_device_unittest.cc",
-    "video/file_video_capture_device_unittest.cc",
     "video/video_capture_device_client_unittest.cc",
     "video/video_capture_device_unittest.cc",
     "video/video_capture_metrics_unittest.cc",
@@ -303,11 +311,15 @@ test("capture_unittests") {
     sources -= [ "run_all_unittests.cc" ]
   }
 
+  if (!is_android) {
+    sources += [ "video/file_video_capture_device_unittest.cc" ]
+  }
+
   if (is_cobalt) {
-    sources -= [
-      "video/file_video_capture_device_unittest.cc",
-      "video/video_capture_device_unittest.cc",
-    ]
+    sources -= [ "video/video_capture_device_unittest.cc", ]
+    if (!is_android) {
+      sources -= [ "video/file_video_capture_device_unittest.cc" ]
+    }
   }
 
   data = [ "//media/test/data/bear.mjpeg" ]

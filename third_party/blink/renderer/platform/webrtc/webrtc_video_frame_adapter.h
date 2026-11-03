@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WEBRTC_WEBRTC_VIDEO_FRAME_ADAPTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WEBRTC_WEBRTC_VIDEO_FRAME_ADAPTER_H_
 
+#include <span>
+
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -132,6 +134,12 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
    private:
     void SetRasterContextProvider(scoped_refptr<viz::RasterContextProvider>);
 
+    void OnAsyncReadbackCompleted(
+        scoped_refptr<media::VideoFrame> texture_frame,
+        scoped_refptr<media::VideoFrame> mapped_frame,
+        base::OnceCallback<void(scoped_refptr<media::VideoFrame>)> callback,
+        bool success);
+
     media::VideoFramePool pool_;
     media::VideoFramePool pool_for_mapped_frames_;
 
@@ -195,7 +203,7 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
     // Obtains a mapped buffer of this ScaledBuffer's size hard-applied. The
     // resulting buffer's type is the non-kNative type used internally.
     webrtc::scoped_refptr<webrtc::VideoFrameBuffer> GetMappedFrameBuffer(
-        webrtc::ArrayView<webrtc::VideoFrameBuffer::Type> types) override;
+        std::span<webrtc::VideoFrameBuffer::Type> types) override;
 
     // Soft-applies cropping and scaling. The result is another ScaledBuffer.
     webrtc::scoped_refptr<webrtc::VideoFrameBuffer> CropAndScale(
@@ -229,7 +237,7 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
 
   webrtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
   webrtc::scoped_refptr<webrtc::VideoFrameBuffer> GetMappedFrameBuffer(
-      webrtc::ArrayView<webrtc::VideoFrameBuffer::Type> types) override;
+      std::span<webrtc::VideoFrameBuffer::Type> types) override;
 
   // Soft-applies cropping and scaling. The result is a ScaledBuffer.
   webrtc::scoped_refptr<webrtc::VideoFrameBuffer> CropAndScale(

@@ -236,7 +236,6 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
   RTC_HISTOGRAM_COUNTS_1000(
       "WebRTC.Video.GenericDecoder.DecodeDelay",
       timing_frame_info.decode_finish_ms - timing_frame_info.decode_start_ms);
-  timing_->SetTimingFrameInfo(timing_frame_info);
   decodedImage.set_timestamp_us(
       frame_info->render_time ? frame_info->render_time->us() : -1);
   decodedImage.set_content_type(frame_info->content_type);
@@ -244,7 +243,8 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                                       .qp = qp,
                                       .decode_time = decode_time,
                                       .content_type = frame_info->content_type,
-                                      .frame_type = frame_info->frame_type});
+                                      .frame_type = frame_info->frame_type,
+                                      .timing_frame_info = timing_frame_info});
 
   if (corruption_score_calculator_ &&
       frame_info->frame_instrumentation_data.has_value()) {

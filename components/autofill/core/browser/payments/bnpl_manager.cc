@@ -111,6 +111,15 @@ bool BnplManager::IsBnplIssuerSupported(std::string_view issuer_id) {
 void BnplManager::OnUserDecisionToUseBnpl(
     std::optional<int64_t> final_checkout_amount,
     OnBnplVcnFetchedCallback on_bnpl_vcn_fetched_callback) {
+  if (ongoing_flow_state_ != nullptr &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs)) {
+    // User has already navigated to Pay Later tab before in this popup. This
+    // means that either there is an ongoing flow already, or the user is in an
+    // error state, both of which mean a new flow should not be started.
+    return;
+  }
+
   ongoing_flow_state_ = std::make_unique<OngoingFlowState>();
   ongoing_flow_state_->final_checkout_amount = std::move(final_checkout_amount);
   ongoing_flow_state_->app_locale =
@@ -203,6 +212,11 @@ void BnplManager::OnUserDecisionToUseBnpl(
 void BnplManager::OnIssuerAccepted(BnplIssuer issuer) {
   ongoing_flow_state_->issuer = std::move(issuer);
 
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs)) {
+    ShowProgressUiForPayLaterTab();
+  }
+
   // When an issuer is accepted but no checkout amount is present, call
   // server-side AI to extract the amount.
   if (base::FeatureList::IsEnabled(
@@ -210,8 +224,6 @@ void BnplManager::OnIssuerAccepted(BnplIssuer issuer) {
       !ongoing_flow_state_->final_checkout_amount) {
     browser_autofill_manager_->GetAmountExtractionManager()
         .TriggerCheckoutAmountExtractionWithAi();
-    // TODO(crbug.com/477689220): If Pay Now Pay Later tabs UI is enabled, show
-    // autofill popup progress screen.
     return;
   }
 
@@ -224,11 +236,18 @@ void BnplManager::NotifyOfSuggestionGeneration(
     return;
   }
 
+  autofill_suggestion_trigger_source_ = trigger_source;
+
+  // No need to insert BNPL suggestions if the Pay Later tab is enabled.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs)) {
+    return;
+  }
+
   update_suggestions_barrier_callback_ = base::BarrierCallback<
       std::variant<SuggestionsShownResponse, std::optional<int64_t>>>(
       2U, base::BindOnce(&BnplManager::MaybeUpdateDesktopSuggestionsWithBnpl,
                          weak_factory_.GetWeakPtr(), trigger_source));
-  autofill_suggestion_trigger_source_ = trigger_source;
 }
 
 void BnplManager::OnCreditCardSuggestionsShown(
@@ -237,7 +256,9 @@ void BnplManager::OnCreditCardSuggestionsShown(
   if (std::ranges::contains(suggestions, SuggestionType::kBnplEntry,
                             &Suggestion::type) &&
       base::FeatureList::IsEnabled(
-          features::kAutofillEnableAiBasedAmountExtraction)) {
+          features::kAutofillEnableAiBasedAmountExtraction) &&
+      !base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs)) {
     payments_autofill_client()
         .GetPaymentsDataManager()
         .SetAutofillHasSeenBnpl();
@@ -246,6 +267,13 @@ void BnplManager::OnCreditCardSuggestionsShown(
   }
 
   update_suggestions_callback_ = update_suggestions_callback;
+
+  // Only set `user_has_seen_bnpl_ai_terms_before_` if it has not already been
+  // set. This is because `OnCreditCardSuggestionsShown()` may be called
+  // again when suggestions are updated.
+  if (!user_has_seen_bnpl_ai_terms_before_.has_value()) {
+    user_has_seen_bnpl_ai_terms_before_ = HasSeenAmountExtractionAiTerms();
+  }
 
   if (!update_suggestions_barrier_callback_.has_value()) {
     return;
@@ -352,40 +380,47 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
   if (!result.has_value()) {
     CHECK(payments_autofill_client().GetBnplUiDelegate());
     CHECK(payments_autofill_client().GetBnplStrategy());
-    using enum BnplStrategy::BeforeSwitchingViewAction;
-    switch (payments_autofill_client()
-                .GetBnplStrategy()
-                ->GetBeforeViewSwitchAction()) {
-      // This case is for platforms (i.e. Android) that will flip to the error
-      // screen within the same view, so no need to remove the current view.
-      case kDoNothing:
-        break;
-      case kCloseCurrentUi:
-        HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi();
-        break;
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillEnablePayNowPayLaterTabs)) {
+      std::vector<BnplIssuerContext> issuer_contexts =
+          GetSortedBnplIssuerContext(browser_autofill_manager_->client(),
+                                     /*checkout_amount=*/std::nullopt,
+                                     result.error());
+      UpdateSuggestionsOnAiAmountExtractionResponse(issuer_contexts);
+    } else {
+      using enum BnplStrategy::BeforeSwitchingViewAction;
+      switch (payments_autofill_client()
+                  .GetBnplStrategy()
+                  ->GetBeforeViewSwitchAction()) {
+        // This case is for platforms (i.e. Android) that will flip to the
+        // error screen within the same view, so no need to remove the current
+        // view.
+        case kDoNothing:
+          break;
+        case kCloseCurrentUi:
+          HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi();
+          break;
+      }
+
+      switch (result.error()) {
+        case AiAmountExtractionResult::Error::kFailureToGenerateApc:
+        case AiAmountExtractionResult::Error::kMissingServerResponse:
+        case AiAmountExtractionResult::Error::kNegativeAmount:
+        case AiAmountExtractionResult::Error::kAmountMissing:
+        case AiAmountExtractionResult::Error::kMissingCurrency:
+        case AiAmountExtractionResult::Error::kTimeout:
+          payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
+              AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+                  /*is_permanent_error=*/false));
+          break;
+        case AiAmountExtractionResult::Error::kUnsupportedCurrency:
+          payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
+              AutofillErrorDialogContext::WithBnplUnsupportedCurrencyError());
+          break;
+      }
+      Reset();
     }
 
-    // TODO(crbug.com/477689220): Ensure error handling is done in a way
-    // where a new flow is not re-initiated if the user goes back to pay later
-    // tab.
-    switch (result.error()) {
-      case AiAmountExtractionResult::Error::kFailureToGenerateApc:
-      case AiAmountExtractionResult::Error::kMissingServerResponse:
-      case AiAmountExtractionResult::Error::kNegativeAmount:
-      case AiAmountExtractionResult::Error::kAmountMissing:
-      case AiAmountExtractionResult::Error::kMissingCurrency:
-      case AiAmountExtractionResult::Error::kTimeout:
-        payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
-            AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-                /*is_permanent_error=*/false));
-        break;
-      case AiAmountExtractionResult::Error::kUnsupportedCurrency:
-        payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
-            AutofillErrorDialogContext::WithBnplUnsupportedCurrencyError());
-        break;
-    }
-
-    Reset();
     return;
   }
 
@@ -441,6 +476,11 @@ void BnplManager::OnSuggestionsHidden(AutofillManager& manager,
 }
 
 bool BnplManager::HasSeenAmountExtractionAiTerms() const {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnablePayNowPayLaterTabs) &&
+      user_has_seen_bnpl_ai_terms_before_.has_value()) {
+    return user_has_seen_bnpl_ai_terms_before_.value();
+  }
   return payments_autofill_client()
       .GetPaymentsDataManager()
       .IsAutofillAmountExtractionAiTermsSeenPrefEnabled();
@@ -464,8 +504,8 @@ void BnplManager::FetchVcnDetails(GURL url) {
                           [](base::WeakPtr<BnplManager> manager) {
                             if (manager) {
                               // Note: Does not call
-                              // `BnplUiDelegate::CloseProgressUi()` as this is
-                              // expected to be handled by UI code.
+                              // `BnplUiDelegate::CloseProgressUi()` as this
+                              // is expected to be handled by UI code.
                               manager->Reset();
                             }
                           },
@@ -479,13 +519,18 @@ void BnplManager::FetchVcnDetails(GURL url) {
                          weak_factory_.GetWeakPtr()));
 }
 
-void BnplManager::Reset() {
+void BnplManager::CancelOngoingRequests() {
   payments_autofill_client().GetPaymentsNetworkInterface()->CancelRequest();
   browser_autofill_manager_->GetAmountExtractionManager().Reset();
-  ongoing_flow_state_.reset();
+  weak_factory_.InvalidateWeakPtrs();
+}
+
+void BnplManager::Reset() {
+  CancelOngoingRequests();
   autofill_suggestion_trigger_source_.reset();
   update_suggestions_callback_.Reset();
-  weak_factory_.InvalidateWeakPtrs();
+  user_has_seen_bnpl_ai_terms_before_.reset();
+  ongoing_flow_state_.reset();
 }
 
 void BnplManager::OnVcnDetailsFetched(
@@ -1002,6 +1047,66 @@ void BnplManager::UpdateSuggestionsOnAiAmountExtractionResponse(
 
   CHECK(autofill_suggestion_trigger_source_.has_value());
   update_suggestions_callback_.Run(std::move(suggestions),
+                                   autofill_suggestion_trigger_source_.value());
+}
+
+void BnplManager::ShowProgressUiForPayLaterTab() {
+  const base::span<const Suggestion> current_suggestions =
+      browser_autofill_manager_->client().GetAutofillSuggestions();
+
+  // This function is only called to update the Pay Later tab suggestions after
+  // the user accepted an BNPL issuer. At this moment, there has to be
+  // suggestions showing.
+  CHECK(!current_suggestions.empty());
+
+  auto type_is_bnpl_entry = [](const Suggestion& s) {
+    return s.type == SuggestionType::kBnplEntry;
+  };
+  auto type_is_not_bnpl_entry = [](const Suggestion& s) {
+    return s.type != SuggestionType::kBnplEntry;
+  };
+
+  // Find the start position of BNPL suggestions.
+  auto bnpl_suggestions_start =
+      std::find_if(current_suggestions.begin(), current_suggestions.end(),
+                   type_is_bnpl_entry);
+  // This function is only called to update the Pay Later tab suggestions after
+  // the user accepted an issuer. At this moment, there has to be at least one
+  // BNPL suggestions showing.
+  CHECK(bnpl_suggestions_start != current_suggestions.end());
+  // Find the end position of BNPL suggestions.
+  auto bnpl_suggestions_end =
+      std::find_if(bnpl_suggestions_start, current_suggestions.end(),
+                   type_is_not_bnpl_entry);
+
+  // When there are pay later BNPL suggestions, there must be footer
+  // suggestions with different suggestion type after the BNPL entries.
+  CHECK(bnpl_suggestions_end != current_suggestions.end());
+  // BNPL suggestions are inserted together into the suggestion list and there
+  // should be no other BNPL suggestions after `bnpl_suggestions_end`.
+  CHECK(std::ranges::none_of(bnpl_suggestions_end, current_suggestions.end(),
+                             type_is_bnpl_entry));
+
+  int bnpl_suggestion_count =
+      std::distance(bnpl_suggestions_start, bnpl_suggestions_end);
+  std::vector<Suggestion> updated_suggestions;
+  // All BNPL suggestions will be replaced by a single loading suggestion.
+  updated_suggestions.reserve(current_suggestions.size() -
+                              bnpl_suggestion_count + 1);
+
+  // Copy suggestions before BNPL entries.
+  updated_suggestions.insert(updated_suggestions.end(),
+                             current_suggestions.begin(),
+                             bnpl_suggestions_start);
+  // Insert the loading suggestion based on number of BNPL suggestions.
+  updated_suggestions.push_back(
+      GetLoadingSuggestionForPayLaterTab(bnpl_suggestion_count));
+  // Copy the remaining suggestions.
+  updated_suggestions.insert(updated_suggestions.end(), bnpl_suggestions_end,
+                             current_suggestions.end());
+
+  CHECK(autofill_suggestion_trigger_source_.has_value());
+  update_suggestions_callback_.Run(std::move(updated_suggestions),
                                    autofill_suggestion_trigger_source_.value());
 }
 

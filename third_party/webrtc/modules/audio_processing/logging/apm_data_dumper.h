@@ -19,8 +19,9 @@
 #include <unordered_map>
 #endif
 
+#include <span>
+
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #if WEBRTC_APM_DEBUG_DUMP == 1
 #include "common_audio/wav_file.h"
 #include "rtc_base/checks.h"
@@ -123,12 +124,12 @@ class ApmDataDumper {
                [[maybe_unused]] const double* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const double>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const double>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const double> v,
+               [[maybe_unused]] std::span<const double> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -160,12 +161,12 @@ class ApmDataDumper {
                [[maybe_unused]] const float* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const float>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const float>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const float> v,
+               [[maybe_unused]] std::span<const float> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -196,12 +197,12 @@ class ApmDataDumper {
                [[maybe_unused]] const bool* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const bool>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const bool>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const bool> v,
+               [[maybe_unused]] std::span<const bool> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -236,12 +237,12 @@ class ApmDataDumper {
                [[maybe_unused]] const int16_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const int16_t>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const int16_t>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const int16_t> v,
+               [[maybe_unused]] std::span<const int16_t> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -273,12 +274,12 @@ class ApmDataDumper {
                [[maybe_unused]] const int32_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const int32_t>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const int32_t>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const int32_t> v,
+               [[maybe_unused]] std::span<const int32_t> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -310,12 +311,12 @@ class ApmDataDumper {
                [[maybe_unused]] const size_t* v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpRaw(name, ArrayView<const size_t>(v, v_length), dump_set);
+    DumpRaw(name, std::span<const size_t>(v, v_length), dump_set);
 #endif
   }
 
   void DumpRaw([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const size_t> v,
+               [[maybe_unused]] std::span<const size_t> v,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (dump_set_to_use_ && *dump_set_to_use_ != dump_set)
@@ -335,13 +336,13 @@ class ApmDataDumper {
                [[maybe_unused]] int num_channels,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
-    DumpWav(name, ArrayView<const float>(v, v_length), sample_rate_hz,
+    DumpWav(name, std::span<const float>(v, v_length), sample_rate_hz,
             num_channels, dump_set);
 #endif
   }
 
   void DumpWav([[maybe_unused]] absl::string_view name,
-               [[maybe_unused]] ArrayView<const float> v,
+               [[maybe_unused]] std::span<const float> v,
                [[maybe_unused]] int sample_rate_hz,
                [[maybe_unused]] int num_channels,
                [[maybe_unused]] int dump_set = kDefaultDumpSet) {

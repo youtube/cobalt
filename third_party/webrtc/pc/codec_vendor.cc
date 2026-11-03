@@ -563,7 +563,7 @@ RTCError AssignCodecIdsAndLinkRed(PayloadTypeSuggester* pt_suggester,
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   int codec_payload_type = Codec::kIdNotSet;
   for (Codec& codec : codecs) {
-    if (codec.id == Codec::kIdNotSet) {
+    if (codec.id == PayloadType::NotSet()) {
       // Add payload types to codecs, if needed
       // This should only happen if WebRTC-PayloadTypesInTransport field trial
       // is enabled.
@@ -577,7 +577,7 @@ RTCError AssignCodecIdsAndLinkRed(PayloadTypeSuggester* pt_suggester,
     // record first Opus codec id
     if (absl::EqualsIgnoreCase(codec.name, kOpusCodecName) &&
         codec_payload_type == Codec::kIdNotSet) {
-      codec_payload_type = codec.id;
+      codec_payload_type = codec.id.value();
     }
   }
   if (codec_payload_type != Codec::kIdNotSet) {
@@ -660,10 +660,10 @@ RTCErrorOr<std::vector<Codec>> CodecVendor::GetNegotiatedCodecsForOffer(
         if (!IsMediaContentOfType(current_content,
                                   media_description_options.type)) {
           // Can happen if the remote side re-uses a MID while recycling.
-          LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                               "Media type for content with mid='" +
-                                   current_content->mid() +
-                                   "' does not match previous type.");
+          return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                           << "Media type for content with mid='"
+                           << current_content->mid()
+                           << "' does not match previous type.");
         }
         const MediaContentDescription* mcd =
             current_content->media_description();
@@ -796,10 +796,10 @@ RTCErrorOr<Codecs> CodecVendor::GetNegotiatedCodecsForAnswer(
         if (!IsMediaContentOfType(current_content,
                                   media_description_options.type)) {
           // Can happen if the remote side re-uses a MID while recycling.
-          LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                               "Media type for content with mid='" +
-                                   current_content->mid() +
-                                   "' does not match previous type.");
+          return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                           << "Media type for content with mid='"
+                           << current_content->mid()
+                           << "' does not match previous type.");
         }
         const MediaContentDescription* mcd =
             current_content->media_description();

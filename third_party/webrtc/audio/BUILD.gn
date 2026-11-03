@@ -40,7 +40,6 @@ rtc_library("audio") {
   ]
 
   deps = [
-    "../api:array_view",
     "../api:bitrate_allocation",
     "../api:call_api",
     "../api:field_trials_view",
@@ -165,7 +164,6 @@ if (rtc_include_tests) {
       ":audio",
       ":audio_end_to_end_test",
       ":channel_receive_unittest",
-      "../api:array_view",
       "../api:bitrate_allocation",
       "../api:call_api",
       "../api:field_trials",
@@ -252,7 +250,6 @@ if (rtc_include_tests) {
     sources = [ "channel_receive_unittest.cc" ]
     deps = [
       ":audio",
-      "../api:array_view",
       "../api:make_ref_counted",
       "../api:mock_frame_transformer",
       "../api:scoped_refptr",

@@ -149,6 +149,47 @@ TEST(InternalDecoderFactoryTest, QueryCodecSupportNoReferenceScaling) {
 #endif
 }
 
+TEST(InternalDecoderFactoryTest, QueryCodecSupportH264Profiles) {
+  InternalDecoderFactory factory;
+  auto h264_support = kH264Enabled ? kSupported : kUnsupported;
+
+  // The internal decoder factory explicitly lists Baseline, Constrained
+  // Baseline, Main, and High Predictive 4:4:4. Through profile subset matching,
+  // it should also support High and Constrained High profiles because they are
+  // subsets of High Predictive 4:4:4.
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "42e01f"}}), false),
+      Support(h264_support));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "42001f"}}), false),
+      Support(h264_support));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "4d001f"}}), false),
+      Support(h264_support));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "640c1f"}}), false),
+      Support(h264_support));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "64001f"}}), false),
+      Support(h264_support));
+
+  EXPECT_THAT(
+      factory.QueryCodecSupport(
+          SdpVideoFormat("H264", {{"profile-level-id", "ff0000"}}), false),
+      Support(kUnsupported));
+
+  EXPECT_THAT(factory.QueryCodecSupport(
+                  SdpVideoFormat("H264", {{"profile-level-id", "42e01f"},
+                                          {"packetization-mode", "2"}}),
+                  false),
+              Support(kUnsupported));
+}
+
 TEST(InternalDecoderFactoryTest, QueryCodecSupportReferenceScaling) {
   InternalDecoderFactory factory;
   // VP9 and AV1 support for spatial layers.

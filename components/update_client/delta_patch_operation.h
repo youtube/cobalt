@@ -56,6 +56,7 @@ class DeltaPatchOperation
       int expected_success_result,
       const base::FilePath& patch_file,
       int event_type,
+      bool is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
       const OperationResult& patch_operation_result,
       base::OnceCallback<
@@ -108,6 +109,7 @@ class DeltaPatchOperation
   const int expected_success_result_;
   const base::FilePath patch_file_;
   const int event_type_;
+  const bool is_foreground_;
 #if BUILDFLAG(IS_STARBOARD)
   const OperationResult patch_operation_result_;
   base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>

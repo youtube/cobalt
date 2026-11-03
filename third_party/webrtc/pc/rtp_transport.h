@@ -22,6 +22,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
+#include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/ecn_marking.h"
@@ -92,9 +93,12 @@ class RtpTransport : public RtpTransportInternal {
 
   bool IsSrtpActive() const override { return false; }
 
-  void RegisterRtpHeaderExtensionMap(
+  RTCError VerifyRtpHeaderExtensionMap(
+      const RtpHeaderExtensions& extensions) const override;
+
+  RTCError RegisterRtpHeaderExtensionMap(
       absl::string_view mid,
-      const RtpHeaderExtensions& header_extensions) override;
+      const RtpHeaderExtensions& extensions) override;
 
   // Currently only used for testing. In production, unregistration isn't needed
   // because leaving the registered extensions in `RtpTransport` is harmless
@@ -174,6 +178,9 @@ class RtpTransport : public RtpTransportInternal {
   // remaining registration when rebuilding the map.
   std::vector<std::pair<std::string, RtpHeaderExtensions>>
       header_extensions_by_mid_ RTC_GUARDED_BY(network_thread_checker_);
+
+  RtpHeaderExtensions historical_rtp_header_extensions_
+      RTC_GUARDED_BY(network_thread_checker_);
 
   // Guard against recursive "ready to send" signals
   bool processing_ready_to_send_ = false;

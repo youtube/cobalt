@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "api/rtc_error.h"
 #include "rtc_base/thread.h"
 #include "test/gtest.h"
 
@@ -30,7 +31,7 @@ TEST(ScopedOperationsBatcherTest, ExecutesTasksOnTargetThread) {
 
   {
     ScopedOperationsBatcher batcher(target_thread.get());
-    batcher.push_back([&] {
+    batcher.Add([&] {
       task_executed = true;
       target_checked = target_thread->IsCurrent();
     });
@@ -57,16 +58,16 @@ TEST(ScopedOperationsBatcherTest, ExecutesReturnedTasksOnCallingThread) {
 
   {
     ScopedOperationsBatcher batcher(target_thread.get());
-    absl::AnyInvocable<absl::AnyInvocable<void() &&>() &&> task =
-        [&]() -> absl::AnyInvocable<void() &&> {
+    ScopedOperationsBatcher::BatchTaskWithFinalizer task =
+        [&]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
       task_executed = true;
       task_thread = Thread::Current();
-      return [&]() {
+      return ScopedOperationsBatcher::FinalizerTask([&]() {
         return_task_executed = true;
         return_task_thread = Thread::Current();
-      };
+      });
     };
-    batcher.push_back(std::move(task));
+    batcher.AddWithFinalizer(std::move(task));
   }
 
   EXPECT_TRUE(task_executed);
@@ -75,7 +76,7 @@ TEST(ScopedOperationsBatcherTest, ExecutesReturnedTasksOnCallingThread) {
   EXPECT_EQ(return_task_thread, signaling_thread);
 }
 
-TEST(ScopedOperationsBatcherTest, YieldsToHighPriorityTasks) {
+TEST(ScopedOperationsBatcherTest, YieldsToOtherTasks) {
   auto target_thread = Thread::Create();
   target_thread->Start();
 
@@ -83,20 +84,70 @@ TEST(ScopedOperationsBatcherTest, YieldsToHighPriorityTasks) {
 
   {
     ScopedOperationsBatcher batcher(target_thread.get());
-    batcher.push_back([&] { execution_order.push_back(1); });
-    batcher.push_back([&] {
+    batcher.Add([&] { execution_order.push_back(1); });
+    batcher.Add([&] {
       execution_order.push_back(2);
-      // Post a high-priority task that should interrupt the batch.
-      target_thread->PostHighPriorityTask(
-          [&] { execution_order.push_back(3); });
+      // Post a task that should interrupt the batch since we now yield to any
+      // pending task.
+      target_thread->PostTask([&] { execution_order.push_back(3); });
     });
-    batcher.push_back([&] { execution_order.push_back(4); });
-    batcher.push_back([&] { execution_order.push_back(5); });
+    batcher.Add([&] { execution_order.push_back(4); });
+    batcher.Add([&] { execution_order.push_back(5); });
   }
 
-  // Expect the high priority task (3) to execute immediately after the task
-  // that posted it (2). The regular tasks (4, 5) should yield.
+  // Expect the task (3) to execute immediately after the task
+  // that posted it (2). The operations remaining in the batch (4, 5)
+  // should resume after the thread has processed the new task.
   EXPECT_EQ(execution_order, std::vector<int>({1, 2, 3, 4, 5}));
+}
+
+TEST(ScopedOperationsBatcherTest, StopsExecutionOnError) {
+  auto target_thread = Thread::Create();
+  target_thread->Start();
+
+  bool task1_executed = false;
+  bool task2_executed = false;
+  bool task3_executed = false;
+  // There's no finalizer for task2.
+  bool finalizer1_executed = false;
+  bool finalizer3_executed = false;
+
+  RTCError error = RTCError::OK();
+  {
+    ScopedOperationsBatcher batcher(target_thread.get());
+    // Task 1.
+    batcher.AddWithFinalizer(
+        [&]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+          task1_executed = true;
+          return ScopedOperationsBatcher::FinalizerTask(
+              [&] { finalizer1_executed = true; });
+        });
+    // Task 2.
+    batcher.AddWithFinalizer(
+        [&]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+          task2_executed = true;
+          return RTCError(RTCErrorType::INVALID_STATE, "Failed");
+        });
+    // Task 3.
+    batcher.AddWithFinalizer(
+        [&]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+          task3_executed = true;
+          return ScopedOperationsBatcher::FinalizerTask(
+              [&] { finalizer3_executed = true; });
+        });
+
+    error = batcher.Run();
+  }
+
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_STATE);
+  EXPECT_STREQ(error.message(), "Failed");
+
+  EXPECT_TRUE(task1_executed);
+  EXPECT_TRUE(finalizer1_executed);
+  EXPECT_TRUE(task2_executed);
+  EXPECT_FALSE(task3_executed);
+  EXPECT_FALSE(finalizer3_executed);
 }
 
 }  // namespace

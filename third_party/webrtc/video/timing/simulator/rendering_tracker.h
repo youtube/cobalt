@@ -26,7 +26,6 @@
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
-#include "api/video/video_timing.h"
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/thread_annotations.h"
 #include "video/timing/simulator/assembler.h"
@@ -99,7 +98,6 @@ class RenderingTracker : public AssembledFrameCallback,
                         TimeDelta jitter_buffer_target_delay,
                         TimeDelta jitter_buffer_minimum_delay) override;
   void OnFrameBufferTimingsUpdated(int, int, int, int, int, int) override {}
-  void OnTimingFrameInfoUpdated(const TimingFrameInfo&) override {}
 
   // Implements `VideoSinkInterface<VideoFrame>`.
   void OnFrame(const VideoFrame& decoded_frame) override;

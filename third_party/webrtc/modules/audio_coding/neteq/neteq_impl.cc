@@ -17,11 +17,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_view.h"
 #include "api/audio_codecs/audio_decoder.h"
@@ -180,7 +180,7 @@ NetEqImpl::NetEqImpl(const NetEq::Config& config,
 NetEqImpl::~NetEqImpl() = default;
 
 int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
-                            ArrayView<const uint8_t> payload,
+                            std::span<const uint8_t> payload,
                             const RtpPacketInfo& packet_info) {
   MsanCheckInitialized(payload);
   TRACE_EVENT0("webrtc", "NetEqImpl::InsertPacket");
@@ -1340,7 +1340,7 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
                operation == Operation::kPreemptiveExpand);
 
     auto opt_result = packet_list->front().frame->Decode(
-        ArrayView<int16_t>(&decoded_buffer_[*decoded_length],
+        std::span<int16_t>(&decoded_buffer_[*decoded_length],
                            decoded_buffer_length_ - *decoded_length));
     if (packet_list->front().packet_info) {
       last_decoded_packet_infos_.push_back(*packet_list->front().packet_info);

@@ -13,9 +13,9 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/video/color_space.h"
@@ -45,7 +45,7 @@ constexpr uint8_t kAv1FrameWithBT709FullRangeColorSpace[] = {
     0x22, 0x02, 0x02, 0x03, 0x08, 0x32, 0x0e, 0x10, 0x00, 0xac, 0x02, 0x05,
     0x14, 0x20, 0x81, 0x00, 0x02, 0x00, 0x95, 0xe1, 0xe0};
 
-EncodedImage CreateEncodedImage(ArrayView<const uint8_t> data) {
+EncodedImage CreateEncodedImage(std::span<const uint8_t> data) {
   EncodedImage image;
   image.SetEncodedData(EncodedImageBuffer::Create(data.data(), data.size()));
   return image;

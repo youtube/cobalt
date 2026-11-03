@@ -17,6 +17,7 @@
 #include "absl/algorithm/container.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_view.h"
+#include "api/audio/channel_layout.h"
 #include "audio/utility/audio_frame_operations.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -49,6 +50,9 @@ bool ResamplerHelper::MaybeResample(int desired_sample_rate_hz,
       RTC_LOG(LS_ERROR) << "AudioFrame cannot hold resampled data.";
       AudioFrameOperations::Mute(audio_frame);
       audio_frame->SetSampleRateAndChannelSize(desired_sample_rate_hz);
+      audio_frame->SetLayoutAndNumChannels(
+          CHANNEL_LAYOUT_UNSUPPORTED,
+          AudioFrame::kMaxDataSizeSamples / audio_frame->samples_per_channel());
       return false;
     }
   }

@@ -62,6 +62,8 @@ install:
 	  "$(INSTALL_DIR)/chrome-remote-desktop"
 	install "$(SRC_DIR)/remoting/host/installer/linux/is-remoting-session" \
 	  "$(INSTALL_DIR)"
+	install "$(SRC_DIR)/remoting/host/installer/linux/setup-session-environment" \
+	  "$(INSTALL_DIR)"
 	install "$(SRC_DIR)/remoting/host/installer/linux/Xsession" \
 	  "$(INSTALL_DIR)"
 	install "$(SRC_DIR)/remoting/host/linux/configure_url_forwarder.py" \
@@ -162,10 +164,6 @@ endif
 	install -m 0644 \
 	  "$(SRC_DIR)/remoting/host/installer/linux/chrome-remote-desktop@.service" \
 	  "$(SYSTEMD_UNIT_DIR)/chrome-remote-desktop@.service"
-
-	install -m 0644 \
-	  "$(SRC_DIR)/remoting/host/installer/linux/chrome-remote-desktop.service" \
-	  "$(SYSTEMD_UNIT_DIR)/chrome-remote-desktop.service"
 
 	install $(BUILD_DIR)/remoting/installer/cron/chrome-remote-desktop \
 	  "$(CRON_DIR)/chrome-remote-desktop"

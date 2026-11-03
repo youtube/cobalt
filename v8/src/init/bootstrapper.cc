@@ -482,11 +482,8 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   DirectHandle<Map> initial_map = factory->NewContextfulMapForCurrentContext(
       type, instance_size, elements_kind, inobject_properties);
   initial_map->SetConstructor(*result);
-  if (type == JS_FUNCTION_TYPE) {
+  if (DEBUG_BOOL && InstanceTypeChecker::IsJSFunctionWithPrototype(type)) {
     DCHECK_EQ(instance_size, JSFunctionWithPrototype::kMinSize);
-    // Since we are creating an initial map for JSFunction objects with
-    // prototype slot, set the respective bit.
-    initial_map->set_has_prototype_slot(true);
   }
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
@@ -980,8 +977,7 @@ DirectHandle<Map> CreateNonConstructorMap(Isolate* isolate,
   // initial map even when the prototype property is not required).
   DCHECK(map->instance_type() == JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE ||
          map->instance_type() == JS_FUNCTION_TYPE);
-  DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(*map), !map->has_prototype_slot());
-  if (!map->has_prototype_slot()) {
+  if (IsJSFunctionWithoutPrototypeMap(*map)) {
     // Re-set the unused property fields after changing the instance size.
     int unused_property_fields = map->UnusedPropertyFields();
     map->set_instance_type(JS_FUNCTION_TYPE);
@@ -989,7 +985,6 @@ DirectHandle<Map> CreateNonConstructorMap(Isolate* isolate,
     // The prototype slot shifts the in-object properties area by one slot.
     map->SetInObjectPropertiesStartInWords(
         map->GetInObjectPropertiesStartInWords() + 1);
-    map->set_has_prototype_slot(true);
     map->SetInObjectUnusedPropertyFields(unused_property_fields);
   }
   map->set_is_constructor(false);
@@ -2106,6 +2101,33 @@ void LazyInitializeGlobalThisTemporal(
 }  // namespace
 
 #endif  // V8_TEMPORAL_SUPPORT
+
+void Bootstrapper::InitializeLazyPartOfContext(
+    DirectHandle<NativeContext> native_context, NativeContext::Field index) {
+#define CASE(index_name, type, name) case Context::index_name:
+
+  switch (index) {
+#ifdef V8_TEMPORAL_SUPPORT
+    NATIVE_CONTEXT_FIELDS_TEMPORAL(CASE) {
+      if (!v8_flags.harmony_temporal) return;
+      // Switch context since bootstrapper functions install constructors
+      // into current context.
+      SaveAndSwitchContext save(isolate_, *native_context);
+      // Initialize Temporal-related part of the native context. The value
+      // of globalThis.Temporal remains unchanged (the user code might have
+      // already replaced it with something else).
+      InitializeTemporal(isolate_);
+      return;
+    }
+#endif  // V8_TEMPORAL_SUPPORT
+
+    default:
+      // The index does not belong to any of the lazily initialized parts
+      // of the context.
+      return;
+  }
+#undef CASE
+}
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.

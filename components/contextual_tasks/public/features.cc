@@ -79,15 +79,10 @@ BASE_FEATURE(kContextualTasksAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksEnableFileHint, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksComposeboxJumpFix,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kContextualTasksInsertWebContentsAt,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
-BASE_FEATURE(kContextualTasksInsertWebContentsAt,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
+// Enables the use of a rounded clip-path for the composebox.
+BASE_FEATURE(kContextualTasksRoundedClipPath, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
     &kContextualTasks,
@@ -162,7 +157,7 @@ constexpr base::FeatureParam<EntryPointOption>::Option kEntryPointOptions[] = {
 const base::FeatureParam<EntryPointOption> kShowEntryPoint(
     &kContextualTasks,
     "ContextualTasksEntryPoint",
-    EntryPointOption::kToolbarRevisit,
+    EntryPointOption::kNoEntryPoint,
     &kEntryPointOptions);
 
 constexpr base::FeatureParam<ExpandButtonOption>::Option kExpandButtonOption[] =
@@ -203,13 +198,6 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 // Version 2.0: M146 respin launch candidate.
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
     &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.0"};
-
-// TODO(b/481079194): Remove `kAutoSubmitVoiceSearchQuery` and the code that
-// respects its disabled state.
-const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery(
-    &kContextualTasks,
-    "ContextualTasksAutoSubmitVoiceSearchQuery",
-    true);
 
 const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     &kContextualTasks,
@@ -313,9 +301,6 @@ int ContextualTasksInactiveSidePanelKeepInCacheMinutes() {
   return kContextualTasksInactiveSidePanelKeepInCacheMinutes.Get();
 }
 
-bool GetAutoSubmitVoiceSearchQuery() {
-  return kAutoSubmitVoiceSearchQuery.Get();
-}
 
 bool GetIsProtectedPageErrorEnabled() {
   return kEnableProtectedPageError.Get();
@@ -486,6 +471,10 @@ bool GetEnableComposeboxJumpFix() {
 
 ExpandButtonOption GetExpandButtonOption() {
   return kExpandButtonOptions.Get();
+}
+
+bool IsRoundedClipPathEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksRoundedClipPath);
 }
 
 namespace flag_descriptions {

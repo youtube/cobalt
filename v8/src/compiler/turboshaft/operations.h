@@ -855,7 +855,7 @@ inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
   return first.produces.bits() & (second.consumes.bits());
 }
 
-inline bool CannotSwapProtectedLoads(OpEffects first, OpEffects second) {
+inline bool CannotSwapTrappingLoads(OpEffects first, OpEffects second) {
   EffectDimensions produces = first.produces;
   // The control flow effects produced by Loads are due to trap handler. We can
   // ignore this kind of effect when swapping two Loads that both have trap
@@ -1017,7 +1017,7 @@ struct alignas(OpIndex) Operation {
     DCHECK_IMPLIES(IsBlockTerminator(), Effects().is_required_when_unused());
     return Effects().is_required_when_unused();
   }
-  bool IsProtectedLoad() const;
+  bool IsTrappingLoad() const;
 
   std::string ToString() const;
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -3004,7 +3004,7 @@ struct LoadOp : OperationT<LoadOp> {
               .is_immutable = false,
               .is_atomic = false};
     }
-    static constexpr Kind Protected() {
+    static constexpr Kind Trapping() {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = true,
@@ -3209,7 +3209,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   OpEffects Effects() const {
     OpEffects effects =
         OpEffects().CanWriteMemory().CanDependOnChecks().CanReadMemory();
-    if (memory_access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
+    if (memory_access_kind == MemoryAccessKind::kTrapping) {
       effects = effects.CanLeaveCurrentFunction();
     }
     return effects;
@@ -7939,7 +7939,7 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
   }
 };
 
-struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
+struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   CheckForNull null_check;
 
   OpEffects Effects() const {
@@ -7955,10 +7955,21 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
     return result;
   }
 
-  explicit ArrayLengthOp(V<WasmArrayNullable> array, CheckForNull null_check)
-      : Base(array), null_check(null_check) {}
+  explicit ArrayLengthOp(V<WasmArrayNullable> array,
+                         OptionalV<FrameState> frame_state,
+                         CheckForNull null_check)
+      : Base(1 + frame_state.valid()), null_check(null_check) {
+    input(0) = array;
+    if (frame_state.valid()) {
+      input(1) = frame_state.value();
+    }
+  }
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
+  OptionalV<FrameState> frame_state() const {
+    return input_count > 1 ? input<FrameState>(1)
+                           : OptionalV<FrameState>::Nullopt();
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Word32()>();
@@ -7969,6 +7980,17 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
     return MaybeRepVector<RegisterRepresentation::Tagged()>();
   }
 
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(array()), mapper.Map(frame_state()), null_check);
+  }
+
+  static ArrayLengthOp& New(Graph* graph, V<WasmArrayNullable> array,
+                            OptionalV<FrameState> frame_state,
+                            CheckForNull null_check) {
+    return Base::New(graph, 1 + frame_state.valid(), array, frame_state,
+                     null_check);
+  }
 
   auto options() const { return std::tuple{null_check}; }
 };

@@ -82,13 +82,6 @@ class MojoPageTimingSender : public PageTimingSender {
         std::move(soft_largest_contentful_paint), std::move(user_timings));
   }
 
-  void SetUpDroppedFramesReporting(
-      base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames) override {
-    DCHECK(page_load_metrics_);
-    page_load_metrics_->SetUpSharedMemoryForDroppedFrames(
-        std::move(shared_memory_dropped_frames));
-  }
-
   void SendCustomUserTiming(mojom::CustomUserTimingMarkPtr timing) override {
     CHECK(timing);
     CHECK(page_load_metrics_);
@@ -158,6 +151,7 @@ void MetricsRenderFrameObserver::DidChangePerformanceTiming() {
 void MetricsRenderFrameObserver::DidObserveUserInteraction(
     base::TimeTicks max_event_start,
     base::TimeTicks max_event_queued_main_thread,
+    base::TimeTicks max_event_processing_start,
     base::TimeTicks max_event_commit_finish,
     base::TimeTicks max_event_end,
     uint64_t interaction_offset) {
@@ -165,8 +159,8 @@ void MetricsRenderFrameObserver::DidObserveUserInteraction(
     return;
   }
   page_timing_metrics_sender_->DidObserveUserInteraction(
-      max_event_start, max_event_queued_main_thread, max_event_commit_finish,
-      max_event_end, interaction_offset);
+      max_event_start, max_event_queued_main_thread, max_event_processing_start,
+      max_event_commit_finish, max_event_end, interaction_offset);
 }
 
 void MetricsRenderFrameObserver::DidChangeCpuTiming(base::TimeDelta time) {
@@ -532,17 +526,6 @@ void MetricsRenderFrameObserver::OnFrameDetached() {
   WillDetach(blink::DetachReason::kNavigation);
 }
 
-bool MetricsRenderFrameObserver::SetUpDroppedFramesReporting(
-    base::ReadOnlySharedMemoryRegion& shared_memory_dropped_frames) {
-  if (page_timing_metrics_sender_) {
-    page_timing_metrics_sender_->SetUpDroppedFramesReporting(
-        std::move(shared_memory_dropped_frames));
-  } else {
-    ukm_dropped_frames_data_ = std::move(shared_memory_dropped_frames);
-  }
-  return true;
-}
-
 MetricsRenderFrameObserver::Timing::Timing(
     mojom::PageLoadTimingPtr relative_timing,
     const PageTimingMetadataRecorder::MonotonicTiming& monotonic_timing)
@@ -596,11 +579,6 @@ void MetricsRenderFrameObserver::SendMetrics() {
 }
 
 void MetricsRenderFrameObserver::OnMetricsSenderCreated() {
-  if (ukm_dropped_frames_data_.IsValid()) {
-    page_timing_metrics_sender_->SetUpDroppedFramesReporting(
-        std::move(ukm_dropped_frames_data_));
-  }
-
   // Send the latest the frame intersection update, as otherwise we may miss
   // this information for a frame completely if there are no future updates.
   if (main_frame_intersection_rect_before_metrics_sender_created_) {

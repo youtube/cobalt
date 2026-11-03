@@ -3,7 +3,7 @@
   "direct": [
     {
       "build_file": "//bazel/external/dawn:BUILD.bazel",
-      "commit": "7d5e33062472c8ab700d40ed485ce868c4a58151",
+      "commit": "71144ccb331a8999486a90ca41bcf5014b0800eb",
       "name": "dawn",
       "remote": "https://dawn.googlesource.com/dawn.git"
     },
@@ -103,7 +103,7 @@
     },
     {
       "build_file": "//bazel/external/libpng:BUILD.bazel",
-      "commit": "4e3f57d50f552841550a36eabbb3fbcecacb7750",
+      "commit": "d5515b5b8be3901aac04e5bd8bd5c89f287bcd33",
       "name": "libpng",
       "remote": "https://skia.googlesource.com/third_party/libpng.git"
     },
@@ -144,12 +144,12 @@
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross"
     },
     {
-      "commit": "465055f6c9128772e20082e893d974146acf7a02",
+      "commit": "39e5d40a325973b9204d1b660eb3e026cd75fc3f",
       "name": "spirv_headers",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Headers.git"
     },
     {
-      "commit": "8a13595dd4ae5049ef42d0f30297d0c427db54b5",
+      "commit": "2c75d08e3b31a673726ce6be80ab528250247064",
       "name": "spirv_tools",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Tools.git"
     },
@@ -173,7 +173,7 @@
     },
     {
       "build_file": "//bazel/external/vulkan_utility_libraries:BUILD.bazel",
-      "commit": "9b9b0a04b36344a85705fe30f52e6f7aa59a9001",
+      "commit": "5cbca997c1f916026670ffc8d6890ef9f1cd788d",
       "name": "vulkan_utility_libraries",
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Utility-Libraries"
     },

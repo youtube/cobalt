@@ -463,7 +463,7 @@
     If you download the update over your mobile network, it could result in overage charges.
   </message>
   <message name="IDS_FJORD_WELCOME_MESSAGE" desc="Welcome message shown when user is setting up their device. Google Beam is the name of a product.">
-    Your Google Beam hardware is ready to set up
+    Set up Google Beam
   </message>
   <message name="IDS_REMORA_CONFIRM_MESSAGE" desc="Remora confirm message on the first OOBE screen">
     Your Google Meet hardware is ready to set up
@@ -1235,11 +1235,11 @@
   <message name="IDS_FJORD_IMAGE_SELECTION_TITLE" desc="Title of the OOBE screen for choosing the device enrollment type.">
     Choose device enrollment type
   </message>
-  <message name="IDS_FJORD_IMAGE_SELECTION_MEET_LABEL" desc="Label for the radio button option to enroll the device as Google Beam with Meet.">
-    Google Beam with Meet
+  <message name="IDS_FJORD_IMAGE_SELECTION_MEET_LABEL" desc="Label for the radio button option to enroll the device as Google Beam for Meet.">
+    Google Beam for Meet
   </message>
-  <message name="IDS_FJORD_IMAGE_SELECTION_ZOOM_LABEL" desc="Label for the radio button option to enroll the device as Google Beam with Zoom.">
-    Google Beam with Zoom
+  <message name="IDS_FJORD_IMAGE_SELECTION_ZOOM_LABEL" desc="Label for the radio button option to enroll the device as Google Beam for Zoom.">
+    Google Beam for Zoom
   </message>
   <message name="IDS_FJORD_IMAGE_SELECTION_NEXT_BUTTON_TEXT" desc="Button shown to the user to go to the next step.">
     Next
@@ -4498,18 +4498,6 @@
   </if>
 
   <!-- Mojo service names (displayed in task manager) -->
-  <message name="IDS_ASH_ASH_SERVICE_NAME" desc="Name of the internal software service that manages windows. Appears in the task manager.">
-    Window manager
-  </message>
-  <message name="IDS_ASH_SHORTCUT_VIEWER_APP_NAME" desc="Name of the app that shows the list of keyboard shortcuts. Appears in the task manager.">
-    Shortcut viewer
-  </message>
-  <message name="IDS_ASH_TAP_VISUALIZER_APP_NAME" desc="Name of the app that displays touch tap points on the screen. Appears in the task manager.">
-    Show taps
-  </message>
-  <message name="IDS_ASH_UI_SERVICE_NAME" desc="Name of the internal software service that manages the user interface (UI). Appears in the task manager.">
-    UI service
-  </message>
   <message name="IDS_UTILITY_PROCESS_PDF_SERVICE_NAME" desc="The name of the utility process used for PDF conversions.">
     PDF Service
   </message>
@@ -5268,9 +5256,6 @@ You can manage this account’s settings by installing the Family Link app on yo
   <message name="IDS_SUGGESTION_ENTER_KEY" desc="This string is the enter key annotation to educate users how to accept a personal information suggestion.">
     Enter
   </message>
-  <message name="IDS_SUGGESTION_EMOJI_CHOSEN" desc="String announced by screenreader when users selected an emoji in the pop-up.">
-    <ph name="EMOJI_NAME">$1<ex>Party popper</ex></ph>. <ph name="EMOJI_INDEX">$2<ex>5</ex></ph> of <ph name="EMOJI_COUNT">$3<ex>5</ex></ph>.
-  </message>
   <message name="IDS_SUGGESTION_DIACRITICS_OPEN" desc="String announced by screenreader when diacritics suggestion pops up.">
     Accent marks menu open. Press left, right, or number keys to navigate and enter to insert.
   </message>
@@ -5280,17 +5265,8 @@ You can manage this account’s settings by installing the Family Link app on yo
   <message name="IDS_SUGGESTION_DIACRITICS_DISMISSED" desc="String announced by screenreader when diacritics are dismissed.">
     Accent marks menu dismissed.
   </message>
-  <message name="IDS_SUGGESTION_DISMISSED" desc="String announced by screenreader when suggestion pop-up disappears.">
-    Suggestion dismissed
-  </message>
-  <message name="IDS_SUGGESTION_EMOJI_INSERTED" desc="String announced by screenreader when an emoji suggestion is inserted.">
-    Emoji inserted
-  </message>
   <message name="IDS_SUGGESTION_INSERTED" desc="String announced by screenreader when a suggestion is inserted.">
     Suggestion inserted
-  </message>
-  <message name="IDS_SUGGESTION_AUTOCORRECT_UNDONE" desc="String announced by screenreader when an autocorrected word is reverted. Example, user types 'hllo', system autocorrects to 'hello' but then that autocorrection is manually undone by the user.">
-    correction undone
   </message>
   <message name="IDS_SUGGESTION_AUTOCORRECT_UNDO_TEXT" desc="Label for autocorrect undo button in undo window.">
     Undo

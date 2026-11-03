@@ -1192,9 +1192,10 @@ SourceLocation* GatherSecurityPolicyViolationEventData(
     ContentSecurityPolicyType header_type,
     ContentSecurityPolicyViolationType violation_type,
     SourceLocation* source_location,
-    const String& script_source,
-    const String& sample_prefix,
-    const std::optional<String> eval_hash) {
+    const StringView& script_source,
+    const StringView& sample_prefix,
+    const std::optional<String> eval_hash,
+    const std::optional<String> url_hash) {
   if (effective_type == CSPDirectiveName::FrameAncestors) {
     // If this load was blocked via 'frame-ancestors', then the URL of
     // |document| has not yet been initialized. In this case, we'll set both
@@ -1230,6 +1231,9 @@ SourceLocation* GatherSecurityPolicyViolationEventData(
         // redirects).
         init->setBlockedURI(ContentSecurityPolicy::StripURLForUseInReport(
             delegate->GetSecurityOrigin(), blocked_url, effective_type));
+        if (url_hash.has_value() && !url_hash->IsNull()) {
+          init->setUrlHash(url_hash.value());
+        }
         break;
       case ContentSecurityPolicyViolationType::kTrustedTypesSinkViolation:
         init->setBlockedURI("trusted-types-sink");
@@ -1307,13 +1311,13 @@ SourceLocation* GatherSecurityPolicyViolationEventData(
   // separately.
   StringBuilder sample;
   if (!sample_prefix.empty()) {
-    sample.Append(sample_prefix.StripWhiteSpace().Left(
-        ContentSecurityPolicy::kMaxSampleLength));
+    sample.Append(sample_prefix.StripWhiteSpace().substr(
+        0, ContentSecurityPolicy::kMaxSampleLength));
     sample.Append("|");
   }
   if (!script_source.empty()) {
-    sample.Append(script_source.StripWhiteSpace().Left(
-        ContentSecurityPolicy::kMaxSampleLength));
+    sample.Append(script_source.StripWhiteSpace().substr(
+        0, ContentSecurityPolicy::kMaxSampleLength));
   }
   if (!sample.empty())
     init->setSample(sample.ToString());
@@ -1338,7 +1342,8 @@ void ContentSecurityPolicy::ReportViolation(
     const String& source,
     const String& source_prefix,
     std::optional<base::UnguessableToken> issue_id,
-    std::optional<String> eval_hash) {
+    std::optional<String> eval_hash,
+    std::optional<String> url_hash) {
   CHECK(violation_type == kURLViolation || blocked_url.IsEmpty() ||
         violation_type == kSRIViolation);
 
@@ -1371,7 +1376,7 @@ void ContentSecurityPolicy::ReportViolation(
   source_location = GatherSecurityPolicyViolationEventData(
       violation_data, relevant_delegate, directive_text, effective_type,
       blocked_url, header, header_type, violation_type, source_location, source,
-      source_prefix, eval_hash);
+      source_prefix, eval_hash, url_hash);
 
   // TODO(mkwst): Obviously, we shouldn't hit this check, as extension-loaded
   // resources should be allowed regardless. We apparently do, however, so
@@ -1440,6 +1445,9 @@ void ContentSecurityPolicy::PostViolationReport(
   csp_report->SetString("script-sample", violation_data->sample());
   if (violation_data->hasEvalHash() && !violation_data->evalHash().empty()) {
     csp_report->SetString("eval-hash", violation_data->evalHash());
+  }
+  if (violation_data->hasUrlHash() && !violation_data->urlHash().empty()) {
+    csp_report->SetString("url-hash", violation_data->urlHash());
   }
 
   auto report_object = std::make_unique<JSONObject>();
@@ -1547,6 +1555,10 @@ void ContentSecurityPolicy::ReportBlockedScriptExecutionToInspector(
 bool ContentSecurityPolicy::ExperimentalFeaturesEnabled() const {
   return RuntimeEnabledFeatures::
       ExperimentalContentSecurityPolicyFeaturesEnabled();
+}
+
+bool ContentSecurityPolicy::ScriptSrcExtendedHashesEnabled() const {
+  return delegate_ && delegate_->ScriptSrcExtendedHashesEnabled();
 }
 
 // static

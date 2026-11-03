@@ -931,7 +931,7 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
 
   int instance_size;
   int inobject_properties;
-  CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
+  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
   DirectHandle<NativeContext> creation_context(function->native_context(),
@@ -1137,8 +1137,7 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       static_cast<int>(constructor->shared()->expected_nof_properties()),
       JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
-      instance_type, constructor_initial_map->has_prototype_slot(),
-      embedder_fields, expected_nof_properties, &instance_size,
+      instance_type, embedder_fields, expected_nof_properties, &instance_size,
       &in_object_properties);
 
   int pre_allocated = constructor_initial_map->GetInObjectProperties() -
@@ -1221,10 +1220,23 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
     DirectHandle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
-    int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
-                                    : Context::OBJECT_FUNCTION_INDEX;
-    DirectHandle<JSFunction> realm_constructor(
-        Cast<JSFunction>(native_context->GetNoCell(index)), isolate);
+    NativeContext::Field index = static_cast<NativeContext::Field>(
+        IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
+                            : Context::OBJECT_FUNCTION_INDEX);
+    DirectHandle<Object> maybe_realm_constructor(
+        native_context->GetNoCell(index), isolate);
+    if (IsUndefined(*maybe_realm_constructor)) {
+      // The constructor might belong to a lazily initialized part of the
+      // context. Try to initialize it.
+      isolate->bootstrapper()->InitializeLazyPartOfContext(native_context,
+                                                           index);
+      maybe_realm_constructor =
+          direct_handle(native_context->GetNoCell(index), isolate);
+    }
+    DirectHandle<JSFunction> realm_constructor;
+    if (!TryCast<JSFunction>(maybe_realm_constructor, &realm_constructor)) {
+      FATAL("Context does not have a constructor at index %d", index);
+    }
     prototype = direct_handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
@@ -1518,14 +1530,13 @@ int JSFunction::CalculateExpectedNofProperties(
 
 // static
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
-                                             bool has_prototype_slot,
                                              int requested_embedder_fields,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
-  int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
+  int header_size = JSObject::GetHeaderSize(instance_type);
   requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
 
   int max_nof_fields =

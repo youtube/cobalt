@@ -20,11 +20,14 @@
 //     output: validate_merge_block_with_input()
 //   - For block that has a merge block with an input, the branch instruction must be If, and the
 //     block must contains block1: validate_merge_block_with_input()
+//   - No identical types with different IDs: validate_no_identical_types_with_different_ids()
+//   - Validate that ImageType fields are valid in combination with ImageDimension:
+//     validate_image_types()
 
 // TODO(http://anglebug.com/349994211): to validate:
-//   - No identical types with different IDs.
+//   - Referenced IDs are not dead-code-eliminated: Checking against max_*_count can be paird with a
+//     look up and checking that !is_dead_code_eliminated
 //   - If there's a cached "has side effect", that it's correct.
-//   - Validate that ImageType fields are valid in combination with ImageDimension
 //   - No operations should have entirely constant arguments, that should be folded (and
 //     transformations shouldn't retintroduce it)
 //   - Catch misuse of built-in names.
@@ -252,6 +255,8 @@ impl<'a> Validator<'a> {
         self.validate_all_ids_are_present();
         self.validate_all_variables_are_declared_in_scope();
         self.validate_all_registers_are_declared_in_scope();
+        self.validate_no_identical_types_with_different_ids();
+        self.validate_image_types();
         self.validate_no_dead_code();
         self.validate_all_branch_instructions_have_valid_target();
         self.validate_merge_block_with_input();
@@ -265,10 +270,12 @@ impl<'a> Validator<'a> {
     fn validate_all_ids_are_present_in_ir_meta(&self) {
         // validate IRMeta.constants
         for (constant_id, constant) in self.ir.meta.all_constants().iter().enumerate() {
-            self.validate_all_ids_in_a_constant_are_present(
-                constant_id.try_into().unwrap(),
-                constant,
-            );
+            if !constant.is_dead_code_eliminated {
+                self.validate_all_ids_in_a_constant_are_present(
+                    constant_id.try_into().unwrap(),
+                    constant,
+                );
+            }
         }
         // validate IRMeta.variables
         for (variable_id, variable) in self.ir.meta.all_variables().iter().enumerate() {
@@ -926,6 +933,226 @@ impl<'a> Validator<'a> {
         });
 
         registers_declared_map.remove_scope();
+    }
+
+    fn validate_no_identical_types_with_different_ids(&self) {
+        let mut seen_types: HashSet<&ir::Type> = HashSet::new();
+        for ir_type in self.ir.meta.all_types() {
+            // Some Type will be marked as dead code eliminated during transform, they won't be
+            // included in final IR, skip them.
+            if ir_type.is_dead_code_eliminated() {
+                continue;
+            }
+            // https://registry.khronos.org/OpenGL/specs/es/3.2/GLSL_ES_Specification_3.20.html#structures
+            // Two structure types are the same if they have the same name
+            // However, for struct specifier declared as follows:
+            // struct
+            // {
+            //     int field;
+            // }s;
+            // The GLSL parser code will use empty string for the struct type name.
+            // For the following struct declarations:
+            // struct
+            // {
+            //     int field;
+            // }s1;
+            // struct
+            // {
+            //     int field;
+            // }s2;
+            // In IR, we end up with two same ir::Type::Struct(name, fields, struct_specifier),
+            // where as we should treat them as different types.
+            // Skip the uniqueness check for struct with empty name for now.
+            if ir_type.is_struct_with_empty_name() {
+                continue;
+            }
+
+            // For interface block, right now for the following interface block declarations
+            // in Vertex
+            // {
+            //     ivec4 iv;
+            //     vec4  fv;
+            // } inVertex[];
+            // out Vertex
+            // {
+            //     ivec4 iv;
+            //     vec4  fv;
+            // } outVertex[];
+            // They end up with the same ir::Type::Struct(name, fields, struct_specifier), but they
+            // should be treated as different types.
+            // Similar problem arises where the gl_PerVertex is redeclared in geometry shader,
+            // IR ends with with two same ir::Type::Struct(name, fields, struct_specifier).
+            // Skip the uniqueness check for interface block struct for now.
+            if ir_type.is_struct_interface_block() {
+                continue;
+            }
+            if !seen_types.insert(ir_type) {
+                self.on_error(format_args!(
+                    "Identical type {:?} found with different IDs",
+                    ir_type
+                ));
+            }
+        }
+    }
+
+    fn validate_image_types(&self) {
+        for ir_type in self.ir.meta.all_types() {
+            if let Type::Image(basic_type, image_type) = ir_type {
+                let invalid_combo = match image_type.dimension {
+                    ImageDimension::D2 => {
+                        if *basic_type == ImageBasicType::Float
+                            && image_type.is_sampled
+                            && image_type.is_ms
+                            && image_type.is_shadow
+                        {
+                            Some("float 2D multisampled shadow sampler")
+                        } else if (*basic_type == ImageBasicType::Int
+                            || *basic_type == ImageBasicType::Uint)
+                            && image_type.is_sampled
+                            && image_type.is_shadow
+                        {
+                            Some("int 2D shadow sampler or uint 2D shadow sampler")
+                        } else if !image_type.is_sampled
+                            && (image_type.is_ms || image_type.is_shadow)
+                        {
+                            Some("2D multisampled storage image or 2D shadow storage image")
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::D3 => {
+                        if image_type.is_array || image_type.is_ms || image_type.is_shadow {
+                            Some("3D array, 3D multisampled or 3D shadow image types")
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::Cube => {
+                        if image_type.is_ms {
+                            Some("multisampled cube image types")
+                        } else if (*basic_type == ImageBasicType::Int
+                            || *basic_type == ImageBasicType::Uint)
+                            && image_type.is_sampled
+                            && image_type.is_shadow
+                        {
+                            Some("int or uint cube shadow sampler")
+                        } else if !image_type.is_sampled && image_type.is_shadow {
+                            Some("cube shadow storage image")
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::External => {
+                        if *basic_type == ImageBasicType::Int
+                            || *basic_type == ImageBasicType::Uint
+                            || !image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "int external image, uint external image, storage external image, \
+                                 array external image, multismpled external image, shadow \
+                                 external image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::ExternalY2Y => {
+                        if *basic_type == ImageBasicType::Int
+                            || *basic_type == ImageBasicType::Uint
+                            || !image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "int external y2y image, uint external y2y image, storage \
+                                 external y2y image, array external y2y image, multismpled \
+                                 external y2y image, shadow external y2y image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::Rect => {
+                        if !image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "storage rect image, array rect image, multisampled rect image, \
+                                 shadow rect image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::Buffer => {
+                        if image_type.is_array || image_type.is_ms || image_type.is_shadow {
+                            Some(
+                                "array buffer image, multisampled buffer image, shadow buffer \
+                                 image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::Video => {
+                        if *basic_type == ImageBasicType::Int
+                            || *basic_type == ImageBasicType::Uint
+                            || !image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "int video image, uint video image, storage video image, array \
+                                 video image, multisample video image, shadow video image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::PixelLocal => {
+                        if image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "pixel local image sampler, array pixel local image, multisample \
+                                 pixel local image, shadow pixel local image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    ImageDimension::Subpass => {
+                        if image_type.is_sampled
+                            || image_type.is_array
+                            || image_type.is_ms
+                            || image_type.is_shadow
+                        {
+                            Some(
+                                "subpass image sampler, array subpass image, multisample subpass \
+                                 image, shadow subpass image",
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if let Some(invalid_combo) = invalid_combo {
+                    self.on_error(format_args!(
+                        "invalid image type {:?}, {} is not supported in GLSL",
+                        ir_type, invalid_combo
+                    ));
+                }
+            }
+        }
     }
 
     fn validate_all_branch_instructions_have_valid_target(&self) {

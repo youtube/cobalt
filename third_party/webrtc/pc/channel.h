@@ -354,13 +354,6 @@ class BaseChannel : public ChannelInterface,
 
   // Cached list of payload types, used if payload type demuxing is re-enabled.
   flat_set<uint8_t> payload_types_ RTC_GUARDED_BY(network_thread());
-  // A stored copy of the rtp header extensions as applied to the transport.
-  RtpHeaderExtensions rtp_header_extensions_ RTC_GUARDED_BY(worker_thread());
-
-  // Set of all historic RTP header extensions mapped, keyed by URI,
-  // to ensure no ID-URI reassignment occurs per RFC 8285.
-  RtpHeaderExtensions historical_rtp_header_extensions_
-      RTC_GUARDED_BY(worker_thread());
 
   const std::string mid_;
   flat_set<uint32_t> ssrcs_ RTC_GUARDED_BY(network_thread());

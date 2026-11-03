@@ -87,6 +87,10 @@ void ScreamV2::OnPacketSent(DataSize data_in_flight) {
 }
 
 void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
+  if (msg.ReceivedWithSendInfo().empty()) {
+    RTC_LOG(LS_INFO) << "No received packets in feedback, ignoring.";
+    return;
+  }
   max_data_in_flight_this_rtt_ =
       std::max(max_data_in_flight_this_rtt_, msg.data_in_flight);
 

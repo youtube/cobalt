@@ -19,11 +19,11 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <unordered_map>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
-#include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_size.h"
@@ -79,7 +79,7 @@ class PacketRouter : public PacingController::PacketSender {
       DataSize size) override;
   void OnAbortedRetransmissions(
       uint32_t ssrc,
-      ArrayView<const uint16_t> sequence_numbers) override;
+      std::span<const uint16_t> sequence_numbers) override;
   std::optional<uint32_t> GetRtxSsrcForMedia(uint32_t ssrc) const override;
   void OnBatchComplete() override;
 

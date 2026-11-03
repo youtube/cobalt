@@ -62,7 +62,8 @@ DirectHandle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
                                                  base::Vector<T> data) {
   static_assert(std::is_trivial_v<T>);
 
-  int byte_length = sizeof(T) * data.length();
+  const uint32_t byte_length =
+      base::checked_cast<uint32_t>(sizeof(T) * data.size());
   DirectHandle<TrustedByteArray> byte_array =
       isolate->factory()->NewTrustedByteArray(byte_length);
   DisallowGarbageCollection no_gc;
@@ -218,8 +219,8 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
 
-  Tagged<IrRegExpData> regexp_data_obj =
-      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
+  Tagged<IrRegExpData> regexp_data_obj = SbxCast<IrRegExpData>(
+      TrustedCast<TrustedObject>(Tagged<Object>(regexp_data)));
 
   return ExecRaw(isolate, RegExp::kFromJs, regexp_data_obj, subject_string,
                  output_registers, output_register_count, start_position);

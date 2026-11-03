@@ -18,6 +18,7 @@
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/rtc_error.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/test/rtc_error_matchers.h"
@@ -194,7 +195,7 @@ TEST(CodecVendorTest, PreferencesAffectCodecChoice) {
   MediaDescriptionOptions options(MediaType::VIDEO, "mid",
                                   RtpTransceiverDirection::kSendOnly, false);
   options.codec_preferences = {
-      ToRtpCodecCapability(CreateVideoCodec(-1, "vp9")),
+      ToRtpCodecCapability(CreateVideoCodec(PayloadType::NotSet(), "vp9")),
   };
   FakePayloadTypeSuggester pt_suggester;
 

@@ -36,6 +36,7 @@
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/rtp_headers.h"
@@ -5626,7 +5627,7 @@ TEST_F(WebRtcVideoChannelTest,
   VideoReceiverParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
   parameters.codecs.push_back(GetEngineCodec("VP8"));
-  parameters.codecs[1].id += 1;
+  parameters.codecs[1].id = PayloadType(parameters.codecs[1].id + 1);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
 }
 
@@ -10020,6 +10021,11 @@ TEST_F(WebRtcVideoChannelBaseTest, EncoderSelectorSwitchCodec) {
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
   send_channel_->SetSend(true);
 
+  RtpParameters rtp_parameters = send_channel_->GetRtpSendParameters(kSsrc);
+  ASSERT_EQ(1u, rtp_parameters.encodings.size());
+  rtp_parameters.encodings[0].max_bitrate_bps = 1000000;
+  EXPECT_TRUE(send_channel_->SetRtpSendParameters(kSsrc, rtp_parameters).ok());
+
   std::optional<Codec> codec = send_channel_->GetSendCodec();
   ASSERT_TRUE(codec);
   EXPECT_EQ("VP8", codec->name);
@@ -10041,23 +10047,20 @@ TEST_F(WebRtcVideoChannelBaseTest, EncoderSelectorSwitchCodec) {
 
 TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecast) {
   VideoSenderParameters parameters;
-  parameters.codecs.push_back(GetEngineCodec("VP8"));
-  ASSERT_TRUE(send_channel_->SetSenderParameters(parameters));
-
   FakeVideoSendStream* stream = AddSendStream();
+  const uint32_t ssrc = stream->GetConfig().rtp.ssrcs[0];
   FrameForwarder frame_forwarder;
   FakeFrameSource frame_source(1280, 720, TimeDelta::Seconds(1) / 30,
                                env_.clock().CurrentTime());
-  EXPECT_TRUE(
-      send_channel_->SetVideoSend(last_ssrc_, nullptr, &frame_forwarder));
+  EXPECT_TRUE(send_channel_->SetVideoSend(ssrc, nullptr, &frame_forwarder));
+  frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
 
   {  // TEST scale_resolution_down_to < frame size
-    RtpParameters rtp_parameters =
-        send_channel_->GetRtpSendParameters(last_ssrc_);
+    RtpParameters rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 640,
                                                             .height = 360};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
 
@@ -10068,11 +10071,11 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecast) {
   }
 
   {  // TEST scale_resolution_down_to == frame size
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 1280,
                                                             .height = 720};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
     auto streams = stream->GetVideoStreams();
@@ -10082,11 +10085,11 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecast) {
   }
 
   {  // TEST scale_resolution_down_to > frame size
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 2 * 1280,
                                                             .height = 2 * 720};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
     auto streams = stream->GetVideoStreams();
@@ -10095,7 +10098,7 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecast) {
     EXPECT_EQ(checked_cast<size_t>(720), streams[0].height);
   }
 
-  EXPECT_TRUE(send_channel_->SetVideoSend(last_ssrc_, nullptr, nullptr));
+  EXPECT_TRUE(send_channel_->SetVideoSend(ssrc, nullptr, nullptr));
 }
 
 TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
@@ -10104,18 +10107,18 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
   ASSERT_TRUE(send_channel_->SetSenderParameters(parameters));
 
   FakeVideoSendStream* stream = AddSendStream();
+  const uint32_t ssrc = stream->GetConfig().rtp.ssrcs[0];
   FrameForwarder frame_forwarder;
   FakeFrameSource frame_source(1280, 720, TimeDelta::Seconds(1) / 30,
                                env_.clock().CurrentTime());
-  EXPECT_TRUE(
-      send_channel_->SetVideoSend(last_ssrc_, nullptr, &frame_forwarder));
+  EXPECT_TRUE(send_channel_->SetVideoSend(ssrc, nullptr, &frame_forwarder));
 
   {
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 720,
                                                             .height = 720};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
 
@@ -10128,11 +10131,11 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
   }
 
   {
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 1280,
                                                             .height = 1280};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     frame_forwarder.IncomingCapturedFrame(frame_source.GetFrame());
 
@@ -10144,11 +10147,11 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
   }
 
   {
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 650,
                                                             .height = 650};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     auto streams = stream->GetVideoStreams();
     ASSERT_EQ(streams.size(), 1u);
@@ -10159,11 +10162,11 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
   }
 
   {
-    auto rtp_parameters = send_channel_->GetRtpSendParameters(last_ssrc_);
+    auto rtp_parameters = send_channel_->GetRtpSendParameters(ssrc);
     EXPECT_EQ(1UL, rtp_parameters.encodings.size());
     rtp_parameters.encodings[0].scale_resolution_down_to = {.width = 2560,
                                                             .height = 1440};
-    send_channel_->SetRtpSendParameters(last_ssrc_, rtp_parameters);
+    send_channel_->SetRtpSendParameters(ssrc, rtp_parameters);
 
     auto streams = stream->GetVideoStreams();
     ASSERT_EQ(streams.size(), 1u);
@@ -10172,7 +10175,7 @@ TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSinglecastScaling) {
     EXPECT_EQ(checked_cast<size_t>(720), streams[0].height);
   }
 
-  EXPECT_TRUE(send_channel_->SetVideoSend(last_ssrc_, nullptr, nullptr));
+  EXPECT_TRUE(send_channel_->SetVideoSend(ssrc, nullptr, nullptr));
 }
 
 TEST_F(WebRtcVideoChannelTest, ScaleResolutionDownToSimulcast) {

@@ -462,6 +462,7 @@ Nur Personen, die deine Passphrase kennen, können deine verschlüsselten Daten 
 <translation id="2932150158123903946">Google <ph name="APP_NAME" />-Speicher</translation>
 <translation id="2932222164150889403">Deine Tastaturbelegung ändert sich nicht</translation>
 <translation id="2936980480904111527">Chrome-Benachrichtigungen machen dir das Leben leichter</translation>
+<translation id="2939908794993783865">Zusätzliche inaktive Websites</translation>
 <translation id="2940075786175545812">Option, eine Website zu genehmigen oder nicht zu genehmigen</translation>
 <translation id="2942036813789421260">Vorschau-Tab ist geschlossen</translation>
 <translation id="2951071800649516099">Du kannst deiner Leseliste Seiten hinzufügen, um sie später zu lesen</translation>
@@ -699,6 +700,7 @@ Nur Personen, die deine Passphrase kennen, können deine verschlüsselten Daten 
 <translation id="3985215325736559418">Soll <ph name="FILE_NAME" /> erneut heruntergeladen werden?</translation>
 <translation id="3987993985790029246">Link kopieren</translation>
 <translation id="3994236846568425219">Dunkles Design verwenden, wenn das dunkle Design des Geräts aktiviert ist</translation>
+<translation id="399788104667917863">An Symbolleiste anpinnen</translation>
 <translation id="4000212216660919741">Offline-Startseite</translation>
 <translation id="4000670338830950598">Du kannst Google Chrome mit einem hervorgehobenen Element anpassen und verwalten</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 kompromittiertes Passwort in deinem Google-Konto}other{# kompromittierte Passwörter in deinem Google-Konto}}</translation>
@@ -1394,7 +1396,6 @@ Einige Websites schalten möglicherweise Werbeanzeigen, deren Auswahl nicht dara
 <translation id="6746338529702829275">Kontodaten prüfen</translation>
 <translation id="6746834324024491643">Wenn du auf allen deinen Geräten auf deine Passwörter und andere Daten zugreifen möchtest, melde dich als <ph name="EMAIL" /> an</translation>
 <translation id="6751521182688001123">Öffnet schnell einen neuen Tab. Zum Ändern Button gedrückt halten.</translation>
-<translation id="6752130751133944215">Wenn du ein neues Fenster wiederherstellen möchtest, reduziere die Gesamtzahl der aktiven und inaktiven Fenster auf maximal <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />. Inaktive Fenster werden nach 6 Monaten gelöscht.</translation>
 <translation id="6754359471209693699">Neue Suche starten</translation>
 <translation id="6756507620369789050">Feedback geben</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Wenn du diese Einstellung ändern möchtest, <ph name="BEGIN_LINK" />lösche die
 <translation id="7388615499319468910">Websites und Werbetreibende können die Leistung ihrer Werbung analysieren. Diese Einstellung ist deaktiviert.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Sonstiges, 1 Datei in der Liste}other{Sonstiges, # Dateien in der Liste}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">Wenn du ein neues Fenster öffnen möchtest, reduziere die Gesamtzahl der aktiven und inaktiven Fenster auf maximal <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />.</translation>
 <translation id="7403691278183511381">Eindruck beim ersten Ausführen von Chrome</translation>
 <translation id="7411224099004328643">Nutzer des Google-Kontos</translation>
 <translation id="7419565702166471774">Immer verschlüsselte Verbindungen verwenden</translation>
@@ -1780,7 +1780,7 @@ Wenn du diese Einstellung ändern möchtest, <ph name="BEGIN_LINK" />lösche die
 <translation id="8151185429379586178">Entwicklertools</translation>
 <translation id="8152331954420209374">Zu Lens</translation>
 <translation id="8153206878708357851">Tastaturnavigation ein-/ausschalten</translation>
-<translation id="8154784523622173959">Personalisiere den Hintergrund dieser Seite</translation>
+<translation id="8154784523622173959">Optionen zum Personalisieren des Seitenhintergrunds</translation>
 <translation id="8163820386638255770">Bestätige deine Identität, um Passwörter in deinem Google-Konto zu verwenden und zu speichern</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) inaktives Element}other{(#) inaktive Elemente}}</translation>
 <translation id="8186512483418048923">Noch <ph name="FILES" /> Dateien</translation>

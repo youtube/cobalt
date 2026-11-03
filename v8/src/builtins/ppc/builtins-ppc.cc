@@ -62,6 +62,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       data,
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
+  __ JumpIfSmi(data, is_unavailable);
   __ LoadMap(scratch1, data);
   __ LoadU16(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
 
@@ -1538,7 +1539,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
 
   __ bind(&stack_overflow);
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -2960,29 +2961,30 @@ struct SaveWasmParamsScope {
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
+    for (Simd128Register simd128_param_reg : wasm::kSimd128ParamRegisters) {
+      simd128_regs.set(simd128_param_reg);
+    }
 
     CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(simd_regs.Count(), arraysize(wasm::kFpParamRegisters));
     CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs + 1,
              gp_regs.Count());
     CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs,
              fp_regs.Count());
-    CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs,
-             simd_regs.Count());
+    CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedSimd128ParamRegs,
+             simd128_regs.Count());
 
     __ MultiPush(gp_regs);
-    __ MultiPushF64AndV128(fp_regs, simd_regs, ip, r0);
+    __ MultiPushF64AndV128(fp_regs, simd128_regs, ip, r0);
   }
   ~SaveWasmParamsScope() {
-    __ MultiPopF64AndV128(fp_regs, simd_regs, ip, r0);
+    __ MultiPopF64AndV128(fp_regs, simd128_regs, ip, r0);
     __ MultiPop(gp_regs);
   }
 
   RegList gp_regs;
   DoubleRegList fp_regs;
-  // List must match register numbers under kFpParamRegisters.
-  Simd128RegList simd_regs = {v1, v2, v3, v4, v5, v6, v7, v8};
+  Simd128RegList simd128_regs;
   MacroAssembler* masm;
 };
 
@@ -3701,6 +3703,64 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Drop(WasmFXSuspendDescriptor::GetStackParameterCount());
+  __ Ret();
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(fp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[5], target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[7], tag, cont, target_stack_reg));
+    __ PrepareCallCFunction(9, r0);
+    __ Move(kCArgRegs[7], arg_buffer_reg);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], target_stack_reg);
+    Register scratch = r4;
+    __ LoadU64(scratch, sig_op);
+    __ StoreU64(scratch,
+                MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ CmpU64(kReturnRegister0, Operand(0), r0);
+  __ bne(&ok);
+
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  __ Drop(1);  // Drop saved context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  // Load the arg buffer to set up resume of target stack
+  __ Move(target_stack, kReturnRegister0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Move(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, r4, sp, fp));
+  LoadJumpBuffer(masm, target_stack, true, r4);
+  __ Trap();
+  __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSwitchDescriptor::GetStackParameterCount());
   __ Ret();
 }
 

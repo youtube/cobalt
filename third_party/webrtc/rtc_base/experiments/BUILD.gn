@@ -235,7 +235,6 @@ if (rtc_include_tests && !build_with_chromium) {
       ":quality_scaler_settings",
       ":quality_scaling_experiment",
       ":rate_control_settings",
-      "..:gunit_helpers",
       "../../api:field_trials",
       "../../api:field_trials_view",
       "../../api/units:data_rate",

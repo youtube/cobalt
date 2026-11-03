@@ -64,9 +64,9 @@ TEST(AudioDecoderFactoryTest, CreateL16) {
   const Environment env = CreateEnvironment();
   scoped_refptr<AudioDecoderFactory> adf = CreateBuiltinAudioDecoderFactory();
   ASSERT_TRUE(adf);
-  // L16 supports any clock rate and any number of channels up to 24.
+  // L16 supports any clock rate and any number of channels up to 16.
   const int clockrates[] = {8000, 16000, 32000, 48000};
-  const int num_channels[] = {1, 2, 3, 24};
+  const int num_channels[] = {1, 2, 3, 16};
   for (int clockrate : clockrates) {
     EXPECT_FALSE(
         adf->Create(env, SdpAudioFormat("l16", clockrate, 0), std::nullopt));

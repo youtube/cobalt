@@ -2536,7 +2536,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   Isolate* isolate = Isolate::Current();
   JSObjectPrintHeader(os, *this, "Function");
   os << "\n - function prototype: ";
-  if (has_prototype_slot()) {
+  if (IsJSFunctionWithPrototype(*this)) {
     if (has_prototype()) {
       os << Brief(prototype());
       if (map()->has_non_instance_prototype()) {
@@ -2734,6 +2734,12 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void Cell::CellPrint(std::ostream& os) {
+  PrintHeader(os, "Cell");
+  os << "\n - maybe_value: " << Brief(maybe_value());
+  os << "\n";
+}
+
 void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";
@@ -2856,18 +2862,34 @@ static void PrintModuleFields(Tagged<Module> module, std::ostream& os) {
 }
 
 void Module::ModulePrint(std::ostream& os) {
-  if (IsSourceTextModule(*this)) {
-    Cast<SourceTextModule>(*this)->SourceTextModulePrint(os);
-  } else if (IsSyntheticModule(*this)) {
-    Cast<SyntheticModule>(*this)->SyntheticModulePrint(os);
+  if (IsSourceTextModule(this)) {
+    Cast<SourceTextModule>(this)->SourceTextModulePrint(os);
+  } else if (IsSyntheticModule(this)) {
+    Cast<SyntheticModule>(this)->SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
   }
 }
 
+void SyntheticModule::SyntheticModulePrint(std::ostream& os) {
+  PrintHeader(os, "SyntheticModule");
+  os << "\n - exports: " << Brief(exports());
+  os << "\n - hash: " << hash();
+  os << "\n - status: " << status();
+  os << "\n - module_namespace: " << Brief(module_namespace());
+  os << "\n - deferred_module_namespace: "
+     << Brief(deferred_module_namespace());
+  os << "\n - exception: " << Brief(exception());
+  os << "\n - top_level_capability: " << Brief(top_level_capability());
+  os << "\n - name: " << Brief(name());
+  os << "\n - export_names: " << Brief(export_names());
+  os << "\n - evaluation_steps: " << Brief(evaluation_steps());
+  os << "\n";
+}
+
 void SourceTextModule::SourceTextModulePrint(std::ostream& os) {
   PrintHeader(os, "SourceTextModule");
-  PrintModuleFields(*this, os);
+  PrintModuleFields(this, os);
   os << "\n - sfi/code/info: " << Brief(code());
   Tagged<Script> script = GetScript();
   os << "\n - script: " << Brief(script);
@@ -3320,7 +3342,7 @@ void WasmExceptionPackage::WasmExceptionPackagePrint(std::ostream& os) {
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << native_module()->module();
-  os << "\n - native module: " << native_module();
+  os << "\n - native module: " << native_module().raw();
   os << "\n - script: " << Brief(script());
   os << "\n";
 }
@@ -3795,7 +3817,17 @@ void PrintScopeInfoList(Tagged<ScopeInfo> scope_info, std::ostream& os,
   os << "\n - " << list_name;
   os << " {\n";
   for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
-    os << "    - " << it->index() << ": " << it->name() << "\n";
+    os << "    - " << it->index() << ": " << it->name();
+    if (scope_info->ContextLocalIsParameter(it->index())) {
+      os << " [parameter "
+         << scope_info->ContextLocalParameterNumber(it->index()) << "]";
+    } else {
+      int pos = scope_info->ContextLocalInitializerPosition(it->index());
+      if (pos != kNoSourcePosition) {
+        os << " [position " << pos << "]";
+      }
+    }
+    os << "\n";
   }
   os << "  }";
 }
@@ -4447,10 +4479,7 @@ void Map::MapPrint(std::ostream& os) {
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
-  if (has_prototype_slot()) {
-    os << "\n - has_prototype_slot";
-    if (has_non_instance_prototype()) os << " (non-instance prototype)";
-  }
+  if (has_non_instance_prototype()) os << "\n - has_non_instance_prototype";
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (IsContextMap(*this)) {

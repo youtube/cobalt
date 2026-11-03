@@ -7,6 +7,9 @@
   <message name="IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING" desc="Extra tool tip text, when the tab's context is being shared with Gemini">
     You're sharing this tab with Gemini
   </message>
+  <message name="IDS_TOOLTIP_GLIC_CLOSE" desc="The tooltip for the close button within the Glic nudge button.">
+    Dismiss suggestion
+  </message>
   <message name="IDS_TAB_AX_LABEL_GLIC_ACCESSING" is_accessibility_with_no_ui="true" desc="Accessibility label text, when the tab is sharing data with Gemini. Example: 'Wikipedia - Tab context shared with Gemini'">
     <ph name="WINDOW_TITLE">
       $1<ex>Wikipedia</ex>
@@ -312,6 +315,9 @@
   <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_TITLE" desc="Title for the sites and accounts section on the Gemini web login permissions page.">
     Sites and accounts
   </message>
+  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_OFFLINE_WARNING" desc="Warning message shown at the top of the Gemini web login permissions page when the user is offline.">
+    You’re offline. Check your internet connection to manage sites Gemini can sign you in to.
+  </message>
   <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_DESCRIPTION" desc="Description for the sites and accounts section on the Gemini web login permissions page.">
     You've allowed Gemini to automatically sign you in to these sites and apps using your accounts
   </message>
@@ -438,7 +444,7 @@
   <!-- Content area context menu. -->
   <if expr="use_titlecase">
     <message name="IDS_CONTENT_CONTEXT_GLICSHAREIMAGE" desc="Share image with Gemini and recreate based on user-selected prompt">Create Image with Gemini</message>
-    <message name="IDS_GLIC_CONTEXT_MENU_SUMMARIZE_PAGE_WITH_GEMINI" desc="Text for the 'Summarize this page' context menu item.">Summarize this Page with Gemini</message>
+    <message name="IDS_GLIC_CONTEXT_MENU_SUMMARIZE_PAGE_WITH_GEMINI" desc="Text for the 'Summarize this page' context menu item.">Summarize this page with Gemini</message>
   </if>
   <if expr="not use_titlecase">
     <message name="IDS_CONTENT_CONTEXT_GLICSHAREIMAGE" desc="Share image with Gemini and recreate based on user-selected prompt">Create image with Gemini</message>

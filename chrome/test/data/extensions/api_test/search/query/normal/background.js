@@ -70,7 +70,14 @@ chrome.test.runTests([
   },
 
   // Display results in new window if said disposition is provided.
-  function QueryPopulatedDispositionNewWindow() {
+  async function QueryPopulatedDispositionNewWindow() {
+    // TODO(crbug.com/394345948): Flaky on android-desktop-16-x64-rel-emu-tests
+    // due to inconsistent URLs in new windows (newtab vs. google.com).
+    const isAndroid = (await chrome.runtime.getPlatformInfo()).os === 'android';
+    if (isAndroid) {
+      chrome.test.succeed('skipped');
+      return;
+    }
     chrome.windows.getAll({}, (initialWindows) => {
       const initialWindowIds = initialWindows.map(window => window.id);
       Promise

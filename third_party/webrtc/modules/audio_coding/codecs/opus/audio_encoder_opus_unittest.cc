@@ -14,12 +14,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
@@ -512,7 +512,7 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
       .WillOnce(Return(50000));
   EXPECT_CALL(*states->mock_audio_network_adaptor, SetUplinkBandwidth(50000));
   states->encoder->Encode(
-      0, ArrayView<const int16_t>(audio.data(), audio.size()), &encoded);
+      0, std::span<const int16_t>(audio.data(), audio.size()), &encoded);
 
   // Repeat update uplink bandwidth tests.
   for (int i = 0; i < 5; i++) {
@@ -520,7 +520,7 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
     states->fake_clock->AdvanceTime(
         TimeDelta::Millis(states->uplink_bandwidth_update_interval_ms - 1));
     states->encoder->Encode(
-        0, ArrayView<const int16_t>(audio.data(), audio.size()), &encoded);
+        0, std::span<const int16_t>(audio.data(), audio.size()), &encoded);
 
     // Update when it is time to update.
     EXPECT_CALL(*states->mock_bitrate_smoother, GetAverage)
@@ -528,7 +528,7 @@ TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
     EXPECT_CALL(*states->mock_audio_network_adaptor, SetUplinkBandwidth(40000));
     states->fake_clock->AdvanceTime(TimeDelta::Millis(1));
     states->encoder->Encode(
-        0, ArrayView<const int16_t>(audio.data(), audio.size()), &encoded);
+        0, std::span<const int16_t>(audio.data(), audio.size()), &encoded);
   }
 }
 

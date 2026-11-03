@@ -29,7 +29,9 @@ static_library("safe_browsing") {
   deps = [
     "//build:branding_buildflags",
     "//chrome/app:generated_resources",
+    "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
+    "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/google",
     "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
@@ -38,6 +40,7 @@ static_library("safe_browsing") {
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_io_data",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/signin",
     "//chrome/browser/site_protection:utils",
     "//chrome/browser/sync",
@@ -334,6 +337,7 @@ static_library("safe_browsing") {
     if (safe_browsing_mode == 1) {
       # "Safe Browsing Full" files in addition to the "basic" ones to use for
       # full safe browsing. This has some in common with "mobile."
+      deps += [ "//chrome/browser/ui/tabs:tab_strip" ]
       sources += [
         "chrome_safe_browsing_hats_delegate.cc",
         "chrome_safe_browsing_hats_delegate.h",
@@ -622,6 +626,7 @@ static_library("advanced_protection") {
     "//chrome/browser:browser_process",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/signin",
     "//components/keyed_service/content",
     "//components/prefs",

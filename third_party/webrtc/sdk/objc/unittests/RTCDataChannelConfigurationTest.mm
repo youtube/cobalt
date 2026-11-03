@@ -11,7 +11,7 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 
-#include "rtc_base/gunit.h"
+#include "test/gtest.h"
 
 #import "api/peerconnection/RTCDataChannelConfiguration+Private.h"
 #import "api/peerconnection/RTCDataChannelConfiguration.h"

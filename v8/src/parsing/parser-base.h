@@ -5371,6 +5371,9 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
                                              Token::Value end_token) {
   bool has_extends = !impl()->IsNull(class_info.extends);
 
+  // 3 reserved arguments: class_boilerplate, constructor, super_class
+  int expected_define_class_args = 3;
+
   while (peek() != end_token) {
     if (Check(Token::kSemicolon)) continue;
 
@@ -5415,6 +5418,24 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
                                         prop_info.is_static, &class_info);
       impl()->InferFunctionName();
       continue;
+    }
+
+    if (prop_info.is_computed_name) {
+      expected_define_class_args++;
+    }
+
+    if (!is_field) {
+      if (property_kind == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
+        expected_define_class_args += 2;
+      } else {
+        expected_define_class_args++;
+      }
+    }
+
+    if (expected_define_class_args > Code::kMaxArguments) {
+      impl()->ReportMessageAt(Scanner::Location(class_token_pos, position()),
+                              MessageTemplate::kTooManyArguments);
+      return;
     }
 
     if (V8_UNLIKELY(is_field)) {
@@ -5543,6 +5564,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // If we open with a kTemplateSpan, we must scan the subsequent expression,
   // and repeat if the following token is a kTemplateSpan as well (in this
   // case, representing a TemplateMiddle).
+  int arguments_count = 1;  // For `template_object`
 
   do {
     next = peek();
@@ -5550,6 +5572,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     int expr_pos = peek_position();
     AcceptINScope scope(this, true);
     ExpressionT expression = ParseExpressionCoverGrammar();
+
+    arguments_count++;
+    if (tagged && arguments_count + 1 /* receiver */ > Code::kMaxArguments) {
+      impl()->ReportMessageAt(Scanner::Location(expr_pos, peek_position()),
+                              MessageTemplate::kTooManyArguments);
+      return impl()->FailureExpression();
+    }
+
     impl()->AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::kRightBrace) {

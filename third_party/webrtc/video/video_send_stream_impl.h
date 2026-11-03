@@ -239,9 +239,13 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
   bool has_active_encodings_ RTC_GUARDED_BY(thread_checker_);
   bool disable_padding_ RTC_GUARDED_BY(thread_checker_);
   int max_padding_bitrate_ RTC_GUARDED_BY(thread_checker_);
-  int encoder_min_bitrate_bps_ RTC_GUARDED_BY(thread_checker_);
-  uint32_t encoder_max_bitrate_bps_ RTC_GUARDED_BY(thread_checker_);
-  uint32_t encoder_target_rate_bps_ RTC_GUARDED_BY(thread_checker_);
+  DataRate encoder_min_bitrate_ RTC_GUARDED_BY(thread_checker_);
+  // The current maximum total bitrate across all active layers, if any.
+  std::optional<DataRate> encoder_max_bitrate_ RTC_GUARDED_BY(thread_checker_);
+  // The currently configured global max bitrate (from
+  // VideoEncoderConfig::max_bitrate_bps).
+  DataRate configured_max_bitrate_ RTC_GUARDED_BY(thread_checker_);
+  DataRate encoder_target_rate_ RTC_GUARDED_BY(thread_checker_);
   double encoder_bitrate_priority_ RTC_GUARDED_BY(thread_checker_);
   const int encoder_av1_priority_bitrate_override_bps_
       RTC_GUARDED_BY(thread_checker_);

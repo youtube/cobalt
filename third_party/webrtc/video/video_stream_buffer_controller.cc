@@ -28,7 +28,6 @@
 #include "api/video/encoded_frame.h"
 #include "api/video/frame_buffer.h"
 #include "api/video/video_content_type.h"
-#include "api/video/video_timing.h"
 #include "modules/video_coding/frame_helpers.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/inter_frame_delay_variation_calculator.h"
@@ -265,7 +264,6 @@ void VideoStreamBufferController::OnFrameReady(
   // Update stats.
   UpdateDroppedFrames();
   UpdateFrameBufferTimings(min_receive_time, now);
-  UpdateTimingFrameInfo();
 
   std::unique_ptr<EncodedFrame> frame =
       CombineAndDeleteFrames(std::move(frames));
@@ -354,12 +352,6 @@ void VideoStreamBufferController::UpdateFrameBufferTimings(
       std::max(TimeDelta::Zero(), now - min_receive_time);
   stats_proxy_->OnDecodableFrame(jitter_buffer_delay, timings.target_delay,
                                  timings.minimum_delay);
-}
-
-void VideoStreamBufferController::UpdateTimingFrameInfo() {
-  std::optional<TimingFrameInfo> info = timing_->GetTimingFrameInfo();
-  if (info)
-    stats_proxy_->OnTimingFrameInfoUpdated(*info);
 }
 
 bool VideoStreamBufferController::IsTooManyFramesQueued() const

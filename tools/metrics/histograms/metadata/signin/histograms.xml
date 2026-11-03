@@ -452,7 +452,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Signin.AccountInPref.State" enum="AccountInPrefState"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -730,7 +730,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AndroidGetAccountIdsTime" units="ms"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>bsazonov@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -790,7 +790,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.AvatarPillPromo.AcceptedAtShownCount.{AvatarPillPromoType}"
-    units="ShowCount" expires_after="2026-05-17">
+    units="ShowCount" expires_after="2026-09-20">
   <owner>anthie@google.com</owner>
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team-desktop@google.com</owner>
@@ -1941,7 +1941,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.Intercept.ChromeSignin.NumberOfDaysSinceLastDecline"
-    units="Days" expires_after="2026-07-19">
+    units="Days" expires_after="2026-09-20">
   <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -2687,7 +2687,7 @@ should be kept to monitor/debug signin Multilogin issues-->
 </histogram>
 
 <histogram name="Signin.PAMInitialize.PrimaryAccountInfoState"
-    enum="PAMInitializePrimaryAccountInfoState" expires_after="2026-07-19">
+    enum="PAMInitializePrimaryAccountInfoState" expires_after="2026-09-20">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3085,7 +3085,7 @@ OAuth Multilogin call. -->
   </token>
 </histogram>
 
-<histogram name="Signin.SignIn.Started" enum="SigninAccessPoint"
+<histogram name="Signin.SignIn.Started{Profile}" enum="SigninAccessPoint"
     expires_after="2026-07-26">
   <owner>bsazonov@chromium.org</owner>
   <owner>dgn@chromium.org</owner>
@@ -3103,6 +3103,7 @@ OAuth Multilogin call. -->
     - More access points were added in M134 in iOS, which should lead to an
     increase in the number of log, not related to an actual increase in usage.
   </summary>
+  <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
 <!-- LINT.IfChange(SigninFlowTimestamps) -->
@@ -3183,12 +3184,12 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninDisabledNotificationShown"
-    enum="SigninAccessPoint" expires_after="2026-03-19">
+    enum="SigninAccessPoint" expires_after="2027-03-24">
   <owner>bsazonov@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
     This histogram records the signin access point which was used when the
-    signin disabled notification was shown. This is on Android only.
+    signin disabled notification was shown. Recorded on Android only.
   </summary>
 </histogram>
 
@@ -3274,7 +3275,7 @@ OAuth Multilogin call. -->
   </summary>
 </histogram>
 
-<histogram name="Signin.SigninPending.InconsistentStateInvoked"
+<histogram name="Signin.SigninPending.InconsistentStateInvoked{Profile}"
     enum="BooleanHit" expires_after="2026-08-30">
   <owner>amelies@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3282,7 +3283,10 @@ OAuth Multilogin call. -->
     Records that the signin interceptor detected the user entering an
     inconsistent state by signing into the web with an account B while being in
     sign in pending state with account A.
+
+    {Profile}
   </summary>
+  <token key="Profile" variants="ProfileIndex"/>
 </histogram>
 
 <histogram name="Signin.SigninPending.Offered" enum="SigninAccessPoint"
@@ -3347,7 +3351,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SignInPromo.{UserAction}" enum="SigninAccessPoint"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>amelies@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3596,7 +3600,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncOptIn.IdentityPill.SyncAtShowCount"
-    units="ShowCount" expires_after="2026-07-19">
+    units="ShowCount" expires_after="2026-09-20">
   <owner>ernn@google.com</owner>
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team-desktop@google.com</owner>
@@ -3608,7 +3612,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.SyncOptIn.Offered" enum="SigninAccessPoint"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>ernn@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

@@ -613,8 +613,6 @@ enum DBCookieSourceType {
 DBCookieSourceType CookieSourceTypeToDBCookieSourceType(
     CookieSourceType value) {
   switch (value) {
-    case CookieSourceType::kUnknown:
-      return kDBCookieSourceTypeUnknown;
     case CookieSourceType::kHTTP:
       return kDBCookieSourceTypeHTTP;
     case CookieSourceType::kScript:

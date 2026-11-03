@@ -777,14 +777,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
   TFC(CallIteratorWithFeedbackLazyDeoptContinuation, SingleParameterOnStack)   \
+  TFC(ForOfNextResultDeoptContinuation, ForOfNextResultDeoptContinuation)      \
   TFC(ForOfNextLoadDoneLazyDeoptContinuation,                                  \
       ForOfNextLoadDoneLazyDeoptContinuation)                                  \
-  TFC(ForOfNextLoadDoneEagerDeoptContinuation,                                 \
-      ForOfNextLoadDoneEagerDeoptContinuation)                                 \
-  TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
-      ForOfNextLoadValueLazyDeoptContinuation)                                 \
   TFC(ForOfNextLoadValueEagerDeoptContinuation,                                \
       ForOfNextLoadValueEagerDeoptContinuation)                                \
+  TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
+      ForOfNextLoadValueLazyDeoptContinuation)                                 \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI, kDontAdaptArgumentsSentinel)                            \
@@ -1398,6 +1397,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(ASM, WasmFXResumeThrow, WasmFXResumeThrow)                           \
   IF_WASM(ASM, WasmFXResumeThrowRef, WasmFXResumeThrowRef)                     \
   IF_WASM(ASM, WasmFXSuspend, WasmFXSuspend)                                   \
+  IF_WASM(ASM, WasmFXSwitch, WasmFXSwitch)                                     \
   IF_WASM(ASM, WasmFXReturn, WasmFXReturn)                                     \
   IF_WASM(ASM, WasmReject, JSTrampoline)                                       \
   IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \

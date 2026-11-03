@@ -18,6 +18,7 @@
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
@@ -40,17 +41,85 @@ template <typename T>
 class _CalledByNatives;
 }
 
-namespace jni_zero {
-
-namespace internal {
+namespace jni_zero::internal {
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
+
+template <typename T>
+struct _JArrayHelper;
+
+template <typename T>
+  requires internal::IsJobject<T>
+struct _JArrayHelper<T> {
+  using type = _jobjectArray;
+};
+#else
+// Without concepts, the primary template handles jobject types and the
+// explicit specializations below handle primitive types.
+template <typename T>
+struct _JArrayHelper {
+  static_assert(std::is_base_of_v<std::remove_pointer_t<jobject>,
+                                  std::remove_pointer_t<T>>,
+                "JArray<T> requires a jobject type or a primitive type.");
+  using type = _jobjectArray;
+};
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
-}
+
+template <>
+struct _JArrayHelper<bool> {
+  using type = _jbooleanArray;
+};
+
+template <>
+struct _JArrayHelper<int8_t> {
+  using type = _jbyteArray;
+};
+
+template <>
+struct _JArrayHelper<uint16_t> {
+  using type = _jcharArray;
+};
+
+template <>
+struct _JArrayHelper<int16_t> {
+  using type = _jshortArray;
+};
+
+template <>
+struct _JArrayHelper<int32_t> {
+  using type = _jintArray;
+};
+
+template <>
+struct _JArrayHelper<int64_t> {
+  using type = _jlongArray;
+};
+
+template <>
+struct _JArrayHelper<float> {
+  using type = _jfloatArray;
+};
+
+template <>
+struct _JArrayHelper<double> {
+  using type = _jdoubleArray;
+};
+
+template <typename T>
+using _JArray = typename _JArrayHelper<T>::type;
+
+template <typename T>
+using JArray = _JArray<T>*;
+}  // namespace jni_zero::internal
+
+using ::jni_zero::internal::JArray;
+#define _JNI_ZERO_JArray_DEFINED
+
+namespace jni_zero {
 
 // Creates a new local reference frame, in which at least a given number of
 // local references can be created. Note that local references already created

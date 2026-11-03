@@ -497,7 +497,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 
   // Avoid allocating a HandleScope and handles on the fast path.
   Tagged<WasmExportedFunctionData> function_data =
-      SbxCast<WasmExportedFunctionData>(args[0]);
+      SbxCast<WasmExportedFunctionData>(TrustedCast<TrustedObject>(args[0]));
   Tagged<WasmTrustedInstanceData> trusted_data = function_data->instance_data();
 
   const wasm::WasmModule* module = trusted_data->module();
@@ -569,8 +569,8 @@ RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmImportData> import_data(SbxCast<WasmImportData>(args[0]),
-                                           isolate);
+  DirectHandle<WasmImportData> import_data(
+      SbxCast<WasmImportData>(TrustedCast<TrustedObject>(args[0])), isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(import_data->native_context());
@@ -2188,9 +2188,10 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
 // Used by "JS String Builtins".
 RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
 
   int bits = args.smi_value_at(1);
+  int shared = args.smi_value_at(2);
   DCHECK(bits == 8 || bits == 16);
 
   if (args[0] == ReadOnlyRoots(isolate).null_value()) {
@@ -2200,8 +2201,11 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
   Tagged<WasmArray> obj = Cast<WasmArray>(args[0]);
   wasm::CanonicalTypeIndex expected =
-      bits == 8 ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
-                : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
+      bits == 8
+          ? (shared ? wasm::TypeCanonicalizer::kPredefinedArrayI8SharedIndex
+                    : wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
+          : (shared ? wasm::TypeCanonicalizer::kPredefinedArrayI16SharedIndex
+                    : wasm::TypeCanonicalizer::kPredefinedArrayI16Index);
   Tagged<Object> expected_map =
       MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(expected.index));
   // If the expected_map has been cleared or never even created, then there's
@@ -2252,19 +2256,23 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[1]), isolate);
   uint32_t start = NumberToUint32(args[2]);
   uint32_t end = NumberToUint32(args[3]);
+  int shared = args.smi_value_at(4);
 
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   MaybeDirectHandle<v8::internal::String> result_string =
-      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
+      shared ? isolate->factory()->NewSharedStringFromUtf8(array, start, end,
+                                                           utf8_variant)
+             : isolate->factory()->NewStringFromUtf8(array, start, end,
+                                                     utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
     // the string.new_utf8_array_try instruction should return null.
@@ -2303,14 +2311,16 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[0]), isolate);
   uint32_t start = NumberToUint32(args[1]);
   uint32_t end = NumberToUint32(args[2]);
+  int shared = args.number_value_at(3);
 
   RETURN_RESULT_OR_TRAP(
-      isolate->factory()->NewStringFromUtf16(array, start, end));
+      shared ? isolate->factory()->NewSharedStringFromUtf16(array, start, end)
+             : isolate->factory()->NewStringFromUtf16(array, start, end));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSubstring) {
@@ -2390,9 +2400,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
 namespace {
 // TODO(12868): Consider unifying with api.cc:String::Utf8Length.
 template <typename T>
-int MeasureWtf8(base::Vector<const T> wtf16) {
+uint32_t MeasureWtf8(base::Vector<const T> wtf16) {
   int previous = unibrow::Utf16::kNoPreviousCharacter;
-  int length = 0;
+  uint32_t length = 0;
   DCHECK(wtf16.size() <= String::kMaxLength);
   static_assert(String::kMaxLength <=
                 (kMaxInt / unibrow::Utf8::kMaxEncodedSize));
@@ -2403,7 +2413,7 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
   }
   return length;
 }
-int MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
+uint32_t MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2492,7 +2502,7 @@ Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
 // Defined here to be able to make use of the helper functions above.
 void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
                  std::string& out) {
-  int utf8_length = MeasureWtf8(isolate, string);
+  uint32_t utf8_length = MeasureWtf8(isolate, string);
   DisallowGarbageCollection no_gc;
   out.resize(utf8_length);
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2516,7 +2526,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   string = String::Flatten(isolate, string);
-  int length;
+  uint32_t length;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2527,13 +2537,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
       base::Vector<const base::uc16> code_units = content.ToUC16Vector();
       if (unibrow::Utf16::HasUnpairedSurrogate(code_units.begin(),
                                                code_units.size())) {
-        length = -1;
+        return Smi::FromInt(-1);
       } else {
         length = MeasureWtf8(code_units);
       }
     }
   }
-  return *isolate->factory()->NewNumberFromInt(length);
+  return *isolate->factory()->NewNumberFromUint(length);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
@@ -2541,8 +2551,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
-  int length = MeasureWtf8(isolate, string);
-  return *isolate->factory()->NewNumberFromInt(length);
+  uint32_t length = MeasureWtf8(isolate, string);
+  return *isolate->factory()->NewNumberFromUint(length);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
@@ -2590,9 +2600,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
+  int32_t shared = args.smi_value_at(1);
   uint32_t length = MeasureWtf8(isolate, string);
   wasm::WasmValue initial_value(int8_t{0});
   Tagged<WeakFixedArray> rtts = isolate->heap()->wasm_canonical_rtts();
@@ -2600,7 +2611,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   // that the canonical RTT is still around.
   DirectHandle<Map> map(
       Cast<Map>(
-          rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
+          rtts->get(
+                  shared
+                      ? wasm::TypeCanonicalizer::kPredefinedArrayI8SharedIndex
+                            .index
+                      : wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
               .GetHeapObjectAssumeWeak()),
       isolate);
   DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
@@ -2663,14 +2678,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
-  int wtf8_length = MeasureWtf8(isolate, string);
+  uint32_t wtf8_length = MeasureWtf8(isolate, string);
   DirectHandle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
 
   auto utf8_variant = unibrow::Utf8Variant::kWtf8;
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {reinterpret_cast<char*>(array->begin()),
-            static_cast<size_t>(wtf8_length)};
+    return {reinterpret_cast<char*>(array->begin()), wtf8_length};
   };
   EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, 0,
              MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -2776,10 +2790,12 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEndExecution) {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
 
   uint32_t code_point = NumberToUint32(args[0]);
+  int shared = args.smi_value_at(1);
+
   if (code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code_point);
   }
@@ -2795,8 +2811,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
       unibrow::Utf16::TrailSurrogate(code_point),
   };
   DirectHandle<SeqTwoByteString> result =
-      isolate->factory()
-          ->NewRawTwoByteString(arraysize(char_buffer))
+      (shared ? isolate->factory()->NewRawSharedTwoByteString(
+                    arraysize(char_buffer))
+              : isolate->factory()->NewRawTwoByteString(arraysize(char_buffer)))
           .ToHandleChecked();
   DisallowGarbageCollection no_gc;
   CopyChars(result->GetChars(no_gc), char_buffer, arraysize(char_buffer));

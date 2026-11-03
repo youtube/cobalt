@@ -99,7 +99,7 @@ should be able to be added at any place in this file.
   <variant name=".OpenItemInNewTabInGroup"
       summary="Open a suggested item in a new tab in group."/>
   <variant name=".OpenItemInNewWindow"
-      summary="Open a suggested item in a new window. (obsolete)"/>
+      summary="Open a suggested item in a new window."/>
   <variant name=".OpenItemInOtherWindow"
       summary="Open a suggested item in an other window."/>
   <variant name=".PinItem"
@@ -465,7 +465,7 @@ should be able to be added at any place in this file.
   <variant name="_iOSDockingPromoFeature"
       summary="For iOSDockingPromo feature"/>
   <variant name="_iOSDockingPromoRemindMeLaterFeature"
-      summary="For iOSDockingPromoRemindMeLater feature"/>
+      summary="For iOSDockingPromoRemindMeLater feature (Obsolete)"/>
   <variant name="_iOSDownloadAutoDeletion"
       summary="For iOS Auto-deletion half-sheet IPH."/>
   <variant name="_iOSEnhancedBrowsingDesktop"
@@ -747,6 +747,8 @@ should be able to be added at any place in this file.
   <variant name="_SideSearchPageActionLabel"
       summary="For side search feature page action label triggering."/>
   <variant name="_SignInBenefits" summary="For sign-in benefits IPH feature."/>
+  <variant name="_SignInBenefitsNewSignin"
+      summary="For sign-in benefits IPH feature."/>
   <variant name="_SupervisedUserProfileSignin"
       summary="For displaying the supervised user sign-in IPH."/>
   <variant name="_TabAudioMuting" summary="For TabAudioMuting feature."/>
@@ -775,7 +777,7 @@ should be able to be added at any place in this file.
   <variant name="_TabGroupsYourTabsTogether"
       summary="For tab switcher with tab groups."/>
   <variant name="_TabOrganizationSuccess"
-      summary="For the tab organization feature."/>
+      summary="For the tab organization feature. (obsolete)"/>
   <variant name="_TabPinnedFeature" summary="For tab pinned overflow hint."/>
   <variant name="_TabSearch" summary="For the tab search feature."/>
   <variant name="_TabSearchComboButton"
@@ -921,7 +923,7 @@ should be able to be added at any place in this file.
   <variant name=".SyncAccountSettings"
       summary="Wallet integration in Autofill"/>
   <variant name=".TabGroupsSync" summary="Tab Groups Sync (obsolete)"/>
-  <variant name=".TabOrganizer" summary="Tab Organizer"/>
+  <variant name=".TabOrganizer" summary="Tab Organizer (obsolete)"/>
   <variant name=".TestDefaultModule" summary="Test default module"/>
   <variant name=".TestModule" summary="Test module"/>
   <variant name=".ToolbarPinning" summary="Toolbar Pinning"/>
@@ -6329,6 +6331,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Autofill.Settings.AccessibilityAnnotatorSettingsLinkRowClick">
+  <owner>rainhard@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the accessibility annotator settings link row.
+  </description>
+</action>
+
 <action name="Autofill.TouchToFill.Bnpl.UserAction{ActionType}">
   <owner>ferny@google.com</owner>
   <owner>yishuil@google.com</owner>
@@ -6355,6 +6365,14 @@ should be able to be added at any place in this file.
         summary="Linked Affirm issuer selected."/>
     <variant name=".IssuerSelectionScreen.AffirmUnlinkedSelected"
         summary="Unlinked Affirm issuer selected."/>
+    <variant
+        name=".IssuerSelectionScreen.AiBasedAmountExtractionTermsShown.InBoldFont"
+        summary="AI-based amount extraction terms are displayed in bold for
+                 first-time users."/>
+    <variant
+        name=".IssuerSelectionScreen.AiBasedAmountExtractionTermsShown.InNormalFont"
+        summary="AI-based amount extraction terms are displayed in normal
+                 text for returning users."/>
     <variant name=".IssuerSelectionScreen.BackButtonSelected"
         summary="Back button selected."/>
     <variant name=".IssuerSelectionScreen.Dismissed"
@@ -11176,6 +11194,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab">
+  <owner>hujasonx@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Logged when the back or forward button is clicked in the Contextual Tasks
+    full tab and results in a task switch.
+  </description>
+</action>
+
 <action name="ContextualTasks.TabChange.UserAction{ActionType}">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-contextual-tasks-eng@google.com</owner>
@@ -15235,6 +15262,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.Instance.Open">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when Open is called on a new or closed instance.
+  </description>
+</action>
+
 <action name="Glic.Instance.PauseActorTask">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
@@ -16541,6 +16576,15 @@ should be able to be added at any place in this file.
   <owner>adithyas@chromium.org</owner>
   <owner>baranerf@google.com</owner>
   <description>The indigo page action was displayed.</description>
+</action>
+
+<action name="Indigo.PageAction.ShowAnchoredMessage" not_user_triggered="true">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>
+    The indigo page action was displayed as an anchored message.
+  </description>
 </action>
 
 <action name="InfobarModalCancelButtonTap">
@@ -27391,6 +27435,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiEntryPointUnavailable">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Reported when the Gemini entry point is unavailable. iOS only.
+  </description>
+</action>
+
 <action name="MobileGeminiFeedbackThumbsDown">
   <owner>joepeplowski@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
@@ -33775,6 +33827,15 @@ should be able to be added at any place in this file.
   <description>
     User opened the new tab button context menu and selected the 'new tab in
     group' menu item.
+  </description>
+</action>
+
+<action name="NewTabButton_PasteAndNavigate">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User middle-clicked on the new tab button, causing the selection to be
+    pasted and navigated to in a new tab. (Linux only.)
   </description>
 </action>
 
@@ -40401,6 +40462,18 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ScrollToNavigate_NextTab">
+  <owner>agale@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>Please enter the description of the metric.</description>
+</action>
+
+<action name="ScrollToNavigate_PreviousTab">
+  <owner>agale@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>Please enter the description of the metric.</description>
+</action>
+
 <action name="SeaPen_FeedbackPressed">
   <owner>pzliu@google.com</owner>
   <owner>assistive-eng@google.com</owner>
@@ -41084,6 +41157,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.AiPage.TabOrganization.LearnMoreClicked">
+  <obsolete>Deprecated 03/2026. Tab organization page was removed.</obsolete>
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
@@ -41094,6 +41168,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.AiPage.TabOrganizationEntryPointClick">
+  <obsolete>
+    Deprecated 03/2026. Tab organization settings row was removed.
+  </obsolete>
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
@@ -46432,6 +46509,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Signin_Signin_FromTabOrganization">
+  <obsolete>No longer recorded.</obsolete>
   <owner>emshack@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
@@ -51731,6 +51809,52 @@ should be able to be added at any place in this file.
   <owner>wychen@chromium.org</owner>
   <description>
     User undoes the closed tab that was closed from tab strip.
+  </description>
+</action>
+
+<action name="TabStripComboButton.EverythingMenu.Pinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User pinned the Saved Tab Groups Everything Menu button to the tabstrip.
+  </description>
+</action>
+
+<action name="TabStripComboButton.EverythingMenu.Unpinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User unpinned the Saved Tab Groups Everything Menu button from the tabstrip.
+  </description>
+</action>
+
+<action name="TabStripComboButton.ProjectsPanel.Pinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User pinned the Projects Panel button to the tabstrip.
+  </description>
+</action>
+
+<action name="TabStripComboButton.ProjectsPanel.Unpinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User unpinned the Projects Panel button from the tabstrip.
+  </description>
+</action>
+
+<action name="TabStripComboButton.TabSearch.Pinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>User pinned the Tab Search button to the tabstrip.</description>
+</action>
+
+<action name="TabStripComboButton.TabSearch.Unpinned">
+  <owner>emshack@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User unpinned the Tab Search button from the tabstrip.
   </description>
 </action>
 

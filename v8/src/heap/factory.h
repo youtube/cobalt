@@ -145,7 +145,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a property array initialized with undefined values.
   DirectHandle<PropertyArray> NewPropertyArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
   // Tries allocating a fixed array initialized with undefined values.
   // In case of an allocation failure (OOM) an empty handle is returned.
   // The caller has to manually signal an
@@ -166,7 +166,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<EmbedderDataArray> NewEmbedderDataArray(int length);
 
   // Allocate a new fixed double array with hole values.
-  DirectHandle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
+  DirectHandle<FixedArrayBase> NewFixedDoubleArrayWithHoles(uint32_t size);
 
   // Allocates a NameDictionary with an internal capacity calculated such that
   // |at_least_space_for| entries can be added without reallocating.
@@ -314,6 +314,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf8(
+      DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,
+      unibrow::Utf8Variant utf8_variant);
+
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
       unibrow::Utf8Variant utf8_variant,
@@ -322,6 +326,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf16(
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
       AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf16(
+      DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
@@ -480,7 +487,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<ErrorStackData> NewErrorStackData(
       DirectHandle<UnionOf<JSAny, FixedArray>>
-          call_site_infos_or_formatted_stack,
+          raw_data_for_call_site_infos_or_formatted_stack,
       DirectHandle<StackTraceInfo> stack_trace);
 
   Handle<Script> CloneScript(DirectHandle<Script> script,
@@ -492,8 +499,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<CallSiteInfo> NewCallSiteInfo(
       DirectHandle<JSAny> receiver_or_instance,
       DirectHandle<UnionOf<Smi, JSFunction>> function,
-      DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
-      int flags);
+      DirectHandle<Union<Code, BytecodeArray, Undefined>> code_object,
+      int code_offset_or_source_position, int flags);
   DirectHandle<StackFrameInfo> NewStackFrameInfo(
       DirectHandle<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
       int bytecode_offset_or_source_position,
@@ -532,8 +539,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<FeedbackCell> NewManyClosuresCell(
       AllocationType allocation = AllocationType::kOld);
 
-  DirectHandle<TransitionArray> NewTransitionArray(int number_of_transitions,
-                                                   int slack = 0);
+  DirectHandle<TransitionArray> NewTransitionArray(
+      uint32_t number_of_transitions, uint32_t slack = 0);
 
   // Allocate a tenured AllocationSite. Its payload is null.
   Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
@@ -721,10 +728,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // Create a JSArray with the given elements.
-  // TODO(375937549): Change length to uint32_t.
   Handle<JSArray> NewJSArrayWithElements(
       DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   inline Handle<JSArray> NewJSArrayWithElements(
       DirectHandle<FixedArrayBase> elements,
@@ -737,7 +743,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int slot_id);
 
   void NewJSArrayStorage(
-      DirectHandle<JSArray> array, int length, int capacity,
+      DirectHandle<JSArray> array, uint32_t length, uint32_t capacity,
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
@@ -1303,7 +1309,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
-    DirectHandle<TrustedByteArray> NewTrustedByteArray(int length);
+    DirectHandle<TrustedByteArray> NewTrustedByteArray(uint32_t length);
     // Return an allocation suitable for InstructionStreams but without writing
     // the map.
     Tagged<HeapObject> AllocateUninitializedInstructionStream(
@@ -1409,17 +1415,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // verification of the backing storage because it may not yet be filled.
   Handle<JSArray> NewJSArrayWithUnverifiedElements(
       DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
   Handle<JSArray> NewJSArrayWithUnverifiedElements(
-      DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements, int length,
-      AllocationType allocation = AllocationType::kYoung);
+      DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Creates the backing storage for a JSArray. This handle must be discarded
   // before returning the JSArray reference to code outside Factory, which might
   // decide to left-trim the backing store. To avoid unnecessary HandleScopes,
   // this method requires capacity greater than zero.
   DirectHandle<FixedArrayBase> NewJSArrayStorage(
-      ElementsKind elements_kind, int capacity,
+      ElementsKind elements_kind, uint32_t capacity,
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 

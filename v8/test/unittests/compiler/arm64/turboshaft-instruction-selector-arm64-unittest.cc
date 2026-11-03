@@ -5125,7 +5125,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k64x4);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI64x2Add));
@@ -5143,7 +5143,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 64x4 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Int64Constant(8), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Int64Constant(8), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k64x4);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI64x2Add));
@@ -5163,7 +5163,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k32x8);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI32x4Mul));
@@ -5181,7 +5181,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 32x8 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Int64Constant(4), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Int64Constant(4), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k32x8);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kI32x4Sub));
@@ -5201,7 +5201,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k16x16);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kS128Or));
@@ -5219,7 +5219,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 16x16 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Int64Constant(2), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Int64Constant(2), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k16x16);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kS128Xor));
@@ -5239,7 +5239,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer(),
                     MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Parameter(1), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k8x32);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kS128Or));
@@ -5257,7 +5257,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     // Test deinterleaved 8x32 protected load, immediate index.
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Pointer());
     OpIndex load = m.Simd128LoadPairDeinterleave(
-        m.Parameter(0), m.Int64Constant(16), LoadOp::Kind::Protected(),
+        m.Parameter(0), m.Int64Constant(16), LoadOp::Kind::Trapping(),
         Simd128LoadPairDeinterleaveOp::Kind::k8x32);
     m.Return(m.Simd128Binop(m.Projection(load, 0), m.Projection(load, 1),
                             Simd128BinopOp::Kind::kS128Xor));
@@ -6518,7 +6518,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
       if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
-        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(kMode_Operand2_R_UXTW_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(1U, s[0]->OutputCount());
       } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
@@ -6529,7 +6529,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
         // Make sure we haven't merged the shift into the load instruction.
         ASSERT_NE(1U, s.size());
         EXPECT_NE(memacc.ldr_opcode, s[0]->arch_opcode());
-        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_NE(kMode_Operand2_R_UXTW_LSL_I, s[0]->addressing_mode());
       }
     }
     // 64 bit shift
@@ -6578,7 +6578,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
       if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
         ASSERT_EQ(1U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
-        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(kMode_Operand2_R_UXTW_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(4U, s[0]->InputCount());
         EXPECT_EQ(0U, s[0]->OutputCount());
       } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
@@ -6589,7 +6589,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
         // Make sure we haven't merged the shift into the store instruction.
         ASSERT_NE(1U, s.size());
         EXPECT_NE(memacc.str_opcode, s[0]->arch_opcode());
-        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_NE(kMode_Operand2_R_UXTW_LSL_I, s[0]->addressing_mode());
       }
     }
     // 64 bit shift
@@ -6646,7 +6646,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
     OpIndex base = m.Parameter(0);
     OpIndex index = m.Parameter(1);
     Simd128LoadTransformOp::TransformKind transform_kind = std::get<0>(config);
-    LoadOp::Kind load_kind = LoadOp::Kind::Protected();
+    LoadOp::Kind load_kind = LoadOp::Kind::Trapping();
     m.Return(m.Simd128LoadTransform(base, index, load_kind, transform_kind, 8));
     Stream s = m.Build();
 

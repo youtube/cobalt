@@ -11,10 +11,10 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 
+#include "test/gtest.h"
+
 #include <memory>
 #include <vector>
-
-#include "rtc_base/gunit.h"
 
 #import "api/peerconnection/RTCConfiguration+Private.h"
 #import "api/peerconnection/RTCConfiguration.h"

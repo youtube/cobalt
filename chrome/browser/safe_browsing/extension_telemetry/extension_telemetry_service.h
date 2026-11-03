@@ -99,6 +99,10 @@ class ExtensionTelemetryService : public KeyedService {
 
   ~ExtensionTelemetryService() override;
 
+  base::TimeDelta GetEnterpriseTimerDelayForTesting() const {
+    return enterprise_timer_.GetCurrentDelay();
+  }
+
   // Records the signal type when a signal is:
   // - created externally and passed to extension service using AddSignal OR
   // - created internally by a signal processor from other signals received.
@@ -163,10 +167,6 @@ class ExtensionTelemetryService : public KeyedService {
   // Called when the policy that affects enterprise telemetry reporting is
   // changed.
   void OnEnterprisePolicyChanged();
-
-  // Called when the pref that affects extension DOM activity logging is
-  // changed.
-  void OnExtensionDOMActivityLoggingPrefChanged();
 
   // Helper method to add and process an extension signal. Shared by both ESB
   // and enterprise reporting.

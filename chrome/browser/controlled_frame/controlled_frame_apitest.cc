@@ -128,6 +128,41 @@ const content::EvalJsResult VerifyBackgroundColorIsRed(
   )");
 }
 
+const content::EvalJsResult ExecuteScriptRequestFullScreen(
+    content::RenderFrameHost* app_frame) {
+  return content::EvalJs(app_frame, R"(
+    (async function() {
+      const frame = document.getElementsByTagName('controlledframe')[0];
+      if (!frame || !frame.request) {
+        return 'FAIL';
+      }
+
+      frame.addEventListener('permissionrequest', function(e) {
+        if(e.permission === 'fullscreen') {
+          e.request.allow();
+        } else {
+          e.request.deny();
+        }
+      });
+
+      await frame.executeScript(
+      {code: "document.documentElement.requestFullscreen();"});
+      return 'SUCCESS';
+    })();
+  )");
+}
+
+const content::EvalJsResult VerifyFullscreen(extensions::WebViewGuest* guest) {
+  return content::EvalJs(guest->GetGuestMainFrame(), R"(
+    (function() {
+      if (document.fullscreenElement !== null) {
+        return 'SUCCESS';
+      } else {
+        return 'FAIL';
+      }
+    })();
+  )");
+}
 // TODO(odejesush): Add tests for the rest of the Promise API methods.
 const char* kControlledFramePromiseApiMethods[]{"back", "forward", "go"};
 
@@ -156,8 +191,9 @@ class ControlledFrameApiTest : public ControlledFrameTestBase {
 
  public:
   void SetUpOnMainThread() override {
+    embedded_https_test_server().ServeFilesFromSourceDirectory(
+        GetChromeTestDataDir().AppendASCII("web_apps/simple_isolated_app"));
     ControlledFrameTestBase::SetUpOnMainThread();
-    StartContentServer("web_apps/simple_isolated_app");
   }
 
   // Tests WebRequest.SecurityInfo.
@@ -437,6 +473,34 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, ExecuteScript) {
   EXPECT_EQ(kEvalSuccessStr, SetBackgroundColorToWhite(web_view_guest));
   EXPECT_EQ(kEvalSuccessStr, ExecuteScriptRedBackgroundFile(app_frame));
   EXPECT_EQ(kEvalSuccessStr, VerifyBackgroundColorIsRed(web_view_guest));
+}
+
+IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, EnterFullScreenControlledFrame) {
+  const GURL embed_url = embedded_https_test_server().GetURL("/index.html");
+  const url::Origin embed_origin = url::Origin::Create(embed_url);
+
+  std::unique_ptr<web_app::ScopedBundledIsolatedWebApp> app =
+      web_app::IsolatedWebAppBuilder(
+          web_app::ManifestBuilder()
+              .AddPermissionsPolicy(
+                  network::mojom::PermissionsPolicyFeature::kControlledFrame,
+                  /*self=*/true, /*origins=*/{})
+              .AddPermissionsPolicyWildcard(
+                  network::mojom::PermissionsPolicyFeature::kFullscreen))
+          .BuildBundle();
+  app->TrustSigningKey();
+
+  ASSERT_OK_AND_ASSIGN(web_app::IsolatedWebAppUrlInfo url_info,
+                       app->Install(profile()));
+  content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
+
+  ASSERT_TRUE(CreateControlledFrame(
+      app_frame, embedded_https_test_server().GetURL("/index.html")));
+
+  auto* web_view_guest = GetWebViewGuest(app_frame);
+
+  EXPECT_EQ(kEvalSuccessStr, ExecuteScriptRequestFullScreen(app_frame));
+  EXPECT_EQ(kEvalSuccessStr, VerifyFullscreen(web_view_guest));
 }
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, DisabledInDataIframe) {
@@ -1332,6 +1396,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 class ControlledFrameRequestHeaderTest : public ControlledFrameTestBase {
  public:
+  void SetUpOnMainThread() override {
+    embedded_https_test_server().RegisterRequestMonitor(
+        base::BindRepeating(&ControlledFrameRequestHeaderTest::MonitorRequest,
+                            base::Unretained(this)));
+    embedded_https_test_server().ServeFilesFromSourceDirectory(
+        GetChromeTestDataDir().AppendASCII("web_apps/simple_isolated_app"));
+    ControlledFrameTestBase::SetUpOnMainThread();
+  }
+
   [[nodiscard]] bool SetUserAgentAndAwaitReload(content::RenderFrameHost* frame,
                                                 const std::string& user_agent) {
     const std::string kRemoveUserAgentAndReload = R"(
@@ -1396,12 +1469,6 @@ new Promise((resolve, reject) => {
 // Sec-CH-UA includes "ControlledFrame" brand.
 IN_PROC_BROWSER_TEST_F(ControlledFrameRequestHeaderTest,
                        HasDefaultCHUABrandWithUAOverride) {
-  embedded_https_test_server().RegisterRequestMonitor(
-      base::BindRepeating(&ControlledFrameRequestHeaderTest::MonitorRequest,
-                          base::Unretained(this)));
-
-  StartContentServer("web_apps/simple_isolated_app");
-
   web_app::IsolatedWebAppUrlInfo url_info =
       CreateAndInstallEmptyApp(web_app::ManifestBuilder());
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
@@ -1425,12 +1492,6 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameRequestHeaderTest,
 // default or Controlled Frame default.
 IN_PROC_BROWSER_TEST_F(ControlledFrameRequestHeaderTest,
                        SetClientHintsUABrandEnabled) {
-  embedded_https_test_server().RegisterRequestMonitor(
-      base::BindRepeating(&ControlledFrameRequestHeaderTest::MonitorRequest,
-                          base::Unretained(this)));
-
-  StartContentServer("web_apps/simple_isolated_app");
-
   web_app::IsolatedWebAppUrlInfo url_info =
       CreateAndInstallEmptyApp(web_app::ManifestBuilder());
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());

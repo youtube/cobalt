@@ -17,6 +17,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/rtp_headers.h"
@@ -1345,6 +1346,28 @@ TEST(RtpPacketTest, SetExtensionWithArray) {
   packet.SetRawExtension<RtpDependencyDescriptorExtension>(extension_data);
   EXPECT_THAT(packet.GetRawExtension<RtpDependencyDescriptorExtension>(),
               ElementsAreArray(extension_data));
+}
+
+TEST(RtpPacketTest, SetCsrcsTruncatesWhenExceedingMax) {
+  RtpPacketToSend packet(nullptr);
+  packet.SetPayloadType(kPayloadType);
+  packet.SetSequenceNumber(kSeqNum);
+  packet.SetTimestamp(kTimestamp);
+  packet.SetSsrc(kSsrc);
+
+  std::vector<uint32_t> many_csrcs;
+  for (uint32_t i = 0; i < 20; ++i) {
+    many_csrcs.push_back(kSsrc + i);
+  }
+
+  // SetCsrcs should truncate to maximum elements allowed.
+  packet.SetCsrcs(many_csrcs);
+
+  std::vector<uint32_t> csrcs = packet.Csrcs();
+  EXPECT_EQ(csrcs.size(), RtpPacket::kMaxCsrcs);
+  for (size_t i = 0; i < RtpPacket::kMaxCsrcs; ++i) {
+    EXPECT_EQ(csrcs[i], many_csrcs[i]);
+  }
 }
 
 }  // namespace

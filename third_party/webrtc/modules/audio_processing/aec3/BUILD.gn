@@ -148,7 +148,6 @@ rtc_library("aec3") {
     "../../../api/audio:echo_control",
     "../../../api/audio:neural_residual_echo_estimator_api",
     "../../../api/environment",
-    "../../../common_audio:common_audio_c",
     "../../../rtc_base:checks",
     "../../../rtc_base:cpu_info",
     "../../../rtc_base:gtest_prod",
@@ -185,7 +184,6 @@ rtc_source_set("aec3_fft") {
     ":fft_data",
     "../../../common_audio/third_party/ooura:fft_size_128",
     "../../../rtc_base:checks",
-    "../../../rtc_base/system:arch",
   ]
 }
 
@@ -201,7 +199,6 @@ rtc_source_set("render_buffer") {
     ":aec3_common",
     ":fft_data",
     "../../../rtc_base:checks",
-    "../../../rtc_base/system:arch",
   ]
 }
 
@@ -230,7 +227,6 @@ rtc_source_set("matched_filter") {
   sources = [ "matched_filter.h" ]
   deps = [
     ":aec3_common",
-    "../../../rtc_base:gtest_prod",
     "../../../rtc_base/system:arch",
   ]
 }
@@ -315,7 +311,6 @@ if (rtc_include_tests) {
       ":vector_math",
       "..:apm_logging",
       "..:audio_buffer",
-      "..:audio_processing",
       "..:high_pass_filter",
       "../../../api:field_trials",
       "../../../api/audio:aec3_config",
@@ -325,14 +320,12 @@ if (rtc_include_tests) {
       "../../../api/environment:environment_factory",
       "../../../rtc_base:checks",
       "../../../rtc_base:cpu_info",
-      "../../../rtc_base:gunit_helpers",
       "../../../rtc_base:random",
       "../../../rtc_base:safe_minmax",
       "../../../rtc_base:stringutils",
       "../../../rtc_base/system:arch",
       "../../../system_wrappers:metrics",
       "../../../test:create_test_field_trials",
-      "../../../test:fileutils",
       "../../../test:test_support",
       "../utility:cascaded_biquad_filter",
     ]

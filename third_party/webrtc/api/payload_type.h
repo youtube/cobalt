@@ -11,31 +11,64 @@
 #ifndef API_PAYLOAD_TYPE_H_
 #define API_PAYLOAD_TYPE_H_
 
-#include <cstdint>
+#include <optional>
 
 #include "absl/strings/str_format.h"
 #include "rtc_base/strong_alias.h"
 
 namespace webrtc {
 
-class PayloadType : public StrongAlias<class PayloadTypeTag, uint8_t> {
+class PayloadType : public StrongAlias<class PayloadTypeTag, int> {
  public:
+  // The default constructor makes a NotSet.
+  PayloadType() : StrongAlias(-1) {}
   // Non-explicit conversions from and to ints are to be deprecated and
   // removed once calling code is upgraded.
-  PayloadType(uint8_t pt) { value_ = pt; }                // NOLINT: explicit
-  constexpr operator uint8_t() const& { return value_; }  // NOLINT: Explicit
-  static bool IsValid(PayloadType id, bool rtcp_mux) {
+  constexpr PayloadType(int pt) : StrongAlias(pt) {  // NOLINT: explicit
+    // The number of tests that use invalid values is high enough that
+    // this DCHECK can't be deployed yet.
+    // Also, allow -1 as argument as a temporary measure. Those calls should
+    // eventually be replaced with PayloadType::NotSet() values.
+    // Intended check:
+    // RTC_DCHECK(pt >= -1 && pt <= 127) << "Payload type " << pt << " is
+    // invalid";
+  }
+
+  constexpr operator int() const& { return value(); }  // NOLINT: explicit
+
+  // Factory function to create a value if you need to check for
+  // values in the valid range.
+  static std::optional<PayloadType> Create(int pt) {
+    if (pt < 0 || pt > 127) {
+      return std::nullopt;
+    }
+    return PayloadType(pt);
+  }
+  // Factory function for the NotSet value. This should be the only way
+  // to create a value outside the valid range.
+  static constexpr PayloadType NotSet() { return PayloadType(Internal{}, -1); }
+  bool Valid(bool rtcp_mux = false) {
     // A payload type is a 7-bit value in the RTP header, so max = 127.
     // If RTCP multiplexing is used, the numbers from 64 to 95 are reserved
     // for RTCP packets.
-    if (rtcp_mux && (id > 63 && id < 96)) {
+    if (rtcp_mux && (value() > 63 && value() < 96)) {
       return false;
     }
-    return id >= 0 && id <= 127;
+    return value() >= 0 && value() <= 127;
   }
+  // Older interface to validity check.
+  static bool IsValid(PayloadType id, bool rtcp_mux) {
+    return id.Valid(rtcp_mux);
+  }
+  bool IsSet() { return value() >= 0; }
+
+ private:
+  class Internal {};
+  // Allow -1 for "NotSet"
+  explicit constexpr PayloadType(Internal tag, int pt) : StrongAlias(pt) {}
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const PayloadType pt) {
-    absl::Format(&sink, "%d", pt.value_);
+    absl::Format(&sink, "%d", pt.value());
   }
 };
 

@@ -118,7 +118,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       kind_(kind) {}
 
 DirectHandle<TrustedByteArray> Factory::CodeBuilder::NewTrustedByteArray(
-    int length) {
+    uint32_t length) {
   return local_isolate_->factory()->NewTrustedByteArray(length);
 }
 
@@ -128,8 +128,9 @@ Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
+  DCHECK_GE(code_desc_.reloc_size, 0);
   DirectHandle<TrustedByteArray> reloc_info =
-      NewTrustedByteArray(code_desc_.reloc_size);
+      NewTrustedByteArray(static_cast<uint32_t>(code_desc_.reloc_size));
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
@@ -437,17 +438,15 @@ DirectHandle<Hole> Factory::NewHole() {
   UNREACHABLE();
 }
 
-// TODO(375937549): Convert length to uint32_t.
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return empty_property_array();
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(isolate(), *property_array_map(),
                                    SKIP_WRITE_BARRIER);
   Tagged<PropertyArray> array = Cast<PropertyArray>(result);
-  array->initialize_length(static_cast<uint32_t>(length));
+  array->initialize_length(length);
   MemsetTagged(array->data_start(), read_only_roots().undefined_value(),
                length);
   return direct_handle(array, isolate());
@@ -521,8 +520,8 @@ DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   return direct_handle(array, isolate());
 }
 
-DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
-  DCHECK_LE(0, length);
+DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
+    uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);
   if (length > 0) {
     Cast<FixedDoubleArray>(array)->FillWithHoles(0, length);
@@ -860,6 +859,35 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf8(
                                   StringBuilder{}, allocation);
 }
 
+MaybeDirectHandle<String> Factory::NewSharedStringFromUtf8(
+    DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
+    unibrow::Utf8Variant utf8_variant) {
+  DCHECK_EQ(sizeof(uint8_t), WasmArray::DecodeElementSizeFromMap(array->map()));
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
+
+  // We need a private copy of the array's contents. We have a pass that
+  // validates utf8/computes the string's length and one that copies the bytes,
+  // and we cannot afford to have concurrent modifications to the array between
+  // those.
+
+  uint32_t length = end - start;
+  const base::Atomic8* contents =
+      reinterpret_cast<base::Atomic8*>(array->ElementAddress(start));
+  auto private_copy = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(private_copy.data()),
+                       contents, length);
+
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
+    return private_copy.as_vector();
+  };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  SharedStringBuilder{},
+                                  AllocationType::kSharedOld);
+}
+
 MaybeHandle<String> Factory::NewStringFromUtf8(
     DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
@@ -909,6 +937,39 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
   return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
                             NonSharedStringPolicy>(
       isolate(), peek_bytes, allocation, MessageTemplate::kNone);
+}
+
+MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
+    DirectHandle<WasmArray> array, uint32_t start, uint32_t end) {
+  DCHECK_EQ(sizeof(uint16_t),
+            WasmArray::DecodeElementSizeFromMap(array->map()));
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
+
+  // We need a private copy of the array's contents. We have a pass that
+  // checks whether the string is one-byte and one that copies the bytes,
+  // and we cannot afford to have concurrent modifications to the array between
+  // those.
+
+  uint32_t length = end - start;
+  const base::Atomic16* contents =
+      reinterpret_cast<base::Atomic16*>(array->ElementAddress(start));
+  auto private_copy = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+
+  for (uint32_t i = 0; i < length; i++) {
+    auto dest = reinterpret_cast<base::Atomic16*>(private_copy.data() + i);
+    base::Relaxed_Store(dest, base::Relaxed_Load(contents + i));
+  }
+
+  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
+    return private_copy.as_vector();
+  };
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            SharedStringPolicy>(isolate(), peek_bytes,
+                                                AllocationType::kSharedOld,
+                                                MessageTemplate::kNone);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1657,13 +1718,14 @@ DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
 }
 
 DirectHandle<ErrorStackData> Factory::NewErrorStackData(
-    DirectHandle<UnionOf<JSAny, FixedArray>> call_site_infos_or_formatted_stack,
+    DirectHandle<UnionOf<JSAny, FixedArray>>
+        raw_data_for_call_site_infos_or_formatted_stack,
     DirectHandle<StackTraceInfo> stack_trace) {
   Tagged<ErrorStackData> error_stack_data = NewStructInternal<ErrorStackData>(
       ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  error_stack_data->set_call_site_infos_or_formatted_stack(
-      *call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
+  error_stack_data->set_raw_data_for_call_site_infos_or_formatted_stack(
+      *raw_data_for_call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
   error_stack_data->set_stack_trace(*stack_trace, SKIP_WRITE_BARRIER);
   return direct_handle(error_stack_data, isolate());
 }
@@ -2352,18 +2414,18 @@ Factory::NewSharedFunctionInfoForWasmCapiFunction(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Handle<Cell> Factory::NewCell(Tagged<Smi> value) {
-  static_assert(Cell::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
   Tagged<Cell> result = Cast<Cell>(AllocateRawWithImmortalMap(
-      Cell::kSize, AllocationType::kOld, *cell_map()));
+      sizeof(Cell), AllocationType::kOld, *cell_map()));
   DisallowGarbageCollection no_gc;
   result->set_value(value, WriteBarrierMode::SKIP_WRITE_BARRIER);
   return handle(result, isolate());
 }
 
 Handle<Cell> Factory::NewCell() {
-  static_assert(Cell::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Cell) <= kMaxRegularHeapObjectSize);
   Tagged<Cell> result = Cast<Cell>(AllocateRawWithImmortalMap(
-      Cell::kSize, AllocationType::kOld, *cell_map()));
+      sizeof(Cell), AllocationType::kOld, *cell_map()));
   result->set_value(read_only_roots().undefined_value(),
                     WriteBarrierMode::SKIP_WRITE_BARRIER);
   return handle(result, isolate());
@@ -2431,9 +2493,8 @@ DirectHandle<PropertyCell> Factory::NewProtector() {
       direct_handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
-// TODO(375937549): Convert number_of_transitions and slack to uint32_t.
 DirectHandle<TransitionArray> Factory::NewTransitionArray(
-    int number_of_transitions, int slack) {
+    uint32_t number_of_transitions, uint32_t slack) {
   const uint32_t capacity = static_cast<uint32_t>(
       TransitionArray::LengthFor(number_of_transitions + slack));
   DirectHandle<TransitionArray> array = Cast<TransitionArray>(
@@ -2451,7 +2512,7 @@ DirectHandle<TransitionArray> Factory::NewTransitionArray(
   array->WeakFixedArray::set(TransitionArray::kSideStepTransitionsIndex,
                              Smi::zero());
   array->WeakFixedArray::set(TransitionArray::kTransitionLengthIndex,
-                             Smi::FromInt(number_of_transitions));
+                             Smi::FromUInt(number_of_transitions));
   return array;
 }
 
@@ -3442,7 +3503,7 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, uint32_t length,
 
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   Handle<JSArray> array = NewJSArrayWithUnverifiedElements(
       elements, elements_kind, length, allocation);
 #ifdef ENABLE_SLOW_DCHECKS
@@ -3451,12 +3512,10 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
   return array;
 }
 
-// TODO(375937549): Convert length to uint32_t.
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-    int length, AllocationType allocation) {
-  DCHECK_GE(length, 0);
-  DCHECK_LE(static_cast<uint32_t>(length), elements->ulength().value());
+    uint32_t length, AllocationType allocation) {
+  DCHECK_LE(length, elements->ulength().value());
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
   Tagged<Map> map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map.is_null()) {
@@ -3468,13 +3527,13 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
 }
 
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
-    DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements, int length,
-    AllocationType allocation) {
+    DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
+    uint32_t length, AllocationType allocation) {
   auto array = Cast<JSArray>(NewJSObjectFromMap(map, allocation));
   DisallowGarbageCollection no_gc;
   Tagged<JSArray> raw = *array;
   raw->set_elements(*elements);
-  raw->set_length(Smi::FromInt(length));
+  raw->set_length(Smi::FromUInt(length));
   return array;
 }
 
@@ -3505,9 +3564,10 @@ DirectHandle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   return template_object;
 }
 
-void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, int length,
-                                int capacity, ArrayStorageAllocationMode mode) {
-  DCHECK(capacity >= length);
+void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, uint32_t length,
+                                uint32_t capacity,
+                                ArrayStorageAllocationMode mode) {
+  DCHECK_GE(capacity, length);
 
   if (capacity == 0) {
     Tagged<JSArray> raw = *array;
@@ -3523,11 +3583,12 @@ void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, int length,
   DisallowGarbageCollection no_gc;
   Tagged<JSArray> raw = *array;
   raw->set_elements(*elms);
-  raw->set_length(Smi::FromInt(length));
+  raw->set_length(Smi::FromUInt(length));
 }
 
 DirectHandle<FixedArrayBase> Factory::NewJSArrayStorage(
-    ElementsKind elements_kind, int capacity, ArrayStorageAllocationMode mode) {
+    ElementsKind elements_kind, uint32_t capacity,
+    ArrayStorageAllocationMode mode) {
   DCHECK_GT(capacity, 0);
   DirectHandle<FixedArrayBase> elms;
   if (IsDoubleElementsKind(elements_kind)) {
@@ -4266,8 +4327,8 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id,
 Handle<CallSiteInfo> Factory::NewCallSiteInfo(
     DirectHandle<JSAny> receiver_or_instance,
     DirectHandle<UnionOf<Smi, JSFunction>> function,
-    DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
-    int flags) {
+    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_object,
+    int code_offset_or_source_position, int flags) {
   auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
                                               AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -4583,7 +4644,6 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(has_prototype);
     raw_map->set_is_constructor(has_prototype);
     raw_map->set_is_callable(true);
   }
@@ -4692,7 +4752,6 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(has_prototype);
     raw_map->set_is_constructor(has_prototype);
     raw_map->set_is_callable(true);
     // Temporarily set constructor to empty function to calm down map verifier.
@@ -4759,7 +4818,6 @@ DirectHandle<Map> Factory::CreateClassFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(true);
     raw_map->set_is_constructor(true);
     raw_map->set_is_prototype_map(true);
     raw_map->set_is_callable(true);
@@ -4909,8 +4967,8 @@ DirectHandle<JSSharedStruct> Factory::NewJSSharedStruct(
       instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
       instance_map->GetInObjectProperties();
   if (num_oob_fields > 0) {
-    property_array =
-        NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
+    property_array = NewPropertyArray(static_cast<uint32_t>(num_oob_fields),
+                                      AllocationType::kSharedOld);
   }
 
   DirectHandle<NumberDictionary> elements_dictionary;
@@ -5061,7 +5119,7 @@ DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
 Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr,
                                                   SharedFlag shared) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(TrustedForeign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(TrustedForeign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *trusted_foreign_map();
   Tagged<TrustedForeign> foreign =
       TrustedCast<TrustedForeign>(AllocateRawWithImmortalMap(

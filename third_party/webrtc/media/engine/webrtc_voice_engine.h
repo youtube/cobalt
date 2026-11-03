@@ -39,6 +39,7 @@
 #include "api/field_trials_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/rtc_error.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -280,7 +281,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
 
   int max_send_bitrate_bps_ RTC_GUARDED_BY(worker_thread_) = 0;
   AudioOptions options_ RTC_GUARDED_BY(worker_thread_);
-  std::optional<int> dtmf_payload_type_ RTC_GUARDED_BY(worker_thread_);
+  PayloadType dtmf_payload_type_ RTC_GUARDED_BY(worker_thread_);
   int dtmf_payload_freq_ RTC_GUARDED_BY(worker_thread_) = -1;
   bool enable_non_sender_rtt_ RTC_GUARDED_BY(worker_thread_) = false;
   bool send_ RTC_GUARDED_BY(worker_thread_) = false;

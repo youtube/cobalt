@@ -119,7 +119,7 @@ VideoBitrateAllocation::GetSimulcastAllocations() const {
     std::optional<VideoBitrateAllocation> layer_bitrate;
     if (IsSpatialLayerUsed(si)) {
       layer_bitrate = VideoBitrateAllocation();
-      for (int tl = 0; tl < kMaxTemporalStreams; ++tl) {
+      for (size_t tl = 0; tl < kMaxTemporalStreams; ++tl) {
         if (HasBitrate(si, tl))
           layer_bitrate->SetBitrate(0, tl, GetBitrate(si, tl));
       }

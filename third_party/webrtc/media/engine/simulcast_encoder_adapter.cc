@@ -59,6 +59,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/strings/str_join.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -769,7 +770,7 @@ void SimulcastEncoderAdapter::SetRates(
     // the encoder handling the current simulcast stream.
     RateControlParameters stream_parameters = parameters;
     stream_parameters.bitrate = VideoBitrateAllocation();
-    for (int i = 0; i < kMaxTemporalStreams; ++i) {
+    for (int i = 0; checked_cast<size_t>(i) < kMaxTemporalStreams; ++i) {
       if (parameters.bitrate.HasBitrate(stream_idx, i)) {
         stream_parameters.bitrate.SetBitrate(
             0, i, parameters.bitrate.GetBitrate(stream_idx, i));

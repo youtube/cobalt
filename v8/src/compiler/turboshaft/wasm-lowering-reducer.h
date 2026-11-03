@@ -332,9 +332,8 @@ class WasmLoweringReducer : public Next {
 
     V<WordPtr> offset =
         __ WordPtrConstant(field_offset(type, field_index) - kHeapObjectTag);
-    MemoryAccessKind kind = implicit_null_check
-                                ? MemoryAccessKind::kProtectedByTrapHandler
-                                : MemoryAccessKind::kNormal;
+    MemoryAccessKind kind = implicit_null_check ? MemoryAccessKind::kTrapping
+                                                : MemoryAccessKind::kNormal;
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
       return __ AtomicCompareExchange(object, offset, expected.value(), value,
                                       repr.ToRegisterRepresentation(), repr,
@@ -404,6 +403,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
+                                OptionalV<FrameState> frame_state,
                                 CheckForNull null_check) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
@@ -413,7 +413,7 @@ class WasmLoweringReducer : public Next {
         null_check_strategy_ == NullCheckStrategy::kTrapHandler;
 
     if (explicit_null_check) {
-      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef),
+      __ TrapIf(__ IsNull(array, wasm::kWasmAnyRef), frame_state,
                 TrapId::kTrapNullDereference);
     }
 
@@ -1146,8 +1146,11 @@ class WasmLoweringReducer : public Next {
 
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
   const SharedFlag shared_ = __ data() -> wasm_shared();
+  // Wasm-in-JS inlining runs in the JS pipeline where we cannot use the
+  // trap handler. For these cases, `is_wasm()` ensures we use explicit checks.
   const NullCheckStrategy null_check_strategy_ =
-      trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
+      trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL &&
+              __ data() -> is_wasm()
           ? NullCheckStrategy::kTrapHandler
           : NullCheckStrategy::kExplicit;
 };

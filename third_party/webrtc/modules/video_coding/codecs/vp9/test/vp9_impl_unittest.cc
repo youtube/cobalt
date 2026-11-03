@@ -14,13 +14,13 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
@@ -2116,7 +2116,7 @@ TEST_P(Vp9ImplWithLayeringTest, FlexibleMode) {
     if (picture_idx == 0) {
       EXPECT_EQ(vp9.num_ref_pics, 0) << "Frame " << i;
     } else {
-      EXPECT_THAT(MakeArrayView(vp9.p_diff, vp9.num_ref_pics),
+      EXPECT_THAT(std::span(vp9.p_diff, vp9.num_ref_pics),
                   UnorderedElementsAreArray(gof.pid_diff[gof_idx],
                                             gof.num_ref_pics[gof_idx]))
           << "Frame " << i;

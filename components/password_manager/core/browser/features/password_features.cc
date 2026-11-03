@@ -40,6 +40,9 @@ BASE_FEATURE(kAutoApproveSharedPasswordUpdatesFromSameSender,
 BASE_FEATURE(kAutofillPasswordUserPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAwaitPageStabilityForPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -130,9 +133,6 @@ BASE_FEATURE(kOtpPhishGuard, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Temporarily disabled as mitigation for crbug.com/485895402.
 BASE_FEATURE(kPasswordDateLastFilled, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPasswordChangeImmediateSubmission,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPasswordFormClientsideClassifier,
              base::FEATURE_DISABLED_BY_DEFAULT);

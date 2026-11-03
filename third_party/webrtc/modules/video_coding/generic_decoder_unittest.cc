@@ -12,10 +12,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/field_trials.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
@@ -75,7 +75,7 @@ class ReceiveCallback : public VCMReceiveCallback {
     return ret;
   }
 
-  ArrayView<const VideoFrame> GetAllFrames() const { return frames_; }
+  std::span<const VideoFrame> GetAllFrames() const { return frames_; }
 
   void OnDroppedFrames(uint32_t frames_dropped) override {
     frames_dropped_ += frames_dropped;

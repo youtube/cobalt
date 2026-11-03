@@ -961,6 +961,23 @@ TEST_P(GLSLValidationTest, SamplerInConstructorArguments)
                   "'constructor' : cannot convert a variable with type sampler2D");
 }
 
+// Test that a struct with sampler can't be constructed
+TEST_P(GLSLValidationTest, ConstructorWithSampler)
+{
+    constexpr char kFS[] = R"(precision mediump float;
+        struct S {
+            sampler2D inStruct;
+        };
+        uniform sampler2D s;
+        void main()
+        {
+            gl_FragColor = texture2D(S(s).inStruct, vec2(0));
+        })";
+
+    validateError(GL_FRAGMENT_SHADER, kFS,
+                  "'constructor' : cannot convert a variable with type sampler2D");
+}
+
 // Test that void can't be used in constructor argument list
 TEST_P(GLSLValidationTest, VoidInConstructorArguments)
 {
@@ -4715,6 +4732,23 @@ void main() {
                   "wrong operand types - no operation '&' exists that takes a left-hand operand of "
                   "type 'const yuvCscStandardEXT' and a right operand of type 'const float' (or "
                   "there is no acceptable conversion)");
+}
+
+// Shader that uses yuvCscStandardEXT in constructor fails to compile.
+TEST_P(GLSLValidationTest_ES3, YUVTargetCscStandardUintConstructor)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_YUV_target"));
+
+    constexpr char kFS[] =
+        R"(#version 300 es
+#extension GL_EXT_YUV_target : require
+precision mediump float;
+const yuvCscStandardEXT conv = itu_601;
+const uint u = uint(conv);
+void main() {
+})";
+
+    validateError(GL_FRAGMENT_SHADER, kFS, "'constructor' : cannot convert a yuvCscStandardEXT");
 }
 
 // Shader that specifies yuvCscStandardEXT type qualifiers fails to compile.

@@ -9,7 +9,6 @@
 #include "base/feature_list.h"
 #include "build/buildflag.h"
 #include "base/memory/ptr_util.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"

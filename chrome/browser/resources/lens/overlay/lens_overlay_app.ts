@@ -108,7 +108,7 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
       sidePanelOpened: {
         type: Boolean,
         reflectToAttribute: true,
-        value: false,
+        value: () => loadTimeData.getBoolean('isSidePanelOpen'),
       },
       searchBoxHidden: {
         type: Boolean,
@@ -157,6 +157,12 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
         type: Boolean,
         reflectToAttribute: true,
         value: false,
+      },
+      isRoutingToContextualTasks: {
+        type: Boolean,
+        reflectToAttribute: true,
+        readOnly: true,
+        value: () => loadTimeData.getBoolean('isRoutingToContextualTasks'),
       },
       theme: {
         type: Object,
@@ -294,6 +300,8 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
   declare private isLensOverlayContextualSearchboxEnabled: boolean;
   // Whether the contextual searchbox is visible to the user.
   declare private isLensOverlayContextualSearchboxVisible: boolean;
+  // Whether the Lens panel is routing to contextual tasks.
+  declare private isRoutingToContextualTasks: boolean;
   // Whether the contextual searchbox should be auto-focused when the overlay is
   // first opened.
   private autoFocusSearchbox: boolean =
@@ -481,6 +489,7 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
     this.isPrivacyNoticeVisible = false;
     this.suppressGhostLoader = false;
     this.isSearchboxFocused = true;
+    this.triggerSearchboxSuggestions();
     this.$.translateButtonContainer.classList.remove('searchbox-unfocused');
 
     this.focusShimmerOnSearchbox();
@@ -755,9 +764,13 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
       return;
     }
 
+    if (!this.isSearchboxFocused) {
+      return;
+    }
+
     // If the backend handshake has completed, then it is safe to issue the
     // autocomplete query immediately.
-    if (this.isBackendHandshakeComplete && this.$.searchbox.dropdownIsVisible) {
+    if (this.isBackendHandshakeComplete) {
       this.$.searchbox.queryInputAutocomplete();
       return;
     }
@@ -772,9 +785,11 @@ export class LensOverlayAppElement extends LensOverlayAppElementBase {
   }
 
   private focusSearchbox() {
-  this.shadowRoot!.querySelector<SearchboxElement>('cr-searchbox')
-      ?.focusInput();
-    this.triggerSearchboxSuggestions();
+    const searchbox =
+        this.shadowRoot!.querySelector<SearchboxElement>('cr-searchbox');
+    if (searchbox) {
+      searchbox.focusInput();
+    }
   }
 
   private computeShouldFadeOutButtons(): boolean {

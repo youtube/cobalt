@@ -415,6 +415,22 @@ Güvenli içerikler hakkında daha fazla bilgi için Secure Contexts sayfasına 
 <translation id="1317158052518324525">Gelişmiş otomatik doldurma özelliğine izin verme.</translation>
 <translation id="1317658068839330898">Web'de <ph name="ASSISTANT_PRODUCT_NAME" /> kullanımına izin verme</translation>
 <translation id="1318233005302276244">Kullanıcıların, kargolarını Chrome'da takip etmesine izin verir.</translation>
+<translation id="1321747583289636863">Politikanın ayarlanması WebSocket istekleri için proxy sunucusuyla yapılabilecek maksimum eşzamanlı bağlantı sayısını belirtir.
+
+WebSocket dışı istek sınırlarını değiştirmek için <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> bölümüne göz atın.
+
+Politika ayarlanmadan bırakılırsa, varsayılan değer olarak 32 kullanılır.
+
+Bazı web uygulamalarının askıda kalan GET'lerle çok fazla bağlantı kullandığı bilinmektedir. Bu nedenle, 32'den küçük bir değerin ayarlanması, askıda bağlantısı olan çok fazla web uygulamasının açık olması halinde tarayıcı bağlantılarının yavaşlamasına neden olabilir.
+Bazı proxy sunucular istemci başına çok sayıda eşzamanlı bağlantıyı işleyemez. Bu sorun, bu politikanın daha düşük bir değere ayarlanmasıyla çözülür.
+
+Değer, 6 veya daha yüksek olmalıdır.
+Bu sınırın altında bir değer belirlerseniz 6 kullanılır.
+Varsayılanın (32) altında bir değer ayarlarsanız bunun tüm riski size aittir.
+
+Değer, 256'ya eşit veya 256'dan küçük olmalıdır.
+Bu sınırın üzerinde bir değer belirlerseniz 256 kullanılır.
+Varsayılan değerin (32) üzerinde bir değer ayarlamak tamamen sizin sorumluluğunuzdadır.</translation>
 <translation id="1323501563951768821">F12 ayarları, üst karakter değiştiriciyi içeren kısayolu kullanır</translation>
 <translation id="1325547947664414578">Kullanıcı <ph name="PRODUCT_OS_NAME" /> cihazları arasında geçiş yaptığında <ph name="PRODUCT_NAME" /> hizmeti, daha önce kullandığınız cihazdaki tarayıcı ve uygulama pencerelerini yeni cihazda başlatır.
 Politika, Etkin değerine ayarlanırsa mevcut kullanıcının son kullandığı <ph name="PRODUCT_OS_NAME" /> cihazdaki tarayıcı pencereleri giriş yapıldıktan sonra otomatik olarak açılır.
@@ -2893,7 +2909,6 @@ Bu politika yalnızca bulut kullanıcı politikası olarak ayarlanabilir.</trans
 <translation id="2901969573658712576">CNSA 1.0 ve 2.0 koşullarını karşılayan şifreleri tercih et</translation>
 <translation id="2905984450136807296">Kimlik doğrulama verisi önbellek ömrü</translation>
 <translation id="2906874737073861391">AppPack uzantılarının listesi</translation>
-<translation id="2908277604670530363">Proxy sunucusuyla yapılabilecek maksimum eşzamanlı bağlantı sayısı</translation>
 <translation id="2912366658685903301">Tarayıcı temasının rengini yapılandır</translation>
 <translation id="2914283793640833265">Telefon Merkezi görev sürdürmenin etkinleştirilmesine izin verme</translation>
 <translation id="2915787312243722351">Bu politika, "İşlev tuşlarının çalışma biçimini değiştirmek için başlatıcıyı/arama tuşunu
@@ -3031,6 +3046,13 @@ Politika, Yanlış değerine ayarlanırsa öğretmenler bu özelliğe erişemez.
 <translation id="2969568582351417848">İndirilen dosya türünün uzantısına dayalı uyarıları alanlarda belirlenen dosya türleri için engelle</translation>
 <translation id="2971096666394658693">İçerik menüsünde, resimlerin <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" /> ile paylaşılabileceği bir menü öğesi yer alır.</translation>
 <translation id="2973972555495515337">Politika, Etkin değerine ayarlanırsa üçüncü taraf web uygulamalarının, <ph name="PRODUCT_OS_NAME" /> masalarını kaydetmek ve paylaşmak için <ph name="DESK_API_NAME" /> kullanmasına izin verilir. Politika, Devre Dışı değerine ayarlanırsa kullanıcı, masa verilerini <ph name="DESK_API_NAME" /> aracılığıyla kaydedip paylaşamaz. Politika ayarlanmadan bırakılırsa davranış, devre dışı değerine ayarlandığında geçerli olan davranışla aynı olur. Politika yalnızca kayıtlı cihazlarda geçerli olur.</translation>
+<translation id="2974326457745806202">SharedWorker oluşturucuda "extendedLifetime" seçeneği doğru değerine ayarlanırsa SharedWorker'ların kullanım ömrü uzatılabilir.
+
+Bu politika, Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa SharedWorker'ların kullanım ömrü uzatılabilir.
+
+Bu politika, Devre Dışı değerine ayarlanırsa seçenek doğru değerine ayarlanmış olsa bile SharedWorker'ların kullanım ömrü uzatılamaz.
+
+Bu politika, geçici olarak tasarlanmıştır ve gelecekte kaldırılacaktır.</translation>
 <translation id="2976033779241323433">Varsayılan buluşsal sistem yöntemlerine göre dokunmatik sanal klavyeyi etkinleştir</translation>
 <translation id="2976429807269247880">Eski <ph name="ATTRIBUTE_SAMESITE_NAME" /> çerez davranışı ayarları</translation>
 <translation id="2979696534869541158">Eski uygulamayı zorunlu kıl</translation>
@@ -4985,6 +5007,7 @@ Politika, Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa kullanıc�
 Politika, Devre Dışı değerine ayarlanırsa kullanıcıların şifre yöneticisi verileri değişmez ancak şifre yöneticisi işlevleri bozulur.
 
 Politika ayarlanırsa kullanıcılar bunu <ph name="PRODUCT_NAME" /> ürününde değiştiremezler.</translation>
+<translation id="4321788213579606602">WebSocket dışı istekler için proxy sunucusuyla yapılabilecek eşzamanlı bağlantıların maksimum sayısı</translation>
 <translation id="4322842393287974810">Sıfır gecikmeyle otomatik başlatılan kiosk uygulamasının <ph name="PRODUCT_OS_NAME" /> sürümünü kontrol etmesine izin ver</translation>
 <translation id="4323412353642577604">İçerik koruması için uzaktan onayı etkinleştir</translation>
 <translation id="4325690621216251241">Sistem tepsisine çıkış düğmesi ekle</translation>
@@ -7779,6 +7802,7 @@ Politika, Yanlış değerine ayarlanırsa öğretmenler bu özelliğe erişemez.
 <translation id="6075316301208933536"><ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" />, <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" /> olarak ayarlanırsa <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> ayarı, şarj yüzdesine göre pilin şarj edilmesinin ne zaman duracağını özelleştirir. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" />, <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> değerinin en az yüzde 5 altında olmalıdır.
 
       Politika ayarlanmadan bırakılırsa <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> pil şarj modu uygulanır.</translation>
+<translation id="6080808146443476891">WebSocket istekleri için proxy sunucusuyla yapılabilecek eşzamanlı bağlantıların maksimum sayısı</translation>
 <translation id="6082161804984853051">Politika ayarlanırsa <ph name="PRODUCT_NAME" />, önbelleğe alınan dosyaları diskte depolamak için (kullanıcıların --disk-cache-dir bayrağını belirtip belirtmemelerinden bağımsız olarak) sağladığınız dizini kullanır.
 
       Ayarlanmazsa <ph name="PRODUCT_NAME" />, varsayılan önbellek dizinini kullanır, ancak kullanıcılar --disk-cache-dir komut satırı bayrağını kullanarak bu ayarı değiştirebilirler.
@@ -9747,6 +9771,7 @@ Bu politika ayarının desteği <ph name="PRODUCT_NAME" /> 146 sürümünde sonl
 <translation id="7216442368414164495">Kullanıcıların Güvenli Tarama genişletilmiş raporlamasını etkinleştirmesine izin ver</translation>
 <translation id="7218238054592349618">Bu sitelerde JavaScript optimizasyonuna izin ver</translation>
 <translation id="721970071627370558">Cihazın güç durumu raporlamasını devre dışı bırak</translation>
+<translation id="7220960206733388609">SharedWorker'ların kullanım ömrü uzatılabilir.</translation>
 <translation id="7221574724100909818">Güvenli bağlantılar için kilit simgesini kullanın</translation>
 <translation id="7227348936232766462">Kullanıcıların, aşağıdaki tüm cihaz türlerine ait alt düzey hata ayıklama verilerini kullanıcı geri bildirimine eklemesine izin ver</translation>
 <translation id="7229365071755865554">Şifrelerin, şifre yöneticisi kullanılarak kaydedilmesini etkinleştir</translation>
@@ -10404,6 +10429,7 @@ Bu politika etkinleştirildiğinde PDF görüntüleyici Skia oluşturucuyu kulla
 Bu politika devre dışı bırakılırsa PDF görüntüleyici kendi AGG oluşturucusunu kullanır.
 
 Bu politika ayarlanmadan bırakılırsa PDF oluşturucu tarayıcı tarafından seçilir.</translation>
+<translation id="7704244074621846004">SharedWorker'lar için uzatılmış kullanım ömrünü etkinleştir.</translation>
 <translation id="7707869387893611318">Şarj sesleri özelliğini etkinleştirin.
 
           Bu özellik, şarj seslerini çalmaktan sorumludur.
@@ -10421,6 +10447,7 @@ Bu politika ayarlanmadan bırakılırsa PDF oluşturucu tarayıcı tarafından s
 
       Sunucuların, ECDHE şifre paketlerine taşınması önerilir. Bunlar kullanılamadığı takdirde, RSA anahtarı takası kullanan bir şifre paketinin etkinleştirildiğinden emin olun.</translation>
 <translation id="7709470712369261710">Otomatik resim açıklamaları sağlamak için Google hizmetlerini kullanma</translation>
+<translation id="7711003696883532277">SharedWorker'ların kullanım ömrü uzatılamaz.</translation>
 <translation id="7712109699186360774">Bir site kamera ve/veya mikrofona erişmek istediğinde her zaman sor</translation>
 <translation id="7712245244073542805">Tarayıcı işleminden platform yazdırma.</translation>
 <translation id="7713608076604149344">İndirme kısıtlamaları</translation>
@@ -11252,6 +11279,22 @@ Bu özellik yalnızca Canary kanalında kullanılabilir.
 
 Politika, Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa sayfaya erişilebilir.
 Politika, Devre Dışı değerine ayarlanırsa sayfa engellenir.</translation>
+<translation id="8264002158987842436">Politikanın ayarlanması WebSocket dışı istekler için proxy sunucusuyla yapılabilecek maksimum eşzamanlı bağlantı sayısını belirtir.
+
+WebSocket istek sınırlarını değiştirmek için <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> bölümüne göz atın.
+
+Politika ayarlanmadan bırakılırsa, varsayılan değer olarak 32 kullanılır.
+
+Bazı web uygulamalarının askıda kalan GET'lerle çok fazla bağlantı kullandığı bilinmektedir. Bu nedenle, 32'den küçük bir değerin ayarlanması, askıda bağlantısı olan çok fazla web uygulamasının açık olması halinde tarayıcı bağlantılarının yavaşlamasına neden olabilir.
+Bazı proxy sunucular istemci başına çok sayıda eşzamanlı bağlantıyı işleyemez. Bu sorun, bu politikanın daha düşük bir değere ayarlanmasıyla çözülür.
+
+Değer, 6 veya daha yüksek olmalıdır.
+Bu sınırın altında bir değer belirlerseniz 6 kullanılır.
+Varsayılanın (32) altında bir değer ayarlarsanız bunun tüm riski size aittir.
+
+Değer, 256'ya (<ph name="PRODUCT_NAME" /> 147 ve önceki sürümlerde 99) eşit veya daha düşük olmalıdır.
+Bu sınırın üzerinde bir değer ayarlanırsa 256 (<ph name="PRODUCT_NAME" /> 147 ve önceki sürümlerde 99) kullanılır.
+Varsayılan değerin (32) üzerinde bir değer ayarlamak tamamen sizin sorumluluğunuzdadır.</translation>
 <translation id="8266778278542911985">Politikayı 3 değerine ayarlarsanız web siteleri seri bağlantı noktalarına erişim izni isteyebilir. Politikayı 2 değerine ayarlarsanız seri bağlantı noktalarına erişim izni verilmez.
 
       Politikayı ayarlanmadan bırakırsanız web siteleri erişim izni isteyebilir. Kullanıcılar bu ayarı değiştirebilir.</translation>

@@ -456,8 +456,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {CODE_TYPE, &is_code},
 #endif
       });
-  // Fallthrough means none of the types matched. The destination register is
-  // zeroed.
+  // Fallthrough means none of the types matched or the field was invalid.
+  // The destination register is zeroed.
   __ Branch(is_unavailable);
 
 #if !V8_JITLESS_BOOL
@@ -1499,7 +1499,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
   // Unreachable code.
   __ break_(0xCC);
 
@@ -3128,62 +3128,6 @@ constexpr Simd128RegList kSavedSimd128Regs = ([]() constexpr {
   return saved_simd128_regs;
 })();
 
-static void SaveVectorRegisters(MacroAssembler* masm,
-                                const Simd128RegList& reg_list) {
-  // Check if the machine has simd128 support. Otherwise, the
-  // vector registers might not exist and accessing them would SIGILL.
-  Label not_simd, done;
-
-  ASM_CODE_COMMENT(masm);
-  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
-  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
-  // If != 0, then simd is available.
-  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
-            Label::Distance::kNear);
-
-  // Since the builtins are compiled into a snapshot, we can't query the
-  // actual hardware vector length. This means that we are not allowed to use
-  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
-  // of 8 bits each.
-  __ VU.set(16, E8, m1);
-  for (VRegister vector_reg : reg_list) {
-    __ SubWord(sp, sp, Operand(kSimd128Size));
-    __ vs(vector_reg, sp, 0, E8);
-  }
-  __ Branch(&done);
-  __ bind(&not_simd);
-  __ SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
-  __ bind(&done);
-}
-
-static void RestoreVectorRegisters(MacroAssembler* masm,
-                                   const Simd128RegList& reg_list) {
-  // Check if the machine has simd128 support. Otherwise, the
-  // vector registers might not exist and accessing them would SIGILL.
-  Label not_simd, done;
-  ASM_CODE_COMMENT(masm);
-  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
-  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
-  // If != 0, then simd is available.
-  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
-            Label::Distance::kNear);
-
-  // Since the builtins are compiled into a snapshot, we can't query the
-  // actual hardware vector length. This means that we are not allowed to use
-  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
-  // of 8 bits each.
-  __ VU.set(16, E8, m1);
-  for (VRegister vector_reg : base::Reversed(reg_list)) {
-    __ vl(vector_reg, sp, 0, E8);
-    __ AddWord(sp, sp, Operand(kSimd128Size));
-  }
-
-  __ Branch(&done);
-  __ bind(&not_simd);
-  __ AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
-  __ bind(&done);
-}
-
 static void SaveWasmParams(MacroAssembler* masm) {
   // Save all parameter registers (see wasm-linkage.h). They might be
   // overwritten in the subsequent runtime call. We don't have any
@@ -3195,13 +3139,13 @@ static void SaveWasmParams(MacroAssembler* masm) {
   static_assert(kSavedFpRegs.Count() ==
                 WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs);
   __ MultiPush(kSavedGpRegs);
-  SaveVectorRegisters(masm, kSavedSimd128Regs);
+  __ SaveVectorRegisters(kSavedSimd128Regs);
   __ MultiPushFPU(kSavedFpRegs);
 }
 
 static void RestoreWasmParams(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
-  RestoreVectorRegisters(masm, kSavedSimd128Regs);
+  __ RestoreVectorRegisters(kSavedSimd128Regs);
   __ MultiPop(kSavedGpRegs);
 }
 
@@ -4196,6 +4140,63 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // Return the arg buffer.
   __ mv(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
+}
+
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
+  DEFINE_REG(scratch);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(fp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[5], target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[7], tag, cont, target_stack_reg));
+    __ PrepareCallCFunction(9, scratch);
+    // Set up arguments in reverse order to avoid overwriting source registers.
+    __ Move(kCArgRegs[7], arg_buffer_reg);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], target_stack_reg);
+    __ LoadWord(scratch, sig_op);
+    __ StoreWord(scratch, MemOperand(sp, 0));
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ LoadAddress(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ Branch(&ok, ne, kReturnRegister0, Operand(zero_reg));
+
+  // No handler found.
+  __ Pop(kContextRegister);
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  __ Drop(1);  // Drop saved context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  __ Move(target_stack, kReturnRegister0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ LoadWord(arg_buffer,
+              MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, scratch, sp, fp));
+  LoadJumpBuffer(masm, target_stack, true, scratch);
+  __ Trap();
+  __ bind(&resume);
+  __ mv(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSwitchDescriptor::GetStackParameterCount());
   __ Ret();
 }
 

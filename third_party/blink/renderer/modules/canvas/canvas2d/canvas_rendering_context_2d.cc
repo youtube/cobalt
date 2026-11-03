@@ -106,6 +106,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
@@ -316,7 +317,8 @@ void CanvasRenderingContext2D::WillDrawImage(CanvasImageSource* source,
   // If the source is GPU-accelerated, and the canvas is not, but could be...
   if (source_is_accelerated && canvas()->ShouldAccelerate2dContext() &&
       canvas()->GetRasterModeForCanvas2D() == RasterMode::kCPU &&
-      SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
+      AllowSoftwareToAcceleratedCanvasUpgrade(
+          SharedGpuContext::ContextProviderWrapper().get())) {
     // Recreate the CRP in GPU raster mode and signal that it needs a
     // compositing update.
     canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
@@ -487,7 +489,7 @@ const MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() const {
   if (provider == nullptr) [[unlikely]] {
     return nullptr;
   }
-  return &provider->Recorder();
+  return &provider->RecorderForCanvas2D();
 }
 
 MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
@@ -495,7 +497,7 @@ MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
   if (provider == nullptr) [[unlikely]] {
     return nullptr;
   }
-  return &provider->Recorder();
+  return &provider->RecorderForCanvas2D();
 }
 
 void CanvasRenderingContext2D::WillDraw(
@@ -865,7 +867,8 @@ DOMMatrix* CanvasRenderingContext2D::drawElementImage(
 
 void CanvasRenderingContext2D::EnableAccelerationIfPossible() {
   if (canvas()->GetRasterModeForCanvas2D() == RasterMode::kCPU &&
-      SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
+      AllowSoftwareToAcceleratedCanvasUpgrade(
+          SharedGpuContext::ContextProviderWrapper().get())) {
     canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
     DropAndRecreateExistingResourceProvider();
   }
@@ -1330,8 +1333,7 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
   // either (a) using GPU raster or (b) using CPU raster and want to use
   // mappable SharedImage for Canvas2D.
   if (is_gpu_compositing_enabled &&
-      (use_gpu_raster ||
-       SharedGpuContext::UseMappableSharedImagesForCanvas2D())) {
+      (use_gpu_raster || UseMappableSharedImagesForCanvas2D())) {
     RasterMode raster_mode =
         use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU;
     gpu::SharedImageUsageSet shared_image_usage_flags =
@@ -1341,8 +1343,8 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
     // appropriate.
     bool low_latency_supported =
         canvas()->LowLatencyEnabled() &&
-        SharedGpuContext::LowLatencyUsageSupportedForCanvas2D(raster_mode);
-    if (low_latency_supported || SharedGpuContext::UseOverlaysForCanvas2D()) {
+        LowLatencyUsageSupportedForCanvas2D(raster_mode);
+    if (low_latency_supported || UseOverlaysForCanvas2D()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
       if (low_latency_supported) {
         shared_image_usage_flags |=
@@ -1466,7 +1468,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
     return;
   }
   std::unique_ptr<MemoryManagedPaintRecorder> recorder =
-      old_provider->ReleaseRecorder();
+      old_provider->ReleaseRecorderForCanvas2D();
   canvas()->ResetLayer();
   ReplaceResourceProvider(nullptr);
 
@@ -1483,7 +1485,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
 
   resource_provider_->RestoreBackBufferForCanvas2D(
       image->PaintImageForCurrentFrame());
-  resource_provider_->SetRecorder(std::move(recorder));
+  resource_provider_->SetRecorderForCanvas2D(std::move(recorder));
 
   canvas()->UpdateMemoryUsage();
 }
@@ -1541,7 +1543,8 @@ void CanvasRenderingContext2D::WakeUpFromHibernation() {
                     PaintImage::GetNextContentId());
   builder.set_id(PaintImage::GetNextId());
   resource_provider_->RestoreBackBufferForCanvas2D(builder.TakePaintImage());
-  resource_provider_->SetRecorder(hibernation_handler->ReleaseRecorder());
+  resource_provider_->SetRecorderForCanvas2D(
+      hibernation_handler->ReleaseRecorder());
   // The hibernation image is no longer valid, clear it.
   hibernation_handler->Clear();
   DCHECK(!hibernation_handler->IsHibernating());

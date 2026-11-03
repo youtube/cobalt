@@ -13,6 +13,7 @@
 #include <string>
 
 #include "absl/strings/str_cat.h"
+#include "api/payload_type.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
@@ -96,7 +97,6 @@ TEST(PayloadTypePicker, RollbackAndCommit) {
   PayloadTypeRecorder recorder(picker);
   const PayloadType a_payload_type(123);
   const PayloadType b_payload_type(124);
-  const PayloadType not_a_payload_type(44);
 
   Codec a_codec = CreateVideoCodec(0, "vp8");
 

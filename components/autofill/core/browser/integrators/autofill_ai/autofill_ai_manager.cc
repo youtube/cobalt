@@ -79,6 +79,7 @@
 #include "components/consent_auditor/consent_auditor.h"
 #include "components/strike_database/strike_database.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/wallet/core/common/wallet_features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -356,7 +357,8 @@ void AutofillAiManager::HandlePromptResult(
     EntityInstance entity,
     ukm::SourceId ukm_source_id,
     AutofillClient::AutofillAiImportPromptType prompt_type,
-    AutofillClient::AutofillAiBubbleResult result) {
+    AutofillClient::AutofillAiBubbleResult result,
+    const AutofillClient::EntityImportUIContext& ui_context) {
   logger_.OnImportPromptResult(form, prompt_type, entity.type(),
                                entity.record_type(), result, ukm_source_id);
   EntityDataManager& entity_manager =
@@ -408,16 +410,26 @@ void AutofillAiManager::HandlePromptResult(
           client_->GetWalletPassAccessManager()) {
     switch (prompt_type) {
       case AutofillClient::AutofillAiImportPromptType::kSave:
-      case AutofillClient::AutofillAiImportPromptType::kMigrate:
-        // TODO(crbug.com/489354073): Log consent and replace with the correct
-        // session ID.
-        wallet_manager->SaveWalletEntityInstance(
-            entity, consent_auditor::ConsentAuditor::GenerateSessionId(),
-            std::move(callback));
+      case AutofillClient::AutofillAiImportPromptType::kMigrate: {
+        consent_auditor::ConsentAuditor::SessionId session_id;
+        // When the feature flag is disabled, `SaveWalletEntityInstance()`
+        // doesn't require a valid `session_id`.
+        if (base::FeatureList::IsEnabled(
+                wallet::features::kWalletApiPrivatePassesConsent)) {
+          // To accept an import, the user needs to click a confirmation button.
+          CHECK(ui_context.clicked_button_string_id.has_value());
+          session_id = RecordWalletPrivatePassConsent(
+              ui_context.ui_string_ids, *ui_context.clicked_button_string_id,
+              *client_);
+        }
+        wallet_manager->SaveWalletEntityInstance(entity, session_id,
+                                                 std::move(callback));
         break;
-      case AutofillClient::AutofillAiImportPromptType::kUpdate:
+      }
+      case AutofillClient::AutofillAiImportPromptType::kUpdate: {
         wallet_manager->UpdateWalletEntityInstance(entity, std::move(callback));
         break;
+      }
     }
   }
 }

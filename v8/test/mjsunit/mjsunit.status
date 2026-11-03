@@ -172,6 +172,7 @@
   'regress/regress-crbug-1276923': [PASS, SLOW],
   'regress/regress-390568195': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['arch != x64', SKIP]],
   'regress/regress-447613219': [PASS, SLOW],
+  'regress/regress-494583765' : [PASS, SLOW],
   'regress/regress-7558019': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
@@ -2197,6 +2198,9 @@
   # WebAssembly memory control is only implemented on Linux so far.
   'wasm/memory-control': [SKIP],
   'regress/wasm/regress-493307331': [SKIP],
+
+  # Test writes snapshot to /dev/null
+  'regress/regress-494583765' : [SKIP],
 }],
 
 ##############################################################################
@@ -2380,6 +2384,8 @@
   'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
   # TSAN allocation failures.
   'regress/regress-430201b': [PASS, ['tsan', SKIP]],
+  # Slow test due to generating heap snapshots on every GC.
+  'regress/regress-494583765' : [SKIP],
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
@@ -2662,6 +2668,7 @@
   'regress/regress-464961493': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
   'regress/regress-493269623': [SKIP],
+  'regress/regress-495503781': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
@@ -2953,6 +2960,7 @@
 
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
+  'regress/regress-7558019': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 

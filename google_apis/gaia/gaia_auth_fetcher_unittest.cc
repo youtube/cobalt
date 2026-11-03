@@ -171,11 +171,11 @@ TEST_F(GaiaAuthFetcherTest, MAYBE_ErrorComparator) {
 
   EXPECT_FALSE(expected_error == matching_error);
 
-  expected_error = GoogleServiceAuthError(GoogleServiceAuthError::NONE);
+  expected_error = GoogleServiceAuthError::AuthErrorNone();
 
   EXPECT_FALSE(expected_error == matching_error);
 
-  matching_error = GoogleServiceAuthError(GoogleServiceAuthError::NONE);
+  matching_error = GoogleServiceAuthError::AuthErrorNone();
 
   EXPECT_TRUE(expected_error == matching_error);
 }
@@ -207,6 +207,17 @@ class TestGaiaAuthFetcher : public GaiaAuthFetcher {
     OnURLLoadCompleteInternal(net_error, response_code, response_body);
   }
 };
+
+TEST_F(GaiaAuthFetcherTest, StartAuthCodeForOAuth2TokenExchangeMtls) {
+  MockGaiaConsumer consumer;
+  TestGaiaAuthFetcher auth(&consumer, GetURLLoaderFactory());
+  auth.StartAuthCodeForOAuth2TokenExchange(
+      "auth_code", /*binding_registration_token=*/std::string(),
+      /*user_agent_headers=*/{}, /*mtls_token_binding=*/true);
+  ASSERT_EQ(received_requests_.size(), 1U);
+  EXPECT_EQ(GaiaUrls::GetInstance()->mtls_oauth2_token_url(),
+            received_requests_.at(0).url);
+}
 
 TEST_F(GaiaAuthFetcherTest, ParseErrorRequest) {
   RunErrorParsingTest(

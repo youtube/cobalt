@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/gpu/v4l2/test/vp8_decoder.h"
 
 #include <linux/v4l2-controls.h>
 #include <linux/videodev2.h>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
@@ -56,9 +52,9 @@ const gfx::Size GetResolutionFromBitstream(
   }
 
   media::IvfFrameHeader ivf_frame_header{};
-  const uint8_t* ivf_frame_data;
-
-  if (!ivf_parser.ParseNextFrame(&ivf_frame_header, &ivf_frame_data)) {
+  base::span<const uint8_t> ivf_frame_data =
+      ivf_parser.ParseNextFrame(&ivf_frame_header);
+  if (ivf_frame_data.empty()) {
     LOG(FATAL) << "Failed to parse the first frame with IVF parser.";
   }
 
@@ -67,8 +63,7 @@ const gfx::Size GetResolutionFromBitstream(
 
   media::Vp8Parser vp8_parser;
   media::Vp8FrameHeader vp8_frame_header;
-  vp8_parser.ParseFrame(ivf_frame_data, ivf_frame_header.frame_size,
-                        &vp8_frame_header);
+  vp8_parser.ParseFrame(ivf_frame_data, &vp8_frame_header);
 
   return gfx::Size(vp8_frame_header.width, vp8_frame_header.height);
 }
@@ -340,8 +335,8 @@ struct v4l2_ctrl_vp8_frame Vp8Decoder::SetupFrameHeaders(
   for (size_t i = 0; i < frame_hdr.num_of_dct_partitions &&
                      i < std::size(v4l2_frame_headers.dct_part_sizes);
        ++i) {
-    v4l2_frame_headers.dct_part_sizes[i] =
-        static_cast<size_t>(frame_hdr.dct_partition_sizes[i]);
+    UNSAFE_TODO(v4l2_frame_headers.dct_part_sizes[i]) =
+        static_cast<size_t>(UNSAFE_TODO(frame_hdr.dct_partition_sizes[i]));
   }
 
   v4l2_frame_headers.entropy = FillV4L2VP8EntropyHeader(frame_hdr.entropy_hdr);
@@ -500,12 +495,14 @@ std::set<int> Vp8Decoder::RefreshReferenceSlots(
 Vp8Decoder::ParseResult Vp8Decoder::ReadNextFrame(
     Vp8FrameHeader& vp8_frame_header) {
   IvfFrameHeader ivf_frame_header{};
-  const uint8_t* ivf_frame_data;
-  if (!ivf_parser_->ParseNextFrame(&ivf_frame_header, &ivf_frame_data))
+  base::span<const uint8_t> ivf_frame_data =
+      ivf_parser_->ParseNextFrame(&ivf_frame_header);
+  if (ivf_frame_data.empty()) {
     return kEOStream;
+  }
 
-  const bool result = vp8_parser_->ParseFrame(
-      ivf_frame_data, ivf_frame_header.frame_size, &vp8_frame_header);
+  const bool result =
+      vp8_parser_->ParseFrame(ivf_frame_data, &vp8_frame_header);
 
   return result ? Vp8Decoder::kOk : Vp8Decoder::kError;
 }
@@ -554,8 +551,9 @@ VideoDecoder::Result Vp8Decoder::DecodeNextFrame(const int frame_number,
   // Copies the frame data into the V4L2 buffer of OUTPUT |queue|.
   scoped_refptr<MmappedBuffer> OUTPUT_queue_buffer =
       OUTPUT_queue_->GetBuffer(buffer_id);
-  OUTPUT_queue_buffer->mmapped_planes()[0].CopyIn(frame_hdr.data,
-                                                  frame_hdr.frame_size);
+  // SAFETY: frame_hdr is guaranteed to have correct values by `ReadNextFrame`.
+  OUTPUT_queue_buffer->mmapped_planes()[0].CopyIn(
+      UNSAFE_BUFFERS(base::span(frame_hdr.data.get(), frame_hdr.frame_size)));
   OUTPUT_queue_buffer->set_frame_number(frame_number);
 
   if (!v4l2_ioctl_->QBuf(OUTPUT_queue_, buffer_id)) {

@@ -12,9 +12,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/frame_transformer_factory.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
@@ -44,12 +44,12 @@ class MockChannelReceive {
  public:
   MOCK_METHOD(void,
               ReceiveFrame,
-              (ArrayView<const uint8_t> packet,
+              (std::span<const uint8_t> packet,
                const RTPHeader& header,
                Timestamp receive_time));
 
   ChannelReceiveFrameTransformerDelegate::ReceiveFrameCallback callback() {
-    return [this](ArrayView<const uint8_t> packet, const RTPHeader& header,
+    return [this](std::span<const uint8_t> packet, const RTPHeader& header,
                   Timestamp receive_time) {
       ReceiveFrame(packet, header, receive_time);
     };
@@ -101,7 +101,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
   EXPECT_CALL(mock_channel, ReceiveFrame);
   ON_CALL(*mock_frame_transformer, Transform)
@@ -132,7 +132,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
   EXPECT_CALL(mock_channel,
               ReceiveFrame(ElementsAre(1, 2, 3, 4), _, kFakeReceiveTimestamp));
@@ -177,7 +177,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           mock_channel.callback(), mock_frame_transformer, Thread::Current());
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
 
   delegate->StartShortCircuiting();
@@ -207,7 +207,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
   std::unique_ptr<TransformableFrameInterface> frame;
   ON_CALL(*mock_frame_transformer, Transform)
@@ -244,7 +244,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
   uint8_t audio_level_dbov = 67;
   AudioLevel audio_level(/*voice_activity=*/true, audio_level_dbov);
@@ -282,7 +282,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   Timestamp capture_time = Timestamp::Millis(1234);
   TimeDelta sender_capture_time_offsets[] = {TimeDelta::Millis(56),
                                              TimeDelta::Millis(-79)};
@@ -320,7 +320,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest, SetAudioLevel) {
           Thread::Current());
   delegate->Init();
   const uint8_t data[] = {1, 2, 3, 4};
-  ArrayView<const uint8_t> packet(data, sizeof(data));
+  std::span<const uint8_t> packet(data, sizeof(data));
   std::unique_ptr<TransformableFrameInterface> frame;
   ON_CALL(*mock_frame_transformer, Transform)
       .WillByDefault(

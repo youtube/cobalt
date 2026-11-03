@@ -593,18 +593,6 @@ webrtc_fuzzer_test("agc_fuzzer") {
   seed_corpus = "corpora/agc-corpus"
 }
 
-webrtc_fuzzer_test("aec3_config_json_fuzzer") {
-  sources = [ "aec3_config_json_fuzzer.cc" ]
-  deps = [
-    ":fuzz_data_helper",
-    "../../api/audio:aec3_config",
-    "../../modules/audio_processing:aec3_config_json",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-  dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
-  seed_corpus = "corpora/aec3-config-json-corpus"
-}
-
 webrtc_fuzzer_test("aec3_fuzzer") {
   defines = []
   if (apm_debug_dump) {
@@ -818,7 +806,6 @@ webrtc_fuzzer_test("windowed_min_filter_fuzzer") {
 group("fuzzers") {
   testonly = true
   deps = [
-    ":aec3_config_json_fuzzer",
     ":aec3_fuzzer",
     ":agc_fuzzer",
     ":audio_decoder_fuzzer",

@@ -19,8 +19,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -455,14 +458,8 @@ class JournalHandler {
         base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
             kGlicActorJournalLog);
     if (!path.empty()) {
-      path = base::GetUniquePathWithSuffixFormat(path, "_%d");
-      LOG(ERROR) << "Glic Journal: " << path;
-      file_journal_serializer_ =
-          std::make_unique<actor::AggregatedJournalFileSerializer>(
-              actor_keyed_service_->GetJournal());
-      file_journal_serializer_->Init(
-          path, base::BindOnce(&JournalHandler::FileInitDone,
-                               base::Unretained(this)));
+      GetUniquePath(path, base::BindOnce(&JournalHandler::OnUniquePathReceived,
+                                         base::Unretained(this)));
     }
   }
 
@@ -613,6 +610,25 @@ class JournalHandler {
             },
             std::move(feedback_data)));
 #endif
+  }
+
+  void GetUniquePath(const base::FilePath& file_path,
+                     base::OnceCallback<void(const base::FilePath&)> callback) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce(&base::GetUniquePathWithSuffixFormat, file_path,
+                       base::cstring_view("_%d")),
+        std::move(callback));
+  }
+
+  void OnUniquePathReceived(const base::FilePath& unique_path) {
+    LOG(ERROR) << "Glic Journal: " << unique_path;
+    file_journal_serializer_ =
+        std::make_unique<actor::AggregatedJournalFileSerializer>(
+            actor_keyed_service_->GetJournal());
+    file_journal_serializer_->Init(
+        unique_path,
+        base::BindOnce(&JournalHandler::FileInitDone, base::Unretained(this)));
   }
 
   void FileInitDone(bool success) {
@@ -855,9 +871,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     state->can_attach = ComputeCanAttach();
     state->panel_is_active = active_state_calculator_.IsActive();
 
-    if (base::FeatureList::IsEnabled(glic::mojom::features::kGlicMultiTab)) {
-      OnPinningChanged(sharing_manager().GetPinnedTabs());
-    }
+    OnPinningChanged(sharing_manager().GetPinnedTabs());
 
     state->browser_is_open = browser_is_open_calculator_.IsOpen();
     state->instance_is_active = host().instance_delegate().IsActive();
@@ -889,8 +903,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     state->enable_maybe_refresh_user_status =
         base::FeatureList::IsEnabled(features::kGlicUserStatusCheck) &&
         features::kGlicUserStatusRefreshApi.Get();
-    state->enable_multi_tab =
-        base::FeatureList::IsEnabled(glic::mojom::features::kGlicMultiTab);
     state->enable_get_context_actor = base::FeatureList::IsEnabled(
         glic::mojom::features::kGlicActorTabContext);
     state->enable_web_actuation_setting_feature =
@@ -934,6 +946,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       // TODO(b:468877076): Ideally this would be a dynamic capability.
       state->host_capabilities.push_back(
           mojom::HostCapability::kShareAdditionalImageContext);
+    }
+    if (!base::FeatureList::IsEnabled(features::kGlicLiveMode)) {
+      state->host_capabilities.push_back(mojom::HostCapability::kNoLiveMode);
     }
     state->enable_get_page_metadata =
         base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
@@ -1050,9 +1065,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void ClosePanelAndShutdown() override {
     if (GlicEnabling::IsMultiInstanceEnabled()) {
       ClosePanel();
-    } else {
-      // This call will tear down the web client after closing the window.
-      glic_service_->CloseAndShutdown();
     }
   }
 
@@ -2499,8 +2511,24 @@ void GlicPageHandler::CreateWebClient(
 
 void GlicPageHandler::PrepareForClient(
     base::OnceCallback<void(mojom::PrepareForClientResult)> callback) {
+  TRACE_EVENT_INSTANT("browser", "GlicPageHandler::PrepareForClient - Request",
+                      perfetto::Flow::FromPointer(this));
+
+  auto wrapped_callback = base::BindOnce(
+      [](base::WeakPtr<GlicPageHandler> origin_this,
+         base::OnceCallback<void(mojom::PrepareForClientResult)> callback,
+         mojom::PrepareForClientResult result) {
+        if (origin_this) {
+          TRACE_EVENT_INSTANT(
+              "browser", "GlicPageHandler::PrepareForClient - Response",
+              perfetto::TerminatingFlow::FromPointer(origin_this.get()));
+        }
+        std::move(callback).Run(std::move(result));
+      },
+      this->weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
   GetGlicService()->GetAuthController().CheckAuthBeforeLoad(
-      std::move(callback));
+      std::move(wrapped_callback));
 }
 
 void GlicPageHandler::WebviewCommitted(const GURL& url) {

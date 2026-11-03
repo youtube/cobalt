@@ -14,10 +14,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
@@ -34,7 +34,7 @@ namespace webrtc {
 class TransformableIncomingAudioFrame
     : public TransformableAudioFrameInterface {
  public:
-  TransformableIncomingAudioFrame(ArrayView<const uint8_t> payload,
+  TransformableIncomingAudioFrame(std::span<const uint8_t> payload,
                                   const RTPHeader& header,
                                   uint32_t ssrc,
                                   const std::string& codec_mime_type,
@@ -46,9 +46,9 @@ class TransformableIncomingAudioFrame
         codec_mime_type_(codec_mime_type),
         receive_time_(receive_time) {}
   ~TransformableIncomingAudioFrame() override = default;
-  ArrayView<const uint8_t> GetData() const override { return payload_; }
+  std::span<const uint8_t> GetData() const override { return payload_; }
 
-  void SetData(ArrayView<const uint8_t> data) override {
+  void SetData(std::span<const uint8_t> data) override {
     payload_.SetData(data.data(), data.size());
   }
 
@@ -59,8 +59,8 @@ class TransformableIncomingAudioFrame
   uint8_t GetPayloadType() const override { return header_.payloadType; }
   uint32_t GetSsrc() const override { return ssrc_; }
   uint32_t GetTimestamp() const override { return header_.timestamp; }
-  ArrayView<const uint32_t> GetContributingSources() const override {
-    return ArrayView<const uint32_t>(header_.arrOfCSRCs, header_.numCSRCs);
+  std::span<const uint32_t> GetContributingSources() const override {
+    return std::span<const uint32_t>(header_.arrOfCSRCs, header_.numCSRCs);
   }
   Direction GetDirection() const override { return Direction::kReceiver; }
 
@@ -159,7 +159,7 @@ void ChannelReceiveFrameTransformerDelegate::Reset() {
 }
 
 void ChannelReceiveFrameTransformerDelegate::Transform(
-    ArrayView<const uint8_t> packet,
+    std::span<const uint8_t> packet,
     const RTPHeader& header,
     uint32_t ssrc,
     const std::string& codec_mime_type,

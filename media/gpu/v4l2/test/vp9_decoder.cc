@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/gpu/v4l2/test/vp9_decoder.h"
 
 #include <linux/v4l2-controls.h>
@@ -16,6 +11,7 @@
 #include <bitset>
 
 #include "base/bits.h"
+#include "base/compiler_specific.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -91,9 +87,11 @@ void FillV4L2VP9SegmentationParams(const Vp9SegmentationParams& vp9_seg_params,
                 "mismatch in number of segmentation features");
 
   for (size_t j = 0; j < std::size(vp9_seg_params.feature_enabled); j++) {
-    for (size_t i = 0; i < std::size(vp9_seg_params.feature_enabled[j]); i++) {
-      if (vp9_seg_params.feature_enabled[j][i]) {
-        v4l2_seg->feature_enabled[j] |= V4L2_VP9_SEGMENT_FEATURE_ENABLED(i);
+    for (size_t i = 0;
+         i < std::size(UNSAFE_TODO(vp9_seg_params.feature_enabled[j])); i++) {
+      if (UNSAFE_TODO(vp9_seg_params.feature_enabled[j][i])) {
+        UNSAFE_TODO(v4l2_seg->feature_enabled[j]) |=
+            V4L2_VP9_SEGMENT_FEATURE_ENABLED(i);
       }
     }
   }
@@ -230,13 +228,14 @@ Vp9Parser::Result Vp9Decoder::ReadNextFrame(Vp9FrameHeader& vp9_frame_header,
         vp9_parser_->ParseNextFrame(&vp9_frame_header, &size, &null_config);
     if (res == Vp9Parser::kEOStream) {
       IvfFrameHeader ivf_frame_header{};
-      const uint8_t* ivf_frame_data;
+      base::span<const uint8_t> ivf_frame_data =
+          ivf_parser_->ParseNextFrame(&ivf_frame_header);
 
-      if (!ivf_parser_->ParseNextFrame(&ivf_frame_header, &ivf_frame_data))
+      if (ivf_frame_data.empty()) {
         return Vp9Parser::kEOStream;
+      }
 
-      vp9_parser_->SetStream(ivf_frame_data, ivf_frame_header.frame_size,
-                             /*stream_config=*/nullptr);
+      vp9_parser_->SetStream(ivf_frame_data, /*stream_config=*/nullptr);
       continue;
     }
 
@@ -369,8 +368,7 @@ void Vp9Decoder::CopyFrameData(const Vp9FrameHeader& frame_hdr,
 
   scoped_refptr<MmappedBuffer> buffer = queue->GetBuffer(0);
 
-  buffer->mmapped_planes()[0].CopyIn(frame_hdr.data.data(),
-                                     frame_hdr.data.size());
+  buffer->mmapped_planes()[0].CopyIn(frame_hdr.data);
 }
 
 VideoDecoder::Result Vp9Decoder::DecodeNextFrame(const int frame_number,
@@ -410,8 +408,7 @@ VideoDecoder::Result Vp9Decoder::DecodeNextFrame(const int frame_number,
   if (!v4l2_ioctl_->QBuf(OUTPUT_queue_, 0))
     LOG(FATAL) << "VIDIOC_QBUF failed for OUTPUT queue.";
 
-  struct v4l2_ctrl_vp9_frame v4l2_frame_params;
-  memset(&v4l2_frame_params, 0, sizeof(v4l2_frame_params));
+  struct v4l2_ctrl_vp9_frame v4l2_frame_params = {};
 
   SetupFrameParams(frame_hdr, &v4l2_frame_params);
 

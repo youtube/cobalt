@@ -24,14 +24,16 @@
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
-#include "chrome/common/buildflags.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
+#include "chrome/common/buildflags.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 class Profile;
@@ -63,7 +65,8 @@ class UiEventDispatcher;
 }
 
 // Coordinates the execution of a multi-step task.
-class ExecutionEngine : public ToolDelegate {
+class ExecutionEngine : public ToolDelegate,
+                        public actor_login::ActionSequenceDelegate {
  public:
   // State machine (success case)
   //
@@ -76,6 +79,7 @@ class ExecutionEngine : public ToolDelegate {
   //     |___________________________________________|______________|
   //
   // Complete may also be reached directly from other states in case of error.
+  // LINT.IfChange(State)
   enum class State {
     kInit = 0,
     kStartAction,
@@ -85,6 +89,7 @@ class ExecutionEngine : public ToolDelegate {
     kUiPostInvoke,
     kComplete,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:ActorEngineState)
 
   // This enum represents the possible outcomes of the synchronous part of the
   // navigation gating logic.
@@ -95,17 +100,17 @@ class ExecutionEngine : public ToolDelegate {
     // The source origin and navigation origin are the same and should not be
     // gated.
     kAllowSameOrigin = 0,
-    // The navigation is allowed by the static allow-list.
+    // The navigation is allowed by the static allowlist or enterprise policy
+    // allowlist.
     kAllowByStaticList = 1,
-    // The navigation is blocked by the static block-list. The user will not be
-    // prompted for confirmation.
+    // The navigation is blocked by the static blocklist or enterprise policy
+    // blocklist. The user will not be prompted for confirmation.
     kBlockByStaticList = 2,
     // The navigation is not on any allowlist or blocklist and requires an
     // asynchronous check to determine the final outcome.
     kNeedsAsyncCheck = 3,
     kMaxValue = kNeedsAsyncCheck,
   };
-
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:GatingDecision)
 
   class StateObserver : public base::CheckedObserver {
@@ -113,6 +118,22 @@ class ExecutionEngine : public ToolDelegate {
     ~StateObserver() override = default;
     virtual void OnStateChanged(State old_state, State new_state) = 0;
   };
+
+  // This enum is used for a UKM metric for recording how often actor
+  // navigations require server confirmation.
+  // LINT.IfChange(ActorServerConfirmationResult)
+  enum class ActorServerConfirmationResult {
+    // Server confirmation is not required. This is emitted when the actor
+    // navigates to an origin not on a allow-/block-/confirm-list that does not
+    // require server confirmation because it was already evaluated.
+    kNotRequired = 0,
+    // Server confirmation accepted the origin for navigation.
+    kAccepted = 1,
+    // Server confirmation rejected the origin for navigation.
+    kRejected = 2,
+    kMaxValue = kRejected
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/actor/enums.xml:ActorServerConfirmationResult)
 
   // Tests can provide a factory function which will be used to create
   // test-instrumented ExecutionEngine instances. See the
@@ -181,10 +202,24 @@ class ExecutionEngine : public ToolDelegate {
   void InterruptFromTool() override;
   void UninterruptFromTool() override;
   void EnqueueFollowupAction(std::unique_ptr<ToolRequest> action) override;
-  base::WeakPtr<ToolDelegate> GetAsWeakPtrForCurrentActions() override;
+  base::WeakPtr<actor_login::ActionSequenceDelegate> GetActionSequenceDelegate()
+      override;
+
+  // actor_login::ActionSequenceDelegate:
+  base::CallbackListSubscription RegisterActionSequenceEnded(
+      base::OnceCallback<void(bool /*success*/)> callback) override;
+  void OnFederatedLoginOutcome(actor_login::LoginStatusResult result) override;
 
   void AddWritableMainframeOrigins(
       const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
+
+  // Callback to intercept and handle credential selection for actor login
+  // programmatically.
+  using CredentialSelectionOverrideCallback =
+      base::OnceCallback<void(const std::vector<actor_login::Credential>&,
+                              ToolDelegate::CredentialSelectedCallback)>;
+  void PreHandleCredentialSelectionDialog(
+      CredentialSelectionOverrideCallback callback);
 
   // Callback invoked when ConfirmCrossOriginNavigation, which spawns an IPC to
   // the web client, receives its response. This callback gets a boolean
@@ -315,6 +350,7 @@ class ExecutionEngine : public ToolDelegate {
       const url::Origin& source,
       const std::optional<url::Origin>& initiator,
       const GURL& destination_url,
+      ukm::SourceId ukm_source_id,
       bool skip_prompt,
       base::ScopedUmaHistogramTimer timer,
       NavigationDecisionCallback callback);
@@ -322,6 +358,7 @@ class ExecutionEngine : public ToolDelegate {
       const url::Origin& source,
       const std::optional<url::Origin>& initiator,
       const url::Origin& destination,
+      ukm::SourceId ukm_source_id,
       bool skip_prompt,
       base::ScopedUmaHistogramTimer timer,
       NavigationDecisionCallback callback,
@@ -331,14 +368,17 @@ class ExecutionEngine : public ToolDelegate {
   // client-side-initiated navigation to a novel origin.
   void HandleNavigationToNewOrigin(
       const url::Origin& destination,
+      ukm::SourceId ukm_source_id,
       base::ScopedUmaHistogramTimer timer,
       ExecutionEngine::NavigationDecisionCallback callback);
 
   void SendNavigationConfirmationRequest(const url::Origin& destination,
+                                         ukm::SourceId ukm_source_id,
                                          base::ScopedUmaHistogramTimer timer,
                                          NavigationDecisionCallback callback);
   void OnNavigationConfirmationDecision(
       const url::Origin& destination,
+      ukm::SourceId ukm_source_id,
       base::ScopedUmaHistogramTimer timer,
       NavigationDecisionCallback callback,
       webui::mojom::NavigationConfirmationResponsePtr response);
@@ -398,6 +438,10 @@ class ExecutionEngine : public ToolDelegate {
   // the user has been prompted about.
   OriginChecker origin_checker_;
 
+  // For overwriting the actor login permission, currently only works for the
+  // feature `kPasswordCheckupPrototype` for automated password changes.
+  CredentialSelectionOverrideCallback credential_selection_override_callback_;
+
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the
   // `Credential::request_origin`.
@@ -408,6 +452,9 @@ class ExecutionEngine : public ToolDelegate {
   std::optional<mojom::ActionResultCode> user_takeover_result_;
 
   base::ObserverList<StateObserver> observers_;
+
+  base::OnceCallbackList<void(bool /*success*/)>
+      action_sequence_ended_callbacks_;
 
   // If a tool finishes while the task is in a waiting state, the finish
   // callback and processing is deferred until the task is resumed.

@@ -44,6 +44,11 @@ bool IsSameRtpCodec(const Codec& codec, const RtpCodec& rtp_codec);
 
 // Similar to `IsSameRtpCodec` but ignoring the level related parameter.
 bool IsSameRtpCodecIgnoringLevel(const Codec& codec, const RtpCodec& rtp_codec);
+
+// Returns true if the two codecs have the same H.264 packetization-mode.
+bool IsSameH264PacketizationMode(const CodecParameterMap& left,
+                                 const CodecParameterMap& right);
+
 }  // namespace webrtc
 
 #endif  // MEDIA_BASE_CODEC_COMPARATORS_H_

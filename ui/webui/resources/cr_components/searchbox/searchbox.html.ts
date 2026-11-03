@@ -7,7 +7,6 @@ import './searchbox_input.js';
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {SearchboxElement} from './searchbox.js';
-import {getHtml as getContextualEntrypointHtml} from './searchbox_contextual_entrypoint.html.js';
 import {getHtml as getDropdownHtml} from './searchbox_searchbox_dropdown.html.js';
 
 export function getHtml(this: SearchboxElement) {
@@ -19,31 +18,20 @@ export function getHtml(this: SearchboxElement) {
     @dragover="${this.dragAndDropHandler?.handleDragOver}"
     @dragleave="${this.dragAndDropHandler?.handleDragLeave}"
     @drop="${this.dragAndDropHandler?.handleDrop}">
-  ${this.ntpRealboxNextEnabled ?
-    html`
-      <search-animated-glow animation-state="${this.animationState}" part="animated-glow">
-      </search-animated-glow>
-    ` : ''}
   <cr-searchbox-input id="input"
       exportparts="searchbox-input"
       ?dropdown-is-visible="${this.dropdownIsVisible}"
-      input-aria-live="${this.inputAriaLive_}"
+      input-aria-live="${this.inputAriaLive}"
       ?multi-line-enabled="${this.multiLineEnabled}"
       placeholder-text="${this.computePlaceholderText_(this.placeholderText)}"
       searchbox-aria-description="${this.searchboxAriaDescription}"
       searchbox-icon="${this.searchboxIcon_}"
       .selectedMatch="${this.selectedMatch}"
-      ?input-has-matches="${this.inputHasMatches_()}"
-      ?allow-file-paste="${this.ntpRealboxNextEnabled}"
+      ?input-has-matches="${this.hasMatches()}"
       @focusin="${this.onInputFocus_}"
       @searchbox-input-files-pasted="${this.onSearchboxInputFilesPasted_}"
-      @searchbox-input-text-updated="${this.onInputTextUpdated_}"
-      @searchbox-input-tab-or-mouse-clicked="${this.onInputFocusChanged}">
-    ${this.ntpRealboxNextEnabled ? html`
-      <div class="contextualEntrypointContainer contextualEntrypointContainerCompact" slot="contextual-entrypoint">
-        ${getContextualEntrypointHtml.bind(this)()}
-      </div>
-    ` : ''}
+      @searchbox-input-text-updated="${this.onSearchboxInputTextUpdated_}"
+      @input-focus-changed="${this.onInputFocusChanged}">
     ${this.showThumbnail ? html`
       <div id="thumbnailContainer" slot="thumbnail">
         <cr-searchbox-thumbnail id="thumbnail"
@@ -62,7 +50,7 @@ export function getHtml(this: SearchboxElement) {
             title="${this.i18n('voiceSearchButtonLabel')}">
         </button>
       </div>
-    ` : ''}
+    `: ''}
     ${this.shouldShowVoiceLens_(this.searchboxLensSearchEnabled_) ? html`
       <div slot="action-buttons" class="searchbox-icon-button-container lens">
         <button id="lensSearchButton" class="searchbox-icon-button lens"

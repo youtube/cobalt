@@ -732,5 +732,20 @@ TEST_F(OutstandingDataTest,
                           Pair(TSN(16), State::kAcked)));
 }
 
+TEST_F(OutstandingDataTest, NackBetweenAckBlocksDoesNotAccessOutOfBounds) {
+  for (int i = 0; i < 5; ++i) {
+    buf_.Insert(kMessageId, gen_.Ordered({1}, ""), kNow);
+  }
+
+  // Inject a malformed SACK where the GapAckBlock exceeds the number of
+  // outstanding items, potentially triggering an OOB read/write.
+  std::vector<SackChunk::GapAckBlock> malformed_blocks = {
+      SackChunk::GapAckBlock(1, 40000)};
+
+  // This should not crash or trigger ASAN errors.
+  buf_.HandleSack(unwrapper_.Unwrap(TSN(10)), malformed_blocks,
+                  /*is_in_fast_recovery=*/false);
+}
+
 }  // namespace
 }  // namespace dcsctp

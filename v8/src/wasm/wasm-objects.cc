@@ -157,7 +157,8 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
-  wasm::NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   if (!module->name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
@@ -167,7 +168,8 @@ MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
 MaybeDirectHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t func_index) {
-  wasm::NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   DCHECK_LT(func_index, module->functions.size());
   wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
@@ -182,7 +184,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   if (func_index == wasm::kAnonymousFuncIndex) {
     return base::Vector<const uint8_t>({nullptr, 0});
   }
-  wasm::NativeModule* native_mod = native_module();
+  Managed<wasm::NativeModule>::Ptr native_mod = native_module();
   const WasmModule* module = native_mod->module();
   DCHECK_GT(module->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_mod->wire_bytes());
@@ -1128,8 +1130,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     DCHECK(result_inplace.has_value());
     backing_store->BroadcastSharedWasmMemoryGrow(isolate);
     if (has_old_buffer && !maybe_old_buffer->is_resizable_by_js() &&
-        maybe_old_buffer->byte_length() < backing_store->byte_length()) {
-      // Broadcasting the update should update this memory object too.
+        pages > 0) {
+      // Independent of potential concurrent grows in other threads: After we
+      // grew the shared memory, broadcasting should have reset the ArrayBuffer
+      // so we reallocate it on the next access to the `buffer` property of the
+      // Wasm memory.
       CHECK(IsUndefined(memory_object->array_buffer(), isolate));
     }
     // As {old_pages} was read racefully, we return here the synchronized
@@ -1528,8 +1533,8 @@ void ImportedFunctionEntry::SetWasmToWasm(
 // otherwise.
 Tagged<Object> ImportedFunctionEntry::maybe_callable() {
   Tagged<Object> data = implicit_arg();
-  Tagged<WasmImportData> import_data;
-  if (!TryCast(data, &import_data)) return Tagged<Object>();
+  if (!Is<WasmImportData>(data)) return Tagged<Object>();
+  Tagged<WasmImportData> import_data = TrustedCast<WasmImportData>(data);
   return import_data->callable();
 }
 
@@ -1615,7 +1620,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     std::shared_ptr<wasm::NativeModule> native_module, SharedFlag shared) {
   // We don't read the NativeModule from the WasmModuleObject here to guard
   // against swapping attacks.
-  DCHECK_EQ(native_module.get(), module_object->native_module());
+  DCHECK_EQ(native_module.get(), module_object->native_module().raw());
 
   // Do first allocate all objects that will be stored in instance fields,
   // because otherwise we would have to allocate when the instance is not fully
@@ -2682,8 +2687,9 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     // Update any stored call origins, so that future compiled wrappers
     // get installed into the new dispatch table.
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
-    if (Tagged<WasmImportData> import_data;
-        TryCast(implicit_arg, &import_data)) {
+    if (Is<WasmImportData>(implicit_arg)) {
+      Tagged<WasmImportData> import_data =
+          TrustedCast<WasmImportData>(implicit_arg);
       // After installing a compiled wrapper, we don't set or update
       // call origins any more.
       if (import_data->has_call_origin()) {

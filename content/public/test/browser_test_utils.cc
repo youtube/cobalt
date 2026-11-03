@@ -2123,7 +2123,8 @@ std::vector<RenderFrameHost*> CollectAllRenderFrameHosts(
 }
 
 std::vector<WebContents*> GetAllWebContents() {
-  std::vector<WebContentsImpl*> all_wci = WebContentsImpl::GetAllWebContents();
+  std::vector<raw_ptr<WebContentsImpl>> all_wci =
+      WebContentsImpl::GetAllWebContents();
   std::vector<WebContents*> all_wc;
   std::ranges::transform(all_wci, std::back_inserter(all_wc),
                          [](WebContentsImpl* wc) { return wc; });
@@ -2229,7 +2230,8 @@ bool SetCookie(
       ->GetCookieManager(cookie_manager.BindNewPipeAndPassReceiver());
   std::unique_ptr<net::CanonicalCookie> cc(
       net::CanonicalCookie::CreateForTesting(
-          url, value, base::Time::Now(), std::nullopt /* server_time */,
+          url, value, base::Time::Now(), net::CookieSourceType::kOther,
+          std::nullopt /* server_time */,
           cookie_partition_key.CopyAsOptional()));
   DCHECK(cc.get());
 
@@ -2804,7 +2806,7 @@ class DOMMessageQueue::MessageObserver : public WebContentsObserver {
 DOMMessageQueue::DOMMessageQueue() {
   // TODO(crbug.com/40746969): Remove the need to listen for this
   // notification.
-  for (auto* contents : WebContentsImpl::GetAllWebContents()) {
+  for (auto contents : WebContentsImpl::GetAllWebContents()) {
     observers_.emplace(std::make_unique<MessageObserver>(this, contents));
   }
   web_contents_creation_subscription_ =
@@ -4184,6 +4186,31 @@ void PwnMessageHelper::FileSystemWrite(RenderProcessHost* process,
   waiter.WaitForOperationToFinish();
 }
 
+bool PwnMessageHelper::OpenPopup(RenderFrameHost* render_frame_host,
+                                 const GURL& url) {
+  mojom::CreateNewWindowParamsPtr params = mojom::CreateNewWindowParams::New();
+  params->target_url = url;
+  params->allow_popup =
+      true;  // The compromised renderer lies and sets this to true
+  params->window_container_type = mojom::WindowContainerType::NORMAL;
+  params->disposition = WindowOpenDisposition::NEW_POPUP;
+  params->features = blink::mojom::WindowFeatures::New();
+  params->referrer = blink::mojom::Referrer::New();
+
+  bool is_blocked = false;
+  base::RunLoop run_loop;
+  static_cast<mojom::FrameHost*>(
+      static_cast<RenderFrameHostImpl*>(render_frame_host))
+      ->CreateNewWindow(
+          std::move(params),
+          base::BindLambdaForTesting([&](mojom::CreateNewWindowStatus status,
+                                         mojom::CreateNewWindowReplyPtr reply) {
+            is_blocked = (status == mojom::CreateNewWindowStatus::kBlocked);
+            run_loop.Quit();
+          }));
+  run_loop.Run();
+  return is_blocked;
+}
 void PwnMessageHelper::OpenURL(RenderFrameHost* render_frame_host,
                                const GURL& url) {
   auto params = blink::mojom::OpenURLParams::New();

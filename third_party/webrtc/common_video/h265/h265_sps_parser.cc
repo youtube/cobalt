@@ -15,9 +15,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "common_video/h265/h265_common.h"
 #include "rtc_base/bitstream_reader.h"
 #include "rtc_base/logging.h"
@@ -107,7 +107,7 @@ size_t H265SpsParser::GetDpbMaxPicBuf(int general_profile_idc) {
 
 // Unpack RBSP and parse SPS state from the supplied buffer.
 std::optional<H265SpsParser::SpsState> H265SpsParser::ParseSps(
-    ArrayView<const uint8_t> data) {
+    std::span<const uint8_t> data) {
   return ParseSpsInternal(H265::ParseRbsp(data));
 }
 
@@ -388,7 +388,7 @@ H265SpsParser::ParseProfileTierLevel(bool profile_present,
 }
 
 std::optional<H265SpsParser::SpsState> H265SpsParser::ParseSpsInternal(
-    ArrayView<const uint8_t> buffer) {
+    std::span<const uint8_t> buffer) {
   BitstreamReader reader(buffer);
 
   // Now, we need to use a bit buffer to parse through the actual H265 SPS

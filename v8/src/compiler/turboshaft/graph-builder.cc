@@ -40,6 +40,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/simplified-optimization-reducer.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
@@ -68,8 +69,9 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT = Assembler<ExplicitTruncationReducer,
-                               SimplifiedOptimizationReducer, VariableReducer>;
+  using AssemblerT =
+      Assembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
+                VariableReducer, ValueNumberingReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
@@ -1309,11 +1311,11 @@ OpIndex GraphBuilder::Process(
       return __ Load(Map(base), Map(index), kind, loaded_rep, offset,
                      element_size_log2);
     }
-    case IrOpcode::kProtectedLoad: {
+    case IrOpcode::kTrappingLoad: {
       MemoryRepresentation loaded_rep =
           MemoryRepresentation::FromMachineType(LoadRepresentationOf(op));
       return __ Load(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                     LoadOp::Kind::Protected(), loaded_rep);
+                     LoadOp::Kind::Trapping(), loaded_rep);
     }
 
     case IrOpcode::kStore:
@@ -1368,11 +1370,11 @@ OpIndex GraphBuilder::Process(
                initializing_transitioning);
       return OpIndex::Invalid();
     }
-    case IrOpcode::kProtectedStore:
-      // We don't mark ProtectedStores as initialzing even when inside regions,
+    case IrOpcode::kTrappingStore:
+      // We don't mark TrappingStores as initializing even when inside regions,
       // since we don't store-store eliminate them because they have a raw base.
       __ Store(Map(node->InputAt(0)), Map(node->InputAt(1)),
-               Map(node->InputAt(2)), StoreOp::Kind::Protected(),
+               Map(node->InputAt(2)), StoreOp::Kind::Trapping(),
                MemoryRepresentation::FromMachineRepresentation(
                    OpParameter<MachineRepresentation>(node->op())),
                WriteBarrierKind::kNoWriteBarrier);
@@ -2503,8 +2505,8 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = LoadOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = LoadOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       RegisterRepresentation result_rep =
@@ -2546,8 +2548,8 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtectedByTrapHandler:
-          kind = StoreOp::Kind::RawAligned().Atomic().Protected();
+        case MemoryAccessKind::kTrapping:
+          kind = StoreOp::Kind::RawAligned().Atomic().Trapping();
           break;
       }
       __ Store(

@@ -49,7 +49,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -1877,8 +1877,7 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
-    v8::Local<v8::Value> wrapper = v8::Local<v8::Value>::New(
-        isolate_, v8::Persistent<v8::Value>::Cast(*value));
+    v8::Local<v8::Value> wrapper = v8::Local<v8::Value>::New(isolate_, *value);
     if (class_id == 1) {
       if (wrapper->IsString()) {
         v8::String::Utf8Value utf8(CcTest::isolate(), wrapper);
@@ -4798,7 +4797,7 @@ TEST(HeapSnapshotWithWasmInstance) {
   CHECK_NOT_NULL(managed_node);
   v8::String::Utf8Value managed_name{isolate, managed_node->GetName()};
 #if V8_ENABLE_SANDBOX
-  CHECK_EQ(std::string_view{"system / Managed<wasm::NativeModule>"},
+  CHECK_EQ(std::string_view{"system / Managed (WasmNativeModuleTag)"},
            std::string_view{*managed_name});
   // The size of the Managed is computed from the size of the NativeModule. This
   // is multiple kB, just conservatively assume >= 500b here.

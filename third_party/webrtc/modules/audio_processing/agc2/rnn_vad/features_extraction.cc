@@ -12,8 +12,8 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 
-#include "api/array_view.h"
 #include "modules/audio_processing/agc2/biquad_filter.h"
 #include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
@@ -55,8 +55,8 @@ void FeaturesExtractor::Reset() {
 }
 
 bool FeaturesExtractor::CheckSilenceComputeFeatures(
-    ArrayView<const float, kFrameSize10ms24kHz> samples,
-    ArrayView<float, kFeatureVectorSize> feature_vector) {
+    std::span<const float, kFrameSize10ms24kHz> samples,
+    std::span<float, kFeatureVectorSize> feature_vector) {
   // Pre-processing.
   if (use_high_pass_filter_) {
     std::array<float, kFrameSize10ms24kHz> samples_filtered;

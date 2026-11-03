@@ -5413,11 +5413,6 @@ void WebFrameWidgetImpl::PropagateHistorySequenceNumberToCompositor() {
       loader->GetHistoryItem()->ItemSequenceNumber());
 }
 
-base::ReadOnlySharedMemoryRegion
-WebFrameWidgetImpl::CreateSharedMemoryForDroppedFramesUkm() {
-  return LayerTreeHost()->CreateSharedMemoryForDroppedFramesUkm();
-}
-
 bool WebFrameWidgetImpl::CanComposeInline() {
   if (auto* plugin = GetFocusedPluginContainer())
     return plugin->CanComposeInline();

@@ -304,15 +304,24 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 void MacroAssembler::LoadTrustedUnknownPointerField(
     Register destination, MemOperand field_operand, Register scratch1,
     Register scratch2,
-    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+    Label* is_unavailable) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(destination, scratch1, scratch2));
-  Label done;
+  Label zero_and_fallthrough, done;
+
+  // The label is_unavailable will be used if the field is null (with enabled
+  // sandbox) or a Smi (with disabled sandbox). In these two cases, if the
+  // label is a nullptr, then we zero the destination register and fall through.
+  if (!is_unavailable) is_unavailable = &zero_and_fallthrough;
 
 #ifdef V8_ENABLE_SANDBOX
   {
     Register handle = scratch1;
     Lw(handle, field_operand);
+
+    static_assert(kNullIndirectPointerHandle == 0);
+    Branch(is_unavailable, eq, handle, Operand(zero_reg));
 
     bool handles_code_case = false;
     constexpr int kCodePointerHandleMarkerBit = 0;
@@ -334,7 +343,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       }
     }
     if (!handles_code_case) {
-      Branch(&done, ne, scratch2, Operand(zero_reg));
+      Branch(&zero_and_fallthrough, ne, scratch2, Operand(zero_reg));
     }
 
     ResolveTrustedPointerHandle(destination, handle,
@@ -342,6 +351,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #else
   LoadTaggedField(destination, field_operand);
+  JumpIfSmi(destination, is_unavailable);
 #endif  // V8_ENABLE_SANDBOX
 
 #if V8_STATIC_ROOTS_BOOL
@@ -364,8 +374,11 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  bind(&done);
+  Branch(&done);
+
+  bind(&zero_and_fallthrough);
   mv(destination, zero_reg);
+  bind(&done);
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,
@@ -2912,6 +2925,95 @@ void MacroAssembler::MultiPopFPU(DoubleRegList regs) {
     }
   }
   AddWord(sp, sp, stack_offset);
+}
+
+void MacroAssembler::SaveVectorRegisters(const Simd128RegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label not_simd, done;
+  ASM_CODE_COMMENT(this);
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    Lb(kScratchReg, MemOperand(kScratchReg, 0));
+    // If != 0, then simd is available.
+    Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+           Label::Distance::kNear);
+
+    // Since the builtins are compiled into a snapshot, we can't query the
+    // actual hardware vector length. This means that we are not allowed to use
+    // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+    // of 8 bits each.
+    VU.set(16, E8, m1);
+    for (VRegister vector_reg : reg_list) {
+      SubWord(sp, sp, Operand(kSimd128Size));
+      vs(vector_reg, sp, 0, E8);
+    }
+    Branch(&done);
+    bind(&not_simd);
+    SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
+    bind(&done);
+  } else {
+    // If we're not generating builtins, we can assume that the machine has
+    // simd128 support, since otherwise we wouldn't be able to run the code at
+    // all.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      VU.SetSimd128(E8);
+      for (VRegister vector_reg : reg_list) {
+        SubWord(sp, sp, Operand(kSimd128Size));
+        vs(vector_reg, sp, 0, E8);
+      }
+    } else {
+      SubWord(sp, sp,
+              Operand(-static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
+    }
+  }
+}
+
+void MacroAssembler::RestoreVectorRegisters(const Simd128RegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label not_simd, done;
+  ASM_CODE_COMMENT(this);
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    Lb(kScratchReg, MemOperand(kScratchReg, 0));
+    // If != 0, then simd is available.
+    Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+           Label::Distance::kNear);
+
+    // Since the builtins are compiled into a snapshot, we can't query the
+    // actual hardware vector length. This means that we are not allowed to use
+    // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+    // of 8 bits each.
+    VU.set(16, E8, m1);
+    for (VRegister vector_reg : base::Reversed(reg_list)) {
+      vl(vector_reg, sp, 0, E8);
+      AddWord(sp, sp, Operand(kSimd128Size));
+    }
+
+    Branch(&done);
+    bind(&not_simd);
+    AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
+    bind(&done);
+  } else {
+    // If we're not generating builtins, we can assume that the machine has
+    // simd128 support, since otherwise we wouldn't be able to run the code at
+    // all.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      VU.SetSimd128(E8);
+      for (VRegister vector_reg : base::Reversed(reg_list)) {
+        vl(vector_reg, sp, 0, E8);
+        AddWord(sp, sp, Operand(kSimd128Size));
+      }
+    } else {
+      AddWord(sp, sp,
+              Operand(static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
+    }
+  }
 }
 
 #if V8_TARGET_ARCH_RISCV32

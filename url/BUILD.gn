@@ -260,19 +260,17 @@ test("url_unittests") {
 
 test("url_perftests") {
   sources = [
-    "run_all_perftests.cc",
+    "scheme_host_port_perftest.cc",
     "url_parse_perftest.cc",
   ]
 
-  if (is_cobalt_hermetic_build) {
-    sources += [ "starboard/run_all_perftests.cc" ]
-    sources -= [ "run_all_perftests.cc" ]
-  }
   deps = [
     ":url",
     "//base",
     "//base/test:test_support",
+    "//base/test:test_support_perf",
     "//testing/gtest",
+    "//third_party/google_benchmark",
   ]
 }
 

@@ -1165,7 +1165,7 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
+            info.fColorTypeInfoCount = 2;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_R16_SFLOAT, Surface: kAlpha_F16
@@ -1177,6 +1177,14 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
                 ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
                 ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
+            }
+            // Format: VK_FORMAT_R16_SFLOAT, Surface: kR_F16
+            {
+                constexpr SkColorType ct = SkColorType::kR16_float_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
         }
     }
@@ -2124,49 +2132,9 @@ ImmutableSamplerInfo VulkanCaps::getImmutableSamplerInfo(const TextureInfo& text
     return {};
 }
 
-static constexpr const char* vk_chromafilter_to_str(VkFilter f) {
-    switch (f) {
-        case VK_FILTER_NEAREST:   return "nearest";
-        case VK_FILTER_LINEAR:    return "linear";
-        case VK_FILTER_CUBIC_EXT: return "cubic";
-        default:                  return "unknown";
-    }
-    SkUNREACHABLE;
-}
-
 std::string VulkanCaps::toString(const ImmutableSamplerInfo& immutableSamplerInfo) const {
-    const skgpu::VulkanYcbcrConversionInfo info =
-            VulkanYcbcrConversion::FromImmutableSamplerInfo(immutableSamplerInfo);
-    if (!info.isValid()) {
-        return "";
-    }
-
-    std::string result;
-
-    if (info.hasExternalFormat()) {
-        result += 'x';
-        result += std::to_string(info.externalFormat());
-    } else {
-        result += std::to_string(info.format());
-    }
-
-    result += " ";
-    result += VkModelToStr(info.model());
-    result += "+";
-    result += VkRangeToStr(info.range());
-    result += info.xChromaOffset() ? " mid"  : " cos";  // midpoint or cosited-even
-    result += info.yChromaOffset() ? " mid " : " cos "; // midpoint or cosited-even
-    result += vk_chromafilter_to_str(info.chromaFilter());
-    result += info.forceExplicitReconstruction() ? " T " : " F ";
-    result += VkSwizzleToStr(info.components().r, 'r');
-    result += VkSwizzleToStr(info.components().g, 'g');
-    result += VkSwizzleToStr(info.components().b, 'b');
-    result += VkSwizzleToStr(info.components().a, 'a');
-    result += " cf";
-    result += info.samplerFilterMustMatchChromaFilter() ? '1' : '0';
-    result += "lf";
-    result += info.supportsLinearFilter() ? '1' : '0';
-    return result;
+    return VulkanYcbcrConversion::InfoToString(
+            VulkanYcbcrConversion::FromImmutableSamplerInfo(immutableSamplerInfo));
 }
 
 } // namespace skgpu::graphite

@@ -14,12 +14,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/fec_controller.h"
 #include "api/frame_transformer_interface.h"
@@ -898,7 +898,7 @@ void RtpTransportControllerSend::PostUpdates(NetworkControlUpdate update) {
 
 void RtpTransportControllerSend::OnReport(
     Timestamp receive_time,
-    ArrayView<const ReportBlockData> report_blocks) {
+    std::span<const ReportBlockData> report_blocks) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (report_blocks.empty())
     return;

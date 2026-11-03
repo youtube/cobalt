@@ -1139,7 +1139,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
               kQpLow, kQpHigh, kMinPixelsPerFrame);
         }
         info.is_hardware_accelerated = is_hardware_accelerated_;
-        for (int i = 0; i < kMaxSpatialLayers; ++i) {
+        for (size_t i = 0; i < kMaxSpatialLayers; ++i) {
           if (temporal_layers_supported_[i]) {
             info.fps_allocation[i].clear();
             int num_layers = temporal_layers_supported_[i].value() ? 2 : 1;

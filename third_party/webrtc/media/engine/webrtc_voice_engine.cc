@@ -50,6 +50,7 @@
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/rtp_headers.h"
@@ -1431,7 +1432,7 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
     const std::vector<Codec>& codecs,
     std::optional<Codec> preferred_codec) {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  dtmf_payload_type_ = std::nullopt;
+  dtmf_payload_type_ = PayloadType::NotSet();
   dtmf_payload_freq_ = -1;
 
   // Validate supplied codecs list.
@@ -1453,7 +1454,8 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
   for (const Codec& codec : codecs) {
     if (IsCodec(codec, kDtmfCodecName)) {
       dtmf_codecs.push_back(codec);
-      if (!dtmf_payload_type_ || codec.clockrate < dtmf_payload_freq_) {
+      if ((dtmf_payload_type_ == PayloadType::NotSet()) ||
+          codec.clockrate < dtmf_payload_freq_) {
         dtmf_payload_type_ = codec.id;
         dtmf_payload_freq_ = codec.clockrate;
       }
@@ -1513,7 +1515,7 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
           RTC_LOG(LS_WARNING)
               << "CN frequency " << cn_codec.clockrate << " not supported.";
         } else {
-          send_codec_spec->cng_payload_type = cn_codec.id;
+          send_codec_spec->cng_payload_type = cn_codec.id.value();
         }
         break;
       }
@@ -1537,7 +1539,7 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
     const Codec& red_codec = codecs[i];
     if (IsCodec(red_codec, kRedCodecName) &&
         CheckRedParameters(red_codec, *send_codec_spec)) {
-      send_codec_spec->red_payload_type = red_codec.id;
+      send_codec_spec->red_payload_type = red_codec.id.value();
       break;
     }
   }
@@ -1698,7 +1700,7 @@ bool WebRtcVoiceSendChannel::SetLocalSource(uint32_t ssrc,
 
 bool WebRtcVoiceSendChannel::CanInsertDtmf() {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  return dtmf_payload_type_.has_value() && send_;
+  return (dtmf_payload_type_ != PayloadType::NotSet()) && send_;
 }
 
 void WebRtcVoiceSendChannel::SetFrameEncryptor(
@@ -1884,7 +1886,7 @@ void WebRtcVoiceSendChannel::FillSendCodecStats(
     });
     if (codec != send_codecs_.end()) {
       voice_media_info->send_codecs.insert(
-          std::make_pair(codec->id, codec->ToCodecParameters()));
+          std::make_pair(codec->id.value(), codec->ToCodecParameters()));
     }
   }
 }
@@ -2772,7 +2774,7 @@ void WebRtcVoiceReceiveChannel::FillReceiveCodecStats(
     });
     if (codec != recv_codecs_.end()) {
       voice_media_info->receive_codecs.insert(
-          std::make_pair(codec->id, codec->ToCodecParameters()));
+          std::make_pair(codec->id.value(), codec->ToCodecParameters()));
     }
   }
 }

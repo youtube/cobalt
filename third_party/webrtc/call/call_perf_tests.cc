@@ -16,13 +16,13 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
@@ -566,7 +566,7 @@ void CallPerfTest::TestMinTransmitBitrate(bool pad_to_min_bitrate) {
 
    private:
     // TODO(holmer): Run this with a timer instead of once per packet.
-    Action OnSendRtp(ArrayView<const uint8_t> /* packet */) override {
+    Action OnSendRtp(std::span<const uint8_t> /* packet */) override {
       task_queue_->PostTask(SafeTask(task_safety_flag_, [this]() {
         VideoSendStream::Stats stats = send_stream_->GetStats();
 
@@ -1021,7 +1021,7 @@ void CallPerfTest::TestEncodeFramerate(VideoEncoderFactory* encoder_factory,
       }
     }
 
-    Action OnSendRtp(ArrayView<const uint8_t> /* packet */) override {
+    Action OnSendRtp(std::span<const uint8_t> /* packet */) override {
       const Timestamp now = clock_->CurrentTime();
       if (now - last_getstats_time_ > kMinGetStatsInterval) {
         last_getstats_time_ = now;

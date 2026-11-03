@@ -27,9 +27,6 @@ _SHARD_MAP_DIR = os.path.join(os.path.dirname(__file__), 'shard_maps')
 
 _ALL_BENCHMARKS_BY_NAMES = dict(
     (b.Name(), b) for b in benchmark_finders.GetAllBenchmarks())
-
-_OFFICIAL_BENCHMARKS = frozenset(
-    b for b in benchmark_finders.GetOfficialBenchmarks() if b.IsScheduled())
 GTEST_STORY_NAME = '_gtest_'
 
 
@@ -290,18 +287,6 @@ def _TelemetryConfig(benchmark_name: str,
   benchmark = _ALL_BENCHMARKS_BY_NAMES[benchmark_name]
   return TelemetryConfig(benchmark, abridged, pageset_repeat)
 
-
-_OFFICIAL_BENCHMARK_CONFIGS = PerfSuite(
-    [_TelemetryConfig(b.Name()) for b in _OFFICIAL_BENCHMARKS])
-_OFFICIAL_BENCHMARK_CONFIGS = _OFFICIAL_BENCHMARK_CONFIGS.Remove([
-    'blink_perf.svg',
-    'blink_perf.paint',
-])
-# TODO(crbug.com/40628256): Remove OFFICIAL_BENCHMARK_NAMES once sharding
-# scripts are no longer using it.
-OFFICIAL_BENCHMARK_NAMES = frozenset(
-    b.name for b in _OFFICIAL_BENCHMARK_CONFIGS.Frozenset())
-
 BenchmarkConfigFactory = Callable[..., BenchmarkConfig]
 _BENCHMARKS_CONFIG_FACTORIES: dict[str, BenchmarkConfigFactory] = {}
 for b in _ALL_BENCHMARKS_BY_NAMES:
@@ -407,11 +392,11 @@ def _views_perftests(estimated_runtime: int = 7):
 
 
 @_register('web_tests_cuj')
-def _web_tests_cuj(estimated_runtime: int = 10):
+def _web_tests_cuj(estimated_runtime: int = 10, flags: tuple[str, ...] = ()):
   return CrossbenchConfig('web_tests_cuj',
                           'speedometer_3.1',
                           estimated_runtime=estimated_runtime,
-                          flags=('--web-tests-cuj', '--debug'))
+                          flags=flags)
 
 # Speedometer:
 @_register('speedometer2.0.crossbench')
@@ -466,6 +451,24 @@ def _speedometer3_crossbench(estimated_runtime: int = 60,
   """Alias for the latest Speedometer 3.X version."""
   return CrossbenchConfig('speedometer3.crossbench',
                           'speedometer_3',
+                          estimated_runtime=estimated_runtime,
+                          flags=flags)
+
+
+@_register('browser_startup.crossbench')
+def _browser_startup_crossbench(estimated_runtime: int = 60,
+                                flags: tuple[str, ...] = ()):
+  """Browser startup benchmark for InitialWebUI vs Baseline."""
+  flags += (
+      '--browser-config',
+      'config/benchmark/browser_startup/browser.config.hjson',
+      '--probe-config',
+      'config/benchmark/browser_startup/probe.hjson',
+      '--page-config',
+      'config/benchmark/browser_startup/story.hjson',
+  )
+  return CrossbenchConfig('browser_startup.crossbench',
+                          'loading',
                           estimated_runtime=estimated_runtime,
                           flags=flags)
 
@@ -990,6 +993,8 @@ PLATFORM_INFO = {
     },
 }
 
+# TODO: add more details.
+BENCHMARK_INFO = {k: {} for k, v in _BENCHMARKS_CONFIG_FACTORIES.items()}
 
 def LoadAllScheduleFiles() -> set[_PerfPlatform]:
   schedule_dir = pathlib.Path(__file__).resolve().parent / 'schedule'

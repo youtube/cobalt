@@ -10,6 +10,8 @@
 
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
+
+#include "test/gtest.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,7 +30,6 @@ extern "C" {
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
 
-#include "rtc_base/gunit.h"
 #include "rtc_base/system/unused.h"
 
 @interface RTCPeerConnectionFactoryBuilderTests : XCTestCase

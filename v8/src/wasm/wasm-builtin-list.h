@@ -135,6 +135,7 @@ namespace v8::internal::wasm {
   V(WasmStringViewWtf16Slice)                                                  \
   V(WasmStringNewWtf8Array)                                                    \
   V(WasmStringNewWtf16Array)                                                   \
+  V(WasmStringNewWtf16ArrayShared)                                             \
   V(WasmStringEncodeWtf8Array)                                                 \
   V(WasmStringToUtf8Array)                                                     \
   V(WasmStringEncodeWtf16Array)                                                \
@@ -165,6 +166,7 @@ namespace v8::internal::wasm {
   V(WasmFXResumeThrow)                                                         \
   V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
+  V(WasmFXSwitch)                                                              \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \

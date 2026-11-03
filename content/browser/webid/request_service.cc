@@ -11,6 +11,7 @@
 #include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
@@ -292,7 +293,8 @@ void RequestService::RequestToken(
     MediationRequirement requirement,
     NavigationHandle* navigation_handle,
     RequestTokenCallback callback) {
-  if (ShouldTerminateRequest(idp_get_params_ptrs, requirement)) {
+  if (ShouldTerminateRequest(idp_get_params_ptrs, requirement,
+                             navigation_handle)) {
     return;
   }
   bool intercept = false;
@@ -603,6 +605,14 @@ void RequestService::RequestToken(
 void RequestService::RequestUserInfo(
     blink::mojom::IdentityProviderConfigPtr provider,
     RequestUserInfoCallback callback) {
+  // Enforce identity-credentials-get Permissions Policy browser-side.
+  // The renderer checks this, but a compromised renderer can bypass it.
+  if (!render_frame_host().IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
+    ReportBadMessage("identity-credentials-get permissions policy not enabled");
+    return;
+  }
+
   if (!render_frame_host().GetPage().IsPrimary()) {
     ReportBadMessage("FedCM should not be allowed in nested frame trees.");
     return;
@@ -1363,6 +1373,13 @@ void RequestService::NotifyAutofillSuggestionAccepted(
   // approved_clients array). We should figure out how to reconcile these two
   // modes.
   auto get_info_it = token_request_get_infos_.find(idp);
+  if (get_info_it == token_request_get_infos_.end()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(token_received_callback_for_autofill_),
+                       false));
+    return;
+  }
 
   // TODO(crbug.com/412640661): Currently, in order to skip the account chooser
   // and go straight to the disclosure UI, we have to call ShowLoadingDialog()
@@ -2790,6 +2807,14 @@ void RequestService::PreventSilentAccess(PreventSilentAccessCallback callback) {
 void RequestService::Disconnect(
     blink::mojom::IdentityCredentialDisconnectOptionsPtr options,
     DisconnectCallback callback) {
+  // Enforce identity-credentials-get Permissions Policy browser-side.
+  // The renderer checks this, but a compromised renderer can bypass it.
+  if (!render_frame_host().IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
+    ReportBadMessage("identity-credentials-get permissions policy not enabled");
+    return;
+  }
+
   std::unique_ptr<Metrics> disconnect_metrics = CreateFedCmMetrics();
   if (disconnect_request_) {
     // Since we do not send any fetches in this case, consider the request to be
@@ -2864,7 +2889,19 @@ bool RequestService::IsNewlyLoggedIn(const IdentityRequestAccount& account) {
 
 bool RequestService::ShouldTerminateRequest(
     const std::vector<IdentityProviderGetParametersPtr>& idp_get_params_ptrs,
-    const MediationRequirement& requirement) {
+    const MediationRequirement& requirement,
+    NavigationHandle* navigation_handle) {
+  // Enforce identity-credentials-get Permissions Policy browser-side.
+  // The renderer checks this, but a compromised renderer can bypass it.
+  // Navigation interception calls pass a non-null navigation_handle and are
+  // browser-initiated, so the check only applies to Mojo calls.
+  if (!navigation_handle &&
+      !render_frame_host().IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
+    ReportBadMessage("identity-credentials-get permissions policy not enabled");
+    return true;
+  }
+
   // idp_get_params_ptrs sent from the renderer should be of size 1.
   if (idp_get_params_ptrs.size() != 1u) {
     ReportBadMessage("idp_get_params_ptrs should be of size 1.");

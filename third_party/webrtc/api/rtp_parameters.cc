@@ -18,7 +18,6 @@
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/rtc_error.h"
 #include "api/rtp_transceiver_direction.h"
 #include "media/base/media_constants.h"
@@ -206,15 +205,14 @@ RtpParameters::RtpParameters(const RtpParameters& rhs) = default;
 RtpParameters::~RtpParameters() = default;
 
 std::string RtpExtension::ToString() const {
-  char buf[256];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "{uri: " << uri;
   sb << ", id: " << id;
   if (encrypt) {
     sb << ", encrypt";
   }
-  sb << '}';
-  return sb.str();
+  sb << "}";
+  return sb.Release();
 }
 
 bool RtpExtension::IsSupportedForAudio(absl::string_view uri) {

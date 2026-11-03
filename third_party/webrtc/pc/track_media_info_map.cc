@@ -46,15 +46,15 @@ flat_map<uint32_t, int> GetSenderAttachmentIds(
   RTC_DCHECK_EQ(senders.size(), sender_parameters.size());
   flat_map<uint32_t, int> result;
   for (size_t i = 0; i < senders.size(); ++i) {
-    const auto& sender = senders[i];
+    const TrackMediaInfoMap::RtpSenderSignalInfo& sender = senders[i];
     if (sender.media_type != media_type) {
       continue;
     }
-    const auto& parameters = sender_parameters[i];
+    const RtpParameters& parameters = sender_parameters[i];
     if (sender.ssrc != 0) {
       result[sender.ssrc] = sender.attachment_id;
     }
-    for (const auto& encoding : parameters.encodings) {
+    for (const RtpEncodingParameters& encoding : parameters.encodings) {
       if (encoding.ssrc) {
         result[*encoding.ssrc] = sender.attachment_id;
       }

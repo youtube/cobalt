@@ -71,6 +71,9 @@ class ContextualSearchSessionHandle {
   // Notifies the session handle that the session has started.
   virtual void NotifySessionStarted();
 
+  // Sets whether or not the session is backgrounded.
+  virtual void SetIsBackgrounded(bool backgrounded);
+
   // Notifies the session handle that the session has been abandoned.
   void NotifySessionAbandoned();
 
@@ -106,6 +109,12 @@ class ContextualSearchSessionHandle {
       const base::UnguessableToken& file_token,
       std::unique_ptr<lens::ContextualInputData> contextual_input_data,
       std::optional<lens::ImageEncodingOptions> image_options);
+
+  // Starts the URL context upload flow for the given file token. The file
+  // token must have been previously returned by `CreateContextToken`.
+  virtual void StartUrlContextUploadFlow(
+      const base::UnguessableToken& file_token,
+      const GURL& url);
 
   // Starts the Modality Chip upload flow for the given file token. The file
   // token must have been previously returned by `CreateContextToken`.

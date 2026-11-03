@@ -6,4 +6,6 @@
 
 @implementation AutofillAIEntityEditItem
 
+@synthesize attributeType = _attributeType;
+
 @end

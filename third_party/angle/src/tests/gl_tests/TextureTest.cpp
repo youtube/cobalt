@@ -2864,6 +2864,39 @@ TEST_P(Texture2DTest, PBOWithMultipleDraws)
     EXPECT_EQ(expected, actual);
 }
 
+// Regression test for TextureMtl::mFormat becoming mismatched with the native storage format when
+// updating mips outside of the storage.
+TEST_P(Texture2DTestES3, StaleFormatCacheOutOrRangeMip)
+{
+
+    GLTexture tex;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 4);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    // Create RGBA8 texture with one mip.
+    constexpr GLuint kWidth = 24;
+    std::vector<GLColor> pixels(kWidth, GLColor::red);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kWidth, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 pixels.data());
+
+    // Force native storage allocation with a draw
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), essl3_shaders::fs::Red());
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
+
+    // Set data on a high mip with a different format causing mFormat to change in TextureMtl
+    glTexImage2D(GL_TEXTURE_2D, 10, GL_R8, 1, 1, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Check that ReadPixels reads RGBA data from mip 0 correctly.
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+}
+
 // Almost mirrors UnitTest_DMSAA_dst_read test from Android skqp test suite
 TEST_P(Texture2DTestES3, UnitTest_DMSAA_dst_read)
 {
@@ -17358,6 +17391,23 @@ TEST_P(TextureBufferTestES31, TexBufferFormatMismatch)
         runTestCase(kTexData32i, format, "isamplerBuffer");
         runTestCase(kTexData32i, format, "usamplerBuffer");
     }
+}
+
+// Test that uploading a max size texture with large formats does not crash.
+TEST_P(Texture2DTestES3, LargeTextureOverflow)
+{
+    // Some backends generate internal errors for OOM. That's OK as long as they don't crash.
+    ScopedIgnorePlatformMessages ignore;
+
+    GLint maxTextureSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // This may succeed or generate an error about overflows but it should not crash.
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, maxTextureSize, maxTextureSize, 0, GL_RGB, GL_FLOAT,
+                 nullptr);
 }
 
 // Create an integer format texture but specify a FLOAT sampler. OpenGL

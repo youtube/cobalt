@@ -1087,6 +1087,12 @@ class ImplicationProcessor {
       }
     }
     if (is_conclusion_value_change) {
+      if constexpr (std::is_same_v<T, const char*>) {
+        if (conclusion_flag->owns_ptr_) {
+          DeleteArray(conclusion_value->value());
+          conclusion_flag->owns_ptr_ = false;
+        }
+      }
       *conclusion_value = value;
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
@@ -1267,6 +1273,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 #if V8_ENABLE_WEBASSEMBLY
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+      // Not useful for differential fuzzing: https://crbug.com/496356383
+      RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),
 
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),

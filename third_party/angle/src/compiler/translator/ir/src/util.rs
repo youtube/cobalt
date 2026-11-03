@@ -95,6 +95,29 @@ pub fn calculate_function_decl_order(
     decl_order
 }
 
+// Check if a block has nothing but a `Merge(None)`.  It could also be a chain of `NextBlock`s
+// ending in `Merge(None)`.  If the blocks have any variables defined, they are ignored; the
+// variables are local a to block that doesn't use them.
+pub fn is_empty_block(block: &Block) -> bool {
+    let mut current_block = block;
+
+    loop {
+        if current_block.instructions.len() != 1 {
+            return false;
+        }
+
+        if let OpCode::Merge(None) = current_block.get_terminating_op() {
+            return true;
+        }
+
+        if let OpCode::NextBlock = current_block.get_terminating_op() {
+            current_block = current_block.merge_block.as_ref().unwrap();
+        } else {
+            return false;
+        }
+    }
+}
+
 struct DuplicateBlockContext<'a, 'b, 'c> {
     ir_meta: &'a mut IRMeta,
     variable_map: &'b mut HashMap<VariableId, Id>,
@@ -470,6 +493,29 @@ pub fn trace_back<State, InspectConstant, InspectVariable, InspectRegister>(
     }
 }
 
+// A specialized version of trace_back that automatically traces `Access*` instructions until a
+// variable is found (or not).
+pub fn trace_back_to_variable(ir_meta: &IRMeta, id: Id) -> Option<VariableId> {
+    let mut result = None;
+    trace_back(
+        ir_meta,
+        &mut result,
+        id,
+        &mut |_, _| {},
+        &mut |result, variable_id| *result = Some(variable_id),
+        &mut |_, _, opcode| match *opcode {
+            OpCode::AccessVectorComponent(base_id, _)
+            | OpCode::AccessVectorComponentMulti(base_id, _)
+            | OpCode::AccessVectorComponentDynamic(base_id, _)
+            | OpCode::AccessMatrixColumn(base_id, _)
+            | OpCode::AccessStructField(base_id, _)
+            | OpCode::AccessArrayElement(base_id, _) => Some(base_id.id),
+            _ => None,
+        },
+    );
+    result
+}
+
 // ESSL 100 Appendix A.4 Control Flow specifies the shape of supported `for` loops.  The format is:
 //
 //     for (type variable = constant; variable op constant; expression)
@@ -704,6 +750,8 @@ pub fn inspect_pointer_access<State, OnAccess>(
     match opcode {
         // Read accesses
         &OpCode::Load(pointer)
+        | &OpCode::Unary(UnaryOpCode::ArrayLength, pointer)
+        | &OpCode::Unary(UnaryOpCode::AtomicCounter, pointer)
         | &OpCode::Binary(BinaryOpCode::AtomicAdd, pointer, _)
         | &OpCode::Binary(BinaryOpCode::AtomicMin, pointer, _)
         | &OpCode::Binary(BinaryOpCode::AtomicMax, pointer, _)
@@ -734,7 +782,9 @@ pub fn inspect_pointer_access<State, OnAccess>(
         &OpCode::Unary(UnaryOpCode::PrefixIncrement, pointer)
         | &OpCode::Unary(UnaryOpCode::PrefixDecrement, pointer)
         | &OpCode::Unary(UnaryOpCode::PostfixIncrement, pointer)
-        | &OpCode::Unary(UnaryOpCode::PostfixDecrement, pointer) => {
+        | &OpCode::Unary(UnaryOpCode::PostfixDecrement, pointer)
+        | &OpCode::Unary(UnaryOpCode::AtomicCounterIncrement, pointer)
+        | &OpCode::Unary(UnaryOpCode::AtomicCounterDecrement, pointer) => {
             on_access(state, pointer, PointerAccess::ReadWrite);
         }
 

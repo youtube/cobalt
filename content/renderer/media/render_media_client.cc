@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/no_destructor.h"
 #include "base/time/default_tick_clock.h"
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -63,12 +64,21 @@ void UpdateEncoderVideoProfilesInternal(
 
 namespace content {
 
+static RenderMediaClient* GetRenderMediaClient() {
+  static base::NoDestructor<RenderMediaClient> client;
+  return client.get();
+}
+
 void RenderMediaClient::Initialize() {
-  static RenderMediaClient* client = new RenderMediaClient();
-  media::SetMediaClient(client);
+  media::SetMediaClient(GetRenderMediaClient());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  client->InstallDecoderBufferAllocator();
+  GetRenderMediaClient()->InstallDecoderBufferAllocator();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+void RenderMediaClient::SetGpuFeatureInfo(
+    const gpu::GpuFeatureInfo& gpu_feature_info) {
+  GetRenderMediaClient()->SetGpuFeatureInfoInternal(gpu_feature_info);
 }
 
 RenderMediaClient::RenderMediaClient()
@@ -334,6 +344,28 @@ void RenderMediaClient::OnGetSupportedVideoEncoderConfigs(
 
 media::ExternalMemoryAllocator* RenderMediaClient::GetMediaAllocator() {
   return GetContentClient()->renderer()->GetMediaAllocator();
+}
+
+void RenderMediaClient::SetGpuFeatureInfoInternal(
+    const gpu::GpuFeatureInfo& gpu_feature_info) {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  if (gpu_feature_info.IsInitialized()) {
+    if (gpu_feature_info
+            .status_values[gpu::GPU_FEATURE_TYPE_ACCELERATED_VIDEO_DECODE] !=
+        gpu::kGpuFeatureStatusEnabled) {
+      media::UpdateDefaultDecoderSupportedVideoProfiles({});
+    }
+    if (gpu_feature_info
+            .status_values[gpu::GPU_FEATURE_TYPE_ACCELERATED_VIDEO_ENCODE] !=
+        gpu::kGpuFeatureStatusEnabled) {
+      media::UpdateDefaultEncoderSupportedVideoProfiles({});
+    }
+  } else {
+    // Purge everything since we no longer have a GPU.
+    media::UpdateDefaultDecoderSupportedVideoProfiles({});
+    media::UpdateDefaultDecoderSupportedAudioTypes({});
+    media::UpdateDefaultEncoderSupportedVideoProfiles({});
+  }
 }
 
 }  // namespace content

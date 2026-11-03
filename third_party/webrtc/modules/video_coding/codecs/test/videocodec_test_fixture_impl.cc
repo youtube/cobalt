@@ -24,7 +24,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"

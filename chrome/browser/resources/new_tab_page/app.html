@@ -1,5 +1,5 @@
 <!-- #html_wrapper_imports_start
-import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
+import {SubmitButtonIconType} from '//resources/cr_components/composebox/composebox.js';
 #html_wrapper_imports_end -->
 <div id="content"
   ?ntp-threads-rail-open="${this.showComposebox_ && this.enableThreadsRail_}">
@@ -43,7 +43,7 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
   <div id="searchboxContainer"
       @focusin="${this.onSearchboxContainerFocusin_}"
       @focusout="${this.onSearchboxContainerFocusout_}">
-    <cr-searchbox id="searchbox" ?is-dark="${this.isThemeDark_()}"
+    <ntp-searchbox id="searchbox" ?is-dark="${this.isThemeDark_()}"
         placeholder-text="$i18n{searchBoxPlaceholder}"
         ?color-source-is-baseline="${this.colorSourceIsBaseline}"
         @open-composebox="${this.onOpenComposebox_}"
@@ -59,13 +59,14 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
         ?cycling-placeholders="${this.searchboxCyclingPlaceholders_}"
         context-menu-glif-animation-state="${this.contextMenuGlifAnimationState_}"
         ?multi-line-enabled="${this.multiLineEnabled_}">
-    </cr-searchbox>
+    </ntp-searchbox>
     ${this.showComposebox_ ? html`
       <div id="dialogAnchor"></div>
       <dialog id="composeboxDialog">
         <cr-composebox id="composebox"
             ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
             ?searchbox-next-enabled="${this.ntpRealboxNextEnabled_}"
+            .submitButtonIconType="${this.ntpRealboxNextEnabled_ ? SubmitButtonIconType.FORWARD : SubmitButtonIconType.UPWARD}"
             ?disable-caret-color-animation="${!this.caretAnimationsEnabled_}"
             .state="${this.composeboxState_}"
             @close-composebox="${this.onCloseComposebox_}"
@@ -184,7 +185,7 @@ ${this.showVoiceSearchOverlay_ ? html`
 ` : ''}
 ${!this.ntpRealboxNextEnabled_ && this.showComposebox_ ? html`
   <div id="scrim"
-      @click="${this.composeboxCloseByClickOutside_ ? this.onComposeboxClickOutside_ : nothing}"></div>
+      @click="${this.onComposeboxOutsideClick_}"></div>
 ` : ''}
 <svg>
   <defs>

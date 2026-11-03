@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/check_op.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -23,6 +24,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/not_fatal_until.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/favicon/large_icon_service_factory.h"
@@ -36,6 +38,7 @@
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_utils.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_bnpl_footnote_view.h"
@@ -57,6 +60,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
+#include "components/autofill/core/browser/ui/tabbed_pane_enums.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -186,7 +190,7 @@ std::vector<views::BubbleArrowSide> GetPreferredPopupSides(
 }
 
 void DefaultA11yAnnouncer(const std::u16string& message, bool polite) {
-  Browser* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser = chrome::FindLastActive();
   if (!browser) {
     return;
   }
@@ -326,6 +330,7 @@ bool PopupViewViews::Show(
   MaybeAnnounceCurrentTab();
   MaybeAnnouncePasswordRecoveryPopup();
   MaybeAnnounceLoadingState();
+  MaybeAnnounceBnplFootnotePopup();
   MaybeA11yFocusInformationalSuggestion();
 
   return !CanActivate() || (GetWidget() && GetWidget()->IsActive());
@@ -769,6 +774,7 @@ void PopupViewViews::OnSuggestionsChanged(bool prefer_prev_arrow_side) {
   MaybeAnnounceCurrentTab();
   MaybeAnnouncePasswordRecoveryPopup();
   MaybeAnnounceLoadingState();
+  MaybeAnnounceBnplFootnotePopup();
   MaybeA11yFocusInformationalSuggestion();
   ShowIPHFeaturePromos();
 }
@@ -862,7 +868,8 @@ bool PopupViewViews::SearchBarHandleKeyPressed(const ui::KeyEvent& event) {
 }
 
 void PopupViewViews::TabSelectedAt(int index) {
-  controller_->SetFilter(SuggestionTabIndex(index));
+  CHECK_LT(base::checked_cast<size_t>(index), tabbed_pane_config_->tabs.size());
+  controller_->OnTabSelected(index, tabbed_pane_config_->tabs[index].type);
 }
 
 void PopupViewViews::SetSelectedCell(
@@ -989,6 +996,15 @@ void PopupViewViews::MaybeAnnounceLoadingState() {
     a11y_announcer_.Run(l10n_util::GetStringUTF16(
                             IDS_AUTOFILL_BNPL_PROGRESS_DIALOG_LOADING_MESSAGE),
                         /*polite=*/true);
+  }
+}
+
+void PopupViewViews::MaybeAnnounceBnplFootnotePopup() {
+  for (const RowPointer& row : rows_) {
+    if (const auto* footnote = std::get_if<PopupBnplFootnoteView*>(&row)) {
+      a11y_announcer_.Run((*footnote)->GetFullText(), /*polite=*/true);
+      return;
+    }
   }
 }
 
@@ -1238,8 +1254,17 @@ void PopupViewViews::CreateSuggestionViews() {
 
     footer_container_ =
         suggestions_container_->AddChildView(std::move(footer_container));
+
+    // If the last item in the footer is a BNPL footnote, then we don't need
+    // any extra padding at the bottom. The BNPL footnote has its own bottom
+    // padding to ensure it is properly shaded.
+    int footer_bottom_padding =
+        suggestions.back().type == SuggestionType::kBnplFootnote
+            ? 0
+            : kInterItemsPadding;
     footer_container_->SetInsideBorderInsets(
-        gfx::Insets::VH(kInterItemsPadding, 0));
+        gfx::Insets::TLBR(kInterItemsPadding, 0, footer_bottom_padding, 0));
+
     suggestions_container_->SetFlexForView(footer_container_, 0);
   }
 

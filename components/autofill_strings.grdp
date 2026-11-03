@@ -486,10 +486,13 @@
     Save and fill addresses
   </message>
   <message name="IDS_AUTOFILL_DISABLE_SETTINGS_EXPLANATION_TITLE" desc="Title of the card explaining why the settings page was disabled. Sentence-Cased." formatter_data="android_java">
-  Google isn’t your autofill provider
+    Google isn’t your autofill provider
   </message>
   <message name="IDS_AUTOFILL_DISABLE_SETTINGS_EXPLANATION" desc="Explanation why the settings page was disabled. Sentence-Cased." formatter_data="android_java">
     To enable these settings and use payment info from your Google Account, visit autofill services settings.
+  </message>
+  <message name="IDS_AUTOFILL_DISABLE_SETTINGS_EXPLANATION_V2" desc="The body text of the info banner. It explains why the rest of the page is greyed out (disabled) and instructs the user on how to fix it by changing their provider back to Google." formatter_data="android_java">
+    To enable these settings and use info from your Google Account, visit autofill services settings
   </message>
   <message name="IDS_AUTOFILL_DISABLE_SETTINGS_BUTTON_LABEL" desc="Button that opens the autofill services settings page. Sentence-Cased." formatter_data="android_java">
     Autofill services settings
@@ -521,6 +524,9 @@
     </message>
     <message name="IDS_AUTOFILL_THIRD_PARTY_FILLING_OPT_IN_DESCRIPTION" desc="Description shown on the option enabling the use of third-party autofill in Chrome." formatter_data="android_java">
       To use another autofill service in Chrome, choose your autofill provider in Android settings
+    </message>
+    <message name="IDS_AUTOFILL_THIRD_PARTY_FILLING_OPT_IN_DESCRIPTION_V2" desc="The description text below the Autofill using another service radio button. It provides instructions on how to enable third-party services, noting the dependency on system-level Android settings." formatter_data="android_java">
+      To use another autofill service in Chrome, turn it on in Android settings and here
     </message>
     <message name="IDS_PAYMENT_METHODS_SETTINGS_LOYALTY_CARDS_TITLE" desc="Title for the payment methods settings page row that links the user to the Google Wallet app." formatter_data="android_java">
       Loyalty cards
@@ -910,6 +916,10 @@
   <message name="IDS_AUTOFILL_AI_ORDER_ENTITY_NAME" desc="The label for something that a user can autofill when filling a form. For context, a user has been able to fill addresses within Chrome for many users. Now a user can also fill an “Order”." translateable="false">
     Order
   </message>
+  <!-- TODO(crbug.com/485363832): Make Shipment entity translatable. -->
+  <message name="IDS_AUTOFILL_AI_SHIPMENT_ENTITY_NAME" desc="The label for something that a user can autofill when filling a form. For context, a user has been able to fill addresses within Chrome for many users. Now a user can also fill a “Shipment”." translateable="false">
+    Shipment
+  </message>
 
   <!-- Titles -->
   <message name="IDS_AUTOFILL_AI_DRIVERS_LICENSES_TITLE" desc="The title of a chip referring to drivers licenses (IDS_AUTOFILL_AI_DRIVERS_LICENSE_ENTITY_NAME) on Your saved info settings page.">
@@ -932,6 +942,9 @@
   </message>
   <message name="IDS_AUTOFILL_AI_ORDERS_TITLE" desc="The title of a chip referring to orders (IDS_AUTOFILL_AI_ORDER_ENTITY_NAME) on Your saved info settings page." translateable="false">
     Orders
+  </message>
+  <message name="IDS_AUTOFILL_AI_SHIPMENTS_TITLE" desc="The title of a chip referring to shipments (IDS_AUTOFILL_AI_SHIPMENT_ENTITY_NAME) on Your saved info settings page." translateable="false">
+    Shipments
   </message>
 
   <!-- Add entity strings -->
@@ -1095,29 +1108,6 @@
   </message>
   <message name="IDS_AUTOFILL_AI_VEHICLE_VEHICLE_IDENTIFICATION_NUMBER_ATTRIBUTE_NAME" desc="A label that describes a piece of user data. This label loosely aligns with the original form the user submitted. For example, one website might label the field “Registration“ and another might label it “Vehicle Identification Number“. Once the information is saved with enhanced autofill, we just call the value “VIN (Vehicle Identification Number)“. Please use Glossary Manager or look up the official term for your country.">
     VIN (Vehicle Identification Number)
-  </message>
-
-  <!-- Attributes of the order entity -->
-  <message name="IDS_AUTOFILL_AI_ORDER_ID_ATTRIBUTE_NAME" translateable="false">
-    Id
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_ACCOUNT_ATTRIBUTE_NAME" translateable="false">
-    Account
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_DATE_ATTRIBUTE_NAME" translateable="false">
-    Date
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_MERCHANT_NAME_ATTRIBUTE_NAME" translateable="false">
-    Merchant name
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_MERCHANT_DOMAIN_ATTRIBUTE_NAME" translateable="false">
-    Merchant domain
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_PRODUCT_NAMES_ATTRIBUTE_NAME" translateable="false">
-    Product names
-  </message>
-  <message name="IDS_AUTOFILL_AI_ORDER_GRAND_TOTAL_ATTRIBUTE_NAME" translateable="false">
-    Grand total
   </message>
 
   <!-- Manage suggestion -->
@@ -1336,6 +1326,15 @@
     </message>
     <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_NEW_ATTRIBUTE_WITH_BADGE" desc="Used in entity update dialogs, as the special badge to indicate newly added attributes that were not saved before." formatter_data="android_java">
       <ph name="ATTRIBUTE_VALUE">$1<ex>John Doe</ex></ph>  <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
+    </message>
+    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_TITLE" desc="The title of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet.">
+      Info saved to device only
+    </message>
+    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_DESCRIPTION" desc="The description text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet.">
+      Chrome will offer to save it to <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE">$1<ex>Google Wallet</ex></ph> next time you use it
+    </message>
+    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_CONFIRMATION_BUTTON_LABEL" desc="The confirmation button text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet.">
+      Got it
     </message>
   </if>
 

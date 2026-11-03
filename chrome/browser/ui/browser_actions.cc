@@ -93,7 +93,7 @@
 #include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_utils.h"
-#include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
+#include "chrome/browser/ui/views/tabs/groups/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button_menu_model.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
@@ -1548,7 +1548,7 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
             .SetActionId(kActionShowAiOverlayDialog)
             .SetText(l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP))
             .SetImage(ui::ImageModel::FromVectorIcon(
-                vector_icons::kExtensionIcon, ui::kColorIcon,
+                vector_icons::kMicIcon, ui::kColorIcon,
                 ui::SimpleMenuModel::kDefaultIconSize))
             .SetProperty(
                 actions::kActionItemPinnableKey,

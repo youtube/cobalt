@@ -12,15 +12,15 @@
 
 #include <algorithm>
 #include <iterator>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
 
 int DefaultOutputRateCalculator::CalculateOutputRateFromRange(
-    ArrayView<const int> preferred_sample_rates) {
+    std::span<const int> preferred_sample_rates) {
   if (preferred_sample_rates.empty()) {
     return DefaultOutputRateCalculator::kDefaultFrequency;
   }

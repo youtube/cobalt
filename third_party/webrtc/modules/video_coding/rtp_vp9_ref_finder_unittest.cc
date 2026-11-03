@@ -16,10 +16,10 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/rtp_packet_infos.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
@@ -192,7 +192,7 @@ class HasFrameMatcher : public MatcherInterface<const FrameVector&> {
       return false;
     }
 
-    ArrayView<int64_t> actual_refs((*it)->references, (*it)->num_references);
+    std::span<int64_t> actual_refs((*it)->references, (*it)->num_references);
     if (!Matches(UnorderedElementsAreArray(expected_refs_))(actual_refs)) {
       if (result_listener->IsInterested()) {
         *result_listener << "Frame with frame_id:" << frame_id_ << " and "

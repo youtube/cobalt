@@ -11,9 +11,9 @@
 #include <array>
 #include <cstdlib>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "common_audio/resampler/push_sinc_resampler.h"
 #include "modules/audio_processing/agc2/cpu_features.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
@@ -141,7 +141,7 @@ TEST_P(RnnVadProbabilityParametrization, DISABLED_RnnVadPerformance) {
     perf_timer.StartTimer();
     for (int i = 0; i < num_frames; ++i) {
       bool is_silence = features_extractor.CheckSilenceComputeFeatures(
-          ArrayView<const float, kFrameSize10ms24kHz>(
+          std::span<const float, kFrameSize10ms24kHz>(
               &prefetched_decimated_samples[i * kFrameSize10ms24kHz],
               kFrameSize10ms24kHz),
           feature_vector);

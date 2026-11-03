@@ -54,13 +54,10 @@ BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInfobarRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault,
-             "OfferPinToTaskbarWhenSettingDefault",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOfferPinToTaskbarInFirstRunExperience,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOfferPinToTaskbarInSettings, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Shows an infobar at startup offering to pin Chrome to the taskbar (on
@@ -162,17 +159,16 @@ BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabGroupsCollapseFreezing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
-// General improvements to tab group menus
-BASE_FEATURE(kTabGroupMenuImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabGroupMenuImprovementsEnabled() {
-  return base::FeatureList::IsEnabled(kTabGroupMenuImprovements);
-}
-
 BASE_FEATURE(kTabGroupMenuMoreEntryPoints, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsTabGroupMenuMoreEntryPointsEnabled() {
   return base::FeatureList::IsEnabled(kTabGroupMenuMoreEntryPoints);
+}
+
+BASE_FEATURE(kTabGroupHoverCards, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsTabGroupHoverCardsEnabled() {
+  return base::FeatureList::IsEnabled(kTabGroupHoverCards);
 }
 
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -187,20 +183,7 @@ BASE_FEATURE(kTabHoverCardImages,
 #endif
 );
 
-BASE_FEATURE(kTabGroupHoverCards, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTabModalUsesDesktopWidget, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTabOrganization, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabOrganization() {
-  return base::FeatureList::IsEnabled(features::kTabOrganization);
-}
-
-BASE_FEATURE(kTabOrganizationModelStrategy, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTabOrganizationUserInstruction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables creating a web app window when tearing off a tab with a url
 // controlled by a web app.
@@ -407,6 +390,8 @@ bool IsNewTabAddsToActiveGroupEnabled() {
   return base::FeatureList::IsEnabled(kNewTabAddsToActiveGroup);
 }
 
+BASE_FEATURE(kWebUIAvatarButton, base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsWebUIReloadButtonEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUIReloadButton);
@@ -432,6 +417,11 @@ bool IsWebUISplitTabsButtonEnabled() {
          base::FeatureList::IsEnabled(features::kWebUISplitTabsButton);
 }
 
+bool IsWebUIAvatarButtonEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUIAvatarButton);
+}
+
 bool IsWebUILocationBarEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUILocationBar);
@@ -441,7 +431,7 @@ bool IsWebUIToolbarEnabled() {
   return IsWebUIReloadButtonEnabled() || IsWebUISplitTabsButtonEnabled() ||
          IsWebUIHomeButtonEnabled() || IsWebUILocationBarEnabled() ||
          IsWebUIBackForwardButtonEnabled() ||
-         IsWebUIPinnedToolbarActionsEnabled();
+         IsWebUIPinnedToolbarActionsEnabled() || IsWebUIAvatarButtonEnabled();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -454,8 +444,6 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
       features::kAndroidAnimatedProgressBarInBrowser);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
-
-BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAiOverlayDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,

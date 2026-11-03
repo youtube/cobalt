@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
@@ -31,26 +32,30 @@ namespace webrtc {
 // batcher will cooperatively yield the thread and resume execution in a
 // subsequent `BlockingCall`.
 //
-// Tasks can either have a `void` return type, or return a new task.
+// Tasks can either have a `void` return type, or return a new task or return an
+// error.
 // Any tasks returned by the executed worker thread tasks are collected
 // and subsequently executed on the calling thread (typically the signaling
 // thread) after the worker thread operations have completed.
 class ScopedOperationsBatcher {
  public:
+  using SimpleBatchTask = absl::AnyInvocable<void() &&>;
+  using FinalizerTask = absl::AnyInvocable<void() &&>;
+  using BatchTaskWithFinalizer =
+      absl::AnyInvocable<RTCErrorOr<FinalizerTask>() &&>;
+
   explicit ScopedOperationsBatcher(Thread* target_thread);
   ~ScopedOperationsBatcher();
 
-  void Run();
+  RTCError Run();
 
   // Queues non-nullptr tasks to be executed on the target thread when the
   // ScopedOperationsBatcher goes out of scope.
-  void push_back(absl::AnyInvocable<void() &&> task);
-  void push_back(absl::AnyInvocable<absl::AnyInvocable<void() &&>() &&> task);
+  void Add(SimpleBatchTask task);
+  void AddWithFinalizer(BatchTaskWithFinalizer task);
 
  private:
-  using BatchedTask =
-      std::variant<absl::AnyInvocable<void() &&>,
-                   absl::AnyInvocable<absl::AnyInvocable<void() &&>() &&>>;
+  using BatchedTask = std::variant<SimpleBatchTask, BatchTaskWithFinalizer>;
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
   Thread* const target_thread_;

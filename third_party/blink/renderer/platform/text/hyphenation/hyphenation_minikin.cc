@@ -130,10 +130,9 @@ Vector<uint8_t> HyphenationMinikin::Hyphenate(const StringView& text) const {
   if (text.Is8Bit()) {
     String text16_bit = text.ToString();
     text16_bit.Ensure16Bit();
-    hyphenator_->hyphenate(&result, text16_bit.SpanUint16().data(),
-                           text16_bit.length());
+    hyphenator_->hyphenate(&result, text16_bit.SpanUint16());
   } else {
-    hyphenator_->hyphenate(&result, text.SpanUint16().data(), text.length());
+    hyphenator_->hyphenate(&result, text.SpanUint16());
   }
   return result;
 }
@@ -279,7 +278,8 @@ AtomicString HyphenationMinikin::MapLocale(const AtomicString& locale) {
     const wtf_size_t last_hyphen = mapped_locale.rfind('-');
     if (last_hyphen == kNotFound || !last_hyphen)
       return mapped_locale;
-    mapped_locale = AtomicString(mapped_locale.GetString().Left(last_hyphen));
+    mapped_locale =
+        AtomicString(mapped_locale.GetString().substr(0, last_hyphen));
   }
 }
 

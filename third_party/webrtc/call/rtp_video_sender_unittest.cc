@@ -15,10 +15,10 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
@@ -137,7 +137,7 @@ VideoSendStream::Config CreateVideoSendStreamConfig(
     const std::vector<uint32_t>& ssrcs,
     const std::vector<uint32_t>& rtx_ssrcs,
     int payload_type,
-    ArrayView<const int> payload_types) {
+    std::span<const int> payload_types) {
   VideoSendStream::Config config(transport);
   config.rtp.ssrcs = ssrcs;
   config.rtp.rtx.ssrcs = rtx_ssrcs;
@@ -511,7 +511,7 @@ TEST(RtpVideoSenderTest, DoesNotRetrasmitAckedPackets) {
       .Times(2)
       .WillRepeatedly(
           [&rtp_sequence_numbers, &transport_sequence_numbers](
-              ArrayView<const uint8_t> packet, const PacketOptions& options) {
+              std::span<const uint8_t> packet, const PacketOptions& options) {
             RtpPacket rtp_packet;
             EXPECT_TRUE(rtp_packet.Parse(packet));
             rtp_sequence_numbers.push_back(rtp_packet.SequenceNumber());
@@ -537,13 +537,13 @@ TEST(RtpVideoSenderTest, DoesNotRetrasmitAckedPackets) {
   EXPECT_CALL(test.transport(), SendRtp)
       .Times(2)
       .WillRepeatedly([&retransmitted_rtp_sequence_numbers](
-                          ArrayView<const uint8_t> packet,
+                          std::span<const uint8_t> packet,
                           const PacketOptions& options) {
         RtpPacket rtp_packet;
         EXPECT_TRUE(rtp_packet.Parse(packet));
         EXPECT_EQ(rtp_packet.Ssrc(), kRtxSsrc1);
         // Capture the retransmitted sequence number from the RTX header.
-        ArrayView<const uint8_t> payload = rtp_packet.payload();
+        std::span<const uint8_t> payload = rtp_packet.payload();
         retransmitted_rtp_sequence_numbers.push_back(
             ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;
@@ -578,13 +578,13 @@ TEST(RtpVideoSenderTest, DoesNotRetrasmitAckedPackets) {
   // still be retransmitted.
   test.AdvanceTime(TimeDelta::Millis(33));
   EXPECT_CALL(test.transport(), SendRtp)
-      .WillOnce([&lost_packet_feedback](ArrayView<const uint8_t> packet,
+      .WillOnce([&lost_packet_feedback](std::span<const uint8_t> packet,
                                         const PacketOptions& options) {
         RtpPacket rtp_packet;
         EXPECT_TRUE(rtp_packet.Parse(packet));
         EXPECT_EQ(rtp_packet.Ssrc(), kRtxSsrc1);
         // Capture the retransmitted sequence number from the RTX header.
-        ArrayView<const uint8_t> payload = rtp_packet.payload();
+        std::span<const uint8_t> payload = rtp_packet.payload();
         EXPECT_EQ(lost_packet_feedback.rtp_sequence_number,
                   ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;
@@ -681,7 +681,7 @@ TEST(RtpVideoSenderTest, EarlyRetransmits) {
   EXPECT_CALL(test.transport(), SendRtp)
       .WillOnce(
           [&frame1_rtp_sequence_number, &frame1_transport_sequence_number](
-              ArrayView<const uint8_t> packet, const PacketOptions& options) {
+              std::span<const uint8_t> packet, const PacketOptions& options) {
             RtpPacket rtp_packet;
             EXPECT_TRUE(rtp_packet.Parse(packet));
             frame1_rtp_sequence_number = rtp_packet.SequenceNumber();
@@ -700,7 +700,7 @@ TEST(RtpVideoSenderTest, EarlyRetransmits) {
   EXPECT_CALL(test.transport(), SendRtp)
       .WillOnce(
           [&frame2_rtp_sequence_number, &frame2_transport_sequence_number](
-              ArrayView<const uint8_t> packet, const PacketOptions& options) {
+              std::span<const uint8_t> packet, const PacketOptions& options) {
             RtpPacket rtp_packet;
             EXPECT_TRUE(rtp_packet.Parse(packet));
             frame2_rtp_sequence_number = rtp_packet.SequenceNumber();
@@ -717,7 +717,7 @@ TEST(RtpVideoSenderTest, EarlyRetransmits) {
   // Inject a transport feedback where the packet for the first frame is lost,
   // expect a retransmission for it.
   EXPECT_CALL(test.transport(), SendRtp)
-      .WillOnce([&frame1_rtp_sequence_number](ArrayView<const uint8_t> packet,
+      .WillOnce([&frame1_rtp_sequence_number](std::span<const uint8_t> packet,
                                               const PacketOptions& options) {
         RtpPacket rtp_packet;
         EXPECT_TRUE(rtp_packet.Parse(packet));
@@ -725,7 +725,7 @@ TEST(RtpVideoSenderTest, EarlyRetransmits) {
 
         // Retransmitted sequence number from the RTX header should match
         // the lost packet.
-        ArrayView<const uint8_t> payload = rtp_packet.payload();
+        std::span<const uint8_t> payload = rtp_packet.payload();
         EXPECT_EQ(ByteReader<uint16_t>::ReadBigEndian(payload.data()),
                   frame1_rtp_sequence_number);
         return true;
@@ -760,7 +760,7 @@ TEST(RtpVideoSenderTest, SupportsDependencyDescriptor) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -824,7 +824,7 @@ TEST(RtpVideoSenderTest, SimulcastIndependentFrameIds) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -883,7 +883,7 @@ TEST(RtpVideoSenderTest,
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -938,7 +938,7 @@ TEST(RtpVideoSenderTest, MixedCodecSimulcastPayloadType) {
   std::vector<RtpPacket> sent_packets;
   EXPECT_CALL(test.transport(), SendRtp)
       .Times(3)
-      .WillRepeatedly([&](ArrayView<const uint8_t> packet,
+      .WillRepeatedly([&](std::span<const uint8_t> packet,
                           const PacketOptions& options) -> bool {
         RtpPacket& rtp_packet = sent_packets.emplace_back();
         EXPECT_TRUE(rtp_packet.Parse(packet));
@@ -983,7 +983,7 @@ TEST(RtpVideoSenderTest, MixedCodecSimulcastPayloadType) {
   EXPECT_CALL(test.transport(), SendRtp)
       .Times(3)
       .WillRepeatedly(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             RtpPacket& rtp_packet = sent_rtx_packets.emplace_back();
             EXPECT_TRUE(rtp_packet.Parse(packet));
             return true;
@@ -1009,7 +1009,7 @@ TEST(RtpVideoSenderTest,
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions&) {
+          [&](std::span<const uint8_t> packet, const PacketOptions&) {
             EXPECT_TRUE(sent_packets.emplace_back(&extensions).Parse(packet));
             return true;
           });
@@ -1055,7 +1055,7 @@ TEST(RtpVideoSenderTest, SupportsDependencyDescriptorForVp9) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1111,7 +1111,7 @@ TEST(RtpVideoSenderTest,
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1165,7 +1165,7 @@ TEST(RtpVideoSenderTest,
   std::vector<RtpPacket> sent_packets;
   EXPECT_CALL(test.transport(), SendRtp(_, _))
       .Times(2)
-      .WillRepeatedly([&](ArrayView<const uint8_t> packet,
+      .WillRepeatedly([&](std::span<const uint8_t> packet,
                           const PacketOptions& options) -> bool {
         sent_packets.emplace_back(&extensions);
         EXPECT_TRUE(sent_packets.back().Parse(packet));
@@ -1223,7 +1223,7 @@ TEST(RtpVideoSenderTest, GenerateDependecyDescriptorForGenericCodecs) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1269,7 +1269,7 @@ TEST(RtpVideoSenderTest, SupportsStoppingUsingDependencyDescriptor) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1381,7 +1381,7 @@ TEST(RtpVideoSenderTest, ClearsPendingPacketsOnInactivation) {
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1459,7 +1459,7 @@ TEST(RtpVideoSenderTest,
   std::vector<RtpPacket> sent_packets;
   ON_CALL(test.transport(), SendRtp)
       .WillByDefault(
-          [&](ArrayView<const uint8_t> packet, const PacketOptions& options) {
+          [&](std::span<const uint8_t> packet, const PacketOptions& options) {
             sent_packets.emplace_back(&extensions);
             EXPECT_TRUE(sent_packets.back().Parse(packet));
             return true;
@@ -1552,7 +1552,7 @@ TEST(RtpVideoSenderTest, RetransmitsBaseLayerOnly) {
       .Times(2)
       .WillRepeatedly(
           [&rtp_sequence_numbers, &transport_sequence_numbers](
-              ArrayView<const uint8_t> packet, const PacketOptions& options) {
+              std::span<const uint8_t> packet, const PacketOptions& options) {
             RtpPacket rtp_packet;
             EXPECT_TRUE(rtp_packet.Parse(packet));
             rtp_sequence_numbers.push_back(rtp_packet.SequenceNumber());
@@ -1587,13 +1587,13 @@ TEST(RtpVideoSenderTest, RetransmitsBaseLayerOnly) {
   EXPECT_CALL(test.transport(), SendRtp)
       .Times(1)
       .WillRepeatedly([&retransmitted_rtp_sequence_numbers](
-                          ArrayView<const uint8_t> packet,
+                          std::span<const uint8_t> packet,
                           const PacketOptions& options) {
         RtpPacket rtp_packet;
         EXPECT_TRUE(rtp_packet.Parse(packet));
         EXPECT_EQ(rtp_packet.Ssrc(), kRtxSsrc1);
         // Capture the retransmitted sequence number from the RTX header.
-        ArrayView<const uint8_t> payload = rtp_packet.payload();
+        std::span<const uint8_t> payload = rtp_packet.payload();
         retransmitted_rtp_sequence_numbers.push_back(
             ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;

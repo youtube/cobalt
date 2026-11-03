@@ -15,12 +15,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
@@ -446,7 +446,7 @@ bool AudioReceiveStreamImpl::SetMinimumPlayoutDelay(TimeDelta delay) {
   return channel_receive_->SetMinimumPlayoutDelay(delay);
 }
 
-void AudioReceiveStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {
+void AudioReceiveStreamImpl::DeliverRtcp(std::span<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   channel_receive_->ReceivedRTCPPacket(packet.data(), packet.size());
 }

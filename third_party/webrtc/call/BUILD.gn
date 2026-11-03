@@ -109,7 +109,6 @@ rtc_library("rtp_interfaces") {
     "rtp_transport_controller_send_interface.h",
   ]
   deps = [
-    "../api:array_view",
     "../api:fec_controller_api",
     "../api:frame_transformer_interface",
     "../api:network_state_predictor_api",
@@ -148,7 +147,6 @@ rtc_library("rtp_receiver") {
   ]
   deps = [
     ":rtp_interfaces",
-    "../api:array_view",
     "../api:sequence_checker",
     "../api/environment",
     "../logging:rtc_event_rtp_rtcp",
@@ -178,7 +176,6 @@ rtc_library("rtp_sender") {
   deps = [
     ":bitrate_configurator",
     ":rtp_interfaces",
-    "../api:array_view",
     "../api:bitrate_allocation",
     "../api:fec_controller_api",
     "../api:field_trials_view",
@@ -306,7 +303,6 @@ rtc_library("call") {
     ":version",
     ":video_receive_stream_api",
     ":video_send_stream_api",
-    "../api:array_view",
     "../api:fec_controller_api",
     "../api:field_trials_view",
     "../api:rtp_headers",
@@ -407,7 +403,6 @@ rtc_library("video_send_stream_api") {
   ]
   deps = [
     ":rtp_interfaces",
-    "../api:array_view",
     "../api:frame_transformer_interface",
     "../api:rtp_parameters",
     "../api:rtp_sender_interface",
@@ -474,7 +469,6 @@ rtc_library("fake_network") {
   ]
   deps = [
     ":simulated_packet_receiver",
-    "../api:array_view",
     "../api:rtp_parameters",
     "../api:simulated_network_api",
     "../api:transport_api",
@@ -521,7 +515,6 @@ if (rtc_include_tests) {
         ":rtp_sender",
         ":video_receive_stream_api",
         ":video_send_stream_api",
-        "../api:array_view",
         "../api:bitrate_allocation",
         "../api:create_frame_generator",
         "../api:field_trials",
@@ -530,6 +523,7 @@ if (rtc_include_tests) {
         "../api:mock_audio_mixer",
         "../api:mock_frame_transformer",
         "../api:mock_video_codec_factory",
+        "../api:payload_type",
         "../api:rtp_headers",
         "../api:rtp_parameters",
         "../api:scoped_refptr",
@@ -624,7 +618,6 @@ if (rtc_include_tests) {
         ":fake_network",
         ":video_receive_stream_api",
         ":video_send_stream_api",
-        "../api:array_view",
         "../api:field_trials_view",
         "../api:make_ref_counted",
         "../api:rtc_event_log_output_file",

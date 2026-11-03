@@ -16,12 +16,14 @@
 
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
+#include "api/payload_type.h"
 #include "api/rtc_error.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 
@@ -45,6 +47,8 @@ RTCErrorOr<PayloadType> SdpPayloadTypeSuggester::SuggestPayloadType(
   RTCErrorOr<PayloadType> remote_result =
       remote_recorder.LookupPayloadType(codec);
   if (remote_result.ok()) {
+    RTC_LOG(LS_INFO) << "SuggestPayloadType: Found remote mapping for " << codec
+                     << " to PT " << remote_result.value();
     RTCErrorOr<Codec> local_codec =
         local_recorder.LookupCodec(remote_result.value());
     if (!local_codec.ok()) {
@@ -55,6 +59,9 @@ RTCErrorOr<PayloadType> SdpPayloadTypeSuggester::SuggestPayloadType(
     }
     // If we get here, PT is already in use, possibly for something else.
     // Fall through to SuggestMapping.
+  } else {
+    RTC_LOG(LS_INFO) << "SuggestPayloadType: FAILED to find remote mapping for "
+                     << codec;
   }
   return payload_type_picker_.SuggestMapping(codec, &local_recorder);
 }

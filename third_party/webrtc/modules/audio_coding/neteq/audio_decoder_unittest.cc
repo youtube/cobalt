@@ -15,11 +15,11 @@
 #include <cstdlib>
 #include <memory>
 #include <optional>
+#include <span>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/g722/audio_encoder_g722_config.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
@@ -147,7 +147,7 @@ class AudioDecoderTest : public ::testing::Test {
 
       encoded_info = audio_encoder_->Encode(
           0,
-          ArrayView<const int16_t>(interleaved_input.get(),
+          std::span<const int16_t>(interleaved_input.get(),
                                    audio_encoder_->NumChannels() *
                                        audio_encoder_->SampleRateHz() / 100),
           output);
@@ -191,7 +191,7 @@ class AudioDecoderTest : public ::testing::Test {
           decoder_->ParsePayload(std::move(encoded), /*timestamp=*/0);
       RTC_CHECK_EQ(parse_result.size(), size_t{1});
       auto decode_result = parse_result[0].frame->Decode(
-          ArrayView<int16_t>(&decoded[processed_samples * channels_],
+          std::span<int16_t>(&decoded[processed_samples * channels_],
                              frame_size_ * channels_ * sizeof(int16_t)));
       RTC_CHECK(decode_result.has_value());
       EXPECT_EQ(frame_size_ * channels_, decode_result->num_decoded_samples);

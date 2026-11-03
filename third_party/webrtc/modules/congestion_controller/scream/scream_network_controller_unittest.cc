@@ -14,6 +14,7 @@
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/scream/test/cc_feedback_generator.h"
@@ -412,7 +413,9 @@ PaddingTestResult ProcessUntilPaddingStartAndStop(
         scream_controller.OnTransportPacketsFeedback(feedback);
     if (update.pacer_config.has_value()) {
       if (update.pacer_config->pad_rate() != DataRate::Zero()) {
-        padding_start = clock.CurrentTime();
+        if (padding_start.IsZero()) {
+          padding_start = clock.CurrentTime();
+        }
         if (increase_send_rate) {
           // Set the send rate equal to the padding rate.
           send_rate = update.pacer_config->pad_rate();
@@ -487,6 +490,40 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   EXPECT_LT(time_between_padding, TimeDelta::Millis(3300));
 }
 
+TEST(ScreamControllerTest, DelayPaddingAfterCongestion) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  ScreamNetworkController scream_controller(config);
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 10,
+                          .link_capacity = DataRate::KilobitsPerSec(500)},
+       .send_as_ect1 = true});
+  StreamsConfig streams_config;
+  streams_config.max_total_allocated_bitrate = DataRate::KilobitsPerSec(1000);
+  scream_controller.OnStreamsConfig(streams_config);
+
+  // Padding should start, but then stop since pushing to max allocated causes
+  // congestion.
+  PaddingTestResult result_1 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator,
+      /*increase_send_rate=*/true);
+
+  // Ensure it was stopped quickly when congestion kicked in.
+  EXPECT_LT(result_1.padding_stop - result_1.padding_start,
+            TimeDelta::Seconds(1));
+
+  // Network recovers because increase_send_rate=false keeps sending rate at
+  // 50kbps. Wait until next padding starts.
+  PaddingTestResult result_2 = ProcessUntilPaddingStartAndStop(
+      clock, scream_controller, feedback_generator,
+      /*increase_send_rate=*/false);
+
+  TimeDelta time_until_padding = result_2.padding_start - result_1.padding_stop;
+  EXPECT_GT(time_until_padding, TimeDelta::Millis(2500));
+  EXPECT_LT(time_until_padding, TimeDelta::Millis(3500));
+}
+
 TEST(ScreamControllerTest, PadsToMinOf2xCurrentMaxAndEverSeenMax) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
   Environment env = CreateTestEnvironment({.time = &clock});
@@ -535,6 +572,30 @@ TEST(ScreamControllerTest, CanSetStartBitrate) {
       scream_controller.OnTransportPacketsFeedback(feedback);
   EXPECT_GE(update.target_rate->target_rate, DataRate::KilobitsPerSec(2980));
   EXPECT_LT(update.target_rate->target_rate, DataRate::KilobitsPerSec(3300));
+}
+
+TEST(ScreamControllerTest, IgnoreFeedbackWithoutReceivedPackets) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(300);
+  ScreamNetworkController scream_controller(config);
+
+  TransportPacketsFeedback msg;
+  msg.feedback_time = clock.CurrentTime();
+  PacketResult result;
+  result.sent_packet.send_time = clock.CurrentTime();
+  result.sent_packet.sequence_number = 1;
+  result.sent_packet.size = DataSize::Bytes(1000);
+  ASSERT_FALSE(result.IsReceived());
+  msg.packet_feedbacks.push_back(result);
+
+  NetworkControlUpdate update =
+      scream_controller.OnTransportPacketsFeedback(msg);
+  // Scream should not change the target rate if there are no received packets.
+  // Since this is the first feedback, the target rate should be the starting
+  // rate.
+  EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(300));
 }
 
 }  // namespace

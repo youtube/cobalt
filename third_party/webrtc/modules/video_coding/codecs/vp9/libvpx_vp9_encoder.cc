@@ -21,12 +21,12 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/inlined_vector.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller_override.h"
 #include "api/field_trials_view.h"
@@ -203,7 +203,7 @@ std::unique_ptr<ScalableVideoController> CreateVp9ScalabilityStructure(
 }
 
 vpx_svc_ref_frame_config_t Vp9References(
-    ArrayView<const ScalableVideoController::LayerFrameConfig> layers) {
+    std::span<const ScalableVideoController::LayerFrameConfig> layers) {
   vpx_svc_ref_frame_config_t ref_config = {};
   for (const ScalableVideoController::LayerFrameConfig& layer_frame : layers) {
     const auto& buffers = layer_frame.Buffers();

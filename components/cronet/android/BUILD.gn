@@ -266,9 +266,10 @@ sizes_test("cronet_sizes") {
   ]
 }
 
-cronet_shared_java_deps_to_package = [
+cronet_shared_api_dependencies_java_deps_to_package = [
   ":cronet_stats_log_java",
   "//base:metrics_ScopedSysTraceEvent_java",
+  "//base:log_java",
   "//build/android:build_java",
   ":base_feature_overrides_java_proto",
   ":flags_java_proto",
@@ -282,7 +283,11 @@ cronet_shared_java_deps_to_package = [
 # Google Play Services), making it impossible for references to these classes to
 # cross the boundary. These classes should be shipped in `cronet_api_java`
 # instead.
-android_library("cronet_shared_java") {
+#
+# Use this target for classes that cronet_api_java depends on. This target
+# cannot be used for classes that depend on cronet_api_java as that would create
+# a circular dependency; add those to cronet_shared_java instead.
+android_library("cronet_shared_api_dependencies_java") {
   srcjar_deps = [ ":url_request_close_source_java" ]
   sources = [
     "java/src/org/chromium/net/httpflags/BaseFeature.java",
@@ -302,16 +307,41 @@ android_library("cronet_shared_java") {
   ]
 
   # Adding deps here won't include those deps in the cronet_shared_java.jar.
-  # Please add to cronet_shared_java_deps_to_package instead.
+  # Please add to cronet_shared_api_dependencies_java_deps_to_package instead.
   deps = [
+           "//base:log_java",
            "//third_party/android_deps:protobuf_lite_runtime_java",
            "//third_party/androidx:androidx_annotation_annotation_java",
-         ] + cronet_shared_java_deps_to_package
+         ] + cronet_shared_api_dependencies_java_deps_to_package
+}
+
+cronet_shared_java_deps_to_package = [
+  ":cronet_shared_api_dependencies_java",
+
+  # CronetHttpURLConnection is needed by the impl (to implement
+  # CronetEngine#openConnection), but can also be used directly as a Cronet
+  # public API, hence we ship it as part of the shared jar.
+  #
+  # Note this cannot be shipped in cronet_api_java for historical reasons: there
+  # are apps already deployed in the wild that do not include these classes, and
+  # instead rely on Play Services Cronet having its own copy. If we move these
+  # classes to cronet_api_java, they will end up being removed from Play
+  # Services Cronet, breaking any apps that did not upgrade to the latest Cronet
+  # API version.
+  ":cronet_urlconnection_impl_java",
+]
+
+# Same as cronet_shared_api_dependencies_java, but with access to
+# cronet_api_java. In return, cronet_api_java cannot depend on this target.
+# Only add to this target classes that depend on cronet_api_java, but must ship
+# via cronet_shared_java.jar.
+java_group("cronet_shared_java") {
+  # Adding deps here won't include those deps in the cronet_shared_java.jar.
+  # Please add to cronet_shared_java_deps_to_package instead.
+  deps = cronet_shared_java_deps_to_package
 
   proguard_configs =
       [ "//components/cronet/android/cronet_shared_proguard.cfg" ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # cronet_api_java.jar defines Cronet API.
@@ -356,14 +386,12 @@ android_library("cronet_api_java") {
 
   deps = [
     ":api_version",
-    ":cronet_shared_java",
+    ":cronet_shared_api_dependencies_java",
     "//base:log_java",
     "//base:metrics_ScopedSysTraceEvent_java",
     "//third_party/androidx:androidx_annotation_annotation_experimental_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 android_library("cronet_api_helpers_java") {
@@ -388,8 +416,6 @@ android_library("cronet_api_helpers_java") {
     ":cronet_api_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # CronetStatsLog uses `android.util.StatsLog` which is not in the public SDK,
@@ -399,7 +425,6 @@ android_library("cronet_stats_log_java") {
   alternative_android_sdk_dep =
       "//third_party/android_sdk:public_framework_system_java"
   deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # CronetStatsLog uses `android.os.SystemProperties` which is not in the public
@@ -409,7 +434,6 @@ android_library("cronet_android_os_system_properties_java") {
   alternative_android_sdk_dep =
       "//third_party/android_sdk:public_framework_system_java"
   deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 cronet_impl_common_java_srcjar_deps = [
@@ -449,18 +473,13 @@ android_library("cronet_impl_common_java") {
     _generated_impl_version_java,
   ]
 
-  # Note: This target should not depend on //base:base_java as base
-  # is only bundled within the native_impl jar. Which means that
-  # if this target depends on base then we'll have to export the
-  # native_impl jar to all users of the fallback impl too.
-  assert_no_deps = [ "//base:base_java" ]
-
   # Adding deps here won't include those deps in the cronet_impl_common_java.jar.
   # Please add to cronet_impl_common_java_deps_to_package instead.
   deps = [
     ":cronet_api_java",
     ":cronet_shared_java",
     ":impl_version",
+    "//base:log_java",
     "//third_party/android_deps:protobuf_lite_runtime_java",
     "//third_party/androidx:androidx_annotation_annotation_experimental_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
@@ -470,8 +489,6 @@ android_library("cronet_impl_common_java") {
 
   srcjar_deps = cronet_impl_common_java_srcjar_deps
   proguard_configs = [ "cronet_impl_common_proguard.cfg" ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # cronet_impl_java_util_java.jar - Classes shared between Java Cronet implementations.
@@ -487,8 +504,6 @@ android_library("cronet_impl_java_util_java") {
     "//base:metrics_ScopedSysTraceEvent_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # cronet_impl_platform_java.jar - Java platform based implementation of the Cronet engine.
@@ -507,13 +522,12 @@ android_library("cronet_impl_platform_java") {
     ":cronet_impl_java_util_java",
     ":cronet_shared_java",
     ":httpengine_native_provider_java",
+    "//base:log_java",
     "//base:metrics_ScopedSysTraceEvent_java",
     "//net/android:net_thread_stats_uid_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # cronet_impl_fake_java.jar - Fake implementation of Cronet.
@@ -534,10 +548,9 @@ android_library("cronet_impl_fake_java") {
     ":cronet_impl_common_java",
     ":cronet_impl_java_util_java",
     ":cronet_shared_java",
+    "//base:log_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 android_library("cronet_urlconnection_impl_java") {
@@ -554,11 +567,10 @@ android_library("cronet_urlconnection_impl_java") {
   ]
   deps = [
     ":cronet_api_java",
+    "//base:log_java",
     "//base:metrics_ScopedSysTraceEvent_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 cronet_impl_native_java_srcjar_deps = [
@@ -569,10 +581,19 @@ cronet_impl_native_java_srcjar_deps = [
 ]
 
 cronet_impl_native_java_deps_to_package = [
-  ":cronet_urlconnection_impl_java",
   ":cronet_android_os_system_properties_java",
   "//base/version_info/android:version_constants_java",
-  "//base:base_java",
+  "//base:tasks_java",
+  "//base:command_line_java",
+  "//base:resetters_java",
+  "//base:time_utils_java",
+  "//base:metrics_java",
+  "//base:activity_state_java",
+  "//base:callback_java",
+  "//base:jni_utils_java",
+  "//base:bundle_utils_java",
+  "//base:wrapped_class_loader_java",
+  "//base:build_info_java",
   "//third_party/jni_zero:jni_zero_java",
   "//net/android:net_java",
   "//url:url_java",
@@ -609,6 +630,7 @@ android_library("cronet_impl_native_java") {
     ":flags_java_proto",
     ":httpengine_native_provider_java",
     "//base:log_java",
+    "//base:metrics_ScopedSysTraceEvent_java",
     "//build/android:build_java",
     "//components/cronet:request_context_config_java_proto",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
@@ -622,6 +644,11 @@ android_library("cronet_impl_native_java") {
   srcjar_deps += [ ":cronet_jni_headers" ]
   proguard_configs =
       [ "//components/cronet/android/cronet_impl_native_proguard.cfg" ]
+}
+
+android_library("cronet_impl_native_sentinel_java") {
+  sources =
+      [ "java/src/org/chromium/net/impl/NativeCronetProviderSentinel.java" ]
 }
 
 # httpengine_native_provider_java.jar - native implementation of Cronet engine
@@ -681,13 +708,12 @@ android_library("httpengine_native_provider_java") {
     ":cronet_api_java",
     ":cronet_impl_common_java",
     ":cronet_shared_java",
+    "//base:log_java",
     "//base:metrics_ScopedSysTraceEvent_java",
     "//build/android:build_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # Groups all Cronet code (API and impl) into a single Java dependency.
@@ -696,6 +722,7 @@ java_group("cronet_all_java") {
     ":cronet_api_java",
     ":cronet_impl_common_java",
     ":cronet_impl_native_java",
+    ":cronet_impl_native_sentinel_java",
     ":cronet_impl_platform_java",
     ":cronet_shared_java",
     ":httpengine_native_provider_java",
@@ -747,6 +774,7 @@ android_library("cronet_sample_apk_java") {
     ":package_httpengine_native_provider_java",
     ":package_impl_common_java",
     ":package_impl_native_java",
+    ":package_impl_native_sentinel_java",
     ":package_shared_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/androidx:androidx_annotation_annotation_experimental_java",
@@ -916,6 +944,11 @@ android_java_prebuilt("package_impl_native_java") {
   deps = [ ":repackage_native" ]
 }
 
+android_java_prebuilt("package_impl_native_sentinel_java") {
+  jar_path = "$_package_dir/cronet_impl_native_sentinel_java.jar"
+  deps = [ ":repackage_native_sentinel" ]
+}
+
 android_java_prebuilt("package_impl_util_java") {
   jar_path = "$_package_dir/cronet_impl_util_java.jar"
   deps = [ ":repackage_util" ]
@@ -934,6 +967,118 @@ android_java_prebuilt("package_impl_fake_java") {
 android_java_prebuilt("package_httpengine_native_provider_java") {
   jar_path = "$_package_dir/httpengine_native_provider_java.jar"
   deps = [ ":repackage_httpengine_native_provider" ]
+}
+
+# This target is not intended to be a functional APK. Instead, it is used to
+# ensure that the jars we are shipping to downstream users can successfully go
+# through R8/D8 on their own, that our ProGuard configs are valid, and that the
+# resulting APK is free of unresolved references or duplicate classes (i.e. same
+# class being shipped in multiple jars).
+template("cronet_package_apk") {
+  android_apk(target_name) {
+    forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+
+    android_manifest = "//build/android/AndroidManifest.xml"
+
+    # ProGuard is what checks for undefined references, so we need to enable it
+    # for the checking to actually happen. Also, this nicely doubles as a basic
+    # check for our ProGuard configs.
+    proguard_enabled = true
+
+    # Disable the trace_references check, which is an additional Chromium safety
+    # check that ensures the resulting DEX does not contain unresolved references.
+    # The reason why we disable this check is because it does not consider
+    # -dontwarn rules from ProGuard configs, and will therefore fail. Note that
+    # even with this check disabled, R8 itself will still check for unresolved
+    # references.
+    enable_proguard_checks = false
+
+    if (use_jacoco_coverage) {
+      # Normally this would be done for us, see:
+      #   https://source.chromium.org/chromium/chromium/src/+/main:build/config/android/internal_rules.gni;l=3592-3601;drc=a250d23f8414193856f12bfe4a334329e0c26368
+      # However this only kicks in if sources are provided. We don't provide any
+      # in this target, and nothing we depend on bundles this dep (it was stripped
+      # from Cronet classes during repackaging), so we have to re-add this dep
+      # manually.
+      deps += [ "//third_party/jacoco:jacocoagent_java" ]
+    }
+  }
+}
+
+# Dependencies of cronet_package_without_native_apk that are not bundled within
+# the final Cronet jars that we are shipping to downstream users; instead, we
+# expect users to pull these themselves.
+#
+# Note: in general, only //third_party dependencies are expected here. If you
+# find yourself adding a non-third-party dependency to this list, you probably
+# want to ship the dependency in Cronet jars instead (see also "deps_to_package"
+# lists).
+#
+# CAUTION: this list must be kept in sync with the mechanisms that are used to
+# specify Cronet external dependencies (e.g. Google internal repo, Maven POM
+# files), otherwise users may end up with missing references, or pull
+# unnecessary dependencies. Also, be aware that users may be pulling versions of
+# these dependencies that are different from the versions currently in Chromium.
+cronet_package_without_nativejava_external_deps = [
+  # TODO(https://crbug.com/469672624): we should jarjar and bundle protobuf, as
+  # downstream users may end up pulling a version of protobuf that doesn't match
+  # the generated code.
+  "//third_party/android_deps:protobuf_lite_runtime_java",
+  "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+  "//third_party/androidx:androidx_annotation_annotation_java",
+]
+
+cronet_package_apk("cronet_package_without_nativejava_apk") {
+  apk_name = "CronetPackageWithoutNativejava"
+  android_manifest = "//build/android/AndroidManifest.xml"
+  deps = [
+           ":package_api_java",
+           ":package_httpengine_native_provider_java",
+           ":package_impl_common_java",
+           ":package_shared_java",
+         ] + cronet_package_without_nativejava_external_deps
+  proguard_configs = [
+    "cronet_shared_proguard.cfg",
+    "cronet_impl_common_proguard.cfg",
+    "httpengine_native_provider_proguard.cfg",
+    "cronet_package_proguard.cfg",
+  ]
+}
+
+# Dependencies of cronet_package_with_native_apk that are not bundled within the
+# final Cronet jars that we are shipping to downstream users; instead, we expect
+# users to pull these themselves.
+#
+# Note: in general, only //third_party dependencies are expected here. If you
+# find yourself adding a non-third-party dependency to this list, you probably
+# want to ship the dependency in Cronet jars instead (see also "deps_to_package"
+# lists).
+#
+# CAUTION: this list must be kept in sync with the mechanisms that are used to
+# specify Cronet external dependencies (e.g. Google internal repo, Maven POM
+# files), otherwise users may end up with missing references, or pull
+# unnecessary dependencies. Also, be aware that users may be pulling versions of
+# these dependencies that are different from the versions currently in Chromium.
+cronet_package_with_nativejava_external_deps =
+    cronet_package_without_nativejava_external_deps +
+    [ "//third_party/android_deps:com_google_code_findbugs_jsr305_java" ]
+
+cronet_package_apk("cronet_package_with_nativejava_apk") {
+  apk_name = "CronetPackageWithNativejava"
+  deps = [
+           ":package_api_java",
+           ":package_httpengine_native_provider_java",
+           ":package_impl_common_java",
+           ":package_impl_native_java",
+           ":package_shared_java",
+         ] + cronet_package_with_nativejava_external_deps
+  proguard_configs = [
+    "cronet_shared_proguard.cfg",
+    "cronet_impl_common_proguard.cfg",
+    "httpengine_native_provider_proguard.cfg",
+    "cronet_impl_native_proguard.cfg",
+    "cronet_package_proguard.cfg",
+  ]
 }
 
 template("jar_src") {
@@ -1008,7 +1153,12 @@ template("jar_src") {
 
 jar_src("jar_cronet_shared_source") {
   src_search_dirs = [ "java/src" ]
-  source_deps = [ ":cronet_shared_java" ]
+  source_deps = [
+    # Not including cronet_shared_java because java_group targets are not
+    # supported here.
+    ":cronet_shared_api_dependencies_java",
+    ":cronet_urlconnection_impl_java",
+  ]
   jar_path = "$_package_dir/cronet_shared-src.jar"
 }
 
@@ -1094,7 +1244,9 @@ template("repackage_jars") {
 
 repackage_jars("repackage_shared") {
   output = "$_package_dir/cronet_shared_java.jar"
-  deps = cronet_shared_java_deps_to_package + [
+  deps = cronet_shared_api_dependencies_java_deps_to_package +
+         cronet_shared_java_deps_to_package +
+         [
            # Compilation targets are fed a placeholder BuildConfig. We still
            # have to ship the final non-placeholder BuildConfig; this is what
            # we do here. We do it here because we only want to include
@@ -1171,6 +1323,11 @@ android_java_prebuilt("repackage_native_java") {
   # processing step.
   enable_bytecode_checks = false
   deps = [ ":repackage_native_impl" ]
+}
+
+repackage_jars("repackage_native_sentinel") {
+  output = "$_package_dir/cronet_impl_native_sentinel_java.jar"
+  deps = [ ":cronet_impl_native_sentinel_java" ]
 }
 
 repackage_jars("repackage_impl_common") {
@@ -1497,8 +1654,10 @@ android_library("cronet_javatests") {
     "test/javatests/src/org/chromium/net/impl/AndroidCallbackWrapperTest.java",
     "test/javatests/src/org/chromium/net/impl/AndroidHttpEngineBuilderWrapperTest.java",
     "test/javatests/src/org/chromium/net/impl/CronetAdaptiveNetworkBidirectionalStreamTest.java",
+    "test/javatests/src/org/chromium/net/impl/CronetAdaptiveRequestContextTest.java",
     "test/javatests/src/org/chromium/net/impl/CronetLoggerTest.java",
     "test/javatests/src/org/chromium/net/impl/CronetManifestTest.java",
+    "test/javatests/src/org/chromium/net/impl/NativeCronetProviderTest.java",
     "test/javatests/src/org/chromium/net/impl/UserAgentIntegrationTest.java",
     "test/javatests/src/org/chromium/net/impl/UserAgentTest.java",
     "test/javatests/src/org/chromium/net/impl/UserAgentTestUtil.java",
@@ -1531,7 +1690,6 @@ android_library("cronet_javatests") {
     ":cronet_all_java",
     ":cronet_api_helpers_java",
     ":cronet_stats_log_java",
-    ":cronet_urlconnection_impl_java",
     "//components/cronet:request_context_config_java_proto",
     "//third_party/android_deps:guava_android_java",
     "//third_party/android_deps:protobuf_lite_runtime_java",
@@ -1584,6 +1742,7 @@ cronet_instrumentation_test_apk("cronet_test_instrumentation_apk") {
            ":package_httpengine_native_provider_java",
            ":package_impl_common_java",
            ":package_impl_fake_java",
+           ":package_impl_native_sentinel_java",
            ":package_impl_platform_java",
            ":package_impl_util_java",
            ":package_shared_java",
@@ -1627,7 +1786,6 @@ cronet_instrumentation_test_apk("cronet_test_instrumentation_apk") {
     ":cronet_jni_registration",
     ":cronet_tests_jni_registration",
   ]
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 instrumentation_test_apk(
@@ -1648,6 +1806,7 @@ instrumentation_test_apk(
            ":cronet_test_apk_resources",
            ":httpengine_native_provider_java",
            "//base:base_java_test_support",
+           "//base:log_java",
            "//third_party/android_sdk:android_test_mock_java",
            "//third_party/google-truth:google_truth_java",
            "//third_party/junit",
@@ -1665,8 +1824,6 @@ instrumentation_test_apk(
   }
 
   srcjar_deps = [ ":cronet_jni_registration" ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 instrumentation_test_apk(
@@ -1680,6 +1837,7 @@ instrumentation_test_apk(
            ":cronet_combine_proguard_flags",
            ":cronet_impl_common_java",
            ":cronet_impl_native_java",
+           ":cronet_impl_native_sentinel_java",
            ":cronet_impl_platform_java",
            ":cronet_shared_java",
            ":cronet_test_apk_java",
@@ -1708,8 +1866,6 @@ instrumentation_test_apk(
     ":cronet_jni_registration",
     ":cronet_tests_jni_registration",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 # The smoketests included in this test target are already included in
@@ -1755,14 +1911,13 @@ cronet_instrumentation_test_apk("cronet_smoketests_apk") {
     ":cronet_jni_registration",
     ":cronet_tests_jni_registration",
   ]
-
-  errorprone_args = [ "-Xep:NoAndroidLog:OFF" ]
 }
 
 cronet_test("cronet_unittests_android") {
   deps = [
     ":cronet_base_feature_unittest",
     ":cronet_impl_native_java",
+    ":cronet_impl_native_sentinel_java",
     ":cronet_static",
     "//base",
     "//base/test:test_support",
@@ -1894,6 +2049,12 @@ jar_src("jar_cronet_impl_native_java_source") {
   jar_path = "$_package_dir/cronet_impl_native_java-src.jar"
 }
 
+jar_src("jar_cronet_impl_native_sentinel_java_source") {
+  src_search_dirs = [ "//components/cronet/android/java/src" ]
+  source_deps = [ ":cronet_impl_native_sentinel_java" ]
+  jar_path = "$_package_dir/cronet_impl_native_sentinel_java-src.jar"
+}
+
 action("generate_licenses") {
   _license_path = "$_package_dir/LICENSE"
 
@@ -2021,12 +2182,19 @@ action("api_static_checks") {
   script = "//components/cronet/tools/api_static_checks.py"
   outputs = [ "$target_gen_dir/$target_name.stamp" ]
   _api_jar = "$_package_dir/cronet_api.jar"
+  _shared_jar = "$_package_dir/cronet_shared_java.jar"
   _common_jar = "$_package_dir/cronet_impl_common_java.jar"
   _platform_jar = "$_package_dir/cronet_impl_platform_java.jar"
   _native_jar = "$_package_dir/cronet_impl_native_java.jar"
   args = [
     "--api_jar",
     rebase_path(_api_jar, root_build_dir),
+
+    # The shared jar is considered an impl jar for the purposes of this check,
+    # because it is shipped on the impl side (and also on the API side, but
+    # that's not relevant here)
+    "--impl_jar",
+    rebase_path(_shared_jar, root_build_dir),
     "--impl_jar",
     rebase_path(_common_jar, root_build_dir),
     "--impl_jar",
@@ -2041,9 +2209,11 @@ action("api_static_checks") {
     ":repackage_impl_common",
     ":repackage_native",
     ":repackage_platform",
+    ":repackage_shared",
   ]
   inputs = [
     _api_jar,
+    _shared_jar,
     _common_jar,
     _platform_jar,
     _native_jar,
@@ -2161,6 +2331,7 @@ group("cronet_non_test_package") {
     ":jar_cronet_impl_common_java_source",
     ":jar_cronet_impl_fake_java_source",
     ":jar_cronet_impl_native_java_source",
+    ":jar_cronet_impl_native_sentinel_java_source",
     ":jar_cronet_impl_platform_java_source",
     ":jar_cronet_sample_source",
     ":jar_cronet_shared_source",
@@ -2170,8 +2341,13 @@ group("cronet_non_test_package") {
     ":repackage_httpengine_native_provider",
     ":repackage_impl_common",
     ":repackage_native",
+    ":repackage_native_sentinel",
     ":repackage_platform",
     ":repackage_shared",
+
+    # These are not shipped; they are purely for self-checking.
+    ":cronet_package_with_nativejava_apk",
+    ":cronet_package_without_nativejava_apk",
   ]
 }
 

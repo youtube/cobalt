@@ -6,6 +6,7 @@
 import argparse
 import sys
 import os
+import platform
 
 _HERE_PATH = os.path.dirname(__file__)
 _SRC_PATH = os.path.normpath(os.path.join(_HERE_PATH, '..', '..', '..', '..'))
@@ -48,8 +49,6 @@ def _generate_config_file(args):
       extra_configs.append('webComponentMissingDepsConfig')
     if args.enable_no_chrome_send:
       extra_configs.append('noChromeSendConfig')
-    if args.enable_no_unnecessary_type_conversion:
-      extra_configs.append('noUnnecessaryTypeConversionConfig')
 
     f.write(
         _ESLINT_CONFIG_TEMPLATE % {
@@ -69,12 +68,11 @@ def main(argv):
   parser.add_argument('--in_folder', required=True)
   parser.add_argument('--out_folder', required=True)
   parser.add_argument('--config_base', required=True)
+  parser.add_argument('--custom_loader_script', required=True)
   parser.add_argument('--tsconfig', required=True)
   parser.add_argument(
       '--enable_web_component_missing_deps', action='store_true')
   parser.add_argument('--enable_no_chrome_send', action='store_true')
-  parser.add_argument(
-      '--enable_no_unnecessary_type_conversion', action='store_true')
   parser.add_argument('--in_files', nargs='*', required=True)
 
   args = parser.parse_args(argv)
@@ -98,7 +96,18 @@ def main(argv):
   ]
 
   for files in in_files_chunks:
+    custom_loader_script = os.path.abspath(args.custom_loader_script)
+    if platform.system() == "Windows":
+      # Need to prepend 'file:///' to prevent errors like the following one:
+      # "Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only URLs with a scheme in:
+      # file, data, and node are supported by the default ESM loader. On
+      # Windows, absolute paths must be valid file:// URLs. Received protocol
+      # 'c:'"
+      custom_loader_script = 'file:///' + custom_loader_script
+
     node.RunNode([
+        '--loader',
+        custom_loader_script,
         node_modules.PathToEsLint(),
         # Force colored output, otherwise no colors appear when running locally.
         '--color',

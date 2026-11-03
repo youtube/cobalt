@@ -12,6 +12,8 @@
 #import <OCMock/OCMock.h>
 #import <XCTest/XCTest.h>
 
+#include "test/gtest.h"
+
 #include "sdk/objc/native/src/objc_video_encoder_factory.h"
 
 #include "api/environment/environment_factory.h"
@@ -23,7 +25,6 @@
 #import "components/video_frame_buffer/RTCCVPixelBuffer.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_error_codes.h"
-#include "rtc_base/gunit.h"
 #include "sdk/objc/native/src/objc_frame_buffer.h"
 
 id<RTC_OBJC_TYPE(RTCVideoEncoderFactory)> CreateEncoderFactoryReturning(

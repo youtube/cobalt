@@ -421,8 +421,8 @@ RTCError JsepTransportController::RollbackTransports() {
 RTCError JsepTransportController::RollbackTransports_n() {
   bundles_.Rollback();
   if (!transports_.RollbackTransports()) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                         "Failed to roll back transport state.");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Failed to roll back transport state.");
   }
   return RTCError::OK();
 }
@@ -701,10 +701,9 @@ RTCError JsepTransportController::ApplyDescription_n(
 
     JsepTransport* transport = GetJsepTransportForMid(content_info.mid());
     if (!transport) {
-      LOG_AND_RETURN_ERROR(
-          RTCErrorType::INVALID_PARAMETER,
-          "Could not find transport for m= section with mid='" +
-              content_info.mid() + "'");
+      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                       << "Could not find transport for m= section with mid='"
+                       << content_info.mid() << "'");
     }
 
     if (established_bundle_group &&
@@ -744,10 +743,10 @@ RTCError JsepTransportController::ApplyDescription_n(
     }
 
     if (!error.ok()) {
-      LOG_AND_RETURN_ERROR(
-          RTCErrorType::INVALID_PARAMETER,
-          "Failed to apply the description for m= section with mid='" +
-              content_info.mid() + "': " + error.message());
+      return LOG_ERROR(
+          RTCError(RTCErrorType::INVALID_PARAMETER)
+          << "Failed to apply the description for m= section with mid='"
+          << content_info.mid() << "': " << error.message());
     }
   }
   if (type == SdpType::kAnswer) {

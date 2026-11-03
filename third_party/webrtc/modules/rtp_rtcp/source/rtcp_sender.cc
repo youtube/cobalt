@@ -552,8 +552,8 @@ void RTCPSender::BuildExtendedReports(const RtcpContext& ctx,
   if (send_video_bitrate_allocation_) {
     rtcp::TargetBitrate target_bitrate;
 
-    for (int sl = 0; sl < kMaxSpatialLayers; ++sl) {
-      for (int tl = 0; tl < kMaxTemporalStreams; ++tl) {
+    for (size_t sl = 0; sl < kMaxSpatialLayers; ++sl) {
+      for (size_t tl = 0; tl < kMaxTemporalStreams; ++tl) {
         if (video_bitrate_allocation_.HasBitrate(sl, tl)) {
           target_bitrate.AddTargetBitrate(
               sl, tl, video_bitrate_allocation_.GetBitrate(sl, tl) / 1000);

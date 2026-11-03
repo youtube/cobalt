@@ -12,7 +12,6 @@
 
 #include "common_video/h264/h264_common.h"
 #include "components/video_codec/nalu_rewriter.h"
-#include "rtc_base/gunit.h"
 
 #import <XCTest/XCTest.h>
 
@@ -212,11 +211,8 @@ static const uint8_t SPS_PPS_BUFFER[] = {
   CMSampleBufferRef out_sample_buffer = nil;
   CMVideoFormatDescriptionRef description = [self createDescription];
 
-  Boolean result =
-      webrtc::H264AnnexBBufferToCMSampleBuffer(annex_b_test_data,
-                                               description,
-                                               &out_sample_buffer,
-                                               memory_pool);
+  Boolean result = webrtc::H264AnnexBBufferToCMSampleBuffer(
+      annex_b_test_data, description, &out_sample_buffer, memory_pool);
 
   XCTAssertTrue(result);
 

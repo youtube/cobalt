@@ -11,7 +11,7 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {SelectionDirection, SelectionLineState, SelectionStep} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {WindowOpenDisposition} from 'chrome://resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
+import {$$, eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestOmniboxPopupBrowserProxy} from './test_omnibox_popup_browser_proxy.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
@@ -23,6 +23,11 @@ suite('AppTest', function() {
 
   setup(async () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    loadTimeData.overrideValues({
+      hideClassicContextButton: false,
+      composeboxShowContextMenuDescription: false,
+      addContext: 'Add tabs and more',
+    });
 
     testProxy = new TestSearchboxBrowserProxy();
     SearchboxBrowserProxy.setInstance(testProxy);
@@ -103,33 +108,11 @@ suite('AppTest', function() {
     });
 
     test('ContextMenuEntrypointHiddenWhenDisabled', async () => {
-      testProxy.page.updateAimEligibility(false);
+      testProxy.page.updateAimPopupEligibility(false);
       await microtasksFinished();
       const contextualEntrypoint = localApp.shadowRoot?.querySelector(
           'cr-composebox-contextual-entrypoint-button');
       assertFalse(!!contextualEntrypoint);
-    });
-
-    test('AiModePrefUpdatesContextualEntrypointVisibility', async () => {
-      let contextualEntrypoint = localApp.shadowRoot?.querySelector(
-          'cr-composebox-contextual-entrypoint-button');
-      assertTrue(!!contextualEntrypoint);
-      assertTrue(isVisible(contextualEntrypoint));
-
-      // Disable AI Mode Shortcuts.
-      testProxy.page.onShowAiModePrefChanged(false);
-      await microtasksFinished();
-      contextualEntrypoint = localApp.shadowRoot?.querySelector(
-          'cr-composebox-contextual-entrypoint-button');
-      assertFalse(!!contextualEntrypoint);
-
-      // Enable AI Mode Shortcuts.
-      testProxy.page.onShowAiModePrefChanged(true);
-      await microtasksFinished();
-      contextualEntrypoint = localApp.shadowRoot?.querySelector(
-          'cr-composebox-contextual-entrypoint-button');
-      assertTrue(!!contextualEntrypoint);
-      assertTrue(isVisible(contextualEntrypoint));
     });
 
     test('KeywordModeUpdatesContextualEntrypointVisibility', async () => {
@@ -205,17 +188,61 @@ suite('AppTest', function() {
       // Assert chip shows.
       assertTrue(!!recentTabChip);
     });
+
+    test('HideClassicContextButton', async () => {
+      let contextualEntrypoint =
+          $$(localApp, 'cr-composebox-contextual-entrypoint-button');
+      assertTrue(!!contextualEntrypoint);
+      assertTrue(isVisible(contextualEntrypoint));
+
+      // Re-create app with `hideClassicContextButton` set to true.
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.overrideValues({
+        hideClassicContextButton: true,
+      });
+      localApp = document.createElement('omnibox-popup-app');
+      document.body.appendChild(localApp);
+
+      testProxy.initVisibilityPrefs();
+      testProxy.page.updateAimPopupEligibility(true);
+      await microtasksFinished();
+
+      contextualEntrypoint =
+          $$(localApp, 'cr-composebox-contextual-entrypoint-button');
+      assertFalse(!!contextualEntrypoint);
+    });
+
+    test('ShowContextButtonText', async () => {
+      let contextualEntrypoint =
+          $$(localApp, 'cr-composebox-contextual-entrypoint-button');
+      assertTrue(!!contextualEntrypoint);
+      assertFalse(!!$$(contextualEntrypoint, '#description'));
+
+      // Re-create app with `composeboxShowContextMenuDescription` set to true.
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.overrideValues({
+        composeboxShowContextMenuDescription: true,
+      });
+      localApp = document.createElement('omnibox-popup-app');
+      document.body.appendChild(localApp);
+
+      testProxy.initVisibilityPrefs();
+      await microtasksFinished();
+
+      contextualEntrypoint =
+          $$(localApp, 'cr-composebox-contextual-entrypoint-button');
+      assertTrue(!!contextualEntrypoint);
+      const description = $$(contextualEntrypoint, '#description');
+      assertTrue(!!description);
+      assertEquals('Add tabs and more', description.textContent.trim());
+    });
   });
 
   suite('AimEligibility', () => {
     let localApp: OmniboxPopupAppElement;
 
     setup(async () => {
-      // Use setup instead of suiteSetup to ensure a clean state for each test.
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
-      loadTimeData.overrideValues({
-        omniboxAimPopupEnabled: true,
-      });
       localApp = document.createElement('omnibox-popup-app');
       document.body.appendChild(localApp);
 
@@ -224,19 +251,19 @@ suite('AppTest', function() {
     });
 
     test('AimEligibility', async () => {
-      testProxy.page.updateAimEligibility(false);
+      testProxy.page.updateAimPopupEligibility(false);
       await microtasksFinished();
       let contextualEntrypoint = localApp.shadowRoot?.querySelector(
           'cr-composebox-contextual-entrypoint-button');
       assertFalse(isVisible(contextualEntrypoint));
 
-      testProxy.page.updateAimEligibility(true);
+      testProxy.page.updateAimPopupEligibility(true);
       await microtasksFinished();
       contextualEntrypoint = localApp.shadowRoot?.querySelector(
           'cr-composebox-contextual-entrypoint-button');
       assertTrue(isVisible(contextualEntrypoint));
 
-      testProxy.page.updateAimEligibility(false);
+      testProxy.page.updateAimPopupEligibility(false);
       await microtasksFinished();
       contextualEntrypoint = localApp.shadowRoot?.querySelector(
           'cr-composebox-contextual-entrypoint-button');
@@ -250,7 +277,6 @@ suite('AppTestSelectionControl', () => {
   let testProxy: TestSearchboxBrowserProxy;
 
   setup(() => {
-    // Use setup instead of suiteSetup to ensure a clean state for each test.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     loadTimeData.overrideValues({
       webuiOmniboxPopupSelectionControlEnabled: true,

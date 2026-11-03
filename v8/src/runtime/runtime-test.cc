@@ -1172,7 +1172,14 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   HeapAllocator::SetAllocationGcInterval(interval);
   CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
-#endif
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning{false};
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetAllocationTimeout has no effect in this build. Set the "
+        "`v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
@@ -2129,9 +2136,9 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
+RUNTIME_FUNCTION(Runtime_BigIntMaxBits) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
+  return *isolate->factory()->NewNumber(BigInt::kMaxBits);
 }
 
 RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {
@@ -2724,10 +2731,10 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "constant_pool"));
   CHECK_UNLESS_FUZZING(IsJSArray(*cp_obj));
   auto cp_array = Cast<JSArray>(cp_obj);
-  int cp_length = Smi::ToInt(cp_array->length());
+  uint32_t cp_length = Smi::ToUInt(cp_array->length());
   DirectHandle<TrustedFixedArray> constant_pool =
       isolate->factory()->NewTrustedFixedArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> val;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, val, JSReceiver::GetElement(isolate, cp_array, i));
@@ -2740,7 +2747,7 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "handler_table"));
   CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*ht_obj));
   auto ht_buffer = Cast<JSArrayBuffer>(ht_obj);
-  int ht_length = static_cast<int>(ht_buffer->byte_length());
+  uint32_t ht_length = static_cast<uint32_t>(ht_buffer->byte_length());
   uint8_t* ht_data = static_cast<uint8_t*>(ht_buffer->backing_store());
   DirectHandle<TrustedByteArray> handler_table =
       isolate->factory()->NewTrustedByteArray(ht_length);

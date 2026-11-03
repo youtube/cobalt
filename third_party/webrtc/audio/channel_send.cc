@@ -16,13 +16,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/bitrate_allocation.h"
@@ -165,7 +165,7 @@ class ChannelSend : public ChannelSendInterface,
   void SetInputMute(bool enable) override;
 
   // CSRCs.
-  void SetCsrcs(ArrayView<const uint32_t> csrcs) override;
+  void SetCsrcs(std::span<const uint32_t> csrcs) override;
 
   // Stats.
   ANAStats GetANAStatistics() const override;
@@ -243,9 +243,9 @@ class ChannelSend : public ChannelSendInterface,
   int32_t SendRtpAudio(AudioFrameType frameType,
                        uint8_t payloadType,
                        uint32_t rtp_timestamp_without_offset,
-                       ArrayView<const uint8_t> payload,
+                       std::span<const uint8_t> payload,
                        int64_t absolute_capture_timestamp_ms,
-                       ArrayView<const uint32_t> csrcs,
+                       std::span<const uint32_t> csrcs,
                        std::optional<uint8_t> audio_level_dbov)
       RTC_RUN_ON(worker_thread_);
 
@@ -418,9 +418,9 @@ int32_t ChannelSend::SendData(AudioFrameType frameType,
 int32_t ChannelSend::SendRtpAudio(AudioFrameType frameType,
                                   uint8_t payloadType,
                                   uint32_t rtp_timestamp_without_offset,
-                                  ArrayView<const uint8_t> payload,
+                                  std::span<const uint8_t> payload,
                                   int64_t absolute_capture_timestamp_ms,
-                                  ArrayView<const uint32_t> csrcs,
+                                  std::span<const uint32_t> csrcs,
                                   std::optional<uint8_t> audio_level_dbov) {
   // E2EE Custom Audio Frame Encryption (This is optional).
   // Keep this buffer around for the lifetime of the send call.
@@ -695,7 +695,7 @@ void ChannelSend::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
   RTC_DCHECK_RUN_ON(worker_thread_);
 
   // Deliver RTCP packet to RTP/RTCP module for parsing
-  rtp_rtcp_->IncomingRtcpPacket(MakeArrayView(data, length));
+  rtp_rtcp_->IncomingRtcpPacket(std::span(data, length));
 
   std::optional<TimeDelta> rtt = rtp_rtcp_->LastRtt();
   if (!rtt.has_value()) {
@@ -721,7 +721,7 @@ bool ChannelSend::InputMute() const {
   return input_mute_;
 }
 
-void ChannelSend::SetCsrcs(ArrayView<const uint32_t> csrcs) {
+void ChannelSend::SetCsrcs(std::span<const uint32_t> csrcs) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   std::vector<uint32_t> csrcs_copy(
       csrcs.begin(),
@@ -919,7 +919,7 @@ void ChannelSend::ProcessAndEncodeAudio(
             rms_level_.AnalyzeMuted(length);
           } else {
             rms_level_.Analyze(
-                ArrayView<const int16_t>(audio_frame->data(), length));
+                std::span<const int16_t>(audio_frame->data(), length));
           }
         }
         previous_frame_muted_ = is_muted;
@@ -984,9 +984,9 @@ void ChannelSend::InitFrameTransformerDelegate(
   ChannelSendFrameTransformerDelegate::SendFrameCallback send_audio_callback =
       [this](AudioFrameType frameType, uint8_t payloadType,
              uint32_t rtp_timestamp_with_offset,
-             ArrayView<const uint8_t> payload,
+             std::span<const uint8_t> payload,
              int64_t absolute_capture_timestamp_ms,
-             ArrayView<const uint32_t> csrcs,
+             std::span<const uint32_t> csrcs,
              std::optional<uint8_t> audio_level_dbov) {
         RTC_DCHECK_RUN_ON(worker_thread_);
         return SendRtpAudio(

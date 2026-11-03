@@ -11,9 +11,9 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 
-#include <memory>
+#include "test/gtest.h"
 
-#include "rtc_base/gunit.h"
+#include <memory>
 
 #import "api/peerconnection/RTCIceCandidate+Private.h"
 #import "api/peerconnection/RTCIceCandidate.h"

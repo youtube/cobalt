@@ -18,6 +18,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -220,6 +221,18 @@ concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
   b->template MarkPossibleSideEffect<NodeT>(std::declval<NodeT*>());
 };
 
+template <typename BaseT>
+concept ReducerBaseCanBuildCall = requires(BaseT* b) {
+  b->TryReduceCallForConstant(std::declval<compiler::JSFunctionRef>(),
+                              std::declval<typename BaseT::CallArguments&>());
+  b->BuildGenericCall(std::declval<ValueNode*>(),
+                      std::declval<Call::TargetType>(),
+                      std::declval<typename BaseT::CallArguments&>());
+};
+
+template <typename BaseT>
+concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
+
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
 class BasicBlockPosition {
@@ -286,6 +299,10 @@ class MaglevReducer {
       std::optional<ValueNode*> map = std::nullopt,
       bool has_deprecated_map_without_migration_target = false,
       bool migration_done_outside = false);
+
+  ReduceResult BuildCheckValueByReference(ValueNode* context, ValueNode* node,
+                                          compiler::HeapObjectRef ref,
+                                          DeoptimizeReason reason);
 
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
@@ -363,6 +380,16 @@ class MaglevReducer {
       ValueNode* receiver, compiler::HeapObjectRef prototype);
   MaybeReduceResult TryBuildFastHasInPrototypeChain(
       ValueNode* object, compiler::HeapObjectRef prototype);
+  MaybeReduceResult TryBuildFastOrdinaryHasInstance(
+      ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+      ValueNode* callable_node_if_not_constant);
+  MaybeReduceResult TryBuildFastInstanceOf(ValueNode* context,
+                                           ValueNode* object,
+                                           compiler::JSObjectRef callable_ref,
+                                           ValueNode* callable_node);
+  MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
+      ValueNode* context, ValueNode* object, ValueNode* callable,
+      compiler::FeedbackSource feedback_source);
 
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
@@ -370,6 +397,50 @@ class MaglevReducer {
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
+
+  ReduceResult BuildOrdinaryHasInstance(
+      ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+      ValueNode* callable_node_if_not_constant);
+
+  template <bool flip = false>
+  ReduceResult BuildToBoolean(ValueNode* value);
+
+  template <Builtin kBuiltin>
+  void SetCallBuiltinFeedback(CallBuiltin* call_builtin,
+                              compiler::FeedbackSource const& feedback,
+                              CallBuiltin::FeedbackSlotType slot_type);
+
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(ValueNode* context,
+                                std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs,
+                                compiler::FeedbackSource const& feedback,
+                                CallBuiltin::FeedbackSlotType slot_type);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(ValueNode* context,
+                                std::initializer_list<ValueNode*> inputs,
+                                compiler::FeedbackSource const& feedback,
+                                CallBuiltin::FeedbackSlotType slot_type);
+
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      ValueNode* context, std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource const& feedback,
+      CallBuiltin::FeedbackSlotType slot_type);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      ValueNode* context, std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource const& feedback,
+      CallBuiltin::FeedbackSlotType slot_type);
 
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);
 
@@ -464,6 +535,20 @@ class MaglevReducer {
     return graph()->graph_labeller();
   }
 
+  maglev::Tracer tracer() const {
+    return maglev::Tracer(graph()->compilation_info());
+  }
+
+  // This indicates that the reducer base has tracing enabled.
+  bool is_tracing() const {
+    if constexpr (ReducerBaseHasTracing<BaseT>) {
+      return base_->is_tracing();
+    }
+    return false;
+  }
+
+  // This indicates it passes the function filter and this compilation _can_ be
+  // traced if some tracing flag is enabled.
   bool is_tracing_enabled() const { return graph()->is_tracing_enabled(); }
 
   // TODO(victorgomes): Delete these access (or move to private) when the
@@ -657,6 +742,9 @@ class MaglevReducer {
     NodeType lhs_type = GetType(lhs);
     return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
+
+  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
+                     NodeType new_node_type);
 
   Zone* zone() const { return zone_; }
   Graph* graph() const { return graph_; }

@@ -317,11 +317,12 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   // ProcessMessages occasionally.
   virtual void Run();
 
-  // Called from cooperative tasks to know if they should yield.
+  // Returns true if there are pending tasks in the message queue.
+  // Cooperative tasks can use this to know if they should yield.
   // If a task yields, it is up to the task itself how or if to
   // continue the ongoing operation. Typically this can be handled
   // by using PostTask() to queue up a continuation task.
-  bool IsYieldRequested() const;
+  bool HasPendingTasks() const;
 
   // Convenience method to invoke a functor on another thread.
   // Blocks the current thread until execution is complete.
@@ -344,12 +345,6 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     BlockingCall([&] { result = std::forward<Functor>(functor)(); }, location);
     return result;
   }
-
-  // Posts a task that jumps the queue (gets added as the next task to execute,
-  // ahead of other pending tasks). An internal yielding request flag is also
-  // raised that cooperative aware tasks can check by calling
-  // `IsYieldRequested()` and immediately exit.
-  void PostHighPriorityTask(absl::AnyInvocable<void() &&> task);
 
   // Allows BlockingCall to specified `thread`. Thread never will be
   // dereferenced and will be used only for reference-based comparison, so
@@ -476,8 +471,6 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
  private:
   static const int kSlowDispatchLoggingThreshold = 50;  // 50 ms
 
-  void PostTaskInternal(absl::AnyInvocable<void() &&> task, bool high_priority);
-
   // Get() will process I/O until:
   //  1) A task is available (returns it)
   //  2) cmsWait seconds have elapsed (returns empty task)
@@ -513,8 +506,6 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   void ClearCurrentTaskQueue();
 
   std::deque<absl::AnyInvocable<void() &&>> messages_ RTC_GUARDED_BY(mutex_);
-  std::deque<absl::AnyInvocable<void() &&>> high_priority_messages_
-      RTC_GUARDED_BY(mutex_);
   std::priority_queue<DelayedMessage> delayed_messages_ RTC_GUARDED_BY(mutex_);
   uint32_t delayed_next_num_ RTC_GUARDED_BY(mutex_);
 #if RTC_DCHECK_IS_ON

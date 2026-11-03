@@ -12,6 +12,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/run_until.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -296,9 +297,11 @@ void DumpAccessibilityEventsViewsTestBase::StopRecordingAndCompare(
     root_view->GetViewAccessibility().NotifyEvent(ax::mojom::Event::kEndOfTest,
                                                   true);
 
-    // Flush any pending async WidgetAXManager updates so that
-    // BrowserAccessibilityManager fires the corresponding platform events
-    // before we stop listening.
+    // When ViewsAX is enabled, events are processed asynchronously via
+    // WidgetAXManager::SendPendingUpdate() (a posted task). Flush the message
+    // loop so BrowserAccessibilityManager processes pending tree updates and
+    // fires auto-generated platform events (e.g. ATK state-change events on
+    // Linux) before we stop the recorder.
     base::RunLoop().RunUntilIdle();
 
     event_recorder_->StopListeningToEvents();
@@ -428,6 +431,21 @@ void DumpAccessibilityEventsViewsTestBase::SetFilters(
 }
 
 void DumpAccessibilityEventsViewsTestBase::OnDiffFailed() {}
+
+bool DumpAccessibilityEventsViewsTestBase::WaitForCapturedEvent(
+    const std::string& event_prefix) {
+  if (!event_recorder_) {
+    return false;
+  }
+  return base::test::RunUntil([&]() {
+    for (const auto& log : event_recorder_->GetEventLogs()) {
+      if (log.starts_with(event_prefix)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
 
 base::FilePath DumpAccessibilityEventsViewsTestBase::GetExpectationFilePath(
     const std::string& test_name) const {

@@ -873,154 +873,53 @@ TEST(ThreadPostDelayedTaskTest, IsCurrentTaskQueue) {
   EXPECT_EQ(TaskQueueBase::Current(), current_tq);
 }
 
-// Verifies that posting a high-priority task sets the "yield requested" flag
-// on the target thread, allowing a cooperative task to observe it.
-TEST(ThreadCooperativeTest, HighPriorityTaskTriggersYieldRequest) {
+// Uses `HasPendingTasks()` to detect when to yield to another posted task.
+TEST(ThreadCooperativeTest, TaskTriggersHasPendingTasks) {
   test::RunLoop loop;
   auto thread = Thread::Create();
   thread->Start();
 
-  bool yield_requested = false;
+  bool was_interrupted = false;
   Event task_started;
 
-  // Post a long running task that checks for yield
+  // Post a long running task that checks for pending tasks.
   thread->PostTask(
-      [&yield_requested, &loop, &task_started, thread = thread.get()] {
+      [&was_interrupted, &loop, &task_started, thread = thread.get()] {
         task_started.Set();
-        while (!thread->IsYieldRequested()) {
+        while (!thread->HasPendingTasks()) {
           // Busy loop/simulated work
         }
-        loop.PostTask([&yield_requested, &loop] {
-          yield_requested = true;
+        loop.PostTask([&was_interrupted, &loop] {
+          was_interrupted = true;
           loop.Quit();
         });
       });
 
-  // Wait for the task to start to ensure that the high priority task doesn't
+  // Wait for the task to start to ensure that the task doesn't
   // run first.
   task_started.Wait(Event::kForever);
 
-  // Post a high priority task that interrupts the busy loop.
-  thread->PostHighPriorityTask([] {});
+  // Post a task that interrupts the busy loop.
+  thread->PostTask([] {});
 
   loop.Run();
-  EXPECT_TRUE(yield_requested);
+  EXPECT_TRUE(was_interrupted);
 }
 
-// Verifies that a high-priority task is executed before a regular priority task
-// that was posted earlier, if the thread was busy.
-TEST(ThreadCooperativeTest, HighPriorityTaskRunsFirst) {
-  test::RunLoop loop;
-  auto thread = Thread::Create();
-  thread->Start();
-
-  std::vector<std::string> execution_order;
-  Event task1_started;
-  Event continue_execution;
-
-  // Task 1: Blocks the thread until signaled.
-  thread->PostTask([&] {
-    task1_started.Set();
-    continue_execution.Wait(Event::kForever);
-    loop.PostTask([&] { execution_order.push_back("Task1"); });
-  });
-
-  task1_started.Wait(Event::kForever);
-
-  // Task 2: Regular priority.
-  thread->PostTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("Task2"); }); });
-
-  // Task 3: High priority. High priority tasks should run before "Task2".
-  thread->PostHighPriorityTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("Task3"); }); });
-
-  // Signal Task 1 to continue.
-  continue_execution.Set();
-
-  // Now post a task to quit the loop.
-  thread->PostTask([&] { loop.PostTask([&] { loop.Quit(); }); });
-
-  loop.Run();
-
-  // Expect Task1 (resuming), Task3 (High Prio), Task2 (Low Prio - pushed to
-  // back).
-  EXPECT_THAT(execution_order, ElementsAre("Task1", "Task3", "Task2"));
-}
-
-// Verifies that multiple high-priority tasks execute in the sequence they were
-// posted (FIFO order).
-TEST(ThreadCooperativeTest, HighPriorityTasksExecuteInSequence) {
-  test::RunLoop loop;
-  auto thread = Thread::Create();
-  thread->Start();
-
-  std::vector<std::string> execution_order;
-  Event task1_started;
-  Event continue_execution;
-
-  // Block the thread.
-  thread->PostTask([&] {
-    task1_started.Set();
-    continue_execution.Wait(Event::kForever);
-  });
-
-  task1_started.Wait(Event::kForever);
-
-  // Post a normal priority task first to ensure high priority tasks run before
-  // it.
-  thread->PostTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("Normal1"); }); });
-
-  // Post multiple high priority tasks while the thread is blocked.
-  thread->PostHighPriorityTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("HP1"); }); });
-  thread->PostHighPriorityTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("HP2"); }); });
-  thread->PostHighPriorityTask(
-      [&] { loop.PostTask([&] { execution_order.push_back("HP3"); }); });
-
-  // Unblock the thread.
-  continue_execution.Set();
-
-  // Quit after all tasks.
-  thread->PostTask([&] { loop.PostTask([&] { loop.Quit(); }); });
-
-  loop.Run();
-
-  EXPECT_THAT(execution_order, ElementsAre("HP1", "HP2", "HP3", "Normal1"));
-}
-
-TEST(ThreadCooperativeTest, YieldRequestedClearedAfterHighPriorityTask) {
+TEST(ThreadCooperativeTest, HasPendingTasksClearedAfterTask) {
   std::unique_ptr<Thread> thread(Thread::Create());
   thread->Start();
 
   // Initially false.
-  thread->BlockingCall([&] { EXPECT_FALSE(thread->IsYieldRequested()); });
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->HasPendingTasks()); });
 
-  // Post high priority task.
-  thread->PostHighPriorityTask([&] {});
+  // Post task.
+  thread->PostTask([&] {});
 
-  // Post normal task.
-  thread->BlockingCall([&] { EXPECT_FALSE(thread->IsYieldRequested()); });
+  // Use `BlockingCall` to post normal task which implicitly blocks and waits
+  // for its functor to run, at which point the queue will be empty again.
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->HasPendingTasks()); });
 }
-
-#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) && RTC_DCHECK_IS_ON
-TEST(ThreadCooperativeDeathTest, YieldInSynchronousBlockingCallTriggersDeath) {
-  std::unique_ptr<Thread> background_thread = Thread::Create();
-  background_thread->Start();
-  background_thread->BlockingCall([&] {
-    // Yielding from a top-level synchronous blocking call is allowed.
-    background_thread->IsYieldRequested();
-
-    // Call a nested BlockingCall.
-    background_thread->BlockingCall([&] {
-      // This violates the "no yielding in blocking call" rule.
-      EXPECT_DEATH(background_thread->IsYieldRequested(), "");
-    });
-  });
-}
-#endif
 
 class ThreadFactory : public TaskQueueFactory {
  public:

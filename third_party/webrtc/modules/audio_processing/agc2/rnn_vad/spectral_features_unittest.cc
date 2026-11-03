@@ -12,8 +12,8 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 
-#include "api/array_view.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "modules/audio_processing/agc2/rnn_vad/test_utils.h"
 #include "rtc_base/numerics/safe_compare.h"
@@ -28,40 +28,40 @@ namespace {
 constexpr int kTestFeatureVectorSize = kNumBands + 3 * kNumLowerBands + 1;
 
 // Writes non-zero sample values.
-void WriteTestData(ArrayView<float> samples) {
+void WriteTestData(std::span<float> samples) {
   for (int i = 0; SafeLt(i, samples.size()); ++i) {
     samples[i] = i % 100;
   }
 }
 
-ArrayView<float, kNumBands - kNumLowerBands> GetHigherBandsSpectrum(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+std::span<float, kNumBands - kNumLowerBands> GetHigherBandsSpectrum(
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return feature_vector.subspan<kNumLowerBands, kNumBands - kNumLowerBands>();
 }
 
-ArrayView<float, kNumLowerBands> GetAverage(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+std::span<float, kNumLowerBands> GetAverage(
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return feature_vector.first<kNumLowerBands>();
 }
 
-ArrayView<float, kNumLowerBands> GetFirstDerivative(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+std::span<float, kNumLowerBands> GetFirstDerivative(
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return feature_vector.subspan<kNumBands, kNumLowerBands>();
 }
 
-ArrayView<float, kNumLowerBands> GetSecondDerivative(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+std::span<float, kNumLowerBands> GetSecondDerivative(
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return feature_vector.subspan<kNumBands + kNumLowerBands, kNumLowerBands>();
 }
 
-ArrayView<float, kNumLowerBands> GetCepstralCrossCorrelation(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+std::span<float, kNumLowerBands> GetCepstralCrossCorrelation(
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return feature_vector
       .subspan<kNumBands + 2 * kNumLowerBands, kNumLowerBands>();
 }
 
 float* GetCepstralVariability(
-    ArrayView<float, kTestFeatureVectorSize> feature_vector) {
+    std::span<float, kTestFeatureVectorSize> feature_vector) {
   return &feature_vector[kNumBands + 3 * kNumLowerBands];
 }
 
@@ -73,7 +73,7 @@ TEST(RnnVadTest, SpectralFeaturesWithAndWithoutSilence) {
   // Initialize.
   SpectralFeaturesExtractor sfe;
   std::array<float, kFrameSize20ms24kHz> samples;
-  ArrayView<float, kFrameSize20ms24kHz> samples_view(samples);
+  std::span<float, kFrameSize20ms24kHz> samples_view(samples);
   bool is_silence;
   std::array<float, kTestFeatureVectorSize> feature_vector;
 
@@ -118,7 +118,7 @@ TEST(RnnVadTest, CepstralFeaturesConstantAverageZeroDerivative) {
   // Initialize.
   SpectralFeaturesExtractor sfe;
   std::array<float, kFrameSize20ms24kHz> samples;
-  ArrayView<float, kFrameSize20ms24kHz> samples_view(samples);
+  std::span<float, kFrameSize20ms24kHz> samples_view(samples);
   WriteTestData(samples);
 
   // Fill the spectral features with test data.

@@ -13,6 +13,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/types/optional_util.h"
 #include "components/accessibility_annotator/content/content_annotator/content_annotation_validator.h"
 #include "components/accessibility_annotator/content/content_annotator/content_classifier.h"
@@ -42,6 +43,22 @@ bool PassesSafetyChecks(const ContentClassificationResult& result) {
   // If language check isn't enabled, default to passing.
   return !result.is_sensitive.value_or(true) &&
          result.is_in_target_language.value_or(true);
+}
+
+// Strips markdown code blocks (e.g. ```json ... ```) from the input string.
+std::string StripMarkdown(std::string_view input) {
+  std::string_view result = base::TrimWhitespaceASCII(input, base::TRIM_ALL);
+  if (result.starts_with("```json")) {
+    result.remove_prefix(7);
+  } else if (result.starts_with("```")) {
+    result.remove_prefix(3);
+  }
+
+  if (result.ends_with("```")) {
+    result.remove_suffix(3);
+  }
+
+  return std::string(base::TrimWhitespaceASCII(result, base::TRIM_ALL));
 }
 
 }  // namespace
@@ -276,13 +293,11 @@ void ContentAnnotatorService::HandleModelExecutionResult(
           });
 
   if (extracted_data.has_value() && !extracted_data->empty()) {
-    std::optional<std::string> data_to_cache =
-        validator_->IsValidatorEnabled()
-            ? validator_->Validate(std::move(*extracted_data))
-            : std::move(extracted_data);
-    if (data_to_cache) {
+    std::optional<base::DictValue> validated_data =
+        validator_->Validate(StripMarkdown(*extracted_data));
+    if (validated_data.has_value()) {
       accessibility_annotator_backend_->SetContentAnnotationsCacheData(
-          url, std::move(page_title), std::move(*data_to_cache));
+          url, std::move(page_title), std::move(*validated_data));
     }
   }
 }

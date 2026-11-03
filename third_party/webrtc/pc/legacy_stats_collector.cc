@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -792,8 +793,13 @@ StatsReport* LegacyStatsCollector::AddCertificateReports(
 
   StatsReport* first_report = nullptr;
   StatsReport* prev_report = nullptr;
+  absl::flat_hash_set<std::string> visited_fingerprints;
   for (SSLCertificateStats* stats = cert_stats.get(); stats;
        stats = stats->issuer.get()) {
+    if (!visited_fingerprints.insert(stats->fingerprint).second) {
+      break;
+    }
+
     StatsReport::Id id(StatsReport::NewTypedId(
         StatsReport::kStatsReportTypeCertificate, stats->fingerprint));
 

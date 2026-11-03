@@ -20,11 +20,11 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
@@ -65,7 +65,7 @@ void RunWavTest(const std::vector<int16_t>& input_samples,
         TestAudioDeviceModule::CreateBoundedWavFileWriter(output_filename, 800);
 
     for (size_t i = 0; i < input_samples.size(); i += kSamplesPerFrame) {
-      EXPECT_TRUE(writer->Render(ArrayView<const int16_t>(
+      EXPECT_TRUE(writer->Render(std::span<const int16_t>(
           &input_samples[i],
           std::min(kSamplesPerFrame, input_samples.size() - i))));
     }
@@ -162,7 +162,7 @@ TEST(WavFileReaderTest, RepeatedTrueWithSingleFrameFileReadTwice) {
         TestAudioDeviceModule::CreateWavFileWriter(output_filename, 800);
 
     for (size_t i = 0; i < kInputSamples.size(); i += kSamplesPerFrame) {
-      EXPECT_TRUE(writer->Render(ArrayView<const int16_t>(
+      EXPECT_TRUE(writer->Render(std::span<const int16_t>(
           &kInputSamples[i],
           std::min(kSamplesPerFrame, kInputSamples.size() - i))));
     }
@@ -203,7 +203,7 @@ void RunRawTestNoRepeat(const std::vector<int16_t>& input_samples,
             output_filename, /*sampling_frequency_in_hz=*/800);
 
     for (size_t i = 0; i < input_samples.size(); i += kSamplesPerFrame) {
-      EXPECT_TRUE(writer->Render(ArrayView<const int16_t>(
+      EXPECT_TRUE(writer->Render(std::span<const int16_t>(
           &input_samples[i],
           std::min(kSamplesPerFrame, input_samples.size() - i))));
     }
@@ -311,7 +311,7 @@ TEST(RawFileWriterTest, Repeat) {
             output_filename, /*sampling_frequency_in_hz=*/800);
 
     for (size_t i = 0; i < kInputSamples.size(); i += kSamplesPerFrame) {
-      EXPECT_TRUE(writer->Render(ArrayView<const int16_t>(
+      EXPECT_TRUE(writer->Render(std::span<const int16_t>(
           &kInputSamples[i],
           std::min(kSamplesPerFrame, kInputSamples.size() - i))));
     }

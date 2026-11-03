@@ -102,7 +102,7 @@ TEST_F(FontCacheTest, FallbackForEmojis) {
             font_description, character, nullptr,
             FontFallbackPriority::kEmojiEmoji);
         EXPECT_EQ(font_data->PlatformData().FontFamilyName(),
-                  String::FromUTF8(kNotoColorEmoji))
+                  String::FromUtf8(kNotoColorEmoji))
             << "Character " << character_utf8
             << " doesn't match what we expected for kEmojiEmoji.";
       }
@@ -112,12 +112,12 @@ TEST_F(FontCacheTest, FallbackForEmojis) {
             FontFallbackPriority::kEmojiText);
         if (available_in_contour_font) {
           EXPECT_NE(font_data->PlatformData().FontFamilyName(),
-                    String::FromUTF8(kNotoColorEmoji))
+                    String::FromUtf8(kNotoColorEmoji))
               << "Character " << character_utf8
               << " doesn't match what we expected for kEmojiText.";
         } else {
           EXPECT_EQ(font_data->PlatformData().FontFamilyName(),
-                    String::FromUTF8(kNotoColorEmoji))
+                    String::FromUtf8(kNotoColorEmoji))
               << "Character " << character_utf8
               << " doesn't match what we expected for kEmojiText.";
         }

@@ -604,6 +604,7 @@ FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_suspend_wasmfx_stack, wasm::suspend_wasmfx_stack)
+FUNCTION_REFERENCE(wasm_switch_wasmfx_stack, wasm::switch_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_jspi_stack, wasm::return_jspi_stack)
 FUNCTION_REFERENCE(wasm_return_wasmfx_stack, wasm::return_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_retire_stack, wasm::retire_stack)
@@ -1044,9 +1045,10 @@ namespace {
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = SbxCast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      SbxCast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+  Tagged<Code> code_obj =
+      SbxCast<Code>(TrustedCast<TrustedObject>(Tagged<Object>(raw_code_obj)));
+  Tagged<BytecodeArray> bytecode_array = SbxCast<BytecodeArray>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_bytecode_array)));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }

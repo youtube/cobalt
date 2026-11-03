@@ -223,7 +223,6 @@ template("chrome_extra_paks") {
         "$root_gen_dir/chrome/key_value_pair_viewer_shared_resources.pak",
         "$root_gen_dir/chrome/lens_shared_resources.pak",
         "$root_gen_dir/chrome/lens_untrusted_resources.pak",
-        "$root_gen_dir/chrome/management_resources.pak",
         "$root_gen_dir/chrome/new_tab_footer_resources.pak",
         "$root_gen_dir/chrome/new_tab_page_instant_resources.pak",
         "$root_gen_dir/chrome/new_tab_page_resources.pak",
@@ -509,8 +508,14 @@ template("chrome_extra_paks") {
     }
 
     if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
-      sources += [ "$root_gen_dir/chrome/discards_resources.pak" ]
-      deps += [ "//chrome/browser/resources/discards:resources" ]
+      sources += [
+        "$root_gen_dir/chrome/discards_resources.pak",
+        "$root_gen_dir/chrome/management_resources.pak",
+      ]
+      deps += [
+        "//chrome/browser/resources/discards:resources",
+        "//chrome/browser/resources/management:resources",
+      ]
     }
 
     if (is_win || is_mac || is_linux || is_chromeos) {
@@ -735,34 +740,6 @@ template("chrome_paks") {
     }
     if (defined(invoker.public_deps)) {
       public_deps += invoker.public_deps
-    }
-  }
-
-  if (defined(invoker.files_to_hash)) {
-    _prefix = "$target_gen_dir/app/${target_name}_integrity"
-
-    # User of this template needs to check in a pre-generated "$_prefix.h".
-    _integrity_outputs = [ "$_prefix.cc" ]
-
-    action("${target_name}_integrity_hash") {
-      script = "tools/build/sha256_file.py"
-      outputs = _integrity_outputs
-      inputs = []
-      foreach(file, invoker.files_to_hash) {
-        inputs += [ "${invoker.output_dir}/$file" ]
-      }
-
-      args = rebase_path([ _prefix ] + inputs, root_build_dir)
-      deps = [ ":${invoker.target_name}" ]
-    }
-
-    source_set("${target_name}_integrity") {
-      sources = _integrity_outputs
-
-      # This allows starting compilation in dependent targets earlier.
-      public = []
-
-      deps = [ ":${target_name}_hash" ]
     }
   }
 }

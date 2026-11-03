@@ -48,7 +48,8 @@ CGFloat const kTitleLogoHeight = 32;
   self.subtitleTextStyle = UIFontTextStyleFootnote;
   self.configuration.primaryActionString = l10n_util::GetNSString(
       IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_PRIMARY_BUTTON_LABEL);
-
+  self.configuration.primaryActionImage = DefaultSymbolTemplateWithPointSize(
+      kCreditCardFinderActionSymbol, kSymbolActionPointSize);
   self.configuration.secondaryActionString = l10n_util::GetNSString(
       IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_CANCEL_BUTTON_LABEL);
 

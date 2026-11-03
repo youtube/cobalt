@@ -37,6 +37,7 @@
 #include "ui/base/interaction/interaction_sequence.h"
 #include "ui/base/interaction/interaction_test_util.h"
 #include "ui/base/interaction/interactive_test_definitions.h"
+#include "ui/base/interaction/interactive_test_temporary.h"
 #include "ui/base/interaction/polling_state_observer.h"
 #include "ui/base/interaction/state_observer.h"
 #include "ui/gfx/geometry/rect.h"
@@ -237,6 +238,13 @@ class InteractiveTestPrivate {
 
   InteractionTestUtil& test_util() { return test_util_; }
 
+  InteractiveTestTemporaryStorage& temporary_storage() {
+    return *temporary_storage_;
+  }
+  const InteractiveTestTemporaryStorage& temporary_storage() const {
+    return *temporary_storage_;
+  }
+
   OnIncompatibleAction on_incompatible_action() const {
     return on_incompatible_action_;
   }
@@ -394,6 +402,9 @@ class InteractiveTestPrivate {
   // Used to relay events to trigger follow-up steps.
   std::map<ElementContext, std::unique_ptr<TrackedElement>> pivot_elements_;
 
+  // Test variables.
+  std::optional<InteractiveTestTemporaryStorage> temporary_storage_;
+
   // Failures to report at the end of a test.
   std::vector<std::string> deferred_failures_;
 
@@ -405,6 +416,15 @@ class InteractiveTestPrivate {
 
   FrameworkSpecificRegistrationList<InteractiveTestPrivateFrameworkBase>
       framework_implementations_;
+
+  // Safely tracks the most recent native window targeted in each context.
+  // For actions like ClickMouse() or ReleaseMouse(), a pivot element is used
+  // so only the context is known; since there can be multiple native windows in
+  // a given context, this tracks the most recently used native window so the
+  // click (or other action) continues to target the most recently hit window.
+  class NativeWindowReference;
+  mutable std::map<ui::ElementContext, NativeWindowReference>
+      most_recent_windows_;
 
   base::WeakPtrFactory<InteractiveTestPrivate> weak_ptr_factory_{this};
 

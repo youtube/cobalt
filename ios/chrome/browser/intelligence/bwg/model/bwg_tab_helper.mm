@@ -27,11 +27,13 @@
 #import "components/prefs/scoped_user_pref_update.h"
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -331,14 +333,19 @@ bool BwgTabHelper::IsGeminiAvailableForWebState() {
 
   if (IsGeminiCopresenceEnabled() || IsGeminiFloatyAllPagesEnabled()) {
     const GURL& url = web_state_->GetVisibleURL();
-    if (!url.SchemeIsHTTPOrHTTPS() || google_util::IsGoogleSearchUrl(url) ||
-        google_util::IsGoogleHomePageUrl(url) || IsAimZeroStateURL(url)) {
+    if (!url.SchemeIsHTTPOrHTTPS() || IsAimRelatedUrl(url)) {
       return false;
     }
   }
 
   return CanExtractPageContextForWebState(web_state_) ||
          IsGeminiFloatyAllPagesEnabled();
+}
+
+bool BwgTabHelper::IsAimRelatedUrl(const GURL& url) {
+  return (google_util::IsGoogleSearchUrl(url) ||
+          google_util::IsGoogleHomePageUrl(url) || IsAimZeroStateURL(url)) &&
+         IsGeminiCopresenceSRPCheckEnabled();
 }
 
 #pragma mark - WebStateObserver
@@ -427,6 +434,16 @@ void BwgTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
   if (IsGeminiCopresenceEnabled()) {
+    if (IsGeminiAvailableForWebState()) {
+      RecordGeminiPageAvailability(IOSGeminiPageAvailability::kAvailable);
+    } else {
+      if (google_util::IsGoogleSearchUrl(web_state->GetVisibleURL())) {
+        RecordGeminiPageAvailability(
+            IOSGeminiPageAvailability::kSearchResultPage);
+      } else {
+        RecordGeminiPageAvailability(IOSGeminiPageAvailability::kUnavailable);
+      }
+    }
     [bwg_commands_handler_
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::
@@ -612,14 +629,12 @@ void BwgTabHelper::OnCanApplyContextualCueingDecision(
   // TODO(crbug.com/461595639): Remove pref checks to fully migrate logic to
   // FET.
   bool floaty_shown = profile->GetPrefs()->GetBoolean(prefs::kIOSBwgConsent);
-  bool bwg_promo_shown =
-      profile->GetPrefs()->GetInteger(prefs::kIOSBWGPromoImpressionCount) > 0;
   bool should_wait_for_new_user =
       !ShouldSkipBWGPromoNewUserDelay() && IsFirstRunRecent(base::Days(1));
 
   // Show promo if eligible.
   if (IsGeminiNavigationPromoEnabled() && !should_wait_for_new_user &&
-      !floaty_shown && !bwg_promo_shown &&
+      !floaty_shown && !gemini::DidUserSeeGeminiPromo(profile->GetPrefs()) &&
       feature_engagement::TrackerFactory::GetForProfile(profile)
           ->WouldTriggerHelpUI(
               feature_engagement::kIPHiOSGeminiFullscreenPromoFeature)) {

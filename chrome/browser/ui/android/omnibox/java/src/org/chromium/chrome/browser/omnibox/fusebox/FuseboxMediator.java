@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.Manifest;
@@ -40,6 +41,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxSta
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.FuseboxAttachmentButtonType;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileIntentUtils;
@@ -81,7 +83,6 @@ import java.util.Set;
 @NullMarked
 public class FuseboxMediator implements FuseboxAttachmentChangeListener {
     private final Context mContext;
-    private final Profile mProfile;
     private final WindowAndroid mWindowAndroid;
     private final AndroidPermissionDelegate mPermissionDelegate;
     private final PropertyModel mModel;
@@ -96,6 +97,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
     private final Snackbar mAttachmentUploadFailedSnackbar;
 
     private @BrandedColorScheme int mBrandedColorScheme = BrandedColorScheme.APP_DEFAULT;
+    private @Nullable Profile mProfile;
     private @Nullable AutocompleteInput mInput;
     private @Nullable FuseboxAttachmentModelList mModelList;
     private @Nullable ComposeboxQueryControllerBridge mComposeboxQueryControllerBridge;
@@ -114,7 +116,6 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     FuseboxMediator(
             Context context,
-            Profile profile,
             WindowAndroid windowAndroid,
             PropertyModel model,
             FuseboxViewHolder viewHolder,
@@ -122,7 +123,6 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
             SettableNonNullObservableSupplier<@FuseboxState Integer> fuseboxStateSupplier,
             SnackbarManager snackbarManager) {
         mContext = context;
-        mProfile = profile;
         mWindowAndroid = windowAndroid;
         mPermissionDelegate = windowAndroid;
         mModel = model;
@@ -134,8 +134,10 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
         // Create the upload failed snackbar.
         mAttachmentUploadFailedSnackbar =
-                createStyledSnackbar(
+                Snackbar.make(
                         context.getText(R.string.fusebox_upload_failed),
+                        /* controller= */ null,
+                        Snackbar.TYPE_NOTIFICATION,
                         Snackbar.UMA_FUSEBOX_UPLOAD_FAILED);
 
         mModel.set(FuseboxProperties.BUTTON_ADD_CLICKED, this::onToggleAttachmentsPopup);
@@ -179,10 +181,13 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
     }
 
     @EnsuresNonNullIf(
-            value = {"mInput", "mModelList", "mComposeboxQueryControllerBridge"},
+            value = {"mProfile", "mInput", "mModelList", "mComposeboxQueryControllerBridge"},
             result = true)
     private boolean isInInputSession() {
-        return mInput != null && mModelList != null && mComposeboxQueryControllerBridge != null;
+        return mProfile != null
+                && mInput != null
+                && mModelList != null
+                && mComposeboxQueryControllerBridge != null;
     }
 
     private void setController(@Nullable ComposeboxQueryControllerBridge controller) {
@@ -205,7 +210,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
         mModel.set(
                 FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE,
                 mComposeboxQueryControllerBridge.isPdfUploadEligible());
-        if (!OmniboxFeatures.sShowModelPicker.getValue()) {
+        if (!OmniboxFeatures.sShowModelPicker.getValue() && mProfile != null) {
             mModel.set(
                     FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE,
                     mComposeboxQueryControllerBridge.isCreateImagesEligible()
@@ -249,19 +254,23 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
      *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     /* package */ void beginInput(FuseboxSessionState session) {
+        mProfile = assertNonNull(session.getProfile());
         setAutocompleteInput(session.getAutocompleteInput());
         setController(session.getComposeboxQueryControllerBridge());
         setModelList(session.getFuseboxAttachmentModelList());
         setToolbarVisible(true);
+
+        updateSnackbarStyling();
     }
 
     /** Called when the user stops interacting with the Omnibox. */
     /* package */ void endInput() {
         mPopup.dismiss();
         setToolbarVisible(false);
-        setAutocompleteInput(null);
-        setController(null);
         setModelList(null);
+        setController(null);
+        setAutocompleteInput(null);
+        mProfile = null;
     }
 
     private void setAutocompleteInput(@Nullable AutocompleteInput input) {
@@ -282,11 +291,10 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
         }
     }
 
-    private Snackbar createStyledSnackbar(CharSequence text, int snackbarIdentifier) {
-        Snackbar snackbar =
-                Snackbar.make(text, null, Snackbar.TYPE_NOTIFICATION, snackbarIdentifier);
-        boolean isIncognito = mProfile.isOffTheRecord();
-        snackbar.setBackgroundColor(ChromeColors.getInverseBgColor(mContext, isIncognito));
+    private void updateSnackbarStyling() {
+        boolean isIncognito = mProfile != null && mProfile.isOffTheRecord();
+        mAttachmentUploadFailedSnackbar.setBackgroundColor(
+                ChromeColors.getInverseBgColor(mContext, isIncognito));
 
         int textAppearanceResId =
                 isIncognito
@@ -294,8 +302,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
                                 .TextAppearance_TextMedium_Primary_Baseline_Dark
                         : org.chromium.components.browser_ui.styles.R.style
                                 .TextAppearance_TextMedium_OnInverseSurface;
-        snackbar.setTextAppearance(textAppearanceResId);
-        return snackbar;
+        mAttachmentUploadFailedSnackbar.setTextAppearance(textAppearanceResId);
     }
 
     /** Apply a variant of the branded color scheme to Fusebox UI elements */
@@ -336,9 +343,9 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
     /** Activate AI Mode if no other custom mode is already active. */
     @VisibleForTesting
     void maybeActivateAiMode(@AiModeActivationSource int activationReason) {
-        mPopup.dismiss();
         if (!isInInputSession()) return;
 
+        mPopup.dismiss();
         if (mInput.getRequestType() != AutocompleteRequestType.SEARCH) return;
         activateAiMode(activationReason);
     }
@@ -385,7 +392,9 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onToggleAttachmentsPopup() {
-        if (!isInInputSession() || mPopup.isShowing()) {
+        if (!isInInputSession()) return;
+
+        if (mPopup.isShowing()) {
             mPopup.dismiss();
         } else {
             updateModelForCurrentTab();
@@ -396,7 +405,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
         }
 
         Tracker tracker = TrackerFactory.getTrackerForProfile(mProfile);
-        FuseboxMetrics.notifyAttachmentsPopupToggled(!mPopup.isShowing(), mModel, tracker);
+        FuseboxMetrics.notifyAttachmentsPopupToggled(mPopup.isShowing(), mModel, tracker);
     }
 
     private void updateModelForCurrentTab() {
@@ -512,8 +521,9 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onTabPickerClicked() {
-        mPopup.dismiss();
         if (!isInInputSession()) return;
+
+        mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.TAB_PICKER);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB)) return;
 
@@ -600,6 +610,8 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onCameraClicked() {
+        if (!isInInputSession()) return;
+
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CAMERA);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
@@ -693,9 +705,9 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onImagePickerClicked() {
-        mPopup.dismiss();
         if (!isInInputSession()) return;
 
+        mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.GALLERY);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
 
@@ -740,6 +752,8 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onFilePickerClicked() {
+        if (!isInInputSession()) return;
+
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.FILES);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE)) return;
@@ -775,6 +789,8 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
 
     @VisibleForTesting
     void onClipboardClicked() {
+        if (!isInInputSession()) return;
+
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CLIPBOARD);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
@@ -894,7 +910,7 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
                 FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE,
                 inputState.isImageGenToolVisible()
                         && (OmniboxFeatures.sShowImageGenerationButtonInIncognito.getValue()
-                                || !mProfile.isIncognitoBranded()));
+                                || !(mProfile != null && mProfile.isIncognitoBranded())));
         mModel.set(
                 FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED,
                 inputState.isImageGenToolEnabled());
@@ -927,11 +943,13 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
                                 : IconResourceIds.PLACE_WHITE_VALUE;
                 modelButtonDataList.add(
                         new PopupButtonData(
-                                () -> setModelMode(modelMode),
+                                this::onDynamicButtonClicked,
                                 modelConfig.getMenuLabel(),
                                 iconId,
                                 inputState.isModelEnabled(modelMode),
-                                selected));
+                                selected,
+                                PopupButtonType.MODEL,
+                                modelMode));
             }
         }
         boolean showModelPicker = modelButtonDataList.size() >= 2;
@@ -943,18 +961,27 @@ public class FuseboxMediator implements FuseboxAttachmentChangeListener {
     }
 
     private boolean trySetRequestType(@AutocompleteRequestType int requestType) {
-        mPopup.dismiss();
         if (!isInInputSession()) return false;
+
+        mPopup.dismiss();
         if (mInput.getRequestType() == requestType) return false;
 
         mInput.setRequestType(requestType);
         return true;
     }
 
+    private void onDynamicButtonClicked(PopupButtonData data) {
+        if (data.type == PopupButtonType.MODEL) {
+            FuseboxMetrics.notifyModelButtonUsed(data.protoId);
+            setModelMode(data.protoId);
+        }
+    }
+
     private void setModelMode(int modelMode) {
         assert OmniboxFeatures.sShowModelPicker.getValue();
-        mPopup.dismiss();
         if (!isInInputSession()) return;
+
+        mPopup.dismiss();
 
         if (ToolModeUtils.isConventionalRequest(mInput.getRequestType())) {
             mInput.setRequestType(AutocompleteRequestType.AI_MODE);

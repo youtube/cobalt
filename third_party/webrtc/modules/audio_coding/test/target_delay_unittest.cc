@@ -13,8 +13,8 @@
 #include <cstdlib>
 #include <map>
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -95,7 +95,7 @@ class TargetDelayTest : public ::testing::Test {
     rtp_header_.sequenceNumber++;
     ASSERT_EQ(0, neteq_->InsertPacket(
                      rtp_header_,
-                     ArrayView<const uint8_t>(payload_, kFrameSizeSamples * 2),
+                     std::span<const uint8_t>(payload_, kFrameSizeSamples * 2),
                      Timestamp::MinusInfinity()));
   }
 

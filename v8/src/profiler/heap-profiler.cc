@@ -19,7 +19,7 @@
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/profiler/sampling-heap-profiler.h"
 #include "src/utils/output-stream.h"
 
@@ -94,14 +94,14 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     build_embedder_graph_callbacks_.erase(it);
 }
 
-void HeapProfiler::BuildEmbedderGraph(
-    Isolate* isolate, v8::EmbedderGraph* graph,
-    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects) {
+void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
+                                      v8::EmbedderGraph* graph,
+                                      CppHeapWrapperSet&& cpp_heap_wrappers) {
   if (internal_build_embedder_graph_callback_.first) {
     internal_build_embedder_graph_callback_.first(
         reinterpret_cast<v8::Isolate*>(isolate), graph,
         internal_build_embedder_graph_callback_.second,
-        std::move(cpp_heap_external_objects));
+        std::move(cpp_heap_wrappers));
   }
   for (const auto& cb : build_embedder_graph_callbacks_) {
     cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);

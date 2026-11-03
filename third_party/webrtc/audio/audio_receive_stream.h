@@ -16,11 +16,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
@@ -128,7 +128,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
                                        Timestamp time) override;
   bool SetMinimumPlayoutDelay(TimeDelta delay) override;
 
-  void DeliverRtcp(ArrayView<const uint8_t> packet);
+  void DeliverRtcp(std::span<const uint8_t> packet);
 
   void SetSyncGroup(absl::string_view sync_group);
 

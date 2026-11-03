@@ -13,17 +13,14 @@ source_set("tabs_public") {
 
   public_deps = [
     "//base",
+    "//chrome/browser/tab",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+    "//chrome/common:buildflags",
     "//components/sessions:session_id",
     "//components/split_tabs",
     "//components/tab_groups",
     "//components/tabs:public",
     "//ui/base/unowned_user_data",
-  ]
-
-  deps = [
-    "//chrome/browser/tab",
-    "//chrome/common:buildflags",
-    "//content/public/browser",
   ]
 }
 
@@ -32,7 +29,6 @@ source_set("tabs_impl") {
   # files.
   sources = [ "tab_features.cc" ]
 
-  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
   deps = [
     ":tabs_public",
     "//chrome/browser/actor",
@@ -42,11 +38,31 @@ source_set("tabs_impl") {
     "//chrome/browser/preloading/new_tab_page_preload",
     "//chrome/browser/sync",
     "//chrome/browser/ui/contextual_search",
+    "//chrome/browser/ui/side_panel/android",
     "//components/external_intents/android",
     "//components/favicon/content",
     "//components/lens",
     "//components/metrics:content",
     "//components/tabs:public",
     "//content/public/browser",
+  ]
+}
+
+source_set("resource_mapper") {
+  sources = [
+    "android_theme_resources.h",
+    "resource_id.h",
+    "resource_mapper.cc",
+    "resource_mapper.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/android:chrome_jni_headers",
+    "//chrome/app:generated_resources",
+    "//chrome/app/theme:theme_resources",
+    "//chrome/browser/page_info:page_info_buildflags",
+    "//components/password_manager/core/browser:password_manager_buildflags",
+    "//components/resources:android_resources",
+    "//components/resources:components_scaled_resources",
   ]
 }

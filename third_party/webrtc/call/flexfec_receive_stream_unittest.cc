@@ -12,9 +12,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment_factory.h"
 #include "api/rtp_headers.h"
@@ -52,7 +52,7 @@ FlexfecReceiveStream::Config CreateDefaultConfig(
   return config;
 }
 
-RtpPacketReceived ParsePacket(ArrayView<const uint8_t> packet) {
+RtpPacketReceived ParsePacket(std::span<const uint8_t> packet) {
   RtpPacketReceived parsed_packet(nullptr);
   EXPECT_TRUE(parsed_packet.Parse(packet));
   return parsed_packet;

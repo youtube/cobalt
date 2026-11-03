@@ -260,6 +260,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
             std::unique_ptr<Unzipper> unzipper,
             const std::vector<uint8_t>& pk_hash,
             crx_file::VerifierFormat crx_format,
+            bool is_foreground,
             base::expected<base::FilePath, UnpackerError> cache_result) {
   if (!cache_result.has_value()) {
     // Caching is optional: continue with the install, but add a task to clean
@@ -308,7 +309,7 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
 #else
               cache_result.has_value() ? cache_result.value() : crx_file,
 #endif
-              std::move(unzipper), crx_format,
+              std::move(unzipper), crx_format, is_foreground,
               base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
@@ -324,6 +325,7 @@ base::OnceClosure InstallOperation(
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
+    bool is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
@@ -350,7 +352,7 @@ base::OnceClosure InstallOperation(
                         std::move(install_params), installer, progress_callback,
                         metadata, id, crx_operation_result),
          id, prod_id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
-         base::unexpected(UnpackerError::kCrxCacheNotProvided));
+         is_foreground, base::unexpected(UnpackerError::kCrxCacheNotProvided));
 #else
   crx_cache->Put(
       crx_file, id, file_hash,
@@ -362,7 +364,8 @@ base::OnceClosure InstallOperation(
                              std::move(installer_result_callback),
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
-          id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
+          id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format,
+          is_foreground));
 #endif
   return base::DoNothing();
 }

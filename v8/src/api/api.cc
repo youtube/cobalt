@@ -104,6 +104,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -127,7 +128,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/regexp/regexp-utils.h"
@@ -1341,25 +1342,19 @@ void FunctionTemplate::SetCallHandler(
   info->set_callback_data(*Utils::OpenDirectHandle(*data), kReleaseStore);
 
   if (!c_function_overloads.empty()) {
-    // Stores the data for a sequence of CFunction overloads into a single
-    // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
+    const uint32_t function_count =
+        static_cast<uint32_t>(c_function_overloads.size());
     i::DirectHandle<i::FixedArray> function_overloads =
-        i_isolate->factory()->NewFixedArray(static_cast<int>(
-            c_function_overloads.size() *
-            i::FunctionTemplateInfo::kFunctionOverloadEntrySize));
-    int function_count = static_cast<int>(c_function_overloads.size());
-    for (int i = 0; i < function_count; i++) {
+        i_isolate->factory()->NewFixedArray(function_count);
+    for (uint32_t i = 0; i < function_count; i++) {
       const CFunction& c_function = c_function_overloads.data()[i];
-      i::DirectHandle<i::Object> address = FromCData<internal::kCFunctionTag>(
-          i_isolate, c_function.GetAddress());
-      function_overloads->set(
-          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i, *address);
-      i::DirectHandle<i::Object> signature =
-          FromCData<internal::kCFunctionInfoTag>(i_isolate,
-                                                 c_function.GetTypeInfo());
-      function_overloads->set(
-          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1,
-          *signature);
+      i::DirectHandle<i::Managed<i::CFunctionWithSignature>> overload =
+          i::Managed<i::CFunctionWithSignature>::From(
+              i_isolate, sizeof(i::CFunctionWithSignature),
+              std::make_shared<i::CFunctionWithSignature>(
+                  reinterpret_cast<const i::Address>(c_function.GetAddress()),
+                  c_function.GetTypeInfo()));
+      function_overloads->set(i, *overload);
     }
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,
                                                    function_overloads);
@@ -1379,6 +1374,8 @@ i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
   DCHECK_IMPLIES(replace_on_access, setter == nullptr);
   if (setter == nullptr) {
+    // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
+    // is deprecated and removed.
 #if (__GNUC__ >= 8) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
@@ -1549,6 +1546,17 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
   i::ApiNatives::AddNativeDataProperty(i_isolate, info, accessor_info);
 }
 }  // namespace
+
+void Template::SetNativeDataProperty(v8::Local<Name> name,
+                                     AccessorNameGetterCallback getter,
+                                     AccessorNameSetterCallbackV2 setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, attribute, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
 
 void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      AccessorNameGetterCallback getter,
@@ -5145,6 +5153,17 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
 
 Maybe<bool> Object::SetNativeDataProperty(
     v8::Local<v8::Context> context, v8::Local<Name> name,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
+    v8::Local<Value> data, PropertyAttribute attributes,
+    SideEffectType getter_side_effect_type,
+    SideEffectType setter_side_effect_type) {
+  return ObjectSetAccessor(context, this, name, getter, setter, data,
+                           attributes, false, getter_side_effect_type,
+                           setter_side_effect_type);
+}
+
+Maybe<bool> Object::SetNativeDataProperty(
+    v8::Local<v8::Context> context, v8::Local<Name> name,
     AccessorNameGetterCallback getter, AccessorNameSetterCallback setter,
     v8::Local<Value> data, PropertyAttribute attributes,
     SideEffectType getter_side_effect_type,
@@ -8101,10 +8120,11 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, Local<Value>* elements,
   i::Factory* factory = i_isolate->factory();
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Array_New);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  int len = static_cast<int>(length);
+  DCHECK_LE(length, i::kMaxUInt32);
+  const uint32_t len = static_cast<uint32_t>(length);
 
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(len);
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     auto element = Utils::OpenDirectHandle(*elements[i]);
     result->set(i, *element);
   }
@@ -8120,10 +8140,11 @@ MaybeLocal<v8::Array> v8::Array::New(
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Array_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
   i::Factory* factory = i_isolate->factory();
-  const int len = static_cast<int>(length);
+  DCHECK_LE(length, i::kMaxUInt32);
+  const uint32_t len = static_cast<uint32_t>(length);
   i::DirectHandle<i::FixedArray> backing = factory->NewFixedArray(len);
   v8::Local<v8::Value> value;
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     MaybeLocal<v8::Value> maybe_value = next_value_callback();
     // The embedder may signal to abort creation on exception via an empty
     // local.

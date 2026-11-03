@@ -152,9 +152,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Returns the raw content of the Code field. When reading from a background
   // thread, the code field may still be uninitialized, in which case the field
   // contains Smi::zero().
-  inline Tagged<Object> raw_code(IsolateForSandbox isolate) const;
-  inline Tagged<Object> raw_code(IsolateForSandbox isolate,
-                                 AcquireLoadTag) const;
+  inline Tagged<Union<Smi, Code>> raw_code(IsolateForSandbox isolate) const;
+  inline Tagged<Union<Smi, Code>> raw_code(IsolateForSandbox isolate,
+                                           AcquireLoadTag tag) const;
 
   // Returns the address of the function code's instruction start.
   inline Address instruction_start(IsolateForSandbox isolate) const;
@@ -400,7 +400,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
       Isolate* isolate, DirectHandle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
                                           int requested_embedder_fields,
                                           int requested_in_object_properties,
                                           int* instance_size,

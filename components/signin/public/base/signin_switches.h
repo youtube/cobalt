@@ -204,14 +204,6 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // The iOS version is kDisableU18FeedbackIos flag.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kDisableU18FeedbackDesktop);
-enum class U18FeedbackDesktopState {
-  kEnabled,
-  // Simulates U18 user.
-  kForced,
-};
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-extern const base::FeatureParam<U18FeedbackDesktopState>
-    kDisableU18FeedbackDesktopState;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -343,6 +335,15 @@ BASE_DECLARE_FEATURE(kFirstRunDesktopRefresh);
 // instead.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFirstRunDesktopChoiceScreenRefresh);
+// Controls whether the First Run animations are disabled or not. If the feature
+// is enabled, animations in the First Run are disabled, otherwise they're
+// enabled. It should be only used for the testing purposes (e.g. pixel tests)
+// and always disabled by default.
+//
+// NOTE: The tests must setup this feature in advance before the First Run flow
+// starts, otherwise the animations will start.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kDisableFirstRunAnimationsForTesting);
 // A helper function to determine if the first run desktop refresh is enabled
 // (see `kFirstRunDesktopRefresh` and `kFirstRunDesktopChoiceScreenRefresh`
 // flags).
@@ -365,6 +366,16 @@ enum class FirstRunDesktopSignInPromoVariation {
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const base::FeatureParam<FirstRunDesktopSignInPromoVariation>
     kFirstRunDesktopSignInPromoVariation;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// A HaTS survey flag for the survey to gather user feedback after the changes
+// introduced with `kFirstRunDesktopRefresh`.
+//
+// NOTE: Only signed-in (excluding enterprise) users are eligible for this
+// survey.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kFirstRunDesktopRefreshSurvey);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -599,11 +610,6 @@ BASE_DECLARE_FEATURE(kSyncEnableBookmarksInTransportMode);
 // flag is enabled by default on Windows/Mac/Linux.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kBookmarksMigrateUiChanges);
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kUseIssueTokenToFetchAccessTokens);
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // If enabled, buttons for sign-in promos / intercepts will use consistent
 // primary - tonal button class pattern.

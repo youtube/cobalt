@@ -128,7 +128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.Agc2.EstimatedNoiseLevel" units="dBFS (negated)"
-    expires_after="2026-03-30">
+    expires_after="2026-08-02">
   <owner>peah@chromium.org</owner>
   <owner>silen@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -721,7 +721,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.AudioInputSampleRateUnexpected" units="Hz"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -746,7 +746,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.AudioOutputSampleRateUnexpected" units="Hz"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1010,7 +1010,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.DataChannelCounters" enum="DataChannelCounters"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>orphis@chromium.org</owner>
   <owner>toprice@chromium.org</owner>
   <summary>
@@ -1803,7 +1803,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.ValidBundledPayloadTypes" enum="Boolean"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>hbos@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@microsoft.com</owner>
@@ -2016,7 +2016,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="WebRTC.UserMediaRequest.{RequestType}.Result2"
+<histogram name="WebRTC.UserMediaRequest.{RequestType}.Result3"
     enum="MediaStreamRequestResult" expires_after="2027-02-26">
   <owner>tovep@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
@@ -2024,8 +2024,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Counters for UserMediaRequests results for type {RequestType} such as
     failure reasons. The standard specification error names are in parenthesis.
-    The suffix 2 to the histogram name was added when the new enum
-    MediaStreamRequestResult was added.
+    The suffix 3 to the histogram name was added when the enum
+    MediaStreamRequestResult was updated with new values.
   </summary>
   <token key="RequestType">
     <variant name="GetAllScreensMedia"/>
@@ -2593,7 +2593,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Video.HarmonicFrameRate" units="fps"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>ssilkin@chromium.org</owner>
   <owner>webrtc-video@google.com</owner>
   <summary>

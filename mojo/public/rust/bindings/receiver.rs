@@ -2,11 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-//! TODO: Module docs (link to interface.rs?)
+//! This module defines the [`Receiver`] and [`PendingReceiver`] types, which
+//! represent the implementation side of a Mojo interface. Each `Receiver` or
+//! `PendingReceiver` is associated with exactly one `Remote` or
+//! `PendingRemote` elsewhere in the program. A `PendingReceiver` does nothing
+//! until bound to a sequence and provided with a _state object_ to create a
+//! `Receiver<StateTy>`.
+//!
+//! A `Receiver<StateTy>` listens for incoming messages from the corresponding
+//! [`Remote`](super::remote::Remote); whenever it receives one, it calls the
+//! corresponding methods on its state object.
+//!
+//! The standard way to obtain a `Receiver` is to first create a pipe via
+//! [`PendingRemote::new_pipe`](super::remote::PendingRemote::new_pipe), then
+//! bind the `PendingReceiver` to a sequence and a state object by calling
+//! [`PendingReceiver::bind`]. `PendingReceiver`s can also be obtained by
+//! manually wrapping a
+//! [`MessageEndpoint`](system::message_pipe::MessageEndpoint).
+//!
+//! Incoming messages are processed asynchronously on the bound sequence.
+//! Messages received while the receiver is still pending are queued and
+//! processed immediately upon binding.
+//!
+//! For a more detailed explanation, see the documentation for the
+//! [`interface`] module.
 
 chromium::import! {
   "//mojo/public/rust/system";
-  "//mojo/public/rust/sequences";
+  "//base:sequenced_task_runner";
 }
 
 use std::marker::PhantomData;
@@ -16,7 +39,7 @@ use std::marker::PhantomData;
 // it's stabilized, if any uses remain.
 use std::sync::{Arc, Mutex, Weak};
 
-use sequences::SequencedTaskRunnerHandle;
+use sequenced_task_runner::SequencedTaskRunnerHandle;
 use system::message::RawMojoMessage;
 use system::message_pipe::MessageEndpoint;
 
@@ -82,7 +105,7 @@ where
     /// for creating a new `Receiver` from an endpoint received via mojo or FFI.
     ///
     /// Note that the caller is responsible for ensuring that `Self` has the
-    /// same instantiation of `T` as the other endpoint, or else incoming
+    /// right instantiation of `T` as the other endpoint, or else incoming
     /// messages will be incomprehensible.
     pub fn new(endpoint: MessageEndpoint) -> Self {
         Self { endpoint, _phantom: PhantomData }

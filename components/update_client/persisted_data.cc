@@ -40,17 +40,9 @@ void FlushPrefs(PrefService* pref_service) {
 
 namespace update_client {
 
-const char kPersistedDataPreference[] = "updateclientdata";
-const char kLastUpdateCheckErrorPreference[] =
-    "updateclientlastupdatecheckerror";
-const char kLastUpdateCheckErrorCategoryPreference[] =
-    "updateclientlastupdatecheckerrorcategory";
-const char kLastUpdateCheckErrorExtraCode1Preference[] =
-    "updateclientlastupdatecheckerrorextracode1";
-
 namespace {
 
-const char kThrottleUpdatesUntilPreference[] = "updateclientthrottleuntil";
+constexpr char kThrottleUpdatesUntilPreference[] = "updateclientthrottleuntil";
 
 class PersistedDataImpl : public PersistedData {
  public:

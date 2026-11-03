@@ -114,9 +114,6 @@ class VCMTiming {
   // Returns current timing information.
   VideoDelayTimings GetTimings() const;
 
-  void SetTimingFrameInfo(const TimingFrameInfo& info);
-  std::optional<TimingFrameInfo> GetTimingFrameInfo();
-
   void SetMaxCompositionDelayInFrames(
       std::optional<int> max_composition_delay_in_frames);
 
@@ -150,7 +147,6 @@ class VCMTiming {
   TimeDelta max_playout_delay_ RTC_GUARDED_BY(mutex_);
   TimeDelta jitter_delay_ RTC_GUARDED_BY(mutex_);
   TimeDelta current_delay_ RTC_GUARDED_BY(mutex_);
-  std::optional<TimingFrameInfo> timing_frame_info_ RTC_GUARDED_BY(mutex_);
   size_t num_decoded_frames_ RTC_GUARDED_BY(mutex_);
   std::optional<int> max_composition_delay_in_frames_ RTC_GUARDED_BY(mutex_);
   // Set by the field trial WebRTC-ZeroPlayoutDelay. The parameter min_pacing

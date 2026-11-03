@@ -61,8 +61,8 @@ namespace v8::internal {
   }
 
 // WasmModuleObject
-wasm::NativeModule* WasmModuleObject::native_module() const {
-  return managed_native_module()->raw();
+Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() const {
+  return managed_native_module()->ptr();
 }
 const std::shared_ptr<wasm::NativeModule>&
 WasmModuleObject::shared_native_module() const {
@@ -270,7 +270,7 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
-  return managed_native_module()->get().get();
+  return managed_native_module()->raw();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
@@ -279,6 +279,12 @@ Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
 
 const wasm::WasmModule* WasmTrustedInstanceData::module() const {
   return native_module()->module();
+}
+
+Tagged<Union<Smi, WasmDispatchTable>> WasmTrustedInstanceData::dispatch_table(
+    uint32_t i) const {
+  if (i == 0) return dispatch_table0();
+  return TrustedCast<Union<Smi, WasmDispatchTable>>(dispatch_tables()->get(i));
 }
 
 // WasmInstanceObject

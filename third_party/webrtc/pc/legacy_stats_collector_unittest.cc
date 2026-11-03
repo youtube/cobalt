@@ -57,6 +57,7 @@
 #include "rtc_base/null_socket_server.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/system/plan_b_only.h"
@@ -1444,6 +1445,21 @@ TEST_F(LegacyStatsCollectorTest, ChainedCertificateReportsCreated) {
 
   TestCertificateReports(local_identity, local_ders, remote_identity,
                          remote_ders);
+}
+
+TEST_F(LegacyStatsCollectorTest,
+       AddCertificateReports_DuplicateFingerprintDoesNotCrash) {
+  auto pc = CreatePeerConnection();
+  auto stats = CreateStatsCollector(pc.get());
+
+  // Create duplicate fingerprints chain
+  auto issuer_stats = std::make_unique<SSLCertificateStats>(
+      "same_fingerprint", "sha-1", "cert_issuer", nullptr);
+  auto cert_stats = std::make_unique<SSLCertificateStats>(
+      "same_fingerprint", "sha-1", "cert_leaf", std::move(issuer_stats));
+
+  // This should not crash (Use-After-Free)
+  stats->AddCertificateReportsForTest(std::move(cert_stats));
 }
 
 // This test verifies that all certificates without chains are correctly

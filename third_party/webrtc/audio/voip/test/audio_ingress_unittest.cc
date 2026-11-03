@@ -13,8 +13,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -125,7 +125,7 @@ TEST_F(AudioIngressTest, PlayingAfterStartAndStop) {
 
 TEST_F(AudioIngressTest, GetAudioFrameAfterRtpReceived) {
   Event event;
-  auto handle_rtp = [&](ArrayView<const uint8_t> packet, Unused) {
+  auto handle_rtp = [&](std::span<const uint8_t> packet, Unused) {
     ingress_->ReceivedRTPPacket(packet);
     event.Set();
     return true;
@@ -155,7 +155,7 @@ TEST_F(AudioIngressTest, TestSpeechOutputLevelAndEnergyDuration) {
   constexpr int kNumRtp = 6;
   int rtp_count = 0;
   Event event;
-  auto handle_rtp = [&](ArrayView<const uint8_t> packet, Unused) {
+  auto handle_rtp = [&](std::span<const uint8_t> packet, Unused) {
     ingress_->ReceivedRTPPacket(packet);
     if (++rtp_count == kNumRtp) {
       event.Set();
@@ -186,7 +186,7 @@ TEST_F(AudioIngressTest, TestSpeechOutputLevelAndEnergyDuration) {
 
 TEST_F(AudioIngressTest, PreferredSampleRate) {
   Event event;
-  auto handle_rtp = [&](ArrayView<const uint8_t> packet, Unused) {
+  auto handle_rtp = [&](std::span<const uint8_t> packet, Unused) {
     ingress_->ReceivedRTPPacket(packet);
     event.Set();
     return true;
@@ -215,7 +215,7 @@ TEST_F(AudioIngressTest, GetMutedAudioFrameAfterRtpReceivedAndStopPlay) {
   constexpr int kNumRtp = 6;
   int rtp_count = 0;
   Event event;
-  auto handle_rtp = [&](ArrayView<const uint8_t> packet, Unused) {
+  auto handle_rtp = [&](std::span<const uint8_t> packet, Unused) {
     ingress_->ReceivedRTPPacket(packet);
     if (++rtp_count == kNumRtp) {
       event.Set();

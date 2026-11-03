@@ -739,6 +739,7 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
     case Opcode::kCallBuiltin:
     case Opcode::kCallRuntime:
     case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kIdentity:
     case Opcode::kInitialValue:
     case Opcode::kLoadContextSlot:
     case Opcode::kLoadContextSlotNoCells:
@@ -4532,6 +4533,10 @@ class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
   auto options() const { return std::tuple{check_type()}; }
   NodeType type() const { return NodeType::kBoolean; }
 
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
+
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
@@ -4550,6 +4555,10 @@ class ToBooleanLogicalNot
 
   auto options() const { return std::tuple{check_type()}; }
   NodeType type() const { return NodeType::kBoolean; }
+
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -6110,7 +6119,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     DCHECK(!HasBeenAnalysed());
     non_escaping_use_count_ += n;
   }
-  bool IsEscaping() const {
+  bool HasEscapingUses() const {
     DCHECK(!HasBeenAnalysed());
     return use_count_ > non_escaping_use_count_;
   }
@@ -7930,7 +7939,7 @@ enum class LoadType {
   kInternalizedString,
   kContext,
   kAnyHeapObject,  // Can be a HeapNumber
-  kLastLoadType = kContext,
+  kLastLoadType = kAnyHeapObject,
 };
 constexpr int kLoadTypeBitSize =
     std::bit_width(static_cast<unsigned>(LoadType::kLastLoadType));

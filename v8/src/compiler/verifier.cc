@@ -949,6 +949,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSAsyncFunctionEnter:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
@@ -1882,8 +1887,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     // -----------------------
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
-    case IrOpcode::kProtectedLoad:
-    case IrOpcode::kProtectedStore:
+    case IrOpcode::kTrappingLoad:
+    case IrOpcode::kTrappingStore:
     case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:

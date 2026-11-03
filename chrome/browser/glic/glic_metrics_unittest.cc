@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/service/metrics/metrics_types.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -410,6 +411,20 @@ TEST_F(GlicMetricsTest, BasicVisible) {
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponse"), 1);
 }
 
+TEST_F(GlicMetricsTest, FreUserInputEntrypointRecorded) {
+  metrics()->OnGlicWindowStartedOpening(/*attached=*/true,
+                                        mojom::InvocationSource::kOsButton);
+  metrics()->OnFreAccepted();
+
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
+  // Reset time and submit another input to make sure it's only recorded once.
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
+
+  histogram_tester().ExpectBucketCount("Glic.Fre.UserInput.Entrypoint",
+                                       glic::GlicEntrypoint::kOsButton, 1);
+  histogram_tester().ExpectTotalCount("Glic.Fre.UserInput.Entrypoint", 1);
+}
+
 TEST_F(GlicMetricsTest, ResponseStartTime_WithFocusedTab) {
   delegate()->showing = true;
   delegate()->attached = true;
@@ -564,40 +579,6 @@ TEST_F(GlicMetricsTest, BasicStopReasonByUser) {
   histogram_tester().ExpectTotalCount("Glic.Response.StopTime.ByUser", 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponseStopByUser"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponse"), 1);
-}
-TEST_F(GlicMetricsTest, SegmentationOsButtonAttachedText) {
-  delegate()->showing = true;
-  delegate()->attached = true;
-
-  metrics()->OnGlicWindowStartedOpening(/*attached=*/true,
-                                        mojom::InvocationSource::kOsButton);
-  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
-  metrics()->OnResponseStarted();
-  metrics()->OnResponseStopped(mojom::ResponseStopCause::kUnknown);
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
-
-  histogram_tester().ExpectTotalCount("Glic.Response.Segmentation", 1);
-  histogram_tester().ExpectBucketCount(
-      "Glic.Response.Segmentation", ResponseSegmentation::kOsButtonAttachedText,
-      /*expected_count=*/1);
-}
-
-TEST_F(GlicMetricsTest, Segmentation3DotsMenuDetachedAudio) {
-  delegate()->showing = true;
-  delegate()->attached = false;
-
-  metrics()->OnGlicWindowStartedOpening(
-      /*attached=*/false, mojom::InvocationSource::kThreeDotsMenu);
-  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
-  metrics()->OnResponseStarted();
-  metrics()->OnResponseStopped(mojom::ResponseStopCause::kUnknown);
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
-
-  histogram_tester().ExpectTotalCount("Glic.Response.Segmentation", 1);
-  histogram_tester().ExpectBucketCount(
-      "Glic.Response.Segmentation",
-      ResponseSegmentation::kThreeDotsMenuDetachedAudio,
-      /*expected_count=*/1);
 }
 
 TEST_F(GlicMetricsTest, SessionDuration_LogsDuration) {

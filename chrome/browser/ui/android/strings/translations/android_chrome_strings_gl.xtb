@@ -462,6 +462,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="2932150158123903946">Almacenamento de Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">O teclado non cambiará</translation>
 <translation id="2936980480904111527">As notificacións de Chrome facilítanche as cousas</translation>
+<translation id="2939908794993783865">Máis sitios inactivos</translation>
 <translation id="2940075786175545812">Opción para aprobar ou non un sitio web</translation>
 <translation id="2942036813789421260">A pestana de vista previa está pechada</translation>
 <translation id="2951071800649516099">Engade páxinas á lista de lectura para consultalas noutro momento</translation>
@@ -699,6 +700,7 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="3985215325736559418">Queres descargar <ph name="FILE_NAME" /> de novo?</translation>
 <translation id="3987993985790029246">Copiar ligazón</translation>
 <translation id="3994236846568425219">O tema escuro activarase cando estea activado no dispositivo</translation>
+<translation id="399788104667917863">Fixar na barra de ferramentas</translation>
 <translation id="4000212216660919741">Inicio sen conexión</translation>
 <translation id="4000670338830950598">Personalizar e controlar Google Chrome cun elemento destacado</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 contrasinal vulnerado na túa Conta de Google}other{# contrasinais vulnerados na túa Conta de Google}}</translation>
@@ -1394,7 +1396,6 @@ Por exemplo, algúns sitios web poden responder a esta solicitude mostrándoche 
 <translation id="6746338529702829275">Revisa os datos da túa conta</translation>
 <translation id="6746834324024491643">Para poder acceder aos teus contrasinais e a outros datos en todos os teus dispositivos, inicia sesión como <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Abrir rapidamente unha pestana nova. Para editar este atallo, mantén premido o botón.</translation>
-<translation id="6752130751133944215">Para restaurar unha nova ventá, reduce o número total das que estean activas e inactivas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ou menos. As ventás inactivas elimínanse despois de seis meses.</translation>
 <translation id="6754359471209693699">Comezar unha busca nova</translation>
 <translation id="6756507620369789050">Compartir comentarios</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="7388615499319468910">Os sitios e os anunciantes poden comprender o rendemento dos anuncios. Esta opción de configuración está desactivada.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Outros, 1 ficheiro na lista}other{Outros, # ficheiros na lista}}</translation>
 <translation id="7400418766976504921">URL</translation>
-<translation id="7400424692675800399">Para abrir unha nova ventá, reduce o número total das que estean activas e inactivas a <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> ou menos.</translation>
 <translation id="7403691278183511381">Experiencia de primeira execución de Chrome</translation>
 <translation id="7411224099004328643">Usuario da Conta de Google</translation>
 <translation id="7419565702166471774">Usar sempre conexións seguras</translation>

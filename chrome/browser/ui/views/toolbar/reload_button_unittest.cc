@@ -108,6 +108,7 @@ TEST_F(ReloadButtonTest, Basic) {
   // running.
   CheckState(true, ReloadButton::Mode::kReload, ReloadButton::Mode::kReload,
              false, false);
+  EXPECT_TRUE(reload_button()->GetVectorIconsHasValueForTesting());
 
   // Press the button.  This should start the double-click timer.
   ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
@@ -332,7 +333,7 @@ class ReloadButtonMetricsTest : public ChromeViewsTestBase,
     viz::FrameTimingDetails frame_timing_details;
     frame_timing_details.presentation_feedback.timestamp =
         presentation_timestamp;
-    reload_button()->OnNextPresentation(reload_button()->visible_mode(),
+    reload_button()->OnNextPresentation(reload_button()->GetVisibleMode(),
                                         reload_button()->GetState(),
                                         frame_timing_details);
   }

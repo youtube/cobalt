@@ -705,7 +705,7 @@ Tribool ValueNode::IsTheHole() const {
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
     // Modules variables can be the hole.
-    if (load->offset() == Cell::kValueOffset) {
+    if (load->offset() == offsetof(Cell, maybe_value_)) {
       return Tribool::kMaybe;
     }
     return Tribool::kFalse;
@@ -715,6 +715,9 @@ Tribool ValueNode::IsTheHole() const {
       return Tribool::kFalse;
     }
     return Tribool::kMaybe;
+  }
+  if (Is<Identity>()) {
+    return UnwrapIdentities()->IsTheHole();
   }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi() && !phi->is_exception_phi()) {

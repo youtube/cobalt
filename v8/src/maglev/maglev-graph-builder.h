@@ -87,8 +87,10 @@ class MaglevGraphBuilder {
   friend class MapInference;
 
   using MapInference = maglev::MapInference<MaglevGraphBuilder>;
+  using CallArguments = ::v8::internal::maglev::CallArguments;
 
   class EagerDeoptFrameScope;
+
   class LazyDeoptFrameScope;
 
   class V8_NODISCARD LazyDeoptResultLocationScope {
@@ -173,6 +175,19 @@ class MaglevGraphBuilder {
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
+
+  compiler::ScopeInfoRef GetScopeInfo(interpreter::Register reg) const {
+    auto opt_scope_info = register_scope_infos_[reg];
+    DCHECK(opt_scope_info.has_value());
+    return opt_scope_info.value();
+  }
+
+  compiler::ScopeInfoRef GetCurrentScopeInfo() const {
+    return GetScopeInfo(interpreter::Register::current_context());
+  }
+
+  void SetCurrentScopeInfo(compiler::OptionalScopeInfoRef scope_info);
+
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
   const InterpreterFrameState& current_interpreter_frame() const {
     return current_interpreter_frame_;
@@ -222,8 +237,13 @@ class MaglevGraphBuilder {
 
   bool should_abort_compilation() const { return should_abort_compilation_; }
 
-  bool is_tracing_enabled() const {
-    return compilation_unit_->info()->is_tracing_enabled();
+  bool is_tracing() const {
+    return v8_flags.trace_maglev_graph_building &&
+           compilation_unit_->info()->is_tracing_enabled();
+  }
+
+  maglev::Tracer tracer() const {
+    return maglev::Tracer(compilation_unit_->info());
   }
 
   KnownNodeAspects& known_node_aspects() {
@@ -256,6 +276,8 @@ class MaglevGraphBuilder {
 #endif
 
  private:
+  void InitializeScopeInfo();
+
   class DeoptFrameScopeBase;
 
   // Helper class for building a subgraph with its own control flow, that is not
@@ -350,8 +372,7 @@ class MaglevGraphBuilder {
     return reducer_.HasDisjointType(lhs, rhs_type);
   }
 
-  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
-                     NodeType new_node_type);
+ public:
   bool ShouldEmitInterruptBudgetChecks();
   bool ShouldEmitOsrInterruptBudgetChecks();
 
@@ -377,7 +398,8 @@ class MaglevGraphBuilder {
     return merge_states_[offset] != nullptr;
   }
 
-  ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
+  ValueNode* GetContextAtDepth(ValueNode* context, size_t depth,
+                               compiler::ScopeInfoRef* out_scope_info);
   bool CheckContextExtensions(size_t depth);
 
   void KillPeeledLoopTargets(int peelings);
@@ -386,9 +408,9 @@ class MaglevGraphBuilder {
 
   void UpdateSourceAndBytecodePosition(int offset);
 
-  void PrintVirtualObjects();
-
   ReduceResult VisitSingleBytecode();
+
+  void HandleTryBlock(int offset);
 
 #define BYTECODE_VISITOR(name, ...) ReduceResult Visit##name();
   BYTECODE_LIST(BYTECODE_VISITOR, BYTECODE_VISITOR)
@@ -436,25 +458,28 @@ class MaglevGraphBuilder {
   ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index,
                                           MaybeAssignedFlag assigned);
   ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
-                                       ContextMode context_mode);
+                                       ContextMode context_mode,
+                                       compiler::ScopeInfoRef scope_info);
   MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
                                                   ValueNode* value,
                                                   MaybeAssignedFlag assigned);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
-                                        ContextMode context_mode);
+                                        ContextMode context_mode,
+                                        compiler::ScopeInfoRef scope_info);
   ValueNode* TryGetParentContext(ValueNode* node);
-  void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
+  void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
+                                 compiler::ScopeInfoRef* scope_info);
   void EscapeContext();
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
-  MaybeAssignedFlag GetContextMaybeAssigned(ValueNode* context, int index,
-                                            VariableMode* mode);
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
-                                    int slot_index, ContextMode context_mode);
+                                    int slot_index, ContextMode context_mode,
+                                    compiler::ScopeInfoRef scope_info);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
-                                     ContextMode context_mode);
+                                     ContextMode context_mode,
+                                     compiler::ScopeInfoRef scope_info);
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
@@ -868,6 +893,7 @@ class MaglevGraphBuilder {
   V(ArrayPrototypeValues)                      \
   V(ArrayPrototypePush)                        \
   V(ArrayPrototypePop)                         \
+  V(BooleanConstructor)                        \
   V(DataViewPrototypeGetByteLength)            \
   V(DataViewPrototypeGetInt8)                  \
   V(DataViewPrototypeSetInt8)                  \
@@ -891,7 +917,10 @@ class MaglevGraphBuilder {
   V(MapPrototypeGet)                           \
   V(ObjectPrototypeGetProto)                   \
   V(ObjectGetPrototypeOf)                      \
+  V(ReflectGet)                                \
   V(ReflectGetPrototypeOf)                     \
+  V(ReflectHas)                                \
+  V(ReflectApply)                              \
   V(ObjectPrototypeHasOwnProperty)             \
   V(NumberParseInt)                            \
   V(MathCeil)                                  \
@@ -1207,8 +1236,6 @@ class MaglevGraphBuilder {
   ReduceResult BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);
 
-  template <bool flip = false>
-  ReduceResult BuildToBoolean(ValueNode* node);
   ReduceResult BuildLogicalNot(ValueNode* value);
   ReduceResult BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
@@ -1475,21 +1502,7 @@ class MaglevGraphBuilder {
   // array with elements kind |kind|.
   ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
 
-  ReduceResult BuildHasInPrototypeChain(ValueNode* object,
-                                        compiler::HeapObjectRef prototype);
-  MaybeReduceResult TryBuildFastOrdinaryHasInstance(
-      ValueNode* object, compiler::JSObjectRef callable,
-      ValueNode* callable_node);
-  ReduceResult BuildOrdinaryHasInstance(ValueNode* object,
-                                        compiler::JSObjectRef callable,
-                                        ValueNode* callable_node);
-  MaybeReduceResult TryBuildFastInstanceOf(ValueNode* object,
-                                           compiler::JSObjectRef callable_ref,
-                                           ValueNode* callable_node);
-  MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
-      ValueNode* object, ValueNode* callable,
-      compiler::FeedbackSource feedback_source);
-
+  bool IsEscaping(InlinedAllocation* allocation);
   VirtualObject* GetObjectFromAllocation(InlinedAllocation* allocation);
   VirtualObject* GetModifiableObjectFromAllocation(
       InlinedAllocation* allocation);
@@ -1647,7 +1660,7 @@ class MaglevGraphBuilder {
   void BeginLoopEffects(int loop_header);
   void EndLoopEffects(int loop_header);
   void MergeIntoFrameState(BasicBlock* block, int target);
-  void MergeDeadIntoFrameState(int target);
+  void MergeDeadIntoFrameState(int target, bool is_fallthrough = false);
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameStateForReturn(BasicBlock* block);
   void MergeIntoInlinedReturnFrameStateForSuspendGenerator(BasicBlock* block);
@@ -1851,6 +1864,7 @@ class MaglevGraphBuilder {
 
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
 
+  void OsrPrewalk();
   void CalculatePredecessorCounts();
 
   compiler::FeedbackVectorRef feedback() const {
@@ -1992,6 +2006,8 @@ class MaglevGraphBuilder {
   // decremented predecessor counts inside of the loop before processing the
   // body again. For this, we record offsets where we decremented the
   // predecessor count.
+  void PrewalkBytecode();
+
   ZoneVector<int> decremented_predecessor_offsets_;
   // The set of loop headers for which we decided to do loop peeling.
   BitVector loop_headers_to_peel_;
@@ -2018,6 +2034,9 @@ class MaglevGraphBuilder {
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
+  RegisterFrameArray<compiler::OptionalScopeInfoRef> register_scope_infos_;
+  compiler::OptionalScopeInfoRef accumulator_scope_info_;
+
   InterpreterFrameState current_interpreter_frame_;
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
@@ -2040,8 +2059,6 @@ class MaglevGraphBuilder {
   EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
-
-  compiler::OptionalScopeInfoRef last_suspend_scope_info_ = {};
 
   struct HandlerTableEntry {
     int end;
@@ -2073,6 +2090,10 @@ class MaglevGraphBuilder {
 
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
+
+  ZoneMap<int, compiler::OptionalScopeInfoRef> dead_scope_infos_;
+
+  bool is_resumable_function_ = false;
 
   // When set, inline only small functions.
   bool only_inline_small_ = false;

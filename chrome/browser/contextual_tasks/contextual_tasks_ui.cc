@@ -39,7 +39,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
-#include "chrome/browser/ui/webui/sanitized_image_source.h"
+#include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -87,6 +87,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
+#include "components/zoom/zoom_controller.h"  // nogncheck
 #endif
 
 namespace {
@@ -351,10 +352,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddInteger(
       "composeboxFileMaxSize",
       contextual_tasks::kContextualTasksNextboxMaxFileSize.Get());
-  source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   // Enable typed suggest.
   source->AddBoolean("composeboxShowTypedSuggest", false);
-  source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
   // Disable ZPS.
   source->AddBoolean(
       "composeboxShowZps",
@@ -368,8 +367,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "composeboxShowContextMenu",
       contextual_tasks::GetIsContextualTasksNextboxContextMenuEnabled());
   source->AddBoolean("composeboxShowContextMenuDescription", false);
-  // Send event when escape is pressed.
-  source->AddBoolean("composeboxCloseByEscape", true);
   source->AddBoolean(
       "showOnboardingTooltip",
       base::FeatureList::IsEnabled(
@@ -410,14 +407,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
   AddContextMenuItemEligibilityLoadTimeData(source, profile);
   source->AddBoolean("composeboxShowLensSearchChip", false);
-  // TODO(b/477969358): Remove `composeboxShowSubmit` boolean. This has the same
-  // value everywhere it is used.
-  source->AddBoolean("composeboxShowSubmit", true);
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", true);
   source->AddBoolean("clearAllInputsWhenSubmittingQuery", true);
-  source->AddBoolean("autoSubmitVoiceSearchQuery",
-                     contextual_tasks::GetAutoSubmitVoiceSearchQuery());
   source->AddBoolean("enableGhostLoader",
                      contextual_tasks::GetIsGhostLoaderEnabled());
   source->AddBoolean(
@@ -433,6 +425,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("enableFileHint", contextual_tasks::GetEnableFileHint());
   source->AddBoolean("enableComposeboxJumpFix",
                      contextual_tasks::GetEnableComposeboxJumpFix());
+  source->AddBoolean("roundedClipPathEnabled",
+                     contextual_tasks::IsRoundedClipPathEnabled());
 
   source->AddString(
       "composeboxSource",
@@ -527,6 +521,7 @@ void ContextualTasksUI::CreatePageHandler(
     }
   }
 #endif
+  OnInitComplete();
 }
 
 void ContextualTasksUI::OnRefreshTokenUpdatedForAccount(
@@ -625,6 +620,30 @@ const GURL& ContextualTasksUI::GetInnerFrameUrl() const {
   }
 
   return nav_observer_->web_contents()->GetLastCommittedURL();
+}
+
+content::WebContents* ContextualTasksUI::GetInnerWebContents() const {
+  return embedded_web_contents_.get();
+}
+
+bool ContextualTasksUI::IsInitComplete() {
+  return page_handler_ != nullptr;
+}
+
+void ContextualTasksUI::OnInitComplete() {
+  for (auto& observer : observers_) {
+    observer.OnInitComplete();
+  }
+}
+
+void ContextualTasksUI::AddObserver(
+    contextual_tasks::ContextualTasksUIInterface::Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ContextualTasksUI::RemoveObserver(
+    contextual_tasks::ContextualTasksUIInterface::Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 bool ContextualTasksUI::IsShownInTab() {
@@ -918,6 +937,10 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
   }
 
   PostMessageToWebview(message);
+
+#if !BUILDFLAG(IS_ANDROID)
+  UpdateZoom();
+#endif
 }
 
 void ContextualTasksUI::OnLensOverlayStateChanged(
@@ -977,7 +1000,8 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
   GURL last_committed_url =
       tab ? tab->GetContents()->GetLastCommittedURL() : GURL::EmptyGURL();
 
-  if (!CanUpdateSuggestedTabContext(tab, last_committed_url)) {
+  if (!CanUpdateSuggestedTabContext(tab, last_committed_url) ||
+      !GetTaskId().has_value()) {
 #if !BUILDFLAG(IS_ANDROID)
     if (composebox_handler_) {
       // Inform the handler that the current tab cannot be added as an autochip.
@@ -1357,7 +1381,7 @@ void ContextualTasksUI::CreatePageHandler(
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
   contextual_tasks_internals_page_handler_ =
       std::make_unique<ContextualTasksInternalsPageHandler>(
-          contextual_tasks_service, optimization_guide_keyed_service,
+          profile, contextual_tasks_service, optimization_guide_keyed_service,
           std::move(receiver), std::move(page));
 }
 
@@ -1396,5 +1420,27 @@ base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
           IDR_NTP_FAVICON, scale_factor));
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
+
+void ContextualTasksUI::UpdateZoom() {
+  content::WebContents* web_contents = web_ui()->GetWebContents();
+  auto* zoom_controller = zoom::ZoomController::FromWebContents(web_contents);
+  if (!zoom_controller) {
+    zoom::ZoomController::CreateForWebContents(web_contents);
+    zoom_controller = zoom::ZoomController::FromWebContents(web_contents);
+  }
+
+  if (IsShownInTab()) {
+    zoom_controller->SetZoomMode(zoom::ZoomController::ZOOM_MODE_DEFAULT);
+  } else {
+    zoom_controller->SetZoomMode(zoom::ZoomController::ZOOM_MODE_DISABLED);
+  }
+}
+
+void ContextualTasksUI::WebUIPrimaryPageChanged(content::Page& page) {
+  ui::MojoWebUIController::WebUIPrimaryPageChanged(page);
+  // Update zoom when WebUI is loaded.
+  UpdateZoom();
+}
 #endif  // !BUILDFLAG(IS_ANDROID)
+
 WEB_UI_CONTROLLER_TYPE_IMPL(ContextualTasksUI)

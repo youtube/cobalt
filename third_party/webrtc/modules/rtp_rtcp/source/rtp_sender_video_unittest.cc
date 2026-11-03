@@ -467,7 +467,7 @@ TEST_F(RtpSenderVideoTest, RetransmissionTypesVP8HigherLayers) {
   header.codec = kVideoCodecVP8;
 
   auto& vp8_header = header.video_type_header.emplace<RTPVideoHeaderVP8>();
-  for (int tid = 1; tid <= kMaxTemporalStreams; ++tid) {
+  for (size_t tid = 1; tid <= kMaxTemporalStreams; ++tid) {
     vp8_header.temporalIdx = tid;
 
     EXPECT_FALSE(rtp_sender_video_->AllowRetransmission(
@@ -487,7 +487,7 @@ TEST_F(RtpSenderVideoTest, RetransmissionTypesVP9) {
   header.codec = kVideoCodecVP9;
 
   auto& vp9_header = header.video_type_header.emplace<RTPVideoHeaderVP9>();
-  for (int tid = 1; tid <= kMaxTemporalStreams; ++tid) {
+  for (size_t tid = 1; tid <= kMaxTemporalStreams; ++tid) {
     vp9_header.temporal_idx = tid;
 
     EXPECT_FALSE(rtp_sender_video_->AllowRetransmission(

@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/rtp_headers.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"

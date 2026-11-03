@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/transport/ecn_marking.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_size.h"
@@ -145,7 +145,7 @@ RtpPacketToSend CreatePacketToSend(PacketTemplate packet) {
 }
 
 rtcp::TransportFeedback BuildRtcpTransportFeedbackPacket(
-    ArrayView<const PacketTemplate> packets) {
+    std::span<const PacketTemplate> packets) {
   rtcp::TransportFeedback feedback;
   feedback.SetBase(packets[0].transport_sequence_number,
                    packets[0].receive_timestamp);
@@ -160,7 +160,7 @@ rtcp::TransportFeedback BuildRtcpTransportFeedbackPacket(
 }
 
 rtcp::CongestionControlFeedback BuildRtcpCongestionControlFeedbackPacket(
-    ArrayView<const PacketTemplate> packets) {
+    std::span<const PacketTemplate> packets) {
   // Assume the feedback was sent when the last packet was received.
   Timestamp feedback_sent_time = Timestamp::MinusInfinity();
   for (auto it = packets.rbegin(); it != packets.rend(); ++it) {
@@ -215,7 +215,7 @@ class TransportFeedbackAdapterTest : public ::testing::TestWithParam<bool> {
   bool UseRfc8888CongestionControlFeedback() const { return GetParam(); }
 
   std::optional<TransportPacketsFeedback> CreateAndProcessFeedback(
-      ArrayView<const PacketTemplate> packets,
+      std::span<const PacketTemplate> packets,
       TransportFeedbackAdapter& adapter) {
     if (UseRfc8888CongestionControlFeedback()) {
       rtcp::CongestionControlFeedback rtcp_feedback =
@@ -599,9 +599,9 @@ TEST_P(TransportFeedbackAdapterTest, TransportPacketFeedbackHasDataInFlight) {
   }
 
   std::optional<TransportPacketsFeedback> adapted_feedback_1 =
-      CreateAndProcessFeedback(MakeArrayView(&packets[0], 1), adapter);
+      CreateAndProcessFeedback(std::span(&packets[0], 1), adapter);
   std::optional<TransportPacketsFeedback> adapted_feedback_2 =
-      CreateAndProcessFeedback(MakeArrayView(&packets[1], 1), adapter);
+      CreateAndProcessFeedback(std::span(&packets[1], 1), adapter);
   EXPECT_EQ(adapted_feedback_1->data_in_flight, packets[1].packet_size);
   EXPECT_EQ(adapted_feedback_2->data_in_flight, DataSize::Zero());
 }
@@ -812,7 +812,7 @@ TEST(TransportFeedbackAdapterCongestionFeedbackTest,
   const TimeDelta kExpectedRtt = TimeDelta::Millis(20);
   for (int i = 0; i < 4; i = i + 2) {
     rtcp::CongestionControlFeedback rtcp_feedback =
-        BuildRtcpCongestionControlFeedbackPacket(MakeArrayView(&packets[i], 2));
+        BuildRtcpCongestionControlFeedbackPacket(std::span(&packets[i], 2));
     std::optional<TransportPacketsFeedback> adapted_feedback =
         adapter.ProcessCongestionControlFeedback(
             rtcp_feedback,

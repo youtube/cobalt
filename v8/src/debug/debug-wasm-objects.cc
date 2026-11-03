@@ -448,7 +448,7 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
                                       DirectHandle<FixedArray> values,
                                       uint32_t index) {
     uint32_t count = Count(isolate, values);
-    auto native_module =
+    Managed<wasm::NativeModule>::Ptr native_module =
         Cast<WasmModuleObject>(values->get(count + 0))->native_module();
     auto function_index = Smi::ToInt(Cast<Smi>(values->get(count + 1)));
     wasm::NamesProvider* names = native_module->GetNamesProvider();
@@ -464,7 +464,7 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
 
   static DirectHandle<JSObject> Create(WasmFrame* frame) {
     auto isolate = frame->isolate();
-    auto debug_info =
+    wasm::DebugInfo* debug_info =
         frame->trusted_instance_data()->native_module()->GetDebugInfo();
     int count = debug_info->GetStackDepth(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count);
@@ -867,7 +867,7 @@ DirectHandle<String> GetRefTypeName(Isolate* isolate,
 DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
                                                    DirectHandle<String> type,
                                                    DirectHandle<Object> value) {
-  auto maps = GetOrCreateDebugMaps(isolate);
+  DirectHandle<FixedArray> maps = GetOrCreateDebugMaps(isolate);
   if (maps->is_the_hole(isolate, kWasmValueMapIndex)) {
     DirectHandle<Map> map =
         isolate->factory()->NewContextfulMapForCurrentContext(
@@ -1167,9 +1167,11 @@ DirectHandle<ArrayList> AddWasmModuleObjectInternalProperties(
 DirectHandle<ArrayList> AddWasmTableObjectInternalProperties(
     Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<WasmTableObject> table) {
-  int length = table->current_length();
+  int int_length = table->current_length();
+  DCHECK_GE(int_length, 0);
+  uint32_t length = static_cast<uint32_t>(int_length);
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     DirectHandle<Object> entry = WasmTableObject::Get(isolate, table, i);
     const wasm::WasmModule* mod = nullptr;
     if (table->has_trusted_data()) {

@@ -21,6 +21,7 @@
 #include <memory>
 #include <numeric>
 #include <queue>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -28,7 +29,6 @@
 
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/audio/audio_view.h"
 #include "api/audio/builtin_audio_processing_builder.h"
@@ -316,8 +316,8 @@ void ExpectEventFieldsEq(const audioproc::Event& actual,
 // and contain the same data. If they differ and `kDumpWhenExpectMessageEqFails`
 // is true, checks the equality of a subset of `audioproc::Event` (nested)
 // fields.
-bool ExpectMessageEq(ArrayView<const uint8_t> actual,
-                     ArrayView<const uint8_t> expected) {
+bool ExpectMessageEq(std::span<const uint8_t> actual,
+                     std::span<const uint8_t> expected) {
   EXPECT_EQ(actual.size(), expected.size());
   if (actual.size() != expected.size()) {
     return false;
@@ -839,7 +839,7 @@ TEST_F(ApmTest, PreAmplifier) {
   tmp_frame.CopyFrom(frame_);
 
   auto compute_power = [](const Int16FrameData& frame) {
-    ArrayView<const int16_t> data = frame.view().data();
+    std::span<const int16_t> data = frame.view().data();
     return std::accumulate(data.begin(), data.end(), 0.0f,
                            [](float a, float b) { return a + b * b; }) /
            data.size() / 32768 / 32768;
@@ -942,7 +942,7 @@ TEST_F(ApmTest, CaptureLevelAdjustment) {
   tmp_frame.CopyFrom(frame_);
 
   auto compute_power = [](const Int16FrameData& frame) {
-    ArrayView<const int16_t> data = frame.view().data();
+    std::span<const int16_t> data = frame.view().data();
     return std::accumulate(data.begin(), data.end(), 0.0f,
                            [](float a, float b) { return a + b * b; }) /
            data.size() / 32768 / 32768;
@@ -2051,10 +2051,10 @@ std::string ProduceDebugText(int render_input_sample_rate_hz,
 
 // Validates that running the audio processing module using various combinations
 // of sample rates and number of channels works as intended.
-void RunApmRateAndChannelTest(ArrayView<const int> sample_rates_hz,
-                              ArrayView<const int> render_channel_counts,
-                              ArrayView<const int> capture_channel_counts,
-                              ArrayView<const bool> mono_capture_output) {
+void RunApmRateAndChannelTest(std::span<const int> sample_rates_hz,
+                              std::span<const int> render_channel_counts,
+                              std::span<const int> capture_channel_counts,
+                              std::span<const bool> mono_capture_output) {
   AudioProcessing::Config apm_config;
   apm_config.pipeline.multi_channel_render = true;
   apm_config.pipeline.multi_channel_capture = true;
@@ -2326,11 +2326,11 @@ TEST(ApmConfiguration, EchoDetectorInjection) {
 
   // The echo detector is included in processing when enabled.
   EXPECT_CALL(*mock_echo_detector, AnalyzeRenderAudio(_))
-      .WillOnce([](ArrayView<const float> render_audio) {
+      .WillOnce([](std::span<const float> render_audio) {
         EXPECT_EQ(render_audio.size(), 160u);
       });
   EXPECT_CALL(*mock_echo_detector, AnalyzeCaptureAudio(_))
-      .WillOnce([](ArrayView<const float> capture_audio) {
+      .WillOnce([](std::span<const float> capture_audio) {
         EXPECT_EQ(capture_audio.size(), 160u);
       });
   EXPECT_CALL(*mock_echo_detector, GetMetrics()).Times(1);
@@ -2356,12 +2356,12 @@ TEST(ApmConfiguration, EchoDetectorInjection) {
                          /*render_sample_rate_hz=*/48000, _))
       .Times(1);
   EXPECT_CALL(*mock_echo_detector, AnalyzeRenderAudio(_))
-      .WillOnce([](ArrayView<const float> render_audio) {
+      .WillOnce([](std::span<const float> render_audio) {
         EXPECT_EQ(render_audio.size(), 480u);
       });
   EXPECT_CALL(*mock_echo_detector, AnalyzeCaptureAudio(_))
       .Times(2)
-      .WillRepeatedly([](ArrayView<const float> capture_audio) {
+      .WillRepeatedly([](std::span<const float> capture_audio) {
         EXPECT_EQ(capture_audio.size(), 480u);
       });
   EXPECT_CALL(*mock_echo_detector, GetMetrics()).Times(2);

@@ -1378,20 +1378,20 @@ void SendStatisticsProxy::OnBitrateAllocationUpdated(
     const VideoCodec& codec,
     const VideoBitrateAllocation& allocation) {
   int num_spatial_layers = 0;
-  for (int i = 0; i < kMaxSpatialLayers; i++) {
+  for (size_t i = 0; i < kMaxSpatialLayers; i++) {
     if (codec.spatialLayers[i].active) {
       num_spatial_layers++;
     }
   }
   int num_simulcast_streams = 0;
-  for (int i = 0; i < kMaxSimulcastStreams; i++) {
+  for (size_t i = 0; i < kMaxSimulcastStreams; i++) {
     if (codec.simulcastStream[i].active) {
       num_simulcast_streams++;
     }
   }
 
   std::array<bool, kMaxSpatialLayers> spatial_layers;
-  for (int i = 0; i < kMaxSpatialLayers; i++) {
+  for (size_t i = 0; i < kMaxSpatialLayers; i++) {
     spatial_layers[i] = (allocation.GetSpatialLayerSum(i) > 0);
   }
 

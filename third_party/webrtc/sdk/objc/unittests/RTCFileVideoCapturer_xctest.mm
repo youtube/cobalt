@@ -12,8 +12,9 @@
 
 #import <XCTest/XCTest.h>
 
+#include "test/gtest.h"
+
 #include "api/test/rtc_error_matchers.h"
-#include "rtc_base/gunit.h"
 #include "test/gmock.h"
 #include "test/wait_until.h"
 

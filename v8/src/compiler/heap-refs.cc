@@ -27,6 +27,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
@@ -210,31 +211,18 @@ class PropertyCellData : public HeapObjectData {
 
 namespace {
 
-ZoneVector<Address> GetCFunctions(Tagged<FixedArray> function_overloads,
-                                  Isolate* isolate, Zone* zone) {
-  const uint32_t len = function_overloads->ulength().value() /
-                       FunctionTemplateInfo::kFunctionOverloadEntrySize;
-  ZoneVector<Address> c_functions = ZoneVector<Address>(len, zone);
-  for (uint32_t i = 0; i < len; i++) {
-    c_functions[i] = v8::ToCData<kCFunctionTag>(
-        isolate, function_overloads->get(
-                     FunctionTemplateInfo::kFunctionOverloadEntrySize * i));
-  }
-  return c_functions;
-}
-
-ZoneVector<const CFunctionInfo*> GetCSignatures(
+ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
     Tagged<FixedArray> function_overloads, Isolate* isolate, Zone* zone) {
-  const uint32_t len = function_overloads->ulength().value() /
-                       FunctionTemplateInfo::kFunctionOverloadEntrySize;
-  ZoneVector<const CFunctionInfo*> c_signatures =
-      ZoneVector<const CFunctionInfo*>(len, zone);
+  const uint32_t len = function_overloads->ulength().value();
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures =
+      ZoneVector<CFunctionInfoWithDetails>(len, zone);
   for (uint32_t i = 0; i < len; i++) {
-    c_signatures[i] = v8::ToCData<const CFunctionInfo*, kCFunctionInfoTag>(
-        isolate, function_overloads->get(
-                     FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1));
+    auto overload =
+        Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
+            ->raw();
+    c_functions_with_signatures[i] = {overload->address, overload->signature};
   }
-  return c_signatures;
+  return c_functions_with_signatures;
 }
 
 }  // namespace
@@ -568,6 +556,24 @@ class JSFunctionData : public JSObjectData {
   ObjectData* feedback_cell_ = nullptr;
   int initial_map_instance_size_with_min_slack_;  // Derives from
                                                   // prototype_or_initial_map_.
+};
+
+class JSFunctionWithoutPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithoutPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                                 InstanceType instance_type,
+                                 IndirectHandle<JSFunction> object,
+                                 ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
+};
+
+class JSFunctionWithPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                              InstanceType instance_type,
+                              IndirectHandle<JSFunction> object,
+                              ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
 };
 
 class BigIntData : public HeapObjectData {
@@ -1724,8 +1730,6 @@ HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
-HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
-                Map::Bits1::HasPrototypeSlotBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                 Map::Bits1::IsAccessCheckNeededBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
@@ -1852,6 +1856,11 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
     bytecode_array = object()->GetBytecodeArray(broker->isolate());
   }
   return MakeRefAssumeMemoryFence(broker, bytecode_array);
+}
+
+bool SharedFunctionInfoRef::is_toplevel() const {
+  return object()->function_literal_id(kRelaxedLoad) ==
+         kFunctionLiteralIdTopLevel;
 }
 
 #define DEF_SFI_ACCESSOR(type, name) \
@@ -2018,16 +2027,12 @@ bool StringRef::IsExternalString() const {
   return i::IsExternalString(*object());
 }
 
-ZoneVector<Address> FunctionTemplateInfoRef::c_functions(
+ZoneVector<CFunctionInfoWithDetails>
+FunctionTemplateInfoRef::c_functions_with_signatures(
     JSHeapBroker* broker) const {
-  return GetCFunctions(Cast<FixedArray>(object()->GetCFunctionOverloads()),
-                       broker->isolate(), broker->zone());
-}
-
-ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures(
-    JSHeapBroker* broker) const {
-  return GetCSignatures(Cast<FixedArray>(object()->GetCFunctionOverloads()),
-                        broker->isolate(), broker->zone());
+  return GetCFunctionsWithSignatures(
+      Cast<FixedArray>(object()->GetCFunctionOverloads()), broker->isolate(),
+      broker->zone());
 }
 
 bool StringRef::IsSeqString() const { return i::IsSeqString(*object()); }

@@ -572,7 +572,6 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     // Iterate JSFunction header fields up to dispatch handle field.
-    DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(map), !map->has_prototype_slot());
     IteratePointers(obj, kStartOffset, kDispatchHandleOffset, v);
 
     IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
@@ -714,16 +713,17 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    Tagged<Foreign> foreign = UncheckedCast<Foreign>(obj);
     ExternalPointerTagRange tag_range =
         HeapLayout::InWritableSharedSpace(obj)
             ? kAnySharedManagedExternalPointerTagRange
             : kAnyForeignExternalPointerTagRange;
     v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kForeignAddressOffset, tag_range));
+        obj, ExternalPointerSlot(&foreign->foreign_address_, tag_range));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
+    return sizeof(Foreign);
   }
 };
 
