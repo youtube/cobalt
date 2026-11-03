@@ -1040,7 +1040,7 @@ void SkiaRenderer::FinishDrawingFrame() {
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
 void SkiaRenderer::DestroyPrimaryPlaneBuffers() {
   gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
-  buffer_queue_->DestroyBuffers();
+  root_buffer_queue_->DestroyBuffers();
   for (auto it = render_pass_backings_.begin();
        it != render_pass_backings_.end(); ++it) {
     if (!it->second.is_root) {
