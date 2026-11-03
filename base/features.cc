@@ -189,6 +189,8 @@ BASE_FEATURE(kCobaltStorageCleanup,
 
 BASE_FEATURE(kCobaltSkipCookieUpdateAccess,
              "CobaltSkipCookieUpdateAccess",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
              "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
