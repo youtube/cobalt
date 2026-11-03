@@ -405,7 +405,9 @@ def format_chromium_cl_diff(repo_path: str, args: str) -> str:
         host = entry.host
         break
 
-  path = f"{project}/+/{commit}%5E%21/{urllib.parse.quote(sub_path)}"
+  # Gitiles revision `<commit>^!` is the commit's diff against its parent.
+  revision = urllib.parse.quote(f"{commit}^!")
+  path = f"{project}/+/{revision}/{urllib.parse.quote(sub_path)}"
   diff = _gitiles_text(f"{host}.googlesource.com", f"{path}?format=TEXT")
   if diff is None:
     return (f"[ERROR] Could not fetch upstream commit {commit} from "
