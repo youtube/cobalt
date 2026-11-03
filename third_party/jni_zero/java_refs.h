@@ -428,7 +428,10 @@ class JavaRef : public JavaRef<jobject> {
 
   template <typename U>
   U GetAs(JNIEnv* env, int32_t index) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     return Get(env, index).template ConvertTo<U>(env);
   }
