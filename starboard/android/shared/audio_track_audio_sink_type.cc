@@ -33,6 +33,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -59,12 +60,8 @@ const int kMinStablePlayedFrames = 12 * 1024;
 
 // When the playback head hasn't moved for this long, check whether the
 // AudioTrack's start threshold has grown beyond what the sink can provide. See
-// AudioThreadFunc() for details.
-const int64_t kStartThresholdCheckIntervalUs = 500'000;  // 500ms
-// The renderer only appends to the sink buffer when at least this many frames
-// are free (AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend), so the
-// sink buffer may never be completely full.
-const int kSinkBufferUnfilledFramesHeadroom = 1024;
+// AudioTrackAudioSink::ReportErrorIfStartThresholdUnreachable() for details.
+constexpr int64_t kStartThresholdCheckIntervalUs = 500'000;  // 500ms
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
@@ -212,6 +209,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       allow_audio_writing_on_pause_(options.allow_audio_writing_on_pause),
       pause_using_audio_track_state_(options.pause_using_audio_track_state),
       audio_track_(std::move(audio_track)),
+      last_start_threshold_(audio_track_->GetStartThresholdInFrames()),
       audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
   SB_DCHECK(callbacks_.update_source_status);
   SB_DCHECK(callbacks_.consume_frames);
@@ -274,18 +272,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
 
   int64_t last_playback_head_position = 0;
-
-  // The platform may recreate the underlying track (e.g. via
-  // AudioTrack::restoreTrack_l() when the audio route switches to a Cast
-  // speaker group) with a larger frame count and start threshold, without
-  // notifying the app. If the new start threshold is more than the sink buffer
-  // can ever hold, the AudioTrack never starts and playback stalls forever
-  // (b/573043984). Only a threshold that grew after creation is acted on, so a
-  // recreated player can't restart repeatedly.
-  const int initial_start_threshold = audio_track_->GetStartThresholdInFrames();
-  const int max_frames_in_audio_track =
-      frames_per_channel_ - kSinkBufferUnfilledFramesHeadroom;
-  int64_t last_start_threshold_check_at = -1;  // microseconds
 
 #if !BUILDFLAG(IS_STARBOARD)
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
@@ -381,23 +367,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
       if (last_playback_head_position == playback_head_position) {
         int64_t elapsed = now - last_playback_head_event_at;
-        if (elapsed >= kStartThresholdCheckIntervalUs &&
-            (last_start_threshold_check_at == -1 ||
-             now - last_start_threshold_check_at >=
-                 kStartThresholdCheckIntervalUs)) {
-          last_start_threshold_check_at = now;
-          const int start_threshold = audio_track_->GetStartThresholdInFrames();
-          if (start_threshold > initial_start_threshold &&
-              start_threshold > max_frames_in_audio_track) {
-            SB_LOG(WARNING)
-                << "AudioTrack start threshold grew from "
-                << initial_start_threshold << " to " << start_threshold
-                << " frames, which exceeds the " << max_frames_in_audio_track
-                << " frames the sink can provide. Raising a capability changed "
-                   "error to restart playback.";
-            ReportError(true, "AudioTrack start threshold exceeds sink buffer");
-            break;
-          }
+        if (ReportErrorIfStartThresholdUnreachable(elapsed, now)) {
+          break;
         }
         if (elapsed > 5'000'000LL) {
           last_playback_head_event_at = now;
@@ -605,6 +576,55 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   if (callbacks_.error) {
     callbacks_.error(capability_changed, error_message, context_);
   }
+}
+
+bool AudioTrackAudioSink::ReportErrorIfStartThresholdUnreachable(
+    int64_t stalled_duration_us,
+    int64_t now_us) {
+  if (stalled_duration_us < kStartThresholdCheckIntervalUs) {
+    return false;
+  }
+  if (last_start_threshold_check_at_us_ &&
+      now_us - *last_start_threshold_check_at_us_ <
+          kStartThresholdCheckIntervalUs) {
+    return false;
+  }
+  last_start_threshold_check_at_us_ = now_us;
+
+  const int start_threshold = audio_track_->GetStartThresholdInFrames();
+  if (start_threshold == last_start_threshold_) {
+    return false;
+  }
+  const int previous_start_threshold = last_start_threshold_;
+  last_start_threshold_ = start_threshold;
+
+  // The renderer only appends to the sink buffer when at least
+  // |kDefaultAudioSinkMinFramesPerAppend| frames are free, so the sink buffer
+  // may never be completely full.
+  const int max_frames_in_audio_track =
+      frames_per_channel_ -
+      AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+  if (start_threshold < previous_start_threshold) {
+    SB_LOG(INFO) << "AudioTrack start threshold decreased from "
+                 << previous_start_threshold << " to " << start_threshold
+                 << " frames.";
+    return false;
+  }
+  if (start_threshold <= max_frames_in_audio_track) {
+    SB_LOG(INFO) << "AudioTrack start threshold grew from "
+                 << previous_start_threshold << " to " << start_threshold
+                 << " frames, which the sink can still provide ("
+                 << max_frames_in_audio_track << " frames).";
+    return false;
+  }
+
+  SB_LOG(WARNING) << "AudioTrack start threshold grew from "
+                  << previous_start_threshold << " to " << start_threshold
+                  << " frames, which exceeds the " << max_frames_in_audio_track
+                  << " frames the sink can provide. Raising a capability "
+                     "changed error to restart playback.";
+  ReportError(true, "AudioTrack start threshold exceeds sink buffer");
+  return true;
 }
 
 int64_t AudioTrackAudioSink::GetFramesDurationUs(int64_t frames) const {

@@ -157,6 +157,16 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
+  // Called while the playback head is stalled. Checks, at most once every
+  // |kStartThresholdCheckIntervalUs| and only after the playback head has been
+  // stalled for at least that long, whether the start threshold of
+  // |audio_track_| has grown beyond what the sink can provide (e.g. after the
+  // platform recreated the track for a higher latency route, b/573043984). If
+  // so, the AudioTrack can never start, so reports a capability changed error
+  // to restart playback and returns true.
+  bool ReportErrorIfStartThresholdUnreachable(int64_t stalled_duration_us,
+                                              int64_t now_us);
+
   int64_t GetFramesDurationUs(int64_t frames) const;
 
   const int channels_;
@@ -174,6 +184,10 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
 
   // Guaranteed to be non-null.
   const std::unique_ptr<AudioTrack> audio_track_;
+  // The start threshold of |audio_track_| when it was last queried. Only
+  // accessed on the audio out thread after construction.
+  int last_start_threshold_;
+  std::optional<int64_t> last_start_threshold_check_at_us_;
 
   volatile bool quit_ = false;
   std::atomic_bool flush_requested_{false};

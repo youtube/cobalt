@@ -545,10 +545,15 @@ TEST_F(AudioTrackAudioSinkTest, WritesWhilePausedWhenAllowAudioWritingOnPause) {
 // the sink buffer can never fill (b/573043984), e.g. after an audio route
 // switch to a Cast speaker group.
 TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
+  constexpr int kFramesPerChannel = 8192;
+  frame_buffer_.resize(kFramesPerChannel * 2 * sizeof(float), 0);
+  frame_buffers_[0] = frame_buffer_.data();
+
   auto fake_track = std::make_unique<FakeAudioTrack>(
       2, 48000, kSbMediaAudioSampleTypeFloat32);
   FakeAudioTrack* track_ptr = fake_track.get();
-  track_ptr->set_start_threshold(512);
+  // The initial start threshold fits in the sink buffer.
+  track_ptr->set_start_threshold(1024);
 
   AudioTrackAudioSinkType::Callbacks callbacks{
       UpdateSourceStatusCB,
@@ -558,8 +563,8 @@ TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
 
   frames_in_buffer_ = 512;
   auto sink = AudioTrackAudioSink::CreateForTesting(
-      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
-      callbacks, 0,
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_,
+      kFramesPerChannel, 512, callbacks, 0,
       /*tunnel_mode_audio_session_id=*/std::nullopt,
       AudioTrackAudioSinkType::Options{}, std::move(fake_track), this);
 
@@ -573,8 +578,8 @@ TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
   EXPECT_GT(track_ptr->written_frames(), 0);
 
   // The playback head of the fake track doesn't move, and the recreated track
-  // requires more frames than the 1024-frame sink buffer can hold.
-  track_ptr->set_start_threshold(4096);
+  // requires more frames than the sink buffer can hold.
+  track_ptr->set_start_threshold(kFramesPerChannel);
 
   elapsed_ms = 0;
   while (!error_reported_ && elapsed_ms < 3000) {
@@ -588,8 +593,6 @@ TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsBeyondSinkBufferRestarts) {
     std::lock_guard<std::mutex> lock(error_mutex_);
     EXPECT_EQ(error_msg_, "AudioTrack start threshold exceeds sink buffer");
   }
-
-  sink.reset();
 }
 
 // A start threshold that is already too large at creation is not acted on, so
@@ -620,8 +623,6 @@ TEST_F(AudioTrackAudioSinkTest, InitialStartThresholdBeyondSinkBufferIgnored) {
 
   EXPECT_GT(track_ptr->written_frames(), 0);
   EXPECT_FALSE(error_reported_);
-
-  sink.reset();
 }
 
 // A start threshold that grows but still fits in the sink buffer doesn't
@@ -664,8 +665,6 @@ TEST_F(AudioTrackAudioSinkTest, StartThresholdGrowsWithinSinkBufferContinues) {
   usleep(1'500'000);
 
   EXPECT_FALSE(error_reported_);
-
-  sink.reset();
 }
 
 }  // namespace
