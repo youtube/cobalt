@@ -113,6 +113,15 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // Update WebContents into the newly created window.
   virtual void UpdateContents(Shell* shell);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Proof of concept (DO NOT SUBMIT): while the native video splash screen
+  // plays without a splash screen WebContents, keeps the main WebContents out
+  // of the compositor, so that nothing draws over the punch-out video, as the
+  // splash screen WebContents would replace it. UpdateContents() shows it
+  // again. See cobalt::features::kNativeVideoSplashScreenWithoutPage.
+  void HideContentsForNativeSplash(Shell* shell);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 
