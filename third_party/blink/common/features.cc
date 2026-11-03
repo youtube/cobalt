@@ -458,12 +458,6 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Bypasses Blink ResourceLoadScheduler queueing and throttling for subresources
-// in Cobalt, dispatching requests immediately.
-BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
-             "CobaltBypassResourceLoadScheduler",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
