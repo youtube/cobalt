@@ -81,7 +81,6 @@ rtc_library("video_codecs_api") {
     ":scalability_mode",
     "..:fec_controller_api",
     "..:scoped_refptr",
-    "../../api:array_view",
     "../../api:rtp_parameters",
     "../../media:media_constants",
     "../../modules/video_coding:codec_globals_headers",
@@ -122,7 +121,7 @@ rtc_library("encoder_speed_controller_factory") {
 rtc_source_set("bitstream_parser_api") {
   visibility = [ "*" ]
   sources = [ "bitstream_parser.h" ]
-  deps = [ "..:array_view" ]
+  deps = []
 }
 
 rtc_library("builtin_video_decoder_factory") {
@@ -169,7 +168,6 @@ rtc_source_set("video_encoder_factory_template") {
   deps = [
     ":scalability_mode",
     ":video_codecs_api",
-    "..:array_view",
     "../../modules/video_coding/svc:scalability_mode_util",
     "../environment",
     "//third_party/abseil-cpp/absl/algorithm:container",
@@ -240,7 +238,6 @@ rtc_source_set("video_decoder_factory_template") {
 
   deps = [
     ":video_codecs_api",
-    "..:array_view",
     "../environment",
     "//third_party/abseil-cpp/absl/algorithm:container",
   ]
@@ -301,7 +298,6 @@ rtc_source_set("video_encoder_interface") {
 
   deps = [
     ":video_encoding_general",
-    "..:array_view",
     "..:scoped_refptr",
     "../../api/units:data_rate",
     "../../api/units:data_size",
@@ -338,7 +334,6 @@ rtc_library("simple_encoder_wrapper") {
   deps = [
     ":video_encoder_factory_interface",
     ":video_encoder_interface",
-    "..:array_view",
     "..:scoped_refptr",
     "../../api/units:data_rate",
     "../../api/video_codecs:scalability_mode",
@@ -405,7 +400,6 @@ rtc_library("libaom_av1_encoder_factory_test") {
     ":video_encoder_factory_interface",
     ":video_encoder_interface",
     ":video_encoding_general",
-    "..:array_view",
     "..:scoped_refptr",
     "../../api/video:video_frame",
     "../../api/video_codecs:video_codecs_api",

@@ -66,12 +66,13 @@ class PrefProvider : public UserModifiableProvider {
                           const GURL& secondary_url,
                           ContentSettingsType content_type,
                           const base::Time time) override;
-  bool ResetLastVisitTime(const ContentSettingsPattern& primary_pattern,
-                          const ContentSettingsPattern& secondary_pattern,
-                          ContentSettingsType content_type) override;
   bool UpdateLastVisitTime(const ContentSettingsPattern& primary_pattern,
                            const ContentSettingsPattern& secondary_pattern,
                            ContentSettingsType content_type) override;
+  bool SetAutorevocationBypassedByUser(
+      const ContentSettingsPattern& primary_pattern,
+      const ContentSettingsPattern& secondary_pattern,
+      ContentSettingsType content_type) override;
   std::optional<base::TimeDelta> RenewContentSetting(
       const GURL& primary_url,
       const GURL& secondary_url,
@@ -87,11 +88,6 @@ class PrefProvider : public UserModifiableProvider {
   void Notify(const ContentSettingsPattern& primary_pattern,
               const ContentSettingsPattern& secondary_pattern,
               ContentSettingsType content_type);
-
-  bool SetLastVisitTime(const ContentSettingsPattern& primary_pattern,
-                        const ContentSettingsPattern& secondary_pattern,
-                        ContentSettingsType content_type,
-                        const base::Time time);
 
   // Finds the first setting whose Rule satisfies `is_match`, and performs some
   // update. `perform_update` may modify the Rule in-place, and should return

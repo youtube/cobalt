@@ -28,7 +28,6 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
-#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -344,7 +343,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 };
 
 // Collects packets serialized by a QuicPacketCreator.
-class QUICHE_NO_EXPORT PacketCollector
+class QUICHE_EXPORT PacketCollector
     : public QuicPacketCreator::DelegateInterface,
       public QuicStreamFrameDataProducer {
  public:
@@ -388,6 +387,8 @@ class QUICHE_NO_EXPORT PacketCollector
       EncryptionLevel /*encryption_level*/) override {
     return SEND_TO_WRITER;
   }
+
+  bool NextSpinBitToSend() override { return false; }
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,

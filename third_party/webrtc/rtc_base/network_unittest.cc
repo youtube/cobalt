@@ -38,10 +38,10 @@
 #include "rtc_base/network_monitor_factory.h"
 #include "rtc_base/physical_socket_server.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 // IWYU pragma: begin_keep
@@ -332,7 +332,7 @@ class NetworkTest : public ::testing::Test {
  protected:
   const FieldTrials field_trials_ = CreateTestFieldTrials();
   const Environment env_ = CreateEnvironment(&field_trials_);
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   bool callback_called_ = false;
 };
 
@@ -430,14 +430,14 @@ TEST_F(NetworkTest, TestUpdateNetworks) {
   EXPECT_EQ(NetworkManager::ENUMERATION_ALLOWED,
             manager.enumeration_permission());
   manager.StartUpdating();
-  Thread::Current()->ProcessMessages(0);
+  main_thread_.Flush();
   EXPECT_TRUE(callback_called_);
   callback_called_ = false;
   // Callback should be triggered immediately when StartUpdating
   // is called, after network update signal is already sent.
   manager.StartUpdating();
   EXPECT_TRUE(manager.started());
-  Thread::Current()->ProcessMessages(0);
+  main_thread_.Flush();
   EXPECT_TRUE(callback_called_);
   manager.StopUpdating();
   EXPECT_TRUE(manager.started());
@@ -451,7 +451,7 @@ TEST_F(NetworkTest, TestUpdateNetworks) {
   // Callback should be triggered immediately after StartUpdating is called
   // when start_count_ is reset to 0.
   manager.StartUpdating();
-  Thread::Current()->ProcessMessages(0);
+  main_thread_.Flush();
   EXPECT_TRUE(callback_called_);
 }
 

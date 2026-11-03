@@ -42,6 +42,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/dom_distiller/core/url_utils.h"
 #include "components/grit/components_scaled_resources.h"
@@ -467,7 +468,11 @@ void OmniboxEditModel::AdjustTextForCopy(int sel_min,
       controller_->IsPopupOpen()
           ? std::optional<AutocompleteMatch>(CurrentMatch())
           : std::nullopt,
-      controller_->client(), url_from_text, write_url);
+      controller_->client()->GetNavigationEntryURL(),
+      controller_->client()->GetAutocompleteClassifier(),
+      controller_->client()->GetPageClassification(/*is_prefetch=*/false),
+      controller_->client()->GetContextualTasksInnerFrameURL(), url_from_text,
+      write_url);
 }
 
 bool OmniboxEditModel::ShouldShowCurrentPageIcon() const {
@@ -816,8 +821,10 @@ void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
   // Queries from the AI mode button will never have context.
   base::RecordAction(base::UserMetricsAction(
       "ContextualSearch.UserAction.SubmitQueryV2.WithoutContext.Omnibox"));
-  base::UmaHistogramBoolean(
-      "ContextualSearch.UserAction.SubmitQueryV2.WithoutContext.Omnibox", true);
+  base::UmaHistogramEnumeration(
+      "ContextualSearch.UserAction.SubmitQueryV2.Omnibox",
+      contextual_search::ContextualSearchContextState::kWithoutContext,
+      contextual_search::ContextualSearchContextState::kMaxValue);
 
   GURL ai_mode_url =
       GetUrlForAim(controller_->client()->GetTemplateURLService(),
@@ -2788,6 +2795,7 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
   log.elapsed_time_since_user_focused_omnibox =
       elapsed_time_since_user_focused_omnibox;
   log.ukm_source_id = controller_->client()->GetUKMSourceId();
+  log.input_state = autocomplete_controller()->input().input_state();
 
   if ((disposition == WindowOpenDisposition::CURRENT_TAB) &&
       controller_->client()->CurrentPageExists()) {

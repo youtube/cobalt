@@ -32,6 +32,7 @@ using namespace skia_private;
 #define OLD_SYSTEM_FONTS_FILE "/system/etc/system_fonts.xml"
 #define FALLBACK_FONTS_FILE "/system/etc/fallback_fonts.xml"
 #define VENDOR_FONTS_FILE "/vendor/etc/fallback_fonts.xml"
+#define PRODUCT_CUSTOMIZATION_FILE "/product/etc/fonts_customization.xml"
 
 #define LOCALE_FALLBACK_FONTS_SYSTEM_DIR "/system/etc"
 #define LOCALE_FALLBACK_FONTS_VENDOR_DIR "/vendor/etc"
@@ -117,6 +118,8 @@ struct FamilyData {
     const SkString& fBasePath;                  // The current base path.
     const bool fIsFallback;                     // The file being parsed is a fallback file
     const char* fFilename;                      // The name of the file currently being parsed.
+
+    SkString fCurrentFamilyList;                // Name from family-list tag
 
     int fDepth;                                 // The current element depth of the parse.
     int fSkip;                                  // The depth to stop skipping, 0 if not skipping.
@@ -297,6 +300,12 @@ static const TagHandler familyHandler = {
         // If there is no name, this is a fallback only font.
         FontFamily* family = new FontFamily(self->fBasePath, true);
         self->fCurrentFamily.reset(family);
+
+        if (!self->fCurrentFamilyList.isEmpty()) {
+            family->fNames.push_back().set(self->fCurrentFamilyList);
+            family->fIsFallbackFont = false;
+        }
+
         for (size_t i = 0; ATTS_NON_NULL(attributes, i); i += 2) {
             const char* name = attributes[i];
             const char* value = attributes[i+1];
@@ -328,6 +337,30 @@ static const TagHandler familyHandler = {
         return nullptr;
     },
     /*chars*/nullptr,
+};
+
+static const TagHandler familyListHandler = {
+        /*start*/ [](FamilyData* self, const char* tag, const char** attributes) {
+            for (size_t i = 0; ATTS_NON_NULL(attributes, i); i += 2) {
+                const char* name = attributes[i];
+                const char* value = attributes[i + 1];
+                size_t nameLen = strlen(name);
+                if (MEMEQ("name", name, nameLen)) {
+                    SkAutoAsciiToLC tolc(value);
+                    self->fCurrentFamilyList.set(tolc.lc());
+                }
+            }
+        },
+        /*end*/ [](FamilyData* self, const char* tag) { self->fCurrentFamilyList.reset(); },
+        /*tag*/
+        [](FamilyData* self, const char* tag, const char** attributes) -> const TagHandler* {
+            size_t len = strlen(tag);
+            if (MEMEQ("family", tag, len)) {
+                return &familyHandler;
+            }
+            return nullptr;
+        },
+        /*chars*/ nullptr,
 };
 
 static FontFamily* find_family(FamilyData* self, const SkString& familyName) {
@@ -403,6 +436,8 @@ static const TagHandler familySetHandler = {
         size_t len = strlen(tag);
         if (MEMEQ("family", tag, len)) {
             return &familyHandler;
+        } else if (MEMEQ("family-list", tag, len)) {
+            return &familyListHandler;
         } else if (MEMEQ("alias", tag, len)) {
             return &aliasHandler;
         }
@@ -574,6 +609,34 @@ static const TagHandler topLevelHandler = {
                 }
             }
             return &jbParser::familySetHandler;
+        } else if (MEMEQ("fonts-modification", tag, len)) {
+            // Modern OEM customization files (e.g. /product/etc/fonts_customization.xml)
+            // use the <fonts-modification> root tag instead of <familyset>.
+            //
+            // Skia natively supports parsing the standard children of this file:
+            // - `<family name="...">`: Instantiated perfectly as new global named families.
+            // - `<font>` and `<axis>`: Parsed and bound correctly to the new named families.
+            // - `<alias>`: Mapped properly to existing named families.
+            //
+            // What is NOT supported:
+            // 1. `customizationType="append-to-existing"`
+            //    If an OEM writes `<family customizationType="append-to-existing" name="sans-serif">`
+            //    Minikin would find the existing `sans-serif` family from `fonts.xml` and merge
+            //    these new fonts directly into it. Skia's parser ignores `customizationType`
+            //    entirely. By purely looking at `name="sans-serif"`, Skia will simply instantiate
+            //    a second, completely independent `FontFamily` named "sans-serif". This can lead
+            //    to shadowing instead of merging. (OEMs primarily use `new-named-family` which
+            //    Skia maps perfectly).
+            //
+            // 2. `supportedAxes="wght,ital"`
+            //    If an OEM writes `<font supportedAxes="wght">`, Minikin restricts the exposed
+            //    variable font axes of the TTF to only weight. Skia completely ignores the
+            //    `supportedAxes` attribute, meaning all valid axes contained within the font file
+            //    remain fully exposed and animatable.
+
+            // Force the modern parser.
+            self->fVersion = 21;
+            return &lmpParser::familySetHandler;
         }
         return nullptr;
     },
@@ -815,6 +878,11 @@ void SkFontMgr_Android_Parser::GetSystemFontFamilies(
     basePath.append(kFontFilePrefix);
 
     if (append_system_font_families(fontFamilies, basePath) >= 21) {
+        // Product fonts (fonts_customization.xml) leverage <fonts-modification version="21">
+        // Therefore, we only attempt to parse them on modern devices (Android Lollipop+).
+        // Pre-21 systems fall through to the legacy fallback fonts handling below.
+        SkFontMgr_Android_Parser::GetCustomFontFamilies(
+                fontFamilies, basePath, PRODUCT_CUSTOMIZATION_FILE, nullptr, nullptr);
         return;
     }
 

@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<meta charset=utf-8>
+<title>Largest Contentful Paint: Render time for text.
+</title>
+
+<body>
+  <script>
+    const getStartTime = async (type, name) => {
+      return await new Promise(resolve => {
+        new PerformanceObserver((entryList, observer) => {
+          resolve(entryList.getEntriesByName(name)[0].startTime);
+          observer.disconnect();
+        }).observe({ type: type, buffered: true });
+      });
+    };
+  </script>
+
+  <h1>Hello, world.</h1>
+</body>

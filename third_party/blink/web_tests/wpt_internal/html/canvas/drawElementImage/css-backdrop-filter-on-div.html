@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html class="reftest-wait">
 <head>
-  <title>drawElementImage paints CSS backdrop filter within bounds</title>
+  <title>drawElementImage paints CSS backdrop filter in DOM content within bounds</title>
   <link rel="help" href="https://github.com/WICG/html-in-canvas">
   <link rel="author" href="mailto:schenney@chromium.org">
   <link rel="match" href="css-backdrop-filter-on-div-ref.html">
-  <meta name="assert" value="A div with a CSS backdrop-filter paints with the filter in the correct area.">
+  <meta name="assert" value="A div with a CSS backdrop-filter over a parent div paints with the filter in the correct area.">
   <script src="/common/reftest-wait.js"></script>
   <style>
     canvas {
@@ -28,9 +28,7 @@
 <body>
   <canvas id=canvas width="100" height="100" layoutsubtree>
     <div id="child">
-      <div id="filtered">
-        <p>Hello</p>
-      </div>
+      <div id="filtered"><p>Hello</p></div>
     </div>
   </canvas>
 

@@ -47,7 +47,11 @@ impl JxlDecoderInner {
     }
 
     /// Obtains the image's basic information, if available.
+    ///
+    /// Keep this aligned with typed `WithImageInfo` transitions: image info is
+    /// not observable until the embedded profile has been parsed.
     pub fn basic_info(&self) -> Option<&JxlBasicInfo> {
+        self.codestream_parser.embedded_color_profile.as_ref()?;
         self.codestream_parser.basic_info.as_ref()
     }
 
@@ -157,6 +161,10 @@ impl JxlDecoderInner {
     /// the decoder which container box position to seek to and how many visible
     /// frames to skip before the target frame. The caller must provide raw file
     /// input starting from `seek_target.decode_start_file_offset`.
+    ///
+    /// After seeking the first time, scanned frame information will no longer
+    /// be updated. If you seek before having completed decoding once, the scanned
+    /// frames might be incomplete.
     pub fn start_new_frame(&mut self, seek_target: VisibleFrameSeekTarget) {
         self.box_parser
             .reset_for_codestream_seek(seek_target.remaining_in_box);
@@ -167,5 +175,33 @@ impl JxlDecoderInner {
     #[cfg(test)]
     pub(crate) fn set_use_simple_pipeline(&mut self, u: bool) {
         self.codestream_parser.set_use_simple_pipeline(u);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::JxlDecoderInner;
+    use crate::api::JxlDecoderOptions;
+
+    #[test]
+    fn basic_info_not_visible_before_embedded_profile() {
+        let data = std::fs::read("resources/test/conformance_test_images/cmyk_layers.jxl").unwrap();
+        let mut decoder = JxlDecoderInner::new(JxlDecoderOptions::default());
+
+        for chunk in data.chunks(64) {
+            let mut input = chunk;
+            let _ = decoder.process(&mut input, None);
+
+            if decoder.embedded_color_profile().is_none() {
+                assert!(decoder.basic_info().is_none());
+            }
+
+            if decoder.basic_info().is_some() {
+                assert!(decoder.embedded_color_profile().is_some());
+                return;
+            }
+        }
+
+        panic!("failed to reach image-info state while parsing cmyk_layers.jxl");
     }
 }

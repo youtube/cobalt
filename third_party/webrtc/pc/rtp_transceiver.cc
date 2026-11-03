@@ -62,6 +62,7 @@
 #include "pc/rtp_sender.h"
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/session_description.h"
 #include "pc/video_rtp_receiver.h"
 #include "rtc_base/checks.h"
@@ -1299,32 +1300,34 @@ bool RtpTransceiver::SetChannelRtpTransport(
   return channel_->SetRtpTransport(rtp_transport);
 }
 
-RTCError RtpTransceiver::SetChannelLocalContent(
+void RtpTransceiver::SetChannelLocalContent(
     const MediaContentDescription* content,
-    SdpType type) {
+    SdpType type,
+    ScopedOperationsBatcher& batcher) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
-  return SetChannelContent([&]() {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
-    return channel_->SetLocalContent(content, type);
-  });
+  SetChannelContent(
+      [this, content, type]() {
+        return channel_->SetLocalContent(content, type);
+      },
+      batcher);
 }
 
-RTCError RtpTransceiver::SetChannelRemoteContent(
+void RtpTransceiver::SetChannelRemoteContent(
     const MediaContentDescription* content,
-    SdpType type) {
+    SdpType type,
+    ScopedOperationsBatcher& batcher) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
-  return SetChannelContent([&]() {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
-    return channel_->SetRemoteContent(content, type);
-  });
+  SetChannelContent(
+      [this, content, type]() {
+        return channel_->SetRemoteContent(content, type);
+      },
+      batcher);
 }
 
-RTCError RtpTransceiver::SetChannelContent(
-    absl::AnyInvocable<RTCError() &&> set_content) {
+void RtpTransceiver::SetChannelContent(
+    absl::AnyInvocable<RTCError() &&> set_content,
+    ScopedOperationsBatcher& batcher) {
   RTC_DCHECK_RUN_ON(context()->signaling_thread());
-  if (!channel_) {
-    return RTCError::InvalidState() << "No channel";
-  }
 
   struct SenderParameters {
     const uint32_t ssrc;
@@ -1339,41 +1342,47 @@ RTCError RtpTransceiver::SetChannelContent(
         {.ssrc = sender->ssrc(), .sender = sender->internal()});
   }
 
-  // Calls the callback on the worker thread, fetches and returns the
-  // RtpParameters for the senders.
-  RTCError result = context()->worker_thread()->BlockingCall([&]() {
-    RTCError error = std::move(set_content)();
-    if (!error.ok()) {
-      return error;
-    }
-    for (auto& entry : sender_parameters) {
-      if (entry.ssrc != 0) {
-        entry.parameters =
-            channel_->media_send_channel()->GetRtpSendParameters(entry.ssrc);
-      }
-    }
-    return RTCError::OK();
-  });
-
-  for (auto& entry : sender_parameters) {
-    if (entry.parameters) {
-      entry.sender->SetCachedParameters(std::move(*entry.parameters));
-    }
-  }
-
-  return result;
+  batcher.AddWithFinalizer(
+      [this, set_content = std::move(set_content),
+       sender_parameters = std::move(sender_parameters)]() mutable
+          -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+        RTC_DCHECK_RUN_ON(context()->worker_thread());
+        if (!channel_) {
+          return RTCError::InvalidState() << "No channel";
+        }
+        RTCError result = std::move(set_content)();
+        if (!result.ok()) {
+          return result;
+        }
+        for (auto& entry : sender_parameters) {
+          if (entry.ssrc != 0) {
+            entry.parameters =
+                channel_->media_send_channel()->GetRtpSendParameters(
+                    entry.ssrc);
+          }
+        }
+        return ScopedOperationsBatcher::FinalizerTask(
+            [sender_parameters = std::move(sender_parameters)]() mutable {
+              for (auto& entry : sender_parameters) {
+                if (entry.parameters) {
+                  entry.sender->SetCachedParameters(
+                      std::move(*entry.parameters));
+                }
+              }
+            });
+      });
 }
-
-bool RtpTransceiver::SetChannelPayloadTypeDemuxingEnabled(bool enabled) {
-  RTC_DCHECK_RUN_ON(context()->network_thread());
-  RTC_DCHECK(channel_);
-  return channel_->SetPayloadTypeDemuxingEnabled(enabled);
-}
-
 void RtpTransceiver::EnableChannel(bool enable) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(channel_);
   channel_->Enable(enable);
+}
+
+void RtpTransceiver::ResetUnsignaledRecvStream() {
+  RTC_DCHECK_RUN_ON(thread_);
+  if (MediaReceiveChannelInterface* receive_channel = media_receive_channel()) {
+    receive_channel->ResetUnsignaledRecvStream();
+  }
 }
 
 const std::vector<StreamParams>& RtpTransceiver::channel_local_streams() const {

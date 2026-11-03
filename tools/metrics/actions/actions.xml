@@ -213,6 +213,7 @@ should be able to be added at any place in this file.
   <variant name="_AddToHomescreenTextBubble"
       summary="For AddToHomescreen IPH feature using text bubble (obsolete)."/>
   <variant name="_AndroidTabDeclutter" summary="For archived tabs on android."/>
+  <variant name="_AppRatingPrompt" summary="For App Rating Prompt feature."/>
   <variant name="_AppSpecificHistory"
       summary="For App Specific History feature."/>
   <variant name="_AutoDarkOptOut" summary="For AutoDarkOptOut dialog feature."/>
@@ -357,6 +358,8 @@ should be able to be added at any place in this file.
   <variant name="_ExplicitBrowserSigninPreferenceRemembered"
       summary="For Explicit Browser Signin Preference Remembered feature."/>
   <variant name="_ExploreSitesTile" summary="For Explore Sites feature."/>
+  <variant name="_ExtensionsManageFeature"
+      summary="For managaging your extension feature."/>
   <variant name="_ExtensionsMenu" summary="For Extensions menu opening."/>
   <variant name="_ExtensionsRequestAccessButton"
       summary="For Extensions request access button feature."/>
@@ -856,6 +859,7 @@ should be able to be added at any place in this file.
   <variant name="ReadingList" summary="reading list"/>
   <variant name="ShoppingInsights" summary="shopping insights"/>
   <variant name="SideSearch" summary="side search"/>
+  <variant name="TabsFromOtherDevices" summary="tabs from other devices"/>
   <variant name="WebView" summary="web view"/>
 </variants>
 
@@ -892,6 +896,7 @@ should be able to be added at any place in this file.
 <variants name="UserEducation_WhatsNew_Module_Type">
   <variant name="" summary="aggregated"/>
   <variant name=".archive" summary="What's New archive"/>
+  <variant name=".ContextualTasks" summary="Contextual Tasks"/>
   <variant name=".FamilyLink" summary="Family Link"/>
   <variant name=".GANslate" summary="GANslate"/>
   <variant name=".GeminiShortcut" summary="Gemini Shortcut"/>
@@ -908,6 +913,7 @@ should be able to be added at any place in this file.
   <variant name=".iOSLensSWYS" summary="iOS Lens Search What You See"/>
   <variant name=".LensOverlayTranslateButton"
       summary="Lens Overlay Translate Button"/>
+  <variant name=".LightningVideo" summary="Lightning Video"/>
   <variant name=".PdfInk2" summary="PDF Ink Signatures (obsolete)"/>
   <variant name=".PdfSaveToDrive" summary="PDF Save to Drive"/>
   <variant name=".PerformanceInterventionUI"
@@ -929,6 +935,7 @@ should be able to be added at any place in this file.
   <variant name=".ToolbarPinning" summary="Toolbar Pinning"/>
   <variant name=".TranslationSettings" summary="Translation Settings"/>
   <variant name=".VerticalTabsLaunch" summary="Vertical Tabs"/>
+  <variant name=".WebUIOmniboxAimPopup" summary="WebUI Omnibox Aim Popup"/>
 </variants>
 
 <action name="AboutChrome">
@@ -3876,6 +3883,14 @@ should be able to be added at any place in this file.
   <description>User navigated to the Android in-app history page.</description>
 </action>
 
+<action name="Android.BookmarkAllTabs">
+  <owner>mklw@google.com</owner>
+  <description>
+    User tapped 'Bookmark all tabs' on the tab strip context menu or via
+    keyboard shortcut to bookmark all tabs.
+  </description>
+</action>
+
 <action name="Android.BookmarkPage.CopyLink">
   <owner>wylieb@google.com</owner>
   <owner>hocheung@chromium.org</owner>
@@ -4915,6 +4930,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Android.TabStripMenu.BookmarkAllTabs">
+  <obsolete>Generalized/renamed to Android.BookmarkAllTabs in 3/26.</obsolete>
   <owner>mklw@google.com</owner>
   <description>
     User tapped 'Bookmark all tabs' on the tab strip context menu to bookmark
@@ -15266,7 +15282,9 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <description>
-    Logged when Open is called on a new or closed instance.
+    Logged when Open is called on a new or closed instance. Note that this may
+    be logged when a new conversation creates a new instance to replace an
+    existing one in an already open UI container.
   </description>
 </action>
 
@@ -15500,6 +15518,12 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <description>The Glic instance WebUI is unresponsive.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Warmed">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is warmed.</description>
 </action>
 
 <action name="Glic.Pinned">
@@ -46344,6 +46368,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Signin_FromPageActionMenu">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kIosPageActionMenu.
+  </description>
+</action>
+
 <action name="Signin_Signin_FromPasswordBubble">
   <owner>gogerald@chromium.org</owner>
   <description>
@@ -49467,6 +49500,36 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SupervisedUsers_Extensions_AskParentDialog_Approved">
+  <owner>richui@chromium.org</owner>
+  <owner>agawronska@chromium.org</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <description>
+    Emitted when the user continues the request for parent approval, which will
+    trigger the parent authentication flow.
+  </description>
+</action>
+
+<action name="SupervisedUsers_Extensions_AskParentDialog_Canceled">
+  <owner>richui@chromium.org</owner>
+  <owner>agawronska@chromium.org</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <description>
+    Emitted when the user cancels the Ask Parent Dialog, denying the attempt to
+    enable an extension.
+  </description>
+</action>
+
+<action name="SupervisedUsers_Extensions_AskParentDialog_Opened">
+  <owner>richui@chromium.org</owner>
+  <owner>agawronska@chromium.org</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <description>
+    Emitted when a supervised user initiates the flow to install an extension
+    that requires parent approval, and opens the Ask Parent Dialog.
+  </description>
+</action>
+
 <action name="SupervisedUsers_Extensions_Disabled">
   <owner>tobyhuang@chromium.org</owner>
   <owner>agawronska@chromium.org</owner>
@@ -49688,6 +49751,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SwitchToHorizontalTabStrip_FromWhatsNew">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to horizontal tab strip mode via the What's
+    New page. This user action only applies to Desktop.
+  </description>
+</action>
+
 <action name="SwitchToVerticalTabStrip_FromAppMenu">
   <owner>kunaldaftari@google.com</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -49730,6 +49802,15 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user switches to vertical tab strip mode via the tab
     context menu. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromWhatsNew">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the What's
+    New page. This user action only applies to Desktop.
   </description>
 </action>
 
@@ -53389,6 +53470,8 @@ should be able to be added at any place in this file.
   <token key="ActionType">
     <variant name="" summary="aggregated"/>
     <variant name=".GlicRollout" summary="Glic edition."/>
+    <variant name=".LightningTakeoverEdition"
+        summary="Lightning takeover edition."/>
     <variant name=".SafetyAwareness" summary="Safety Awareness edition."/>
     <variant name=".Spark" summary="Spark edition."/>
     <variant name=".TestEdition" summary="Test edition."/>
@@ -53499,6 +53582,42 @@ should be able to be added at any place in this file.
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the user enables vertical tabs for the first time.
+  </description>
+</action>
+
+<action name="VerticalTabs_ExpandOnHover_Disabled">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user disables the expand on hover behavior for vertical
+    tabs.
+  </description>
+</action>
+
+<action name="VerticalTabs_ExpandOnHover_Enabled">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user enables the expand on hover behavior for vertical
+    tabs.
+  </description>
+</action>
+
+<action name="VerticalTabs_ExpandOnHover_Hide">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the expand on hover animation starts to hide the vertical tab
+    strip.
+  </description>
+</action>
+
+<action name="VerticalTabs_ExpandOnHover_Show">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the expand on hover animation starts to expand the vertical
+    tab strip.
   </description>
 </action>
 

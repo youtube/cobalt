@@ -21,10 +21,10 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/fake_clock.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -39,7 +39,7 @@ using ::testing::MatchesRegex;
 using ::testing::Property;
 
 TEST(WaitUntilTest, ReturnsTrueWhenConditionIsMet) {
-  AutoThread thread;
+  test::RunLoop thread;
 
   int counter = 0;
   EXPECT_TRUE(WaitUntil([&] { return ++counter == 3; }));
@@ -49,7 +49,7 @@ TEST(WaitUntilTest, ReturnsTrueWhenConditionIsMet) {
 }
 
 TEST(WaitUntilTest, ReturnsWhenConditionIsMet) {
-  AutoThread thread;
+  test::RunLoop thread;
 
   int counter = 0;
   RTCErrorOr<int> result = WaitUntil([&] { return ++counter; }, Eq(3));
@@ -57,7 +57,7 @@ TEST(WaitUntilTest, ReturnsWhenConditionIsMet) {
 }
 
 TEST(WaitUntilTest, ReturnsErrorWhenTimeoutIsReached) {
-  AutoThread thread;
+  test::RunLoop thread;
   int counter = 0;
   RTCErrorOr<int> result =
       WaitUntil([&] { return --counter; }, Eq(1),
@@ -73,7 +73,7 @@ TEST(WaitUntilTest, ReturnsErrorWhenTimeoutIsReached) {
 }
 
 TEST(WaitUntilTest, ErrorContainsMatcherExplanation) {
-  AutoThread thread;
+  test::RunLoop thread;
   int counter = 0;
   auto matcher = AllOf(Gt(0), Lt(10));
   RTCErrorOr<int> result =
@@ -153,7 +153,7 @@ class CustomType {
 };
 
 TEST(WaitUntilTest, RequiresOnlyMoveCopyConstructionForReturnedType) {
-  AutoThread thread;
+  test::RunLoop thread;
 
   int counter = 0;
   RTCErrorOr<CustomType> result =

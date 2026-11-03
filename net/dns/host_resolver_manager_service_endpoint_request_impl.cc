@@ -7,10 +7,12 @@
 #include <sstream>
 
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/memory/safe_ref.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/types/optional_util.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/dns/dns_alias_utility.h"
 #include "net/dns/dns_task_results_manager.h"
@@ -49,7 +51,9 @@ HostResolverManager::ServiceEndpointRequestImpl::ServiceEndpointRequestImpl(
     const base::TickClock* tick_clock)
     : host_(std::move(host)),
       network_anonymization_key_(
-          NetworkAnonymizationKey::IsPartitioningEnabled()
+          NetworkAnonymizationKey::IsPartitioningEnabled() &&
+                  base::FeatureList::IsEnabled(
+                      features::kSplitHostCacheByNetworkAnonymizationKey)
               ? std::move(network_anonymization_key)
               : NetworkAnonymizationKey()),
       net_log_(std::move(net_log)),
@@ -167,6 +171,12 @@ bool HostResolverManager::ServiceEndpointRequestImpl::EndpointsCryptoReady() {
   return false;
 }
 
+std::optional<ResolutionDetails>
+HostResolverManager::ServiceEndpointRequestImpl::GetResolutionDetails() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resolution_details_;
+}
+
 ResolveErrorInfo
 HostResolverManager::ServiceEndpointRequestImpl::GetResolveErrorInfo() {
   return error_info_;
@@ -205,12 +215,16 @@ void HostResolverManager::ServiceEndpointRequestImpl::AssignJob(
 
 void HostResolverManager::ServiceEndpointRequestImpl::OnJobCompleted(
     const HostCache::Entry& results,
-    bool obtained_securely) {
+    bool obtained_securely,
+    ResolutionDetails resolution_details) {
   CHECK(job_);
   CHECK(delegate_);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   job_.reset();
+  if (results.error() == OK) {
+    resolution_details_ = resolution_details;
+  }
   SetFinalizedResultFromLegacyResults(results);
   MaybeClearStaleResults();
 
@@ -382,6 +396,8 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoResolveLocally() {
     // from the same network but the device got disconnected/connected events.
     // Ideally we should be able to use such results.
     if (results.network_changes() == host_cache()->network_changes()) {
+      // TODO(crbug.com/485672648): Consider setting resolution details for
+      // stale endpoints.
       stale_endpoints_ = results.ConvertToServiceEndpoints(host_.GetPort());
     }
     if (!stale_endpoints_.empty()) {
@@ -405,6 +421,12 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoResolveLocally() {
   } else if (results.error() != ERR_DNS_CACHE_MISS ||
              parameters_.source == HostResolverSource::LOCAL_ONLY ||
              tasks_.empty()) {
+    if (results.error() == OK) {
+      ResolutionDetails details;
+      details.source = stale_info_.has_value() ? ResolutionSource::kCache
+                                               : ResolutionSource::kLocal;
+      resolution_details_ = details;
+    }
     SetFinalizedResultFromLegacyResults(results);
     error_info_ = ResolveErrorInfo(results.error());
     return results.error();

@@ -26,11 +26,11 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -151,7 +151,7 @@ class AsyncStunTCPSocketTest : public ::testing::Test {
   }
 
   std::unique_ptr<VirtualSocketServer> vss_;
-  AutoSocketServerThread thread_;
+  test::RunLoop thread_;
   std::unique_ptr<AsyncStunTCPSocket> send_socket_;
   std::unique_ptr<AsyncListenSocket> listen_socket_;
   std::unique_ptr<AsyncPacketSocket> recv_socket_;

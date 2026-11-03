@@ -119,7 +119,6 @@ TEST(VCMTimingTest, UseLowLatencyRenderer) {
   FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
   // Default is false.
   EXPECT_FALSE(timing.RenderParameters().use_low_latency_rendering);
   // False if min playout delay > 0.
@@ -150,7 +149,6 @@ TEST(VCMTimingTest, MaxWaitingTimeIsZeroForZeroRenderTime) {
   SimulatedClock clock(kStartTimeUs);
   FieldTrials field_trials = CreateTestFieldTrials();
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
   timing.set_playout_delay({TimeDelta::Zero(), TimeDelta::Zero()});
   for (int i = 0; i < 10; ++i) {
     clock.AdvanceTime(kTimeDelta);
@@ -190,7 +188,6 @@ TEST(VCMTimingTest, MaxWaitingTimeZeroDelayPacingExperiment) {
   constexpr auto kZeroRenderTime = Timestamp::Zero();
   SimulatedClock clock(kStartTimeUs);
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
   // MaxWaitingTime() returns zero for evenly spaced video frames.
   for (int i = 0; i < 10; ++i) {
     clock.AdvanceTime(kTimeDelta);
@@ -240,7 +237,6 @@ TEST(VCMTimingTest, DefaultMaxWaitingTimeUnaffectedByPacingExperiment) {
   const TimeDelta kTimeDelta = TimeDelta::Millis(1000.0 / 60.0);
   SimulatedClock clock(kStartTimeUs);
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
   clock.AdvanceTime(kTimeDelta);
   auto now = clock.CurrentTime();
   Timestamp render_time = now + TimeDelta::Millis(30);
@@ -274,7 +270,6 @@ TEST(VCMTimingTest, MaxWaitingTimeReturnsZeroIfTooManyFramesQueuedIsTrue) {
   constexpr auto kZeroRenderTime = Timestamp::Zero();
   SimulatedClock clock(kStartTimeUs);
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
   // MaxWaitingTime() returns zero for evenly spaced video frames.
   for (int i = 0; i < 10; ++i) {
     clock.AdvanceTime(kTimeDelta);
@@ -334,7 +329,6 @@ TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
   FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
   VCMTiming timing(&clock, field_trials);
-  timing.Reset();
 
   // Set larger initial current delay.
   timing.set_min_playout_delay(TimeDelta::Millis(200));
@@ -351,6 +345,23 @@ TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
 
   // TODO(crbug.com/webrtc/15197): Fix this.
   // EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
+}
+
+TEST(VCMTimingTest, InitialVideoDelayTimings) {
+  FieldTrials field_trials = CreateTestFieldTrials();
+  SimulatedClock clock(0);
+  VCMTiming timing(&clock, field_trials);
+
+  VCMTiming::VideoDelayTimings timings = timing.GetTimings();
+  EXPECT_EQ(timings.num_decoded_frames, 0u);
+  EXPECT_EQ(timings.minimum_delay, TimeDelta::Zero());
+  EXPECT_EQ(timings.estimated_max_decode_time, TimeDelta::Zero());
+  EXPECT_EQ(timings.render_delay,
+            VCMTiming::VideoDelayTimings::kDefaultRenderDelay);
+  EXPECT_EQ(timings.min_playout_delay, TimeDelta::Zero());
+  EXPECT_EQ(timings.target_delay, TimeDelta::Zero());
+  EXPECT_EQ(timings.current_delay, TimeDelta::Zero());
+  EXPECT_THAT(timings, HasConsistentVideoDelayTimings());
 }
 
 TEST(VCMTimingTest, GetTimings) {
@@ -397,8 +408,7 @@ TEST(VCMTimingTest, Reset) {
   SimulatedClock clock(Timestamp::Millis(33));
   VCMTiming timing(&clock, field_trials);
 
-  const TimeDelta default_render_delay = timing.GetTimings().render_delay;
-  timing.set_render_delay(default_render_delay + TimeDelta::Millis(1));
+  timing.set_render_delay(TimeDelta::Millis(11));
   TimeDelta min_playout_delay = TimeDelta::Millis(50);
   TimeDelta max_playout_delay = TimeDelta::Millis(500);
   timing.set_playout_delay({min_playout_delay, max_playout_delay});
@@ -420,7 +430,8 @@ TEST(VCMTimingTest, Reset) {
   EXPECT_GT(timings.num_decoded_frames, 0u);
   EXPECT_EQ(timings.minimum_delay, TimeDelta::Zero());
   EXPECT_EQ(timings.estimated_max_decode_time, TimeDelta::Zero());
-  EXPECT_EQ(timings.render_delay, default_render_delay);
+  EXPECT_EQ(timings.render_delay,
+            VCMTiming::VideoDelayTimings::kDefaultRenderDelay);
   EXPECT_EQ(timings.min_playout_delay, TimeDelta::Zero());
   EXPECT_EQ(timings.max_playout_delay, max_playout_delay);
   EXPECT_EQ(timings.target_delay, TimeDelta::Zero());

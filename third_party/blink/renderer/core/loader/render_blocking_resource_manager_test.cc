@@ -52,7 +52,7 @@ class RenderBlockingResourceManagerTest : public SimTest {
   }
 
   const Font& GetTargetFont() {
-    return *GetTarget()->GetLayoutObject()->Style()->GetFont();
+    return *GetTarget()->GetLayoutObject()->StyleRef().GetFont();
   }
 };
 
@@ -1011,7 +1011,7 @@ TEST_F(RenderBlockingResourceManagerTest,
   v8::HandleScope scope(iframe_frame->DomWindow()->GetIsolate());
   EXPECT_TRUE(WebLocalFrameImpl::FromFrame(iframe_frame)
                   ->ExecuteScriptAndReturnValue(
-                      WebScriptSource(WebString::FromASCII("promise_resolved")))
+                      WebScriptSource(WebString::FromAscii("promise_resolved")))
                   ->IsTrue());
 }
 

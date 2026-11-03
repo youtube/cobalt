@@ -38,7 +38,7 @@
 #include "ui/web_dialogs/web_dialog_delegate.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ash/arc/print_spooler/print_session_impl.h"
+#include "chrome/browser/ash/arc/print_spooler/print_session_impl.h"  // nogncheck crbug.com/1125897
 #endif
 
 using content::NavigationController;
@@ -130,9 +130,12 @@ void PrintPreviewDialogDelegate::GetDialogSize(gfx::Size* size) const {
   if (!outermost_web_contents)
     return;
 
-  Browser* browser = chrome::FindBrowserWithTab(outermost_web_contents);
+  BrowserWindowInterface* browser =
+      chrome::FindBrowserWithTab(outermost_web_contents);
   if (browser)
-    host = browser->window()->GetWebContentsModalDialogHost();
+    host = browser->GetBrowserForMigrationOnly()
+               ->window()
+               ->GetWebContentsModalDialogHost();
 
   if (host)
     size->SetToMax(host->GetMaximumDialogSize());

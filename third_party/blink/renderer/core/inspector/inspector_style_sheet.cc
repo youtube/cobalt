@@ -97,12 +97,12 @@ static const CSSParserContext* ParserContextForDocument(
                   : StrictCSSParserContext(SecureContextMode::kInsecureContext);
 }
 
-String FindMagicComment(const String& content, const String& name) {
-  DCHECK(!name.contains("="));
+String FindMagicComment(const String& content, const StringView& name) {
+  DCHECK(!name.contains('='));
 
   wtf_size_t length = content.length();
   wtf_size_t name_length = name.length();
-  const bool kMultiline = true;
+  constexpr bool kMultiline = true;
 
   wtf_size_t pos = length;
   wtf_size_t equal_sign_pos = 0;
@@ -148,21 +148,22 @@ String FindMagicComment(const String& content, const String& name) {
   DCHECK(equal_sign_pos);
   DCHECK(!kMultiline || closing_comment_pos);
   wtf_size_t url_pos = equal_sign_pos + 1;
-  String match = kMultiline
-                     ? content.Substring(url_pos, closing_comment_pos - url_pos)
-                     : content.Substring(url_pos);
+  StringView match =
+      kMultiline ? content.subview(url_pos, closing_comment_pos - url_pos)
+                 : content.subview(url_pos);
 
   match = match.substr(0, match.find('\n'));
   match = match.StripWhiteSpace();
 
   const StringView disallowed_chars("\"' \t");
   for (uint32_t i = 0; i < match.length(); ++i) {
-    if (disallowed_chars.contains(match[i])) {
+    // SAFETY: index checked against length in loop condition.
+    if (disallowed_chars.contains(UNSAFE_BUFFERS(match[i]))) {
       return g_empty_string;
     }
   }
 
-  return match;
+  return match.ToString();
 }
 
 void GetClassNamesFromRule(CSSStyleRule* rule, HashSet<String>& unique_names) {
@@ -2522,9 +2523,7 @@ String InspectorStyleSheet::SourceURL() {
     return source_url_;
   }
 
-  String style_sheet_text;
-  bool success = GetText(&style_sheet_text);
-  if (success) {
+  if (String style_sheet_text; GetText(&style_sheet_text)) {
     String comment_value = FindMagicComment(style_sheet_text, "sourceURL");
     if (!comment_value.empty()) {
       source_url_ = comment_value;
@@ -2577,9 +2576,7 @@ String InspectorStyleSheet::SourceMapURL() {
     return String();
   }
 
-  String style_sheet_text;
-  bool success = GetText(&style_sheet_text);
-  if (success) {
+  if (String style_sheet_text; GetText(&style_sheet_text)) {
     String comment_value =
         FindMagicComment(style_sheet_text, "sourceMappingURL");
     if (!comment_value.empty()) {

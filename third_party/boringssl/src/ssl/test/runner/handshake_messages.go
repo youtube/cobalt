@@ -254,6 +254,8 @@ type clientHelloMsg struct {
 	pakeShares                               []pakeShare
 	certificateAuthorities                   [][]byte
 	trustAnchors                             [][]byte
+	clientCertificateTypes                   []CertificateType
+	serverCertificateTypes                   []CertificateType
 	outerExtensions                          []uint16
 	reorderOuterExtensionsWithoutCompressing bool
 	prefixExtensions                         []uint16
@@ -634,6 +636,30 @@ func (m *clientHelloMsg) marshalBody(hello *cryptobyte.Builder, typ clientHelloT
 			body: body.BytesOrPanic(),
 		})
 	}
+	if m.clientCertificateTypes != nil {
+		body := cryptobyte.NewBuilder(nil)
+		body.AddUint8LengthPrefixed(func(certTypesList *cryptobyte.Builder) {
+			for _, certType := range m.clientCertificateTypes {
+				certTypesList.AddUint8(uint8(certType))
+			}
+		})
+		extensions = append(extensions, extension{
+			id:   extensionClientCertificateType,
+			body: body.BytesOrPanic(),
+		})
+	}
+	if m.serverCertificateTypes != nil {
+		body := cryptobyte.NewBuilder(nil)
+		body.AddUint8LengthPrefixed(func(certTypesList *cryptobyte.Builder) {
+			for _, certType := range m.serverCertificateTypes {
+				certTypesList.AddUint8(uint8(certType))
+			}
+		})
+		extensions = append(extensions, extension{
+			id:   extensionServerCertificateType,
+			body: body.BytesOrPanic(),
+		})
+	}
 	// The PSK extension must be last. See https://tools.ietf.org/html/rfc8446#section-4.2.11
 	if len(m.pskIdentities) > 0 {
 		pskExtension := cryptobyte.NewBuilder(nil)
@@ -858,6 +884,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	m.pakeClientID = nil
 	m.pakeServerID = nil
 	m.pakeShares = nil
+	m.clientCertificateTypes = nil
+	m.serverCertificateTypes = nil
 
 	if len(reader) == 0 {
 		// ClientHello is optionally followed by extension data
@@ -1184,6 +1212,40 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		case extensionTrustAnchors:
 			// An empty list is allowed here.
 			if !parseTrustAnchors(&body, &m.trustAnchors) || len(body) != 0 {
+				return false
+			}
+		case extensionClientCertificateType:
+			var certTypes cryptobyte.String
+			if !body.ReadUint8LengthPrefixed(&certTypes) || len(body) != 0 {
+				return false
+			}
+			for len(certTypes) > 0 {
+				var certType uint8
+				if !certTypes.ReadUint8(&certType) {
+					return false
+				}
+				m.clientCertificateTypes = append(m.clientCertificateTypes, CertificateType(certType))
+			}
+			// A client must omit the extension if empty or if the only type is the default, X.509.
+			if len(m.clientCertificateTypes) == 0 ||
+				(len(m.clientCertificateTypes) == 1 && m.clientCertificateTypes[0] == certTypeX509) {
+				return false
+			}
+		case extensionServerCertificateType:
+			var certTypes cryptobyte.String
+			if !body.ReadUint8LengthPrefixed(&certTypes) || len(body) != 0 {
+				return false
+			}
+			for len(certTypes) > 0 {
+				var certType uint8
+				if !certTypes.ReadUint8(&certType) {
+					return false
+				}
+				m.serverCertificateTypes = append(m.serverCertificateTypes, CertificateType(certType))
+			}
+			// A client must omit the extension if empty or if the only type is the default, X.509.
+			if len(m.serverCertificateTypes) == 0 ||
+				(len(m.serverCertificateTypes) == 1 && m.serverCertificateTypes[0] == certTypeX509) {
 				return false
 			}
 		}
@@ -1599,6 +1661,7 @@ type serverExtensions struct {
 	hasApplicationSettingsOld bool
 	echRetryConfigs           []byte
 	trustAnchors              [][]byte
+	clientCertificateType     *CertificateType
 }
 
 func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
@@ -1743,6 +1806,11 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
 			})
 		})
 	}
+	if m.clientCertificateType != nil {
+		extensions.AddUint16(extensionClientCertificateType)
+		extensions.AddUint16(1) // Length
+		extensions.AddUint8(uint8(*m.clientCertificateType))
+	}
 }
 
 func (m *serverExtensions) unmarshal(data cryptobyte.String, version version) bool {
@@ -1882,6 +1950,12 @@ func (m *serverExtensions) unmarshal(data cryptobyte.String, version version) bo
 			if !parseTrustAnchors(&body, &m.trustAnchors) || len(m.trustAnchors) == 0 || len(body) != 0 {
 				return false
 			}
+		case extensionClientCertificateType:
+			var certType uint8
+			if !body.ReadUint8(&certType) || len(body) != 0 {
+				return false
+			}
+			m.clientCertificateType = ptrTo(CertificateType(certType))
 		default:
 			// Unknown extensions are illegal from the server.
 			return false

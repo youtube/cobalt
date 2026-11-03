@@ -265,15 +265,6 @@ BASE_DECLARE_FEATURE(kHandleIMESpanChangesOnUpdateComposition);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 bool IsHandleIMESpanChangesOnUpdateCompositionEnabled();
 
-// Kill switch for honoring the HTML autocorrect="off" attribute by detecting
-// and reverting touch keyboard autocorrections in TSF.
-// See https://issues.chromium.org/issues/487613498.
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kTSFHonorAutocorrectOff);
-
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-bool IsTSFHonorAutocorrectOffEnabled();
-
 // Controls whether the default system accent colors should be used.
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kUseSystemDefaultAccentColors);
@@ -307,6 +298,11 @@ BASE_DECLARE_FEATURE_PARAM(int, kCompensationExpectedLatencyMs);
 // considered acceptable by the `CompensateGestureScrollUpdateLatency` feature.
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE_PARAM(int, kCompensationAcceptableLatencyMs);
+
+// When enabled, Ctrl+Alt+Click (Cmd+Alt+Click on macOS) opens a link in a
+// split view alongside the current tab.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kSplitViewLinkOpen);
 
 }  // namespace features
 

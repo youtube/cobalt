@@ -370,7 +370,6 @@ class IA32OperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(OpIndex node) {
-    if (selector()->IsExternalConstant(node)) return true;
     if (const ConstantOp* constant = Get(node).TryCast<ConstantOp>()) {
       switch (constant->kind) {
         case ConstantOp::Kind::kWord32:
@@ -1719,6 +1718,10 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   }
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitMulHigh(this, node, kIA32ImulHigh);
 }
@@ -1835,9 +1838,7 @@ void InstructionSelector::EmitPrepareArguments(
         PushParameter input = (*arguments)[n];
         if (input.node.valid()) {
           int const slot = static_cast<int>(n);
-          // TODO(jkummerow): The next line should use `input.node`, but
-          // fixing it causes mksnapshot failures. Investigate.
-          InstructionOperand value = g.CanBeImmediate(node)
+          InstructionOperand value = g.CanBeImmediate(input.node)
                                          ? g.UseImmediate(input.node)
                                          : g.UseRegister(input.node);
           Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);

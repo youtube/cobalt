@@ -19,7 +19,7 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/views/interaction/element_tracker_views.h"
-#include "ui/views/interaction/interaction_test_util_mouse.h"
+#include "ui/views/interaction/mouse/interaction_test_util_mouse.h"
 #include "ui/views/view_utils.h"
 
 class InteractionTestUtilMouseUiTest
@@ -33,8 +33,7 @@ class InteractionTestUtilMouseUiTest
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    mouse_ = std::make_unique<Mouse>(
-        BrowserView::GetBrowserViewForBrowser(browser())->GetWidget());
+    mouse_ = std::make_unique<Mouse>(browser()->window()->GetNativeWindow());
     CHECK(mouse_->SetTouchMode(GetParam()));
   }
 

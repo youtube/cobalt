@@ -33,6 +33,7 @@
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 using ::testing::ElementsAre;
 
@@ -210,7 +211,7 @@ class TrackMediaInfoMapTest : public ::testing::Test {
   }
 
  private:
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   VoiceMediaInfo voice_media_info_;
   VideoMediaInfo video_media_info_;
 

@@ -1254,6 +1254,8 @@
 480069042 PIXEL10 GLES : WebGLCompatibilityTest.GenerateMipmapUnsizedFloatingPointTexture/* = SKIP
 480069042 PIXEL10 GLES : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/ES3_OpenGLES_ForceLumaWorkaroundForSameTextureCopyTexImage2D = SKIP
 480069042 PIXEL10 GLES : GLSLTest_ES31.IOBlockInvariantAll/* = SKIP
+498083624 PIXEL10 GLES : CopyTextureTestES3.SRGBWithPackParameters/* = SKIP
+489579953 PIXEL10 GLES : ETCTextureTest.PBOWithMisalignedOffset/* = SKIP
 
 480069042 PIXEL10 VULKAN : ClearTextureEXTTestES31Unrenderable.Clear/ES3_1_Vulkan*__GL_RG16_SNORM_EXT_GL_RG_GL_SHORT_GL_TEXTURE_2D_ARRAY = SKIP
 480069042 PIXEL10 VULKAN : ClearTextureEXTTestES31Unrenderable.Clear/ES3_1_Vulkan*__GL_RGB32UI_GL_RGB_INTEGER_GL_UNSIGNED_INT_GL_TEXTURE_2D_ARRAY = SKIP
@@ -1326,6 +1328,7 @@
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.RenderToTextureDepthStencilRenderbufferShouldNotLoad/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.RenderToTextureUninitializedAndUnusedDepthStencil/* = SKIP
 491488985 PIXEL10 VULKAN : GLSLTest_ES31.HelperInvocationsAfterDiscard/* = SKIP
+497884154 PIXEL10 VULKAN : ClearTextureEXTTest.DrawThenClearPartiallyThenDraw/* = SKIP
 
 // Some Metal tests fail on iOS Intel simulator
 40096874 IOS METAL : CubeMapTextureTest.SampleCoordinateTransformGrad/* = SKIP
@@ -1409,6 +1412,7 @@
 40096879 IOS METAL : FramebufferTest_ES3.RenderSharedExponent/* = SKIP
 40096883 IOS METAL : Texture2DDepthStencilTestES3.TexSampleModes*Swizzled/* = SKIP
 375244081 IOS METAL : GLSLTest_ES3.MaxVaryingWithFeedbackAndGLline/* = SKIP
+496604559 IOS METAL : RobustResourceInitTestES3.DrawThenInvalidateThenVerifyDepthStencil/* = SKIP
 
 // Simulator does not support compare functions in the sampler state
 365066518 IOS METAL : ShadowSamplerFunctionTexture2DTest.Test/* = SKIP
@@ -1596,26 +1600,6 @@
 42266575 WIN OpenGL : RGBTextureBufferTestES31.*/* = SKIP
 42266575 WIN GLES : RGBTextureBufferTestES31.*/* = SKIP
 42266575 LINUX NVIDIA OpenGL : RGBTextureBufferTestES31.*/* = SKIP
-
-// Virtualized contexts on multiple contexts not supported on Win (wgl)
-491346041 WIN OpenGL : EGLContextStateTest.MultipleThreads/* = SKIP
-491346041 WIN GLES : EGLContextStateTest.MultipleThreads/* = SKIP
-
-// Failing on Desktop GL Linux when contexts are devirtualized
-40096700 LINUX OPENGL : MultithreadingTestES3.SharedSrgbTextureMultipleContexts/* = SKIP
-40096700 LINUX OPENGL : MultithreadingTestES3.SimultaneousUploadAndDraw/* = SKIP
-40096700 LINUX OPENGL : MultithreadingTestES3.SimultaneousBufferBind/* = SKIP
-40096700 LINUX OPENGL : MultithreadingTestES3.SimultaneousBufferBindAndGen/* = SKIP
-40096700 LINUX OPENGL : MultithreadingTestES3.UniformBlockBinding/* = SKIP
-
-// Test does not yet support devirtualized contexts.
-40096700 LINUX OPENGL : EGLContextSharingTest.DeleteReaderOfSharedTexture/* = SKIP
-
-// Failing on Intel Linux
-40096700 LINUX OPENGL INTEL : MultithreadingTestES3.CreateNewContextAfterTextureUploadOnMainThread/* = SKIP
-40096700 LINUX OPENGL INTEL : MultithreadingTestES3.MultithreadFenceDraw/* = SKIP
-40096700 LINUX OPENGL INTEL : MultithreadingTestES3.MultithreadFenceTexImage/* = SKIP
-40096700 LINUX OPENGL INTEL : MultithreadingTestES3.RenderThenSampleInNewContextWithDifferentPriority/* = SKIP
 
 42266091 WIN INTEL : *EmulateCopyTexImage2DFromRenderbuffers* = SKIP
 
@@ -2669,6 +2653,8 @@
 
 // WebGPU does not support BGRA
 42267264 WGPU : ClearTest.*BGRA* = SKIP
+// WebGPU error BufferOffset (5242862) is not a multiple of 4.
+496503799 WGPU : BufferDataTest.UnalignedVertexAttribPointer/* = SKIP
 
 // Fails on Mac & OpenGL & NVIDIA
 406807990 MAC NVIDIA OPENGL : TextureUploadFormatTest_ES3.AllWithPBO/* = SKIP
@@ -2738,8 +2724,6 @@
 455800276 : MultiDrawEmulationTest.AllowsUserDefinedANGLEDrawID/* = SKIP
 
 // Translator IR failures
-// Constant fold is not yet done if only the index is constant
-349994211 IR : GLSLConstantFoldingTest.ArrayMixedArgumentsIndex/* = SKIP
 // Function argument evaluation order is not per spec.
 454016926 IR : GLSLTest.FunctionArgumentEvalOrder/* = SKIP
 454016926 IR : GLSLTest.FunctionArgumentEvalOrderOverloaded/* = SKIP

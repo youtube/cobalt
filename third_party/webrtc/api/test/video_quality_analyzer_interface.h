@@ -13,10 +13,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/test/stats_observer_interface.h"
@@ -88,7 +88,7 @@ class VideoQualityAnalyzerInterface
   // thread in each method, but should remember, that it is the same thread,
   // that is used in video pipeline.
   virtual void Start(std::string /* test_case_name */,
-                     ArrayView<const std::string> /* peer_names */,
+                     std::span<const std::string> /* peer_names */,
                      int /* max_threads_count */) {}
 
   // Will be called when frame was generated from the input stream.

@@ -55,6 +55,7 @@
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
 #endif
@@ -245,7 +246,7 @@ class PeerConnectionMediaBaseTest : public ::testing::Test {
   }
 
   std::unique_ptr<VirtualSocketServer> vss_;
-  AutoSocketServerThread main_;
+  test::RunLoop main_;
   const SdpSemantics sdp_semantics_;
 };
 
@@ -1576,11 +1577,10 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   auto codecs =
       caller->pc_factory()->GetRtpSenderCapabilities(MediaType::AUDIO).codecs;
   auto codecs_only_rtx_red_fec = codecs;
-  std::erase_if(
-      codecs_only_rtx_red_fec, [](const RtpCodecCapability& codec) {
-        return !(codec.name == kRtxCodecName || codec.name == kRedCodecName ||
-                 codec.name == kUlpfecCodecName);
-      });
+  std::erase_if(codecs_only_rtx_red_fec, [](const RtpCodecCapability& codec) {
+    return !(codec.name == kRtxCodecName || codec.name == kRedCodecName ||
+             codec.name == kUlpfecCodecName);
+  });
   ASSERT_THAT(codecs_only_rtx_red_fec.size(), Gt(0));
   auto result = transceiver->SetCodecPreferences(codecs_only_rtx_red_fec);
   EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, result.type());
@@ -1652,11 +1652,10 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   auto codecs =
       caller->pc_factory()->GetRtpSenderCapabilities(MediaType::VIDEO).codecs;
   auto codecs_only_rtx_red_fec = codecs;
-  std::erase_if(
-      codecs_only_rtx_red_fec, [](const RtpCodecCapability& codec) {
-        return !(codec.name == kRtxCodecName || codec.name == kRedCodecName ||
-                 codec.name == kUlpfecCodecName);
-      });
+  std::erase_if(codecs_only_rtx_red_fec, [](const RtpCodecCapability& codec) {
+    return !(codec.name == kRtxCodecName || codec.name == kRedCodecName ||
+             codec.name == kUlpfecCodecName);
+  });
 
   auto result = transceiver->SetCodecPreferences(codecs_only_rtx_red_fec);
   EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, result.type());

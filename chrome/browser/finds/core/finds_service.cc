@@ -18,6 +18,7 @@
 #include "chrome/browser/finds/android/finds_service_android.h"
 #endif
 #include "chrome/browser/finds/core/finds_features.h"
+#include "chrome/browser/finds/core/finds_metrics.h"
 #include "chrome/browser/finds/core/finds_pref_names.h"
 #include "chrome/browser/finds/core/finds_utils.h"
 #include "chrome/browser/notifications/scheduler/public/client_overview.h"
@@ -44,19 +45,11 @@ namespace finds {
 
 namespace {
 
-// The duration of history to look back when gathering URLs for theme
-// suggestions.
-// TODO(crbug.com/493283477): Align with notif cooldown.
-constexpr base::TimeDelta kHistoryLookbackInterval = base::Days(7);
 
 // If the finds::features::kNotificationStartTimeMinutes param is set to less
 // than this threshold, it is considered to be for testing and will bypass the
 // notification scheduling throttling safeguards.
 constexpr int kThresholdMinutesForTesting = 5;
-
-// The number of times a theme should be visited in order for a user to be
-// eligible to receive the opt in promo for finds.
-constexpr int kThemeUrlVisitCountForOptIn = 3;
 
 std::string FindsSuggestionResponseToHumanReadableString(
     const optimization_guide::proto::FindsSuggestionResponse& response) {
@@ -87,8 +80,7 @@ bool IsModelExecutionCooldownPassed(const PrefService* pref_service) {
   const base::Time last_execution_time =
       base::Time::FromMillisecondsSinceUnixEpoch(last_timestamp_value);
   return (base::Time::Now() - last_execution_time) >=
-         base::Days(
-             finds::features::kModelExecutionCooldownDurationInDays.Get());
+         GetModelExecutionCooldownDurationTimeDelta();
 }
 
 bool IsThemeCooldownPassed(const PrefService* pref_service,
@@ -120,10 +112,11 @@ bool IsThemeCooldownPassed(const PrefService* pref_service,
 
 const SuggestionTheme* GetHighestScoredThemeIfPossible(
     PrefService* pref_service,
-    const ::google::protobuf::RepeatedPtrField<SuggestionTheme>& suggestions) {
+    const ::google::protobuf::RepeatedPtrField<SuggestionTheme>&
+        suggestion_themes) {
   // Sort the suggestion themes by best score.
   std::vector<const SuggestionTheme*> sorted_themes;
-  for (const auto& theme : suggestions) {
+  for (const auto& theme : suggestion_themes) {
     sorted_themes.push_back(&theme);
   }
   std::sort(sorted_themes.begin(), sorted_themes.end(),
@@ -132,6 +125,9 @@ const SuggestionTheme* GetHighestScoredThemeIfPossible(
             });
 
   for (const auto* theme : sorted_themes) {
+    if (theme->theme_suggested_contents().empty()) {
+      continue;
+    }
     if (IsThemeCooldownPassed(pref_service, theme->theme_type())) {
       return theme;
     }
@@ -205,6 +201,13 @@ void FindsService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(
       prefs::kFindsNotInterestedThemesLastTimestamp);
   registry->RegisterBooleanPref(prefs::kFindsOptInPromoUserInteracted, false);
+  // TODO(crbug.com/497928018): Remove the deprecated user interacted pref.
+  registry->RegisterIntegerPref(prefs::kFindsOptInPromoInteractedCount, 0);
+  // TODO(crbug.com/497928018): Remove the deprecated user interacted pref.
+  registry->RegisterInt64Pref(prefs::kFindsOptInPromoLastInteractedTimestamp,
+                              0);
+  registry->RegisterIntegerPref(prefs::kFindsOptInPromoShownCount, 0);
+  registry->RegisterInt64Pref(prefs::kFindsOptInPromoLastShownTimestamp, 0);
 }
 
 FindsService::FindsService(
@@ -260,7 +263,9 @@ void FindsService::ExecuteModelAndScheduleNotification(
   }
 
   history::QueryOptions options;
-  options.begin_time = base::Time::Now() - kHistoryLookbackInterval;
+  options.begin_time =
+      base::Time::Now() - GetModelExecutionCooldownDurationTimeDelta();
+  options.max_count = finds::features::kMaxHistoryEntries.Get();
 
   history_service_->QueryHistory(
       std::u16string(), options,
@@ -278,11 +283,18 @@ void FindsService::RecordThemeURLVisited(
   // Increment the theme url visit count for the given theme type and notify
   // observers if the threshold is met.
   theme_url_visit_count_[theme_type]++;
-  if (theme_url_visit_count_[theme_type] >= kThemeUrlVisitCountForOptIn) {
-    for (auto& observer : observers_) {
-      observer.OnOptInCriteriaFulfilled();
-    }
+  if (theme_url_visit_count_[theme_type] >=
+      finds::features::kThemeUrlVisitCountForOptIn.Get()) {
+    NotifyOptInCriteriaFulfilled(FindsOptInTriggerReason::kThemeUrlVisitCount);
+
+    // Reset the count for the theme type.
+    theme_url_visit_count_[theme_type] = 0;
   }
+}
+
+void FindsService::SRPBackNavigationCountForOptInReached() {
+  NotifyOptInCriteriaFulfilled(
+      FindsOptInTriggerReason::kSrpBackNavigationCount);
 }
 
 void FindsService::MaybeRescheduleNotifications() {
@@ -312,6 +324,10 @@ bool FindsService::ScheduleNotificationForInternalsPage() {
 }
 
 void FindsService::CheckFindsNotificationsEnabledAndMaybeExecute() {
+  // TODO(crbug.com/497928018): Remove this when deprecated pref removed.
+  pref_service_->ClearPref(prefs::kFindsOptInPromoInteractedCount);
+  pref_service_->ClearPref(prefs::kFindsOptInPromoLastInteractedTimestamp);
+
 #if BUILDFLAG(IS_ANDROID)
   FindsServiceAndroid::CheckAreFindsNotificationsEnabledAndroid(
       base::BindOnce(&FindsService::OnCheckAreFindsNotificationsEnabled,
@@ -397,6 +413,8 @@ void FindsService::OnModelExecutionComplete(
     return;
   }
 
+  // Shouldn't trigger since empty themes are filtered by
+  // GetHighestScoredThemeIfPossible.
   if (best_theme->theme_suggested_contents().empty()) {
     RecordFindsResultAndRunCallback(
         std::move(callback), {Result::Status::kNoSuggestionsForTheme,
@@ -459,6 +477,14 @@ void FindsService::OnCheckAreFindsNotificationsEnabled(bool enabled) {
   if (enabled) {
     ExecuteModelAndScheduleNotification(base::DoNothing());
   }
+}
+
+void FindsService::NotifyOptInCriteriaFulfilled(
+    FindsOptInTriggerReason reason) {
+  for (auto& observer : observers_) {
+    observer.OnOptInCriteriaFulfilled();
+  }
+  finds::RecordOptInCriteriaFulfilled(reason);
 }
 
 }  // namespace finds

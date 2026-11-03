@@ -943,6 +943,13 @@ void ClientSession::SetDisableInputs(bool disable_inputs) {
   host_clipboard_filter_.set_enabled(!disable_inputs);
 }
 
+void ClientSession::OnSessionServicesClientConnected(
+    mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  session_services_receivers_.Add(this, std::move(receiver));
+}
+
 std::uint32_t ClientSession::desktop_session_id() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(desktop_environment_);
@@ -989,13 +996,6 @@ void ClientSession::OnMouseCursorPosition(
   for (const auto& [_, video_stream] : video_streams_) {
     video_stream->SetMouseCursorPosition(position);
   }
-}
-
-void ClientSession::BindReceiver(
-    mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  session_services_receivers_.Add(this, std::move(receiver));
 }
 
 void ClientSession::BindWebAuthnProxy(
@@ -1381,13 +1381,12 @@ void ClientSession::OnDesktopDisplayChanged(
             << size.width() << "x" << size.height() << " [" << dpi_x << ","
             << dpi_y << "]";
 
+  desktop_display_info_.CopyFromVideoLayoutProto(*displays);
+
   // Add a VideoTrackLayout entry for each separate display.
-  desktop_display_info_.Reset();
   for (int display_id = 0; display_id < displays->video_track_size();
        display_id++) {
     protocol::VideoTrackLayout display = displays->video_track(display_id);
-    desktop_display_info_.AddDisplayFrom(display);
-
     video_track = layout.add_video_track();
     video_track->CopyFrom(display);
     if (multiStreamEnabled) {

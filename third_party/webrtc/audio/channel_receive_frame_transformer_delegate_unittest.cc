@@ -28,6 +28,7 @@
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -87,7 +88,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 // transformer, it passes it to the channel using the ReceiveFrameCallback.
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      TransformRunsChannelReceiveCallback) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   MockChannelReceive mock_channel;
@@ -118,7 +119,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 // transformer, it passes it to the channel using the ReceiveFrameCallback.
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      TransformRunsChannelReceiveCallbackForSenderFrame) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   MockChannelReceive mock_channel;
@@ -153,7 +154,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 // after resetting the delegate.
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      OnTransformedDoesNotRunChannelReceiveCallbackAfterReset) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<testing::NiceMock<MockFrameTransformer>>();
   MockChannelReceive mock_channel;
@@ -169,7 +170,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      ShortCircuitingSkipsTransform) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<testing::NiceMock<MockFrameTransformer>>();
   MockChannelReceive mock_channel;
@@ -193,7 +194,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      AudioLevelAndCaptureTimeAbsentWithoutExtension) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
@@ -230,7 +231,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      AudioLevelPresentWithExtension) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
@@ -268,7 +269,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      CaptureTimePresentWithExtension) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
@@ -311,7 +312,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 }
 
 TEST(ChannelReceiveFrameTransformerDelegateTest, SetAudioLevel) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
@@ -346,7 +347,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest, SetAudioLevel) {
 
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      ReceivingSenderFrameWithAudioValueSetsAudioLevelInHeader) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<NiceMock<MockFrameTransformer>>();
   MockChannelReceive mock_channel;

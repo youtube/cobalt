@@ -4,6 +4,7 @@
 
 #include "src/tracing/perfetto-logger.h"
 
+#include <atomic>
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
@@ -24,6 +25,7 @@
 #include "src/objects/script.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/tracing/code-data-source.h"
 #include "src/tracing/code-trace-context.h"
 #include "src/tracing/perfetto-sdk.h"
@@ -31,6 +33,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -118,6 +121,11 @@ class IsolateRegistry {
   void StartLogging(const base::MutexGuard&) {
     for (const auto& [isolate, logger] : isolates_) {
       isolate->logger()->AddListener(logger.get());
+#if V8_ENABLE_WEBASSEMBLY
+      // Also enable Wasm code logging.
+      DCHECK(logger->is_listening_to_code_events());
+      wasm::GetWasmEngine()->EnableCodeLogging(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
   }
 
@@ -129,12 +137,8 @@ class IsolateRegistry {
 
   void LogExistingCodeForAllIsolates(const base::MutexGuard&) {
     for (const auto& [isolate, listener] : isolates_) {
-      isolate->RequestInterrupt(
-          [](v8::Isolate*, void* data) {
-            PerfettoLogger* logger = reinterpret_cast<PerfettoLogger*>(data);
-            logger->LogExistingCode();
-          },
-          listener.get());
+      PerfettoLogger* logger = listener.get();
+      logger->TriggerExistingCodeLogging();
     }
   }
 
@@ -242,6 +246,7 @@ void PerfettoLogger::OnCodeDataSourceStop() {
 }
 
 void PerfettoLogger::LogExistingCode() {
+  if (existing_code_logged_.test_and_set()) return;
   HandleScope scope(&isolate_);
   ExistingCodeLogger logger(&isolate_, this);
   logger.LogBuiltins();
@@ -249,7 +254,33 @@ void PerfettoLogger::LogExistingCode() {
   logger.LogCompiledFunctions();
 }
 
-PerfettoLogger::PerfettoLogger(Isolate* isolate) : isolate_(*isolate) {}
+void PerfettoLogger::TriggerExistingCodeLogging() {
+  existing_code_logged_.clear();
+  isolate_.RequestInterrupt(
+      [](v8::Isolate*, void* data) {
+        reinterpret_cast<PerfettoLogger*>(data)->LogExistingCode();
+      },
+      this);
+
+  class LogExistingCodeTask final : public CancelableTask {
+   public:
+    LogExistingCodeTask(Isolate* isolate, PerfettoLogger* logger)
+        : CancelableTask(isolate), logger_(logger) {}
+
+    void RunInternal() override { logger_->LogExistingCode(); }
+
+   private:
+    PerfettoLogger* const logger_;
+  };
+
+  task_runner_->PostTask(
+      std::make_unique<LogExistingCodeTask>(&isolate_, this));
+}
+
+PerfettoLogger::PerfettoLogger(Isolate* isolate)
+    : isolate_(*isolate),
+      task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(isolate))) {}
 PerfettoLogger::~PerfettoLogger() {}
 
 void PerfettoLogger::CodeCreateEvent(CodeTag tag,

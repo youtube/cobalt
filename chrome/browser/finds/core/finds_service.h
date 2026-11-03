@@ -13,6 +13,7 @@
 #include "base/observer_list.h"
 #include "base/supports_user_data.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "chrome/browser/finds/core/finds_metrics.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/proto/features/finds.pb.h"
@@ -86,8 +87,14 @@ class FindsService : public KeyedService, public base::SupportsUserData {
 
   void ExecuteModelAndScheduleNotification(
       base::OnceCallback<void(Result)> callback);
+  // Records that the user has visited a URL that can be categorized under an
+  // eligible finds theme. This will go towards a theme count for URL visits to
+  // determine whether the opt in will be shown.
   void RecordThemeURLVisited(
       optimization_guide::proto::FindsMetadata::ThemeType theme_type);
+  // Notifies the service that the user has reached the required number of SRP
+  // back navigations to trigger the opt in promo.
+  void SRPBackNavigationCountForOptInReached();
 
   // Potentially requests that pending notifications be rescheduled.
   void MaybeRescheduleNotifications();
@@ -111,6 +118,7 @@ class FindsService : public KeyedService, public base::SupportsUserData {
       const optimization_guide::proto::FindsSuggestionResponse::SuggestionTheme&
           theme);
   void OnCheckAreFindsNotificationsEnabled(bool enabled);
+  void NotifyOptInCriteriaFulfilled(FindsOptInTriggerReason reason);
 
   raw_ptr<OptimizationGuideKeyedService> opt_guide_service_;
   raw_ptr<history::HistoryService> history_service_;

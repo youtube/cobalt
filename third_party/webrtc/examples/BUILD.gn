@@ -820,6 +820,7 @@ if (is_linux || is_chromeos || is_win) {
       "../pc:rtc_pc",
       "../rtc_base:async_udp_socket",
       "../rtc_base:ip_address",
+      "../rtc_base:net_helper",
       "../rtc_base:socket_address",
       "../rtc_base:socket_server",
       "../rtc_base:threading",

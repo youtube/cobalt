@@ -120,7 +120,7 @@ public interface TabModelSelector {
      * @param incognito Whether to open the new tab in incognito mode.
      * @return The newly opened tab.
      */
-    Tab openNewTab(
+    @Nullable Tab openNewTab(
             LoadUrlParams loadUrlParams,
             @TabLaunchType int type,
             @Nullable Tab parent,
@@ -220,7 +220,9 @@ public interface TabModelSelector {
      * @param isIncognito Use to indicate which {@link TabGroupModelFilter} to return.
      * @return A {@link TabGroupModelFilter}. This returns null, if this called before native
      *     library is initialized.
+     * @deprecated Use {@link #getModel(boolean)} instead. TabModel now extends TabGroupModelFilter.
      */
+    @Deprecated
     @Nullable TabGroupModelFilter getTabGroupModelFilter(boolean isIncognito);
 
     /**

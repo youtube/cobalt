@@ -235,6 +235,14 @@ void GpuChildThread::PostCompositorThreadCreated(
     gpu_client->PostCompositorThreadCreated(task_runner);
 }
 
+void GpuChildThread::PostDisplayCompositorGpuThreadCreated(
+    base::SingleThreadTaskRunner* task_runner) {
+  auto* gpu_client = GetContentClient()->gpu();
+  if (gpu_client) {
+    gpu_client->PostDisplayCompositorGpuThreadCreated(task_runner);
+  }
+}
+
 void GpuChildThread::QuitMainMessageLoop() {
   quit_closure_.Run();
 }

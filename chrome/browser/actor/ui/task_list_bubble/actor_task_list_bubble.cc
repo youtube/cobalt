@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
@@ -15,15 +14,13 @@
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_row_button.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/scroll_view.h"
-#include "ui/views/layout/box_layout.h"
-#include "ui/views/layout/box_layout_view.h"
+#include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/view_class_properties.h"
@@ -104,8 +101,8 @@ std::unique_ptr<views::View> ActorTaskListBubble::CreateContentsView(
     const absl::flat_hash_map<actor::TaskId, bool>& task_list,
     base::RepeatingCallback<void(actor::TaskId)> on_row_clicked) {
   std::unique_ptr<views::View> contents_view =
-      views::Builder<views::BoxLayoutView>()
-          .SetOrientation(views::BoxLayout::Orientation::kVertical)
+      views::Builder<views::FlexLayoutView>()
+          .SetOrientation(views::LayoutOrientation::kVertical)
           .SetProperty(views::kElementIdentifierKey, kActorTaskListBubbleView)
           .Build();
 

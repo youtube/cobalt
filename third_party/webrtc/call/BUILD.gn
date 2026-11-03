@@ -660,6 +660,7 @@ if (rtc_include_tests) {
         "../test:encoder_settings",
         "../test:fake_video_codecs",
         "../test:frame_generator_capturer",
+        "../test:run_loop",
         "../test:test_common",
         "../test:test_flags",
         "../test:test_support",
@@ -699,6 +700,7 @@ if (rtc_include_tests) {
       "../rtc_base:network_route",
       "../rtc_base/containers:flat_map",
       "../rtc_base/network:sent_packet",
+      "../test:run_loop",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
@@ -709,6 +711,7 @@ if (rtc_include_tests) {
     sources = [ "test/mock_bitrate_allocator.h" ]
     deps = [
       ":bitrate_allocator",
+      "../test:run_loop",
       "../test:test_support",
     ]
   }
@@ -730,6 +733,7 @@ if (rtc_include_tests) {
       "../api/audio_codecs:audio_codecs_api",
       "../api/crypto:frame_decryptor_interface",
       "../api/transport/rtp:rtp_source",
+      "../test:run_loop",
       "../test:test_support",
     ]
   }
@@ -760,6 +764,7 @@ if (rtc_include_tests) {
       "../rtc_base:checks",
       "../rtc_base:copy_on_write_buffer",
       "../system_wrappers",
+      "../test:run_loop",
       "../test:test_support",
       "../test/network:simulated_network",
     ]

@@ -35,6 +35,7 @@
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/timestamp.h"
 #include "call/call.h"
+#include "media/base/media_channel.h"
 #include "pc/data_channel_utils.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_receiver.h"
@@ -78,6 +79,13 @@ struct RtpTransceiverStatsInfo {
 struct TransceiverReferences {
   scoped_refptr<RtpTransceiver> transceiver;
   std::vector<scoped_refptr<RtpReceiverInternal>> receivers;
+  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> get_send_stats_voice;
+  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> get_send_stats_video;
+  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
+      get_receive_stats_voice;
+  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
+      get_receive_stats_video;
+  absl::AnyInvocable<RtpParameters(uint32_t ssrc)> get_send_parameters;
 };
 
 // All public methods of the collector are to be called on the signaling thread.

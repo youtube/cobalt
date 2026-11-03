@@ -12,9 +12,9 @@
 
 #include <cstddef>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
@@ -28,8 +28,8 @@ namespace webrtc {
 namespace {
 
 std::vector<FilteredSample> ConvertSampleValuesToFilteredSamples(
-    ArrayView<const double> values,
-    ArrayView<const FilteredSample> samples) {
+    std::span<const double> values,
+    std::span<const FilteredSample> samples) {
   RTC_CHECK_EQ(values.size(), samples.size())
       << "values and samples must have the same size";
   std::vector<FilteredSample> filtered_samples;

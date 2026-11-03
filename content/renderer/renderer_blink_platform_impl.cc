@@ -417,7 +417,7 @@ bool RendererBlinkPlatformImpl::IsolateStartsInBackground() {
 }
 
 WebString RendererBlinkPlatformImpl::DefaultLocale() {
-  return WebString::FromASCII(RenderThread::Get()->GetLocale());
+  return WebString::FromAscii(RenderThread::Get()->GetLocale());
 }
 
 void RendererBlinkPlatformImpl::SetSuddenTerminationAllowed(bool allowed) {
@@ -950,7 +950,7 @@ void RendererBlinkPlatformImpl::OnGpuChannelEstablished(
 
 blink::WebString RendererBlinkPlatformImpl::ConvertIDNToUnicode(
     const blink::WebString& host) {
-  return WebString::FromUTF16(url_formatter::IDNToUnicode(host.Ascii()));
+  return WebString::FromUtf16(url_formatter::IDNToUnicode(host.Ascii()));
 }
 
 //------------------------------------------------------------------------------

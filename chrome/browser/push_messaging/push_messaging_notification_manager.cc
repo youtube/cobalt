@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/utf_string_conversions.h"
@@ -43,12 +44,12 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/manifest_handlers/background_info.h"
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
@@ -285,12 +286,12 @@ void PushMessagingNotificationManager::DidWriteNotificationData(
 bool PushMessagingNotificationManager::ShouldBypassUserVisibleOnlyRequirement(
     const GURL& origin,
     bool requested_user_visible_only) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (origin.SchemeIs(extensions::kExtensionScheme)) {
     return ShouldExtensionsBypassUserVisibleOnlyRequirement(
         origin, requested_user_visible_only);
   }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
   // Returning true is an exception, so default to deny for anything we don't
   // explicitly identify.
@@ -302,7 +303,7 @@ void PushMessagingNotificationManager::LogSilentPushEvent(
   UMA_HISTOGRAM_ENUMERATION("PushMessaging.SilentNotification", event);
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 bool PushMessagingNotificationManager::
     ShouldExtensionsBypassUserVisibleOnlyRequirement(
         const GURL& origin,
@@ -321,4 +322,4 @@ bool PushMessagingNotificationManager::
   }
   return extensions::BackgroundInfo::IsServiceWorkerBased(extension);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)

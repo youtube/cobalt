@@ -38,6 +38,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/adapters.h"
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
@@ -461,7 +462,8 @@ bool ParseRefreshTime(const StringView& source, base::TimeDelta& delay) {
   int full_stop_count = 0;
   wtf_size_t number_end = source.length();
   for (wtf_size_t i = 0; i < source.length(); ++i) {
-    const UChar ch = source[i];
+    // SAFETY: index checked against length in loop body.
+    const UChar ch = UNSAFE_BUFFERS(source[i]);
     if (ch == uchar::kFullStop) {
       if (++full_stop_count == 2)
         number_end = i;
@@ -492,7 +494,8 @@ bool IsValidHTTPToken(const StringView& characters) {
   if (characters.empty())
     return false;
   for (unsigned i = 0; i < characters.length(); ++i) {
-    UChar c = characters[i];
+    // SAFETY: index checked against length in loop body.
+    UChar c = UNSAFE_BUFFERS(characters[i]);
     if (c > 0x7F || !net::HttpUtil::IsTokenChar(c))
       return false;
   }
@@ -558,7 +561,8 @@ bool ParseHTTPRefresh(const String& refresh,
   }
 
   if (refresh_url.starts_with('"') || refresh_url.starts_with('\'')) {
-    const UChar quotation_mark = refresh_url[0];
+    // SAFETY: successful starts_with() implies non-empty string.
+    const UChar quotation_mark = UNSAFE_BUFFERS(refresh_url[0]);
     refresh_url.remove_prefix(1);
 
     const wtf_size_t url_end_pos = refresh_url.rfind(quotation_mark);

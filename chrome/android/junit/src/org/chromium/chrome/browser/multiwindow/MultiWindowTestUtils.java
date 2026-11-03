@@ -43,7 +43,17 @@ public class MultiWindowTestUtils {
         if (taskId != -1) MultiWindowUtils.addAppTaskIdForTesting(taskId);
     }
 
-    /* package */ static void createInstances(
+    /**
+     * Create test persisted instance state.
+     *
+     * @param numActive The number of active instances to create.
+     * @param numInactive The number of inactive instances to create.
+     * @param profileType The {@link SupportedProfileType} of the instances.
+     * @param startId The first instance id to use for the set of instances. Active Instances will
+     *     be created starting with this id followed by inactive instances with values incremented
+     *     by 1 for each persisted instance.
+     */
+    public static void createInstances(
             int numActive, int numInactive, @SupportedProfileType int profileType, int startId) {
         int start = startId;
         int end = start + numActive;
@@ -70,6 +80,7 @@ public class MultiWindowTestUtils {
 
     /** Clears instance information. */
     public static void resetInstanceInfo() {
+        MultiInstancePersistentStore.resetForTesting();
         SharedPreferencesManager prefs = MultiInstanceSharedPreferences.getInstance();
         prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_URL);
         prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME);
@@ -97,8 +108,7 @@ public class MultiWindowTestUtils {
                             ModalDialogManager modalDialogManager,
                             OneshotSupplier<ProfileProvider> profileProviderSupplier,
                             TabCreatorManager tabCreatorManager,
-                            NextTabPolicySupplier nextTabPolicySupplier,
-                            MultiInstanceManager multiInstanceManager) {
+                            NextTabPolicySupplier nextTabPolicySupplier) {
                         return new MockTabModelSelector(
                                 regularProfile, incognitoProfile, 0, 0, null);
                     }

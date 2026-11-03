@@ -13,9 +13,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -37,7 +37,7 @@ void Increment(int16_t& t) {
 
 // Fills a given buffer with monotonically increasing values.
 template <typename T>
-void FillBuffer(ArrayView<T> buffer) {
+void FillBuffer(std::span<T> buffer) {
   T value = {};
   for (T& t : buffer) {
     Increment<T>(value);
@@ -50,7 +50,7 @@ void FillBuffer(ArrayView<T> buffer) {
 TEST(AudioViewTest, MonoView) {
   const size_t kArraySize = 100u;
   int16_t arr[kArraySize];
-  FillBuffer(ArrayView<int16_t>(arr));
+  FillBuffer(std::span<int16_t>(arr));
 
   MonoView<int16_t> mono(arr);
   MonoView<const int16_t> const_mono(arr);
@@ -69,7 +69,7 @@ TEST(AudioViewTest, MonoView) {
 TEST(AudioViewTest, InterleavedView) {
   const size_t kArraySize = 100u;
   int16_t arr[kArraySize];
-  FillBuffer(ArrayView<int16_t>(arr));
+  FillBuffer(std::span<int16_t>(arr));
 
   InterleavedView<int16_t> interleaved(arr, kArraySize, 1);
   EXPECT_EQ(NumChannels(interleaved), 1u);
@@ -144,7 +144,7 @@ TEST(AudioViewTest, CopySamples) {
   const size_t kArraySize = 100u;
   int16_t source_arr[kArraySize] = {};
   int16_t dest_arr[kArraySize] = {};
-  FillBuffer(ArrayView<int16_t>(source_arr));
+  FillBuffer(std::span<int16_t>(source_arr));
 
   InterleavedView<const int16_t> source(source_arr, 2);
   InterleavedView<int16_t> destination(dest_arr, 2);

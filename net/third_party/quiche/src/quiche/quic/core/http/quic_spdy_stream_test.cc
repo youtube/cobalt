@@ -248,7 +248,7 @@ class TestStream : public QuicSpdyStream {
   using QuicStream::WriteOrBufferData;
 
   void OnBodyAvailable() override {
-    if (!should_process_data_) {
+    if (!should_process_data_ && HasBytesToRead()) {
       return;
     }
     if (read_side_closed()) {
@@ -3847,48 +3847,29 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
   QuicHeaderList headers = ProcessHeaders(false, headers_);
   stream_->ConsumeHeaderList();
 
-  // In Envoy QUIC, application can stop processing data before getting read
-  // blocked.
-  stream_->set_should_process_data(false);
-  std::string body = "this is the body";
+  std::string body = "body-1";
   std::string data = DataFrame(body);
   QuicStreamOffset offset = 0;
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), /*fin=*/false,
                          offset, data);
   offset += data.size();
   stream_->OnStreamFrame(frame1);
-  EXPECT_TRUE(stream_->sequencer()->HasBytesToRead());
-  EXPECT_TRUE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
-
-  // QUIC gets blocked.
-  stream_->sequencer()->SetBlockedUntilFlush();
-
-  // In Envoy QUIC, StopReading can be called after local reset.
-  stream_->StopReading();
-  // Sequencer is not closed but the bytes in body_manager is cleared.
   EXPECT_FALSE(stream_->sequencer()->IsClosed());
-  EXPECT_FALSE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
 
-  // FIN does not close the read side since the stream is blocked.
+  // In Envoy QUIC, application can stop processing data before getting read
+  // blocked.
+  stream_->set_should_process_data(false);
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(0), /*fin=*/true,
-                         offset, "second body");
+                         offset, "");
+  // Since FIN is true and there is no new data,
+  // QuicStreamSequencer::CloseStreamAtOffset will call OnDataAvailable, which
+  // in term sets on_body_available_called_because_sequencer_is_closed_ to true.
   stream_->OnStreamFrame(frame2);
-  EXPECT_FALSE(stream_->sequencer()->IsClosed());
 
-  // Because sequencer has bytes to read, On DataAvailable is called.
-  // However, since neither body_manager has bytes to read nor sequencer is
-  // closed,  OnBodyAvailable is not called to close the read side when
-  // SetUnblocked is called.
-  EXPECT_FALSE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
-  EXPECT_FALSE(stream_->sequencer()->IsClosed());
-  EXPECT_TRUE(stream_->sequencer()->HasBytesToRead());
-
-  // Application gets unblocked.
-  stream_->set_should_process_data(true);
-  // QUIC gets unblocked.
-  stream_->sequencer()->SetUnblocked();
-
-  EXPECT_FALSE(stream_->read_side_closed());
+  EXPECT_TRUE(stream_->sequencer()->IsClosed());
+  EXPECT_FALSE(stream_->sequencer()->HasBytesToRead());
+  EXPECT_TRUE(stream_->reading_stopped());
+  EXPECT_TRUE(stream_->read_side_closed());
 }
 
 }  // namespace

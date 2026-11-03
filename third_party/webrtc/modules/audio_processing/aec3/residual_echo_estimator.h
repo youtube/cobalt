@@ -49,6 +49,9 @@ class ResidualEchoEstimator {
       std::span<std::array<float, kFftLengthBy2Plus1>> R2,
       std::span<std::array<float, kFftLengthBy2Plus1>> R2_unbounded);
 
+  // Returns true if ML-REE is active.
+  bool IsMlReeActive() const { return is_ml_ree_active_; }
+
  private:
   enum class ReverbType { kLinear, kNonLinear };
 
@@ -84,6 +87,7 @@ class ResidualEchoEstimator {
   std::array<int, kFftLengthBy2Plus1> X2_noise_floor_counter_;
   ReverbModel echo_reverb_;
   NeuralResidualEchoEstimator* neural_residual_echo_estimator_;
+  bool is_ml_ree_active_ = false;
 };
 
 }  // namespace webrtc

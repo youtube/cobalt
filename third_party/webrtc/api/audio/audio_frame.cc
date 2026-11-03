@@ -13,9 +13,9 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/audio/audio_view.h"
 #include "api/audio/channel_layout.h"
 #include "api/rtp_packet_infos.h"
@@ -133,12 +133,10 @@ const int16_t* AudioFrame::data() const {
 InterleavedView<const int16_t> AudioFrame::data_view() const {
   // If you get a nullptr from `data_view()`, it's likely because the
   // samples_per_channel_ and/or num_channels_ members haven't been properly
-  // set. Since `data_view()` returns an InterleavedView<> (which internally
-  // uses ArrayView<>), we inherit the behavior in InterleavedView when
-  // the view size is 0 that ArrayView<>::data() returns nullptr. So, even when
-  // an AudioFrame is muted and we want to return `zeroed_data()`, if
-  // samples_per_channel_ or  num_channels_ is 0, the view will point to
-  // nullptr.
+  // set. `data_view()` returns an InterleavedView<> which internally
+  // uses std::span<>. So, even when an AudioFrame is muted and we want to
+  // return `zeroed_data()`, if samples_per_channel_ or  num_channels_ is 0,
+  // the view might point to nullptr.
   return InterleavedView<const int16_t>(muted_ ? &zeroed_data()[0] : &data_[0],
                                         samples_per_channel_, num_channels_);
 }
@@ -213,9 +211,9 @@ void AudioFrame::SetSampleRateAndChannelSize(int sample_rate) {
 }
 
 // static
-ArrayView<const int16_t> AudioFrame::zeroed_data() {
+std::span<const int16_t> AudioFrame::zeroed_data() {
   static int16_t* null_data = new int16_t[kMaxDataSizeSamples]();
-  return ArrayView<const int16_t>(null_data, kMaxDataSizeSamples);
+  return std::span<const int16_t>(null_data, kMaxDataSizeSamples);
 }
 
 }  // namespace webrtc

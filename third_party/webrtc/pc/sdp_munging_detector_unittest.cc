@@ -66,6 +66,7 @@
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 // This file contains unit tests that relate to the behavior of the
@@ -149,7 +150,7 @@ class SdpMungingTest : public ::testing::Test {
   scoped_refptr<PeerConnectionFactoryInterface> pc_factory_;
 
  private:
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
 };
 
 TEST_F(SdpMungingTest, DISABLED_ReportUMAMetricsWithNoMunging) {

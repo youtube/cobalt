@@ -66,11 +66,13 @@ class CanvasHighDynamicRangeOptions;
 class CanvasRenderingContextFactory;
 class DOMMatrix;
 class Element;
+class ElementImage;
 class GraphicsContext;
 class HTMLCanvasElement;
 class ImageBitmapOptions;
 class StaticBitmapImageToVideoFrameCopier;
 class SharedContextRateLimiter;
+class V8UnionElementOrElementImage;
 
 class
     CanvasRenderingContext2DOrWebGLRenderingContextOrWebGL2RenderingContextOrImageBitmapRenderingContextOrGPUCanvasContext;
@@ -99,8 +101,8 @@ class CORE_EXPORT HTMLCanvasElement final
   explicit HTMLCanvasElement(Document&);
   ~HTMLCanvasElement() override;
 
-  HTMLElementType GetHTMLElementType() const final {
-    return HTMLElementType::kHTMLCanvasElement;
+  ElementType GetElementType() const final {
+    return ElementType::kHTMLCanvasElement;
   }
 
   // cc::TextureLayerClient implementation.
@@ -341,17 +343,18 @@ class CORE_EXPORT HTMLCanvasElement final
 
   void ResetLayer();
 
-  gfx::Vector2dF PhysicalPixelToCanvasGridScaleFactor() const {
-    return grid_scale_factor_snapshot_;
-  }
-  void TakeGridScaleFactorSnapshot();
-
   // If `element` is drawn into the canvas's coordinate system with
   // `draw_transform`, this returns the transform that can be applied to
   // `element` to make its CSS position match the drawn position.
-  DOMMatrix* getElementTransform(Element* element,
+  DOMMatrix* getElementTransform(const V8UnionElementOrElementImage* element,
                                  DOMMatrix* draw_transform,
                                  ExceptionState&);
+
+  bool VerifyDrawElementImageEligibility(Element* element,
+                                         const String& func_name,
+                                         ExceptionState& exception_state) const;
+
+  ElementImage* captureElementImage(Element* element, ExceptionState&);
 
  protected:
   void DidMoveToNewDocument(Document& old_document) override;
@@ -403,6 +406,11 @@ class CORE_EXPORT HTMLCanvasElement final
   void ChildrenChanged(const ChildrenChange&) override;
   void ChildElementRemoved(Element&);
 
+  const CanvasChildPaintState* GetCanvasChildPaintState(
+      DOMNodeId child_id) const;
+  const CanvasChildPaintState* GetCanvasChildPaintState(
+      const V8UnionElementOrElementImage* element) const;
+
   FRIEND_TEST_ALL_PREFIXES(HTMLCanvasElementTest, BrokenCanvasHighRes);
 
   HeapHashSet<WeakMember<CanvasDrawListener>> listeners_;
@@ -427,9 +435,6 @@ class CORE_EXPORT HTMLCanvasElement final
   bool origin_clean_;
   bool needs_unbuffered_input_ = false;
   bool style_is_visible_ = false;
-  // Snapshot of the scale factor from physical pixels to the canvas grid,
-  // recorded during the most recent paint update.
-  gfx::Vector2dF grid_scale_factor_snapshot_{1.f, 1.f};
 
   // Used for OffscreenCanvas that controls this HTML canvas element
   // and for low latency mode.

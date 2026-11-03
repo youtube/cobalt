@@ -107,6 +107,7 @@
 <translation id="1369286077209859800">Паказаць усе ўкладкі ў групе ўкладак</translation>
 <translation id="136942498637440594">Выконвайце пошук па відарысах і шукайце тое, што бачыце.</translation>
 <translation id="1373120905936431262">Каб стварыць рэмікс з дапамогай Nano Banana, запампуйце відарыс</translation>
+<translation id="1377321085342047638">Нумар карткі</translation>
 <translation id="1377508275003315939">Паролі</translation>
 <translation id="1381022135873211423">{count,plural, =1{Адрас на пазіцыі {position} з {count}}one{Адрас на пазіцыі {position} з {count}}few{Адрас на пазіцыі {position} з {count}}many{Адрас на пазіцыі {position} з {count}}other{Адрас на пазіцыі {position} з {count}}}</translation>
 <translation id="1383876407941801731">Пошук</translation>
@@ -151,7 +152,6 @@
 <translation id="1517166097004694782">Схаваць параметр "Працягнуць працу з гэтай укладкай"</translation>
 <translation id="1520027731907768768">Атрымліваць абвесткі пра скідкі на тавары, якія вы адсочваеце.</translation>
 <translation id="1521366073263497277">Перайдзіце ў сетку ўкладак.</translation>
-<translation id="1521774566618522728">Апошнія дзеянні адбываліся сёння</translation>
 <translation id="1523567067736644845">Пароль: разблакіруйце</translation>
 <translation id="1524563461097350801">Не, дзякуй</translation>
 <translation id="1531038290222364269">Паказваць укладкі</translation>
@@ -376,6 +376,7 @@
 <translation id="2299218006564889602">Вашы паролі шыфруюцца на прыладзе і толькі потым захоўваюцца ў Менеджары пароляў Google.</translation>
 <translation id="2306265833370324042">Паказаць падрабязныя звесткі: <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Закрыць укладку</translation>
+<translation id="2310789833878085574">Захаваць і запоўніць аўтаматычна</translation>
 <translation id="2311077293164383652">Закрыць замацаваную ўкладку</translation>
 <translation id="2316129865977710310">Не, дзякуй</translation>
 <translation id="2320166752086256636">Схаваць клавіятуру</translation>
@@ -1099,7 +1100,6 @@
 <translation id="4944543191714094452">Пошук на старонцы…</translation>
 <translation id="4945756290001680296">Доступ да налад пароля</translation>
 <translation id="4949302115427722371">Кіраваць наладамі…</translation>
-<translation id="4952050521954075618">Фота з галерэі камеры не будуць сінхранізавацца на вашых прыладах</translation>
 <translation id="4958444002117714549">Разгарнуць спіс</translation>
 <translation id="496392417432935267">Налада адкрыта ў іншым акне</translation>
 <translation id="4970724460420203313">Выкарыстанне Chrome з уліковым запісам пад кіраваннем дазваляе аддзяляць даныя пра работу ў браўзеры, звязаныя з арганізацыяй (у прыватнасці, укладкі, запісы гісторыі і паролі), ад падобных даных, звязаных з іншым уліковым запісам</translation>
@@ -1148,7 +1148,6 @@
 <translation id="5119329531859909472">Каб адсочваць цану ну тавар, націсніце "Адсочваць"</translation>
 <translation id="5121618895923301719">Вы ўжо сочыце за гэтым таварам. Гэта старонка захавана ў <ph name="BEGIN_LINK" />мабільных закладках<ph name="END_LINK" />.</translation>
 <translation id="512533434554095351">У вас некалькі праблем з паролямі.</translation>
-<translation id="5127538504377457572">Апошнія дзеянні: <ph name="DAYS" /> сут таму</translation>
 <translation id="5128788795241319992">Даведайцеся больш пра магчымасці новага меню</translation>
 <translation id="5132942445612118989">Сінхранізуйце паролі, гісторыю і іншыя даныя на ўсіх прыладах</translation>
 <translation id="5141363746588976328">Схаваць картку "Зніжэнне цэн на ўкладках"</translation>
@@ -1266,6 +1265,7 @@
 <translation id="5556459405103347317">Перазагрузіць</translation>
 <translation id="555749644339804659">Ідзе праверка пароляў…</translation>
 <translation id="5559567453458728487">Пераўтвараць адзінкі вымярэння, знойдзеныя ў інтэрнэце</translation>
+<translation id="5560088892362098740">Заканчэнне тэрміну дзеяння</translation>
 <translation id="556042886152191864">Кнопка</translation>
 <translation id="5565871407246142825">Крэдытныя карткі</translation>
 <translation id="5566623128829375608">Звесткі захоўваюцца на прыладзе.</translation>
@@ -1353,6 +1353,7 @@
 <translation id="5819208479324046259">Браўзерам кіруе <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Даведацца больш<ph name="END_LINK" /></translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5829649908290113115">Сінхранізацыя…</translation>
+<translation id="5831217499016131155">Google Кашалёк</translation>
 <translation id="583281660410589416">Невядома</translation>
 <translation id="5838430324585198889">Атрымайце доступ да большай колькасці функцый iPad з дапамогай праграм Google</translation>
 <translation id="583923961930319521">Выкарыстоўвайце паролі на ўсіх сваіх прыладах</translation>
@@ -1650,6 +1651,7 @@
 <translation id="6806550742467879742">Інструменты кіравання старонкай</translation>
 <translation id="6807287147325542056">Паролі ў іншых праграмах</translation>
 <translation id="681368974849482173">Элемент створаны</translation>
+<translation id="6820686453637990663">CVC</translation>
 <translation id="6825078212112407882">{count,plural, =1{Закладка захавана ў вашым Уліковым запісе Google ({email})}one{{count} закладка захавана ў вашым Уліковым запісе Google ({email})}few{{count} закладкі захаваны ў вашым Уліковым запісе Google ({email})}many{{count} закладак захавана ў вашым Уліковым запісе Google ({email})}other{{count} закладкі захаваны ў вашым Уліковым запісе Google ({email})}}</translation>
 <translation id="6826004672264649705">Вы адсочваеце гэты прадукт. Адкрыйце, каб паглядзець гісторыю цэн.</translation>
 <translation id="6830728435402077660">Не абаронена</translation>
@@ -1963,7 +1965,6 @@
 <translation id="7952670906562503188">Вы збіраецеся выдаліць некаторыя ключы доступу ({passkey_count}), а таксама спіс сайтаў і праграм, для якіх, згодна з наладамі, не захоўваюцца даныя для ўваходу. Уліковыя запісы, якія вы стварылі для сайтаў ці праграм, не будуць выдалены.</translation>
 <translation id="7958575506592576831">Інфармацыя пра бяспеку старонкі</translation>
 <translation id="7961015016161918242">Ніколі</translation>
-<translation id="7971136598759319605">Апошнія дзеянні: дзень таму</translation>
 <translation id="7972837668077967426">Палатно</translation>
 <translation id="7975036700432177008">Паспрабаваць</translation>
 <translation id="797588153137233716">Меню → Гісторыя → Выдаліць даныя пра работу ў браўзеры</translation>

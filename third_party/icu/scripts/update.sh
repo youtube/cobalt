@@ -8,14 +8,21 @@
 
 if [ $# -lt 1 ];
 then
-  echo "Usage: "$0" version (e.g. '56-1')" >&2
+  echo "Usage: "$0" version (e.g. '56-1' *or* '56.1')" >&2
   exit 1
 fi
 
 version="$1"
 
-# Makes ("68" "1") from "68-1".
-readonly major_minor_version=(${version//-/ })
+if [[ ! "$version" =~ ^[0-9]+([.-][0-9]+)*$ ]]; then
+  echo "Error: Invalid version format '$version'. Expected format like '68.1' or '68-1'." >&2
+  exit 1
+fi
+
+# Makes ("68" "1") from "68-1" or "68.1".
+set -f
+readonly major_minor_version=(${version//[-.]/ })
+set +f
 
 # Just the major part of the ICU version number, e.g. "68".
 readonly major_version="${major_minor_version[0]}"

@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
@@ -50,10 +51,9 @@ namespace {
 // requests.
 void PermissionRequestResponseCallbackWrapper(
     base::OnceCallback<void(PermissionStatusWithDetailsPtr)> callback,
-    const std::vector<PermissionResult>& results) {
+    std::vector<blink::mojom::PermissionStatusWithDetailsPtr> results) {
   DCHECK_EQ(results.size(), 1ul);
-  std::move(callback).Run(
-      PermissionUtil::ToPermissionStatusWithDetails(results[0]));
+  std::move(callback).Run(std::move(results[0]));
 }
 
 // Helper converts given `PermissionStatus` to `EmbeddedPermissionControlResult`
@@ -303,39 +303,16 @@ void PermissionServiceImpl::RequestPageEmbeddedPermission(
 
 void PermissionServiceImpl::RequestPermission(
     PermissionDescriptorPtr permission,
-    bool user_gesture,
     RequestPermissionCallback callback) {
-  // TODO(antoniosartori): Remove this logic duplication and reuse
-  // RequestPermissions once that migrates to PermissionStatusWithDetails, too.
-  BrowserContext* browser_context = context_->GetBrowserContext();
-  if (!browser_context) {
-    return;
-  }
-
-  if (!context_->render_frame_host()) {
-    std::move(callback).Run(PermissionUtil::ToPermissionStatusWithDetails(
-        GetPermissionResult(permission)));
-    return;
-  }
-
   std::vector<PermissionDescriptorPtr> permissions;
   permissions.push_back(std::move(permission));
-
-  if (HasDuplicatesOrInvalidPermissions(permissions)) {
-    ReceivedBadMessage();
-    return;
-  }
-
-  RequestPermissionsInternal(
-      context_->GetBrowserContext(),
-      PermissionRequestDescription(std::move(permissions), user_gesture),
-      base::BindOnce(&PermissionRequestResponseCallbackWrapper,
-                     std::move(callback)));
+  RequestPermissions(std::move(permissions),
+                     base::BindOnce(&PermissionRequestResponseCallbackWrapper,
+                                    std::move(callback)));
 }
 
 void PermissionServiceImpl::RequestPermissions(
     std::vector<PermissionDescriptorPtr> permissions,
-    bool user_gesture,
     RequestPermissionsCallback callback) {
   BrowserContext* browser_context = context_->GetBrowserContext();
   if (!browser_context) {
@@ -355,11 +332,11 @@ void PermissionServiceImpl::RequestPermissions(
   // show any UI, we want to still return something relevant so the current
   // permission status is returned for each permission.
   if (!context_->render_frame_host()) {
-    std::vector<PermissionStatus> result(permissions.size());
-    for (size_t i = 0; i < permissions.size(); ++i) {
-      result[i] = GetPermissionResult(permissions[i]).status;
-    }
-    std::move(callback).Run(result);
+    std::move(callback).Run(base::ToVector(
+        permissions, [this](const PermissionDescriptorPtr& permission) {
+          return PermissionUtil::ToPermissionStatusWithDetails(
+              GetPermissionResult(permission));
+        }));
     return;
   }
 
@@ -372,18 +349,14 @@ void PermissionServiceImpl::RequestPermissions(
       browser_context,
       PermissionRequestDescription(
           std::move(permissions),
-          user_gesture &&
-              context_->render_frame_host()->HasTransientUserActivation()),
+          context_->render_frame_host()->HasTransientUserActivation()),
       base::BindOnce(
           // TODO(crbug.com/494089503): Simplify this once the migration to
           // PermissionStatusWithDetails is complete.
           [](RequestPermissionsCallback callback,
              const std::vector<PermissionResult>& results) {
-            std::vector<PermissionStatus> statuses;
-            for (const auto& result : results) {
-              statuses.push_back(result.status);
-            }
-            std::move(callback).Run(statuses);
+            std::move(callback).Run(base::ToVector(
+                results, PermissionUtil::ToPermissionStatusWithDetails));
           },
           std::move(callback)));
 }
@@ -464,14 +437,15 @@ void PermissionServiceImpl::RevokePermission(
   // Resetting the permission should only be possible if the permission is
   // already granted.
   if (result.status != PermissionStatus::GRANTED) {
-    std::move(callback).Run(result.status);
+    std::move(callback).Run(
+        PermissionUtil::ToPermissionStatusWithDetails(result));
     return;
   }
 
   ResetPermissionStatus(*permission_type);
 
-  std::move(callback).Run(
-      GetPermissionResultForCurrentContext(permission).status);
+  std::move(callback).Run(PermissionUtil::ToPermissionStatusWithDetails(
+      GetPermissionResultForCurrentContext(permission)));
 }
 
 void PermissionServiceImpl::AddPermissionObserver(
@@ -485,10 +459,9 @@ void PermissionServiceImpl::AddPermissionObserver(
   }
 
   PermissionResult current_result = GetPermissionResult(permission);
-  context_->CreateSubscription(permission, origin_, current_result,
-                               PermissionResult(last_known_status->status),
-                               /*should_include_device_status*/ false,
-                               std::move(observer));
+  context_->CreateSubscription(
+      permission, origin_, current_result, std::move(last_known_status),
+      /*should_include_device_status*/ false, std::move(observer));
 }
 
 void PermissionServiceImpl::AddPageEmbeddedPermissionObserver(
@@ -506,9 +479,11 @@ void PermissionServiceImpl::AddPageEmbeddedPermissionObserver(
       should_include_device_status
           ? GetCombinedPermissionAndDeviceResult(permission)
           : GetPermissionResultForCurrentContext(permission);
-  context_->CreateSubscription(
-      permission, origin_, current_result, PermissionResult(last_known_status),
-      should_include_device_status, std::move(observer));
+  context_->CreateSubscription(permission, origin_, current_result,
+                               blink::mojom::PermissionStatusWithDetails::New(
+                                   last_known_status, nullptr),
+                               should_include_device_status,
+                               std::move(observer));
 }
 
 void PermissionServiceImpl::NotifyEventListener(

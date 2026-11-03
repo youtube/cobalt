@@ -17,12 +17,12 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
@@ -51,8 +51,8 @@ uint32_t ReduceTransactionId(absl::string_view transaction_id) {
              transaction_id.length() == kStunLegacyTransactionIdLength)
       << transaction_id.length();
   ByteBufferReader reader(
-      MakeArrayView(reinterpret_cast<const uint8_t*>(transaction_id.data()),
-                    transaction_id.size()));
+      std::span(reinterpret_cast<const uint8_t*>(transaction_id.data()),
+                transaction_id.size()));
   uint32_t result = 0;
   uint32_t next;
   while (reader.ReadUInt32(&next)) {
@@ -379,7 +379,7 @@ bool StunMessage::ValidateMessageIntegrityOfType(int mi_attr_type,
     return false;
   }
 
-  ArrayView<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
+  std::span<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
                                      size);
 
   // Getting the message length from the STUN header.
@@ -438,7 +438,7 @@ bool StunMessage::ValidateMessageIntegrityOfType(int mi_attr_type,
     //     |0 0|     STUN Message Type     |         Message Length        |
     //     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     SetBE16(
-        ArrayView<uint8_t>(reinterpret_cast<uint8_t*>(temp_data.get() + 2), 2),
+        std::span<uint8_t>(reinterpret_cast<uint8_t*>(temp_data.get() + 2), 2),
         static_cast<uint16_t>(new_adjusted_len));
   }
 
@@ -510,7 +510,7 @@ bool StunMessage::ValidateFingerprint(const char* data, size_t size) {
   if (size % 4 != 0 || size < kStunHeaderSize + fingerprint_attr_size)
     return false;
 
-  ArrayView<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
+  std::span<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
                                      size);
 
   // Skip the rest if the magic cookie isn't present.
@@ -539,14 +539,14 @@ std::string StunMessage::GenerateTransactionId() {
   return CreateRandomString(kStunTransactionIdLength);
 }
 
-bool StunMessage::IsStunMethod(ArrayView<int> methods,
+bool StunMessage::IsStunMethod(std::span<int> methods,
                                const char* data,
                                size_t size) {
   // Check the message length.
   if (size % 4 != 0 || size < kStunHeaderSize)
     return false;
 
-  ArrayView<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
+  std::span<const uint8_t> data_view(reinterpret_cast<const uint8_t*>(data),
                                      size);
 
   // Skip the rest if the magic cookie isn't present.
@@ -816,7 +816,7 @@ void StunAttribute::WritePadding(ByteBufferWriter* buf) const {
   int remainder = length_ % 4;
   if (remainder > 0) {
     uint8_t zeroes[4] = {0};
-    buf->Write(ArrayView<const uint8_t>(zeroes, 4 - remainder));
+    buf->Write(std::span<const uint8_t>(zeroes, 4 - remainder));
   }
 }
 
@@ -915,8 +915,8 @@ bool StunAddressAttribute::Read(ByteBufferReader* buf) {
     if (length() != SIZE_IP4) {
       return false;
     }
-    if (!buf->ReadBytes(MakeArrayView(reinterpret_cast<uint8_t*>(&v4addr),
-                                      sizeof(v4addr)))) {
+    if (!buf->ReadBytes(
+            std::span(reinterpret_cast<uint8_t*>(&v4addr), sizeof(v4addr)))) {
       return false;
     }
     IPAddress ipaddr(v4addr);
@@ -926,8 +926,8 @@ bool StunAddressAttribute::Read(ByteBufferReader* buf) {
     if (length() != SIZE_IP6) {
       return false;
     }
-    if (!buf->ReadBytes(MakeArrayView(reinterpret_cast<uint8_t*>(&v6addr),
-                                      sizeof(v6addr)))) {
+    if (!buf->ReadBytes(
+            std::span(reinterpret_cast<uint8_t*>(&v6addr), sizeof(v6addr)))) {
       return false;
     }
     IPAddress ipaddr(v6addr);
@@ -950,13 +950,13 @@ bool StunAddressAttribute::Write(ByteBufferWriter* buf) const {
   switch (address_.family()) {
     case AF_INET: {
       in_addr v4addr = address_.ipaddr().ipv4_address();
-      buf->Write(ArrayView<const uint8_t>(reinterpret_cast<uint8_t*>(&v4addr),
+      buf->Write(std::span<const uint8_t>(reinterpret_cast<uint8_t*>(&v4addr),
                                           sizeof(v4addr)));
       break;
     }
     case AF_INET6: {
       in6_addr v6addr = address_.ipaddr().ipv6_address();
-      buf->Write(ArrayView<const uint8_t>(reinterpret_cast<uint8_t*>(&v6addr),
+      buf->Write(std::span<const uint8_t>(reinterpret_cast<uint8_t*>(&v6addr),
                                           sizeof(v6addr)));
       break;
     }
@@ -1040,13 +1040,13 @@ bool StunXorAddressAttribute::Write(ByteBufferWriter* buf) const {
   switch (xored_ip.family()) {
     case AF_INET: {
       in_addr v4addr = xored_ip.ipv4_address();
-      buf->Write(ArrayView<const uint8_t>(
+      buf->Write(std::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(&v4addr), sizeof(v4addr)));
       break;
     }
     case AF_INET6: {
       in6_addr v6addr = xored_ip.ipv6_address();
-      buf->Write(ArrayView<const uint8_t>(
+      buf->Write(std::span<const uint8_t>(
           reinterpret_cast<const uint8_t*>(&v6addr), sizeof(v6addr)));
       break;
     }
@@ -1185,7 +1185,7 @@ void StunByteStringAttribute::SetByte(size_t index, uint8_t value) {
 
 bool StunByteStringAttribute::Read(ByteBufferReader* buf) {
   bytes_ = new uint8_t[length()];
-  if (!buf->ReadBytes(ArrayView<uint8_t>(bytes_, length()))) {
+  if (!buf->ReadBytes(std::span<uint8_t>(bytes_, length()))) {
     return false;
   }
 
@@ -1198,7 +1198,7 @@ bool StunByteStringAttribute::Write(ByteBufferWriter* buf) const {
   if (!LengthValid(type(), length())) {
     return false;
   }
-  buf->Write(ArrayView<const uint8_t>(bytes_, length()));
+  buf->Write(std::span<const uint8_t>(bytes_, length()));
   WritePadding(buf);
   return true;
 }

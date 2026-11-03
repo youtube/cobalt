@@ -6,6 +6,8 @@
 // transformations, to ensure they generate valid IR.
 //
 // Validations implemented:
+//
+// IDs and scopes:
 //   - Every ID must be present in the respective map: validate_all_ids_are_present()
 //   - Every variable must be defined somewhere, either in global block or in a block:
 //     validate_all_variables_are_declared_in_scope()
@@ -13,6 +15,13 @@
 //     validate_all_variables_are_declared_in_scope()
 //   - Every accessed register must be declared in an accessible block:
 //     validate_all_registers_are_declared_in_scope()
+//   - No identical types with different IDs: validate_no_identical_types_with_different_ids()
+//
+// Types:
+//   - Validate that ImageType fields are valid in combination with ImageDimension:
+//     validate_image_types()
+//
+// Control flow:
 //   - Branches must have the appropriate targets set (merge, trueblock for if, etc); every block
 //     ends in branch: validate_all_branch_instructions_have_valid_target()
 //   - No branches inside a block (i.e. no dead code): validate_no_dead_code()
@@ -20,9 +29,10 @@
 //     output: validate_merge_block_with_input()
 //   - For block that has a merge block with an input, the branch instruction must be If, and the
 //     block must contains block1: validate_merge_block_with_input()
-//   - No identical types with different IDs: validate_no_identical_types_with_different_ids()
-//   - Validate that ImageType fields are valid in combination with ImageDimension:
-//     validate_image_types()
+//
+// Instructions:
+//   - Access to struct fields are in bounds: validate_struct_field_in_bounds()
+//   - If conditions are boolean: validate_if_condition_is_bool()
 
 // TODO(http://anglebug.com/349994211): to validate:
 //   - Referenced IDs are not dead-code-eliminated: Checking against max_*_count can be paird with a
@@ -39,7 +49,6 @@
 //   - Pointers only valid in the left arg of load/store/access/call
 //   - Loop blocks ends in the appropriate instructions.
 //   - Do blocks end in DoLoop (unless already terminated by something else, like Return)
-//   - If condition is a bool.
 //   - Maximum one default case for Switch instructions.
 //   - No pointer->pointer type.
 //   - Interface variables with NameSource::Internal are unique.
@@ -260,6 +269,7 @@ impl<'a> Validator<'a> {
         self.validate_no_dead_code();
         self.validate_all_branch_instructions_have_valid_target();
         self.validate_merge_block_with_input();
+        self.validate_all_instructions();
     }
 
     fn validate_all_ids_are_present(&self) {
@@ -342,7 +352,7 @@ impl<'a> Validator<'a> {
     fn validate_all_ids_in_a_constant_are_present(&self, constant_id: u32, constant: &Constant) {
         if constant.type_id.id >= self.max_type_count {
             self.on_error(format_args!(
-                "Constant id {constant_id} has invalid type id {}",
+                "constant id {constant_id} has invalid type id {}",
                 constant.type_id.id
             ));
         }
@@ -353,7 +363,7 @@ impl<'a> Validator<'a> {
         // Check type_id
         if variable.type_id.id >= self.max_type_count {
             self.on_error(format_args!(
-                "Variable id {variable_id} has invalid type id {}",
+                "variable id {variable_id} has invalid type id {}",
                 variable.type_id.id
             ));
         }
@@ -362,7 +372,7 @@ impl<'a> Validator<'a> {
             && valid_initializer.id >= self.max_constant_count
         {
             self.on_error(format_args!(
-                "Variable id {variable_id} has invalid constant initializer {}",
+                "variable id {variable_id} has invalid constant initializer {}",
                 valid_initializer.id
             ));
         }
@@ -373,7 +383,7 @@ impl<'a> Validator<'a> {
         // Check return type
         if function.return_type_id.id >= self.max_type_count {
             self.on_error(format_args!(
-                "Function id {function_id} has invalid return type {}",
+                "function id {function_id} has invalid return type {}",
                 function.return_type_id.id
             ));
         }
@@ -382,7 +392,7 @@ impl<'a> Validator<'a> {
         for param in &function.params {
             if param.variable_id.id >= self.max_variable_count {
                 self.on_error(format_args!(
-                    "Function id {function_id} has invalid parameters {}",
+                    "function id {function_id} has invalid parameters {}",
                     param.variable_id.id
                 ));
             }
@@ -749,7 +759,7 @@ impl<'a> Validator<'a> {
                     }
                     TypedIdValidationCategory::RegisterDeclared => {
                         let declared_register_tracker = declared_registers.expect(
-                            "Expecting valid DeclaredRegisterTracker provided for \
+                            "expecting valid DeclaredRegisterTracker provided for \
                              RegisterDeclared category",
                         );
                         if !declared_register_tracker.is_declared(register_id) {
@@ -792,7 +802,7 @@ impl<'a> Validator<'a> {
 
                 TypedIdValidationCategory::VariableDeclared => {
                     let declared_variables_tracker = declared_variables.expect(
-                        "Expecting valid DeclaredVarTracker provided for VariableDeclared category",
+                        "expecting valid DeclaredVarTracker provided for VariableDeclared category",
                     );
                     if !declared_variables_tracker.is_variable_declared(variable_id) {
                         self.on_error(format_args!(
@@ -988,7 +998,7 @@ impl<'a> Validator<'a> {
             }
             if !seen_types.insert(ir_type) {
                 self.on_error(format_args!(
-                    "Identical type {:?} found with different IDs",
+                    "identical type {:?} found with different IDs",
                     ir_type
                 ));
             }
@@ -1328,7 +1338,7 @@ impl<'a> Validator<'a> {
             }
             OpCode::LoopIf(_) if !parent_block_meta_data.is_loop => {
                 self.on_error(format_args!(
-                    "The block ends with OpCode::LoopIf must be immediate child of the loop that \
+                    "the block ends with OpCode::LoopIf must be immediate child of the loop that \
                      ends with OpCode::Loop"
                 ));
             }
@@ -1513,5 +1523,54 @@ impl<'a> Validator<'a> {
                 }
             }
         }
+    }
+
+    fn validate_all_instructions(&self) {
+        // All validation that can be done on an instruction in isolation is done in one pass.
+        traverser::visitor::for_each_instruction(
+            &mut (),
+            &self.ir.function_entries,
+            &|_, instruction| {
+                let (opcode, _result) = instruction.get_op_and_result(&self.ir.meta);
+                self.validate_struct_field_in_bounds(opcode);
+                self.validate_if_condition_is_bool(opcode);
+            },
+        );
+    }
+
+    fn validate_struct_field_in_bounds(&self, opcode: &OpCode) {
+        let (struct_type, field_index) = match *opcode {
+            OpCode::AccessStructField(struct_id, field_index) => (
+                Some(self.ir.meta.get_type(self.ir.meta.get_pointee_type(struct_id.type_id))),
+                field_index,
+            ),
+            OpCode::ExtractStructField(struct_id, field_index) => {
+                (Some(self.ir.meta.get_type(struct_id.type_id)), field_index)
+            }
+            _ => (None, 0),
+        };
+        if let Some(Type::Struct(_, fields, _)) = struct_type
+            && field_index as usize >= fields.len()
+        {
+            self.on_error(format_args!(
+                "OpCode::Access/ExtractStructField on struct {:?} is accessing a field index {} \
+                 that is out of bounds",
+                struct_type, field_index
+            ));
+        }
+    }
+
+    fn validate_if_condition_is_bool(&self, opcode: &OpCode) {
+        match *opcode {
+            OpCode::If(condition) | OpCode::LoopIf(condition)
+                if condition.type_id != TYPE_ID_BOOL =>
+            {
+                self.on_error(format_args!(
+                    "invalid If/LoopIf instruction: {:?}, consition is not a boolean: {:?}",
+                    opcode, condition.type_id
+                ));
+            }
+            _ => (),
+        };
     }
 }

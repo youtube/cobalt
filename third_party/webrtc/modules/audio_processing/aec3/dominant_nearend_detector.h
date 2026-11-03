@@ -40,13 +40,11 @@ class DominantNearendDetector : public NearendDetector {
           comfort_noise_spectrum,
       bool initial_state) override;
 
+  // Sets the configuration.
+  void SetConfig(const EchoCanceller3Config::Suppressor& config) override;
+
  private:
-  const float enr_threshold_;
-  const float enr_exit_threshold_;
-  const float snr_threshold_;
-  const int hold_duration_;
-  const int trigger_threshold_;
-  const bool use_during_initial_phase_;
+  EchoCanceller3Config::Suppressor::DominantNearendDetection config_;
   const size_t num_capture_channels_;
 
   bool nearend_state_ = false;

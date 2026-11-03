@@ -19,7 +19,6 @@ rtc_library("data_rate") {
     ":data_size",
     ":frequency",
     ":time_delta",
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
@@ -35,7 +34,6 @@ rtc_library("data_size") {
   ]
 
   deps = [
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
@@ -51,7 +49,6 @@ rtc_library("time_delta") {
   ]
 
   deps = [
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
@@ -68,7 +65,6 @@ rtc_library("frequency") {
 
   deps = [
     ":time_delta",
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
@@ -85,7 +81,6 @@ rtc_library("timestamp") {
 
   deps = [
     ":time_delta",
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",

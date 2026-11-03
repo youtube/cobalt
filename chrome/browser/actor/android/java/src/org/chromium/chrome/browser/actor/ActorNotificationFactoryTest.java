@@ -242,7 +242,7 @@ public class ActorNotificationFactoryTest {
 
         assertEquals(
                 "Content title should match paused status for fallback",
-                mContext.getString(R.string.actor_notification_title_task_paused),
+                mContext.getString(R.string.actor_notification_title_task_interrupted),
                 shadowNotification.getContentTitle());
         assertEquals(
                 "Content text should match interrupted template",
@@ -252,11 +252,9 @@ public class ActorNotificationFactoryTest {
                 "Big text should match content text",
                 mContext.getString(R.string.actor_notification_body_interrupted, TASK_TITLE),
                 notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT));
-        assertTrue(
-                "Notification should be ongoing",
+        assertFalse(
+                "Notification should not be ongoing",
                 (notification.flags & Notification.FLAG_ONGOING_EVENT) != 0);
-
-        assertEquals("Should have 1 action", 1, notification.actions.length);
     }
 
     @Test

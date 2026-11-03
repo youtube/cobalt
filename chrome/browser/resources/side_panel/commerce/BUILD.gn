@@ -11,20 +11,27 @@ build_webui("build") {
 
   static_files = [ "shopping_insights.html" ]
 
-  web_component_files = [
-    "app.ts",
-    "catalog_attributes_row.ts",
-    "history_graph.ts",
-    "price_tracking_section.ts",
-  ]
-
   ts_files = [
+    "app.html.ts",
+    "app.ts",
+    "catalog_attributes_row.html.ts",
+    "catalog_attributes_row.ts",
+    "history_graph.html.ts",
+    "history_graph.ts",
     "insights_comment_row.html.ts",
     "insights_comment_row.ts",
     "price_insights_browser_proxy.ts",
+    "price_tracking_section.html.ts",
+    "price_tracking_section.ts",
   ]
 
-  css_files = [ "insights_comment_row.css" ]
+  css_files = [
+    "app.css",
+    "catalog_attributes_row.css",
+    "history_graph.css",
+    "insights_comment_row.css",
+    "price_tracking_section.css",
+  ]
 
   mojo_files_deps =
       [ "//components/commerce/core/mojom:mojo_bindings_ts__generator" ]
@@ -40,7 +47,6 @@ build_webui("build") {
     "../shared:build_ts",
     "//third_party/d3:library",
     "//third_party/lit/v3_0:build_ts",
-    "//third_party/polymer/v3_0:library",
     "//ui/webui/resources/cr_components/color_change_listener:build_ts",
     "//ui/webui/resources/cr_components/commerce:build_ts",
     "//ui/webui/resources/cr_elements:build_ts",

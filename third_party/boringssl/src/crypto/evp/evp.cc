@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
@@ -66,9 +67,9 @@ int EVP_PKEY_is_opaque(const EVP_PKEY *pkey) {
   return 0;
 }
 
-int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b) {
   // This also checks that |EVP_PKEY_id| matches.
-  if (!EVP_PKEY_cmp_parameters(a, b)) {
+  if (!EVP_PKEY_parameters_eq(a, b)) {
     return 0;
   }
 
@@ -77,6 +78,10 @@ int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
   return a_impl->ameth != nullptr && a_impl->ameth->pub_equal != nullptr &&
          a_impl->pkey != nullptr && b_impl->pkey != nullptr &&
          a_impl->ameth->pub_equal(a_impl, b_impl);
+}
+
+int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
+  return EVP_PKEY_eq(a, b);
 }
 
 int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
@@ -101,7 +106,7 @@ int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
 
   // Once set, parameters may not change.
   if (!EVP_PKEY_missing_parameters(to_impl)) {
-    if (EVP_PKEY_cmp_parameters(to_impl, from_impl) == 1) {
+    if (EVP_PKEY_parameters_eq(to_impl, from_impl) == 1) {
       return 1;
     }
     OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_PARAMETERS);
@@ -323,7 +328,7 @@ int EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, uint8_t *out,
   return impl->ameth->get_pub_raw(impl, out, out_len);
 }
 
-int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
+int EVP_PKEY_parameters_eq(const EVP_PKEY *a, const EVP_PKEY *b) {
   if (EVP_PKEY_id(a) != EVP_PKEY_id(b)) {
     return 0;
   }
@@ -336,6 +341,10 @@ int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
   // If the algorithm does not use parameters, the two null value compare as
   // vacuously equal.
   return 1;
+}
+
+int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b) {
+  return EVP_PKEY_parameters_eq(a, b);
 }
 
 int EVP_PKEY_CTX_set_signature_md(EVP_PKEY_CTX *ctx, const EVP_MD *md) {
@@ -375,6 +384,10 @@ void OpenSSL_add_all_ciphers() {}
 void OpenSSL_add_all_digests() {}
 
 void EVP_cleanup() {}
+
+int EVP_default_properties_is_fips_enabled(OSSL_LIB_CTX *libctx) {
+  return FIPS_mode();
+}
 
 int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *pkey, const uint8_t *in,
                                    size_t len) {

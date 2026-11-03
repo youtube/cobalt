@@ -11,8 +11,10 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
+#include "base/types/expected_macros.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "mojo/public/mojom/base/error.mojom.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/events/event_constants.h"
 
@@ -27,7 +29,11 @@ constexpr char kInputToReloadMouseReleaseHistogram[] =
 constexpr char kInputToStopMouseReleaseHistogram[] =
     "InitialWebUI.ReloadButton.InputToStop.MouseRelease";
 
-int ToUIEventFlags(
+using Code = mojo_base::mojom::Code;
+using Error = mojo_base::mojom::Error;
+
+// TODO: this should be moved to a helper class so that we can unit test it.
+base::expected<int, mojo_base::mojom::ErrorPtr> ToUIEventFlags(
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         flags) {
   using browser_controls_api::mojom::ClickDispositionFlag;
@@ -55,7 +61,8 @@ int ToUIEventFlags(
         break;
       }
       case ClickDispositionFlag::kUnspecified:
-        NOTREACHED() << "Unexpected ClickDispositionFlag::kUnspecified.";
+        return base::unexpected(Error::New(
+            Code::kInvalidArgument, "invalid click disposition flag received"));
     }
   }
   return event_flags;
@@ -70,7 +77,7 @@ BrowserControlsService::BrowserControlsService(
     std::unique_ptr<BrowserControlsAdapter> browser_adapter,
     MetricsReporter* metrics_reporter,
     BrowserControlsServiceDelegate* delegate)
-    : service_(this, std::move(service)),
+    : service_(&bridge_, std::move(service)),
       browser_adapter_(std::move(browser_adapter)),
       metrics_reporter_(metrics_reporter),
       delegate_(delegate) {
@@ -79,7 +86,8 @@ BrowserControlsService::BrowserControlsService(
 
 BrowserControlsService::~BrowserControlsService() = default;
 
-void BrowserControlsService::ReloadFromClick(
+BrowserControlsService::ReloadFromClickResult
+BrowserControlsService::ReloadFromClick(
     bool bypass_cache,
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         click_flags) {
@@ -94,8 +102,10 @@ void BrowserControlsService::ReloadFromClick(
     delegate_->PermitLaunchUrl();
   }
 
-  browser_adapter_->Reload(
-      bypass_cache, ui::DispositionFromEventFlags(ToUIEventFlags(click_flags)));
+  ASSIGN_OR_RETURN(auto converted, ToUIEventFlags(click_flags));
+
+  browser_adapter_->Reload(bypass_cache,
+                           ui::DispositionFromEventFlags(converted));
 
   // Gets the current time immediately after executing the command.
   const base::TimeTicks now = base::TimeTicks::Now();
@@ -107,9 +117,10 @@ void BrowserControlsService::ReloadFromClick(
                      kInputToReloadMouseReleaseHistogram,
                      kInputMouseReleaseStartMark));
   // TODO(crbug.com/448794588): Handle KeyPress events.
+  return std::monostate();
 }
 
-void BrowserControlsService::StopLoad() {
+BrowserControlsService::StopLoadResult BrowserControlsService::StopLoad() {
   browser_adapter_->Stop();
 
   // Gets the current time immediately after executing the command.
@@ -122,36 +133,45 @@ void BrowserControlsService::StopLoad() {
                      kInputToStopMouseReleaseHistogram,
                      kInputMouseReleaseStartMark));
   // TODO(crbug.com/448794588): Handle KeyPress events.
+  return std::monostate();
 }
 
-void BrowserControlsService::Back(
+BrowserControlsService::BackResult BrowserControlsService::Back(
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         flags) {
-  browser_adapter_->Back(ui::DispositionFromEventFlags(ToUIEventFlags(flags)));
+  ASSIGN_OR_RETURN(auto converted, ToUIEventFlags(flags));
+  browser_adapter_->Back(ui::DispositionFromEventFlags(converted));
+  return std::monostate();
 }
 
-void BrowserControlsService::Forward(
+BrowserControlsService::ForwardResult BrowserControlsService::Forward(
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         flags) {
-  browser_adapter_->Forward(
-      ui::DispositionFromEventFlags(ToUIEventFlags(flags)));
+  ASSIGN_OR_RETURN(auto converted, ToUIEventFlags(flags));
+  browser_adapter_->Forward(ui::DispositionFromEventFlags(converted));
+  return std::monostate();
 }
 
-void BrowserControlsService::BackButtonHovered() {
+BrowserControlsService::BackButtonHoveredResult
+BrowserControlsService::BackButtonHovered() {
   browser_adapter_->BackButtonHovered();
+
+  return std::monostate();
 }
 
-void BrowserControlsService::SplitActiveTab() {
-  // We only reach here if the frontend decided we need to CREATE a split.
-  // We don't need to check IsActiveTabInSplit() or handle the menu here.
+BrowserControlsService::SplitActiveTabResult
+BrowserControlsService::SplitActiveTab() {
+  // TODO: need to check IsActiveTabInSplit() first.
   browser_adapter_->CreateNewSplitTab();
+  return std::monostate();
 }
 
-void BrowserControlsService::NavigateHome(
+BrowserControlsService::NavigateHomeResult BrowserControlsService::NavigateHome(
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         click_flags) {
-  browser_adapter_->NavigateHome(
-      ui::DispositionFromEventFlags(ToUIEventFlags(click_flags)));
+  ASSIGN_OR_RETURN(auto converted, ToUIEventFlags(click_flags));
+  browser_adapter_->NavigateHome(ui::DispositionFromEventFlags(converted));
+  return std::monostate();
 }
 
 void BrowserControlsService::SetDelegate(

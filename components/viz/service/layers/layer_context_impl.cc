@@ -513,6 +513,15 @@ base::expected<bool, std::string> UpdatePropertyTree(
     node.parent_id = wire->parent_id;
     RETURN_IF_ERROR(UpdatePropertyTreeNode(trees, node, *wire));
   }
+
+  auto* root_node = tree.Node(cc::kRootPropertyNodeId);
+  if (!root_node) {
+    return base::unexpected("Missing root property node");
+  }
+  if (root_node->parent_id != cc::kInvalidPropertyNodeId) {
+    return base::unexpected(
+        "Root property node must have an invalid parent ID");
+  }
   return true;
 }
 
@@ -1211,8 +1220,8 @@ gfx::StepsTimingFunction::StepPosition DeserializeTimingStepPosition(
   }
 }
 
-std::unique_ptr<gfx::TimingFunction> DeserializeTimingFunction(
-    mojom::TimingFunction& wire) {
+base::expected<std::unique_ptr<gfx::TimingFunction>, std::string>
+DeserializeTimingFunction(mojom::TimingFunction& wire) {
   switch (wire.which()) {
     case mojom::TimingFunction::Tag::kLinear: {
       const auto& wire_points = wire.get_linear();
@@ -1233,6 +1242,12 @@ std::unique_ptr<gfx::TimingFunction> DeserializeTimingFunction(
     }
     case mojom::TimingFunction::Tag::kSteps: {
       const auto& steps = *wire.get_steps();
+      if (steps.num_steps == 0 ||
+          (steps.step_position == mojom::TimingStepPosition::kJumpNone &&
+           steps.num_steps <= 1)) {
+        return base::unexpected(
+            "Invalid num_steps: must be greater than 0 (or 1 for JumpNone)");
+      }
       return gfx::StepsTimingFunction::Create(
           base::saturated_cast<int32_t>(steps.num_steps),
           DeserializeTimingStepPosition(steps.step_position));
@@ -1385,13 +1400,16 @@ base::expected<void, std::string> DeserializeAnimationCurve(
     return base::unexpected("Invalid playback_rate: cannot be 0");
   }
 
-  curve->SetTimingFunction(DeserializeTimingFunction(*wire.timing_function));
+  ASSIGN_OR_RETURN(auto timing_function,
+                   DeserializeTimingFunction(*wire.timing_function));
+  curve->SetTimingFunction(std::move(timing_function));
   curve->set_scaled_duration(wire.scaled_duration);
   for (const auto& wire_keyframe : wire.keyframes) {
     std::unique_ptr<gfx::TimingFunction> keyframe_timing_function;
     if (wire_keyframe->timing_function) {
-      keyframe_timing_function =
-          DeserializeTimingFunction(*wire_keyframe->timing_function);
+      ASSIGN_OR_RETURN(
+          keyframe_timing_function,
+          DeserializeTimingFunction(*wire_keyframe->timing_function));
     }
     ASSIGN_OR_RETURN(auto keyframe,
                      DeserializeKeyframe<CurveType>(
@@ -1903,13 +1921,21 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       if (auto* layer =
               layers.LayerByElementId(wire->backdrop_mask_element_id)) {
         if (layer->GetLayerType() != cc::mojom::LayerType::kTileDisplay) {
-          return base::unexpected(
-              "Invalid backdrop_mask_element_id: layer is not a "
-              "TileDisplayLayer");
+          return base::unexpected(base::StrCat(
+              {"Invalid backdrop_mask_element_id (",
+               base::NumberToString(
+                   wire->backdrop_mask_element_id.GetInternalValue()),
+               ") on effect node ", base::NumberToString(wire->id),
+               ": layer is not a TileDisplayLayer"}));
         }
       } else {
-        return base::unexpected(
-            "Invalid backdrop_mask_element_id: layer not found");
+        return base::unexpected(base::StrCat(
+            {"Invalid backdrop_mask_element_id (",
+             base::NumberToString(
+                 wire->backdrop_mask_element_id.GetInternalValue()),
+             ") on effect node ", base::NumberToString(wire->id),
+             ": layer not found. Total layers: ",
+             base::NumberToString(layers.NumLayers())}));
       }
     }
   }

@@ -13,7 +13,6 @@
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_group_theme.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/observation/tab_strip_api_batched_observer.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "components/browser_apis/tab_strip/tab_strip_api.mojom.h"
@@ -113,24 +112,10 @@ class TabSearchPageHandler
   // leveraging DedupKey comparisons.
   typedef std::tuple<GURL, std::optional<base::Token>> DedupKey;
 
-  // Encapsulates tab details to facilitate performing an action on a tab.
-  struct TabDetails {
-    explicit TabDetails(tabs::TabInterface* tab) : tab(tab) {}
-
-    int GetIndex() const {
-      return tab->GetBrowserWindowInterface()
-          ->GetTabStripModel()
-          ->GetIndexOfTab(tab);
-    }
-
-    raw_ptr<tabs::TabInterface> tab;
-  };
-
   tab_search::mojom::ProfileDataPtr CreateProfileData();
 
   // Walk the tab strip tree to collect tab and group data.
   void WalkContainer(const tabs_api::mojom::ContainerPtr& container,
-                     int& tab_index,
                      tab_search::mojom::Window* window,
                      tab_search::mojom::ProfileData* profile_data,
                      std::set<DedupKey>& tab_dedup_keys,
@@ -157,7 +142,7 @@ class TabSearchPageHandler
       std::set<tab_groups::TabGroupId>& tab_group_ids,
       std::vector<tab_search::mojom::TabGroupPtr>& tab_groups);
 
-  tab_search::mojom::TabPtr GetTab(tabs::TabInterface* tab, int index) const;
+  tab_search::mojom::TabPtr GetTab(tabs::TabInterface* tab) const;
   tab_search::mojom::RecentlyClosedTabPtr GetRecentlyClosedTab(
       sessions::tab_restore::Tab* tab,
       const base::Time& close_time);
@@ -165,8 +150,8 @@ class TabSearchPageHandler
   tabs_api::TabStripService* GetTabStripService(
       BrowserWindowInterface* browser) const;
 
-  // Returns tab details required to perform an action on the tab.
-  std::optional<TabDetails> GetTabDetails(int32_t tab_id);
+  // Returns the tab associated with the given tab id.
+  tabs::TabInterface* GetTabInterface(int32_t tab_id);
 
   // Handles updates to tab data and notifies the WebUI page if the change
   // is relevant.

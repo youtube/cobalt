@@ -7,7 +7,6 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/sessions/session_service_base_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
@@ -27,6 +26,17 @@ class ActionItem;
 
 namespace tabs {
 
+// The collapse state for the vertical tab strip.
+enum class VerticalTabStripCollapseState {
+  kCollapsed,
+  kCollapsing,
+  kExpanded,
+};
+
+// The state controller for the vertical tab strip for the browser window. It
+// manages the state for the vertical tab strip including display mode, collapse
+// state, uncollapsed width and expand to hover setting. It is also responsible
+// for serializing the state to the session service.
 class VerticalTabStripStateController : public SessionServiceBaseObserver,
                                         public BrowserCollectionObserver {
  public:
@@ -34,14 +44,23 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
 
   class ScopedEnableStateLock {
    public:
-    explicit ScopedEnableStateLock(
-        base::WeakPtr<VerticalTabStripStateController> controller);
+    explicit ScopedEnableStateLock(VerticalTabStripStateController* controller);
     ScopedEnableStateLock(const ScopedEnableStateLock&) = delete;
     ScopedEnableStateLock& operator=(const ScopedEnableStateLock&) = delete;
     ~ScopedEnableStateLock();
 
    private:
-    base::WeakPtr<VerticalTabStripStateController> controller_;
+    raw_ptr<VerticalTabStripStateController> controller_;
+  };
+
+  // Delegate that is responsible for animating the collapse/expand request, and
+  // updating this class's collapse state when it is done.
+  class Delegate {
+   public:
+    virtual void SetCollapsedStateUpdatedCallback(
+        base::RepeatingCallback<void(bool)> callback) = 0;
+    virtual bool IsCollapsing() = 0;
+    virtual void RequestCollapse(bool collapse) = 0;
   };
 
   explicit VerticalTabStripStateController(
@@ -63,13 +82,20 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   static VerticalTabStripStateController* From(
       BrowserWindowInterface* browser_window);
 
+  void SetDelegate(Delegate* delegate);
+
   bool ShouldDisplayVerticalTabs() const;
   void SetVerticalTabsEnabled(bool enabled);
 
   std::unique_ptr<ScopedEnableStateLock> GetEnableStateLock();
 
   bool IsCollapsed() const;
-  void SetCollapsed(bool collapsed);
+  VerticalTabStripCollapseState GetCollapseState() const;
+
+  // Request that the Delegate begin transitioning its collapse state.
+  // The Delegate is then responsible for updating this class's collapse
+  // state through SetCollapsed.
+  void RequestCollapse(bool collapse);
 
   int GetUncollapsedWidth() const;
   void SetUncollapsedWidth(int width);
@@ -78,12 +104,14 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   void SetExpandOnHoverEnabled(bool enabled);
 
   const VerticalTabStripState& GetState() const { return state_; }
-  void SetState(const VerticalTabStripState& state);
+
+  using CollapseChangeCallback =
+      base::RepeatingCallback<void(VerticalTabStripCollapseState)>;
+  base::CallbackListSubscription RegisterOnCollapseChanged(
+      CollapseChangeCallback callback);
 
   using StateChangedCallback =
       base::RepeatingCallback<void(VerticalTabStripStateController*)>;
-  base::CallbackListSubscription RegisterOnCollapseChanged(
-      StateChangedCallback callback);
   base::CallbackListSubscription RegisterOnModeWillChange(
       StateChangedCallback callback);
   base::CallbackListSubscription RegisterOnModeChanged(
@@ -99,6 +127,10 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   void NotifyModeChanged();
 
   void OnModeChanged();
+  void OnExpandOnHoverEnabledChanged();
+
+  // Directly sets the collapse state.
+  void SetCollapsed(bool collapsed);
 
   // Updates the SessionService with the current state (collapsed status and
   // uncollapsed width) for the associated session ID.
@@ -127,10 +159,14 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   raw_ptr<SessionService> session_service_;
   const SessionID session_id_;
   raw_ptr<BrowserWindowInterface> browser_window_;
+  raw_ptr<Delegate> delegate_;
 
+  // The state of the vertical tabstrip that is persisted to session restore.
+  // The collapsed state is true if and only if the tabstrip is fully collapsed.
+  // The uncollapsed width is only updated at the end of a resize operation.
   VerticalTabStripState state_;
 
-  base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
+  base::RepeatingCallbackList<void(VerticalTabStripCollapseState)>
       on_collapse_changed_callback_list_;
   base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
       on_mode_will_change_callback_list_;
@@ -144,7 +180,7 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   bool is_vertical_tabs_enabled_ = false;
   int enable_state_lock_count_ = 0;
 
-  base::WeakPtrFactory<VerticalTabStripStateController> weak_ptr_factory_{this};
+  bool is_expand_on_hover_enabled_ = false;
 };
 
 }  // namespace tabs

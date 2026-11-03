@@ -26,10 +26,10 @@
 #include "p2p/test/mock_ice_controller.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -55,7 +55,7 @@ const std::vector<const Connection*> kEmptyConnsList =
 constexpr TimeDelta kTick = TimeDelta::Millis(1);
 
 TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
-  AutoThread main;
+  test::RunLoop main;
   MockIceAgent agent;
   IceControllerFactoryArgs args = {.env = CreateTestEnvironment()};
   MockIceControllerFactory legacy_controller_factory;
@@ -65,7 +65,7 @@ TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
 }
 
 TEST(WrappingActiveIceControllerTest, PassthroughIceControllerInterface) {
-  AutoThread main;
+  test::RunLoop main;
   MockIceAgent agent;
   auto will_move = std::make_unique<MockIceController>();
   MockIceController* wrapped = will_move.get();
@@ -100,7 +100,7 @@ TEST(WrappingActiveIceControllerTest, PassthroughIceControllerInterface) {
 }
 
 TEST(WrappingActiveIceControllerTest, HandlesImmediateSwitchRequest) {
-  AutoThread main;
+  test::RunLoop main;
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
   auto will_move = std::make_unique<NiceMockIceController>();
@@ -144,7 +144,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSwitchRequest) {
 }
 
 TEST(WrappingActiveIceControllerTest, HandlesImmediateSortAndSwitchRequest) {
-  AutoThread main;
+  test::RunLoop main;
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
   auto will_move = std::make_unique<NiceMockIceController>();
@@ -195,7 +195,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSortAndSwitchRequest) {
 }
 
 TEST(WrappingActiveIceControllerTest, HandlesSortAndSwitchRequest) {
-  AutoThread main;
+  test::RunLoop main;
   ScopedFakeClock clock;
 
   // Block the main task queue until ready.
@@ -239,7 +239,7 @@ TEST(WrappingActiveIceControllerTest, HandlesSortAndSwitchRequest) {
 }
 
 TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
-  AutoThread main;
+  test::RunLoop main;
   ScopedFakeClock clock;
 
   // Block the main task queue until ready.

@@ -400,8 +400,13 @@ RtpPacketSinkInterface* RtpDemuxer::ResolveSink(
     return ssrc_sink_it->second;
   }
 
-  // Legacy senders will only signal payload type, support that as last resort.
-  return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  if (use_payload_type_demuxing_) {
+    // Legacy senders will only signal payload type.
+    // Support that as a last resort.
+    return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  }
+
+  return nullptr;
 }
 
 RtpPacketSinkInterface* RtpDemuxer::ResolveSinkByMid(absl::string_view mid,

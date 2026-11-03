@@ -15,6 +15,10 @@ using namespace angle;
 
 namespace
 {
+// Limits set in sh::InitBuiltInResources().  These are implementation limits that the tests need to
+// be aware of.
+constexpr uint32_t kMaxFunctionParameters = 255;
+
 class GLSLValidationTest : public CompilerTest
 {
   protected:
@@ -1689,6 +1693,81 @@ TEST_P(GLSLValidationTest_ES31, WorkGroupSizeNegativeHexadecimal)
          })";
 
     validateError(GL_COMPUTE_SHADER, kCS, "'-20' : out of range: local_size_x must be positive");
+}
+
+// Verify that a compile error is generated when the total size of shared memory exceeds
+// GL_MAX_COMPUTE_SHARED_MEMORY_SIZE.
+TEST_P(GLSLValidationTest_ES31, ExceedComputeSharedMemorySize)
+{
+    GLint maxComputeSharedMemorySize;
+    glGetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE, &maxComputeSharedMemorySize);
+
+    // Using exactly GL_MAX_COMPUTE_SHARED_MEMORY_SIZE memory is ok
+    {
+        std::ostringstream cs;
+        cs << R"(#version 310 es
+layout (local_size_x = 1) in;
+layout (r32ui, binding = 0) writeonly uniform highp uimage2D img;
+shared uint temp[)"
+           << (maxComputeSharedMemorySize / sizeof(uint32_t)) << R"(];
+void main()
+{
+    temp[gl_LocalInvocationID.x] = 0u;
+    groupMemoryBarrier();
+    barrier();
+    imageStore(img, ivec2(0), uvec4(temp[gl_LocalInvocationID.x + 1u]));
+})";
+        validateSuccess(GL_COMPUTE_SHADER, cs.str().c_str());
+    }
+
+    // Using any more than GL_MAX_COMPUTE_SHARED_MEMORY_SIZE memory is not ok
+    {
+        std::ostringstream cs;
+        cs << R"(#version 310 es
+layout (local_size_x = 1) in;
+layout (r32ui, binding = 0) writeonly uniform highp uimage2D img;
+shared uint temp[)"
+           << (maxComputeSharedMemorySize / sizeof(uint32_t) + 1) << R"(];
+void main()
+{
+    temp[gl_LocalInvocationID.x] = 0u;
+    groupMemoryBarrier();
+    barrier();
+    imageStore(img, ivec2(0), uvec4(temp[gl_LocalInvocationID.x + 1u]));
+})";
+
+        validateError(GL_COMPUTE_SHADER, cs.str().c_str(),
+                      "Shared memory size exceeds GL_MAX_COMPUTE_SHARED_MEMORY_SIZE");
+    }
+
+    // Using more than GL_MAX_COMPUTE_SHARED_MEMORY_SIZE split between multiple |shared| variables
+    // is not ok.
+    // This validation is not correctly implemented in the AST path.
+    if (getEGLWindow()->isFeatureEnabled(Feature::UseIr))
+    {
+        const GLint maxSharedUintCount     = maxComputeSharedMemorySize / sizeof(uint32_t);
+        const GLint halfMaxSharedUintCount = maxSharedUintCount / 2;
+
+        std::ostringstream cs;
+        cs << R"(#version 310 es
+layout (local_size_x = 1) in;
+layout (r32ui, binding = 0) writeonly uniform highp uimage2D img;
+shared uint temp1[)"
+           << halfMaxSharedUintCount << R"(];
+shared uint temp2[)"
+           << (maxSharedUintCount - halfMaxSharedUintCount) << R"(];
+shared uint temp3;
+void main()
+{
+    temp1[gl_LocalInvocationID.x] = temp2[gl_LocalInvocationID.x] = temp3 = 0u;
+    groupMemoryBarrier();
+    barrier();
+    imageStore(img, ivec2(0), uvec4(temp1[gl_LocalInvocationID.x + 1u] + temp2[gl_LocalInvocationID.x + 1u] + temp3));
+})";
+
+        validateError(GL_COMPUTE_SHADER, cs.str().c_str(),
+                      "Shared memory size exceeds GL_MAX_COMPUTE_SHARED_MEMORY_SIZE");
+    }
 }
 
 // Multiple work group layout qualifiers with differing values.
@@ -3415,21 +3494,19 @@ void main()
 TEST_P(GLSLValidationTest_ES3, LargeNumberOfFloat4Parameters)
 {
     std::stringstream vs;
-    // Note: SPIR-V doesn't allow more than 255 parameters to a function.
-    const unsigned int paramCount = (IsVulkan() || IsMetal()) ? 255u : 1024u;
 
     vs << R"(#version 300 es
 precision highp float;
 in vec4 a_vec;
 vec4 lotsOfVec4Parameters()";
-    for (unsigned int i = 0; i < paramCount - 1; ++i)
+    for (unsigned int i = 0; i < kMaxFunctionParameters - 1; ++i)
     {
         vs << "vec4 a" << i << ", ";
     }
     vs << R"(vec4 aLast)
 {
     vec4 sum = vec4(0.0, 0.0, 0.0, 0.0);)";
-    for (unsigned int i = 0; i < paramCount - 1; ++i)
+    for (unsigned int i = 0; i < kMaxFunctionParameters - 1; ++i)
     {
         vs << "    sum += a" << i << ";\n";
     }
@@ -3439,7 +3516,7 @@ vec4 lotsOfVec4Parameters()";
 void main()
 {
     gl_Position = lotsOfVec4Parameters()";
-    for (unsigned int i = 0; i < paramCount - 1; ++i)
+    for (unsigned int i = 0; i < kMaxFunctionParameters - 1; ++i)
     {
         vs << "a_vec, ";
     }

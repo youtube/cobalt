@@ -386,6 +386,13 @@ class MockHostResolverBase::RequestImpl
   void ChangeRequestPriority(RequestPriority priority) override {
     priority_ = priority;
   }
+
+  std::optional<ResolutionDetails> GetResolutionDetails() const override {
+    if (resolver_) {
+      return resolver_->default_resolution_details_;
+    }
+    return std::nullopt;
+  }
 };
 
 class MockHostResolverBase::ServiceEndpointRequestImpl
@@ -454,6 +461,13 @@ class MockHostResolverBase::ServiceEndpointRequestImpl
 
   void ChangeRequestPriority(RequestPriority priority) override {
     priority_ = priority;
+  }
+
+  std::optional<ResolutionDetails> GetResolutionDetails() const override {
+    if (resolver_) {
+      return resolver_->default_resolution_details_;
+    }
+    return std::nullopt;
   }
 
  private:
@@ -880,6 +894,12 @@ MockHostResolverBase::CreateMdnsListener(const HostPortPair& host,
 
 HostCache* MockHostResolverBase::GetHostCache() {
   return cache_.get();
+}
+
+void MockHostResolverBase::SetDohFallbackUpgradeAllowed(bool allowed) {
+  if (resolve_context_) {
+    resolve_context_->set_doh_fallback_upgrade_allowed(allowed);
+  }
 }
 
 bool MockHostResolverBase::IsHappyEyeballsV3Enabled() const {
@@ -1619,6 +1639,10 @@ class HangingHostResolver::RequestImpl
 
   void ChangeRequestPriority(RequestPriority priority) override {}
 
+  std::optional<ResolutionDetails> GetResolutionDetails() const override {
+    return std::nullopt;
+  }
+
  private:
   // Use a WeakPtr as the resolver may be destroyed while there are still
   // outstanding request objects.
@@ -1689,6 +1713,8 @@ HangingHostResolver::CreateDohProbeRequest() {
 
 void HangingHostResolver::SetRequestContext(
     URLRequestContext* url_request_context) {}
+
+void HangingHostResolver::SetDohFallbackUpgradeAllowed(bool allowed) {}
 
 bool HangingHostResolver::IsHappyEyeballsV3Enabled() const {
   return base::FeatureList::IsEnabled(features::kHappyEyeballsV3);

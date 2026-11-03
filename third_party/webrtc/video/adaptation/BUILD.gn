@@ -107,6 +107,7 @@ if (rtc_include_tests) {
       "../../system_wrappers",
       "../../test:create_test_environment",
       "../../test:create_test_field_trials",
+      "../../test:run_loop",
       "../../test:test_support",
       "../../test/time_controller",
       "../config:encoder_config",

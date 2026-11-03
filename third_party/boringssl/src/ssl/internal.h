@@ -1571,6 +1571,25 @@ bool ssl_check_tls13_credential_ignoring_issuer(SSL_HANDSHAKE *hs,
                                                 uint16_t *out_sigalg);
 
 
+// Client certificate type & Server certificate type.
+
+inline constexpr uint8_t kCertTypes[] = {
+    TLSEXT_cert_type_x509,
+    TLSEXT_cert_type_rpk,
+};
+inline constexpr size_t kNumCertTypes = std::size(kCertTypes);
+inline constexpr uint8_t kDefaultCertType = TLSEXT_cert_type_x509;
+
+// ssl_negotiate_client_certificate_type negotiates the client_certificate_type
+// extension, if applicable. It sets `hs->ssl->s3->client_cert_type` iff a value
+// was successfully negotiated. If a certificate request will be sent to the
+// client, a value must be negotiated. It returns true if successful, or returns
+// false and sets `*out_alert` to an alert on error.
+bool ssl_negotiate_client_certificate_type(
+    const SSL_HANDSHAKE *hs, uint8_t *out_alert,
+    const SSL_CLIENT_HELLO *client_hello);
+
+
 // Handshake functions.
 
 enum ssl_hs_wait_t {
@@ -2923,6 +2942,11 @@ struct SSL3_STATE {
   // srtp_profile is the selected SRTP protection profile for
   // DTLS-SRTP.
   const SRTP_PROTECTION_PROFILE *srtp_profile = nullptr;
+
+  // client_cert_type, if non-nullopt, is the negotiated client cert type for
+  // the connection. If this is nullopt, the peer did not send the
+  // client_certificate_type extension, or no suitable value was negotiated.
+  std::optional<uint8_t> client_cert_type;
 };
 
 // lengths of messages
@@ -3372,6 +3396,12 @@ struct SSL_CONFIG {
 
   // verify_mode is a bitmask of |SSL_VERIFY_*| values.
   uint8_t verify_mode = SSL_VERIFY_NONE;
+
+  // accepted_peer_cert_types contains a list of |TLSEXT_cert_type_*| values in
+  // preference order indicating the types of certificates to accept from the
+  // peer. This list should always be non-empty. If the caller did not configure
+  // a valid list, only X.509 certificates are accepted by default.
+  InplaceVector<uint8_t, kNumCertTypes> accepted_peer_cert_types;
 
   // ech_grease_enabled controls whether ECH GREASE may be sent in the
   // ClientHello.
@@ -4015,6 +4045,9 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   // verify_sigalgs, if not empty, is the set of signature algorithms
   // accepted from the peer in decreasing order of preference.
   bssl::Array<uint16_t> verify_sigalgs;
+
+  // accepted_peer_cert_types inherited by SSL struct.
+  bssl::InplaceVector<uint8_t, bssl::kNumCertTypes> accepted_peer_cert_types;
 
   // retain_only_sha256_of_client_certs is true if we should compute the SHA256
   // hash of the peer's certificate and then discard it to save memory and

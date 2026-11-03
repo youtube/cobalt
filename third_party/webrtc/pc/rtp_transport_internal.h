@@ -151,6 +151,8 @@ class RtpTransportInternal {
 
   virtual bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) = 0;
 
+  virtual void SetActivePayloadTypeDemuxing(bool enabled) = 0;
+
  protected:
   void SendReadyToSend(bool arg) { callback_list_ready_to_send_.Send(arg); }
   void SendRtcpPacketReceived(CopyOnWriteBuffer packet,

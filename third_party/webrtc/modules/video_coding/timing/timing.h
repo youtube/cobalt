@@ -33,27 +33,34 @@ namespace webrtc {
 class VCMTiming {
  public:
   struct VideoDelayTimings {
-    size_t num_decoded_frames;
+    static constexpr TimeDelta kDefaultRenderDelay = TimeDelta::Millis(10);
+
+    void Reset();
+    // Returns whether the low-latency path should be used, i.e., frames should
+    // be decoded and rendered as soon as possible.
+    bool UseLowLatencyRendering() const;
+
+    size_t num_decoded_frames = 0;
     // Pre-decode delay added to smooth out frame delay variation ("jitter")
     // caused by the network. The target delay will be no smaller than this
     // delay, thus it is called `minimum_delay`.
-    TimeDelta minimum_delay;
+    TimeDelta minimum_delay = TimeDelta::Zero();
     // Estimated time needed to decode a video frame. Obtained as the 95th
     // percentile decode time over a recent time window.
-    TimeDelta estimated_max_decode_time;
+    TimeDelta estimated_max_decode_time = TimeDelta::Zero();
     // Post-decode delay added to smooth out frame delay variation caused by
     // decoding and rendering. Set to a constant.
-    TimeDelta render_delay;
+    TimeDelta render_delay = kDefaultRenderDelay;
     // Minimum total delay used when determining render time for a frame.
     // Obtained from API, `playout-delay` RTP header extension, or A/V sync.
-    TimeDelta min_playout_delay;
+    TimeDelta min_playout_delay = TimeDelta::Zero();
     // Maximum total delay used when determining render time for a frame.
     // Obtained from `playout-delay` RTP header extension.
-    TimeDelta max_playout_delay;
+    TimeDelta max_playout_delay = TimeDelta::Seconds(10);
     // Target total delay. Obtained from all the elements above.
-    TimeDelta target_delay;
+    TimeDelta target_delay = TimeDelta::Zero();
     // Current total delay. Obtained by smoothening the `target_delay`.
-    TimeDelta current_delay;
+    TimeDelta current_delay = TimeDelta::Zero();
   };
 
   VCMTiming(Clock* clock, const FieldTrialsView& field_trials);
@@ -129,7 +136,6 @@ class VCMTiming {
   TimeDelta TargetDelayInternal() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   TimeDelta StatsTargetDelayInternal() const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  bool UseLowLatencyRendering() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   mutable Mutex mutex_;
   Clock* const clock_;
@@ -137,17 +143,10 @@ class VCMTiming {
       RTC_PT_GUARDED_BY(mutex_);
   std::unique_ptr<DecodeTimePercentileFilter> decode_time_filter_
       RTC_GUARDED_BY(mutex_) RTC_PT_GUARDED_BY(mutex_);
-  TimeDelta render_delay_ RTC_GUARDED_BY(mutex_);
-  // Best-effort playout delay range for frames from capture to render.
-  // The receiver tries to keep the delay between `min_playout_delay_ms_`
-  // and `max_playout_delay_ms_` taking the network jitter into account.
-  // A special case is where min_playout_delay_ms_ = max_playout_delay_ms_ = 0,
-  // in which case the receiver tries to play the frames as they arrive.
-  TimeDelta min_playout_delay_ RTC_GUARDED_BY(mutex_);
-  TimeDelta max_playout_delay_ RTC_GUARDED_BY(mutex_);
-  TimeDelta jitter_delay_ RTC_GUARDED_BY(mutex_);
-  TimeDelta current_delay_ RTC_GUARDED_BY(mutex_);
-  size_t num_decoded_frames_ RTC_GUARDED_BY(mutex_);
+
+  // Holds the current video delay timings.
+  VideoDelayTimings timings_ RTC_GUARDED_BY(mutex_);
+
   std::optional<int> max_composition_delay_in_frames_ RTC_GUARDED_BY(mutex_);
   // Set by the field trial WebRTC-ZeroPlayoutDelay. The parameter min_pacing
   // determines the minimum delay between frames scheduled for decoding that is

@@ -81,7 +81,6 @@ class MockChannelInterface : public ChannelInterface {
               SetRemoteContent,
               (const webrtc::MediaContentDescription*, SdpType),
               (override));
-  MOCK_METHOD(bool, SetPayloadTypeDemuxingEnabled, (bool), (override));
   MOCK_METHOD(const std::vector<StreamParams>&,
               local_streams,
               (),

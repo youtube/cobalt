@@ -127,16 +127,6 @@ class BaseChannel : public ChannelInterface,
                            SdpType type) override;
   RTCError SetRemoteContent(const MediaContentDescription* content,
                             SdpType type) override;
-  // Controls whether this channel will receive packets on the basis of
-  // matching payload type alone. This is needed for legacy endpoints that
-  // don't signal SSRCs or use MID/RID, but doesn't make sense if there is
-  // more than channel of specific media type, As that creates an ambiguity.
-  //
-  // This method will also remove any existing streams that were bound to this
-  // channel on the basis of payload type, since one of these streams might
-  // actually belong to a new channel. See: crbug.com/webrtc/11477
-  bool SetPayloadTypeDemuxingEnabled(bool enabled) override
-      RTC_RUN_ON(network_thread());
 
   void Enable(bool enable) override;
 
@@ -344,7 +334,6 @@ class BaseChannel : public ChannelInterface,
   // call to the worker thread, so it should be safe.
   bool enabled_ RTC_GUARDED_BY(worker_thread()) = false;
   bool enabled_s_ RTC_GUARDED_BY(signaling_thread()) = false;
-  bool payload_type_demuxing_enabled_ RTC_GUARDED_BY(network_thread()) = true;
   std::vector<StreamParams> local_streams_ RTC_GUARDED_BY(worker_thread());
   std::vector<StreamParams> remote_streams_ RTC_GUARDED_BY(worker_thread());
   RtpTransceiverDirection local_content_direction_

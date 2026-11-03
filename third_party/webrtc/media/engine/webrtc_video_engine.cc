@@ -1408,6 +1408,16 @@ RtpParameters WebRtcVideoSendChannel::GetRtpSendParameters(
   return rtp_params;
 }
 
+absl::AnyInvocable<RtpParameters(uint32_t)>
+WebRtcVideoSendChannel::GetRtpSendParametersCallback() const {
+  return [this, safety = task_safety_.flag()](
+             uint32_t ssrc) mutable -> RtpParameters {
+    if (!safety->alive())
+      return RtpParameters();
+    return GetRtpSendParameters(ssrc);
+  };
+}
+
 bool WebRtcVideoSendChannel::SetOptions(const VideoOptions& options) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   default_send_options_ = options;
@@ -1724,6 +1734,21 @@ void WebRtcVideoSendChannel::FillSendCodecStats(
           std::make_pair(it.codec.id.value(), it.codec.ToCodecParameters()));
     }
   }
+}
+
+absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
+WebRtcVideoSendChannel::GetStatsCallback() {
+  return [this, safety = task_safety_.flag()]() mutable
+             -> std::optional<VideoMediaSendInfo> {
+    if (!safety->alive()) {
+      return std::nullopt;
+    }
+    VideoMediaSendInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
 }
 
 void WebRtcVideoSendChannel::OnPacketSent(const SentPacketInfo& sent_packet) {
@@ -3118,6 +3143,11 @@ bool WebRtcVideoReceiveChannel::RemoveRecvStream(uint32_t ssrc) {
 }
 
 void WebRtcVideoReceiveChannel::ResetUnsignaledRecvStream() {
+  if (!worker_thread_->IsCurrent()) {
+    worker_thread_->PostTask(SafeTask(
+        task_safety_.flag(), [this]() { ResetUnsignaledRecvStream(); }));
+    return;
+  }
   RTC_DCHECK_RUN_ON(&thread_checker_);
   RTC_LOG(LS_INFO) << "ResetUnsignaledRecvStream.";
   unsignaled_stream_params_ = StreamParams();
@@ -3228,6 +3258,21 @@ void WebRtcVideoReceiveChannel::FillReceiveCodecStats(
           std::make_pair(codec->id, codec->ToCodecParameters()));
     }
   }
+}
+
+absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
+WebRtcVideoReceiveChannel::GetStatsCallback() {
+  return [this, safety = task_safety_.flag()]() mutable
+             -> std::optional<VideoMediaReceiveInfo> {
+    if (!safety->alive()) {
+      return std::nullopt;
+    }
+    VideoMediaReceiveInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
 }
 
 void WebRtcVideoReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {

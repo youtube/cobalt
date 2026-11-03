@@ -7,10 +7,16 @@
  * This code detects what features the CPU we are currently running on has using cpuid
  * (a built-in x86 instruction). The canonical source for the magic numbers/bits is
  * Intel® Architecture Instruction Set Extensions Programming Reference (specifically
- * 1.4 DETECTION OF FUTURE INSTRUCTIONS AND FEATURES). https://www.sandpile.org/x86/cpuid.htm
- * also visualizes this and is easier to reference.
+ * 1.4 DETECTION OF FUTURE INSTRUCTIONS AND FEATURES) and AMD64 Architecture Programmer's Manual
+ * Volume 3: General Purpose and System Programming Instructions (D.2 CPUID Feature Flags Related
+ * to Instruction Support)
+ *
+ * https://www.sandpile.org/x86/cpuid.htm also visualizes this and is easier to reference.
+ *
  * Intel® 64 and IA-32 Architectures Software Developer's Manual gives more details
- * for some of the more intricate detection of features.
+ * for some of the more intricate detection of features (e.g. AVX).
+ *
+ * See the Team Drive Skia > CPU Backend > Reference Manuals
  */
 
 #include "src/core/SkCpu.h"
@@ -30,6 +36,8 @@
 
 namespace {
 #if defined(SK_CPU_X86)
+    // Vendor String https://www.sandpile.org/x86/cpuid.htm#leaf_0000_0000h
+    constexpr uint32_t kVendorLeaf = 0;
     // Family/Model/Stepping/Feature Flags https://www.sandpile.org/x86/cpuid.htm#leaf_0000_0001h
     constexpr uint32_t kFMSFLeaf = 1;
     // Feature Flags https://www.sandpile.org/x86/cpuid.htm#leaf_0000_0007h
@@ -38,8 +46,11 @@ namespace {
 
     #if defined(_MSC_VER)
         // https://learn.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex
-        void cpu_features(uint32_t abcd[4]) { __cpuid  ((int*)abcd, kFMSFLeaf); }
+        // The output will be written to the input arrays.
+        void cpu_vendor(uint32_t abcd[4]) { __cpuid((int*)abcd, kVendorLeaf); }
+        void cpu_features(uint32_t abcd[4]) { __cpuid((int*)abcd, kFMSFLeaf); }
         void cpu_flags(uint32_t abcd[4]) { __cpuidex((int*)abcd, kFlagsLeaf, kFlagsSubleaf); }
+
         uint64_t xgetbv() {
             // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
             constexpr uint32_t xcr = 0;
@@ -51,6 +62,10 @@ namespace {
                 __asm__("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "0"(eax), "2"(ecx))
         #endif
         // https://www.felixcloutier.com/x86/cpuid
+        // The output will be written to the input arrays.
+        void cpu_vendor(uint32_t abcd[4]) {
+            __cpuid(kVendorLeaf, abcd[0], abcd[1], abcd[2], abcd[3]);
+        }
         void cpu_features(uint32_t abcd[4]) {
             __cpuid(kFMSFLeaf, abcd[0], abcd[1], abcd[2], abcd[3]);
         }
@@ -59,6 +74,7 @@ namespace {
             // we set to 0, as that's where the info we care about is).
             __cpuid_count(kFlagsLeaf, kFlagsSubleaf, abcd[0], abcd[1], abcd[2], abcd[3]);
         }
+
         uint64_t xgetbv() {
             // https://www.felixcloutier.com/x86/xgetbv
             // "Execute XGETBV with ECX = 0 to discover the value of XCR0 ...
@@ -100,9 +116,18 @@ namespace {
     constexpr uint32_t kAVX512BW   = (1u << 30); // bit_AVX512BW
     constexpr uint32_t kAVX512VL   = (1u << 31); // bit_AVX512VL
 
+    // cpuid(7,0) -> ECX
+    constexpr uint32_t kAVX512VBMI2 = (1u << 6); // bit_AVX512VBMI2
+
     // xgetbv(0) -> XCR (eXtended Control Register)
     constexpr uint64_t kXCR0_XMM_YMM_STATE = 0b00000110; // Bits 1 and 2
     constexpr uint64_t kXCR0_ZMM_STATE     = 0b11100000; // Bits 5, 6, and 7
+
+    // Combine 4 ASCII characters together in little-endian order.
+    constexpr uint32_t ASCII_LE(const char str[4]) {
+        auto a = str[0], b = str[1], c = str[2], d = str[3];
+        return (((uint32_t)d << 24) | ((uint32_t)c << 16) | ((uint32_t)b << 8) | (uint32_t)a);
+    }
 
     uint32_t read_cpu_features() {
         uint32_t features = 0;
@@ -113,13 +138,21 @@ namespace {
         #define ECX abcd[2]
         #define EDX abcd[3]
 
+        cpu_vendor(abcd);
+        // The vendor string in EBX, EDX, ECX (yes, in that order).
+        // For AMD, this is "AuthenticAMD" encoded as ASCII (little-endian)
+        // Intel happens to be "GenuineIntel" https://www.sandpile.org/x86/cpuid.htm#leaf_0000_0000h
+        const bool isAMD = (EBX == ASCII_LE("Auth")) &&
+                           (EDX == ASCII_LE("enti")) &&
+                           (ECX == ASCII_LE("cAMD"));
+
         cpu_features(abcd);
-        if (EDX & kSSE)    { features |= SkCpu:: SSE1; }
-        if (EDX & kSSE2)   { features |= SkCpu:: SSE2; }
-        if (ECX & kSSE3)   { features |= SkCpu:: SSE3; }
-        if (ECX & kSSSE3)  { features |= SkCpu::SSSE3; }
-        if (ECX & kSSE41)  { features |= SkCpu::SSE41; }
-        if (ECX & kSSE42)  { features |= SkCpu::SSE42; }
+        if (EDX & kSSE)    { features |= SkX64:: SSE1; }
+        if (EDX & kSSE2)   { features |= SkX64:: SSE2; }
+        if (ECX & kSSE3)   { features |= SkX64:: SSE3; }
+        if (ECX & kSSSE3)  { features |= SkX64::SSSE3; }
+        if (ECX & kSSE41)  { features |= SkX64::SSE41; }
+        if (ECX & kSSE42)  { features |= SkX64::SSE42; }
 
         // From Intel® 64 and IA-32 Architectures Software Developer's Manual
         // 14.3 DETECTION OF INTEL® AVX INSTRUCTIONS
@@ -133,35 +166,46 @@ namespace {
             const uint64_t xcr = xgetbv();
             if ((xcr & kXCR0_XMM_YMM_STATE) == kXCR0_XMM_YMM_STATE) {
                 // 3) Check ECX bit 28 for AVX support
-                if (ECX & kAVX)  { features |= SkCpu:: AVX; }
+                if (ECX & kAVX)  { features |= SkX64::AVX; }
                 // Now that we have AVX, we can detect other features that list it as a prereq.
-                if (ECX & kF16C) { features |= SkCpu::F16C; } // 14.4.1 Detection of F16C Instr...
-                if (ECX & kFMA)  { features |= SkCpu:: FMA; } // 14.5.3 Detection of FMA
+                if (ECX & kF16C) { features |= SkX64::F16C; } // 14.4.1 Detection of F16C Instr...
+                if (ECX & kFMA)  { features |= SkX64::FMA; } // 14.5.3 Detection of FMA
 
                 // Fill the register values with values from leaf 7.
                 cpu_flags(abcd);
-                if (EBX & kAVX2)  { features |= SkCpu::AVX2; } // 14.7.1 Detection of Intel® AVX2
+                if (EBX & kAVX2)  { features |= SkX64::AVX2; } // 14.7.1 Detection of Intel® AVX2
 
                 // These don't strictly require AVX support, but only exist on newer chips anyway.
-                if (EBX & kBMI1)  { features |= SkCpu::BMI1; }
-                if (EBX & kBMI2)  { features |= SkCpu::BMI2; }
-                if (EBX & kERMS)  { features |= SkCpu::ERMS; }
+                if (EBX & kBMI1)  { features |= SkX64::BMI1; }
+                if (EBX & kBMI2)  { features |= SkX64::BMI2; }
+                if (EBX & kERMS)  { features |= SkX64::ERMS; }
 
                 // 15.2 DETECTION OF AVX-512 FOUNDATION INSTRUCTIONS
+                // (for Intel; AMD just needs flag checks)
                 // 1) Detect we have XGETBV (which we did above).
                 // 2) Execute XGETBV and verify that XCR0[7:5] = '111b' ...
                 //    and that XCR0[2:1] = 11b' (which we did above)
                 if ((xcr & kXCR0_ZMM_STATE) == kXCR0_ZMM_STATE) {
-                    // 3) Check EBX bit 16 for AVX support
-                    if (EBX & kAVX512F)    { features |= SkCpu::AVX512F; }
-                    // ... and any other extensions.
-                    if (EBX & kAVX512DQ)   { features |= SkCpu::AVX512DQ; }
-                    if (EBX & kAVX512IFMA) { features |= SkCpu::AVX512IFMA; }
-                    if (EBX & kAVX512PF)   { features |= SkCpu::AVX512PF; }
-                    if (EBX & kAVX512ER)   { features |= SkCpu::AVX512ER; }
-                    if (EBX & kAVX512CD)   { features |= SkCpu::AVX512CD; }
-                    if (EBX & kAVX512BW)   { features |= SkCpu::AVX512BW; }
-                    if (EBX & kAVX512VL)   { features |= SkCpu::AVX512VL; }
+                    // AVX-512 can be slow on early Intel processors (like Skylake or Cascade Lake)
+                    // due to thermal throttling (see https://stackoverflow.com/a/63484551),
+                    // but works well on Ice Lake and later, and all AMD processors. We detect
+                    // AMD above, but to identify Intel with Gen 3+ AVX512 support, we look for
+                    // VBMI2 support, which was added (along with other features) in Ice Lake.
+                    // Table 16-2. Intel® AVX-512 CPUID Feature Flags Included in Intel® AVX10
+                    // has a nice table of AVX512 commands and when they were introduced.
+                    const bool isNewerIntel = (ECX & kAVX512VBMI2);
+                    if (isAMD || isNewerIntel) {
+                        // 3) Check EBX bit 16 for AVX support
+                        if (EBX & kAVX512F)    { features |= SkX64::AVX512F; }
+                        // ... and any other extensions.
+                        if (EBX & kAVX512DQ)   { features |= SkX64::AVX512DQ; }
+                        if (EBX & kAVX512IFMA) { features |= SkX64::AVX512IFMA; }
+                        if (EBX & kAVX512PF)   { features |= SkX64::AVX512PF; }
+                        if (EBX & kAVX512ER)   { features |= SkX64::AVX512ER; }
+                        if (EBX & kAVX512CD)   { features |= SkX64::AVX512CD; }
+                        if (EBX & kAVX512BW)   { features |= SkX64::AVX512BW; }
+                        if (EBX & kAVX512VL)   { features |= SkX64::AVX512VL; }
+                    }
                 }
             }
         }
@@ -172,8 +216,8 @@ namespace {
         uint32_t features = 0;
         uint64_t hwcap = getauxval(AT_HWCAP);
 
-        if (hwcap & HWCAP_LOONGARCH_LSX)  { features |= SkCpu::LOONGARCH_SX; }
-        if (hwcap & HWCAP_LOONGARCH_LASX) { features |= SkCpu::LOONGARCH_ASX; }
+        if (hwcap & HWCAP_LOONGARCH_LSX)  { features |= SkLoongArch::SX; }
+        if (hwcap & HWCAP_LOONGARCH_LASX) { features |= SkLoongArch::ASX; }
 
         return features;
     }

@@ -1471,8 +1471,7 @@ void WindowPerformance::AddFirstContentfulPaintTiming(
 
 void WindowPerformance::AddLongAnimationFrameEntry(PerformanceEntry* entry) {
   if (!IsLongAnimationFrameBufferFull()) {
-    InsertEntryIntoSortedBuffer(long_animation_frame_buffer_, *entry,
-                                kRecordSwaps);
+    InsertEntryIntoSortedBuffer(long_animation_frame_buffer_, *entry);
   }
 
   NotifyObserversOfEntry(*entry);

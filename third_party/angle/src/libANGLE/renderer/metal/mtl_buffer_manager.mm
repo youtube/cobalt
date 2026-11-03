@@ -214,8 +214,7 @@ angle::Result BufferManager::getBuffer(ContextMtl *contextMtl,
     // Create a new one
     mtl::BufferRef newBufferRef;
 
-    ANGLE_TRY(mtl::Buffer::MakeBufferWithStorageMode(contextMtl, storageMode, size, nullptr,
-                                                     &newBufferRef));
+    ANGLE_TRY(mtl::Buffer::MakeBufferWithStorageMode(contextMtl, storageMode, size, &newBufferRef));
 
     mTotalMem += size;
 
@@ -280,11 +279,11 @@ angle::Result BufferManager::queueBlitCopyDataToBuffer(ContextMtl *contextMtl,
         // copy data to buffer
         angle::Span<uint8_t> data = bufferRef->mapNoSync(contextMtl, 0, subSource.size());
         std::copy(subSource.begin(), subSource.end(), data.begin());
-        bufferRef->unmapAndFlushSubset(contextMtl, 0, subSizeToCopy);
+        bufferRef->unmapAndFlushSubset(contextMtl, 0, subSource.size());
 
         // queue blit
         mtl::BlitCommandEncoder *blitEncoder = contextMtl->getBlitCommandEncoder();
-        blitEncoder->copyBuffer(bufferRef, 0, dstMetalBuffer, offset + srcOffset, subSizeToCopy);
+        blitEncoder->copyBuffer(bufferRef, 0, dstMetalBuffer, offset + srcOffset, subSource.size());
 
         returnBuffer(contextMtl, bufferRef);
     }

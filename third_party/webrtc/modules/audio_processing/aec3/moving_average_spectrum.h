@@ -25,16 +25,20 @@ class MovingAverageSpectrum {
   MovingAverageSpectrum(size_t num_elem, size_t mem_len);
   ~MovingAverageSpectrum();
 
-  // Computes the average of input and mem_len-1 previous inputs and stores the
-  // result in output.
+  // Computes the average of the current input and up to mem_len-1 previous
+  // inputs and stores the result in output.
   void Average(std::span<const float> input, std::span<float> output);
+
+  // If a new memory length is provided, resets the state and clears the
+  // average memory to use the new window size.
+  void UpdateMemoryLength(size_t mem_len);
 
  private:
   const size_t num_elem_;
-  const size_t mem_len_;
-  const float scaling_;
+  size_t mem_len_;
   std::vector<float> memory_;
   size_t mem_index_;
+  int number_updates_;
 };
 
 }  // namespace webrtc

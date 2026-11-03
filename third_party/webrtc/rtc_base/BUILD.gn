@@ -759,6 +759,7 @@ if (rtc_include_tests) {
       "../api/task_queue",
       "../api/task_queue:task_queue_test",
       "../api/units:time_delta",
+      "../test:run_loop",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
@@ -1128,6 +1129,7 @@ if (rtc_include_tests) {
     deps = [
       ":socket",
       ":socket_address",
+      "../test:run_loop",
       "../test:test_support",
     ]
   }
@@ -1416,6 +1418,7 @@ if (rtc_include_tests) {
       ":async_packet_socket",
       ":socket",
       ":socket_address",
+      "../test:run_loop",
       "../test:test_support",
       "network:received_packet",
     ]
@@ -1436,6 +1439,7 @@ if (rtc_include_tests) {
       "../api/units:timestamp",
       "../system_wrappers",
       "../test:create_test_environment",
+      "../test:run_loop",
       "../test:test_support",
       "network:received_packet",
       "//third_party/abseil-cpp/absl/memory",
@@ -1451,6 +1455,7 @@ if (rtc_include_tests) {
       ":rtc_base_tests_utils",
       ":socket",
       "../test:create_test_environment",
+      "../test:run_loop",
       "../test:test_support",
     ]
   }
@@ -1966,6 +1971,7 @@ if (rtc_include_tests) {
     sources = [ "untyped_function_unittest.cc" ]
     deps = [
       ":untyped_function",
+      "../test:run_loop",
       "../test:test_support",
     ]
   }
@@ -1982,6 +1988,7 @@ if (rtc_include_tests) {
       "../api:rtc_error_matchers",
       "../api:scoped_refptr",
       "../api/units:time_delta",
+      "../test:run_loop",
       "../test:test_support",
       "../test:wait_until",
     ]
@@ -2154,6 +2161,7 @@ if (rtc_include_tests) {
         "../system_wrappers",
         "../test:create_test_environment",
         "../test:fileutils",
+        "../test:run_loop",
         "../test:test_support",
         "../test/time_controller",
         "containers:flat_map",
@@ -2186,6 +2194,7 @@ if (rtc_include_tests) {
         ":timeutils",
         "../api/task_queue",
         "../api/units:time_delta",
+        "../test:run_loop",
         "../test:test_support",
         "//third_party/abseil-cpp/absl/memory",
       ]
@@ -2200,6 +2209,7 @@ if (rtc_include_tests) {
         ":rtc_event",
         ":task_queue_for_test",
         ":weak_ptr",
+        "../test:run_loop",
         "../test:test_support",
       ]
     }
@@ -2224,6 +2234,7 @@ if (rtc_include_tests) {
         ":timeutils",
         ":windowed_min_filter",
         "../api/units:time_delta",
+        "../test:run_loop",
         "../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/algorithm:container",
@@ -2237,6 +2248,7 @@ if (rtc_include_tests) {
       deps = [
         ":rtc_base_tests_utils",
         ":rtc_json",
+        "../test:run_loop",
         "../test:test_support",
       ]
     }

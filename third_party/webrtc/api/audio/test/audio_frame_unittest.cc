@@ -66,7 +66,7 @@ TEST(AudioFrameTest, FrameStartsZeroedAndMuted) {
   EXPECT_TRUE(AllSamplesAre(0, frame));
 }
 
-// TODO: b/335805780 - Delete test when `mutable_data()` returns ArrayView.
+// TODO: b/335805780 - Delete test when `mutable_data()` returns std::span.
 TEST(AudioFrameTest, UnmutedFrameIsInitiallyZeroedLegacy) {
   AudioFrame frame(kSampleRateHz, kNumChannelsMono, CHANNEL_LAYOUT_NONE);
   frame.mutable_data();

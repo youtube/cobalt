@@ -27,6 +27,7 @@
 namespace blink {
 
 class CanvasContextCreationAttributesCore;
+class DOMMatrix;
 class ImageBitmap;
 class ImageEncodeOptions;
 class
@@ -34,6 +35,7 @@ class
 typedef OffscreenCanvasRenderingContext2DOrWebGLRenderingContextOrWebGL2RenderingContextOrImageBitmapRenderingContextOrGPUCanvasContext
     OffscreenRenderingContext;
 class ScriptState;
+class V8UnionElementOrElementImage;
 
 class CORE_EXPORT OffscreenCanvas final
     : public EventTarget,
@@ -67,8 +69,15 @@ class CORE_EXPORT OffscreenCanvas final
                                     const ImageEncodeOptions* options,
                                     ExceptionState& exception_state);
 
+  DOMMatrix* getElementTransform(const V8UnionElementOrElementImage* element,
+                                 DOMMatrix* draw_transform,
+                                 ExceptionState&);
+
   void SetSize(gfx::Size);
   void RecordTransfer();
+
+  static OffscreenCanvas* FromPlaceholderId(ExecutionContext* context,
+                                            DOMNodeId canvas_id);
 
   void SetPlaceholderCanvasId(DOMNodeId canvas_id);
   void DeregisterFromAnimationFrameProvider();

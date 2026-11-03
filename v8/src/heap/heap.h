@@ -654,7 +654,7 @@ class Heap final {
   V8_INLINE uint64_t external_memory() const;
   V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
-  uint64_t UpdateExternalMemory(int64_t delta);
+  V8_EXPORT_PRIVATE uint64_t UpdateExternalMemory(int64_t delta);
 
   uint64_t backing_store_bytes() const;
 
@@ -992,11 +992,8 @@ class Heap final {
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
   V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GarbageCollectionReason gc_reason);
-
-  // Reports and external memory pressure event, either performs a major GC or
-  // completes incremental marking in order to free external resources.
-  void HandleExternalMemoryInterrupt();
+      LocalHeap* local_heap, AllocationSpace space,
+      GarbageCollectionReason gc_reason);
 
   using GetExternallyAllocatedMemoryInBytesCallback =
       v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback;
@@ -1935,17 +1932,6 @@ class Heap final {
   // ===========================================================================
   // GC statistics. ============================================================
   // ===========================================================================
-
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
-    uint64_t bytes = OldGenerationConsumedBytes();
-    if (!v8_flags.external_memory_accounted_in_global_limit) {
-      // TODO(chromium:42203776): When not accounting external memory properly
-      // in the global limit, just add allocated external bytes towards the
-      // regular old gen bytes. This is historic behavior.
-      bytes += AllocatedExternalMemorySinceMarkCompact();
-    }
-    return bytes;
-  }
 
   V8_EXPORT_PRIVATE size_t OldGenerationSpaceAvailable();
   V8_EXPORT_PRIVATE size_t GlobalSpaceAvailable();

@@ -37,6 +37,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/storage_access_api/status.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/worker_main_script_load_parameters.h"
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/devtools_agent.mojom-blink.h"
@@ -96,8 +97,9 @@ WebSharedWorkerImpl::~WebSharedWorkerImpl() {
 
 void WebSharedWorkerImpl::TerminateWorkerThread() {
   DCHECK(IsMainThread());
-  if (asked_to_terminate_)
+  if (asked_to_terminate_) {
     return;
+  }
   asked_to_terminate_ = true;
   pending_channels_.clear();
   worker_thread_->Terminate();
@@ -163,8 +165,9 @@ void WebSharedWorkerImpl::DidTerminateWorkerThread() {
 void WebSharedWorkerImpl::Connect(int connection_request_id,
                                   MessagePortDescriptor port) {
   DCHECK(IsMainThread());
-  if (asked_to_terminate_)
+  if (asked_to_terminate_) {
     return;
+  }
 
   blink::MessagePortChannel channel(std::move(port));
   if (running_) {
@@ -190,8 +193,9 @@ void WebSharedWorkerImpl::ConnectToChannel(int connection_request_id,
 
 void WebSharedWorkerImpl::DispatchPendingConnections() {
   DCHECK(IsMainThread());
-  for (auto& item : pending_channels_)
+  for (auto& item : pending_channels_) {
     ConnectToChannel(item.first, std::move(item.second));
+  }
   pending_channels_.clear();
 }
 
@@ -235,7 +239,10 @@ void WebSharedWorkerImpl::StartWorkerContext(
     bool is_cross_origin_isolated) {
   DCHECK(IsMainThread());
   DCHECK(web_worker_fetch_context);
-  CHECK(constructor_origin.Get()->CanAccessSharedWorkers());
+  CHECK(constructor_origin.Get()->CanAccessSharedWorkers() ||
+        (script_request_url.ProtocolIs("data") &&
+         base::FeatureList::IsEnabled(
+             blink::features::kDataUrlWorkerOpaqueOrigin)));
 
   // Creates 'outside settings' used in the "Processing model" algorithm in the
   // HTML spec:
@@ -288,6 +295,7 @@ void WebSharedWorkerImpl::StartWorkerContext(
       ukm_source_id,
       /*parent_context_token=*/std::nullopt, is_cross_origin_isolated,
       /*parent_is_isolated_context=*/false,
+      /*direct_sockets_force_enabled_in_parent=*/false,
       /*interface_registry=*/nullptr,
       /*agent_group_scheduler_compositor_task_runner=*/nullptr,
       /*top_level_frame_security_origin=*/nullptr,

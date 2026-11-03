@@ -574,7 +574,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Based on number of transceivers per media type, enabled or disable
   // payload type based demuxing in the affected channels.
-  bool UpdatePayloadTypeDemuxingState(
+  void UpdatePayloadTypeDemuxingState(
       ContentSource source,
       const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid);
 

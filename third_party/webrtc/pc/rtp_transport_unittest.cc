@@ -32,7 +32,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -240,7 +239,7 @@ TEST(RtpTransportTest, SetRtcpTransportWithNetworkRouteChanged) {
 TEST(RtpTransportTest, RtcpPacketSentOverCorrectTransport) {
   // If the RTCP-mux is not enabled, RTCP packets are expected to be sent over
   // the RtcpPacketTransport.
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   FakePacketTransport fake_rtcp("fake_rtcp");
   FakePacketTransport fake_rtp("fake_rtp");
@@ -291,7 +290,7 @@ TEST(RtpTransportTest, ChangingReadyToSendStateOnlySignalsWhenChanged) {
 }
 
 TEST(RtpTransportTest, RegisterAndUnregisterRtpHeaderExtensionMap) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   RtpHeaderExtensions extensions1 = {
       RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
@@ -394,7 +393,7 @@ TEST(RtpTransportTest, VerifyRtpHeaderExtensionMapRejectsIdReassignment) {
 // Test that SignalPacketReceived fires with rtcp=true when a RTCP packet is
 // received.
 TEST(RtpTransportTest, SignalDemuxedRtcp) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
@@ -418,7 +417,7 @@ const int kRtpLen = 12;
 // Test that SignalPacketReceived fires with rtcp=false when a RTP packet with a
 // handled payload type is received.
 TEST(RtpTransportTest, SignalHandledRtpPayloadType) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
@@ -443,7 +442,7 @@ TEST(RtpTransportTest, SignalHandledRtpPayloadType) {
 }
 
 TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   // Setup FakePacketTransport to send packets to itself.
   FakePacketTransport fake_rtp("fake_rtp");
@@ -468,7 +467,7 @@ TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
 }
 
 TEST(RtpTransportTest, RtcpSentAsEct1IfReceivedRtpPacketAsEct1) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   // Setup FakePacketTransport to send packets to itself.
   FakePacketTransport fake_rtp("fake_rtp");
@@ -504,7 +503,7 @@ TEST(RtpTransportTest, RtcpSentAsEct1IfReceivedRtpPacketAsEct1) {
 // Test that SignalPacketReceived does not fire when a RTP packet with an
 // unhandled payload type is received.
 TEST(RtpTransportTest, DontSignalUnhandledRtpPayloadType) {
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
   FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
@@ -530,7 +529,7 @@ TEST(RtpTransportTest, DontSignalUnhandledRtpPayloadType) {
 
 TEST(RtpTransportTest, DontChangeReadyToSendStateOnSendFailure) {
   // ReadyToSendState should only care about if transport is writable.
-  AutoThread thread;
+  test::RunLoop thread;
   RtpTransport transport(kMuxEnabled, CreateTestFieldTrials());
   TransportObserver observer(&transport);
 

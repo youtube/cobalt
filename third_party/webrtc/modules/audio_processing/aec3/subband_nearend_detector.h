@@ -41,12 +41,15 @@ class SubbandNearendDetector : public NearendDetector {
           comfort_noise_spectrum,
       bool initial_state) override;
 
+  // Sets the configuration.
+  void SetConfig(const EchoCanceller3Config::Suppressor& config) override;
+
  private:
-  const EchoCanceller3Config::Suppressor::SubbandNearendDetection config_;
+  EchoCanceller3Config::Suppressor::SubbandNearendDetection config_;
   const size_t num_capture_channels_;
   std::vector<MovingAverageSpectrum> nearend_smoothers_;
-  const float one_over_subband_length1_;
-  const float one_over_subband_length2_;
+  float one_over_subband_length1_;
+  float one_over_subband_length2_;
   bool nearend_state_ = false;
 };
 

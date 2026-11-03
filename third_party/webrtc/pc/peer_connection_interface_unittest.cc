@@ -92,6 +92,7 @@
 #include "rtc_base/weak_ptr.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 #ifdef WEBRTC_ANDROID
@@ -1290,7 +1291,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   SocketServer* socket_server() const { return vss_.get(); }
 
   std::unique_ptr<VirtualSocketServer> vss_;
-  AutoSocketServerThread main_;
+  test::RunLoop main_;
   std::unique_ptr<Thread> network_thread_;
   std::unique_ptr<Thread> worker_thread_;
   scoped_refptr<FakeAudioCaptureModule> fake_audio_capture_module_;
@@ -3978,6 +3979,7 @@ class PeerConnectionMediaConfigTest : public ::testing::Test {
 
   std::unique_ptr<Thread> network_thread_;
   std::unique_ptr<Thread> worker_thread_;
+  test::RunLoop signaling_thread_;
   scoped_refptr<PeerConnectionFactoryForTest> pcf_;
   MockPeerConnectionObserver observer_;
 };

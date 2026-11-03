@@ -59,6 +59,7 @@ rtc_library("unittests") {
     ":fifo_buffer",
     "..:stream",
     "..:threading",
+    "../../test:run_loop",
     "../../test:test_support",
   ]
 }

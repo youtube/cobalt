@@ -9978,6 +9978,49 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
   return {};
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIndexOfIncludes(
+    CallArguments& args, bool is_includes) {
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  ValueNode* search_element =
+      args.count() > 0 ? args[0]
+                       : GetRootConstant(RootIndex::kundefined_string);
+  RETURN_IF_ABORT(BuildCheckString(search_element));
+
+  ValueNode* start = args.count() > 1 ? args[1] : GetInt32Constant(0);
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  // min(max(start, 0), receiver_length)
+  ValueNode* max_value;
+  GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(max_value, receiver_length));
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result, AddNewNode<StringIndexOf>(
+                                 {receiver, search_element, clamped_start}));
+
+  if (is_includes) {
+    return AddNewNode<Int32Compare>({result, GetInt32Constant(0)},
+                                    Operation::kGreaterThanOrEqual);
+  } else {
+    return result;
+  }
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIndexOf(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceStringPrototypeIndexOfIncludes(args, false);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIncludes(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceStringPrototypeIndexOfIncludes(args, true);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -12037,12 +12080,45 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   GET_VALUE_OR_ABORT(tagged_receiver, GetTaggedValue(receiver));
   ValueNode* tagged_new_target;
   GET_VALUE(tagged_new_target, GetTaggedValue(new_target));
+
+#if V8_ENABLE_WEBASSEMBLY
+  // When calling a JS-to-Wasm wrapper and Turbolev Wasm inlining is enabled,
+  // wrap all arguments with ProcessWasmArgument. This identity node carries
+  // an eager deopt frame state (the pre-call checkpoint) so that when the
+  // wrapper is later inlined by Turbolev, the conversion builtins can never
+  // lazily-deoptimize with a JSReceiver triggering valueOf
+  // (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
+  // signature); the reducer only uses the frame state for numeric params.
+  bool wrap_args_for_wasm = false;
+  if (is_turbolev() && v8_flags.turbolev_inline_js_wasm_wrappers &&
+      !shared.HasBuiltinId()) {
+    // The SharedFunctionInfo of a Wasm exported function does not carry a
+    // builtin ID, so the check above filters out regular JS builtins.
+    // However, the Code installed in the dispatch table can be either:
+    //  - The generic kJSToWasmWrapper builtin (used before a per-signature
+    //    wrapper has been compiled), or
+    //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
+    // We detect both cases by inspecting the Code object directly.
+    Tagged<Code> code =
+        local_isolate_->js_dispatch_table().GetCode(dispatch_handle);
+    wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
+                         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   return AddNewNode<CallKnownJSFunction>(
       input_count,
       [&](CallKnownJSFunction* call) {
         for (int i = 0; i < static_cast<int>(args.count()); i++) {
           ValueNode* tagged_arg;
           GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(args[i]));
+#if V8_ENABLE_WEBASSEMBLY
+          if (wrap_args_for_wasm) {
+            // Note that this might untag the argument.
+            GET_VALUE_OR_ABORT(tagged_arg,
+                               AddNewNode<ProcessWasmArgument>({tagged_arg}));
+          }
+#endif  // V8_ENABLE_WEBASSEMBLY
           call->set_arg(i, tagged_arg);
         }
         return ReduceResult::Done();

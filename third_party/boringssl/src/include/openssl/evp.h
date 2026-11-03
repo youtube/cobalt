@@ -61,11 +61,9 @@ OPENSSL_EXPORT int EVP_PKEY_up_ref(EVP_PKEY *pkey);
 // an error to attempt to duplicate, export, or compare an opaque key.
 OPENSSL_EXPORT int EVP_PKEY_is_opaque(const EVP_PKEY *pkey);
 
-// EVP_PKEY_cmp compares |a| and |b| and returns one if their public keys are
+// EVP_PKEY_eq compares |a| and |b| and returns one if their public keys are
 // equal and zero otherwise.
-//
-// WARNING: this differs from the traditional return value of a "cmp" function.
-OPENSSL_EXPORT int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
+OPENSSL_EXPORT int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
 
 // EVP_PKEY_copy_parameters sets the parameters of |to| to equal the parameters
 // of |from|. It returns one on success and zero on error.
@@ -75,13 +73,10 @@ OPENSSL_EXPORT int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
 // parameters or zero if not, or if the algorithm doesn't take parameters.
 OPENSSL_EXPORT int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
 
-// EVP_PKEY_cmp_parameters compares the parameters of |a| and |b|. It returns
-// one if they match and zero otherwise. In algorithms that do not use
-// parameters, this function returns one; null parameters are vacuously equal.
-//
-// WARNING: this differs from the traditional return value of a "cmp" function.
-OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,
-                                           const EVP_PKEY *b);
+// EVP_PKEY_parameters_eq compares the parameters of |a| and |b|. It returns one
+// if they match and zero otherwise. In algorithms that do not use parameters,
+// this function returns one; null parameters are vacuously equal.
+OPENSSL_EXPORT int EVP_PKEY_parameters_eq(const EVP_PKEY *a, const EVP_PKEY *b);
 
 // EVP_PKEY_size returns the maximum size, in bytes, of a signature signed by
 // |pkey|. For an RSA key, this returns the number of bytes needed to represent
@@ -917,7 +912,8 @@ OPENSSL_EXPORT int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **out_pkey);
 
 // EVP_PKEY_encapsulate_init initialises an |EVP_PKEY_CTX| for an encapsulate
 // operation. It should be called before |EVP_PKEY_encapsulate|. |params| is
-// included for OpenSSL compatibility, but this parameter should be NULL.
+// included for OpenSSL compatibility, but this parameter should be NULL or have
+// |OSSL_PARAM_END| as its first element.
 //
 // It returns one on success or zero on error.
 OPENSSL_EXPORT int EVP_PKEY_encapsulate_init(EVP_PKEY_CTX *ctx,
@@ -949,7 +945,8 @@ OPENSSL_EXPORT int EVP_PKEY_encapsulate(EVP_PKEY_CTX *ctx,
 
 // EVP_PKEY_decapsulate_init initialises an |EVP_PKEY_CTX| for a decapsulate
 // operation. It should be called before |EVP_PKEY_decapsulate|. |params| is
-// included for OpenSSL compatibility, but this parameter should be NULL.
+// included for OpenSSL compatibility, but this parameter should be NULL or have
+// |OSSL_PARAM_END| as its first element.
 //
 // It returns one on success or zero on error.
 OPENSSL_EXPORT int EVP_PKEY_decapsulate_init(EVP_PKEY_CTX *ctx,
@@ -1226,22 +1223,28 @@ OPENSSL_EXPORT void OpenSSL_add_all_digests(void);
 // EVP_cleanup does nothing.
 OPENSSL_EXPORT void EVP_cleanup(void);
 
+// EVP_default_properties_is_fips_enabled calls |FIPS_mode|.
+OPENSSL_EXPORT int EVP_default_properties_is_fips_enabled(OSSL_LIB_CTX *libctx);
+
 OPENSSL_EXPORT void EVP_CIPHER_do_all_sorted(
     void (*callback)(const EVP_CIPHER *cipher, const char *name,
                      const char *unused, void *arg),
     void *arg);
 
-OPENSSL_EXPORT void EVP_MD_do_all_sorted(void (*callback)(const EVP_MD *cipher,
+OPENSSL_EXPORT void EVP_MD_do_all_sorted(void (*callback)(const EVP_MD *md,
                                                           const char *name,
                                                           const char *unused,
                                                           void *arg),
                                          void *arg);
 
-OPENSSL_EXPORT void EVP_MD_do_all(void (*callback)(const EVP_MD *cipher,
+OPENSSL_EXPORT void EVP_MD_do_all(void (*callback)(const EVP_MD *md,
                                                    const char *name,
                                                    const char *unused,
                                                    void *arg),
                                   void *arg);
+
+OPENSSL_EXPORT void EVP_MD_do_all_provided(
+    OSSL_LIB_CTX *libctx, void (*callback)(EVP_MD *md, void *arg), void *arg);
 
 // i2d_PrivateKey marshals a private key from |key| to type-specific format, as
 // described in |i2d_SAMPLE|.
@@ -1445,6 +1448,19 @@ OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *unused,
 OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
                                                      const uint8_t *in,
                                                      size_t len);
+
+// EVP_PKEY_cmp calls |EVP_PKEY_eq|. It returns one if public keys are equal and
+// zero otherwise.
+//
+// WARNING: This differs from the traditional return value of a "cmp" function.
+OPENSSL_EXPORT int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
+
+// EVP_PKEY_cmp_parameters calls |EVP_PKEY_parameters_eq|. It returns one if
+// parameters are equal and zero otherwise.
+//
+// WARNING: This differs from the traditional return value of a "cmp" function.
+OPENSSL_EXPORT int EVP_PKEY_cmp_parameters(const EVP_PKEY *a,
+                                           const EVP_PKEY *b);
 
 
 // Preprocessor compatibility section (hidden).

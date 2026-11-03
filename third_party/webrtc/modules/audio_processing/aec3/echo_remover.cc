@@ -184,6 +184,8 @@ class EchoRemoverImpl final : public EchoRemover {
  private:
   static std::atomic<int> instance_count_;
   const EchoCanceller3Config config_;
+  const std::optional<EchoCanceller3Config::Suppressor>
+      ml_ree_suppressor_config_;
   const Aec3Fft fft_;
   std::unique_ptr<ApmDataDumper> data_dumper_;
   const Aec3Optimization optimization_;
@@ -206,6 +208,7 @@ class EchoRemoverImpl final : public EchoRemover {
   size_t block_counter_ = 0;
   int gain_change_hangover_ = 0;
   bool refined_filter_output_last_selected_ = true;
+  bool ml_ree_was_active_ = false;
 
   std::vector<std::array<float, kFftLengthBy2>> e_heap_;
   std::vector<std::array<float, kFftLengthBy2Plus1>> Y2_heap_;
@@ -230,6 +233,11 @@ EchoRemoverImpl::EchoRemoverImpl(
     size_t num_capture_channels,
     NeuralResidualEchoEstimator* neural_residual_echo_estimator)
     : config_(config),
+      ml_ree_suppressor_config_(
+          neural_residual_echo_estimator
+              ? std::make_optional(neural_residual_echo_estimator->AdjustConfig(
+                    config.suppressor))
+              : std::nullopt),
       fft_(),
       data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
       optimization_(DetectOptimization()),
@@ -416,9 +424,11 @@ void EchoRemoverImpl::ProcessCapture(
   subtractor_.Process(*render_buffer, *y, render_signal_analyzer_, aec_state_,
                       subtractor_output);
 
+  const bool ml_ree_is_active = residual_echo_estimator_.IsMlReeActive();
+
   // Compute spectra.
   bool use_refined_output;
-  if (use_coarse_filter_output_) {
+  if (use_coarse_filter_output_ && !ml_ree_is_active) {
     use_refined_output = false;
     for (size_t ch = 0; ch < num_capture_channels_; ++ch) {
       if (UseRefinedOutput(subtractor_output[ch])) {
@@ -499,9 +509,20 @@ void EchoRemoverImpl::ProcessCapture(
     const bool clock_drift = config_.echo_removal_control.has_clock_drift ||
                              echo_path_variability.clock_drift;
 
+    // Select the active suppressor configuration.
+    const EchoCanceller3Config::Suppressor& active_suppressor_config =
+        (ml_ree_is_active && ml_ree_suppressor_config_.has_value())
+            ? *ml_ree_suppressor_config_
+            : config_.suppressor;
+
+    // Determine if the configuration affecting the suppressor has changed.
+    const bool config_changed = (ml_ree_is_active != ml_ree_was_active_);
+    ml_ree_was_active_ = ml_ree_is_active;
+
     // Compute preferred gains.
     float high_bands_gain;
-    suppression_gain_.GetGain(nearend_spectrum, echo_spectrum, R2, R2_unbounded,
+    suppression_gain_.GetGain(active_suppressor_config, config_changed,
+                              nearend_spectrum, echo_spectrum, R2, R2_unbounded,
                               cng_.NoiseSpectrum(), render_signal_analyzer_,
                               aec_state_, x, clock_drift, &high_bands_gain, &G);
 

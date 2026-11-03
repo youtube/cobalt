@@ -14,11 +14,11 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/ip_address.h"
@@ -212,9 +212,9 @@ constexpr uint8_t kRtcpPacket[] = {
   0x00, 0x03, 0x73, 0x50,
 };
 
-const ArrayView<const uint8_t> kZeroLenView(kStunMessageWithZeroLength);
-const ArrayView<const uint8_t> kExcessLenView(kStunMessageWithExcessLength);
-const ArrayView<const uint8_t> kSmallLenView(kStunMessageWithSmallLength);
+const std::span<const uint8_t> kZeroLenView(kStunMessageWithZeroLength);
+const std::span<const uint8_t> kExcessLenView(kStunMessageWithExcessLength);
+const std::span<const uint8_t> kSmallLenView(kStunMessageWithSmallLength);
 
 
 // RFC5769 Test Vectors
@@ -546,7 +546,7 @@ class StunTest : public ::testing::Test {
   size_t ReadStunMessageTestCase(StunMessage* msg,
                                  const uint8_t* testcase,
                                  size_t size) {
-    ByteBufferReader buf(MakeArrayView(testcase, size));
+    ByteBufferReader buf(std::span(testcase, size));
     if (msg->Read(&buf)) {
       // Returns the size the stun message should report itself as being
       return (size - 20);
@@ -1133,7 +1133,7 @@ TEST_F(StunTest, WriteMessageWithAUInt16ListAttribute) {
 // Test that we fail to read messages with invalid lengths.
 void CheckFailureToRead(const uint8_t* testcase, size_t length) {
   StunMessage msg;
-  ByteBufferReader buf(MakeArrayView(testcase, length));
+  ByteBufferReader buf(std::span(testcase, length));
   ASSERT_FALSE(msg.Read(&buf));
 }
 

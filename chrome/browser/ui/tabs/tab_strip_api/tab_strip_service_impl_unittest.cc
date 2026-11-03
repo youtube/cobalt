@@ -287,5 +287,85 @@ TEST_F(TabStripServiceImplTest, MoveTab_OutOfRange) {
   ASSERT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
 }
 
+TEST_F(TabStripServiceImplTest, CloseNodes_TabGroup) {
+  auto group_id = tab_groups::TabGroupId::GenerateNew();
+  auto group_handle = tab_strip_->AddGroup(group_id, {});
+  NodeId group_node = NodeId::FromTabCollectionHandle(group_handle);
+
+  tab_strip_->AddTab({tabs::TabHandle(1), GURL("1"), false, false, group_id});
+  tab_strip_->AddTab({tabs::TabHandle(2), GURL("2"), false, false, group_id});
+  tab_strip_->AddTab({tabs::TabHandle(3), GURL("3")});
+
+  ASSERT_EQ(3ul, tab_strip_->GetTabs().size());
+
+  auto result = service_->CloseNodes({group_node});
+
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(1ul, tab_strip_->GetTabs().size());
+  ASSERT_EQ(3, tab_strip_->GetTabs()[0].raw_value());
+}
+
+TEST_F(TabStripServiceImplTest, CloseNodes_Mixed) {
+  auto group_id = tab_groups::TabGroupId::GenerateNew();
+  auto group_handle = tab_strip_->AddGroup(group_id, {});
+  NodeId group_node = NodeId::FromTabCollectionHandle(group_handle);
+
+  tab_strip_->AddTab({tabs::TabHandle(1), GURL("1"), false, false, group_id});
+  tab_strip_->AddTab({tabs::TabHandle(2), GURL("2"), false, false, group_id});
+  tab_strip_->AddTab({tabs::TabHandle(3), GURL("3")});
+  tab_strip_->AddTab({tabs::TabHandle(4), GURL("4")});
+
+  ASSERT_EQ(4ul, tab_strip_->GetTabs().size());
+
+  NodeId tab1_node(NodeId::Type::kContent, "1");
+  NodeId tab3_node(NodeId::Type::kContent, "3");
+
+  // Close group (containing tab 1 and 2) AND tab 1 (redundant) AND tab 3.
+  auto result = service_->CloseNodes({group_node, tab1_node, tab3_node});
+
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(1ul, tab_strip_->GetTabs().size());
+  ASSERT_EQ(4, tab_strip_->GetTabs()[0].raw_value());
+}
+
+TEST_F(TabStripServiceImplTest, UpdateTabGroup) {
+  tab_groups::TabGroupVisualData initial_visuals(
+      u"group", tab_groups::TabGroupColorId::kGrey);
+  auto group_handle = tab_strip_->AddGroup(initial_visuals);
+  NodeId group_node = NodeId::FromTabCollectionHandle(group_handle);
+
+  mojom::TabGroupPtr tab_group_mojom = mojom::TabGroup::New();
+  tab_group_mojom->id = group_node;
+  tab_group_mojom->data = tab_groups::TabGroupVisualData(
+      u"super duper group", tab_groups::TabGroupColorId::kBlue);
+
+  auto data = mojom::Data::NewTabGroup(std::move(tab_group_mojom));
+
+  auto result = service_->Update(std::move(data));
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value()->is_tab_group());
+  ASSERT_EQ(result.value()->get_tab_group()->data.title(),
+            u"super duper group");
+  ASSERT_EQ(result.value()->get_tab_group()->data.color(),
+            tab_groups::TabGroupColorId::kBlue);
+
+  const auto* updated_visuals = tab_strip_->GetGroupVisualData(group_handle);
+  ASSERT_NE(nullptr, updated_visuals);
+  ASSERT_EQ(u"super duper group", updated_visuals->title());
+  ASSERT_EQ(tab_groups::TabGroupColorId::kBlue, updated_visuals->color());
+}
+
+TEST_F(TabStripServiceImplTest, Update_Unimplemented) {
+  tabs_api::NodeId tab_id(NodeId::Type::kContent, "123");
+  mojom::TabPtr tab_mojom = mojom::Tab::New();
+  tab_mojom->id = tab_id;
+
+  auto data = mojom::Data::NewTab(std::move(tab_mojom));
+  auto result = service_->Update(std::move(data));
+
+  ASSERT_FALSE(result.has_value());
+  ASSERT_EQ(result.error()->code, mojo_base::mojom::Code::kUnimplemented);
+}
+
 }  // namespace
 }  // namespace tabs_api

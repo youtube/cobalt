@@ -114,7 +114,7 @@
 #include "chrome/browser/download/android/insecure_download_dialog_bridge.h"
 #include "chrome/browser/download/android/new_navigation_observer.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
-#include "chrome/browser/ui/android/pdf/pdf_jni_headers/PdfUtils_jni.h"
+#include "chrome/browser/ui/android/pdf/pdf_jni_headers/PdfUtils_jni.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "components/download/public/common/download_task_runner.h"
@@ -130,6 +130,7 @@
 #include "chrome/browser/download/download_item_web_app_data.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/actor.mojom-shared.h"
 #endif
@@ -144,13 +145,13 @@
 #endif
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
-#include "chrome/browser/offline_pages/offline_page_utils.h"
-#include "components/offline_pages/core/client_namespace_constants.h"
+#include "chrome/browser/offline_pages/offline_page_utils.h"  // nogncheck crbug.com/40147906
+#include "components/offline_pages/core/client_namespace_constants.h"  // nogncheck crbug.com/40147906
 #endif
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
-#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
-#include "components/enterprise/obfuscation/core/download_obfuscator.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"  // nogncheck crbug.com/40147906
+#include "components/enterprise/obfuscation/core/download_obfuscator.h"  // nogncheck crbug.com/40147906
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -168,9 +169,9 @@
 #include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
 
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-#include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
-#include "components/enterprise/connectors/core/reporting_constants.h"
-#include "components/enterprise/connectors/core/reporting_event_router.h"
+#include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"  // nogncheck crbug.com/40147906
+#include "components/enterprise/connectors/core/reporting_constants.h"  // nogncheck crbug.com/40147906
+#include "components/enterprise/connectors/core/reporting_event_router.h"  // nogncheck crbug.com/40147906
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 #endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 
@@ -2295,13 +2296,13 @@ void ChromeDownloadManagerDelegate::AttachExtraInfo(
     download::DownloadItem* item) {
   content::WebContents* web_contents =
       content::DownloadItemUtils::GetWebContents(item);
-  Browser* browser =
+  BrowserWindowInterface* browser =
       web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
   // Attach the info for whether the download came from a web app.
   if (browser && web_app::AppBrowserController::IsWebApp(browser) &&
-      browser->app_controller()) {
+      web_app::AppBrowserController::From(browser)) {
     DownloadItemWebAppData::CreateAndAttachToItem(
-        item, browser->app_controller()->app_id());
+        item, web_app::AppBrowserController::From(browser)->app_id());
   }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)

@@ -314,19 +314,6 @@ TextureInfo Caps::getDefaultStorageTextureInfo(SkColorType colorType) const {
                                        Discardable::kNo);
 }
 
-const Caps::ColorTypeInfo* Caps::getColorTypeInfo(SkColorType ct, const TextureInfo& info) const {
-    if (!info.isValid()) {
-        return nullptr;
-    }
-
-    for (const ColorTypeInfo& colorInfo : this->getColorTypeInfos(info)) {
-        if (colorInfo.fColorType == ct) {
-            return &colorInfo;
-        }
-    }
-    return nullptr;
-}
-
 SampleCount Caps::getCompatibleMSAASampleCount(const TextureInfo& info) const {
     if (info.sampleCount() > SampleCount::k1) {
         // Use the inherent sample count since it's already MSAA
@@ -348,24 +335,6 @@ SampleCount Caps::getCompatibleMSAASampleCount(const TextureInfo& info) const {
     // If we got here, MSAA has been disabled somehow (by ContextOption, driver workaround, or
     // no support for a particular TextureFormat).
     return SampleCount::k1;
-}
-
-std::pair<SkColorType, bool /*isRGBFormat*/> Caps::supportedTransferColorType(
-        SkColorType colorType,
-        const TextureInfo& textureInfo) const {
-    // NOTE: Compressed textures can't be read back, and external format textures can't be read or
-    // written to. However, this is not checked here. Instead that is expected to be handled by
-    // supports[Read|Write]Pixels().
-    const ColorTypeInfo* colorInfo = this->getColorTypeInfo(colorType, textureInfo);
-    if (colorInfo) {
-        const TextureFormat format = TextureInfoPriv::ViewFormat(textureInfo);
-        const bool rgbRequiresIntervention =
-                TextureFormatChannelMask(format) == kRGB_SkColorChannelFlags &&
-                colorInfo->fTransferColorType != kRGB_565_SkColorType;
-        return {colorInfo->fTransferColorType, rgbRequiresIntervention};
-    } else {
-        return {kUnknown_SkColorType, false};
-    }
 }
 
 DstReadStrategy Caps::getDstReadStrategy() const {

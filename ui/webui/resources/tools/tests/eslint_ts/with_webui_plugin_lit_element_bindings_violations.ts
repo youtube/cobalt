@@ -4,6 +4,8 @@
 
 // Test file for @webui-eslint/lit-element-incorrect-interface
 
+import './with_webui_plugin_lit_element_bindings_violations_child.js';
+
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getHtml} from './with_webui_plugin_lit_element_bindings_violations.html.js';
@@ -29,7 +31,6 @@ export class LitElementBindingsViolationsElement extends CrLitElement {
       limits: {type: Object},
       label: {type: String},
       errorMessage: {type: String},
-      someBooleanProp: {type: Boolean},
       someArrayProp: {type: Array},
     };
   }
@@ -39,9 +40,8 @@ export class LitElementBindingsViolationsElement extends CrLitElement {
   accessor value: number[] = [0];
   accessor errorMessage: string = '';
   accessor label: string = 'hello world';
-  // Intentionally mismatching Lit reactive properties type.
-  accessor someBooleanProp: boolean|number = false;
   accessor someArrayProp: string = '';
+  trustedHtml: TrustedHTML = window.trustedTypes!.emptyHTML;
 
   getErrorMessage(): string {
     return 'some error';

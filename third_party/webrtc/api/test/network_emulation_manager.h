@@ -15,13 +15,13 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/test/network_emulation/cross_traffic.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
@@ -346,14 +346,14 @@ class NetworkEmulationManager {
   // `stats_callback`. Callback will be executed on network emulation
   // internal task queue.
   virtual void GetStats(
-      ArrayView<EmulatedEndpoint* const> endpoints,
+      std::span<EmulatedEndpoint* const> endpoints,
       std::function<void(EmulatedNetworkStats)> stats_callback) = 0;
 
   // Passes combined network stats for all specified `nodes` into specified
   // `stats_callback`. Callback will be executed on network emulation
   // internal task queue.
   virtual void GetStats(
-      ArrayView<EmulatedNetworkNode* const> nodes,
+      std::span<EmulatedNetworkNode* const> nodes,
       std::function<void(EmulatedNetworkNodeStats)> stats_callback) = 0;
 
   // Create a EmulatedTURNServer.

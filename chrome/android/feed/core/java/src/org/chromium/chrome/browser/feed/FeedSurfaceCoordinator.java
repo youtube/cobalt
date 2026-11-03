@@ -173,6 +173,7 @@ public class FeedSurfaceCoordinator
     private @Nullable NtpBackgroundImageCoordinator mNtpBackgroundImageCoordinator;
     private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
     private RecyclerView.@Nullable ItemDecoration mItemDecoration;
+    private RecyclerView.@Nullable OnScrollListener mOnScrollListener;
 
     /** Provides the additional capabilities needed for the container view. */
     private class RootView extends FrameLayout {
@@ -715,9 +716,21 @@ public class FeedSurfaceCoordinator
     @Override
     @SuppressWarnings("NullAway")
     public void destroy() {
+        // Untracks first to stop global interactions immediately.
+        FeedSurfaceTracker.getInstance().untrackSurface(this);
+
+        // Removes observers that capture 'this' or 'mRootView'.
+        mTabStripHeightSupplier.removeObserver(mTabStripHeightChangeCallback);
+
+        // Stops animations and UI listeners.
         mRecyclerView.setItemAnimator(null);
         if (mItemDecoration != null) {
             mRecyclerView.removeItemDecoration(mItemDecoration);
+            mItemDecoration = null;
+        }
+        if (mOnScrollListener != null) {
+            mRecyclerView.removeOnScrollListener(mOnScrollListener);
+            mOnScrollListener = null;
         }
 
         if (mSwipeRefreshLayout != null) {
@@ -729,20 +742,30 @@ public class FeedSurfaceCoordinator
             mSwipeRefreshLayout.disableSwipe();
             mSwipeRefreshLayout = null;
         }
-        stopBubbleTriggering();
-        if (mFeedSurfaceLifecycleManager != null) mFeedSurfaceLifecycleManager.destroy();
-        mFeedSurfaceLifecycleManager = null;
-        stopScrollTracking();
 
-        // Destroy mediator after all other related controller/processors are destroyed.
-        mMediator.destroy();
+        // Stops logic and observers.
+        stopBubbleTriggering(); // Already calls stopScrollTracking().
 
-        FeedSurfaceTracker.getInstance().untrackSurface(this);
+        if (mFeedSurfaceLifecycleManager != null) {
+            mFeedSurfaceLifecycleManager.destroy();
+            mFeedSurfaceLifecycleManager = null;
+        }
+
+        // Destroys Mediator (unbinds streams).
+        if (mMediator != null) {
+            mMediator.destroy();
+            mMediator = null;
+        }
+
+        // Unbinds Renderer and clean up UI hierarchy.
         if (mHybridListRenderer != null) {
             mHybridListRenderer.unbind();
+            mHybridListRenderer = null;
         }
+
         mRootView.removeAllViews();
-        mTabStripHeightSupplier.removeObserver(mTabStripHeightChangeCallback);
+
+        // Final cleanups of remaining components.
         if (mEdgePadAdjuster != null) {
             mEdgePadAdjuster.destroy();
         }
@@ -750,14 +773,23 @@ public class FeedSurfaceCoordinator
         if (mNtpCustomizationConfigManager != null) {
             mNtpCustomizationConfigManager.removeListener(mHomepageStateListener);
             mHomepageStateListener = null;
+            mNtpCustomizationConfigManager = null;
         }
+
         if (mNtpBackgroundImageCoordinator != null) {
             mNtpBackgroundImageCoordinator.destroy();
+            mNtpBackgroundImageCoordinator = null;
         }
 
         mFeedStreamViewResizer.destroy();
-
+        mUiConfig.destroy();
         mActionDelegate.destroy();
+
+        // Null remaining objects.
+        mReliabilityLogger = null;
+        mSurfaceScope = null;
+        mDependencyProvider = null;
+        mRecyclerViewSnapshotOverlay = null;
     }
 
     /**
@@ -987,7 +1019,8 @@ public class FeedSurfaceCoordinator
         }
         // Always add the TracingAndPerfScrollListener so debugging traces and metrics continue
         // to work.
-        view.addOnScrollListener(new TracingAndPerfScrollListener());
+        mOnScrollListener = new TracingAndPerfScrollListener();
+        view.addOnScrollListener(mOnScrollListener);
         return view;
     }
 

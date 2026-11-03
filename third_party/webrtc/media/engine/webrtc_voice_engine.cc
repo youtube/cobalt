@@ -1861,6 +1861,21 @@ bool WebRtcVoiceSendChannel::GetStats(VoiceMediaSendInfo* info) {
   return true;
 }
 
+absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
+WebRtcVoiceSendChannel::GetStatsCallback() {
+  return [this, safety = task_safety_.flag()]() mutable
+             -> std::optional<VoiceMediaSendInfo> {
+    if (!safety->alive()) {
+      return std::nullopt;
+    }
+    VoiceMediaSendInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
+}
+
 bool WebRtcVoiceSendChannel::SenderNackEnabled() const {
   RTC_DCHECK_RUN_ON(worker_thread_);
   if (!send_codec_spec_) {
@@ -1923,6 +1938,16 @@ RtpParameters WebRtcVoiceSendChannel::GetRtpSendParameters(
     rtp_params.codecs.push_back(codec.ToCodecParameters());
   }
   return rtp_params;
+}
+
+absl::AnyInvocable<RtpParameters(uint32_t)>
+WebRtcVoiceSendChannel::GetRtpSendParametersCallback() const {
+  return [this, safety = task_safety_.flag()](
+             uint32_t ssrc) mutable -> RtpParameters {
+    if (!safety->alive())
+      return RtpParameters();
+    return GetRtpSendParameters(ssrc);
+  };
 }
 
 RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
@@ -2470,6 +2495,11 @@ bool WebRtcVoiceReceiveChannel::RemoveRecvStream(uint32_t ssrc) {
 }
 
 void WebRtcVoiceReceiveChannel::ResetUnsignaledRecvStream() {
+  if (!worker_thread_->IsCurrent()) {
+    worker_thread_->PostTask(SafeTask(
+        task_safety_.flag(), [this]() { ResetUnsignaledRecvStream(); }));
+    return;
+  }
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_LOG(LS_INFO) << "ResetUnsignaledRecvStream.";
   unsignaled_stream_params_ = StreamParams();
@@ -2777,6 +2807,22 @@ void WebRtcVoiceReceiveChannel::FillReceiveCodecStats(
           std::make_pair(codec->id.value(), codec->ToCodecParameters()));
     }
   }
+}
+
+absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
+WebRtcVoiceReceiveChannel::GetStatsCallback(bool get_and_clear_legacy_stats) {
+  return
+      [this, get_and_clear_legacy_stats, safety = task_safety_.flag()]() mutable
+          -> std::optional<VoiceMediaReceiveInfo> {
+        if (!safety->alive()) {
+          return std::nullopt;
+        }
+        VoiceMediaReceiveInfo info;
+        if (GetStats(&info, get_and_clear_legacy_stats)) {
+          return info;
+        }
+        return std::nullopt;
+      };
 }
 
 void WebRtcVoiceReceiveChannel::SetRawAudioSink(

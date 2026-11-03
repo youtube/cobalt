@@ -46,7 +46,7 @@ extern "C" {
 #define TLS1_AD_UNKNOWN_PSK_IDENTITY 115
 #define TLS1_AD_CERTIFICATE_REQUIRED 116
 #define TLS1_AD_NO_APPLICATION_PROTOCOL 120
-#define TLS1_AD_ECH_REQUIRED 121  // draft-ietf-tls-esni-13
+#define TLS1_AD_ECH_REQUIRED 121
 
 // ExtensionType values from RFC 6066
 #define TLSEXT_TYPE_server_name 0
@@ -63,6 +63,10 @@ extern "C" {
 
 // ExtensionType value from RFC 7301
 #define TLSEXT_TYPE_application_layer_protocol_negotiation 16
+
+// ExtensionType values from RFC 7250
+#define TLSEXT_TYPE_client_cert_type 19
+#define TLSEXT_TYPE_server_cert_type 20
 
 // ExtensionType value from RFC 7685
 #define TLSEXT_TYPE_padding 21
@@ -114,8 +118,7 @@ extern "C" {
 #define TLSEXT_TYPE_application_settings_old 17513
 #define TLSEXT_TYPE_application_settings 17613
 
-// ExtensionType values from draft-ietf-tls-esni-13. This is not an IANA defined
-// extension number.
+// ExtensionType values from RFC 9849.
 #define TLSEXT_TYPE_encrypted_client_hello 0xfe0d
 #define TLSEXT_TYPE_ech_outer_extensions 0xfd00
 

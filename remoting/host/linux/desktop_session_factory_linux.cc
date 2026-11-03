@@ -175,8 +175,7 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::
         const RemoteDisplaySessionManager::RemoteDisplaySession& info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!info.session_info.has_value() || !info.user_info.has_value() ||
-      info.environment_variables.empty()) {
+  if (!info.session_info.has_value() || !info.user_info.has_value()) {
     // Session is not ready yet, or is detached. Kill the desktop process if
     // it is running.
     launcher_.reset();
@@ -218,7 +217,6 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::
   options.uid = info.user_info->uid;
   options.gid = info.user_info->gid;
   options.working_dir = info.user_info->home_dir;
-  options.environment_variables = info.environment_variables;
 
   // Launch the desktop process. If there is a desktop process running for the
   // previous desktop session, this will kill it.
@@ -431,8 +429,7 @@ DesktopSessionFactoryLinux::CreateDesktopSession(
         << "There are more than one remote display session for the remote "
         << "display " << display_name;
     for (const auto& [path, session] : info->sessions) {
-      if (session.session_info.has_value() && session.user_info.has_value() &&
-          !session.environment_variables.empty()) {
+      if (session.session_info.has_value() && session.user_info.has_value()) {
         desktop_session->OnRemoteDisplaySessionChanged(session);
         break;
       }
@@ -486,6 +483,30 @@ void DesktopSessionFactoryLinux::TerminateAllSessions(Callback callback) {
     remote_display_session_manager_.TerminateRemoteDisplay(display_name,
                                                            barrier);
   }
+}
+
+DesktopSession* DesktopSessionFactoryLinux::GetSessionByUid(uid_t uid) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  for (const auto& [display_name, session] : desktop_sessions_) {
+    if (!session) {
+      continue;
+    }
+    const auto* info =
+        remote_display_session_manager_.GetRemoteDisplayInfo(display_name);
+    if (!info) {
+      LOG(WARNING) << "  Cannot find remote display info for display name: "
+                   << display_name;
+      continue;
+    }
+    for (const auto& [path, remote_session] : info->sessions) {
+      if (remote_session.user_info.has_value() &&
+          remote_session.user_info->uid == uid) {
+        return session.get();
+      }
+    }
+  }
+  return nullptr;
 }
 
 void DesktopSessionFactoryLinux::OnStartResult(

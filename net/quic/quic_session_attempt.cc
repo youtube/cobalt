@@ -61,6 +61,7 @@ QuicSessionAttempt::QuicSessionAttempt(
     int cert_verify_flags,
     base::TimeTicks dns_resolution_start_time,
     base::TimeTicks dns_resolution_end_time,
+    std::optional<ResolutionDetails> resolution_details,
     bool retry_on_alternate_network_before_handshake,
     bool use_dns_aliases,
     std::set<std::string> dns_aliases,
@@ -75,6 +76,7 @@ QuicSessionAttempt::QuicSessionAttempt(
       cert_verify_flags_(cert_verify_flags),
       dns_resolution_start_time_(dns_resolution_start_time),
       dns_resolution_end_time_(dns_resolution_end_time),
+      resolution_details_(std::move(resolution_details)),
       was_alternative_service_recently_broken_(
           pool()->WasQuicRecentlyBroken(key().session_key())),
       retry_on_alternate_network_before_handshake_(
@@ -201,14 +203,14 @@ int QuicSessionAttempt::DoCreateSession() {
                          weak_ptr_factory_.GetWeakPtr()),
           key(), quic_version_, cert_verify_flags_, require_confirmation,
           ip_endpoint_, metadata_, dns_resolution_start_time_,
-          dns_resolution_end_time_, net_log(), network_,
+          dns_resolution_end_time_, resolution_details_, net_log(), network_,
           session_creation_initiator_, connection_management_config_);
     }
     rv = pool()->CreateSessionSync(
         key(), quic_version_, cert_verify_flags_, require_confirmation,
         ip_endpoint_, metadata_, dns_resolution_start_time_,
-        dns_resolution_end_time_, net_log(), &session_, &network_,
-        session_creation_initiator_, connection_management_config_);
+        dns_resolution_end_time_, resolution_details_, net_log(), &session_,
+        &network_, session_creation_initiator_, connection_management_config_);
 
     DVLOG(1) << "Created session on network: " << network_;
   }
@@ -353,8 +355,28 @@ int QuicSessionAttempt::DoConfirmConnection(int rv) {
     return rv;
   }
 
-  // There may well now be an active session for this IP.  If so, use the
-  // existing session instead.
+  // If another request pooled to an existing session and activated our key
+  // while we were connecting (e.g., while waiting for async cert verification),
+  // this attempt is redundant.
+  if (pool()->HasActiveSession(key().session_key())) {
+    // Retrieve the active session that was created in the background.
+    QuicChromiumClientSession* existing_session =
+        pool()->FindExistingSession(key().session_key(), key().destination());
+    CHECK(existing_session);
+
+    session_->connection()->CloseConnection(
+        quic::QUIC_CONNECTION_CANCELLED,
+        "An active session already exists for the session key.",
+        quic::ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    session_ = existing_session;
+    return OK;
+  }
+
+  // There may well now be an active session for this IP. The check above only
+  // covers exact session key matches (e.g. same-origin races). We still need
+  // to check for cross-origin IP pooling. If there is an active session for
+  // this IP with a matching certificate, use the existing session instead of
+  // establishing a new one.
   if (QuicChromiumClientSession* matching_session =
           pool()->HasMatchingIpSession(
               key(), {ToIPEndPoint(session_->connection()->peer_address())},

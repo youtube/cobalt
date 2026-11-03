@@ -116,9 +116,7 @@ void VulkanCaps::init(const ContextOptions& contextOptions,
     this->setDeviceName(deviceProperties.fBase.properties.deviceName);
 #endif
 
-    // Graphite requires Vulkan version 1.1 or later, which always has protected support. The
-    // protectedMemory feature is assumed enabled if isProtected is true.
-    if (isProtected == Protected::kYes) {
+    if (isProtected == Protected::kYes && enabledFeatures.fProtectedMemory) {
         fProtectedSupport = true;
         fShouldAlwaysUseDedicatedImageMemory = true;
     }
@@ -442,6 +440,12 @@ VulkanCaps::EnabledFeatures VulkanCaps::getEnabledFeatures(
                             const VkPhysicalDeviceRGBA10X6FormatsFeaturesEXT*>(pNext);
                     enabled.fFormatRGBA10x6WithoutYCbCrSampler =
                             feature->formatRgba10x6WithoutYCbCrSampler;
+                    break;
+                }
+                case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES: {
+                    const auto *feature = reinterpret_cast<
+                            const VkPhysicalDeviceProtectedMemoryFeatures*>(pNext);
+                    enabled.fProtectedMemory = feature->protectedMemory;
                     break;
                 }
                 default:
@@ -1955,36 +1959,9 @@ const VulkanCaps::DepthStencilFormatInfo& VulkanCaps::getDepthStencilFormatInfo(
     return kInvalidFormat;
 }
 
-SkSpan<const Caps::ColorTypeInfo> VulkanCaps::getColorTypeInfos(
-            const TextureInfo& textureInfo) const {
-    const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(textureInfo);
-    VkFormat vkFormat = vkInfo.fFormat;
-    if (vkFormat == VK_FORMAT_UNDEFINED) {
-        // If VkFormat is undefined but there is a valid YCbCr conversion associated with the
-        // texture, then we know we are using an external format and can return color type
-        // info representative of external format color information.
-        static const ColorTypeInfo kExternalColorTypeInfos[2] = {
-                {/*ct=*/kRGBA_8888_SkColorType,
-                 /*transferCt=*/kUnknown_SkColorType,
-                 /*flags=*/0,
-                 /*readSwizzle=*/Swizzle::RGBA(),
-                 /*writeSwizzle=*/{}},
-                {/*ct=*/kRGB_888x_SkColorType,
-                 /*transferCt=*/kUnknown_SkColorType,
-                 /*flags=*/0,
-                 /*readSwizzle=*/Swizzle::RGB1(),
-                 /*writeSwizzle=*/{}}};
-        return vkInfo.fYcbcrConversionInfo.isValid() ? SkSpan(kExternalColorTypeInfos, 2)
-                                                     : SkSpan<const ColorTypeInfo>();
-    }
-
-    const FormatInfo& formatInfo = this->getFormatInfo(vkFormat);
-    return {formatInfo.fColorTypeInfos.get(), formatInfo.fColorTypeInfoCount};
-}
-
 // 4 uint32s for the render step id, paint id, compatible render pass description, and write
 // swizzle.
-static constexpr int kPipelineKeyData32Count = 4;
+static constexpr uint16_t kPipelineKeyData32Count = 4;
 
 static constexpr int kPipelineKeyRenderStepIDIndex = 0;
 static constexpr int kPipelineKeyPaintParamsIDIndex = 1;
@@ -2070,15 +2047,15 @@ void VulkanCaps::buildKeyForTexture(SkISize dimensions,
     SkASSERT(vkInfo.fAspectMask                 < (1u << 11)); // aspectMask is bits 8 - 19
 
     // We need two uint32_ts for dimensions and 3 for miscellaneous information.
-    static constexpr int kNum32DimensionDataCnt = 2;
-    static constexpr int kNum32MiscDataCnt = 3;
+    static constexpr uint16_t kNum32DimensionDataCnt = 2;
+    static constexpr uint16_t kNum32MiscDataCnt = 3;
     // Non-YCbCr formats need 1 int for format.
     // YCbCr conversion needs 1 int for non-format flags, and a 64-bit format (external or regular).
-    static constexpr int kNum32FormatDataCntNoYcbcr = 1;
-    static constexpr int kNum32FormatDataCntYcbcr = 3;
+    static constexpr uint16_t kNum32FormatDataCntNoYcbcr = 1;
+    static constexpr uint16_t kNum32FormatDataCntYcbcr = 3;
 
     const VulkanYcbcrConversionInfo& ycbcrInfo = vkInfo.fYcbcrConversionInfo;
-    const int num32DataCnt =
+    const uint16_t num32DataCnt =
             kNum32DimensionDataCnt + kNum32MiscDataCnt +
             (ycbcrInfo.isValid() ? kNum32FormatDataCntYcbcr : kNum32FormatDataCntNoYcbcr);
 

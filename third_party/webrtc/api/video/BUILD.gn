@@ -27,7 +27,6 @@ rtc_library("video_rtp_headers") {
   ]
 
   deps = [
-    "..:array_view",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:safe_conversions",
@@ -61,7 +60,6 @@ rtc_library("video_frame") {
 
   deps = [
     ":video_rtp_headers",
-    "..:array_view",
     "..:make_ref_counted",
     "..:ref_count",
     "..:rtp_packet_info",
@@ -117,7 +115,6 @@ rtc_source_set("recordable_encoded_frame") {
     ":encoded_image",
     ":video_frame",
     ":video_rtp_headers",
-    "..:array_view",
     "..:make_ref_counted",
     "..:scoped_refptr",
     "../units:timestamp",
@@ -206,7 +203,6 @@ rtc_library("rtp_video_frame_assembler") {
     ":encoded_image",
     ":video_frame_type",
     ":video_rtp_headers",
-    "..:array_view",
     "..:rtp_packet_info",
     "..:scoped_refptr",
     "../../modules/rtp_rtcp",
@@ -231,7 +227,6 @@ rtc_library("rtp_video_frame_assembler_unittests") {
     ":rtp_video_frame_assembler",
     ":video_frame",
     ":video_frame_type",
-    "..:array_view",
     "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_packetizer_av1_test_helper",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
@@ -253,7 +248,6 @@ if (rtc_use_h265) {
       ":rtp_video_frame_assembler",
       ":video_frame",
       ":video_frame_type",
-      "..:array_view",
       "../../modules/rtp_rtcp",
       "../../modules/rtp_rtcp:rtp_rtcp_format",
       "../../modules/rtp_rtcp:rtp_video_header",
@@ -363,7 +357,6 @@ rtc_library("video_frame_metadata") {
     ":video_frame",
     ":video_frame_type",
     ":video_rtp_headers",
-    "..:array_view",
     "../../modules/video_coding:codec_globals_headers",
     "../../rtc_base/system:rtc_export",
     "../transport/rtp:dependency_descriptor",
@@ -400,7 +393,6 @@ rtc_library("frame_buffer") {
     "frame_buffer.h",
   ]
   deps = [
-    "..:array_view",
     "../../api:field_trials_view",
     "../../api/units:timestamp",
     "../../api/video:encoded_frame",

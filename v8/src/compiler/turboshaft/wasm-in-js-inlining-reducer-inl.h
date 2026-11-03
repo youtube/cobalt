@@ -43,17 +43,58 @@ class WasmInJSInliningReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmInJSInlining)
   const bool has_wasm_in_js_inlining_reducer = true;
 
+  // Strip ProcessWasmArgumentOp, returning just the unwrapped value so the op
+  // never survives to the instruction selector. The eager frame state is
+  // recovered by REDUCE_INPUT_GRAPH(Call) which has direct access to the input
+  // graph CallOp and its arguments.
+  V<Object> REDUCE(ProcessWasmArgument)(V<Object> value,
+                                        V<turboshaft::FrameState> frame_state) {
+    // TODO(493307329): It would be cleaner to let the ProcessWasmArgument
+    // actually perform the argument conversion, and get rid of the weird logic
+    // in REDUCE_INPUT_GRAPH(Call). The ProcessWasmArgument should lower to the
+    // actual argument conversion (the FromJS() logic) and then the reducer for
+    // the call wouldn't do the argument conversion, but only the result
+    // conversion.
+    return value;
+  }
+
+  // Intercept the input-graph CallOp to find ProcessWasmArgumentOp arguments
+  // and extract the eager frame state (crbug.com/493307329). This runs before
+  // inputs are mapped, so we can inspect the input graph directly.
+  // The stash is consumed by REDUCE(Call) within the same invocation chain,
+  // so no interleaving or multi-call confusion is possible.
+  OpIndex REDUCE_INPUT_GRAPH(Call)(OpIndex ig_index, const CallOp& op) {
+    DCHECK(!pending_eager_frame_state_.has_value());
+    if (op.descriptor->js_wasm_call_parameters) {
+      for (OpIndex arg : op.arguments()) {
+        if (__ input_graph().Get(arg).template Is<ProcessWasmArgumentOp>()) {
+          pending_eager_frame_state_ =
+              __ MapToNewGraph(__ input_graph()
+                                   .Get(arg)
+                                   .template Cast<ProcessWasmArgumentOp>()
+                                   .frame_state());
+          break;
+        }
+      }
+    }
+    return Next::ReduceInputGraphCall(ig_index, op);
+  }
+
   V<Any> REDUCE(Call)(V<CallTarget> callee,
                       OptionalV<turboshaft::FrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
+    // Consume the eager frame state stashed by REDUCE_INPUT_GRAPH(Call).
+    OptionalV<turboshaft::FrameState> eager_frame_state =
+        pending_eager_frame_state_;
+    pending_eager_frame_state_ = {};
+
     LABEL_BLOCK(non_inlined_call) {
       return Next::ReduceCall(callee, frame_state, arguments, descriptor,
                               effects);
     }
 
     if (!descriptor->js_wasm_call_parameters) {
-      // Regular call, nothing to do with Wasm or inlining. Proceed untouched...
       goto non_inlined_call;
     }
 
@@ -97,7 +138,8 @@ class WasmInJSInliningReducer : public Next {
           native_module, func_idx, arguments, js_closure, js_context,
           descriptor->js_wasm_call_parameters->receiver_is_first_param(),
           frame_state.value(), descriptor->lazy_deopt_on_throw,
-          descriptor->js_wasm_call_parameters->shared_fct_info());
+          descriptor->js_wasm_call_parameters->shared_fct_info(),
+          eager_frame_state);
       if (result.valid()) {
         return result;
       } else {
@@ -129,13 +171,19 @@ class WasmInJSInliningReducer : public Next {
   }
 
  private:
+  // Eager frame state set by REDUCE_INPUT_GRAPH(Call), consumed by the
+  // immediately following REDUCE(Call) within the same ReduceInputGraphCall
+  // invocation (crbug.com/493307329).
+  OptionalV<turboshaft::FrameState> pending_eager_frame_state_;
+
   V<Any> TryInlineJSWasmCallWrapperAndBody(
       wasm::NativeModule* native_module, uint32_t func_idx,
       base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
       V<Context> js_context, bool receiver_is_first_param,
-      V<turboshaft::FrameState> frame_state,
+      V<turboshaft::FrameState> outer_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-      SharedFunctionInfoRef shared_function_info);
+      SharedFunctionInfoRef shared_function_info,
+      OptionalV<turboshaft::FrameState> eager_frame_state);
 
   V<turboshaft::FrameState> CreateWasmInlinedIntoJSFrameState(
       V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
@@ -169,18 +217,30 @@ using wasm::TagIndexImmediate;
 using wasm::ValueType;
 using wasm::WasmOpcode;
 
+namespace detail {
+
+struct Value : public wasm::ValueBase<wasm::Decoder::NoValidationTag> {
+  V<Any> op = V<Any>::Invalid();
+
+  template <typename T>
+  V<T> get() const {
+    return V<T>::Cast(op);
+  }
+
+  template <typename... Args>
+  explicit Value(Args&&... args) V8_NOEXCEPT
+      : ValueBase(std::forward<Args>(args)...) {}
+};
+
+}  // namespace detail
+
 template <class Assembler>
 class WasmInJsInliningInterface {
  public:
   using ValidationTag = wasm::Decoder::NoValidationTag;
   using FullDecoder =
       wasm::WasmFullDecoder<ValidationTag, WasmInJsInliningInterface>;
-  struct Value : public wasm::ValueBase<ValidationTag> {
-    V<Any> op = V<Any>::Invalid();
-    template <typename... Args>
-    explicit Value(Args&&... args) V8_NOEXCEPT
-        : ValueBase(std::forward<Args>(args)...) {}
-  };
+  using Value = detail::Value;
   // TODO(dlehmann,353475584): Introduce a proper `Control` struct/class, once
   // we want to support control-flow in the inlinee.
   using Control = wasm::ControlBase<Value, ValidationTag>;
@@ -263,6 +323,11 @@ class WasmInJsInliningInterface {
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
     result->op = BinOpImpl(decoder, opcode, lhs.op, rhs.op);
+  }
+
+  void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
+               const Value& rhs_val, Value* result_low, Value* result_high) {
+    Bailout(decoder);
   }
 
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
@@ -973,7 +1038,7 @@ class WasmInJsInliningInterface {
   }
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
-        V<WasmArrayNullable>::Cast(array_obj.op), frame_state_,
+        array_obj.get<WasmArrayNullable>(), frame_state_,
         array_obj.type.is_nullable() ? compiler::kWithNullCheck
                                      : compiler::kWithoutNullCheck);
   }
@@ -1377,7 +1442,8 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
     V<Context> js_context, bool receiver_is_first_param,
     V<turboshaft::FrameState> outer_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-    SharedFunctionInfoRef shared_function_info) {
+    SharedFunctionInfoRef shared_function_info,
+    OptionalV<turboshaft::FrameState> eager_frame_state) {
   const wasm::WasmModule* module = native_module->module();
   DCHECK_LT(func_idx, module->functions.size());
   const wasm::WasmFunction& func = module->functions[func_idx];
@@ -1413,9 +1479,16 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
   using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<assembler_t>;
   GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
                        inlined_function_data);
-  return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
-                                          js_context, arguments, frame_state,
-                                          lazy_deopt_on_throw);
+  // When inlining into JS, pass the eager frame state (a pre-call Maglev
+  // checkpoint) so that we can eagerly deopt if a numeric parameter is a
+  // JSReceiver (crbug.com/493307329). JSReceivers could trigger user JS via
+  // valueOf/Symbol.toPrimitive in the conversion builtins, which could cause
+  // lazy deoptimizations, for which we would not have a proper frame state.
+  // By eagerly deopting on JSReceivers first, the conversion builtins only
+  // see primitives and can safely run without a frame state.
+  return builder.BuildJSToWasmWrapperImpl(
+      receiver_is_first_param, js_closure, js_context, arguments, frame_state,
+      lazy_deopt_on_throw, eager_frame_state);
 }
 
 template <class Next>

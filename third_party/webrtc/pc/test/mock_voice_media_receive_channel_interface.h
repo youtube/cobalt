@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio_options.h"
 #include "api/call/audio_sink.h"
 #include "api/crypto/frame_decryptor_interface.h"
@@ -73,6 +74,10 @@ class MockVoiceMediaReceiveChannelInterface
   MOCK_METHOD(bool,
               GetStats,
               (webrtc::VoiceMediaReceiveInfo * stats, bool reset_legacy),
+              (override));
+  MOCK_METHOD(absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>,
+              GetStatsCallback,
+              (bool reset_legacy),
               (override));
   MOCK_METHOD(::webrtc::RtcpMode, RtcpMode, (), (const, override));
   MOCK_METHOD(void, SetRtcpMode, (::webrtc::RtcpMode mode), (override));

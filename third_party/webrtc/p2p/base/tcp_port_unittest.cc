@@ -34,10 +34,10 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 using ::testing::Eq;
@@ -105,7 +105,7 @@ class TCPPortTest : public ::testing::Test {
                                          int port_number = 0) {
     auto port = std::unique_ptr<TCPPort>(
         TCPPort::Create({.env = env_,
-                         .network_thread = &main_,
+                         .network_thread = main_.task_queue(),
                          .socket_factory = &socket_factory_,
                          .network = MakeNetwork(addr),
                          .ice_username_fragment = username_,
@@ -118,7 +118,7 @@ class TCPPortTest : public ::testing::Test {
   std::unique_ptr<TCPPort> CreateTCPPort(const webrtc::Network* network) {
     auto port = std::unique_ptr<TCPPort>(
         TCPPort::Create({.env = env_,
-                         .network_thread = &main_,
+                         .network_thread = main_.task_queue(),
                          .socket_factory = &socket_factory_,
                          .network = network,
                          .ice_username_fragment = username_,
@@ -135,7 +135,7 @@ class TCPPortTest : public ::testing::Test {
   // vector so that when it grows, pointers aren't invalidated.
   std::list<webrtc::Network> networks_;
   std::unique_ptr<webrtc::VirtualSocketServer> ss_;
-  webrtc::AutoSocketServerThread main_;
+  webrtc::test::RunLoop main_;
   webrtc::BasicPacketSocketFactory socket_factory_;
   std::string username_;
   std::string password_;
@@ -431,7 +431,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
                         {.timeout = webrtc::TimeDelta::Millis(kTimeout)}),
       webrtc::IsRtcOk());
   // Wait a bit for the Stun response to be received.
-  webrtc::Thread::Current()->ProcessMessages(100);
+  main_.RunFor(webrtc::TimeDelta::Millis(100));
 
   // After the Stun Ping response has been received, packets can be sent again
   // and SignalSentPacket should be invoked.

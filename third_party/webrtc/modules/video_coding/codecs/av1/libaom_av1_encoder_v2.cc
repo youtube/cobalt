@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -24,7 +25,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/cleanup/cleanup.h"
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
@@ -374,9 +374,9 @@ aom_svc_ref_frame_config_t GetSvcRefFrameConfig(
                                                         1, 2, 4, 5};
 
   aom_svc_ref_frame_config_t ref_frame_config = {};
-  ArrayView<int> ref_idx_view(ref_frame_config.ref_idx, 7);
-  ArrayView<int> reference_view(ref_frame_config.reference, 7);
-  ArrayView<int> refresh_view(ref_frame_config.refresh, 8);
+  std::span<int> ref_idx_view(ref_frame_config.ref_idx, 7);
+  std::span<int> reference_view(ref_frame_config.reference, 7);
+  std::span<int> refresh_view(ref_frame_config.refresh, 8);
 
   int alias_index = 0;
   if (!settings.reference_buffers.empty()) {
@@ -433,16 +433,16 @@ aom_svc_params_t GetSvcParams(
   svc_params.number_spatial_layers = frame_settings.back().spatial_id + 1;
   svc_params.number_temporal_layers = kMaxTemporalLayers;
 
-  ArrayView<int> framerate_factor_view(svc_params.framerate_factor,
+  std::span<int> framerate_factor_view(svc_params.framerate_factor,
                                        AOM_MAX_TS_LAYERS);
-  ArrayView<int> scaling_factor_num_view(svc_params.scaling_factor_num,
+  std::span<int> scaling_factor_num_view(svc_params.scaling_factor_num,
                                          AOM_MAX_SS_LAYERS);
-  ArrayView<int> scaling_factor_den_view(svc_params.scaling_factor_den,
+  std::span<int> scaling_factor_den_view(svc_params.scaling_factor_den,
                                          AOM_MAX_SS_LAYERS);
-  ArrayView<int> layer_target_bitrate_view(svc_params.layer_target_bitrate,
+  std::span<int> layer_target_bitrate_view(svc_params.layer_target_bitrate,
                                            AOM_MAX_LAYERS);
-  ArrayView<int> max_quantizers_view(svc_params.max_quantizers, AOM_MAX_LAYERS);
-  ArrayView<int> min_quantizers_view(svc_params.min_quantizers, AOM_MAX_LAYERS);
+  std::span<int> max_quantizers_view(svc_params.max_quantizers, AOM_MAX_LAYERS);
+  std::span<int> min_quantizers_view(svc_params.min_quantizers, AOM_MAX_LAYERS);
 
   // TD: What about svc_params.framerate_factor?
   // If `framerate_factors` are left at 0 then configured bitrate values will
@@ -782,7 +782,7 @@ void LibaomAv1EncoderV2::Encode(
         result.frame_type = pkt->data.frame.flags & AOM_FRAME_IS_KEY
                                 ? VideoEncoderInterface::FrameType::kKeyframe
                                 : VideoEncoderInterface::FrameType::kDeltaFrame;
-        ArrayView<uint8_t> output_buffer =
+        std::span<uint8_t> output_buffer =
             settings.frame_output->GetBitstreamOutputBuffer(
                 DataSize::Bytes(pkt->data.frame.sz));
         if (output_buffer.size() != pkt->data.frame.sz) {

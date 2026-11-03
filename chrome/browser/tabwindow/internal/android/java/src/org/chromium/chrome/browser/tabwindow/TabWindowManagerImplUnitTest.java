@@ -48,10 +48,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -65,7 +61,6 @@ import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabReparentingParams;
@@ -102,13 +97,10 @@ public class TabWindowManagerImplUnitTest {
     @Mock private Profile mIncognitoProfile;
     @Mock private TabModelSelector mArchivedTabModelSelector;
     @Mock private ModalDialogManager mModalDialogManager;
-    @Mock private MultiInstanceManager mMultiInstanceManager;
-    @Mock private MultiInstanceOrchestrator mMultiInstanceOrchestrator;
     @Mock private TabModelSelectorFactory mTabModelSelectorFactory;
     @Mock private Destroyable mDestroyable;
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private TabModel mTabModel;
-    @Mock private TabGroupModelFilter mTabGroupModelFilter;
     @Mock private TabGroupSyncService mTabGroupSyncService;
 
     private OneshotSupplierImpl<ProfileProvider> mProfileProviderSupplier;
@@ -130,8 +122,7 @@ public class TabWindowManagerImplUnitTest {
                             ModalDialogManager modalDialogManager,
                             OneshotSupplier<ProfileProvider> profileProviderSupplier,
                             TabCreatorManager tabCreatorManager,
-                            NextTabPolicySupplier nextTabPolicySupplier,
-                            MultiInstanceManager multiInstanceManager) {
+                            NextTabPolicySupplier nextTabPolicySupplier) {
                         return new MockTabModelSelector(
                                 mProfile,
                                 mIncognitoProfile,
@@ -155,7 +146,6 @@ public class TabWindowManagerImplUnitTest {
                 };
 
         mSubject = createTabWindowManager(mockTabModelSelectorFactory);
-        MultiInstanceOrchestratorFactory.setInstanceForTesting(mMultiInstanceOrchestrator);
     }
 
     private ActivityController<Activity> createActivity() {
@@ -196,7 +186,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -225,7 +214,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -235,7 +223,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
 
@@ -269,7 +256,6 @@ public class TabWindowManagerImplUnitTest {
                             mProfileProviderSupplier,
                             mTabCreatorManager,
                             mNextTabPolicySupplier,
-                            mMultiInstanceManager,
                             mMismatchedIndicesHandler0,
                             0));
         }
@@ -284,7 +270,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0));
 
@@ -313,7 +298,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         // Request 0 again, but should get 1 instead.
@@ -324,7 +308,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         0);
 
@@ -359,7 +342,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         2);
         // Request 2 again, but should get 0 instead.
@@ -370,7 +352,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         2);
 
@@ -401,7 +382,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -430,7 +410,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -451,7 +430,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         0);
 
@@ -483,7 +461,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -493,7 +470,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
 
@@ -518,7 +494,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         handler,
                         1);
 
@@ -546,7 +521,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -556,7 +530,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
         MockTabModelSelector selector0 = (MockTabModelSelector) assignment0.second;
@@ -600,7 +573,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -610,7 +582,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
         MockTabModelSelector selector0 = (MockTabModelSelector) assignment0.second;
@@ -639,6 +610,48 @@ public class TabWindowManagerImplUnitTest {
         destroyActivity(activityController1);
     }
 
+    /** Tests that getTabById() and other lookups function properly for custom tabs. */
+    @Test
+    public void testCustomTabsLookups() {
+        MockTabModelSelector customSelector =
+                new MockTabModelSelector(
+                        /* profile= */ mProfile,
+                        /* incognitoProfile= */ mIncognitoProfile,
+                        /* tabCount= */ 0,
+                        /* incognitoTabCount= */ 0,
+                        /* delegate= */ null);
+        mSubject.registerCustomTabsTabModelSelector(
+                /* taskId= */ 123, /* selector= */ customSelector);
+
+        Tab tab = customSelector.addMockTab();
+        Tab incognitoTab = customSelector.addMockIncognitoTab();
+
+        // Test getTabById.
+        assertEquals(tab, mSubject.getTabById(tab.getId()));
+        assertEquals(incognitoTab, mSubject.getTabById(incognitoTab.getId()));
+
+        // Test getTabModelForTab.
+        assertEquals(
+                customSelector.getModel(/* incognito= */ false), mSubject.getTabModelForTab(tab));
+        assertEquals(
+                customSelector.getModel(/* incognito= */ true),
+                mSubject.getTabModelForTab(incognitoTab));
+
+        // Test getIncognitoTabCount.
+        assertEquals(1, mSubject.getIncognitoTabCount());
+
+        // Test getTabWindowInfoById.
+        TabWindowInfo info = mSubject.getTabWindowInfoById(tab.getId());
+        assertNotNull(info);
+        assertEquals(tab, info.tab);
+        assertEquals(customSelector, info.tabModelSelector);
+        assertEquals(INVALID_WINDOW_ID, info.windowId);
+
+        mSubject.unregisterCustomTabsTabModelSelector(customSelector);
+        assertNull(mSubject.getTabById(tab.getId()));
+        assertEquals(0, mSubject.getIncognitoTabCount());
+    }
+
     /** Tests that getTabModelForTab(...) functions properly. */
     @Test
     @Feature({"Multiwindow"})
@@ -654,7 +667,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -664,7 +676,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
         MockTabModelSelector selector0 = (MockTabModelSelector) assignment0.second;
@@ -695,7 +706,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -717,7 +727,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
         TabModelSelector selector1 = assignment1.second;
@@ -743,7 +752,6 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 0);
 
@@ -760,7 +768,6 @@ public class TabWindowManagerImplUnitTest {
                     mProfileProviderSupplier,
                     mTabCreatorManager,
                     mNextTabPolicySupplier,
-                    mMultiInstanceManager,
                     mMismatchedIndicesHandler1,
                     0);
         } finally {
@@ -786,7 +793,6 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 0);
 
@@ -806,7 +812,6 @@ public class TabWindowManagerImplUnitTest {
                             mProfileProviderSupplier,
                             mTabCreatorManager,
                             mNextTabPolicySupplier,
-                            mMultiInstanceManager,
                             mMismatchedIndicesHandler1,
                             0);
             assertEquals(
@@ -846,7 +851,6 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 0);
 
@@ -861,7 +865,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         0);
         assertEquals(
@@ -886,7 +889,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -951,7 +953,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -1027,7 +1028,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
         TabModelSelector selector4 = assignment0.second;
@@ -1054,8 +1054,7 @@ public class TabWindowManagerImplUnitTest {
 
     @Test
     public void testKeepAllTabModelsLoaded() {
-        when(mMultiInstanceOrchestrator.getUsableWindowIds(PersistedInstanceType.ANY))
-                .thenReturn(Set.of(0, 1, 2));
+        Set<Integer> windowIds = Set.of(0, 1, 2);
 
         ActivityController<Activity> activityController0 = createActivity();
         Activity activity0 = activityController0.get();
@@ -1065,13 +1064,12 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 0);
 
         assertEquals(1, mSubject.getAllTabModelSelectors().size());
 
-        mSubject.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, mTabModelSelector);
+        mSubject.keepAllTabModelsLoaded(windowIds, mProfile, mTabModelSelector);
         assertEquals(3, mSubject.getAllTabModelSelectors().size());
 
         ActivityController<Activity> activityController1 = createActivity();
@@ -1082,11 +1080,10 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 1);
 
-        mSubject.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, mTabModelSelector);
+        mSubject.keepAllTabModelsLoaded(windowIds, mProfile, mTabModelSelector);
         assertEquals(3, mSubject.getAllTabModelSelectors().size());
 
         destroyActivity(activityController1);
@@ -1100,8 +1097,6 @@ public class TabWindowManagerImplUnitTest {
     @Test
     public void testKeepAllTabModelsLoaded_broadcast() {
         TabGroupSyncServiceFactory.setForTesting(mTabGroupSyncService);
-        when(mMultiInstanceOrchestrator.getUsableWindowIds(PersistedInstanceType.ANY))
-                .thenReturn(Set.of(0));
 
         // The default mock TabModelSelectorFactory is hard to verify
         // broadcastSessionRestoreComplete with. So this test creates just enough to verify it
@@ -1110,15 +1105,13 @@ public class TabWindowManagerImplUnitTest {
                 .thenReturn(new Pair<>(mTabModelSelector, mDestroyable));
         when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
         when(mTabModelSelector.getModel(anyBoolean())).thenReturn(mTabModel);
-        when(mTabModelSelector.getTabGroupModelFilter(anyBoolean()))
-                .thenReturn(mTabGroupModelFilter);
-        when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
-        when(mTabGroupModelFilter.getGroupLastShownTabId(GROUP_ID)).thenReturn(TAB_ID);
-        when(mTabGroupModelFilter.tabGroupExists(GROUP_ID)).thenReturn(true);
+        when(mTabModel.getTabModel()).thenReturn(mTabModel);
+        when(mTabModel.getGroupLastShownTabId(GROUP_ID)).thenReturn(TAB_ID);
+        when(mTabModel.tabGroupExists(GROUP_ID)).thenReturn(true);
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {});
         TabWindowManager tabWindowManager = createTabWindowManager(mTabModelSelectorFactory);
 
-        tabWindowManager.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, mTabModelSelector);
+        tabWindowManager.keepAllTabModelsLoaded(Set.of(0), mProfile, mTabModelSelector);
         RobolectricUtil.runAllBackgroundAndUi();
         verify(mTabModel).broadcastSessionRestoreComplete();
     }
@@ -1128,12 +1121,7 @@ public class TabWindowManagerImplUnitTest {
         TabGroupSyncServiceFactory.setForTesting(mTabGroupSyncService);
         when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
         when(mTabModelSelector.getModel(anyBoolean())).thenReturn(mTabModel);
-        when(mTabModelSelector.getTabGroupModelFilter(anyBoolean()))
-                .thenReturn(mTabGroupModelFilter);
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {});
-        // This is the behavior a pre-31 device would exhibit.
-        when(mMultiInstanceOrchestrator.getUsableWindowIds(PersistedInstanceType.ANY))
-                .thenReturn(Collections.emptySet());
 
         ActivityController<Activity> activityController0 = createActivity();
         Activity activity0 = activityController0.get();
@@ -1143,12 +1131,12 @@ public class TabWindowManagerImplUnitTest {
                 mProfileProviderSupplier,
                 mTabCreatorManager,
                 mNextTabPolicySupplier,
-                mMultiInstanceManager,
                 mMismatchedIndicesHandler0,
                 0);
         assertEquals(1, mSubject.getAllTabModelSelectors().size());
 
-        mSubject.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, mTabModelSelector);
+        // A pre-31 device would not use persisted window ids.
+        mSubject.keepAllTabModelsLoaded(Collections.emptySet(), mProfile, mTabModelSelector);
         assertEquals(1, mSubject.getAllTabModelSelectors().size());
         RobolectricUtil.runAllBackgroundAndUi();
         verify(mTabModel).broadcastSessionRestoreComplete();
@@ -1159,9 +1147,8 @@ public class TabWindowManagerImplUnitTest {
         when(mTabModelSelectorFactory.buildHeadlessSelector(anyInt(), any()))
                 .thenReturn(new Pair<>(mTabModelSelector, mDestroyable));
         when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
-        when(mTabModelSelector.getTabGroupModelFilter(anyBoolean()))
-                .thenReturn(mTabGroupModelFilter);
-        when(mTabGroupModelFilter.tabGroupExists(GROUP_ID)).thenReturn(true);
+        when(mTabModelSelector.getModel(anyBoolean())).thenReturn(mTabModel);
+        when(mTabModel.tabGroupExists(GROUP_ID)).thenReturn(true);
         TabWindowManager tabWindowManager = createTabWindowManager(mTabModelSelectorFactory);
         tabWindowManager.requestSelectorWithoutActivity(1, mProfile);
         assertEquals(1, tabWindowManager.findWindowIdForTabGroup(GROUP_ID));
@@ -1187,7 +1174,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         window0);
         Pair<@WindowId Integer, TabModelSelector> assignment1 =
@@ -1197,7 +1183,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         window1);
         MockTabModelSelector selector0 = (MockTabModelSelector) assignment0.second;
@@ -1235,7 +1220,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -1247,7 +1231,7 @@ public class TabWindowManagerImplUnitTest {
         assertFalse(mSubject.isAllTabStateInitialized());
         verify(observer, never()).onAllTabModelStateInitialized();
 
-        mSubject.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, selector0);
+        mSubject.keepAllTabModelsLoaded(Set.of(0), mProfile, selector0);
         selector0.markTabStateInitialized();
 
         doReturn(true).when(mArchivedTabModelSelector).isTabStateInitialized();
@@ -1269,7 +1253,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler0,
                         0);
 
@@ -1284,7 +1267,6 @@ public class TabWindowManagerImplUnitTest {
                         mProfileProviderSupplier,
                         mTabCreatorManager,
                         mNextTabPolicySupplier,
-                        mMultiInstanceManager,
                         mMismatchedIndicesHandler1,
                         1);
 
@@ -1302,10 +1284,7 @@ public class TabWindowManagerImplUnitTest {
         assertFalse(mSubject.isAllTabStateInitialized());
         verify(observer, never()).onAllTabModelStateInitialized();
 
-        when(mMultiInstanceOrchestrator.getUsableWindowIds(PersistedInstanceType.ANY))
-                .thenReturn(Set.of(0, 1));
-
-        mSubject.keepAllTabModelsLoaded(mMultiInstanceManager, mProfile, selector0);
+        mSubject.keepAllTabModelsLoaded(Set.of(0, 1), mProfile, selector0);
 
         // Simulate initialization completion
         selector0.markTabStateInitialized();

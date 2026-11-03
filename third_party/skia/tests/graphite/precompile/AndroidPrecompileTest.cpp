@@ -598,6 +598,28 @@ static const PipelineLabel kOldLabels[] = {
         "RP((RGBA8+D16 x1).rgba) + "
         "AnalyticRRectRenderStep + "
         "Compose [ Compose [ Compose [ RE_LinearEffect_0x188a0000__DISPLAY_P3__false__0x90a0000__Shader [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] ] ColorSpaceTransformSRGB ] MatrixColorFilter ] Dither ] SrcOver" },
+
+/* 176 */ { -1,
+        "RP((RGBA8+D16 x1).rgba) + "
+        "CoverBoundsRenderStep[NonAAFill] + "
+        "BlendCompose [ Compose [ RE_LinearEffect_0x188a0000__DISPLAY_P3__false__0x90a0000__Shader [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] ] ColorSpaceTransformSRGB ] AlphaOnlyPaintColor SrcIn ] SrcOver" },
+/* 177 */ { -1,
+        "RP((RGBA8+D16 x1).rgba) + "
+        "CoverBoundsRenderStep[NonAAFill] + "
+        "Compose [ Compose [ RE_LinearEffect_0x188a0000__DISPLAY_P3__false__0x90a0000__Shader [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] ] ColorSpaceTransformSRGB ] MatrixColorFilter ] SrcOver" },
+/* 178 */ { -1,
+        "RP((RGBA8+D16 x1).rgba) + "
+        "CoverBoundsRenderStep[NonAAFill] + "
+        "Compose [ RE_LinearEffect_UNKNOWN__SRGB__false__UNKNOWN__Shader [ Compose [ RE_MouriMap_TonemapEffect [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] Passthrough ] ] ] ColorSpaceTransformSRGB ] ] ColorSpaceTransformSRGB ] SrcOver" },
+/* 179 */ { -1,
+        "RP((RGBA8+D16 x1).rgba) + "
+        "CoverBoundsRenderStep[NonAAFill] + "
+        "Compose [ Compose [ Compose [ RE_LinearEffect_0x188a0000__DISPLAY_P3__false__0x90a0000__Shader [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] ] ColorSpaceTransformSRGB ] MatrixColorFilter ] Dither ] SrcOver" },
+/* 180 */ { -1,
+        "RP((RGBA8+D16 x1).rgba) + "
+        "CoverBoundsRenderStep[NonAAFill] + "
+        "Compose [ RE_LinearEffect_0x188a0000__DISPLAY_P3__false__0x90a0000__Shader [ LocalMatrix [ Compose [ CoordNormalize [ HardwareImage(0) ] ColorSpaceTransformSRGB ] ] ] ColorSpaceTransformSRGB ] SrcOver" },
+
 };
 
 /*

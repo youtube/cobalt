@@ -567,7 +567,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 
 #if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   // Connects Rust logging with the //base logging functionality.
-  internal::init_rust_log_crate();
+  internal::init_rust_logging();
 #endif
 
   // Ignore file options unless logging to file is set.

@@ -15,13 +15,13 @@
 #include <span>
 
 #include "rtc_base/stream.h"
-#include "rtc_base/thread.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
 TEST(FifoBufferTest, TestAll) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   const size_t kSize = 16;
   const uint8_t in[kSize * 2 + 1] = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
   uint8_t out[kSize * 2];
@@ -219,7 +219,7 @@ TEST(FifoBufferTest, TestAll) {
 }
 
 TEST(FifoBufferTest, FullBufferCheck) {
-  AutoThread main_thread;
+  test::RunLoop main_thread;
   FifoBuffer buff(10);
   buff.ConsumeWriteBuffer(10);
 

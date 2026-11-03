@@ -53,9 +53,9 @@
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -186,7 +186,7 @@ class JsepTransport2Test : public ::testing::Test {
 
   void OnRtcpMuxActive() { signal_rtcp_mux_active_received_ = true; }
 
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   std::unique_ptr<JsepTransport> jsep_transport_;
   bool signal_rtcp_mux_active_received_ = false;
   FieldTrials field_trials_ = CreateTestFieldTrials();

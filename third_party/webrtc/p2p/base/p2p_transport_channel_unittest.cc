@@ -96,6 +96,7 @@
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/time_controller/simulated_time_controller.h"
 #include "test/wait_until.h"
 
@@ -5404,7 +5405,7 @@ TEST(P2PTransportChannelResolverTest, HostnameCandidateIsResolved) {
   const Environment env = CreateTestEnvironment();
   ResolverFactoryFixture resolver_fixture;
   std::unique_ptr<SocketServer> socket_server = CreateDefaultSocketServer();
-  AutoSocketServerThread main_thread(socket_server.get());
+  test::RunLoop main_thread(socket_server.get());
   FakePortAllocator allocator(env, socket_server.get());
   IceTransportInit init(env);
   init.set_port_allocator(&allocator);
@@ -6378,7 +6379,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
 TEST(P2PTransportChannelIceControllerTest, InjectIceController) {
   const Environment env = CreateTestEnvironment();
   std::unique_ptr<SocketServer> socket_server = CreateDefaultSocketServer();
-  AutoSocketServerThread main_thread(socket_server.get());
+  test::RunLoop main_thread(socket_server.get());
   MockIceControllerFactory factory;
   FakePortAllocator pa(env, socket_server.get());
   EXPECT_CALL(factory, RecordIceControllerCreated()).Times(1);
@@ -6393,7 +6394,7 @@ TEST(P2PTransportChannelIceControllerTest, InjectIceController) {
 TEST(P2PTransportChannel, InjectActiveIceController) {
   const Environment env = CreateTestEnvironment();
   std::unique_ptr<SocketServer> socket_server = CreateDefaultSocketServer();
-  AutoSocketServerThread main_thread(socket_server.get());
+  test::RunLoop main_thread(socket_server.get());
   MockActiveIceControllerFactory factory;
   FakePortAllocator pa(env, socket_server.get());
   EXPECT_CALL(factory, RecordActiveIceControllerCreated()).Times(1);

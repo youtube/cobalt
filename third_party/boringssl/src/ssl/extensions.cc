@@ -40,6 +40,7 @@
 
 #include "../crypto/bytestring/internal.h"
 #include "../crypto/internal.h"
+#include "../crypto/mem_internal.h"
 #include "../crypto/spake2plus/internal.h"
 #include "internal.h"
 
@@ -574,7 +575,7 @@ static bool ext_sni_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
 
 // Encrypted ClientHello (ECH)
 //
-// https://tools.ietf.org/html/draft-ietf-tls-esni-13
+// https://www.rfc-editor.org/rfc/rfc9849.html
 
 static bool ext_ech_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
                                     CBB *out_compressible,
@@ -2274,7 +2275,7 @@ static bool ext_early_data_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
   // If offering ECH, the extension only applies to ClientHelloInner, but we
   // send the extension in both ClientHellos. This ensures that, if the server
   // handshakes with ClientHelloOuter, it can skip past early data. See
-  // draft-ietf-tls-esni-13, section 6.1.
+  // RFC 9849, section 6.1.
   if (!CBB_add_u16(out_compressible, TLSEXT_TYPE_early_data) ||  //
       !CBB_add_u16(out_compressible, 0) ||                       //
       !CBB_flush(out_compressible)) {
@@ -3694,6 +3695,153 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
   return true;
 }
 
+// Client certificate type & Server certificate type
+//
+// https://www.rfc-editor.org/rfc/rfc7250.html#section-3
+
+// parse_clienthello_cert_types_list returns a span containing the cert type
+// values from a client_certificate_type or server_certificate_type ClientHello
+// extension. Returns std::nullopt on error, or returns a nonempty span
+// containing the values. This rejects the invalid empty list and list
+// containing only the default X.509. This does not filter out unrecognized
+// values. We don't check for duplicates here, even though a list containing
+// duplicates should be considered invalid, to avoid quadratic behavior.
+static std::optional<Span<const uint8_t>> parse_clienthello_cert_types_list(
+    uint8_t *out_alert, CBS *contents) {
+  CBS cert_types;
+  if (!CBS_get_u8_length_prefixed(contents, &cert_types) ||
+      CBS_len(contents) != 0) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+    return std::nullopt;
+  }
+  Span<const uint8_t> cert_types_list(cert_types);
+  // The client must omit the extension if the only type would be the default,
+  // X.509.
+  if (cert_types_list.empty() ||
+      (cert_types_list.size() == 1 && cert_types_list[0] == kDefaultCertType)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+    return std::nullopt;
+  }
+  return cert_types_list;
+}
+
+bool ssl_negotiate_client_certificate_type(
+    const SSL_HANDSHAKE *hs, uint8_t *out_alert,
+    const SSL_CLIENT_HELLO *client_hello) {
+  assert(!hs->config->accepted_peer_cert_types.empty());
+  const SSL *const ssl = hs->ssl;
+  ssl->s3->client_cert_type.reset();
+  CBS contents;
+  Span<const uint8_t> peer_available_client_cert_types;
+  if (ssl_client_hello_get_extension(client_hello, &contents,
+                                     TLSEXT_TYPE_client_cert_type)) {
+    std::optional<Span<const uint8_t>> client_hello_client_cert_types =
+        parse_clienthello_cert_types_list(out_alert, &contents);
+    if (!client_hello_client_cert_types.has_value()) {
+      return false;
+    }
+    peer_available_client_cert_types = *client_hello_client_cert_types;
+  }
+  // If the client didn't send the extension, assume the client supports X.509
+  // only by default.
+  if (peer_available_client_cert_types.empty()) {
+    peer_available_client_cert_types =
+        Span<const uint8_t>(&kDefaultCertType, 1u);
+  }
+  for (const uint8_t cert_type : hs->config->accepted_peer_cert_types) {
+    if (std::find(peer_available_client_cert_types.begin(),
+                  peer_available_client_cert_types.end(),
+                  cert_type) == peer_available_client_cert_types.end()) {
+      continue;
+    }
+    ssl->s3->client_cert_type.emplace(cert_type);
+    break;
+  }
+  if (hs->cert_request && !ssl->s3->client_cert_type.has_value()) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_CERTIFICATE);
+    *out_alert = SSL_AD_UNSUPPORTED_CERTIFICATE;
+    return false;
+  }
+  return true;
+}
+
+static bool ext_client_cert_type_add_clienthello(const SSL_HANDSHAKE *hs,
+                                                 CBB *out,
+                                                 CBB *out_compressible,
+                                                 ssl_client_hello_type_t type) {
+  // TODO(crbug.com/467663225): Implement this.
+  return true;
+}
+
+static bool ext_client_cert_type_parse_serverhello(SSL_HANDSHAKE *hs,
+                                                   uint8_t *out_alert,
+                                                   CBS *contents) {
+  // TODO(crbug.com/467663225): Implement this.
+  return true;
+}
+
+static bool ext_client_cert_type_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+  // Only send client_certificate_type if we plan to send a CertificateRequest.
+  if (!hs->cert_request) {
+    return true;
+  }
+  // If no client_certificate_type value was negotiated, we would have failed
+  // earlier.
+  assert(hs->ssl->s3->client_cert_type.has_value());
+  CBB contents;
+  if (!CBB_add_u16(out, TLSEXT_TYPE_client_cert_type) ||
+      !CBB_add_u16_length_prefixed(out, &contents) ||
+      !CBB_add_u8(&contents, *hs->ssl->s3->client_cert_type) ||  //
+      !CBB_flush(out)) {
+    return false;
+  }
+  return true;
+}
+
+static bool ext_server_cert_type_add_clienthello(const SSL_HANDSHAKE *hs,
+                                                 CBB *out,
+                                                 CBB *out_compressible,
+                                                 ssl_client_hello_type_t type) {
+  assert(!hs->config->accepted_peer_cert_types.empty());
+  // Omit extension if the only type would be the default, X.509.
+  if (hs->config->accepted_peer_cert_types.size() == 1 &&
+      hs->config->accepted_peer_cert_types[0] == kDefaultCertType) {
+    return true;
+  }
+  CBB contents, server_cert_types;
+  if (!CBB_add_u16(out, TLSEXT_TYPE_server_cert_type) ||
+      !CBB_add_u16_length_prefixed(out, &contents) ||
+      !CBB_add_u8_length_prefixed(&contents, &server_cert_types) ||
+      !CBB_add_bytes(&server_cert_types,
+                     hs->config->accepted_peer_cert_types.data(),
+                     hs->config->accepted_peer_cert_types.size()) ||
+      !CBB_flush(out)) {
+    return false;
+  }
+  return true;
+}
+
+static bool ext_server_cert_type_parse_serverhello(SSL_HANDSHAKE *hs,
+                                                   uint8_t *out_alert,
+                                                   CBS *contents) {
+  // TODO(crbug.com/467663225): Implement this.
+  return true;
+}
+
+static bool ext_server_cert_type_parse_clienthello(SSL_HANDSHAKE *hs,
+                                                   uint8_t *out_alert,
+                                                   CBS *contents) {
+  // TODO(crbug.com/467663225): Implement this.
+  return true;
+}
+
+static bool ext_server_cert_type_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+  // TODO(crbug.com/467663225): Implement this.
+  return true;
+}
+
 // kExtensions contains all the supported extensions.
 static const struct tls_extension kExtensions[] = {
     {
@@ -3897,6 +4045,22 @@ static const struct tls_extension kExtensions[] = {
         ext_trust_anchors_parse_serverhello,
         ext_trust_anchors_parse_clienthello,
         ext_trust_anchors_add_serverhello,
+    },
+    {
+        TLSEXT_TYPE_client_cert_type,
+        ext_client_cert_type_add_clienthello,
+        ext_client_cert_type_parse_serverhello,
+        // client_certificate_type is negotiated late in
+        // `ssl_negotiate_client_cert_type`.
+        ignore_parse_clienthello,
+        ext_client_cert_type_add_serverhello,
+    },
+    {
+        TLSEXT_TYPE_server_cert_type,
+        ext_server_cert_type_add_clienthello,
+        ext_server_cert_type_parse_serverhello,
+        ext_server_cert_type_parse_clienthello,
+        ext_server_cert_type_add_serverhello,
     },
 };
 

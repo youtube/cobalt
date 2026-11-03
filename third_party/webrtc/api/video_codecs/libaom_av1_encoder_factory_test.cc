@@ -15,12 +15,12 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <span>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
@@ -98,7 +98,7 @@ class Av1Decoder : public DecodedImageCallback {
     return 0;
   }
 
-  VideoFrame Decode(ArrayView<uint8_t> bitstream_data) {
+  VideoFrame Decode(std::span<uint8_t> bitstream_data) {
     EncodedImage img;
     img.SetEncodedData(EncodedImageBuffer::Create(bitstream_data.data(),
                                                   bitstream_data.size()));
@@ -127,7 +127,7 @@ class FrameEncoderSettingsBuilder {
   FrameEncoderSettingsBuilder() {
     class IgnoredOutput : public VideoEncoderInterface::FrameOutput {
      public:
-      ArrayView<uint8_t> GetBitstreamOutputBuffer(DataSize size) override {
+      std::span<uint8_t> GetBitstreamOutputBuffer(DataSize size) override {
         unread_.resize(size.bytes());
         return unread_;
       }
@@ -203,9 +203,9 @@ class FrameEncoderSettingsBuilder {
  private:
   struct FrameOut : public VideoEncoderInterface::FrameOutput {
     explicit FrameOut(EncOut& e) : eo(e) {}
-    ArrayView<uint8_t> GetBitstreamOutputBuffer(DataSize size) override {
+    std::span<uint8_t> GetBitstreamOutputBuffer(DataSize size) override {
       eo.bitstream.resize(size.bytes());
-      return ArrayView<uint8_t>(eo.bitstream);
+      return std::span<uint8_t>(eo.bitstream);
     }
     void EncodeComplete(const EncodeResult& encode_result) override {
       eo.res = encode_result;

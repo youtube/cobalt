@@ -5,11 +5,16 @@
 package org.chromium.chrome.browser.multiwindow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -19,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
 import android.app.Activity;
+import android.app.ActivityManager.AppTask;
 import android.content.Intent;
 import android.content.res.Resources;
 
@@ -29,6 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
@@ -37,22 +44,29 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FeatureOverrides;
+import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTabsTask;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
+import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
+import org.chromium.chrome.browser.tabmodel.TabGroupMetadataExtractor;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabList;
+import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.url.GURL;
+import org.chromium.url.JUnitTestGURLs;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -76,17 +90,23 @@ public class MultiInstanceOrchestratorImplUnitTest {
     @Mock private TabReparentingDelegate mTabReparentingDelegate;
     @Mock private Tab mTab1;
     @Mock private Tab mTab2;
+    @Mock private TabGroupModelFilter mTabGroupModelFilter;
+    @Spy private MultiWindowUtils mMultiWindowUtils;
 
     private MultiInstanceOrchestrator mMultiInstanceOrchestrator;
+    private TabGroupMetadata mTabGroupMetadata;
     private LoadUrlParams mUrlParams;
 
     @Before
     public void setup() {
         MultiWindowTestUtils.enableMultiInstance();
+        MultiWindowUtils.setInstanceForTesting(mMultiWindowUtils);
         MultiInstanceOrchestratorImpl.setTabReparentingDelegateForTesting(mTabReparentingDelegate);
         mMultiInstanceOrchestrator = MultiInstanceOrchestratorImpl.getInstance();
         mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
         mMultiInstanceOrchestrator.onInitialize(mTabbedActivity2, mMultiInstanceManager2);
+        when(mMultiInstanceManager1.getCurrentInstanceId()).thenReturn(SOURCE_WINDOW_ID);
+        when(mMultiInstanceManager2.getCurrentInstanceId()).thenReturn(DEST_WINDOW_ID);
         createActiveInstances(
                 /* count= */ 2, SupportedProfileType.MIXED, /* startId= */ SOURCE_WINDOW_ID);
 
@@ -94,16 +114,160 @@ public class MultiInstanceOrchestratorImplUnitTest {
         setupActivityForTab(mTab2, mTabbedActivity2);
         when(mTab1.getParentId()).thenReturn(PARENT_TAB_ID_1);
 
-        mUrlParams = new LoadUrlParams(new GURL("about:blank"));
+        mUrlParams = new LoadUrlParams(JUnitTestGURLs.EXAMPLE_URL);
+        setupTabGroupMetadata(/* isIncognito= */ false);
 
-        when(mTabbedActivity1.getPackageName())
+        var packageName = ContextUtils.getApplicationContext().getPackageName();
+        when(mTabbedActivity1.getPackageName()).thenReturn(packageName);
+        when(mActivity.getPackageName()).thenReturn(packageName);
+        when(mTabbedActivity1.getResources()).thenReturn(mock(Resources.class));
+        when(mActivity.getPackageName())
                 .thenReturn(ContextUtils.getApplicationContext().getPackageName());
-        MultiWindowUtils.setActivitySupplierForTesting(() -> mTabbedActivity2);
+        MultiWindowUtils.setActivityByWindowIdForTesting(SOURCE_WINDOW_ID, mTabbedActivity1);
+        MultiWindowUtils.setActivityByWindowIdForTesting(DEST_WINDOW_ID, mTabbedActivity2);
     }
 
     @After
     public void teardown() {
         ApplicationStatus.destroyForJUnitTests();
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_incognito_addsIncognitoIntentExtra() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity,
+                        /* isIncognito= */ true,
+                        NewWindowAppSource.BROWSER_WINDOW_CREATOR);
+
+        assertNotNull(intent);
+        assertTrue(
+                intent.getBooleanExtra(
+                        IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, /* defaultValue= */ false));
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_notIncognito_skipsIncognitoIntentExtra() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity,
+                        /* isIncognito= */ false,
+                        NewWindowAppSource.BROWSER_WINDOW_CREATOR);
+        assertNotNull(intent);
+        assertFalse(
+                intent.getBooleanExtra(
+                        IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, /* defaultValue= */ true));
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_nonMultiWindowMode_opensFullScreen() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        when(mActivity.isInMultiWindowMode()).thenReturn(false);
+
+        // The new window shouldn't be opened as an adjacent window.
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                false);
+
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity,
+                        /* isIncognito= */ false,
+                        NewWindowAppSource.BROWSER_WINDOW_CREATOR);
+
+        assertNotNull(intent);
+        assertEquals(0, (intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT));
+    }
+
+    @Test
+    @Config(sdk = 32)
+    public void testCreateNewWindowIntent_nonMultiWindowMode_opensAdjacently() {
+        when(mActivity.isInMultiWindowMode()).thenReturn(false);
+
+        // The new window should be opened as an adjacent window.
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                true);
+
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity,
+                        /* isIncognito= */ false,
+                        NewWindowAppSource.BROWSER_WINDOW_CREATOR);
+
+        assertNotNull(intent);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_multiWindowMode_opensAdjacently() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        when(mActivity.isInMultiWindowMode()).thenReturn(true);
+
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity,
+                        /* isIncognito= */ false,
+                        NewWindowAppSource.BROWSER_WINDOW_CREATOR);
+
+        assertNotNull(intent);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_incognito_throwsException_preApi31() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
+        assertThrows(
+                AssertionError.class,
+                () ->
+                        mMultiInstanceOrchestrator.createNewWindowIntent(
+                                mActivity, /* isIncognito= */ true, NewWindowAppSource.MENU));
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_unsupportedWindowingMode_throwsException_preApi31() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
+        when(mActivity.isInMultiWindowMode()).thenReturn(false);
+        when(mMultiWindowUtils.isInMultiDisplayMode(any(Activity.class))).thenReturn(false);
+
+        assertThrows(
+                AssertionError.class,
+                () ->
+                        mMultiInstanceOrchestrator.createNewWindowIntent(
+                                mActivity, /* isIncognito= */ false, NewWindowAppSource.MENU));
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_nullIntent_returnsNull_preApi31() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
+        doReturn(true).when(mMultiWindowUtils).isInMultiWindowMode(any(Activity.class));
+
+        assertNull(
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity, /* isIncognito= */ false, NewWindowAppSource.MENU));
+    }
+
+    @Test
+    public void testCreateNewWindowIntent_multiWindowMode_launchesAdjacently_preApi31() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
+
+        // Multi-window mode.
+        doReturn(true).when(mMultiWindowUtils).isInMultiWindowMode(any(Activity.class));
+        doReturn(ChromeTabbedActivity.class)
+                .when(mMultiWindowUtils)
+                .getOpenInOtherWindowActivity(mActivity);
+        when(mActivity.isInMultiWindowMode()).thenReturn(true);
+
+        Intent intent =
+                mMultiInstanceOrchestrator.createNewWindowIntent(
+                        mActivity, /* isIncognito= */ false, NewWindowAppSource.MENU);
+
+        assertNotNull(intent);
+        assertTrue((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
     }
 
     @Test
@@ -185,7 +349,6 @@ public class MultiInstanceOrchestratorImplUnitTest {
         MultiWindowUtils.setMaxInstancesForTesting(maxInstances);
         MultiWindowUtils.setInstanceCountForTesting(maxInstances);
         List<Tab> tabs = List.of(mTab1, mTab2);
-        when(mTabbedActivity1.getResources()).thenReturn(mock(Resources.class));
 
         // Act.
         mMultiInstanceOrchestrator.moveTabsToNewWindow(
@@ -217,7 +380,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
     }
 
     @Test
-    public void testMoveTabsToWindowByIdChecked_InvalidParams() {
+    public void testMoveTabsToWindowByIdChecked_invalidParams() {
         // Setup.
         List<Tab> tabs = List.of(mTab1, mTab2);
 
@@ -290,7 +453,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
     public void testMoveTabsToWindowByIdChecked_withDestroyedActivity() {
         // Setup.
         List<Tab> tabs = List.of(mTab1, mTab2);
-        MultiWindowUtils.setActivitySupplierForTesting(() -> null);
+        MultiWindowUtils.setActivityByWindowIdForTesting(DEST_WINDOW_ID, /* activity= */ null);
 
         // Act.
         mMultiInstanceOrchestrator.moveTabsToWindowByIdChecked(
@@ -311,12 +474,213 @@ public class MultiInstanceOrchestratorImplUnitTest {
     }
 
     @Test
+    @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
+    public void testMoveTabsToOtherWindow_showsDialog() {
+        // Setup.
+        List<Tab> tabs = List.of(mTab1, mTab2);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabsToOtherWindow(tabs, NewWindowAppSource.MENU);
+
+        // Verify.
+        ArgumentCaptor<Callback<InstanceInfo>> callbackCaptor =
+                ArgumentCaptor.forClass(Callback.class);
+        verify(mMultiInstanceManager1)
+                .showTargetSelectorDialog(
+                        callbackCaptor.capture(),
+                        eq(PersistedInstanceType.ACTIVE),
+                        eq(R.string.menu_move_tab_to_other_window));
+        callbackCaptor
+                .getValue()
+                .onResult(getTestInstanceInfo(DEST_WINDOW_ID, /* isIncognito= */ false));
+        verify(mTabReparentingDelegate)
+                .reparentTabsToExistingWindow(
+                        eq(mTabbedActivity2), eq(tabs), eq(-1), eq(-1), eq(true));
+        verify(mMultiInstanceManager1).closeChromeWindowIfEmpty(SOURCE_WINDOW_ID);
+    }
+
+    @Test
+    public void testMoveTabsToOtherWindow_regularTabs_noEligibleWindow_createsNewWindow() {
+        doTestMoveTabsToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ false, /* eligibleOtherWindowExists= */ false);
+    }
+
+    @Test
+    public void testMoveTabsToOtherWindow_regularTabs_showsDialog() {
+        doTestMoveTabsToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ false, /* eligibleOtherWindowExists= */ true);
+    }
+
+    @Test
+    public void testMoveTabsToOtherWindow_incognitoTabs_noEligibleWindow_createsNewWindow() {
+        doTestMoveTabsToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ true, /* eligibleOtherWindowExists= */ false);
+    }
+
+    @Test
+    public void testMoveTabsToOtherWindow_incognitoTabs_showsDialog() {
+        doTestMoveTabsToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ true, /* eligibleOtherWindowExists= */ true);
+    }
+
+    @Test
+    public void testMoveTabsToOtherWindow_preApi31() {
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
+        var reparentingTabsTask = mock(ReparentingTabsTask.class);
+        ReparentingTabsTask.setReparentingTabsTaskForTesting(reparentingTabsTask);
+        doNothing().when(reparentingTabsTask).begin(any(), any(), any(), any());
+
+        mMultiInstanceOrchestrator.moveTabsToOtherWindow(
+                List.of(mTab1, mTab2), NewWindowAppSource.MENU);
+
+        verify(reparentingTabsTask).begin(eq(mTabbedActivity1), any(), eq(null), eq(null));
+    }
+
+    @Test
+    public void testMoveTabGroupToNewWindow_validInput() {
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToNewWindow(
+                mTabGroupMetadata, NewWindowAppSource.KEYBOARD_SHORTCUT);
+
+        // Verify.
+        verify(mTabReparentingDelegate)
+                .reparentTabGroupToNewWindow(
+                        mTabGroupMetadata,
+                        INVALID_WINDOW_ID,
+                        /* openAdjacently= */ true,
+                        NewWindowAppSource.KEYBOARD_SHORTCUT);
+    }
+
+    @Test
+    public void testMoveTabGroupToNewWindow_atInstanceLimit_showsMessageInTabbedActivity() {
+        // Setup.
+        int maxInstances = 3;
+        MultiWindowUtils.setMaxInstancesForTesting(maxInstances);
+        MultiWindowUtils.setInstanceCountForTesting(maxInstances);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToNewWindow(
+                mTabGroupMetadata, NewWindowAppSource.KEYBOARD_SHORTCUT);
+
+        // Verify.
+        verify(mTabReparentingDelegate, never())
+                .reparentTabGroupToNewWindow(any(), anyInt(), anyBoolean(), anyInt());
+        verify(mMultiInstanceManager1).showInstanceCreationLimitMessage();
+    }
+
+    @Test
+    public void testMoveTabGroupToNewWindow_atInstanceLimit_noMessageShownWithNonTabbedActivity() {
+        // Setup.
+        int maxInstances = 3;
+        MultiWindowUtils.setMaxInstancesForTesting(maxInstances);
+        MultiWindowUtils.setInstanceCountForTesting(maxInstances);
+        MultiWindowUtils.setActivityByWindowIdForTesting(SOURCE_WINDOW_ID, mActivity);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToNewWindow(
+                mTabGroupMetadata, NewWindowAppSource.KEYBOARD_SHORTCUT);
+
+        // Verify.
+        verify(mTabReparentingDelegate, never())
+                .reparentTabGroupToNewWindow(any(), anyInt(), anyBoolean(), anyInt());
+        verify(mMultiInstanceManager1, never()).showInstanceCreationLimitMessage();
+    }
+
+    @Test
+    public void testMoveTabGroupToWindowByIdChecked_toActiveDestWindow() {
+        // Act.
+        int destTabIndex = 0;
+        mMultiInstanceOrchestrator.moveTabGroupToWindowByIdChecked(
+                DEST_WINDOW_ID, mTabGroupMetadata, destTabIndex, /* bringToFront= */ true);
+
+        // Verify.
+        verify(mTabReparentingDelegate)
+                .reparentTabGroupToExistingWindow(
+                        eq(mTabbedActivity2), eq(mTabGroupMetadata), eq(destTabIndex), eq(true));
+    }
+
+    @Test
+    public void testMoveTabGroupToWindowByIdChecked_withDestroyedActivity() {
+        // Setup.
+        MultiWindowUtils.setActivityByWindowIdForTesting(DEST_WINDOW_ID, /* activity= */ null);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToWindowByIdChecked(
+                DEST_WINDOW_ID, mTabGroupMetadata, /* destTabIndex= */ 0, /* bringToFront= */ true);
+
+        // Verify.
+        verify(mTabReparentingDelegate)
+                .reparentTabGroupToNewWindow(
+                        mTabGroupMetadata,
+                        DEST_WINDOW_ID,
+                        /* openAdjacently= */ true,
+                        NewWindowAppSource.TAB_REPARENTING_TO_INSTANCE_WITH_NO_ACTIVITY);
+    }
+
+    @Test
+    @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
+    public void testMoveTabGroupToOtherWindow_showsDialog() {
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToOtherWindow(
+                mTabGroupMetadata, NewWindowAppSource.MENU);
+
+        // Verify.
+        ArgumentCaptor<Callback<InstanceInfo>> callbackCaptor =
+                ArgumentCaptor.forClass(Callback.class);
+        verify(mMultiInstanceManager1)
+                .showTargetSelectorDialog(
+                        callbackCaptor.capture(),
+                        eq(PersistedInstanceType.ACTIVE),
+                        eq(R.string.menu_move_group_to_other_window));
+        callbackCaptor
+                .getValue()
+                .onResult(getTestInstanceInfo(DEST_WINDOW_ID, /* isIncognito= */ false));
+        verify(mTabReparentingDelegate)
+                .reparentTabGroupToExistingWindow(
+                        eq(mTabbedActivity2), eq(mTabGroupMetadata), eq(-1), eq(true));
+        verify(mMultiInstanceManager1).closeChromeWindowIfEmpty(SOURCE_WINDOW_ID);
+    }
+
+    @Test
+    public void testMoveTabGroupToOtherWindow_regularTabs_noEligibleWindow_createsNewWindow() {
+        doTestMoveTabGroupToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ false, /* eligibleOtherWindowExists= */ false);
+    }
+
+    @Test
+    public void testMoveTabGroupToOtherWindow_regularTabs_showsDialog() {
+        doTestMoveTabGroupToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ false, /* eligibleOtherWindowExists= */ true);
+    }
+
+    @Test
+    public void testMoveTabGroupToOtherWindow_incognitoTabs_noEligibleWindow_createsNewWindow() {
+        doTestMoveTabGroupToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ true, /* eligibleOtherWindowExists= */ false);
+    }
+
+    @Test
+    public void testMoveTabGroupToOtherWindow_incognitoTabs_showsDialog() {
+        doTestMoveTabGroupToOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ true, /* eligibleOtherWindowExists= */ true);
+    }
+
+    @Test
     public void testOpenUrlInOtherWindow_regularTab_showsDialog() {
         doTestOpenUrlInOtherWindowWithIncognitoWindowingEnabled(
                 /* isIncognito*/ false,
                 /* preferNew= */ false,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 2);
+    }
+
+    @Test
+    public void testOpenUrlInOtherWindow_regularTab_opensOtherWindow() {
+        doTestOpenUrlInOtherWindowWithIncognitoWindowingEnabled(
+                /* isIncognito*/ false,
+                /* preferNew= */ false,
+                /* atInstanceLimit= */ false,
+                /* numOtherEligibleWindows= */ 1);
     }
 
     @Test
@@ -325,7 +689,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isIncognito*/ false,
                 /* preferNew= */ false,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ false);
+                /* numOtherEligibleWindows= */ 0);
     }
 
     @Test
@@ -334,7 +698,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isIncognito*/ false,
                 /* preferNew= */ true,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 1);
     }
 
     @Test
@@ -343,16 +707,16 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isIncognito*/ false,
                 /* preferNew= */ true,
                 /* atInstanceLimit= */ true,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 1);
     }
 
     @Test
-    public void testOpenUrlInOtherWindow_incognitoTab_showsDialog() {
+    public void testOpenUrlInOtherWindow_incognitoTab_opensInOtherIncognitoWindow() {
         doTestOpenUrlInOtherWindowWithIncognitoWindowingEnabled(
                 /* isSourceIncognito*/ true,
                 /* preferNew= */ false,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 1);
     }
 
     @Test
@@ -361,7 +725,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isSourceIncognito*/ true,
                 /* preferNew= */ false,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ false);
+                /* numOtherEligibleWindows= */ 0);
     }
 
     @Test
@@ -370,7 +734,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isSourceIncognito*/ true,
                 /* preferNew= */ true,
                 /* atInstanceLimit= */ false,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 1);
     }
 
     @Test
@@ -379,7 +743,67 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* isSourceIncognito*/ true,
                 /* preferNew= */ true,
                 /* atInstanceLimit= */ true,
-                /* eligibleOtherWindowExists= */ true);
+                /* numOtherEligibleWindows= */ 1);
+    }
+
+    @Test
+    public void
+            testOpenUrlInOtherWindow_regularTab_sourceNotTabbedActivity_opensLastAccessedWindow() {
+        // Setup.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        // Setup: Simulate mTabbedActivity1 to be the last accessed window.
+        MultiWindowUtils.setLastAccessedWindowIdForTesting(SOURCE_WINDOW_ID);
+
+        // Act.
+        mMultiInstanceOrchestrator.openUrlInOtherWindow(
+                mActivity,
+                mUrlParams,
+                PARENT_TAB_ID_1,
+                /* preferNew= */ false,
+                /* isIncognito= */ false);
+
+        // Verify.
+        var intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mTabbedActivity1).onNewIntent(intentCaptor.capture());
+        assertEquals(
+                "Uri data is incorrect.",
+                mUrlParams.getUrl(),
+                intentCaptor.getValue().getData().toString());
+    }
+
+    @Test
+    public void testOpenUrlInOtherWindow_regularTab_destActivityDestroyed_createsNewTask() {
+        // Setup.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        configureInstancesForOtherWindowTests(
+                /* isIncognito= */ false,
+                /* atInstanceLimit= */ false,
+                /* numOtherEligibleWindows= */ 1);
+        // Setup: Simulate the last accessed window to have a destroyed activity.
+        MultiWindowUtils.setLastAccessedWindowIdForTesting(DEST_WINDOW_ID);
+        MultiWindowUtils.setActivityByWindowIdForTesting(DEST_WINDOW_ID, /* activity= */ null);
+        var appTask = mock(AppTask.class);
+        AndroidTaskUtils.setAppTaskForTesting(appTask);
+
+        // Act.
+        mMultiInstanceOrchestrator.openUrlInOtherWindow(
+                mTabbedActivity1,
+                mUrlParams,
+                PARENT_TAB_ID_1,
+                /* preferNew= */ false,
+                /* isIncognito= */ false);
+
+        // Verify.
+        verify(appTask).finishAndRemoveTask();
+        var intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mTabbedActivity1).startActivity(intentCaptor.capture());
+        verifyNewWindowIntentForUrlLaunch(intentCaptor.getValue(), /* isIncognitoWindow= */ false);
+        assertEquals(
+                "Window id intent extra is not set.",
+                DEST_WINDOW_ID,
+                intentCaptor
+                        .getValue()
+                        .getIntExtra(IntentHandler.EXTRA_WINDOW_ID, INVALID_WINDOW_ID));
     }
 
     @Test
@@ -388,7 +812,12 @@ public class MultiInstanceOrchestratorImplUnitTest {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
 
         // Act.
-        mMultiInstanceOrchestrator.openUrlInOtherWindow(mTab1, mUrlParams, /* preferNew= */ false);
+        mMultiInstanceOrchestrator.openUrlInOtherWindow(
+                mTabbedActivity1,
+                mUrlParams,
+                PARENT_TAB_ID_1,
+                /* preferNew= */ false,
+                /* isIncognito= */ false);
 
         // Verify.
         var intentCaptor = ArgumentCaptor.forClass(Intent.class);
@@ -404,13 +833,13 @@ public class MultiInstanceOrchestratorImplUnitTest {
     }
 
     @Test
-    public void testOpenUrlInIncognitoWindow_withinInstanceLimit_showsDialog() {
+    public void testOpenUrlInIncognitoWindow_withinInstanceLimit_opensInOtherIncognitoWindow() {
         doTestOpenUrlInIncognitoWindow(
                 /* atInstanceLimit= */ false, /* otherIncognitoWindowExists= */ true);
     }
 
     @Test
-    public void testOpenUrlInIncognitoWindow_atInstanceLimit_showsDialog() {
+    public void testOpenUrlInIncognitoWindow_atInstanceLimit_opensInOtherIncognitoWindow() {
         doTestOpenUrlInIncognitoWindow(
                 /* atInstanceLimit= */ true, /* otherIncognitoWindowExists= */ true);
     }
@@ -427,80 +856,21 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 /* atInstanceLimit= */ true, /* otherIncognitoWindowExists= */ false);
     }
 
-    @Test
-    public void testOnWindowSelectedForUrlLaunch() {
-        // Setup.
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-
-        // Act.
-        Callback<InstanceInfo> callback =
-                MultiInstanceOrchestratorImpl.onWindowSelectedForUrlLaunch(
-                        mTabbedActivity1,
-                        PARENT_TAB_ID_1,
-                        mUrlParams,
-                        /* isIncognitoWindow= */ true);
-        InstanceInfo testInstanceInfo =
-                new InstanceInfo(
-                        DEST_WINDOW_ID,
-                        /* taskId= */ 123,
-                        InstanceInfo.Type.OTHER,
-                        /* url= */ "www.example.com",
-                        /* title= */ "Example",
-                        /* customTitle= */ null,
-                        /* tabCount= */ 0,
-                        /* incognitoTabCount= */ 2,
-                        /* isIncognitoSelected= */ true,
-                        /* lastAccessedTime= */ 0,
-                        /* closureTime= */ 0);
-        callback.onResult(testInstanceInfo);
-
-        // Verify.
-        var intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mTabbedActivity2).onNewIntent(intentCaptor.capture());
-        assertEquals(
-                "Uri data is incorrect.",
-                mUrlParams.getUrl(),
-                intentCaptor.getValue().getData().toString());
-    }
-
     private void doTestOpenUrlInOtherWindowWithIncognitoWindowingEnabled(
             boolean isIncognito,
             boolean preferNew,
             boolean atInstanceLimit,
-            boolean eligibleOtherWindowExists) {
+            int numOtherEligibleWindows) {
         // Setup.
+        boolean eligibleOtherWindowExists = numOtherEligibleWindows != 0;
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
-        when(mTab1.isIncognitoBranded()).thenReturn(isIncognito);
-        when(mTabbedActivity1.isIncognitoWindow()).thenReturn(isIncognito);
-
-        // Setup: Clear existing instance state for mTabbedActivity1 and mTabbedActivity2.
-        MultiWindowTestUtils.resetInstanceInfo();
-
-        int numInstances = 2;
-        if (atInstanceLimit) {
-            MultiWindowUtils.setMaxInstancesForTesting(3);
-            numInstances = 3;
-        } else if (!eligibleOtherWindowExists) {
-            numInstances = 1;
-            // Setup: Make mTabbedActivity2 an ineligible profile type window.
-            createActiveInstances(
-                    /* count= */ 1,
-                    isIncognito
-                            ? SupportedProfileType.REGULAR
-                            : SupportedProfileType.OFF_THE_RECORD,
-                    /* startId= */ DEST_WINDOW_ID);
-            when(mTabbedActivity2.isIncognitoWindow()).thenReturn(!isIncognito);
-        }
-
-        // This will overwrite instance state for mTabbedActivity1 and mTabbedActivity2.
-        createActiveInstances(
-                /* count= */ numInstances,
-                isIncognito ? SupportedProfileType.OFF_THE_RECORD : SupportedProfileType.REGULAR,
-                /* startId= */ SOURCE_WINDOW_ID);
+        configureInstancesForOtherWindowTests(
+                isIncognito, atInstanceLimit, numOtherEligibleWindows);
 
         // Act.
-        mMultiInstanceOrchestrator.openUrlInOtherWindow(mTab1, mUrlParams, preferNew);
+        mMultiInstanceOrchestrator.openUrlInOtherWindow(
+                mTabbedActivity1, mUrlParams, PARENT_TAB_ID_1, preferNew, isIncognito);
 
         // Verify.
         if (preferNew && atInstanceLimit) {
@@ -509,7 +879,7 @@ public class MultiInstanceOrchestratorImplUnitTest {
             var intentCaptor = ArgumentCaptor.forClass(Intent.class);
             verify(mTabbedActivity1).startActivity(intentCaptor.capture());
             verifyNewWindowIntentForUrlLaunch(intentCaptor.getValue(), isIncognito);
-        } else if (isIncognito) {
+        } else if (isIncognito || numOtherEligibleWindows == 1) {
             var intentCaptor = ArgumentCaptor.forClass(Intent.class);
             verify(mTabbedActivity2).onNewIntent(intentCaptor.capture());
             assertEquals(
@@ -517,11 +887,22 @@ public class MultiInstanceOrchestratorImplUnitTest {
                     mUrlParams.getUrl(),
                     intentCaptor.getValue().getData().toString());
         } else {
+            ArgumentCaptor<Callback<InstanceInfo>> callbackCaptor =
+                    ArgumentCaptor.forClass(Callback.class);
             verify(mMultiInstanceManager1)
                     .showTargetSelectorDialog(
-                            any(),
+                            callbackCaptor.capture(),
                             eq(PersistedInstanceType.ACTIVE | PersistedInstanceType.REGULAR),
                             eq(R.string.contextmenu_open_in_other_window));
+            callbackCaptor
+                    .getValue()
+                    .onResult(getTestInstanceInfo(DEST_WINDOW_ID, /* isIncognito= */ false));
+            var intentCaptor = ArgumentCaptor.forClass(Intent.class);
+            verify(mTabbedActivity2).onNewIntent(intentCaptor.capture());
+            assertEquals(
+                    "Uri data is incorrect.",
+                    mUrlParams.getUrl(),
+                    intentCaptor.getValue().getData().toString());
         }
     }
 
@@ -533,26 +914,25 @@ public class MultiInstanceOrchestratorImplUnitTest {
 
         // Setup: Clear existing instance state for mTabbedActivity1 and mTabbedActivity2.
         MultiWindowTestUtils.resetInstanceInfo();
-
-        // Create mTabbedActivity1 as a regular window.
+        // Create mTabbedActivity1 as a regular window and mTabbedActivity2 based on
+        // otherIncognitoWindowExists.
         createActiveInstances(
                 /* count= */ 1, SupportedProfileType.REGULAR, /* startId= */ SOURCE_WINDOW_ID);
-        if (!otherIncognitoWindowExists) {
-            if (atInstanceLimit) MultiWindowUtils.setMaxInstancesForTesting(2);
-            // Create mTabbedActivity2 as a regular window.
-            createActiveInstances(
-                    /* count= */ 1, SupportedProfileType.REGULAR, /* startId= */ DEST_WINDOW_ID);
-        } else {
-            if (atInstanceLimit) MultiWindowUtils.setMaxInstancesForTesting(2);
-            // Create mTabbedActivity2 as an incognito window.
-            createActiveInstances(
-                    /* count= */ 1,
-                    SupportedProfileType.OFF_THE_RECORD,
-                    /* startId= */ DEST_WINDOW_ID);
-        }
+        var otherWindowType =
+                otherIncognitoWindowExists
+                        ? SupportedProfileType.OFF_THE_RECORD
+                        : SupportedProfileType.REGULAR;
+        createActiveInstances(/* count= */ 1, otherWindowType, /* startId= */ DEST_WINDOW_ID);
+
+        if (atInstanceLimit) MultiWindowUtils.setMaxInstancesForTesting(2);
 
         // Act.
-        mMultiInstanceOrchestrator.openUrlInIncognitoWindow(mTab1, mUrlParams);
+        mMultiInstanceOrchestrator.openUrlInOtherWindow(
+                mTabbedActivity1,
+                mUrlParams,
+                PARENT_TAB_ID_1,
+                /* preferNew= */ false,
+                /* isIncognito= */ true);
 
         // Verify.
         if (!otherIncognitoWindowExists && atInstanceLimit) {
@@ -569,6 +949,89 @@ public class MultiInstanceOrchestratorImplUnitTest {
                     "Uri data is incorrect.",
                     mUrlParams.getUrl(),
                     intentCaptor.getValue().getData().toString());
+        }
+    }
+
+    private void doTestMoveTabsToOtherWindowWithIncognitoWindowingEnabled(
+            boolean isIncognito, boolean eligibleOtherWindowExists) {
+        // Setup.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
+        List<Tab> tabs = List.of(mTab1, mTab2);
+        when(mTab1.isIncognitoBranded()).thenReturn(isIncognito);
+        configureInstancesForOtherWindowTests(
+                isIncognito, /* atInstanceLimit= */ false, eligibleOtherWindowExists ? 1 : 0);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabsToOtherWindow(tabs, NewWindowAppSource.MENU);
+
+        // Verify.
+        if (!eligibleOtherWindowExists) {
+            verify(mTabReparentingDelegate)
+                    .reparentTabsToNewWindow(
+                            tabs,
+                            INVALID_WINDOW_ID,
+                            /* openAdjacently= */ true,
+                            /* finalizeCallback= */ null,
+                            NewWindowAppSource.MENU);
+        } else {
+            ArgumentCaptor<Callback<InstanceInfo>> callbackCaptor =
+                    ArgumentCaptor.forClass(Callback.class);
+            verify(mMultiInstanceManager1)
+                    .showTargetSelectorDialog(
+                            callbackCaptor.capture(),
+                            eq(
+                                    PersistedInstanceType.ACTIVE
+                                            | (isIncognito
+                                                    ? PersistedInstanceType.OFF_THE_RECORD
+                                                    : PersistedInstanceType.REGULAR)),
+                            eq(R.string.menu_move_tab_to_other_window));
+            callbackCaptor.getValue().onResult(getTestInstanceInfo(DEST_WINDOW_ID, isIncognito));
+            verify(mTabReparentingDelegate)
+                    .reparentTabsToExistingWindow(
+                            eq(mTabbedActivity2), eq(tabs), eq(-1), eq(-1), eq(true));
+            verify(mMultiInstanceManager1).closeChromeWindowIfEmpty(SOURCE_WINDOW_ID);
+        }
+    }
+
+    private void doTestMoveTabGroupToOtherWindowWithIncognitoWindowingEnabled(
+            boolean isIncognito, boolean eligibleOtherWindowExists) {
+        // Setup.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
+        setupTabGroupMetadata(isIncognito);
+        configureInstancesForOtherWindowTests(
+                isIncognito, /* atInstanceLimit= */ false, eligibleOtherWindowExists ? 1 : 0);
+
+        // Act.
+        mMultiInstanceOrchestrator.moveTabGroupToOtherWindow(
+                mTabGroupMetadata, NewWindowAppSource.MENU);
+
+        // Verify.
+        if (!eligibleOtherWindowExists) {
+            verify(mTabReparentingDelegate)
+                    .reparentTabGroupToNewWindow(
+                            mTabGroupMetadata,
+                            INVALID_WINDOW_ID,
+                            /* openAdjacently= */ true,
+                            NewWindowAppSource.MENU);
+        } else {
+            ArgumentCaptor<Callback<InstanceInfo>> callbackCaptor =
+                    ArgumentCaptor.forClass(Callback.class);
+            verify(mMultiInstanceManager1)
+                    .showTargetSelectorDialog(
+                            callbackCaptor.capture(),
+                            eq(
+                                    PersistedInstanceType.ACTIVE
+                                            | (isIncognito
+                                                    ? PersistedInstanceType.OFF_THE_RECORD
+                                                    : PersistedInstanceType.REGULAR)),
+                            eq(R.string.menu_move_group_to_other_window));
+            callbackCaptor.getValue().onResult(getTestInstanceInfo(DEST_WINDOW_ID, isIncognito));
+            verify(mTabReparentingDelegate)
+                    .reparentTabGroupToExistingWindow(
+                            eq(mTabbedActivity2), eq(mTabGroupMetadata), eq(-1), eq(true));
+            verify(mMultiInstanceManager1).closeChromeWindowIfEmpty(SOURCE_WINDOW_ID);
         }
     }
 
@@ -589,6 +1052,63 @@ public class MultiInstanceOrchestratorImplUnitTest {
         when(windowAndroid.getActivity()).thenReturn(new WeakReference<>(activity));
     }
 
+    private void configureInstancesForOtherWindowTests(
+            boolean isIncognito, boolean atInstanceLimit, int numOtherEligibleWindows) {
+        // Clear existing instance state for mTabbedActivity1 and mTabbedActivity2.
+        MultiWindowTestUtils.resetInstanceInfo();
+        when(mTabbedActivity1.isIncognitoWindow()).thenReturn(isIncognito);
+
+        int numInstances = numOtherEligibleWindows + 1;
+        if (atInstanceLimit) {
+            MultiWindowUtils.setMaxInstancesForTesting(numInstances);
+        } else if (numOtherEligibleWindows == 0) {
+            numInstances = 1;
+            // Make mTabbedActivity2 an ineligible profile type window.
+            createActiveInstances(
+                    /* count= */ 1,
+                    isIncognito
+                            ? SupportedProfileType.REGULAR
+                            : SupportedProfileType.OFF_THE_RECORD,
+                    /* startId= */ DEST_WINDOW_ID);
+            when(mTabbedActivity2.isIncognitoWindow()).thenReturn(!isIncognito);
+        }
+
+        // This will overwrite instance state for mTabbedActivity1 and mTabbedActivity2.
+        createActiveInstances(
+                /* count= */ numInstances,
+                isIncognito ? SupportedProfileType.OFF_THE_RECORD : SupportedProfileType.REGULAR,
+                /* startId= */ SOURCE_WINDOW_ID);
+    }
+
+    private InstanceInfo getTestInstanceInfo(int windowId, boolean isIncognito) {
+        return new InstanceInfo(
+                windowId,
+                /* taskId= */ windowId,
+                InstanceInfo.Type.CURRENT,
+                /* url= */ "www.example.com",
+                /* title= */ "Example",
+                /* customTitle= */ null,
+                isIncognito ? 0 : 2,
+                isIncognito ? 2 : 0,
+                isIncognito,
+                /* lastAccessedTime= */ 0,
+                /* closureTime= */ 0);
+    }
+
+    private void setupTabGroupMetadata(boolean isIncognito) {
+        when(mTab1.isIncognitoBranded()).thenReturn(isIncognito);
+        when(mTab1.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        when(mTab1.getTabGroupId()).thenReturn(Token.createRandom());
+        when(mTab2.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        mTabGroupMetadata =
+                TabGroupMetadataExtractor.extractTabGroupMetadata(
+                        mTabGroupModelFilter,
+                        List.of(mTab1, mTab2),
+                        SOURCE_WINDOW_ID,
+                        PARENT_TAB_ID_1,
+                        /* isGroupShared= */ false);
+    }
+
     private void verifyNewWindowIntentForUrlLaunch(Intent intent, boolean isIncognitoWindow) {
         assertEquals(
                 "New window source extra is incorrect.",
@@ -601,5 +1121,11 @@ public class MultiInstanceOrchestratorImplUnitTest {
                 "Target window profile type is incorrect.",
                 isIncognitoWindow,
                 intent.getBooleanExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, false));
+        assertTrue(
+                "FLAG_ACTIVITY_NEW_TASK is not set.",
+                (intent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
+        assertTrue(
+                "FLAG_ACTIVITY_MULTIPLE_TASK is not set.",
+                (intent.getFlags() & Intent.FLAG_ACTIVITY_MULTIPLE_TASK) != 0);
     }
 }

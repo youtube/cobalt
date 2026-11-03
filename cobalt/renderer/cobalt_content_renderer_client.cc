@@ -257,7 +257,7 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
-      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+      blink::WebString::FromAscii(content::kH5vccEmbeddedScheme));
 
   // Register platform-specific DRM init data type string.
 #if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)

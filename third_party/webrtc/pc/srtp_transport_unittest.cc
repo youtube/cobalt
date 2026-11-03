@@ -33,9 +33,9 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 using ::webrtc::kSrtpAeadAes128Gcm;
 using ::webrtc::kTestKey1;
@@ -280,7 +280,7 @@ class SrtpTransportTest : public ::testing::Test {
     TestSendRecvPacketWithEncryptedHeaderExtension(crypto_suite,
                                                    encrypted_headers);
   }
-  AutoThread main_thread;
+  test::RunLoop main_thread;
 
   std::unique_ptr<SrtpTransport> srtp_transport1_;
   std::unique_ptr<SrtpTransport> srtp_transport2_;

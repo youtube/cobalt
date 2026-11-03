@@ -16,6 +16,8 @@
 #include "components/private_ai/connection_proxy.h"
 #include "components/private_ai/connection_timeout.h"
 #include "components/private_ai/connection_token_attestation.h"
+#include "components/private_ai/connection_unused_timeout.h"
+#include "components/private_ai/features.h"
 #include "components/private_ai/phosphor/token_manager.h"
 #include "components/private_ai/secure_channel.h"
 #include "components/private_ai/secure_channel_impl.h"
@@ -32,10 +34,8 @@ std::unique_ptr<Connection> CreateConnectionStack(
     PrivateAiLogger* logger,
     phosphor::TokenManager* token_manager,
     ConnectionFactoryImpl::SecureChannelFactoryOverride secure_channel_override,
-    base::OnceCallback<void(ErrorCode)> on_disconnect,
+    base::RepeatingCallback<void(ErrorCode)> on_disconnect,
     network::mojom::NetworkContext* network_context) {
-  auto split_on_disconnect = base::SplitOnceCallback(std::move(on_disconnect));
-
   std::unique_ptr<SecureChannel::Factory> secure_channel_factory;
   if (secure_channel_override) {
     secure_channel_factory = secure_channel_override.Run();
@@ -45,15 +45,18 @@ std::unique_ptr<Connection> CreateConnectionStack(
   }
 
   std::unique_ptr<Connection> connection = std::make_unique<ConnectionBasic>(
-      std::move(secure_channel_factory), std::move(split_on_disconnect.first));
+      std::move(secure_channel_factory), on_disconnect);
 
   if (token_manager) {
     connection = std::make_unique<ConnectionTokenAttestation>(
-        std::move(connection), token_manager, logger,
-        std::move(split_on_disconnect.second));
+        std::move(connection), token_manager, logger, on_disconnect);
   }
 
   connection = std::make_unique<ConnectionMetrics>(std::move(connection));
+
+  connection = std::make_unique<ConnectionUnusedTimeout>(
+      std::move(connection), on_disconnect,
+      kPrivateAiUnusedConnectionTimeout.Get());
 
   return connection;
 }
@@ -89,7 +92,7 @@ void ConnectionFactoryImpl::EnableProxy(
 }
 
 std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
-    base::OnceCallback<void(ErrorCode)> on_disconnect) {
+    base::RepeatingCallback<void(ErrorCode)> on_disconnect) {
   std::unique_ptr<Connection> connection;
   if (!proxy_url_.is_valid()) {
     logger_->LogInfo(FROM_HERE,
@@ -103,18 +106,15 @@ std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
                          proxy_url_.spec());
     CHECK(network_service_);
     CHECK(token_manager_);
-    auto split_on_disconnect =
-        base::SplitOnceCallback(std::move(on_disconnect));
     // ConnectionProxy requires an inner factory that creates a connection
     // with token attestation.
-    auto inner_connection_factory = base::BindOnce(
-        &CreateConnectionStack, url_, logger_, token_manager_,
-        secure_channel_override_, std::move(split_on_disconnect.first));
+    auto inner_connection_factory =
+        base::BindOnce(&CreateConnectionStack, url_, logger_, token_manager_,
+                       secure_channel_override_, on_disconnect);
 
     connection = std::make_unique<ConnectionProxy>(
         proxy_url_, logger_, token_manager_, network_service_,
-        std::move(inner_connection_factory),
-        std::move(split_on_disconnect.second));
+        std::move(inner_connection_factory), std::move(on_disconnect));
   }
   connection = std::make_unique<ConnectionTimeout>(std::move(connection));
   return connection;

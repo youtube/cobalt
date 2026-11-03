@@ -40,6 +40,7 @@
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -116,7 +117,7 @@ class PeerConnectionHeaderExtensionTest
   }
 
   std::unique_ptr<SocketServer> socket_server_;
-  AutoSocketServerThread main_thread_;
+  test::RunLoop main_thread_;
   std::vector<RtpHeaderExtensionCapability> extensions_;
 };
 

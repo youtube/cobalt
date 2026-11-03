@@ -4,6 +4,7 @@
 
 #include "chrome/browser/permissions/prediction_service/passage_embedder_delegate.h"
 
+#include "base/logging.h"
 #include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider.h"
 #include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -111,7 +112,14 @@ void PassageEmbedderDelegate::CreatePassageEmbeddingsFromRenderedText(
 
 void PassageEmbedderDelegate::Reset() {
   timeout_timer_.Stop();
+  if (passage_embeddings_task_id_.has_value()) {
+    if (Embedder* passage_embedder = GetPassageEmbedder()) {
+      passage_embedder->TryCancel(*passage_embeddings_task_id_);
+    }
+  }
   passage_embeddings_task_id_ = std::nullopt;
+  on_passage_embeddings_computed_.Reset();
+  fallback_callback_.Reset();
 }
 
 void PassageEmbedderDelegate::OnTimeout() {

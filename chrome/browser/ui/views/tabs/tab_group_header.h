@@ -14,13 +14,12 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/tabs/tab_group_attention_indicator.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_tracker.h"
+#include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
-#include "ui/gfx/animation/animation_delegate.h"
-#include "ui/gfx/animation/slide_animation.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/view_targeter_delegate.h"
@@ -43,7 +42,7 @@ class TabGroupHeader : public TabSlotView,
                        public views::ContextMenuController,
                        public views::ViewTargeterDelegate,
                        public TabGroupAttentionIndicator::Observer,
-                       public gfx::AnimationDelegate {
+                       public HoverCardAnchorTarget {
   METADATA_HEADER(TabGroupHeader, TabSlotView)
 
  public:
@@ -59,9 +58,6 @@ class TabGroupHeader : public TabSlotView,
   // TabGroupAttentionIndicator::Observer:
   void OnAttentionStateChanged() override;
 
-  // gfx::AnimationDelegate:
-  void AnimationProgressed(const gfx::Animation* animation) override;
-
   // TabSlotView:
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
@@ -70,10 +66,16 @@ class TabGroupHeader : public TabSlotView,
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnGestureEvent(ui::GestureEvent* event) override;
   void OnFocus() override;
+  void OnBlur() override;
   void OnThemeChanged() override;
   TabSlotView::ViewType GetTabSlotViewType() const override;
   TabSizeInfo GetTabSizeInfo() const override;
   gfx::Rect GetAnchorBoundsInScreen() const override;
+
+  // HoverCardAnchorTarget:
+  bool NeedsToShowThumbnail() const override;
+  bool IsValidHoverCardTarget() const override;
+  views::BubbleBorder::Arrow GetAnchorPosition() const override;
 
   void OnGroupContentsChanged();
 
@@ -111,9 +113,6 @@ class TabGroupHeader : public TabSlotView,
   int GetDesiredWidth() const;
   // Determines if the sync icon should be shown in the header.
   bool ShouldShowHeaderIcon() const;
-
-  // Returns the target height for the chip when it has a name.
-  int GetNamedChipHeight() const;
 
   // Returns the current animated height of the chip.
   int GetChipHeight() const;
@@ -184,8 +183,6 @@ class TabGroupHeader : public TabSlotView,
   base::ScopedObservation<TabGroupAttentionIndicator,
                           TabGroupAttentionIndicator::Observer>
       attention_indicator_observation_{this};
-
-  std::unique_ptr<gfx::SlideAnimation> chip_transition_animation_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_GROUP_HEADER_H_

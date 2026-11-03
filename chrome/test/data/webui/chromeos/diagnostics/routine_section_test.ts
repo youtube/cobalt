@@ -25,6 +25,7 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
+import {getTrustedHtml} from 'chrome://webui-test/trusted_html.js';
 
 import * as dx_utils from './diagnostics_test_utils.js';
 
@@ -239,6 +240,12 @@ suite('routineSectionTestSuite', function() {
   function setHideRoutineStatus(hideRoutineStatus: boolean): Promise<void> {
     assert(routineSectionElement);
     routineSectionElement.hideRoutineStatus = hideRoutineStatus;
+    return flushTasks();
+  }
+
+  function setHideReportButton(hideReportButton: boolean): Promise<void> {
+    assert(routineSectionElement);
+    routineSectionElement.hideReportButton = hideReportButton;
     return flushTasks();
   }
 
@@ -852,6 +859,65 @@ suite('routineSectionTestSuite', function() {
         });
   });
 
+  test('ReportButtonHiddenWhenHideReportButtonSet', () => {
+    const routines = [
+      RoutineType.kCpuCache,
+      RoutineType.kCpuStress,
+    ];
+    return initializeRoutineSection(routines)
+        .then(() => setHideReportButton(true))
+        .then(() => clickRunTestsButton())
+        .then(() => {
+          // Report button stays hidden despite multiple routines running.
+          assertFalse(isVisible(getToggleTestReportButton()));
+        });
+  });
+
+  test('ReportButtonHiddenThroughTestLifecycleWhenHideReportButtonSet', () => {
+    const routines = [
+      RoutineType.kCpuCache,
+      RoutineType.kCpuStress,
+    ];
+    routineController.setFakeStandardRoutineResult(
+        RoutineType.kCpuCache, StandardRoutineResult.kTestPassed);
+    routineController.setFakeStandardRoutineResult(
+        RoutineType.kCpuStress, StandardRoutineResult.kTestPassed);
+
+    return initializeRoutineSection(routines)
+        .then(() => setHideReportButton(true))
+        .then(() => clickRunTestsButton())
+        .then(() => {
+          // Hidden during RUNNING.
+          assertFalse(isVisible(getToggleTestReportButton()));
+          return routineController.resolveRoutineForTesting();
+        })
+        .then(() => flushTasks())
+        .then(() => {
+          // Still hidden while second routine runs.
+          assertFalse(isVisible(getToggleTestReportButton()));
+          return routineController.resolveRoutineForTesting();
+        })
+        .then(() => flushTasks())
+        .then(() => {
+          // Still hidden after all tests complete.
+          assertFalse(isVisible(getToggleTestReportButton()));
+        });
+  });
+
+  test('ReportButtonVisibleWhenHideReportButtonExplicitlyFalse', () => {
+    const routines = [
+      RoutineType.kCpuCache,
+      RoutineType.kCpuStress,
+    ];
+    return initializeRoutineSection(routines)
+        .then(() => setHideReportButton(false))
+        .then(() => clickRunTestsButton())
+        .then(() => {
+          // Button visible — same as default behavior.
+          assertTrue(isVisible(getToggleTestReportButton()));
+        });
+  });
+
   test('RoutineRuntimeStatus', () => {
     /** @type {!Array<!RoutineType>} */
     const routines = [
@@ -1434,7 +1500,283 @@ suite('routineSectionTestSuite', function() {
         });
   });
 
-  test('GoogleServicesConnectivityDetailsSetsDetailMessage', () => {
+  test('DetailsButtonHiddenByDefault', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity]).then(() => {
+      assert(routineSectionElement);
+      const detailsButton =
+          routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+              '#toggleDetailsButton');
+      assert(detailsButton);
+      // showRoutineDetails defaults to false, so button is hidden.
+      assertTrue(detailsButton.hidden);
+    });
+  });
+
+  test('DetailsButtonVisibleWhenEnabledAndHasMessages', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail 1</b>')]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          assertFalse(detailsButton.hidden);
+        });
+  });
+
+  test('DetailsCollapseTogglesOnButtonClick', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail 1</b>')]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          detailsButton.click();
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          assertTrue(routineSectionElement.$.detailsCollapse.opened);
+        });
+  });
+
+  test('ReportButtonNotAffectedByShowRoutineDetails', () => {
+    return initializeRoutineSection(
+               [RoutineType.kLanConnectivity, RoutineType.kSignalStrength])
+        .then(() => {
+          assert(routineSectionElement);
+
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const reportButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleReportButton');
+          assert(reportButton);
+          // Report button visibility is independent of showRoutineDetails.
+          // It follows its own isReportButtonHidden logic.
+          // Since tests haven't run, it should be hidden (NOT_STARTED).
+          assertTrue(reportButton.hidden);
+        });
+  });
+
+  test('RunTestsClearsDetailMessages', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>old detail</b>')]);
+          // Open the details section.
+          routineSectionElement.$.detailsCollapse.show();
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          // Verify details are visible before re-run.
+          assertTrue(routineSectionElement.$.detailsCollapse.opened);
+          const detailDivs = routineSectionElement.shadowRoot!.querySelectorAll(
+              '.detail-message');
+          assertEquals(1, detailDivs.length);
+
+          // Trigger execution start. runTests() is async but the clearing
+          // happens synchronously at the top before any await.
+          routineSectionElement.runTests();
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          // After execution starts, details must be cleared.
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+          const detailDivs = routineSectionElement.shadowRoot!.querySelectorAll(
+              '.detail-message');
+          assertEquals(0, detailDivs.length);
+        });
+  });
+
+  test('StateS2_FeatureDisabledEvenWithMessages', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+          // showRoutineDetails stays false (default).
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail</b>')]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          assertTrue(detailsButton.hidden);
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+        });
+  });
+
+  test('StateS3_EnabledNoMessages', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+          routineSectionElement.showRoutineDetails = true;
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          // No messages, so button is hidden even though feature is enabled.
+          assertTrue(detailsButton.hidden);
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+        });
+  });
+
+  test('StateS4_EnabledWithMessagesCollapsed', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set('detailMessagesHTML', [
+            getTrustedHtml('<b>detail 1</b>'),
+            getTrustedHtml('<b>detail 2</b>'),
+          ]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          // Button visible.
+          assertFalse(detailsButton.hidden);
+          // Details collapsed by default.
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+          // Button text should be "Show details".
+          assert(detailsButton.textContent);
+          assertTrue(detailsButton.textContent.includes('Show details'));
+        });
+  });
+
+  test('StateS5_EnabledWithMessagesExpanded', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail 1</b>')]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          detailsButton.click();
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          // Button still visible.
+          assertFalse(detailsButton.hidden);
+          // Details now expanded.
+          assertTrue(routineSectionElement.$.detailsCollapse.opened);
+          // Button text should be "Hide details".
+          assert(detailsButton.textContent);
+          assertTrue(detailsButton.textContent.includes('Hide details'));
+          // Detail message divs should be rendered.
+          const detailDivs = routineSectionElement.shadowRoot!.querySelectorAll(
+              '.detail-message');
+          assertEquals(1, detailDivs.length);
+        });
+  });
+
+  test('StateS6_PageResetClearsDetails', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail</b>')]);
+          routineSectionElement.$.detailsCollapse.show();
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          assertTrue(routineSectionElement.$.detailsCollapse.opened);
+          // Page deactivation.
+          routineSectionElement.isActive = false;
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          assertTrue(detailsButton.hidden);
+          const detailDivs = routineSectionElement.shadowRoot!.querySelectorAll(
+              '.detail-message');
+          assertEquals(0, detailDivs.length);
+        });
+  });
+
+  test('ResetClearsDetailsState', () => {
+    return initializeRoutineSection([RoutineType.kLanConnectivity])
+        .then(() => {
+          assert(routineSectionElement);
+
+          routineSectionElement.showRoutineDetails = true;
+          routineSectionElement.set(
+              'detailMessagesHTML', [getTrustedHtml('<b>detail</b>')]);
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          // Simulate page change which triggers resetRoutineState.
+          routineSectionElement.isActive = false;
+          return flushTasks();
+        })
+        .then(() => {
+          assert(routineSectionElement);
+          assertFalse(routineSectionElement.$.detailsCollapse.opened);
+          // After reset, detailMessages is empty and the dom-if is false,
+          // so no .detail-message divs should be stamped.
+          const detailDivs = routineSectionElement.shadowRoot!.querySelectorAll(
+              '.detail-message');
+          assertEquals(0, detailDivs.length);
+        });
+  });
+
+  test('RoutineWithDetailsPopulatesDetailMessages', () => {
     const networkRoutines = [RoutineType.kGoogleServicesConnectivity];
     return initializeRoutineSection(networkRoutines)
         .then(() => {
@@ -1455,8 +1797,7 @@ suite('routineSectionTestSuite', function() {
         })
         .then(() => {
           assert(routineSectionElement);
-          // Property-level check -- no DOM template for detail-message
-          // exists until the details section UI patch lands.
+          // Verify detail messages are populated after routine completion.
           const messages =
               (routineSectionElement.get('detailMessagesHTML') as
                TrustedHTML[]);
@@ -1468,7 +1809,7 @@ suite('routineSectionTestSuite', function() {
         });
   });
 
-  test('GoogleServicesConnectivityDetailsClearedOnReset', () => {
+  test('DetailMessagesClearedOnPageReset', () => {
     const networkRoutines = [RoutineType.kGoogleServicesConnectivity];
     return initializeRoutineSection(networkRoutines)
         .then(() => {
@@ -1507,7 +1848,7 @@ suite('routineSectionTestSuite', function() {
         });
   });
 
-  test('GoogleServicesConnectivityDetailsClearedOnRerun', () => {
+  test('DetailMessagesClearedOnRerun', () => {
     const networkRoutines = [RoutineType.kGoogleServicesConnectivity];
     return initializeRoutineSection(networkRoutines)
         .then(() => {
@@ -1548,7 +1889,7 @@ suite('routineSectionTestSuite', function() {
         });
   });
 
-  test('GoogleServicesConnectivityNoDetailsWhenEmpty', () => {
+  test('NoDetailMessagesWhenDetailsEmpty', () => {
     const networkRoutines = [RoutineType.kGoogleServicesConnectivity];
     return initializeRoutineSection(networkRoutines)
         .then(() => {
@@ -1607,5 +1948,126 @@ suite('routineSectionTestSuite', function() {
                TrustedHTML[]);
           assertEquals(0, messages.length);
         });
+  });
+
+  test('CancelPreservesDetailMessagesFromCompletedRoutine', () => {
+    const routines = [
+      RoutineType.kGoogleServicesConnectivity,
+      RoutineType.kDnsResolution,
+    ];
+    routineController.setFakeStandardRoutineResult(
+        RoutineType.kGoogleServicesConnectivity,
+        StandardRoutineResult.kTestFailed);
+    routineController.setFakeRoutineDetails(
+        RoutineType.kGoogleServicesConnectivity,
+        'www.google.com:\n  Status: FAIL\n  Error: Connection refused');
+    routineController.setFakeStandardRoutineResult(
+        RoutineType.kDnsResolution, StandardRoutineResult.kTestPassed);
+
+    return initializeRoutineSection(routines)
+        .then(() => {
+          assert(routineSectionElement);
+          routineSectionElement.showRoutineDetails = true;
+          return clickRunTestsButton();
+        })
+        .then(() => {
+          // First routine is running. Resolve it so details are captured.
+          return routineController.resolveRoutineForTesting();
+        })
+        .then(() => flushTasks())
+        .then(() => {
+          // Second routine is now running. Cancel it.
+          return clickStopTestsButton();
+        })
+        .then(() => flushTasks())
+        .then(() => {
+          assert(routineSectionElement);
+          // Detail messages from the completed routine should be preserved.
+          const messages =
+              (routineSectionElement.get('detailMessagesHTML') as
+               TrustedHTML[]);
+          assertEquals(1, messages.length);
+          const text = messages[0]!.toString();
+          assertTrue(text.includes('www.google.com:'));
+          assertTrue(text.includes('Status: FAIL'));
+          assertTrue(text.includes('Connection refused'));
+
+          // Details toggle button should be visible.
+          const detailsButton =
+              routineSectionElement.shadowRoot!.querySelector<CrButtonElement>(
+                  '#toggleDetailsButton');
+          assert(detailsButton);
+          assertFalse(detailsButton.hidden);
+        });
+  });
+
+  test('ExportsCssPartsForSectionOrdering', () => {
+    return initializeRoutineSection([RoutineType.kCpuStress]).then(() => {
+      assert(routineSectionElement);
+      const controls = routineSectionElement.shadowRoot!
+          .querySelector('[part="controls"]');
+      assert(controls);
+      assertEquals('routineSection', controls.id);
+
+      const results = routineSectionElement.shadowRoot!
+          .querySelector('[part="results"]');
+      assert(results);
+      assertEquals('collapse', results.id);
+
+      const details = routineSectionElement.shadowRoot!
+          .querySelector('[part="details"]');
+      assert(details);
+      assertEquals('detailsCollapse', details.id);
+    });
+  });
+
+  test('DefaultPlacesRoutineSectionBeforeCollapse', () => {
+    return initializeRoutineSection([RoutineType.kCpuStress]).then(() => {
+      assert(routineSectionElement);
+      const collapse = routineSectionElement.shadowRoot!
+          .querySelector('#collapse');
+      assert(collapse);
+      const routineSection = routineSectionElement.shadowRoot!
+          .querySelector('#routineSection');
+      assert(routineSection);
+      const detailsCollapse = routineSectionElement.shadowRoot!
+          .querySelector('#detailsCollapse');
+      assert(detailsCollapse);
+      const collapseOrder = getComputedStyle(collapse).order;
+      const sectionOrder = getComputedStyle(routineSection).order;
+      const detailsCollapseOrder = getComputedStyle(detailsCollapse).order;
+      assertEquals(collapseOrder, sectionOrder,
+          'both should have the same CSS order by default');
+      assertEquals(detailsCollapseOrder, sectionOrder,
+          'both should have the same CSS order by default');
+    });
+  });
+
+  test('CssPartsAllowParentToControlSectionOrder', () => {
+    const style = document.createElement('style');
+    style.textContent = `
+        routine-section::part(results) { order: 0; }
+        routine-section::part(controls) { order: 1; }
+        routine-section::part(details) { order: 2; }`;
+    return initializeRoutineSection([RoutineType.kCpuStress]).then(() => {
+      assert(routineSectionElement);
+      document.head.appendChild(style);
+      return flushTasks().then(() => {
+        const collapse = routineSectionElement!.shadowRoot!
+            .querySelector('#collapse');
+        assert(collapse);
+        const routineSection = routineSectionElement!.shadowRoot!
+            .querySelector('#routineSection');
+        assert(routineSection);
+        const detailsCollapse = routineSectionElement!.shadowRoot!
+            .querySelector('#detailsCollapse');
+        assert(detailsCollapse);
+        assertEquals('0', getComputedStyle(collapse).order);
+        assertEquals('1', getComputedStyle(routineSection).order);
+        assertEquals('2', getComputedStyle(detailsCollapse).order);
+      });
+    }).finally(() => {
+      style.remove();
+    });
   });
 });

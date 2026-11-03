@@ -13,11 +13,11 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -76,7 +76,7 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
 
  private:
   bool IsFormatInList(const SdpVideoFormat& format,
-                      ArrayView<const SdpVideoFormat> supported_formats) const {
+                      std::span<const SdpVideoFormat> supported_formats) const {
     return absl::c_any_of(
         supported_formats, [&](const SdpVideoFormat& supported_format) {
           return supported_format.name == format.name &&

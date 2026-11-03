@@ -47,22 +47,28 @@ EventLogAnalyzer::EventLogAnalyzer(const ParsedRtcEventLog& parsed_log,
   }
   neteq_simulator_ = std::make_unique<LazyNetEqSimulator>(parsed_log_, config_);
 
-  RTC_LOG(LS_INFO) << "Log is "
-                   << (parsed_log_.last_timestamp().ms() -
-                       parsed_log_.first_timestamp().ms()) /
-                          1000
-                   << " seconds long.";
+  if (parsed_log_.first_timestamp().IsFinite() &&
+      parsed_log_.last_timestamp().IsFinite()) {
+    RTC_LOG(LS_INFO) << "Log is "
+                     << (parsed_log_.last_timestamp().ms() -
+                         parsed_log_.first_timestamp().ms()) /
+                            1000
+                     << " seconds long.";
+  }
 }
 
 EventLogAnalyzer::EventLogAnalyzer(const ParsedRtcEventLog& parsed_log,
                                    const AnalyzerConfig& config)
     : parsed_log_(parsed_log), config_(config) {
   neteq_simulator_ = std::make_unique<LazyNetEqSimulator>(parsed_log_, config_);
-  RTC_LOG(LS_INFO) << "Log is "
-                   << (parsed_log_.last_timestamp().ms() -
-                       parsed_log_.first_timestamp().ms()) /
-                          1000
-                   << " seconds long.";
+  if (parsed_log_.first_timestamp().IsFinite() &&
+      parsed_log_.last_timestamp().IsFinite()) {
+    RTC_LOG(LS_INFO) << "Log is "
+                     << (parsed_log_.last_timestamp().ms() -
+                         parsed_log_.first_timestamp().ms()) /
+                            1000
+                     << " seconds long.";
+  }
 }
 
 EventLogAnalyzer::~EventLogAnalyzer() = default;

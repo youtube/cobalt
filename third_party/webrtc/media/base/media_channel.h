@@ -238,6 +238,18 @@ class MediaSendChannelInterface {
       uint32_t /* ssrc */,
       VideoEncoderFactory::EncoderSelectorInterface* /* encoder_selector */) {}
   virtual RtpParameters GetRtpSendParameters(uint32_t ssrc) const = 0;
+  // Returns a callback that is to be used to retrieve RTP send parameters
+  // in the same way as `GetRtpSendParameters` does.
+  // The difference between GetRtpSendParametersCallback and
+  // `GetRtpSendParameters` is that GetRtpSendParametersCallback is callable
+  // from the signaling thread and allows binding the `alive` state of the
+  // channel with the returned callback object. The callback object itself
+  // however must be called on the worker thread, but does not require the
+  // caller to have a pointer to the channel. This avoids running into a race
+  // conditions during asynchronous teardown where signaling thread and worker
+  // thread state may be torn down asynchronously.
+  virtual absl::AnyInvocable<RtpParameters(uint32_t)>
+  GetRtpSendParametersCallback() const = 0;
   virtual bool SendCodecHasNack() const = 0;
   // Called whenever the list of sending SSRCs changes.
   virtual void SetSsrcListChangedCallback(
@@ -911,6 +923,13 @@ class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
   // DTMF event 0-9, *, #, A-D.
   virtual bool InsertDtmf(uint32_t ssrc, int event, int duration) = 0;
   virtual bool GetStats(VoiceMediaSendInfo* stats) = 0;
+  // Returns a callback that can be used to retrieve stats.
+  // The purpose is to allow binding state as it exists on the signaling thread
+  // to a callback that is run on the worker thread. This avoids race conditions
+  // during asynchronous teardown where signaling thread and worker thread state
+  // may be torn down asynchronously.
+  virtual absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
+  GetStatsCallback() = 0;
   virtual bool SenderNackEnabled() const = 0;
   virtual bool SenderNonSenderRttEnabled() const = 0;
   virtual bool SetOptions(const AudioOptions& options) = 0;
@@ -936,6 +955,13 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual void SetDefaultRawAudioSink(
       std::unique_ptr<AudioSinkInterface> sink) = 0;
   virtual bool GetStats(VoiceMediaReceiveInfo* stats, bool reset_legacy) = 0;
+  // Returns a callback that can be used to retrieve stats.
+  // The purpose is to allow binding state as it exists on the signaling thread
+  // to a callback that is run on the worker thread. This avoids race conditions
+  // during asynchronous teardown where signaling thread and worker thread state
+  // may be torn down asynchronously.
+  virtual absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
+  GetStatsCallback(bool reset_legacy) = 0;
   virtual enum RtcpMode RtcpMode() const = 0;
   virtual void SetRtcpMode(enum RtcpMode mode) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;
@@ -979,6 +1005,13 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   virtual void GenerateSendKeyFrame(uint32_t ssrc,
                                     const std::vector<std::string>& rids) = 0;
   virtual bool GetStats(VideoMediaSendInfo* stats) = 0;
+  // Returns a callback that can be used to retrieve stats.
+  // The purpose is to allow binding state as it exists on the signaling thread
+  // to a callback that is run on the worker thread. This avoids race conditions
+  // during asynchronous teardown where signaling thread and worker thread state
+  // may be torn down asynchronously.
+  virtual absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
+  GetStatsCallback() = 0;
   // This fills the "bitrate parts" (rtx, video bitrate) of the
   // BandwidthEstimationInfo, since that part that isn't possible to get
   // through Call::GetStats, as they are statistics of the send
@@ -1016,6 +1049,13 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // Clear recordable encoded frame callback for `ssrc`
   virtual void ClearRecordableEncodedFrameCallback(uint32_t ssrc) = 0;
   virtual bool GetStats(VideoMediaReceiveInfo* stats) = 0;
+  // Returns a callback that can be used to retrieve stats.
+  // The purpose is to allow binding state as it exists on the signaling thread
+  // to a callback that is run on the worker thread. This avoids race conditions
+  // during asynchronous teardown where signaling thread and worker thread state
+  // may be torn down asynchronously.
+  virtual absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
+  GetStatsCallback() = 0;
   virtual bool AddDefaultRecvStreamForTesting(const StreamParams& sp) = 0;
 };
 

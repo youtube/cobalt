@@ -9,10 +9,10 @@ import {assertNotReached} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import {ContentSettingsType} from '../../content_settings_types.mojom-webui.js';
-import type {CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabDataHandlerInterface, TabDataMojoType, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
-import {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserverReceiver, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, SkillSource as SkillSourceMojo, TabDataHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
-import type {ActorTaskPauseReason, ActorTaskStopReason, CancelActionsResult, ConversationInfo, CreateSkillRequest, DraggableArea, FormFillingResponse, GetPinCandidatesOptions, Journal, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, ScrollToParams, Skill, SkillsWebClientEvent, TabContextOptions, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
-import {CaptureScreenshotErrorReason, CreateTaskErrorReason, PerformActionsErrorReason, ResponseStopCause, ScrollToErrorReason} from '../../glic_api/glic_api.js';
+import type {CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabDataHandlerInterface, TabDataMojoType, TabFaviconHandlerInterface, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
+import {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserverReceiver, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, SkillSource as SkillSourceMojo, TabDataHandlerReceiver, TabFaviconHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskStopReason, CancelActionsResult, ConversationInfo, CreateSkillRequest, DraggableArea, FormFillingResponse, GetPinCandidatesOptions, Journal, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, ScrollToParams, Skill, SkillsWebClientEvent, TabContextOptions, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import {CaptureScreenshotErrorReason, ClientCapabilities, CreateTaskErrorReason, PerformActionsErrorReason, ResponseStopCause, ScrollToErrorReason} from '../../glic_api/glic_api.js';
 import {replaceProperties} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
 import {ResponseExtras} from '../post_message_transport.js';
@@ -20,7 +20,7 @@ import type {PostMessageRequestSender} from '../post_message_transport.js';
 import type {HostRequestTypes, RequestRequestType, RequestResponseType, ResumeActorTaskResultPrivate, RgbaImage, TabContextResultPrivate, TransferableException, WebClientInitialStatePrivate} from '../request_types.js';
 import {ErrorWithReasonImpl, exceptionFromTransferable} from '../request_types.js';
 
-import {bitmapN32ToRGBAImage, byteArrayFromClient, captureRegionResultToClient, conversationInfoFromClient, focusedTabDataToClient, getArrayBufferFromBigBuffer, getPinCandidatesOptionsFromClient, hostCapabilitiesToClient, idFromClient, idToClient, microphoneStatusToMojo, optionalFromClient, optionalToClient, panelStateToClient, pinTabsOptionsToMojo, resumeActorTaskResultToClient, tabContextOptionsFromClient, tabContextToClient, tabDataToClient, taskOptionsToMojo, timeDeltaFromClient, unpinTabsOptionsToMojo, urlFromClient, urlToClient, webClientModeToMojo, zeroStateSuggestionsToClient} from './conversions.js';
+import {bitmapN32ToRGBAImage, byteArrayFromClient, captureRegionResultToClient, conversationInfoFromClient, conversionSettings, focusedTabDataToClient, getArrayBufferFromBigBuffer, getPinCandidatesOptionsFromClient, hostCapabilitiesToClient, idFromClient, idToClient, microphoneStatusToMojo, optionalFromClient, optionalToClient, panelStateToClient, pinTabsOptionsToMojo, resumeActorTaskResultToClient, tabContextOptionsFromClient, tabContextToClient, tabDataToClient, taskOptionsToMojo, timeDeltaFromClient, unpinTabsOptionsToMojo, urlFromClient, urlToClient, webClientModeToMojo, zeroStateSuggestionsToClient} from './conversions.js';
 import type {GatedSender} from './gated_sender.js';
 import type {ApiHostEmbedder, GlicApiHost} from './glic_api_host.js';
 import {DetailedWebClientState} from './glic_api_host.js';
@@ -66,22 +66,33 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
     }
   }
 
-  async glicBrowserWebClientCreated(_request: void, extras: ResponseExtras):
+  async glicBrowserWebClientCreated(
+      request: {clientCapabilities: ClientCapabilities[]},
+      extras: ResponseExtras):
       Promise<{initialState: WebClientInitialStatePrivate}> {
     if (this.receiver) {
       throw new Error('web client already created');
     }
+    // Note: Ideally we would avoid computing favicons in c++ entirely, but that
+    // change is more difficult as some parts of the system can be shared by
+    // multiple clients. Instead, we just avoid sending favicons from the WebUI,
+    // which avoids most of the cost.
+    conversionSettings.omitFaviconInTabData =
+        request.clientCapabilities.includes(
+            ClientCapabilities.IGNORES_TAB_DATA_FAVICONS);
     this.host.detailedWebClientState =
         DetailedWebClientState.WEB_CLIENT_NOT_INITIALIZED;
 
     if (loadTimeData.getBoolean('glicWebContentsWarming')) {
-      this.embedder.webClientReady();
+      this.embedder.webClientWarmed();
     }
 
     const webClientImpl = new WebClientImpl(this.host, this.embedder);
     this.receiver = new WebClientReceiver(webClientImpl);
     const {initialState} = await this.handler.webClientCreated(
         this.receiver.$.bindNewPipeAndPassRemote());
+    webClientImpl.markCreated();
+    conversionSettings.platform = enumToClient(initialState.platform);
     this.host.setInitialState(initialState);
     const chromeVersion = initialState.chromeVersion.components;
     const hostCapabilities = initialState.hostCapabilities;
@@ -379,8 +390,10 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
 
   glicBrowserInterruptActorTask(request: {
     taskId: number,
+    interruptReason?: ActorTaskInterruptReason,
   }): void {
-    this.handler.interruptActorTask(request.taskId);
+    this.handler.interruptActorTask(
+        request.taskId, enumFromClient(request.interruptReason));
   }
 
   glicBrowserUninterruptActorTask(request: {
@@ -935,6 +948,16 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
     }
   }
 
+  glicBrowserSubscribeToTabFavicon(
+      payload: {tabId: string, observationId: number, cancel: boolean}): void {
+    if (payload.cancel) {
+      this.host.tabFaviconHandlerSet.remove(payload.observationId);
+    } else {
+      this.host.tabFaviconHandlerSet.create(
+          idFromClient(payload.tabId), payload.observationId);
+    }
+  }
+
   glicBrowserAutofillSuggestionDialogOnFormPresented(payload: {
     taskId: number,
     params: {formFillingRequestIndex: number},
@@ -1086,6 +1109,69 @@ class TabDataHandlerImpl implements TabDataHandlerInterface {
     this.sender.requestNoResponse(
         'glicWebClientTabDataChanged', {
           tabData: tabDataToClient(tabData, extras),
+          observationId: this.observationId,
+        },
+        extras.transfers);
+  }
+}
+
+export class TabFaviconHandlerSet {
+  handlersByObservation: Map<number, TabFaviconHandlerImpl> = new Map();
+
+  constructor(
+      private sender: PostMessageRequestSender,
+      private webClientHandler: WebClientHandlerInterface) {}
+  create(tabId: number, observationId: number): void {
+    const handler = new TabFaviconHandlerImpl(
+        tabId, this.webClientHandler, this.sender, this, observationId);
+    this.handlersByObservation.set(observationId, handler);
+  }
+  remove(observationId: number): void {
+    const handler = this.handlersByObservation.get(observationId);
+    if (!handler) {
+      return;
+    }
+    handler.destroy();
+    this.handlersByObservation.delete(observationId);
+  }
+}
+
+class TabFaviconHandlerImpl implements TabFaviconHandlerInterface {
+  receiver?: TabFaviconHandlerReceiver;
+
+  constructor(
+      tabId: number, handler: WebClientHandlerInterface,
+      private sender: PostMessageRequestSender,
+      handlerSet: TabFaviconHandlerSet, public readonly observationId: number) {
+    this.receiver = new TabFaviconHandlerReceiver(this);
+    this.receiver.onConnectionError.addListener(() => {
+      handlerSet.remove(this.observationId);
+    });
+    handler.subscribeToTabFavicon(
+        tabId, this.receiver.$.bindNewPipeAndPassRemote());
+  }
+  destroy() {
+    if (!this.receiver) {
+      return;
+    }
+    this.receiver.$.close();
+    this.receiver = undefined;
+    this.sender.requestNoResponse(
+        'glicWebClientTabFaviconChanged',
+        {observationId: this.observationId, tabRemoved: true});
+  }
+  onTabFaviconChanged(favicon: any): void {
+    const extras = new ResponseExtras();
+    let faviconImage: RgbaImage|undefined = undefined;
+    if (favicon) {
+      faviconImage = bitmapN32ToRGBAImage(favicon);
+      if (faviconImage) {
+        extras.addTransfer(faviconImage.dataRGBA);
+      }
+    }
+    this.sender.requestNoResponse(
+        'glicWebClientTabFaviconChanged', {
+          favicon: faviconImage,
           observationId: this.observationId,
         },
         extras.transfers);

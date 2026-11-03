@@ -2957,7 +2957,7 @@ TEST(X509Test, SignCSR) {
       // Check the signature was over the new public key.
       UniquePtr<EVP_PKEY> copy_pubkey(X509_REQ_get_pubkey(copy.get()));
       ASSERT_TRUE(copy_pubkey);
-      EXPECT_EQ(1, EVP_PKEY_cmp(pkey.get(), copy_pubkey.get()));
+      EXPECT_EQ(1, EVP_PKEY_eq(pkey.get(), copy_pubkey.get()));
     }
   }
 }
@@ -3610,9 +3610,8 @@ wr6JtaX2G+pOmwcSPymZC4u2TncAP7KHgS8UGcMw8CE=
         // Expect a placeholder key.
         EXPECT_FALSE(info->x_pkey->dec_pkey);
       } else {
-        // EVP_PKEY_cmp returns one if the keys are equal.
         ASSERT_TRUE(info->x_pkey->dec_pkey);
-        EXPECT_EQ(1, EVP_PKEY_cmp(expected->key, info->x_pkey->dec_pkey));
+        EXPECT_EQ(1, EVP_PKEY_eq(expected->key, info->x_pkey->dec_pkey));
       }
     } else {
       EXPECT_EQ(nullptr, info->x_pkey);
@@ -8237,7 +8236,7 @@ TEST(X509Test, PublicKeyCache) {
 
   UniquePtr<EVP_PKEY> key2(X509_PUBKEY_get(pub));
   ASSERT_TRUE(key2);
-  EXPECT_EQ(1, EVP_PKEY_cmp(key.get(), key2.get()));
+  EXPECT_EQ(1, EVP_PKEY_eq(key.get(), key2.get()));
 
   // Replace |pub| with different (garbage) values.
   ASSERT_TRUE(X509_PUBKEY_set0_param(pub, OBJ_nid2obj(NID_subject_alt_name),
@@ -9617,7 +9616,7 @@ TEST(X509Test, NonDefaultKeyType) {
   // The public key can be extracted from |cert|.
   const EVP_PKEY *cert_pkey = X509_get0_pubkey(cert.get());
   ASSERT_TRUE(cert_pkey);
-  EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), cert_pkey), 1);
+  EXPECT_EQ(EVP_PKEY_eq(pkey.get(), cert_pkey), 1);
   // |X509_check_private_key| should work.
   EXPECT_EQ(X509_check_private_key(cert.get(), pkey.get()), 1);
 #endif
@@ -9638,7 +9637,7 @@ TEST(X509Test, NonDefaultKeyType) {
   // The public key can be extracted from |cert|.
   const EVP_PKEY *cert_pkey = X509_get0_pubkey(cert_with_key.get());
   ASSERT_TRUE(cert_pkey);
-  EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), cert_pkey), 1);
+  EXPECT_EQ(EVP_PKEY_eq(pkey.get(), cert_pkey), 1);
   // |X509_check_private_key| should work.
   EXPECT_EQ(X509_check_private_key(cert_with_key.get(), pkey.get()), 1);
 
@@ -9737,31 +9736,24 @@ TEST(X509Test, X509StoreGet1IssuerMultipleMatches) {
   UniquePtr<X509> issuer_ok = CertFromPEM(kIntermediatePEM);
   ASSERT_TRUE(issuer_ok);
 
-  // |issuer_fail| has the same name but a different SKID, so it won't match the
-  // AKID in |cert|, thereby failing validation in
-  // |x509_check_issued_with_callback| via |X509_check_issued|.
-  UniquePtr<X509> issuer_fail(X509_dup(issuer_ok.get()));
-  ASSERT_TRUE(issuer_fail);
-  int loc =
-      X509_get_ext_by_NID(issuer_fail.get(), NID_subject_key_identifier, -1);
-  ASSERT_GE(loc, 0);
-  UniquePtr<X509_EXTENSION> ext(X509_delete_ext(issuer_fail.get(), loc));
-  ASSERT_TRUE(ext);
-
-  // Add a different SKID. 00 sorts before the original.
-  const uint8_t kTag[] = {0x00, 0x00, 0x00};
-  UniquePtr<ASN1_OCTET_STRING> skid(ASN1_OCTET_STRING_new());
-  ASSERT_TRUE(skid);
-  ASSERT_TRUE(ASN1_OCTET_STRING_set(skid.get(), kTag, sizeof(kTag)));
-  ASSERT_TRUE(X509_add1_ext_i2d(issuer_fail.get(), NID_subject_key_identifier,
-                                skid.get(), 0, 0));
-
-  // Sign it. The certificate will be rejected anyway, but it must be signed by
-  // _some_ key to be able to be added - otherwise its |cert_hash| will match
-  // |issuer_ok|'s and |X509_STORE_add_cert| will not even store it.
+  // Make certificates with the same issuer but the wrong SKID. They must be
+  // signed by *some* key, but it doesn't matter which.
   UniquePtr<EVP_PKEY> key = PrivateKeyFromPEM(kRSAKey);
   ASSERT_TRUE(key);
-  ASSERT_TRUE(X509_sign(issuer_fail.get(), key.get(), EVP_sha256()));
+  auto make_wrong_skid = [&](Span<const uint8_t> skid) -> UniquePtr<X509> {
+    UniquePtr<X509> ret(X509_dup(issuer_ok.get()));
+    if (ret == nullptr) {
+      return nullptr;
+    }
+    X509_EXTENSION_free(X509_delete_ext(
+        ret.get(),
+        X509_get_ext_by_NID(ret.get(), NID_subject_key_identifier, -1)));
+    if (!AddSubjectKeyIdentifier(ret.get(), skid) ||
+        !X509_sign(ret.get(), key.get(), EVP_sha256())) {
+      return nullptr;
+    }
+    return ret;
+  };
 
   // Find an unrelated certificate that sorts _before_ the others.
   // "O=BoringSSL TESTING, CN=Root CA" sorts before "O=BoringSSL TESTING,
@@ -9769,23 +9761,44 @@ TEST(X509Test, X509StoreGet1IssuerMultipleMatches) {
   UniquePtr<X509> unrelated_before = CertFromPEM(kRootCAPEM);
   ASSERT_TRUE(unrelated_before);
 
-  // Create a store, adding |unrelated_before|, then |issuer_fail|, then
-  // |issuer_ok|. |X509_OBJECT_idx_by_subject| will get |issuer_fail|.
+  // Create a store, adding |unrelated_before|, |issuer_ok|, and several
+  // certificates with the right name and wrong SKID.
   UniquePtr<X509_STORE> store(X509_STORE_new());
   ASSERT_TRUE(store);
   ASSERT_TRUE(X509_STORE_add_cert(store.get(), unrelated_before.get()));
-  ASSERT_TRUE(X509_STORE_add_cert(store.get(), issuer_fail.get()));
+  for (uint8_t i = 0; i < 64; i++) {
+    uint8_t skid[1] = {i};
+    UniquePtr<X509> issuer_wrong = make_wrong_skid(skid);
+    ASSERT_TRUE(issuer_wrong);
+    ASSERT_TRUE(X509_STORE_add_cert(store.get(), issuer_wrong.get()));
+  }
   ASSERT_TRUE(X509_STORE_add_cert(store.get(), issuer_ok.get()));
+  for (uint8_t i = 64; i < 128; i++) {
+    uint8_t skid[1] = {i};
+    UniquePtr<X509> issuer_wrong = make_wrong_skid(skid);
+    ASSERT_TRUE(issuer_wrong);
+    ASSERT_TRUE(X509_STORE_add_cert(store.get(), issuer_wrong.get()));
+  }
+
+  // Verify a certificate using the store. It should find the correct issuer.
   UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
   ASSERT_TRUE(ctx);
   ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(), nullptr));
+  X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
+  EXPECT_EQ(X509_verify_cert(ctx.get()), 1)
+      << "Certificate verification failed: "
+      << X509_STORE_CTX_get_error(ctx.get());
 
-  // Validate that a lookup by issuer name will return |issuer_fail|.
-  X509_NAME *xn = X509_get_issuer_name(cert.get());
+  // Validate that a lookup by issuer name will not return |issuer_ok|,
+  // otherwise the test may flakily fail to flag a regression. It is not
+  // well-defined which issuer should be returned, but we use a stable sort, so
+  // this is currently reliable. If we ever change this, we can remove this
+  // check and rely on there being several bad certificates.
   X509_OBJECT obj;
-  ASSERT_EQ(1,
-            X509_STORE_CTX_get_by_subject(ctx.get(), X509_LU_X509, xn, &obj));
-  ASSERT_EQ(0, X509_cmp(X509_OBJECT_get0_X509(&obj), issuer_fail.get()));
+  ASSERT_EQ(
+      1, X509_STORE_CTX_get_by_subject(ctx.get(), X509_LU_X509,
+                                       X509_get_issuer_name(cert.get()), &obj));
+  EXPECT_NE(0, X509_cmp(X509_OBJECT_get0_X509(&obj), issuer_ok.get()));
   X509_OBJECT_free_contents(&obj);
 
   // Check that by actually looking up using the certificate and not just its
@@ -9797,6 +9810,48 @@ TEST(X509Test, X509StoreGet1IssuerMultipleMatches) {
   ASSERT_TRUE(found_issuer);
   EXPECT_EQ(0, X509_cmp(found_issuer, issuer_ok.get()));
   X509_free(found_issuer);
+}
+
+TEST(X509Test, CheckPrivateKey) {
+  UniquePtr<EVP_PKEY> p256(EVP_PKEY_generate_from_alg(EVP_pkey_ec_p256()));
+  ASSERT_TRUE(p256);
+  UniquePtr<EVP_PKEY> p256_2(EVP_PKEY_generate_from_alg(EVP_pkey_ec_p256()));
+  ASSERT_TRUE(p256_2);
+  UniquePtr<EVP_PKEY> p384(EVP_PKEY_generate_from_alg(EVP_pkey_ec_p384()));
+  ASSERT_TRUE(p384);
+  UniquePtr<EVP_PKEY> rsa(EVP_PKEY_generate_from_alg(EVP_pkey_rsa()));
+  ASSERT_TRUE(rsa);
+
+  UniquePtr<X509> cert = MakeTestCert("Issuer", "Subject", p256.get(), false);
+  ASSERT_TRUE(cert);
+  ASSERT_TRUE(X509_sign(cert.get(), p256.get(), EVP_sha256()));
+
+  EXPECT_EQ(X509_check_private_key(cert.get(), p256.get()), 1);
+  EXPECT_EQ(X509_check_private_key(cert.get(), p256_2.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_VALUES_MISMATCH));
+  EXPECT_EQ(X509_check_private_key(cert.get(), p384.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_VALUES_MISMATCH));
+  EXPECT_EQ(X509_check_private_key(cert.get(), rsa.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_TYPE_MISMATCH));
+
+  UniquePtr<X509_REQ> csr = CSRFromPEM(kTestCSR);
+  ASSERT_TRUE(csr);
+  ASSERT_TRUE(X509_REQ_set_pubkey(csr.get(), p256.get()));
+  ASSERT_TRUE(X509_REQ_sign(csr.get(), p256.get(), EVP_sha256()));
+
+  EXPECT_EQ(X509_REQ_check_private_key(csr.get(), p256.get()), 1);
+  EXPECT_EQ(X509_REQ_check_private_key(csr.get(), p256_2.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_VALUES_MISMATCH));
+  EXPECT_EQ(X509_REQ_check_private_key(csr.get(), p384.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_VALUES_MISMATCH));
+  EXPECT_EQ(X509_REQ_check_private_key(csr.get(), rsa.get()), 0);
+  EXPECT_TRUE(
+      ErrorEquals(ERR_get_error(), ERR_LIB_X509, X509_R_KEY_TYPE_MISMATCH));
 }
 
 }  // namespace

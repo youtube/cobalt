@@ -217,7 +217,7 @@ class Tab::TabCloseButtonObserver : public views::ViewObserver {
 
   void OnViewBlurred(views::View* observed_view) override {
     // Only hide hover card if not keyboard navigating.
-    if (!controller_->IsFocusInTabs()) {
+    if (!controller_->IsFocusInTabStrip()) {
       controller_->UpdateHoverCard(
           nullptr, TabSlotController::HoverCardUpdateType::kFocus);
     }
@@ -353,7 +353,7 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
 Tab::~Tab() {
   // Observer must be unregistered before child views are destroyed.
   tab_close_button_observer_.reset();
-  if (controller_->HoverCardIsShowingForTab(this)) {
+  if (controller_->HoverCardIsShowing(this)) {
     controller_->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
   }
@@ -407,27 +407,10 @@ void Tab::Layout(PassKey) {
   if (glic_tab_underline_view_) {
     gfx::Rect glic_bounds =
         contents_rect + gfx::Vector2d(0, kGlicUnderlineYOffset);
-    if (base::FeatureList::IsEnabled(features::kDetachedTabs)) {
-      // For detached tabs, the glow should align with the bottom of the tab
-      // body.
-      int tab_bottom =
-          GetLayoutConstant(LayoutConstant::kTabHeight) -
-          GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap);
-      if (group().has_value()) {
-        tab_bottom -=
-            GetLayoutConstant(
-                LayoutConstant::kDetachedTabGroupUnderlineBottomSpacing) /
-            2;
-      }
-      const int glow_height = 8;
-      glic_bounds =
-          gfx::Rect(0, tab_bottom - glow_height, size().width(), glow_height);
-    } else {
-      // Use the full width of the tab in order to accommodate small tab sizes
-      // where the width of the contents bounds is 0.
-      glic_bounds.set_x(0);
-      glic_bounds.set_width(size().width());
-    }
+    // Use the full width of the tab in order to accommodate small tab sizes
+    // where the width of the contents bounds is 0.
+    glic_bounds.set_x(0);
+    glic_bounds.set_width(size().width());
     glic_tab_underline_view_->SetBoundsRect(glic_bounds);
   }
 
@@ -474,8 +457,11 @@ void Tab::Layout(PassKey) {
     // overflow the left side of the contents_rect, in that case it will be
     // placed in the middle of the tab.
     const int visible_left =
-        std::max(close_x - close_button_visible_size,
-                 Center(width(), close_button_visible_size));
+        (center_icon_ &&
+         base::FeatureList::IsEnabled(features::kTabStripDeclutter))
+            ? Center(width(), close_button_visible_size)
+            : std::max(close_x - close_button_visible_size,
+                       Center(width(), close_button_visible_size));
 
     // Offset the new bounds rect by the extra padding in the close button.
     const int non_visible_left_padding =
@@ -844,7 +830,7 @@ void Tab::OnBlur() {
 
   controller_->TabKeyboardFocusChangedTo(nullptr);
 
-  if (!controller_->IsFocusInTabs()) {
+  if (!controller_->IsFocusInTabStrip()) {
     controller_->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kFocus);
   }
@@ -961,7 +947,7 @@ bool Tab::IsApparentlyActive() const {
 }
 
 void Tab::AlertStateChanged() {
-  if (controller_->HoverCardIsShowingForTab(this)) {
+  if (controller_->HoverCardIsShowing(this)) {
     controller_->UpdateHoverCard(
         this, TabSlotController::HoverCardUpdateType::kTabDataChanged);
   }
@@ -1178,8 +1164,7 @@ void Tab::UpdateIconVisibility() {
 
     const bool is_decluttered =
         base::FeatureList::IsEnabled(features::kTabStripDeclutter) &&
-        controller_->GetTabCount() >=
-            TabStyle::kTabStripDeclutterMinTabsForCloseHide;
+        available_width <= TabStyle::kTabStripDeclutterMaxTabWidthForCloseHide;
     showing_close_button_ =
 #if BUILDFLAG(IS_CHROMEOS)
         should_show_close_button &&
@@ -1202,6 +1187,21 @@ void Tab::UpdateIconVisibility() {
       if (!closing_) {
         center_icon_ = true;
       }
+    }
+  }
+
+  if (!closing_ && base::FeatureList::IsEnabled(features::kTabStripDeclutter)) {
+    const int title_padding =
+        showing_icon_ ? GetLayoutConstant(LayoutConstant::kTabPreTitlePadding)
+                      : 0;
+    const int title_width =
+        available_width - title_padding -
+        GetLayoutConstant(LayoutConstant::kTabAfterTitlePadding);
+    const bool show_title = ShouldRenderAsNormalTab() && title_width > 0;
+    const int num_elements = showing_icon_ + showing_alert_indicator_ +
+                             showing_close_button_ + show_title;
+    if (num_elements == 1) {
+      center_icon_ = true;
     }
   }
 
@@ -1359,7 +1359,7 @@ void Tab::OnTabDataChanged(TabChangeType tab_change_type,
     TooltipTextChanged();
   }
   SetHoverCardDataFrom(data_);
-  if (controller_->HoverCardIsShowingForTab(this)) {
+  if (controller_->HoverCardIsShowing(this)) {
     controller_->UpdateHoverCard(
         this, TabSlotController::HoverCardUpdateType::kTabDataChanged);
   }

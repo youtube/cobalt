@@ -1195,6 +1195,11 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
       return EchoCanceller3Config();
     }
 
+    EchoCanceller3Config::Suppressor AdjustConfig(
+        const EchoCanceller3Config::Suppressor& config) const override {
+      return config;
+    }
+
     MOCK_METHOD(void, Reset, (), (override));
 
    private:

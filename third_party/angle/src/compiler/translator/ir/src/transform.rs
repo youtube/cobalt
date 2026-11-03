@@ -10,10 +10,12 @@ pub mod dealias;
 pub mod emulate_instanced_multiview;
 pub mod emulate_multi_draw;
 pub mod initialize_uninitialized_variables;
+pub mod localized_workarounds;
 pub mod monomorphize_unsupported_functions;
 pub mod propagate_precision;
 pub mod remove_unused_framebuffer_fetch;
 pub mod rewrite_pixel_local_storage;
+pub mod scalarize_vec_and_mat_constructor_args;
 pub mod sort_uniforms;
 
 // Transformations that only a single code generator uses.

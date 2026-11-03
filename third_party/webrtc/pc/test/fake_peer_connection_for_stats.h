@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_options.h"
@@ -35,6 +36,7 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "call/call.h"
@@ -111,7 +113,23 @@ class FakeVoiceMediaSendChannelForStats : public FakeVoiceMediaSendChannel {
     return false;
   }
 
+  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsCallback()
+      override {
+    return [this, safety = task_safety_.flag()]() mutable
+               -> std::optional<VoiceMediaSendInfo> {
+      if (!safety->alive()) {
+        return std::nullopt;
+      }
+      VoiceMediaSendInfo info;
+      if (GetStats(&info)) {
+        return info;
+      }
+      return std::nullopt;
+    };
+  }
+
  private:
+  ScopedTaskSafety task_safety_;
   std::optional<VoiceMediaSendInfo> send_stats_;
 };
 
@@ -138,7 +156,23 @@ class FakeVoiceMediaReceiveChannelForStats
     return false;
   }
 
+  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsCallback(
+      bool get_and_clear_legacy_stats) override {
+    return [this, safety = task_safety_.flag()]() mutable
+               -> std::optional<VoiceMediaReceiveInfo> {
+      if (!safety->alive()) {
+        return std::nullopt;
+      }
+      VoiceMediaReceiveInfo info;
+      if (GetStats(&info, /*get_and_clear_legacy_stats=*/false)) {
+        return info;
+      }
+      return std::nullopt;
+    };
+  }
+
  private:
+  ScopedTaskSafety task_safety_;
   std::optional<VoiceMediaReceiveInfo> receive_stats_;
 };
 
@@ -164,7 +198,23 @@ class FakeVideoMediaSendChannelForStats : public FakeVideoMediaSendChannel {
     return false;
   }
 
+  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsCallback()
+      override {
+    return [this, safety = task_safety_.flag()]() mutable
+               -> std::optional<VideoMediaSendInfo> {
+      if (!safety->alive()) {
+        return std::nullopt;
+      }
+      VideoMediaSendInfo info;
+      if (GetStats(&info)) {
+        return info;
+      }
+      return std::nullopt;
+    };
+  }
+
  private:
+  ScopedTaskSafety task_safety_;
   std::optional<VideoMediaSendInfo> send_stats_;
 };
 
@@ -189,7 +239,23 @@ class FakeVideoMediaReceiveChannelForStats
     return false;
   }
 
+  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsCallback()
+      override {
+    return [this, safety = task_safety_.flag()]() mutable
+               -> std::optional<VideoMediaReceiveInfo> {
+      if (!safety->alive()) {
+        return std::nullopt;
+      }
+      VideoMediaReceiveInfo info;
+      if (GetStats(&info)) {
+        return info;
+      }
+      return std::nullopt;
+    };
+  }
+
  private:
+  ScopedTaskSafety task_safety_;
   std::optional<VideoMediaReceiveInfo> receive_stats_;
 };
 

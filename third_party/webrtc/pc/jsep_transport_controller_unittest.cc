@@ -67,6 +67,7 @@
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
@@ -357,7 +358,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
 
   FieldTrials field_trials_ = CreateTestFieldTrials();
   Environment env_;
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   // Information received from signals from transport controller.
   IceConnectionState connection_state_ = kIceConnectionConnecting;
   PeerConnectionInterface::IceConnectionState ice_connection_state_ =

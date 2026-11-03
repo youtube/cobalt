@@ -626,7 +626,6 @@ void TestRenderFrameHost::ResetLocalFrame() {
 }
 
 void TestRenderFrameHost::SendCommitNavigation(
-    mojom::NavigationClient* navigation_client,
     NavigationRequest* navigation_request,
     blink::mojom::CommonNavigationParamsPtr common_params,
     blink::mojom::CommitNavigationParamsPtr commit_params,
@@ -648,13 +647,12 @@ void TestRenderFrameHost::SendCommitNavigation(
     blink::mojom::PolicyContainerPtr policy_container,
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token) {
-  CHECK(navigation_client);
+  CHECK(navigation_request->GetCommitNavigationClient());
   commit_callback_[navigation_request] =
       BuildCommitNavigationCallback(navigation_request);
 }
 
 void TestRenderFrameHost::SendCommitFailedNavigation(
-    mojom::NavigationClient* navigation_client,
     NavigationRequest* navigation_request,
     blink::mojom::CommonNavigationParamsPtr common_params,
     blink::mojom::CommitNavigationParamsPtr commit_params,
@@ -667,7 +665,7 @@ void TestRenderFrameHost::SendCommitFailedNavigation(
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token,
     blink::mojom::PolicyContainerPtr policy_container) {
-  CHECK(navigation_client);
+  CHECK(navigation_request->GetCommitNavigationClient());
   commit_failed_callback_[navigation_request] =
       BuildCommitFailedNavigationCallback(navigation_request);
 }

@@ -41,7 +41,6 @@ rtc_library("corruption_detection_message") {
     "corruption_detection_message.h",
   ]
   deps = [
-    "../../:array_view",
     "../../../rtc_base:checks",
     "../../video/corruption_detection:frame_instrumentation_data",
     "//third_party/abseil-cpp/absl/container:inlined_vector",

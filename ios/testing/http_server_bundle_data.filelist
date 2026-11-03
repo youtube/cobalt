@@ -5,8 +5,10 @@
 #       If it requires updating, you should get a presubmit error with
 #       instructions on how to regenerate. Otherwise, do not edit.
 data/http_server_files/OWNERS
+data/http_server_files/actor/OWNERS
 data/http_server_files/actor/click_tool_test.html
 data/http_server_files/actor/type_tool_test.html
+data/http_server_files/actor/scroll_tool_test.html
 data/http_server_files/article.html
 data/http_server_files/autofill_refill_test.html
 data/http_server_files/autofill_smoke_test.html
@@ -38,12 +40,14 @@ data/http_server_files/links.html
 data/http_server_files/memory_usage.html
 data/http_server_files/multi_field_form.html
 data/http_server_files/multi_form_page.html
+data/http_server_files/navigator_credentials_cancel.html
 data/http_server_files/navigator_credentials_create.html
 data/http_server_files/new_password_and_confirmation_form.html
 data/http_server_files/new_password_and_confirmation_form_autofocus.html
 data/http_server_files/onload_replacestate_reload.html
 data/http_server_files/onload_replacestate_reload.js
 data/http_server_files/opensearch.xml
+data/http_server_files/passport_form.html
 data/http_server_files/permissions/camera_and_microphone.html
 data/http_server_files/permissions/camera_only.html
 data/http_server_files/permissions/microphone_only.html
@@ -52,6 +56,7 @@ data/http_server_files/profile_form.html
 data/http_server_files/readonly_form.html
 data/http_server_files/redchair.usdz
 data/http_server_files/redirect_refresh.html
+data/http_server_files/redress_number.html
 data/http_server_files/sample.ics
 data/http_server_files/sample.mobileconfig
 data/http_server_files/sample.order

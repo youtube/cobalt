@@ -371,6 +371,7 @@ class RTCStatsCollectorWrapper {
     });
     EXPECT_CALL(*sender, AttachmentId()).WillRepeatedly(Return(attachment_id));
     EXPECT_CALL(*sender, Stop()).WillRepeatedly(Return());
+    EXPECT_CALL(*sender, SetSendCodecs(_)).WillRepeatedly(Return());
     RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddSender(sender);
     RTC_ALLOW_PLAN_B_DEPRECATION_END();
@@ -885,6 +886,70 @@ TEST_P(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
   // The act of doing `AdvanceTime` processes all messages. If this was not the
   // case we might not require `c` to be fresher than `b`.
   EXPECT_NE(c.get(), b.get());
+}
+
+TEST_P(RTCStatsCollectorTest, StatsPreservedWhenChannelClearedConcurrently) {
+  VoiceMediaInfo voice_media_info;
+  voice_media_info.receivers.emplace_back();
+  voice_media_info.receivers[0].add_ssrc(1);
+  voice_media_info.receivers[0].packets_received = 123;
+
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
+  pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
+  auto remote_receiver = stats_->SetupRemoteTrackAndReceiver(
+      MediaType::AUDIO, "RemoteAudioTrackID", "RemoteStreamId", 1);
+  auto local_sender = stats_->SetupLocalTrackAndSender(
+      MediaType::AUDIO, "LocalAudioTrackID", 2,
+      /*add_stream=*/true, /*attachment_id=*/2);
+
+  EXPECT_CALL(*local_sender, SetSendCodecs(_)).WillRepeatedly(Return());
+  EXPECT_CALL(*local_sender, SetMediaChannel(_)).WillRepeatedly(Return());
+  EXPECT_CALL(*local_sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
+    return nullptr;
+  });
+  EXPECT_CALL(*remote_receiver, SetMediaChannel(_)).WillRepeatedly(Return());
+
+  scoped_refptr<const RTCStatsReport> report;
+  bool stats_obtained = false;
+  stats_->stats_collector().GetStatsReport(
+      RTCStatsObtainer::Create(&report, [&] {
+        stats_obtained = true;
+        main_thread_.Quit();
+      }));
+
+  auto transceivers = pc_->GetTransceiversInternal();
+  ASSERT_FALSE(transceivers.empty());
+  auto* transceiver = transceivers[0]->internal();
+  EXPECT_TRUE(transceiver->HasChannel());
+
+  auto network_task = transceiver->GetClearChannelNetworkTask();
+  pc_->network_thread()->BlockingCall([&]() { std::move(network_task)(); });
+
+  auto delete_worker_task =
+      transceiver->GetDeleteChannelWorkerTask(/*stop_senders=*/false);
+  // Now the state of the transceiver is that on the signaling thread,
+  // there is no channel. However, the work of actually deleting the channels
+  // belongs to the worker thread task, which hasn't run yet.
+  // Let's post the execution of that task so that it ends up running
+  // *after* the task that the `stats_collector` has queued up for
+  // gathering the stats from the channel. The stats collector should
+  // be able to get the stats safely even though technically the
+  // transceiver by now, doesn't have a channel.
+  EXPECT_FALSE(transceiver->HasChannel());
+  Event worker_task_done;
+  pc_->worker_thread()->PostTask([&]() {
+    std::move(delete_worker_task)();
+    worker_task_done.Set();
+  });
+
+  main_thread_.Run();
+
+  EXPECT_TRUE(report);
+  auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  EXPECT_EQ(inbound_rtps.size(), 1u);
+  // Wait for the cleanup task to complete.
+  worker_task_done.Wait(Event::kForever);
 }
 
 TEST_P(RTCStatsCollectorTest, ToJsonProducesParseableJson) {

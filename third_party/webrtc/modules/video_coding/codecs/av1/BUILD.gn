@@ -103,7 +103,6 @@ rtc_library("libaom_av1_encoder_v2") {
     "libaom_av1_encoder_v2.h",
   ]
   deps = [
-    "../../../../api:array_view",
     "../../../../api:scoped_refptr",
     "../../../../api/units:data_rate",
     "../../../../api/units:data_size",

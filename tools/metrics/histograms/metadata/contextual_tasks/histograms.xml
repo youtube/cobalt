@@ -87,7 +87,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContextualTasks.Composebox.UserAction.AddedActiveTabAfterDeletingAutoSuggestion"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2026-09-27">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-contextual-tasks-eng@google.com</owner>
   <summary>
@@ -180,6 +180,59 @@ chromium-metrics-reviews@google.com.
     Recorded every time a query is successfully made in the contextual tasks
     framework and context was calculated successfully. Records the number of
     tabs that were determined to be relevant to the query.
+  </summary>
+</histogram>
+
+<histogram
+    name="ContextualTasks.Context.SiteExclusions.ActiveTab.ExclusionsChecked"
+    units="count" expires_after="2026-09-17">
+  <owner>orinj@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded every time a query is made and the active tab eligibility
+    determined. Records the number of site exclusions checked to determine
+    eligibility of active tab.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.Context.SiteExclusions.ActiveTab.Filtered"
+    enum="Boolean" expires_after="2026-09-17">
+  <owner>orinj@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded every time a query is made and the active tab eligibility
+    determined. Records whether the active tab was filtered by site exclusions.
+  </summary>
+</histogram>
+
+<histogram
+    name="ContextualTasks.Context.SiteExclusions.AllTabs.CheckingDuration"
+    units="ms" expires_after="2026-09-17">
+  <owner>orinj@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when eligibility is determined for all tabs. Records the number of
+    milliseconds spent on site exclusion checking/filtering for all tabs.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.Context.SiteExclusions.AllTabs.TabsChecked"
+    units="count" expires_after="2026-09-17">
+  <owner>orinj@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when eligibility is determined for all tabs. Records the number of
+    tabs checked for site exclusions.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.Context.SiteExclusions.AllTabs.TabsFiltered"
+    units="count" expires_after="2026-09-17">
+  <owner>orinj@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when eligibility is determined for all tabs. Records the number of
+    tabs filtered out by site exclusions.
   </summary>
 </histogram>
 

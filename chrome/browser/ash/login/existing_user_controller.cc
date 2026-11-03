@@ -94,6 +94,7 @@
 #include "chromeos/ash/components/login/auth/public/key.h"
 #include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/ash/components/osauth/public/auth_hub.h"
+#include "chromeos/ash/components/osauth/public/auth_policy_connector.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/settings/user_login_permission_tracker.h"
@@ -301,6 +302,11 @@ int CountRegularUsers(const user_manager::UserList& users) {
   return regular_users_counter;
 }
 
+bool UserHasAnyLocalAuthFactors(const UserContext& context) {
+  return (context.GetAuthFactorsData().FindLocalPasswordFactor() != nullptr ||
+          context.GetAuthFactorsData().FindPinFactor() != nullptr);
+}
+
 }  // namespace
 
 // Utility class used to wait for a Public Session policy to be available if
@@ -364,8 +370,7 @@ ExistingUserController::ExistingUserController(
       application_locale_storage_(CHECK_DEREF(application_locale_storage)),
       shared_url_loader_factory_(std::move(shared_url_loader_factory)),
       cros_settings_(CrosSettings::Get()),
-      network_state_helper_(new login::NetworkStateHelper),
-      pin_salt_storage_(std::make_unique<quick_unlock::PinSaltStorage>()) {
+      network_state_helper_(new login::NetworkStateHelper) {
   CHECK(shared_url_loader_factory_);
   HttpAuthDialog::AddObserver(this);
 
@@ -588,9 +593,11 @@ void ExistingUserController::PerformLogin(
       !new_user_context.GetChallengeResponseKeys().empty();
 
   if (new_user_context.IsUsingPin()) {
+    const quick_unlock::PinSaltStorageImpl pin_salt_storage;
+
     std::optional<Key> key =
         quick_unlock::PinStorageCryptohome::TransformPinKey(
-            pin_salt_storage_.get(), new_user_context.GetAccountId(),
+            pin_salt_storage, new_user_context.GetAccountId(),
             *new_user_context.GetKey());
     if (key) {
       new_user_context.SetKey(*key);
@@ -784,7 +791,53 @@ void ExistingUserController::OnAuthSuccess(const UserContext& user_context) {
   if (MaybeShowPasswordSelectionScreen(user_context)) {
     return;
   }
+
+  // Start the remove local auth factors flow.
+  if (MaybeShowRemoveLocalAuthFactorsScreen(user_context)) {
+    return;
+  }
   FinalizeAuthAndStartSession(user_context, has_auth_cookies);
+}
+
+bool ExistingUserController::MaybeShowRemoveLocalAuthFactorsScreen(
+    const UserContext& user_context) {
+  bool has_required_feature_flags =
+      ash::features::IsRecoveryFlowReorderEnabled() &&
+      ash::features::IsManagedLocalPinAndPasswordEnabled();
+  if (!has_required_feature_flags ||
+      auth_mode_ != LoginPerformer::AuthorizationMode::kExternal) {
+    return false;
+  }
+
+  auto auth_setup_flow = GetLoginDisplayHost()
+                             ->GetWizardContext()
+                             ->knowledge_factor_setup.auth_setup_flow;
+  if (!has_required_feature_flags ||
+      auth_setup_flow != WizardContext::AuthChangeFlow::kReauthentication) {
+    return false;
+  }
+
+  if (!user_context.GetAccountId().is_valid()) {
+    LOG(ERROR) << "Invalid AccountId detected";
+  }
+  // Only check for policy after the check for auth mode and auth flow,
+  // otherwise we might end up calling an auth policy connector in offline login
+  // where it might not have been properly initialized.
+  auto allowed_local_auth_factors =
+      AuthPolicyConnector::Get()->AllowedLocalAuthFactors(
+          user_context.GetAccountId());
+  bool policy_allows_local_auth_factors =
+      allowed_local_auth_factors.has_value() &&
+      !allowed_local_auth_factors->empty();
+  if (policy_allows_local_auth_factors ||
+      !UserHasAnyLocalAuthFactors(user_context)) {
+    return false;
+  }
+  SetUserContext(*GetLoginDisplayHost()->GetWizardContext(),
+                 std::make_unique<UserContext>(user_context));
+
+  GetLoginDisplayHost()->GetSigninUI()->ShowRemoveLocalAuthFactorsScreen();
+  return true;
 }
 
 bool ExistingUserController::MaybeShowPasswordSelectionScreen(

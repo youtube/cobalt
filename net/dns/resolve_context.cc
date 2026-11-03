@@ -722,14 +722,30 @@ void ResolveContext::EmitDohAutoupgradeSuccessMetrics() {
 }
 
 bool ResolveContext::IsDohFallbackProbeEnabled() const {
+  // It's important to check the feature flag after the DohConfig and
+  // `doh_fallback_upgrade_allowed()` checks for when we conduct an experiment
+  // enabling the functionality.
+  return IsDohConfigFromFallbackDohNameservers() &&
+         doh_fallback_upgrade_allowed() &&
+         base::FeatureList::IsEnabled(
+             net::features::kForceSecureDnsDohFallback) &&
+         doh_fallback_canary_domain_check_status_ !=
+             CanaryDomainCheckStatus::kInactive;
+}
+
+bool ResolveContext::IsDohConfigFromFallbackDohNameservers() const {
   if (!current_session_) {
     return false;
   }
-  return current_session_->config().secure_dns_mode ==
-             SecureDnsMode::kAutomatic &&
-         current_session_->config().should_perform_doh_fallback_upgrade &&
-         doh_fallback_canary_domain_check_status_ !=
-             CanaryDomainCheckStatus::kInactive;
+
+  if (current_session_->config().should_perform_doh_fallback_upgrade) {
+    // This is a fallback upgrade, which only happens in Automatic mode.
+    CHECK_EQ(current_session_->config().secure_dns_mode,
+             net::SecureDnsMode::kAutomatic);
+    return true;
+  }
+
+  return false;
 }
 
 // static

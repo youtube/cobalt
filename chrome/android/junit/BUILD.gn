@@ -545,6 +545,7 @@ if (is_android) {
   robolectric_library(
       "chrome_junit_tests_org.chromium.chrome.browser.bookmarks") {
     sources = [
+      "src/org/chromium/chrome/browser/bookmarks/BookmarkAllTabsHandlerUnitTest.java",
       "src/org/chromium/chrome/browser/bookmarks/BookmarkPageUnitTest.java",
     ]
     deps = [
@@ -776,6 +777,7 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//chrome/browser/xsurface_provider:java",
+      "//third_party/android_swipe_refresh:android_swipe_refresh_java",
     ]
   }
 
@@ -793,6 +795,7 @@ if (is_android) {
     deps = [
       ":chrome_junit_tests_helper",
       "//components/policy/android:policy_java_test_support",
+      "//ui/android:ui_android_features_java",
     ]
   }
 
@@ -881,10 +884,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/notifications/NotificationSuspenderUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/NotificationTriggerBackgroundTaskTest.java",
       "src/org/chromium/chrome/browser/notifications/NotificationTriggerSchedulerTest.java",
-      "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsMetricsUnitTest.java",
-      "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsOptInCoordinatorUnitTest.java",
-      "src/org/chromium/chrome/browser/notifications/finds/ChromeFindsUtilsUnitTest.java",
-      "src/org/chromium/chrome/browser/notifications/finds/FindsManagerUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/scheduler/DisplayAgentUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsOptInCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsPromoCoordinatorUnitTest.java",
@@ -894,7 +893,6 @@ if (is_android) {
 
     deps = [
       ":chrome_junit_tests_helper",
-      "//chrome/browser/finds/android:java",
       "//third_party/android_deps:com_airbnb_android_lottie_java",
     ]
   }
@@ -1203,6 +1201,7 @@ if (is_android) {
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabRemoverImplUnitTest.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabUngrouperImplUnitTest.java",
       "src/org/chromium/chrome/browser/tabmodel/ArchivedTabModelSelectorImplTest.java",
+      "src/org/chromium/chrome/browser/tabmodel/ChromeTabCreatorJUnitTest.java",
       "src/org/chromium/chrome/browser/tabmodel/PendingTabClosureManagerTest.java",
       "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorImplTest.java",
       "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorProfileSupplierTest.java",
@@ -1450,6 +1449,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModePrefsViewUnitTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeToolbarButtonControllerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/TabDistillabilityProviderTest.java",
+      "src/org/chromium/chrome/browser/enterprise/PlatformAuthEntraTokensReaderTest.java",
       "src/org/chromium/chrome/browser/feed/FeedActionDelegateImplTest.java",
       "src/org/chromium/chrome/browser/feedback/ChromeFeedbackCollectorUnitTest.java",
       "src/org/chromium/chrome/browser/feedback/FeedFeedbackCollectorTest.java",
@@ -1457,6 +1457,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/findinpage/FindToolbarManagerTest.java",
       "src/org/chromium/chrome/browser/flags/BadFlagsSnackbarManagerTest.java",
       "src/org/chromium/chrome/browser/fonts/FontPreloaderUnitTest.java",
+      "src/org/chromium/chrome/browser/gesturenav/GestureUserEducationIphControllerUnitTest.java",
       "src/org/chromium/chrome/browser/gesturenav/HistoryNavigationCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/gsa/GSAUtilsUnitTest.java",
       "src/org/chromium/chrome/browser/incognito/IncognitoTabbedSnapshotControllerTest.java",
@@ -1475,6 +1476,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImplUnitTest.java",
       "src/org/chromium/chrome/browser/multiwindow/MultiWindowUtilsUnitTest.java",
       "src/org/chromium/chrome/browser/multiwindow/TabReparentingDelegateUnitTest.java",
+      "src/org/chromium/chrome/browser/multiwindow/WindowOcclusionTrackerUnitTest.java",
       "src/org/chromium/chrome/browser/multiwindow/WindowZOrderTrackerUnitTest.java",
       "src/org/chromium/chrome/browser/native_page/ContextMenuManagerUnitTest.java",
       "src/org/chromium/chrome/browser/native_page/NativePageFactoryTest.java",

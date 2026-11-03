@@ -218,6 +218,8 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
 
   bool SetSenderParameters(const AudioSenderParameter& params) override;
   RtpParameters GetRtpSendParameters(uint32_t ssrc) const override;
+  absl::AnyInvocable<RtpParameters(uint32_t)> GetRtpSendParametersCallback()
+      const override;
   RTCError SetRtpSendParameters(uint32_t ssrc,
                                 const RtpParameters& parameters,
                                 SetParametersCallback callback) override;
@@ -248,6 +250,8 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
                              const NetworkRoute& network_route) override;
   void OnReadyToSend(bool ready) override;
   bool GetStats(VoiceMediaSendInfo* info) override;
+  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsCallback()
+      override;
   bool SetOptions(const AudioOptions& options) override;
 
   // Sets a frame transformer between encoder and packetizer, to transform
@@ -377,6 +381,8 @@ class WebRtcVoiceReceiveChannel final
   void OnPacketReceived(RtpPacketReceived packet) override;
   bool GetStats(VoiceMediaReceiveInfo* info,
                 bool get_and_clear_legacy_stats) override;
+  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsCallback(
+      bool get_and_clear_legacy_stats) override;
 
   // Set the audio sink for an existing stream.
   void SetRawAudioSink(uint32_t ssrc,

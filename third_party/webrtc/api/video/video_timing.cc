@@ -14,7 +14,6 @@
 #include <cstdint>
 #include <string>
 
-#include "api/array_view.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"

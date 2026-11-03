@@ -19,11 +19,11 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
@@ -255,7 +255,7 @@ class StunMessage {
 
   // Verify that a buffer has stun magic cookie and one of the specified
   // methods. Note that it does not check for the existance of FINGERPRINT.
-  static bool IsStunMethod(ArrayView<int> methods,
+  static bool IsStunMethod(std::span<int> methods,
                            const char* data,
                            size_t size);
 
@@ -523,9 +523,7 @@ class StunByteStringAttribute : public StunAttribute {
   }
   // Returns the attribute value as an uint8_t view.
   // Use this function for values that are not text.
-  ArrayView<uint8_t> array_view() const {
-    return MakeArrayView(bytes_, length());
-  }
+  std::span<uint8_t> array_view() const { return std::span(bytes_, length()); }
 
   [[deprecated]] std::string GetString() const {
     return std::string(reinterpret_cast<const char*>(bytes_), length());

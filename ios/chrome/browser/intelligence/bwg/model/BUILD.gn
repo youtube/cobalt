@@ -97,7 +97,7 @@ source_set("tab_helper") {
   ]
   deps = [
     ":bwg_service",
-    ":bwg_service_factory",
+    ":gemini_service_factory",
     ":page_context",
     "//components/favicon/ios",
     "//components/feature_engagement/public",
@@ -134,7 +134,8 @@ source_set("tab_helper") {
 source_set("bwg_service") {
   sources = [
     "bwg_service.h",
-    "bwg_service.mm",
+    "bwg_service_impl.h",
+    "bwg_service_impl.mm",
   ]
   deps = [
     "//components/keyed_service/core",
@@ -155,10 +156,10 @@ source_set("bwg_service") {
   ]
 }
 
-source_set("bwg_service_factory") {
+source_set("gemini_service_factory") {
   sources = [
-    "bwg_service_factory.h",
-    "bwg_service_factory.mm",
+    "gemini_service_factory.h",
+    "gemini_service_factory.mm",
   ]
   deps = [
     ":bwg_service",
@@ -200,7 +201,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "bwg_link_opening_handler_unittest.mm",
-    "bwg_service_unittest.mm",
+    "bwg_service_impl_unittest.mm",
     "bwg_session_handler_unittest.mm",
     "bwg_tab_helper_unittest.mm",
     "gemini_browser_agent_unittest.mm",
@@ -209,7 +210,7 @@ source_set("unit_tests") {
   deps = [
     ":browser_agent",
     ":bwg_service",
-    ":bwg_service_factory",
+    ":gemini_service_factory",
     ":model",
     ":tab_helper",
     "//base",

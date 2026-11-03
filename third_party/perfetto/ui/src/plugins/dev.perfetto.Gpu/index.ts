@@ -144,7 +144,7 @@ export default class GpuPlugin implements PerfettoPlugin {
     // Only create a sub-group if there's more than one track.
     let parent: TrackNode;
     if (tracks.length > 1) {
-      parent = this.getGroupByName(gpuGroup, 'GPU Frequency', null);
+      parent = this.getGroupByName(gpuGroup, 'Frequency', null);
     } else {
       parent = gpuGroup;
     }
@@ -166,7 +166,13 @@ export default class GpuPlugin implements PerfettoPlugin {
           name,
         ),
       });
-      parent.addChildInOrder(new TrackNode({uri, name, sortOrder: -20}));
+      parent.addChildInOrder(
+        new TrackNode({
+          uri,
+          name,
+          sortOrder: gpu.sortOrder,
+        }),
+      );
     }
   }
 
@@ -193,6 +199,7 @@ export default class GpuPlugin implements PerfettoPlugin {
         parentGroup,
         gpuSubGroupName,
         scopeId,
+        gpu.sortOrder,
       );
       gpuSubGroup.addChildInOrder(track);
     } else {
@@ -204,6 +211,7 @@ export default class GpuPlugin implements PerfettoPlugin {
     node: TrackNode,
     group: string | undefined,
     scopeId: string | null,
+    sortOrder?: number,
   ): TrackNode {
     if (group === undefined) {
       return node;
@@ -218,6 +226,7 @@ export default class GpuPlugin implements PerfettoPlugin {
       isSummary: true,
       name: group,
       collapsed: true,
+      sortOrder,
     });
     node.addChildInOrder(newGroup);
     this.groups.set(groupId, newGroup);
@@ -325,7 +334,7 @@ export default class GpuPlugin implements PerfettoPlugin {
     }
 
     // Count ungrouped tracks per type to decide if a sub-group is needed,
-    // matching the GPU Frequency pattern: only create a sub-group when
+    // matching the Frequency pattern: only create a sub-group when
     // there are multiple tracks of the same type.
     const ungroupedCounts = new Map<string, number>();
     for (const {schema} of counterTracks) {
@@ -342,17 +351,20 @@ export default class GpuPlugin implements PerfettoPlugin {
       let groupGpu = gpu;
       if (group === undefined && (ungroupedCounts.get(schema.type) ?? 0) > 1) {
         // Multiple tracks of the same ungrouped type: create a sub-group
-        // using the base track name (e.g., "GPU Memory") and add tracks
-        // directly under it without per-GPU sub-groups, matching how
-        // addGpuFreq handles GPU Frequency tracks.
-        group = baseName;
+        // and add tracks directly under it without per-GPU sub-groups,
+        // matching how addGpuFreq handles Frequency tracks.
+        group = schema.gpuTrackName ?? baseName;
         groupGpu = null;
       }
       this.addToGpuGroup(
         ctx,
         group,
         groupGpu,
-        new TrackNode({uri, name: trackName, sortOrder: 0}),
+        new TrackNode({
+          uri,
+          name: trackName,
+          sortOrder: gpu?.sortOrder ?? 0,
+        }),
       );
     }
   }
@@ -447,7 +459,11 @@ export default class GpuPlugin implements PerfettoPlugin {
         ctx,
         schema.group,
         gpu,
-        new TrackNode({uri, name: trackName, sortOrder: 0}),
+        new TrackNode({
+          uri,
+          name: trackName,
+          sortOrder: gpu?.sortOrder ?? 0,
+        }),
       );
     }
   }

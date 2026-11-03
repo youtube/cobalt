@@ -341,9 +341,14 @@ void RtpTransport::RebuildMergedMap() {
   header_extension_map_ = std::move(merged_map);
 }
 
+void RtpTransport::SetActivePayloadTypeDemuxing(bool enabled) {
+  rtp_demuxer_.set_use_payload_type_demuxing(enabled);
+}
+
 bool RtpTransport::RegisterRtpDemuxerSink(const RtpDemuxerCriteria& criteria,
                                           RtpPacketSinkInterface* sink) {
   rtp_demuxer_.RemoveSink(sink);
+
   if (!rtp_demuxer_.AddSink(criteria, sink)) {
     RTC_LOG(LS_ERROR) << "Failed to register the sink for RTP demuxer.";
     return false;

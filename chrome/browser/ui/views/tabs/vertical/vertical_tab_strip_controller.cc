@@ -365,10 +365,12 @@ views::Widget* VerticalTabStripController::ShowGroupEditorBubble(
       /*stop_context_menu_propagation=*/stop_context_menu_propagation);
 }
 
-bool VerticalTabStripController::IsCollapsed() const {
-  const tabs::VerticalTabStripStateController* state_controller =
-      tabs::VerticalTabStripStateController::From(browser_view_->browser());
-  return state_controller && state_controller->IsCollapsed();
+std::unique_ptr<ExpandOnHoverLock>
+VerticalTabStripController::AcquireExpandOnHoverLock() {
+  CHECK(browser_view_);
+  CHECK(browser_view_->tab_strip_view());
+  return browser_view_->tab_strip_view()->GetExpandOnHoverLock(
+      ExpandOnHoverLockType::kKeepExpanded);
 }
 
 tab_groups::TabGroupSyncService*
@@ -379,6 +381,12 @@ VerticalTabStripController::GetTabGroupSyncService() {
 
 tabs::VerticalTabStripStateController*
 VerticalTabStripController::GetStateController() {
+  return const_cast<tabs::VerticalTabStripStateController*>(
+      std::as_const(*this).GetStateController());
+}
+
+const tabs::VerticalTabStripStateController*
+VerticalTabStripController::GetStateController() const {
   return tabs::VerticalTabStripStateController::From(browser_view_->browser());
 }
 

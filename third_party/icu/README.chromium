@@ -5,7 +5,7 @@ CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:78.2
 License: MIT
 License File: LICENSE
 Security Critical: yes
-Update Mechanism: Manual
+Update Mechanism: Manual (https://crbug.com/494114589)
 Shipped: yes
 
 Description:
@@ -266,3 +266,11 @@ D. Local Modifications
   - crbug.com/475851786
   - https://bugzilla.mozilla.org/show_bug.cgi?id=2010411
   - https://github.com/unicode-org/cldr/pull/5309
+
+13. "GMT+0" in "en-GB" locale
+    Timezone representation is "GMT+0" in "en-GB" locale since ICU 78 though it
+    was "GMT". It caused a site compatibility issue.
+  - patches/cldr-19362-british-gmt.patch
+  - https://bugzilla.mozilla.org/show_bug.cgi?id=2018880
+  - https://github.com/mozilla-firefox/firefox/commit/d9a1061bb178
+  - https://unicode-org.atlassian.net/browse/CLDR-19362

@@ -62,19 +62,6 @@ std::unique_ptr<GraphiteTestContext> DawnTestContext::Make(wgpu::BackendType bac
     options.nextInChain = &togglesDesc;
     std::vector<dawn::native::Adapter> adapters = sInstance->EnumerateAdapters(&options);
     SkASSERT(!adapters.empty());
-    // Sort adapters by adapterType(DiscreteGPU, IntegratedGPU, CPU) and
-    // backendType(WebGPU, D3D11, D3D12, Metal, Vulkan, OpenGL, OpenGLES).
-    std::sort(
-            adapters.begin(), adapters.end(), [](dawn::native::Adapter a, dawn::native::Adapter b) {
-                wgpu::Adapter wgpuA = a.Get();
-                wgpu::Adapter wgpuB = b.Get();
-                wgpu::AdapterInfo infoA;
-                wgpu::AdapterInfo infoB;
-                wgpuA.GetInfo(&infoA);
-                wgpuB.GetInfo(&infoB);
-                return std::tuple(infoA.adapterType, infoA.backendType) <
-                       std::tuple(infoB.adapterType, infoB.backendType);
-            });
 
     for (const auto& adapter : adapters) {
         wgpu::Adapter wgpuAdapter = adapter.Get();

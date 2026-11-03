@@ -11,11 +11,11 @@
 #include "api/video_codecs/sdp_video_format.h"
 
 #include <optional>
+#include <span>
 #include <string>
 
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/match.h"
-#include "api/array_view.h"
 #include "api/rtp_parameters.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/av1_profile.h"
@@ -172,7 +172,7 @@ bool SdpVideoFormat::IsSameCodec(const SdpVideoFormat& other) const {
 }
 
 bool SdpVideoFormat::IsCodecInList(
-    ArrayView<const SdpVideoFormat> formats) const {
+    std::span<const SdpVideoFormat> formats) const {
   for (const auto& format : formats) {
     if (IsSameCodec(format)) {
       return true;
@@ -245,7 +245,7 @@ const SdpVideoFormat SdpVideoFormat::AV1Profile1() {
 }
 
 std::optional<SdpVideoFormat> FuzzyMatchSdpVideoFormat(
-    ArrayView<const SdpVideoFormat> supported_formats,
+    std::span<const SdpVideoFormat> supported_formats,
     const SdpVideoFormat& format) {
   std::optional<SdpVideoFormat> res;
   int best_parameter_match = 0;

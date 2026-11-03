@@ -143,7 +143,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmAllocateStruct)                   \
   V(WasmRefFunc)                          \
   V(StringAsWtf16)                        \
-  V(StringPrepareForGetCodeUnit)
+  V(StringPrepareForGetCodeUnit)          \
+  V(ProcessWasmArgument)
 
 #define TURBOSHAFT_DEINTERLEAVED_OPERATION_LIST(V) \
   V(Simd128LoadPairDeinterleave)
@@ -289,6 +290,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WordBinop)                               \
   V(FloatBinop)                              \
   V(Word32PairBinop)                         \
+  V(Word64MulWide)                           \
   V(OverflowCheckedBinop)                    \
   V(WordUnary)                               \
   V(OverflowCheckedUnary)                    \
@@ -1805,6 +1807,34 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
   Word32PairBinopOp(V<Word32> left_low, V<Word32> left_high,
                     V<Word32> right_low, V<Word32> right_high, Kind kind)
       : Base(left_low, left_high, right_low, right_high), kind(kind) {}
+
+  auto options() const { return std::tuple{kind}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
+// Multiplies 2 Word64 values and produces a 128-bit result in 2 Word64 values
+struct Word64MulWideOp : FixedArityOperationT<2, Word64MulWideOp> {
+  enum class Kind : uint8_t { kSigned, kUnsigned };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word64(),
+                     RegisterRepresentation::Word64()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Word64(),
+                          MaybeRegisterRepresentation::Word64()>();
+  }
+
+  V<Word64> left() const { return input<Word64>(0); }
+  V<Word64> right() const { return input<Word64>(1); }
+
+  Word64MulWideOp(V<Word64> left, V<Word64> right, Kind kind)
+      : Base(left, right), kind(kind) {}
 
   auto options() const { return std::tuple{kind}; }
   void PrintOptions(std::ostream& os) const;
@@ -7498,6 +7528,39 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   }
 
   auto options() const { return std::tuple(type); }
+};
+
+// Identity operation that carries a pre-call FrameState for JS-to-Wasm wrapper
+// inlining. Emitted before the Call for each numeric wasm argument so the
+// wasm-in-js-inlining reducer can extract the FrameState and pass it to
+// parameter conversion builtins, allowing correct lazy deoptimization when a
+// JSReceiver triggers valueOf (crbug.com/493307329).
+struct ProcessWasmArgumentOp : FixedArityOperationT<2, ProcessWasmArgumentOp> {
+  // Pure identity operation: carries a frame state for the reducer to extract,
+  // but has no runtime effects. Gets dead-code eliminated after the reducer
+  // unwraps it.
+  static constexpr OpEffects effects = OpEffects();
+
+  ProcessWasmArgumentOp(V<Object> value, V<FrameState> frame_state)
+      : Base(value, frame_state) {}
+
+  V<Object> value() const { return input<Object>(0); }
+  V<FrameState> frame_state() const { return input<FrameState>(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  auto options() const { return std::tuple<>(); }
 };
 
 struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {

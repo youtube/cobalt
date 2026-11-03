@@ -17,6 +17,7 @@
 #include "ui/base/models/list_selection_model.h"
 
 class BrowserView;
+class ExpandOnHoverLock;
 class TabCollectionNode;
 class TabGroup;
 class TabHoverCardController;
@@ -73,11 +74,12 @@ class VerticalTabStripController : public TabContextMenuController::Delegate {
   views::Widget* ShowGroupEditorBubble(const tab_groups::TabGroupId& group_id,
                                        views::View* anchor_view,
                                        bool stop_context_menu_propagation);
-  bool IsCollapsed() const;
+  std::unique_ptr<ExpandOnHoverLock> AcquireExpandOnHoverLock();
 
   tab_groups::TabGroupSyncService* GetTabGroupSyncService();
 
   tabs::VerticalTabStripStateController* GetStateController();
+  const tabs::VerticalTabStripStateController* GetStateController() const;
 
   TabContextMenuController* GetTabContextMenuController() {
     return context_menu_controller_.get();

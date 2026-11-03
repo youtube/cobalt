@@ -312,15 +312,43 @@ source_set("tests") {
   }
 }
 
-mojolpm_fuzzer_test("webnn_graph_mojolpm_fuzzer") {
+test("webnn_graph_impl_fuzzer") {
+  sources = [
+    "webnn_graph_impl_fuzzer.cc",
+    "webnn_test_utils.cc",
+    "webnn_test_utils.h",
+  ]
+
+  fuzztests = [
+    "WebNNGraphImplFuzzer_CPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_GPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_NPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_CPU.SingleOpPool2d",
+    "WebNNGraphImplFuzzer_GPU.SingleOpPool2d",
+    "WebNNGraphImplFuzzer_NPU.SingleOpPool2d",
+  ]
+
+  deps = [
+    ":webnn_service",
+    ":webnn_test_support",
+    "//base",
+    "//base/test:test_support",
+    "//mojo/core/embedder",
+    "//mojo/public/cpp/bindings",
+    "//services/webnn/public/cpp",
+    "//services/webnn/public/mojom",
+    "//testing/gtest",
+    "//third_party/fuzztest:fuzztest_gtest_main",
+  ]
+}
+
+mojolpm_fuzzer_test("webnn_graph_mojolpm_textproto_fuzzer") {
   sources = [ "webnn_graph_mojolpm_fuzzer.cc" ]
 
   proto_source = "webnn_graph_mojolpm_fuzzer.proto"
 
   proto_deps = [ "//services/webnn/public/mojom:mojom_mojolpm" ]
-  testcase_proto_kind = "services.fuzzing.webnn_graph.proto.Testcase"
-  seed_corpus_sources =
-      [ "webnn_graph_mojolpm_fuzzer_seed_corpus/simple.textproto" ]
+  seed_corpus = "webnn_graph_mojolpm_fuzzer_seed_corpus"
   deps = [
     ":webnn_service",
     ":webnn_test_support",

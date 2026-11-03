@@ -16,7 +16,6 @@
 #include "build/buildflag.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
-#include "content/browser/attribution_reporting/attribution_observer.h"  // nogncheck
 #include "content/browser/interest_group/devtools_enums.h"  // nogncheck
 #include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"  // nogncheck
@@ -36,7 +35,6 @@ class QuotaOverrideHandle;
 }
 
 namespace content {
-class AttributionManager;
 class DevToolsAgentHostClient;
 class DevToolsAgentHostImpl;
 class RenderFrameHostImpl;
@@ -49,7 +47,6 @@ class StorageHandler
       public Storage::Backend
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     , public content::InterestGroupManagerImpl::InterestGroupObserver,
-      public AttributionObserver,
       public content::SharedStorageRuntimeManager::
           SharedStorageObserverInterface
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
@@ -176,14 +173,6 @@ class StorageHandler
   DispatchResponse DeleteStorageBucket(
       std::unique_ptr<protocol::Storage::StorageBucket> bucket) override;
 
-  void SetAttributionReportingLocalTestingMode(
-      bool enabled,
-      std::unique_ptr<SetAttributionReportingLocalTestingModeCallback>)
-      override;
-  Response SetAttributionReportingTracking(bool enable) override;
-  void SendPendingAttributionReports(
-      std::unique_ptr<SendPendingAttributionReportsCallback>) override;
-
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void NotifyInterestGroupAuctionEventOccurred(
       base::Time event_time,
@@ -223,7 +212,6 @@ class StorageHandler
   SharedStorageRuntimeManager* GetSharedStorageRuntimeManager();
   std::variant<protocol::Response, storage::SharedStorageManager*>
   GetSharedStorageManager();
-  AttributionManager* GetAttributionManager();
 
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
@@ -235,21 +223,6 @@ class StorageHandler
       base::optional_ref<const url::Origin> component_seller_origin,
       std::optional<double> bid,
       base::optional_ref<const std::string> bid_currency) override;
-
-  // AttributionObserver
-  void OnSourceHandled(
-      const StorableSource&,
-      base::Time source_time,
-      std::optional<uint64_t> cleared_debug_key,
-      attribution_reporting::mojom::StoreSourceResult) override;
-  void OnTriggerHandled(std::optional<uint64_t> cleared_debug_key,
-                        const CreateReportResult&) override;
-  void OnReportSent(const AttributionReport&,
-                    bool is_debug_report,
-                    const SendResult&) override;
-  void OnDebugReportSent(const AttributionDebugReport&,
-                         int status,
-                         base::Time) override;
 
   // content::SharedStorageRuntimeManager::SharedStorageObserverInterface
   GlobalRenderFrameHostId AssociatedFrameHostId() const override;
@@ -292,10 +265,6 @@ class StorageHandler
       const std::optional<std::string>& browser_context_id,
       StoragePartition** storage_partition);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  void ResetAttributionReporting();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-
   Response GetStorageKeyForFrameInternal(const std::string& frame_id,
                                          std::string* serialized_storage_key);
 
@@ -326,8 +295,6 @@ class StorageHandler
   bool interest_group_tracking_enabled_ = false;
   bool interest_group_auction_tracking_enabled_ = false;
 
-  base::ScopedObservation<AttributionManager, AttributionObserver>
-      attribution_observation_{this};
   base::ScopedObservation<
       content::SharedStorageRuntimeManager,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface>

@@ -338,42 +338,6 @@ RTCError BaseChannel::SetRemoteContent(const MediaContentDescription* content,
   return SetRemoteContent_w(content, type);
 }
 
-bool BaseChannel::SetPayloadTypeDemuxingEnabled(bool enabled) {
-  // TODO(bugs.webrtc.org/11993): The demuxer state needs to be managed on the
-  // network thread. At the moment there's a workaround for inconsistent state
-  // between the worker and network thread because of this (see
-  // OnDemuxerCriteriaUpdatePending elsewhere in this file) and
-  // UpdateRemoteStreams_w has a BlockingCall over to the network
-  // thread to apply state updates.
-  RTC_DCHECK_RUN_ON(network_thread());
-  TRACE_EVENT0("webrtc", "BaseChannel::SetPayloadTypeDemuxingEnabled");
-
-  if (enabled == payload_type_demuxing_enabled_) {
-    return true;
-  }
-
-  payload_type_demuxing_enabled_ = enabled;
-
-  if (!enabled) {
-    worker_thread_->PostTask(SafeTask(alive_, [this] {
-      // TODO(crbug.com/11477): This will remove *all* unsignaled streams (those
-      // without an explicitly signaled SSRC), which may include streams that
-      // were matched to this channel by MID or RID. Ideally we'd remove only
-      // the streams that were matched based on payload type alone, but
-      // currently there is no straightforward way to identify those streams.
-      media_receive_channel()->ResetUnsignaledRecvStream();
-    }));
-  }
-
-  if (!payload_types_.empty()) {
-    if (!rtp_transport_) {
-      return false;
-    }
-    return rtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria(), this);
-  }
-
-  return true;
-}
 
 bool BaseChannel::IsReadyToSendMedia_w() const {
   // Send outgoing data if we are enabled, have local and remote content,
@@ -661,9 +625,7 @@ bool BaseChannel::RegisterRtpDemuxerSink_w(
 RtpDemuxerCriteria BaseChannel::demuxer_criteria() const {
   RTC_DCHECK_RUN_ON(network_thread());
   RtpDemuxerCriteria criteria(mid_);
-  if (payload_type_demuxing_enabled_) {
-    criteria.payload_types() = payload_types_;
-  }
+  criteria.payload_types() = payload_types_;
   criteria.ssrcs() = ssrcs_;
   return criteria;
 }

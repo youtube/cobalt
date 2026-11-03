@@ -622,7 +622,7 @@ const LayoutIFrame* GetIFrame(const LayoutObject& object) {
 
 bool IsVisible(const LayoutObject& object) {
   // Don't add content when node is invisible.
-  return object.Style()->Visibility() == EVisibility::kVisible;
+  return object.StyleRef().Visibility() == EVisibility::kVisible;
 }
 
 bool AreChildrenBlockedByDisplayLock(const LayoutObject& object) {
@@ -834,10 +834,46 @@ bool ShouldSkipSubtree(const LayoutObject& object,
   return false;
 }
 
+bool ShouldRedactSubtree(
+    mojom::blink::AIPageContentRedactionDecision redaction_decision) {
+  switch (redaction_decision) {
+    case mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary:
+    case mojom::blink::AIPageContentRedactionDecision::
+        kUnredacted_EmptyPassword:
+    case mojom::blink::AIPageContentRedactionDecision::
+        kUnredacted_EmptyCustomPassword:
+      return false;
+    case mojom::blink::AIPageContentRedactionDecision::
+        kRedacted_HasBeenPassword:
+    case mojom::blink::AIPageContentRedactionDecision::
+        kRedacted_CustomPassword_CSS:
+    case mojom::blink::AIPageContentRedactionDecision::
+        kRedacted_CustomPassword_JS:
+      return true;
+  }
+}
+
+mojom::blink::AIPageContentRedactionDecision GetRedactionDecision(
+    const LayoutObject& object) {
+  if (RuntimeEnabledFeatures::AIPageContentElementCSSRedactionEnabled()) {
+    if (const auto* element = DynamicTo<Element>(object.GetNode());
+        element && element->HasBeenHeuristicCustomPasswordCSS()) {
+      return mojom::blink::AIPageContentRedactionDecision::
+          kRedacted_CustomPassword_CSS;
+    }
+  }
+  return mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary;
+}
+
 bool ShouldSkipDescendants(
-    const mojom::blink::AIPageContentNodePtr& content_node) {
+    const mojom::blink::AIPageContentNodePtr& content_node,
+    const LayoutObject& object) {
   if (!content_node) {
-    return false;
+    // Even if a node is excluded from the structured APC tree (e.g. because
+    // it is a structural wrapper without extraction data ), we must still
+    // respect the redaction state of the element to decide whether to skip its
+    // entire subtree for privacy.
+    return ShouldRedactSubtree(GetRedactionDecision(object));
   }
   // If the child is an iframe, it does its own tree walk.
   // TODO(crbug.com/405173553): Moving ProcessIframe here might simplify
@@ -862,30 +898,12 @@ bool ShouldSkipDescendants(
     return true;
   }
 
-  // Ensure that password editor subtrees are skipped even when the password
-  // is revealed.
-  const auto* form_control_data =
-      content_node->content_attributes->form_control_data.get();
-  if (form_control_data) {
-    const auto redaction_decision = form_control_data->redaction_decision;
-    switch (redaction_decision) {
-      case mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary:
-      case mojom::blink::AIPageContentRedactionDecision::
-          kUnredacted_EmptyPassword:
-      case mojom::blink::AIPageContentRedactionDecision::
-          kUnredacted_EmptyCustomPassword:
-        break;
-      case mojom::blink::AIPageContentRedactionDecision::
-          kRedacted_HasBeenPassword:
-      case mojom::blink::AIPageContentRedactionDecision::
-          kRedacted_CustomPassword_CSS:
-      case mojom::blink::AIPageContentRedactionDecision::
-          kRedacted_CustomPassword_JS:
-        // Custom password-like inputs (e.g. `-webkit-text-security`) can also
-        // have UA/editor subtrees which may contain sensitive text. Skip them
-        // to avoid leaking into extracted text nodes.
-        return true;
-    }
+  // Ensure that subtrees requiring redaction (e.g. passwords or masked
+  // elements) are skipped even if the content is technically revealed.
+  // The node-level redaction decision is now the canonical source.
+  if (ShouldRedactSubtree(
+          content_node->content_attributes->redaction_decision)) {
+    return true;
   }
 
   return false;
@@ -896,6 +914,10 @@ void ProcessTextNode(const LayoutText& layout_text,
                      const ComputedStyle& document_style) {
   attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kText;
   CHECK(IsVisible(layout_text));
+
+  // Secured text nodes are skipped by its ancestor, so no special handling
+  // here.
+  DCHECK(!ShouldRedactSubtree(attributes.redaction_decision));
 
   auto text_style = mojom::blink::AIPageContentTextStyle::New();
   text_style->text_size = GetTextSize(*layout_text.Style(), document_style);
@@ -1141,8 +1163,6 @@ bool ProcessAriaFormControlNode(
   form_control_data.form_control_type = form_control_type;
   form_control_data.is_required = aria_required;
   form_control_data.is_readonly = aria_readonly;
-  form_control_data.redaction_decision =
-      mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary;
 
   if (!aria_placeholder.empty()) {
     form_control_data.placeholder = ReplaceUnpairedSurrogates(aria_placeholder);
@@ -1180,47 +1200,36 @@ void ProcessFormControlNode(const HTMLFormControlElement& form_control_element,
     form_control_data->is_required = true;
   }
 
-  // Set the default value for redaction, and override below as appropriate.
-  form_control_data->redaction_decision =
-      mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary;
-
   if (const auto* text_control_element =
           DynamicTo<TextControlElement>(form_control_element)) {
     // Don't include password values as they are sensitive.
     const auto* input_element =
         DynamicTo<HTMLInputElement>(text_control_element);
-    bool is_native_password =
+    const bool is_native_password =
         input_element && input_element->HasBeenPasswordField();
-    bool is_custom_password =
-        text_control_element->HasBeenHeuristicCustomPasswordField();
+    const bool is_custom_password_css =
+        text_control_element->HasBeenHeuristicCustomPasswordCSS();
+    const bool is_custom_password_js =
+        text_control_element->HasBeenHeuristicCustomPasswordJS();
     bool should_redact_value = false;
 
-    if (is_native_password || is_custom_password) {
+    if (is_native_password || is_custom_password_css || is_custom_password_js) {
       if (text_control_element->Value().empty()) {
-        form_control_data->redaction_decision =
+        attributes.redaction_decision =
             is_native_password ? mojom::blink::AIPageContentRedactionDecision::
                                      kUnredacted_EmptyPassword
                                : mojom::blink::AIPageContentRedactionDecision::
                                      kUnredacted_EmptyCustomPassword;
       } else {
         if (is_native_password) {
-          form_control_data->redaction_decision = mojom::blink::
+          attributes.redaction_decision = mojom::blink::
               AIPageContentRedactionDecision::kRedacted_HasBeenPassword;
-        } else {
-          switch (text_control_element->GetCustomPasswordHeuristicSource()) {
-            case TextControlElement::CustomPasswordHeuristicSource::
-                kHeuristicCSS:
-              form_control_data->redaction_decision = mojom::blink::
-                  AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS;
-              break;
-            case TextControlElement::CustomPasswordHeuristicSource::
-                kHeuristicJS:
-              form_control_data->redaction_decision = mojom::blink::
-                  AIPageContentRedactionDecision::kRedacted_CustomPassword_JS;
-              break;
-            case TextControlElement::CustomPasswordHeuristicSource::kNone:
-              NOTREACHED();
-          }
+        } else if (is_custom_password_css) {
+          attributes.redaction_decision = mojom::blink::
+              AIPageContentRedactionDecision::kRedacted_CustomPassword_CSS;
+        } else if (is_custom_password_js) {
+          attributes.redaction_decision = mojom::blink::
+              AIPageContentRedactionDecision::kRedacted_CustomPassword_JS;
         }
         should_redact_value = true;
       }
@@ -1251,7 +1260,8 @@ void ProcessFormControlNode(const HTMLFormControlElement& form_control_element,
     form_control_data->is_checked = html_input_element->Checked();
   }
   if (const auto* select_element =
-          DynamicTo<HTMLSelectElement>(form_control_element)) {
+          DynamicTo<HTMLSelectElement>(form_control_element);
+      select_element && !ShouldRedactSubtree(attributes.redaction_decision)) {
     for (auto& option_element : select_element->GetOptionList()) {
       auto select_option = mojom::blink::AIPageContentSelectOption::New();
       select_option->value = ReplaceUnpairedSurrogates(option_element.value());
@@ -1754,7 +1764,7 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
   WalkChildren(*layout_view, *root_node, recursion_data);
   page_content->root_node = std::move(root_node);
   page_content->visible_bounding_boxes_for_password_redaction =
-      std::move(visible_bounding_box_for_passwords_);
+      std::move(visible_bounding_boxes_for_redaction_);
 
   if (stack_depth_exceeded_) {
     ukm::builders::OptimizationGuide_AIPageContentAgent(document.UkmSourceID())
@@ -1845,11 +1855,11 @@ void AIPageContentAgent::ContentBuilder::AddMetaData(
 bool AIPageContentAgent::ContentBuilder::IsGenericContainer(
     const LayoutObject& object,
     const mojom::blink::AIPageContentAttributes& attributes) const {
-  if (object.Style()->GetPosition() == EPosition::kFixed) {
+  if (object.StyleRef().GetPosition() == EPosition::kFixed) {
     return true;
   }
 
-  if (object.Style()->GetPosition() == EPosition::kSticky) {
+  if (object.StyleRef().GetPosition() == EPosition::kSticky) {
     return true;
   }
 
@@ -1863,7 +1873,7 @@ bool AIPageContentAgent::ContentBuilder::IsGenericContainer(
   //    making it scrollable.
   // TODO(khushalsagar): Consider removing this, no consumer relies on this
   // behaviour.
-  if (object.Style()->ScrollsOverflow()) {
+  if (object.StyleRef().ScrollsOverflow()) {
     return true;
   }
 
@@ -1947,7 +1957,7 @@ bool AIPageContentAgent::ContentBuilder::WalkChildren(
     bool child_has_visible_content = false;
     auto child_content_node =
         MaybeGenerateContentNode(*child, child_recursion_data);
-    if (!ShouldSkipDescendants(child_content_node)) {
+    if (!ShouldSkipDescendants(child_content_node, *child)) {
       if (child_content_node) {
         child_recursion_data.stack_depth++;
       }
@@ -2008,6 +2018,14 @@ void AIPageContentAgent::ContentBuilder::ProcessIframe(
 
   if (AreChildrenBlockedByDisplayLock(object)) {
     // Avoid forcing layout or hit-testing in display-locked iframe subtrees.
+    if (local_frame->GetDocument()) {
+      auto frame_data = mojom::blink::AIPageContentFrameData::New();
+      frame_data->frame_interaction_info =
+          mojom::blink::AIPageContentFrameInteractionInfo::New();
+      content_node.content_attributes->iframe_data->content =
+          mojom::blink::AIPageContentIframeContent::NewLocalFrameData(
+              std::move(frame_data));
+    }
     return;
   }
 
@@ -2023,7 +2041,7 @@ void AIPageContentAgent::ContentBuilder::ProcessIframe(
 
   auto* child_layout_view = local_frame->ContentLayoutObject();
   if (child_layout_view) {
-    RecursionData child_recursion_data(*child_layout_view->Style());
+    RecursionData child_recursion_data(child_layout_view->StyleRef());
     // The aria attribute values don't pierce frame boundaries.
     child_recursion_data.is_aria_disabled = false;
     child_recursion_data.stack_depth = recursion_data.stack_depth + 1;
@@ -2048,11 +2066,30 @@ mojom::blink::AIPageContentNodePtr
 AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
     const LayoutObject& object,
     const RecursionData& recursion_data) {
+  mojom::blink::AIPageContentNodePtr content_node =
+      MaybeGenerateContentNodeImpl(object, recursion_data);
+  if (!content_node) {
+    // Even if a node is excluded from the structured APC tree (e.g. because
+    // it is a structural wrapper without extraction data ), its geometry must
+    // still be tracked if it requires redaction so that it can be obscured in
+    // screenshots.
+    CollectGeometryForRedactedNodes(object, GetRedactionDecision(object));
+  }
+  return content_node;
+}
+
+mojom::blink::AIPageContentNodePtr
+AIPageContentAgent::ContentBuilder::MaybeGenerateContentNodeImpl(
+    const LayoutObject& object,
+    const RecursionData& recursion_data) {
   auto content_node = mojom::blink::AIPageContentNode::New();
   content_node->content_attributes =
       mojom::blink::AIPageContentAttributes::New();
   mojom::blink::AIPageContentAttributes& attributes =
       *content_node->content_attributes;
+  // Start every node in the non-redacted state and let specialized handlers
+  // promote it when needed.
+  attributes.redaction_decision = GetRedactionDecision(object);
   // Compute state that is used to decide whether this node generates a
   // ContentNode before making the decision below.
   AddAnnotatedRoles(object, attributes.annotated_roles);
@@ -2343,35 +2380,19 @@ void AIPageContentAgent::ContentBuilder::AddAnnotatedRoles(
   }
 }
 
-void AIPageContentAgent::ContentBuilder::TrackPasswordRedactionIfNeeded(
+void AIPageContentAgent::ContentBuilder::CollectGeometryForRedactedNodes(
     const LayoutObject& object,
-    mojom::blink::AIPageContentAttributes& attributes,
+    mojom::blink::AIPageContentRedactionDecision redaction_decision,
     std::optional<gfx::Rect> visible_bounding_box) {
   if (!options_->include_passwords_for_redaction) {
     return;
   }
 
-  if (!attributes.form_control_data) {
+  if (!ShouldRedactSubtree(redaction_decision)) {
     return;
   }
 
-  switch (attributes.form_control_data->redaction_decision) {
-    case mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary:
-    case mojom::blink::AIPageContentRedactionDecision::
-        kUnredacted_EmptyPassword:
-    case mojom::blink::AIPageContentRedactionDecision::
-        kUnredacted_EmptyCustomPassword:
-      return;
-    case mojom::blink::AIPageContentRedactionDecision::
-        kRedacted_HasBeenPassword:
-    case mojom::blink::AIPageContentRedactionDecision::
-        kRedacted_CustomPassword_CSS:
-    case mojom::blink::AIPageContentRedactionDecision::
-        kRedacted_CustomPassword_JS:
-      break;
-  }
-
-  visible_bounding_box_for_passwords_.push_back(
+  visible_bounding_boxes_for_redaction_.push_back(
       visible_bounding_box.value_or(ComputeVisibleBoundingBox(object)));
 }
 
@@ -2412,7 +2433,7 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
     DOMNodeId accessibility_focused_node_id) {
   if (!ShouldAddNodeGeometry(object, attributes,
                              accessibility_focused_node_id)) {
-    TrackPasswordRedactionIfNeeded(object, attributes);
+    CollectGeometryForRedactedNodes(object, attributes.redaction_decision);
     return;
   }
 
@@ -2463,8 +2484,8 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
     geometry.outer_bounding_box = geometry.visible_bounding_box;
   }
 
-  TrackPasswordRedactionIfNeeded(object, attributes,
-                                 geometry.visible_bounding_box);
+  CollectGeometryForRedactedNodes(object, attributes.redaction_decision,
+                                  geometry.visible_bounding_box);
 
   // Validate the relationship between outer and visible bounding boxes
   // TODO(aleventhal): restore for Canary builds.
@@ -2691,10 +2712,10 @@ void AIPageContentAgent::ContentBuilder::MaybeAddPopupData(
   // popups because focus within transient popup windows is not tracked for
   // frame-level interactions.
   auto web_popup_root_node = MaybeGenerateContentNode(
-      *web_popup_layout_view, *web_popup_layout_view->Style());
+      *web_popup_layout_view, web_popup_layout_view->StyleRef());
   CHECK(web_popup_root_node);
   WalkChildren(*web_popup_layout_view, *web_popup_root_node,
-               *web_popup_layout_view->Style());
+               web_popup_layout_view->StyleRef());
 
   // Currently the geometry for popup nodes is relative to the popup, offset to
   // relative to the main frame.

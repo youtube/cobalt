@@ -781,8 +781,8 @@ public class CompositorViewHolder extends FrameLayout
 
     @Override
     public void addTouchEventObserver(TouchEventObserver o) {
-        mTouchEventObservers.addObserver(o);
-        if (o.mayInterceptTouchSequenceInWebContents()) {
+        boolean added = mTouchEventObservers.addObserver(o);
+        if (added && o.mayInterceptTouchSequenceInWebContents()) {
             mActiveTouchInterceptors += 1;
             if (mActiveTouchInterceptors == 1) {
                 mCompositorView.setHasActiveTouchInterceptors(true);
@@ -792,8 +792,8 @@ public class CompositorViewHolder extends FrameLayout
 
     @Override
     public void removeTouchEventObserver(TouchEventObserver o) {
-        mTouchEventObservers.removeObserver(o);
-        if (o.mayInterceptTouchSequenceInWebContents()) {
+        boolean removed = mTouchEventObservers.removeObserver(o);
+        if (removed && o.mayInterceptTouchSequenceInWebContents()) {
             mActiveTouchInterceptors -= 1;
             if (mActiveTouchInterceptors == 0) {
                 mCompositorView.setHasActiveTouchInterceptors(false);
@@ -1518,7 +1518,9 @@ public class CompositorViewHolder extends FrameLayout
 
     /**
      * Sets the {@link OneshotSupplier} for {@link SideUiStateProvider}. Will only be called if the
-     * related feature flag is enabled.
+     * EnableAndroidSidePanel feature flag is enabled.
+     *
+     * <p>TODO(crbug.com/493289413): Update JavaDoc after feature is launched.
      *
      * @param sideUiStateProviderSupplier The {@link OneshotSupplier} for {@link
      *     SideUiStateProvider}.

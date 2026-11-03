@@ -569,6 +569,15 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
 EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
     bool multi_channel) const {
   EchoCanceller3Config config;
+  config.suppressor = AdjustConfig(config.suppressor);
+  config.filter.enable_coarse_filter_output_usage = false;
+  return config;
+}
+
+EchoCanceller3Config::Suppressor NeuralResidualEchoEstimatorImpl::AdjustConfig(
+    const EchoCanceller3Config::Suppressor& suppressor_config) const {
+  EchoCanceller3Config::Suppressor adjusted_suppressor_config =
+      suppressor_config;
   EchoCanceller3Config::Suppressor::MaskingThresholds tuning_masking_thresholds(
       /*enr_transparent=*/0.0f, /*enr_suppress=*/1.0f,
       /*emr_transparent=*/0.3f);
@@ -576,15 +585,15 @@ EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
       /*mask_lf=*/tuning_masking_thresholds,
       /*mask_hf=*/tuning_masking_thresholds, /*max_inc_factor=*/100.0f,
       /*max_dec_factor_lf=*/0.0f);
-  config.filter.enable_coarse_filter_output_usage = false;
-  config.suppressor.nearend_average_blocks = 1;
-  config.suppressor.normal_tuning = tuning;
-  config.suppressor.nearend_tuning = tuning;
-  config.suppressor.dominant_nearend_detection.enr_threshold = 0.5f;
-  config.suppressor.dominant_nearend_detection.trigger_threshold = 2;
-  config.suppressor.high_frequency_suppression.limiting_gain_band = 24;
-  config.suppressor.high_frequency_suppression.bands_in_limiting_gain = 3;
-  return config;
+  adjusted_suppressor_config.nearend_average_blocks = 1;
+  adjusted_suppressor_config.normal_tuning = tuning;
+  adjusted_suppressor_config.nearend_tuning = tuning;
+  adjusted_suppressor_config.dominant_nearend_detection.enr_threshold = 0.5f;
+  adjusted_suppressor_config.dominant_nearend_detection.trigger_threshold = 2;
+  adjusted_suppressor_config.high_frequency_suppression.limiting_gain_band = 24;
+  adjusted_suppressor_config.high_frequency_suppression.bands_in_limiting_gain =
+      3;
+  return adjusted_suppressor_config;
 }
 
 void NeuralResidualEchoEstimatorImpl::DumpInputs(

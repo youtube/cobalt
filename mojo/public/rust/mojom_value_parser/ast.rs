@@ -5,7 +5,7 @@
 //! Provides a generic syntax for Mojom types and values
 //!
 //! This module provides the ability to represent Mojom types and values as
-//! rust enums.
+//! abstract Rust values.
 
 chromium::import! {
     "//mojo/public/rust/system";
@@ -17,10 +17,7 @@ use std::sync::Arc;
 
 pub use system::mojo_types::UntypedHandle;
 
-// FOR_RELEASE: The current AST is dead simple: standard recursive data
-// structures. We'll probably need an intermediate one as well to represent data
-// on the wire, since it doesn't quite match the MojomValue structure (e.g.
-// packed bitfields). For a more optimized version, we could look into
+// TODO (crbug.com/496912351): For a more optimized version, we could look into
 // flat ASTs (using a single vector instead of a nested recursive structure).
 
 /// Representation of a type that can appear in a .mojom file.
@@ -60,9 +57,6 @@ pub enum MojomType {
 ///
 /// Note: the Hash trait is used to verify that maps don't have duplicate keys;
 /// the Ord trait is used so we can store these in BTreeMaps.
-// FOR_RELEASE: For the first iteration of the parser where we don't worry
-// about trying to be zero-copy, we just have this type own all its data.
-// We should migrate to a view type when we figure out how.
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Default)]
 pub enum MojomValue {
     /// This value is only produced during parsing/deparsing to serve as a
@@ -151,7 +145,7 @@ pub enum MojomWireType {
 /// This type represents an element in the body of a struct, array, or union.
 ///
 /// You should read `WireTy` as `MojomWireType` and `BitfieldTy` as
-/// `BitfieldOrdinal`. However, we need to parameterize the type because
+/// `BitfieldOrdinals`. However, we need to parameterize the type because
 /// sometimes we'll want to have references and sometimes we'll want to have
 /// owned values. In the AST, all values are owned, but during parsing/deparsing
 /// we'll sometimes need to create these on-the-fly from existing references.
@@ -227,7 +221,6 @@ pub enum PackedStructuredType {
 #[derive(Debug, Clone, PartialEq)]
 /// An array on the wire may originate from one of three Mojom types:
 /// An unsized array, A size N array, or a string.
-/// FOR_RELEASE: Arrays of nullables may also be their own category?
 pub enum PackedArrayType {
     UnsizedArray,
     SizedArray(usize),
@@ -343,6 +336,41 @@ impl StructuredBodyElementOwned {
             Self::Bitfield(ordinals) => StructuredBodyElement::Bitfield(ordinals),
         }
     }
+}
+
+/// Given the key and value type of a map, create an equivalent struct body.
+///
+/// Mojom maps are represented on the wire as a pair of equal-length arrays, one
+/// with the keys and one with the values. This function creates the
+/// corresponding wire type for use in parsing and deparsing.
+pub fn convert_map_ty_to_struct_fields(
+    key_type: &Arc<MojomWireType>,
+    value_type: &Arc<MojomWireType>,
+) -> [StructuredBodyElementOwned; 2] {
+    [
+        StructuredBodyElement::SingleValue(
+            0,
+            MojomWireType::Pointer {
+                nested_data_type: PackedStructuredType::Array {
+                    // This clone is cheap because it's in an Arc
+                    element_type: key_type.clone(),
+                    array_type: PackedArrayType::UnsizedArray,
+                },
+                is_nullable: false,
+            },
+        ),
+        StructuredBodyElement::SingleValue(
+            1,
+            MojomWireType::Pointer {
+                nested_data_type: PackedStructuredType::Array {
+                    // This clone is cheap because it's in an Arc
+                    element_type: value_type.clone(),
+                    array_type: PackedArrayType::UnsizedArray,
+                },
+                is_nullable: false,
+            },
+        ),
+    ]
 }
 
 /**************************************************************** */

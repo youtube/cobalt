@@ -15,6 +15,7 @@
 #include "openssl/base.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
 #include "quiche/quic/masque/masque_ohttp_client.h"
+#include "quiche/quic/masque/private_tokens.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_file_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -63,9 +64,27 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "header name and value with a colon. Can be specified multiple times.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::vector<std::string>, key_fetch_header, {},
+    "Adds a header field to the key fetch request. Separate the header name "
+    "and value with a colon. Can be specified multiple times.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::vector<std::string>, outer_header, {},
+    "Adds a header field to the outer gateway request. Separate the header "
+    "name and value with a colon. Can be specified multiple times.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, private_token, "",
     "When set, the client will attach a base64-encoded private token to the "
     "encapsulated request. Accepts any base64 encoding.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, private_token_private_key_file, "",
+    "Path to the PEM-encoded RSA private key for private tokens.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, private_token_public_key_file, "",
+    "Path to the PEM-encoded RSA public key for private tokens.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, dns_override, "",
@@ -132,8 +151,38 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   }
   std::vector<std::string> headers =
       quiche::GetQuicheCommandLineFlag(FLAGS_header);
+  std::vector<std::string> key_fetch_headers =
+      quiche::GetQuicheCommandLineFlag(FLAGS_key_fetch_header);
+  std::vector<std::string> outer_headers =
+      quiche::GetQuicheCommandLineFlag(FLAGS_outer_header);
   std::string private_token =
       quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
+  std::string private_token_private_key_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_private_token_private_key_file);
+  std::string private_token_public_key_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_private_token_public_key_file);
+  if (!private_token_private_key_file.empty() && !private_token.empty()) {
+    return absl::InvalidArgumentError(
+        "Cannot use both --private_token and "
+        "--private_token_private_key_file.");
+  } else if (private_token_private_key_file.empty() !=
+             private_token_public_key_file.empty()) {
+    return absl::InvalidArgumentError(
+        "Both or neither of --private_token_private_key_file and "
+        "--private_token_public_key_file must be set.");
+  }
+  bssl::UniquePtr<RSA> private_token_private_key;
+  if (!private_token_private_key_file.empty()) {
+    QUICHE_ASSIGN_OR_RETURN(
+        private_token_private_key,
+        ParseRsaPrivateKeyFile(private_token_private_key_file));
+  }
+  bssl::UniquePtr<RSA> private_token_public_key;
+  if (!private_token_public_key_file.empty()) {
+    QUICHE_ASSIGN_OR_RETURN(
+        private_token_public_key,
+        ParseRsaPublicKeyFile(private_token_public_key_file));
+  }
 
   if (urls.size() < 3) {
     return absl::InvalidArgumentError(usage);
@@ -148,12 +197,22 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       config.ConfigureOhttpMtls(client_cert_file, client_cert_key_file));
   config.SetDisableCertificateVerification(disable_certificate_verification);
   config.SetDnsConfig(dns_config);
+  QUICHE_RETURN_IF_ERROR(config.AddKeyFetchHeaders(key_fetch_headers));
   for (size_t i = 2; i < urls.size(); ++i) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
     QUICHE_RETURN_IF_ERROR(per_request_config.AddHeaders(headers));
+    QUICHE_RETURN_IF_ERROR(per_request_config.AddOuterHeaders(outer_headers));
     if (!private_token.empty()) {
       QUICHE_RETURN_IF_ERROR(per_request_config.AddPrivateToken(private_token));
+    } else if (private_token_private_key != nullptr &&
+               private_token_public_key != nullptr) {
+      QUICHE_ASSIGN_OR_RETURN(
+          std::string generated_private_token,
+          CreateTokenLocally(private_token_private_key.get(),
+                             private_token_public_key.get()));
+      QUICHE_RETURN_IF_ERROR(
+          per_request_config.AddPrivateToken(generated_private_token));
     }
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
     per_request_config.SetUseIndeterminateLength(indeterminate_length);

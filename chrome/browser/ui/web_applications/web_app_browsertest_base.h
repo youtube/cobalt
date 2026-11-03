@@ -11,7 +11,6 @@
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
-#include "chrome/browser/web_applications/web_app_callback_app_identity.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
@@ -45,10 +44,23 @@ using WebAppBrowserTestBaseParent = ChromeOSBrowserUITest;
 using WebAppBrowserTestBaseParent = MixinBasedInProcessBrowserTest;
 #endif
 
-// Base class for tests of user interface support for web applications.
-// Have ability to perform dynamic test data loading using
-// RegisterPortReplacementHandler, and mock .well-known file fetch for
-// app migration using RegisterAssociatedOriginWellKnownHandler.
+// This is the recommended base class for Web App browsertests. It provides
+// essential baseline functionality, including:
+// 1. Automatic faking of OS integration (e.g. creating desktop shortcuts) via
+//   `OsIntegrationTestOverrideImpl` (inspect via `os_integration_override()`).
+// 2. Dynamic replacement of $PORT in static test data via
+//    RegisterPortReplacementHandler
+// 3. Dynamically serving .well-known file for app migration and scope
+//    extensions using RegisterAssociatedOriginWellKnownHandler.
+// 4. Waiting for the WebAppProvider system to fully start in SetUpOnMainThread.
+//
+// Like all browsertests, this runs a real browser, meaning the full
+// `WebAppProvider` system starts automatically during profile initialization.
+// Faking dependencies is rarely needed and generally discouraged in
+// browsertests. To fake a dependency, use a `FakeWebAppProviderCreator` in the
+// test fixture's constructor to intercept the provider creation before the
+// system starts. For more details, see:
+// chrome/browser/web_applications/docs/testing.md
 class WebAppBrowserTestBase : public WebAppBrowserTestBaseParent {
  public:
   WebAppBrowserTestBase();
@@ -168,7 +180,6 @@ class WebAppBrowserTestBase : public WebAppBrowserTestBaseParent {
   // Store separately instead of accessing directly from `browser()`, as some
   // tests close that browser (and thus make it a UAF).
   base::WeakPtr<Profile> browser_profile_;
-  base::AutoReset<std::optional<AppIdentityUpdate>> update_dialog_scope_;
 };
 
 }  // namespace web_app

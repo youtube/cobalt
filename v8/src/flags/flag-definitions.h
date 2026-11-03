@@ -235,14 +235,14 @@
 //
 #define FLAG FLAG_FULL
 
-// Experimental features.
-// Features that are still considered experimental and which are not ready for
-// fuzz testing should be defined using this macro. The feature will then imply
-// --experimental, which will indicate to the user that they are running an
-// experimental configuration of V8. Experimental features are always disabled
-// by default. When these features mature, the flag should first turn into a
-// regular feature flag (still disabled by default) and then ideally be staged
-// behind (for example) --future before being enabled by default.
+// Experimental features: Features that are still considered experimental and
+// which are not ready for fuzz testing should be defined using this macro. The
+// feature will then imply --experimental, which will indicate to the user that
+// they are running an experimental configuration of V8. Experimental features
+// are always disabled by default. When these features mature, the flag should
+// first turn into a regular feature flag (still disabled by default) and then
+// ideally be staged behind (for example) --future before being enabled by
+// default.
 DEFINE_BOOL(experimental, false,
             "Indicates that V8 is running with experimental features enabled. "
             "This flag is typically not set explicitly but instead enabled as "
@@ -260,6 +260,24 @@ DEFINE_BOOL(test_only_unsafe, false,
 #define DEFINE_TEST_ONLY_FLAG(nam, cmt)                     \
   FLAG(BOOL, bool, nam, false, cmt " (test-only / unsafe)") \
   DEFINE_IMPLICATION(nam, test_only_unsafe)
+
+// Developer features: These flags expose features that are only meant to be
+// used by developers for diagnosing purposes. These features should be robust
+// but crashes will not be considered security problems as they do not affect
+// users in production.
+DEFINE_BOOL(
+    developer_only_features, false,
+    "Indicates that V8 is running with developer-only features enabled.")
+DEFINE_BOOL(disallow_developer_only_features, false,
+            "Disallow developer-only-features.")
+#define DEFINE_DEVELOPER_FLAG(name, comment)            \
+  DEFINE_BOOL(name, false, comment " (developer-only)") \
+  DEFINE_IMPLICATION(name, developer_only_features)     \
+  DEFINE_NEG_IMPLICATION(disallow_developer_only_features, name)
+#define DEFINE_DEBUG_DEVELOPER_FLAG(name, comment)            \
+  DEFINE_DEBUG_BOOL(name, false, comment " (developer-only)") \
+  DEFINE_IMPLICATION(name, developer_only_features)           \
+  DEFINE_NEG_IMPLICATION(disallow_developer_only_features, name)
 
 // ATTENTION: This is set to true by default in d8. But for API compatibility,
 // it generally defaults to false.
@@ -2438,8 +2456,8 @@ DEFINE_INT(cppgc_random_gc_interval, 0,
 
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
-DEFINE_BOOL(trace_gc, false,
-            "print one trace line following each garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc,
+                      "print one trace line following each garbage collection")
 DEFINE_BOOL(trace_gc_nvp, false,
             "print one detailed trace line in name=value format "
             "after each garbage collection")
@@ -2638,13 +2656,9 @@ DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
 DEFINE_NEG_IMPLICATION(
     enable_allocation_failures_optimize_memory,
     enable_allocation_failures_optimize_memory_ignoring_priority)
-DEFINE_BOOL(
-    external_memory_accounted_in_global_limit, true,
-    "External memory limits are computed as part of global limits in v8 Heap.")
 DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.1,
-    "When external memory limits are computed as poart of the global limits,"
-    "this is the upper bound for growing factor imposed on external memory.")
+    "This is the upper bound for growing factor imposed on external memory.")
 DEFINE_INT(external_memory_max_reasonable_size, 32,
            "Max external memory value (in GB) checked for a reasonable size, 0 "
            "to disable the check.")

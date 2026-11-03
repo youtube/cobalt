@@ -67,6 +67,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -695,7 +696,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
       TimeDelta::Seconds(int64_t{365} * 50 * 86400)};  // 50 years offset.
 
  private:
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
 };
 
 static scoped_refptr<MockRtpSenderInternal> CreateMockSender(

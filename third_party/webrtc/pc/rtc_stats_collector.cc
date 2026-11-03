@@ -2274,16 +2274,6 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
 
   std::vector<RtpTransceiverStatsInfo> transceiver_stats_infos;
   std::vector<TransceiverReferences> transceiver_references;
-  // These are used to invoke GetStats for all the media channels together in
-  // one worker thread hop.
-  std::map<VoiceMediaSendChannelInterface*, VoiceMediaSendInfo>
-      voice_send_stats;
-  std::map<VideoMediaSendChannelInterface*, VideoMediaSendInfo>
-      video_send_stats;
-  std::map<VoiceMediaReceiveChannelInterface*, VoiceMediaReceiveInfo>
-      voice_receive_stats;
-  std::map<VideoMediaReceiveChannelInterface*, VideoMediaReceiveInfo>
-      video_receive_stats;
 
   auto transceivers = pc_->GetTransceiversInternal();
 
@@ -2319,18 +2309,28 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
     stats.has_receivers = !refs.receivers.empty();
 
     if (stats.has_channel) {
+      auto* send_channel = transceiver->media_send_channel();
+      auto* receive_channel = transceiver->media_receive_channel();
       if (stats.media_type == MediaType::AUDIO) {
-        AddChannelStats(voice_send_stats,
-                        transceiver->voice_media_send_channel());
-        AddChannelStats(voice_receive_stats,
-                        transceiver->voice_media_receive_channel());
+        VoiceMediaSendChannelInterface* voice_send =
+            send_channel->AsVoiceSendChannel();
+        RTC_CHECK(voice_send);
+        VoiceMediaReceiveChannelInterface* voice_receive =
+            receive_channel->AsVoiceReceiveChannel();
+        RTC_CHECK(voice_receive);
+        refs.get_send_stats_voice = voice_send->GetStatsCallback();
+        refs.get_receive_stats_voice = voice_receive->GetStatsCallback(false);
+        refs.get_send_parameters = voice_send->GetRtpSendParametersCallback();
       } else if (stats.media_type == MediaType::VIDEO) {
-        AddChannelStats(video_send_stats,
-                        transceiver->video_media_send_channel());
-        AddChannelStats(video_receive_stats,
-                        transceiver->video_media_receive_channel());
-      } else {
-        RTC_DCHECK_NOTREACHED();
+        VideoMediaSendChannelInterface* video_send =
+            send_channel->AsVideoSendChannel();
+        RTC_CHECK(video_send);
+        VideoMediaReceiveChannelInterface* video_receive =
+            receive_channel->AsVideoReceiveChannel();
+        RTC_CHECK(video_receive);
+        refs.get_send_stats_video = video_send->GetStatsCallback();
+        refs.get_receive_stats_video = video_receive->GetStatsCallback();
+        refs.get_send_parameters = video_send->GetRtpSendParametersCallback();
       }
     }
 
@@ -2343,39 +2343,14 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
   // as GetCallStats(). At the same time we construct the TrackMediaInfoMaps,
   // which also needs info from the worker thread.
   return [this, transceiver_stats_infos = std::move(transceiver_stats_infos),
-          transceiver_references = std::move(transceiver_references),
-          voice_send_stats = std::move(voice_send_stats),
-          voice_receive_stats = std::move(voice_receive_stats),
-          video_send_stats = std::move(video_send_stats),
-          video_receive_stats = std::move(video_receive_stats)]() mutable {
+          transceiver_references =
+              std::move(transceiver_references)]() mutable {
     Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
     WorkerThreadResult worker_result;
     worker_result.results.transceiver_stats_infos =
         std::move(transceiver_stats_infos);
     worker_result.transceiver_references = std::move(transceiver_references);
-
-    for (auto& pair : voice_send_stats) {
-      if (!pair.first->GetStats(&pair.second)) {
-        RTC_LOG(LS_WARNING) << "Failed to get voice send stats.";
-      }
-    }
-    for (auto& pair : voice_receive_stats) {
-      if (!pair.first->GetStats(&pair.second,
-                                /*get_and_clear_legacy_stats=*/false)) {
-        RTC_LOG(LS_WARNING) << "Failed to get voice receive stats.";
-      }
-    }
-    for (auto& pair : video_send_stats) {
-      if (!pair.first->GetStats(&pair.second)) {
-        RTC_LOG(LS_WARNING) << "Failed to get video send stats.";
-      }
-    }
-    for (auto& pair : video_receive_stats) {
-      if (!pair.first->GetStats(&pair.second)) {
-        RTC_LOG(LS_WARNING) << "Failed to get video receive stats.";
-      }
-    }
 
     // Create the TrackMediaInfoMap for each transceiver stats object
     // and keep track of whether we have at least one audio receiver.
@@ -2396,16 +2371,7 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
       for (const auto& sender : stats.sender_infos) {
         RtpParameters params;
         if (sender.ssrc != 0 && stats.has_channel) {
-          auto& transceiver = refs.transceiver;
-          MediaSendChannelInterface* media_channel =
-              (stats.media_type == MediaType::AUDIO)
-                  ? static_cast<MediaSendChannelInterface*>(
-                        transceiver->voice_media_send_channel())
-                  : static_cast<MediaSendChannelInterface*>(
-                        transceiver->video_media_send_channel());
-          if (media_channel) {
-            params = media_channel->GetRtpSendParameters(sender.ssrc);
-          }
+          params = refs.get_send_parameters(sender.ssrc);
         }
         // `sender_parameters` must be the same size as `stats.sender_infos` to
         // allow 1:1 mapping when TrackMediaInfoMap is constructed. Empty params
@@ -2421,21 +2387,22 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
       std::optional<VoiceMediaInfo> voice_media_info;
       std::optional<VideoMediaInfo> video_media_info;
       if (stats.has_channel) {
-        auto& transceiver = refs.transceiver;
         if (stats.media_type == MediaType::AUDIO) {
-          auto voice_send_channel = transceiver->voice_media_send_channel();
-          auto voice_receive_channel =
-              transceiver->voice_media_receive_channel();
+          std::optional<VoiceMediaSendInfo> voice_send =
+              refs.get_send_stats_voice();
+          std::optional<VoiceMediaReceiveInfo> voice_receive =
+              refs.get_receive_stats_voice();
           voice_media_info = VoiceMediaInfo(
-              std::move(voice_send_stats[voice_send_channel]),
-              std::move(voice_receive_stats[voice_receive_channel]));
+              std::move(voice_send).value_or(VoiceMediaSendInfo{}),
+              std::move(voice_receive).value_or(VoiceMediaReceiveInfo{}));
         } else if (stats.media_type == MediaType::VIDEO) {
-          auto video_send_channel = transceiver->video_media_send_channel();
-          auto video_receive_channel =
-              transceiver->video_media_receive_channel();
+          std::optional<VideoMediaSendInfo> video_send =
+              refs.get_send_stats_video();
+          std::optional<VideoMediaReceiveInfo> video_receive =
+              refs.get_receive_stats_video();
           video_media_info = VideoMediaInfo(
-              std::move(video_send_stats[video_send_channel]),
-              std::move(video_receive_stats[video_receive_channel]));
+              std::move(video_send).value_or(VideoMediaSendInfo{}),
+              std::move(video_receive).value_or(VideoMediaReceiveInfo{}));
         }
       }
 

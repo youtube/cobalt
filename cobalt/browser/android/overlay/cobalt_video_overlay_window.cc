@@ -166,6 +166,7 @@ void CobaltVideoOverlayWindow::SetHidePictureInPictureButtonVisibility(
     bool is_visible) {}
 void CobaltVideoOverlayWindow::SetMicrophoneMuted(bool muted) {}
 void CobaltVideoOverlayWindow::SetCameraState(bool turned_on) {}
+void CobaltVideoOverlayWindow::SetMediaMuted(bool muted) {}
 void CobaltVideoOverlayWindow::SetToggleMicrophoneButtonVisibility(
     bool is_visible) {}
 void CobaltVideoOverlayWindow::SetToggleCameraButtonVisibility(

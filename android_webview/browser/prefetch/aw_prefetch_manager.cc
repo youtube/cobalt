@@ -15,8 +15,12 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/check_is_test.h"
+#include "base/notimplemented.h"
 #include "base/trace_event/trace_event.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/prefetch_deduplication_utils.h"
+#include "content/public/browser/preload_pipeline_info.h"
 #include "content/public/common/content_features.h"
 
 // Has to come after all the FromJniType() / ToJniType() headers.
@@ -30,6 +34,19 @@ namespace android_webview {
 BASE_FEATURE(kWebViewPrefetchDisableBlockUntilHeadTimeout,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Listens to the status of a prefetch request and propagates it to Java
+// callbacks.
+//
+// Thread model:
+//
+// Instances of this class can be invoked on any thread. Since
+// `JNIEnv` is thread-local, we use `AttachCurrentThread()` to safely acquire a
+// valid `JNIEnv` and `ScopedJavaGlobalRef` to safely hold Java objects across
+// different threads.
+//
+// TODO(crbug.com/496807663): Ideally the callback should be invoked as async
+// task on a created thread environment as a guardrail not to invoke any
+// navigation/prefetch reentrancy.
 class AwPrefetchRequestStatusListener
     : public content::PrefetchRequestStatusListener {
  public:
@@ -89,7 +106,13 @@ class AwPrefetchRequestStatusListener
 };
 
 AwPrefetchManager::AwPrefetchManager(content::BrowserContext* browser_context)
-    : browser_context_(*browser_context) {
+    : browser_context_(*browser_context),
+      aw_pre_prefetch_service_(
+          base::FeatureList::IsEnabled(
+              features::kWebViewPrefetchOffTheMainThread)
+              ? content::PrePrefetchService::Create(&browser_context_.get())
+              : nullptr) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT_INSTANT("android_webview",
                       "AwPrefetchManager::AwPrefetchManager");
 }
@@ -119,6 +142,8 @@ bool AwPrefetchManager::IsSecPurposeForPrefetch(
 // static
 void AwPrefetchManager::SetOrClearExternalPrefetchExperiment(
     std::optional<int> variations_id) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
   std::vector<int> experiment_ids;
   if (variations_id.has_value()) {
     experiment_ids.push_back(variations_id.value());
@@ -139,7 +164,70 @@ AwPrefetchKey AwPrefetchManager::StartPrefetchRequest(
     const base::android::JavaRef<jobject>& callback_executor) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT0("android_webview", "AwPrefetchManager::StartPrefetchRequest");
+  return StartRequest(
+      env, url, /*is_pre_prefetch=*/false,
+      content::PreloadPipelineInfo::Create(
+          /*planned_max_preloading_type=*/content::PreloadingType::kPrefetch),
+      prefetch_params, callback, callback_executor);
+}
 
+AwPrefetchKey AwPrefetchManager::StartPrefetchRequestAheadOfPrerender(
+    base::PassKey<AwContents>,
+    JNIEnv* env,
+    const std::string& url,
+    const base::android::JavaRef<jobject>& prefetch_params,
+    scoped_refptr<content::PreloadPipelineInfo> preload_pipeline_info) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  TRACE_EVENT0("android_webview",
+               "AwPrefetchManager::StartPrefetchRequestAheadOfPrerender");
+  return StartRequest(
+      env, url, /*is_pre_prefetch=*/false, std::move(preload_pipeline_info),
+      prefetch_params,
+      // Callbacks are not set for prefetch ahead of prerender. Callers are
+      // expected to observe failures etc. via prerender.
+      /*callback=*/base::android::JavaRef(),
+      /*callback_executor=*/base::android::JavaRef());
+}
+
+int AwPrefetchManager::StartPrePrefetchRequest(
+    JNIEnv* env,
+    const std::string& url,
+    const base::android::JavaRef<jobject>& prefetch_params,
+    const base::android::JavaRef<jobject>& callback,
+    const base::android::JavaRef<jobject>& callback_executor) {
+  DCHECK(!BrowserThread::CurrentlyOn(BrowserThread::UI));
+  TRACE_EVENT0("android_webview", "AwPrefetchManager::StartPrePrefetchRequest");
+  CHECK(
+      base::FeatureList::IsEnabled(features::kWebViewPrefetchOffTheMainThread));
+
+  return StartRequest(env, url, /*is_pre_prefetch=*/true,
+                      /*preload_pipeline_info=*/nullptr, prefetch_params,
+                      callback, callback_executor);
+}
+
+int AwPrefetchManager::StartPrefetchFromPrePrefetch(JNIEnv* env,
+                                                    int32_t prefetch_key) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  TRACE_EVENT0("android_webview",
+               "AwPrefetchManager::StartPrefetchFromPrePrefetch");
+
+  CHECK(
+      base::FeatureList::IsEnabled(features::kWebViewPrefetchOffTheMainThread));
+
+  // TODO(crbug.com/452406598, crbug.com/452389538): Start Prefetch from
+  // PrePrefetch.
+
+  return prefetch_key;
+}
+
+int AwPrefetchManager::StartRequest(
+    JNIEnv* env,
+    const std::string& url,
+    bool is_pre_prefetch,
+    scoped_refptr<content::PreloadPipelineInfo> preload_pipeline_info,
+    const base::android::JavaRef<jobject>& prefetch_params,
+    const base::android::JavaRef<jobject>& callback,
+    const base::android::JavaRef<jobject>& callback_executor) {
   GURL pf_url = GURL(url);
   net::HttpRequestHeaders additional_headers =
       GetAdditionalHeadersFromPrefetchParameters(env, prefetch_params);
@@ -157,20 +245,26 @@ AwPrefetchKey AwPrefetchManager::StartPrefetchRequest(
 
   std::optional<int> variations_id =
       GetVariationsIdFromPrefetchParameters(env, prefetch_params);
-  AwPrefetchManager::SetOrClearExternalPrefetchExperiment(variations_id);
+
+  if (!BrowserThread::CurrentlyOn(BrowserThread::UI)) {
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&AwPrefetchManager::SetOrClearExternalPrefetchExperiment,
+                       variations_id));
+  } else {
+    AwPrefetchManager::SetOrClearExternalPrefetchExperiment(variations_id);
+  }
 
   std::unique_ptr<content::PrefetchRequestStatusListener>
       request_status_listener;
   if (java_obj_ && callback && callback_executor) {
     request_status_listener = std::make_unique<AwPrefetchRequestStatusListener>(
         java_obj_, callback, callback_executor);
-  } else {
-    CHECK_IS_TEST();
   }
 
-  // For WebView we will check if there is already a duplicate
-  // prefetch request based on the URL and the No-Vary-Search hint. This is for
-  // the purpose of deduping prefetch requests on the application's behalf.
+  // For WebView we will check if there is already a duplicate prefetch
+  // request based on the URL and the No-Vary-Search hint. This is for the
+  // purpose of deduping prefetch requests on the application's behalf.
   // TODO(crbug.com/393344309): Apply deduping to all prefetch requests (not
   // just WebView).
   bool is_prefetch_duplicate = [&]() {
@@ -198,35 +292,68 @@ AwPrefetchKey AwPrefetchManager::StartPrefetchRequest(
   // We intentionally do this **before** starting prefetch instead of after.
   // Due to current //content `PrefetchScheduler` restrictions of its
   // sequential async scheduling, if an evicted prefetch is still running,
-  // canceling it before starting a next one reduces one PostTask, which is good
-  // from performance perspective. Please see
+  // canceling it before starting a next one reduces one PostTask, which is
+  // good from performance perspective. Please see
   // https://docs.google.com/document/d/1OylSDdS_RTOkG_E_PXJ0aPI1QrygMjGkgSs5JcTrFlE/edit?tab=t.0#bookmark=id.rcr0rfweiz90
   // for more information.
   // TODO(crbug.com/426404355): After parallel prefetching being enabled for
   // WV.prefetch, perhaps we no longer need this. Revisit and verify.
   aw_prefetch_manager_data_.MayEvictOldestPrefetchHandleForANewRequest();
 
-  std::unique_ptr<content::PrefetchHandle> prefetch_handle =
-      browser_context_->StartBrowserPrefetchRequest(
-          pf_url, AW_PREFETCH_METRICS_SUFFIX,
-          GetIsJavaScriptEnabledFromPrefetchParameters(env, prefetch_params),
-          expected_no_vary_search,
-          base::FeatureList::IsEnabled(
-              ::features::kWebViewPrefetchHighestPrefetchPriority)
-              ? std::optional(content::PrefetchPriority::kHighest)
-              : std::nullopt,
-          additional_headers, std::move(request_status_listener),
-          base::Seconds(aw_prefetch_manager_data_.GetTtlInSec()),
-          /*should_append_variations_header=*/false,
-          base::FeatureList::IsEnabled(
-              kWebViewPrefetchDisableBlockUntilHeadTimeout),
-          should_bypass_http_cache);
+  std::unique_ptr<content::PrefetchHandle> prefetch_handle;
+  std::unique_ptr<content::PrePrefetchHandle> pre_prefetch_handle;
 
-  if (prefetch_handle) {
+  if (is_pre_prefetch) {
+    DCHECK(!BrowserThread::CurrentlyOn(BrowserThread::UI));
+    CHECK(base::FeatureList::IsEnabled(
+        features::kWebViewPrefetchOffTheMainThread));
+    CHECK(aw_pre_prefetch_service_);
+    pre_prefetch_handle = aw_pre_prefetch_service_->StartPrePrefetchRequest(
+        pf_url, AW_PREFETCH_METRICS_SUFFIX,
+        GetIsJavaScriptEnabledFromPrefetchParameters(env, prefetch_params),
+        expected_no_vary_search,
+        base::FeatureList::IsEnabled(
+            ::features::kWebViewPrefetchHighestPrefetchPriority)
+            ? std::optional(content::PrefetchPriority::kHighest)
+            : std::nullopt,
+        additional_headers, std::move(request_status_listener),
+        base::Seconds(aw_prefetch_manager_data_.GetTtlInSec()),
+        /*should_append_variations_header=*/false,
+        base::FeatureList::IsEnabled(
+            kWebViewPrefetchDisableBlockUntilHeadTimeout),
+        should_bypass_http_cache);
+  } else {
+    DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    prefetch_handle = browser_context_->StartBrowserPrefetchRequest(
+        pf_url, AW_PREFETCH_METRICS_SUFFIX,
+        GetIsJavaScriptEnabledFromPrefetchParameters(env, prefetch_params),
+        expected_no_vary_search,
+        base::FeatureList::IsEnabled(
+            ::features::kWebViewPrefetchHighestPrefetchPriority)
+            ? std::optional(content::PrefetchPriority::kHighest)
+            : std::nullopt,
+        std::move(preload_pipeline_info), additional_headers,
+        std::move(request_status_listener),
+        base::Seconds(aw_prefetch_manager_data_.GetTtlInSec()),
+        /*should_append_variations_header=*/false,
+        base::FeatureList::IsEnabled(
+            kWebViewPrefetchDisableBlockUntilHeadTimeout),
+        should_bypass_http_cache);
+  }
+
+  // TODO(crbug.com/452406598): Here we actually insert the handle to
+  // `aw_prefetch_manager_data_`, after checking the limit and deduping
+  // independently, but it can potentially cause a race condition if
+  // `kWebViewPrefetchOffTheMainThread` is enabled. See
+  // `AwPrefetchManagerData::AddPrefetchHandle` for more details.
+  if (pre_prefetch_handle) {
     return aw_prefetch_manager_data_.AddPrefetchHandle(
         std::make_unique<AwPrefetchHandleWrapper>(
-            pf_url, std::move(expected_no_vary_search),
-            std::move(prefetch_handle)));
+            pf_url, expected_no_vary_search, std::move(pre_prefetch_handle)));
+  } else if (prefetch_handle) {
+    return aw_prefetch_manager_data_.AddPrefetchHandle(
+        std::make_unique<AwPrefetchHandleWrapper>(
+            pf_url, expected_no_vary_search, std::move(prefetch_handle)));
   } else {
     return NO_PREFETCH_KEY;
   }
@@ -243,36 +370,38 @@ void AwPrefetchManager::CancelPrefetch(JNIEnv* env,
   aw_prefetch_manager_data_.CancelPrefetch(prefetch_key);
 }
 
-void AwPrefetchManager::SetTtlInSec(JNIEnv* env,
-                                    std::optional<int> ttl_in_sec) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+void AwPrefetchManager::SetTtlInSec(JNIEnv* env, int ttl_in_sec) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  int sanitized_ttl_in_sec = ttl_in_sec.value_or(kDefaultTtlInSec);
-  CHECK_GT(sanitized_ttl_in_sec, 0);
+  CHECK_GT(ttl_in_sec, 0);
 
-  aw_prefetch_manager_data_.SetTtlInSec(sanitized_ttl_in_sec);
+  aw_prefetch_manager_data_.SetTtlInSec(ttl_in_sec);
 }
 
-void AwPrefetchManager::SetMaxPrefetches(JNIEnv* env,
-                                         std::optional<int> max_prefetches) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+void AwPrefetchManager::SetMaxPrefetches(JNIEnv* env, int max_prefetches) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  size_t sanitized_max_prefetches = kDefaultMaxPrefetches;
-  if (max_prefetches) {
-    CHECK_GT(max_prefetches.value(), 0);
-    sanitized_max_prefetches = static_cast<size_t>(max_prefetches.value());
-  }
+  CHECK_GT(max_prefetches, 0);
+  size_t sanitized_max_prefetches = static_cast<size_t>(max_prefetches);
 
   aw_prefetch_manager_data_.SetMaxPrefetches(
       std::min(sanitized_max_prefetches, kAbsoluteMaxPrefetches));
 }
 
-int AwPrefetchManager::GetTtlInSecForTesting(JNIEnv* env) const {
+int AwPrefetchManager::GetTtlInSec(JNIEnv* env) const {
   return aw_prefetch_manager_data_.GetTtlInSec();
 }
 
-size_t AwPrefetchManager::GetMaxPrefetchesForTesting(JNIEnv* env) const {
-  return aw_prefetch_manager_data_.GetMaxPrefetchesForTesting();  // IN-TEST
+size_t AwPrefetchManager::GetMaxPrefetches(JNIEnv* env) const {
+  return aw_prefetch_manager_data_.GetMaxPrefetches();
+}
+
+void AwPrefetchManager::ClearTtl(JNIEnv* env) {
+  aw_prefetch_manager_data_.SetTtlInSec(kDefaultTtlInSec);
+}
+
+void AwPrefetchManager::ClearMaxPrefetches(JNIEnv* env) {
+  aw_prefetch_manager_data_.SetMaxPrefetches(kDefaultMaxPrefetches);
 }
 
 std::vector<AwPrefetchKey>

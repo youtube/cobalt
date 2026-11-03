@@ -523,7 +523,6 @@ rtc_library("rtp_transceiver_interface") {
     "rtp_transceiver_interface.h",
   ]
   deps = [
-    ":array_view",
     ":ref_count",
     ":rtc_error",
     ":rtp_parameters",
@@ -594,7 +593,6 @@ rtc_library("libjingle_peerconnection_api") {
     "video_track_source_proxy_factory.h",  # Used downstream
   ]
   deps = [
-    ":array_view",
     ":async_dns_resolver",
     ":audio_options_api",
     ":candidate",
@@ -684,7 +682,6 @@ rtc_library("frame_transformer_interface") {
     "frame_transformer_interface.h",
   ]
   deps = [
-    ":array_view",
     ":ref_count",
     ":scoped_refptr",
     "../rtc_base:checks",
@@ -784,7 +781,6 @@ rtc_source_set("video_quality_analyzer_api") {
   sources = [ "test/video_quality_analyzer_interface.h" ]
 
   deps = [
-    ":array_view",
     ":rtc_stats_api",
     ":scoped_refptr",
     ":stats_observer_interface",
@@ -838,7 +834,6 @@ rtc_library("rtp_parameters") {
     "rtp_parameters.h",
   ]
   deps = [
-    ":array_view",
     ":priority",
     ":rtc_error",
     ":rtp_transceiver_direction",
@@ -1040,10 +1035,7 @@ rtc_library("create_peer_connection_quality_test_frame_generator") {
 rtc_source_set("data_channel_event_observer_interface") {
   visibility = [ "*" ]
   sources = [ "data_channel_event_observer_interface.h" ]
-  deps = [
-    ":array_view",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
+  deps = [ "//third_party/abseil-cpp/absl/strings:string_view" ]
 }
 
 rtc_source_set("libjingle_logging_api") {
@@ -1098,7 +1090,6 @@ rtc_library("audio_options_api") {
   ]
 
   deps = [
-    ":array_view",
     "../rtc_base:stringutils",
     "../rtc_base/system:rtc_export",
   ]
@@ -1110,7 +1101,7 @@ rtc_library("transport_api") {
     "call/transport.cc",
     "call/transport.h",
   ]
-  deps = [ ":array_view" ]
+  deps = []
 }
 
 rtc_source_set("bitrate_allocation") {
@@ -1143,7 +1134,6 @@ rtc_library("network_emulation_manager_api") {
     "test/network_emulation_manager.h",
   ]
   deps = [
-    ":array_view",
     ":field_trials_view",
     ":peer_network_dependencies",
     ":simulated_network_api",
@@ -1262,7 +1252,6 @@ rtc_library("datagram_connection") {
   visibility = [ "*" ]
   sources = [ "datagram_connection.h" ]
   deps = [
-    ":array_view",
     ":candidate",
     ":ref_count",
     "../p2p:transport_description",
@@ -1459,7 +1448,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/mock_frame_encryptor.h" ]
     deps = [
-      ":array_view",
       ":rtp_parameters",
       "../test:test_support",
       "crypto:frame_encryptor_interface",
@@ -1471,7 +1459,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/mock_frame_decryptor.h" ]
     deps = [
-      ":array_view",
       ":rtp_parameters",
       "../test:test_support",
       "crypto:frame_decryptor_interface",
@@ -1509,7 +1496,6 @@ if (rtc_include_tests) {
       "test/fake_frame_encryptor.h",
     ]
     deps = [
-      ":array_view",
       ":rtp_parameters",
       "../rtc_base:checks",
       "../rtc_base:refcount",
@@ -1525,7 +1511,6 @@ if (rtc_include_tests) {
       "test/fake_frame_decryptor.h",
     ]
     deps = [
-      ":array_view",
       ":rtp_parameters",
       "../rtc_base:checks",
       "crypto:frame_decryptor_interface",
@@ -1616,7 +1601,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/mock_transformable_frame.h" ]
     deps = [
-      ":array_view",
       ":frame_transformer_interface",
       "../test:test_support",
       "units:time_delta",
@@ -1662,7 +1646,6 @@ if (rtc_include_tests) {
     ]
 
     deps = [
-      ":array_view",
       ":dtls_transport_interface",
       ":dtmf_sender_interface",
       ":frame_transformer_interface",
@@ -1690,7 +1673,6 @@ if (rtc_include_tests) {
     sources = [ "test/mock_transformable_audio_frame.h" ]
 
     deps = [
-      ":array_view",
       ":frame_transformer_interface",
       "../test:test_support",
       "units:time_delta",
@@ -1704,7 +1686,6 @@ if (rtc_include_tests) {
     sources = [ "test/mock_transformable_video_frame.h" ]
 
     deps = [
-      ":array_view",
       ":frame_transformer_interface",
       "../test:test_support",
       "units:time_delta",
@@ -1801,7 +1782,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/mock_datagram_connection.h" ]
     deps = [
-      ":array_view",
       ":candidate",
       ":datagram_connection",
       "../p2p:transport_description",
@@ -1816,7 +1796,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/mock_datagram_connection_observer.h" ]
     deps = [
-      ":array_view",
       ":candidate",
       ":datagram_connection",
       "//test:test_support",

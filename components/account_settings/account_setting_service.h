@@ -12,6 +12,7 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "components/account_settings/account_setting_sync_bridge.h"
+#include "components/account_settings/account_settings.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 namespace syncer {
@@ -28,8 +29,9 @@ class AccountSettingService : public KeyedService,
  public:
   class Observer : public base::CheckedObserver {
    public:
-    // Called when account settings data changes.
-    virtual void OnAccountSettingDataUpdated() = 0;
+    // Called when the value of a specific account setting changes.
+    virtual void OnAccountSettingDataUpdated(
+        const std::string& setting_name) = 0;
   };
 
   explicit AccountSettingService(
@@ -39,10 +41,11 @@ class AccountSettingService : public KeyedService,
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // Getter to check whether the user agreed to share public pass data from
-  // Wallet to other Google services, including Chrome, in their Google account
-  // settings.
-  bool IsWalletPrivacyContextualSurfacingEnabled() const;
+  // Returns a value for the specified `setting` and type if exists, otherwise
+  // returns `nullopt`.
+  std::optional<bool> GetBoolean(const AccountSetting& setting) const;
+  std::optional<int> GetInteger(const AccountSetting& setting) const;
+  std::optional<std::string> GetString(const AccountSetting& setting) const;
 
   // Returns a controller delegate for the `sync_bridge_` owned by this service.
   std::unique_ptr<syncer::DataTypeControllerDelegate>
@@ -51,7 +54,7 @@ class AccountSettingService : public KeyedService,
  private:
   // AccountSettingSyncBridge::Observer:
   void OnDataLoadedFromDisk() override;
-  void OnDataUpdated() override;
+  void OnDataUpdated(const std::string& setting_name) override;
 
   base::ObserverList<AccountSettingService::Observer> observers_;
 

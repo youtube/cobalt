@@ -15,10 +15,23 @@ const char kFindsModelExecutionLastTimestamp[] =
 const char kFindsNotInterestedThemesLastTimestamp[] =
     "finds.themes.not_interested_last_timestamp";
 
-// LINT.IfChange(FindsOptInPromoInteractionPref)
+// LINT.IfChange(FindsOptInPromoInteractionPrefs)
 // A boolean of whether the finds opt in promo was interacted with by the user.
 const char kFindsOptInPromoUserInteracted[] =
     "finds.opt_in_promo.user_interacted";
-// LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/finds/ChromeFindsUtils.java:FindsOptInPromoInteractionPref)
+// Deprecated. Do not remove.
+// The number of times the finds opt in promo was interacted with by the user.
+const char kFindsOptInPromoInteractedCount[] =
+    "finds.opt_in_promo.interacted_count";
+// Deprecated. Do not remove.
+// The timestamp of the last time the finds opt in promo was interacted with.
+const char kFindsOptInPromoLastInteractedTimestamp[] =
+    "finds.opt_in_promo.last_interacted_timestamp";
+// The number of times the finds opt in promo was shown to the user.
+const char kFindsOptInPromoShownCount[] = "finds.opt_in_promo.shown_count";
+// The timestamp of the last time the finds opt in promo was shown to the user.
+const char kFindsOptInPromoLastShownTimestamp[] =
+    "finds.opt_in_promo.last_shown_timestamp";
+// LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/finds/ChromeFindsUtils.java:FindsOptInPromoInteractionPrefs)
 
 }  // namespace finds::prefs

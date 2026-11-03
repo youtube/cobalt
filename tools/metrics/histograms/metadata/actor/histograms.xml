@@ -321,7 +321,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.MayOriginGatePageTransition" enum="Boolean"
-    expires_after="2026-07-26">
+    expires_after="2026-09-27">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -480,6 +480,7 @@ chromium-metrics-reviews@google.com.
   </summary>
   <token key="State">
     <variant name="WaitForAutofillPredictions"/>
+    <variant name="WaitForFederatedLogin"/>
     <variant name="WaitForLoadCompletion"/>
     <variant name="WaitForPageStability"/>
     <variant name="WaitForVisualStateUpdate"/>
@@ -573,6 +574,26 @@ chromium-metrics-reviews@google.com.
     computing the observation earlier in the Validate step leads to a higher
     rate of target invalidation due to the page changing during the initialize
     and execution gap.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Pip.Status" enum="ActorPipStatus"
+    expires_after="2027-03-31">
+  <owner>bbetini@google.com</owner>
+  <owner>ritikagup@google.com</owner>
+  <summary>
+    Recorded when chrome enters or exits Picture-in-Picture mode based on the
+    actor task state.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Pip.UserInteractions" enum="ActorPipUserInteraction"
+    expires_after="2027-03-31">
+  <owner>bbetini@google.com</owner>
+  <owner>ritikagup@google.com</owner>
+  <summary>
+    Recorded when the user interacts with the Pause, Resume, or Expand actions
+    on the Picture-in-Picture window.
   </summary>
 </histogram>
 
@@ -738,6 +759,21 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded when a task is triggered for the first time. If the browser has
     actuation capability, this will be recorded as true, else it will be false.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Task.CreateFailedReason"
+    enum="ActorTaskCreateFailedReason" expires_after="2026-12-31">
+  <owner>rosiey@google.com</owner>
+  <owner>sauski@google.com</owner>
+  <summary>
+    Tracks the reason why the Browser Agent might be blocked from performing an
+    actuation on a web page. This is recorded every time a new task is initiated
+    via GlicActorTaskManager::CreateTask. The logged value comes from the
+    GlicActorPolicyChecker::CannotActReason enum, detailing the specific policy
+    or capability issue (e.g., kDisabledByPolicy, kAccountCapabilityIneligible).
+    Note that if a domain is exempted from a block via a URL allowlist, the
+    actuation succeeds and logs kNone.
   </summary>
 </histogram>
 

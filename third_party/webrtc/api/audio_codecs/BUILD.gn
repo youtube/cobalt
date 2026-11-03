@@ -29,7 +29,6 @@ rtc_library("audio_codecs_api") {
     "audio_format.h",
   ]
   deps = [
-    "..:array_view",
     "..:bitrate_allocation",
     "..:make_ref_counted",
     "..:ref_count",

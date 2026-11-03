@@ -6,6 +6,7 @@ en_GB{
     zoneStrings{
         "Europe:London"{
             sd{"BST"}
+            ss{"GMT"}
         }
         "meta:Europe_Central"{
             sd{"CEST"}

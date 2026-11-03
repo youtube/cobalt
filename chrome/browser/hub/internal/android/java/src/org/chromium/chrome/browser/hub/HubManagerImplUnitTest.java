@@ -29,19 +29,24 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
@@ -51,7 +56,9 @@ import org.chromium.chrome.browser.ui.actions.button.FullButtonData;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.ParentOverrideSlot;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController.MenuOrKeyboardActionHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
@@ -88,6 +95,7 @@ public class HubManagerImplUnitTest {
     @Mock private Tracker mTracker;
     @Mock private SearchActivityClient mSearchActivityClient;
     @Mock private BottomBarHostManager mBottomBarHostManager;
+    @Mock private BottomSheetController mBottomSheetController;
 
     private final MonotonicObservableSupplier<Integer> mPreviousLayoutTypeSupplier =
             ObservableSuppliers.alwaysNull();
@@ -100,7 +108,6 @@ public class HubManagerImplUnitTest {
             new OneshotSupplierImpl<>();
     private final MonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier =
             ObservableSuppliers.alwaysNull();
-    private static final int SNACKBAR_OVERRIDE_TOKEN = 1;
 
     private Activity mActivity;
     private FrameLayout mRootView;
@@ -144,9 +151,6 @@ public class HubManagerImplUnitTest {
         when(mTab.getId()).thenReturn(TAB_ID);
         when(mProfileProvider.getOriginalProfile()).thenReturn(mProfile);
 
-        when(mSnackbarManager.pushParentViewToOverrideStack(any()))
-                .thenReturn(SNACKBAR_OVERRIDE_TOKEN);
-
         mActivityScenarioRule
                 .getScenario()
                 .onActivity(
@@ -159,9 +163,9 @@ public class HubManagerImplUnitTest {
 
     @Test
     @SmallTest
-    public void testHubControllerWithBottomBarHostManager() {
-        org.chromium.chrome.browser.flags.ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts
-                .setForTesting(true);
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testSnackbarBottomMargin_WithBottomToolbar() {
+        ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts.setForTesting(true);
 
         PaneListBuilder builder =
                 new PaneListBuilder(new DefaultPaneOrderController())
@@ -179,6 +183,97 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
+                        mBottomBarHostManager,
+                        mTabSupplier,
+                        mMenuButtonCoordinator,
+                        mHubShowPaneHelper,
+                        mEdgeToEdgeSupplier,
+                        mSearchActivityClient,
+                        /* xrSpaceModeObservableSupplier= */ null,
+                        /* defaultPaneId= */ PaneId.TAB_SWITCHER);
+        hubManager.getPaneManager().focusPane(PaneId.TAB_SWITCHER);
+
+        HubController hubController = hubManager.getHubController();
+        hubController.setHubLayoutController(mHubLayoutController);
+
+        hubController.onHubLayoutShow();
+
+        ArgumentCaptor<NonNullObservableSupplier> marginSupplierCaptor =
+                ArgumentCaptor.forClass(NonNullObservableSupplier.class);
+        verify(mSnackbarManager)
+                .pushParentViewOverride(
+                        eq(ParentOverrideSlot.HUB), any(), marginSupplierCaptor.capture());
+
+        assertNotNull(marginSupplierCaptor.getValue());
+        assertEquals(Integer.valueOf(0), marginSupplierCaptor.getValue().get());
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testSnackbarBottomMargin_WithoutBottomToolbar() {
+        ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts.setForTesting(false);
+
+        PaneListBuilder builder =
+                new PaneListBuilder(new DefaultPaneOrderController())
+                        .registerPane(
+                                PaneId.TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mTabSwitcherPane))
+                        .registerPane(
+                                PaneId.INCOGNITO_TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mIncognitoTabSwitcherPane));
+        HubManagerImpl hubManager =
+                new HubManagerImpl(
+                        mActivity,
+                        mProfileProviderSupplier,
+                        builder,
+                        mBackPressManager,
+                        mMenuOrKeyboardActionController,
+                        mSnackbarManager,
+                        mBottomSheetController,
+                        mBottomBarHostManager,
+                        mTabSupplier,
+                        mMenuButtonCoordinator,
+                        mHubShowPaneHelper,
+                        mEdgeToEdgeSupplier,
+                        mSearchActivityClient,
+                        /* xrSpaceModeObservableSupplier= */ null,
+                        /* defaultPaneId= */ PaneId.TAB_SWITCHER);
+        hubManager.getPaneManager().focusPane(PaneId.TAB_SWITCHER);
+
+        HubController hubController = hubManager.getHubController();
+        hubController.setHubLayoutController(mHubLayoutController);
+
+        hubController.onHubLayoutShow();
+
+        verify(mSnackbarManager)
+                .pushParentViewOverride(
+                        eq(ParentOverrideSlot.HUB), any(), org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    @SmallTest
+    public void testHubControllerWithBottomBarHostManager() {
+        ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts.setForTesting(true);
+
+        PaneListBuilder builder =
+                new PaneListBuilder(new DefaultPaneOrderController())
+                        .registerPane(
+                                PaneId.TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mTabSwitcherPane))
+                        .registerPane(
+                                PaneId.INCOGNITO_TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mIncognitoTabSwitcherPane));
+        HubManagerImpl hubManager =
+                new HubManagerImpl(
+                        mActivity,
+                        mProfileProviderSupplier,
+                        builder,
+                        mBackPressManager,
+                        mMenuOrKeyboardActionController,
+                        mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -218,6 +313,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -253,6 +349,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -277,7 +374,7 @@ public class HubManagerImplUnitTest {
 
         FrameLayout containerView = hubController.getContainerView();
         assertNotNull(containerView);
-        verify(mSnackbarManager).pushParentViewToOverrideStack(any());
+        verify(mSnackbarManager).pushParentViewOverride(eq(ParentOverrideSlot.HUB), any(), any());
 
         // Attach the container to the parent view.
         mRootView.addView(containerView);
@@ -285,11 +382,12 @@ public class HubManagerImplUnitTest {
 
         hubManager.getPaneManager().focusPane(PaneId.INCOGNITO_TAB_SWITCHER);
         verify(mTabSwitcherPane).setPaneHubController(null);
-        verify(mSnackbarManager).popParentViewFromOverrideStack(SNACKBAR_OVERRIDE_TOKEN);
+        verify(mSnackbarManager).popParentViewOverride(ParentOverrideSlot.HUB);
         verify(mMenuOrKeyboardActionController)
                 .unregisterMenuOrKeyboardActionHandler(mTabSwitcherMenuOrKeyboardActionHandler);
         verify(mIncognitoTabSwitcherPane).setPaneHubController(coordinator);
-        verify(mSnackbarManager, times(2)).pushParentViewToOverrideStack(any());
+        verify(mSnackbarManager, times(2))
+                .pushParentViewOverride(eq(ParentOverrideSlot.HUB), any(), any());
         verify(mMenuOrKeyboardActionController)
                 .registerMenuOrKeyboardActionHandler(
                         mIncognitoTabSwitcherMenuOrKeyboardActionHandler);
@@ -298,10 +396,7 @@ public class HubManagerImplUnitTest {
         assertNull(hubManager.getHubCoordinatorForTesting());
         verify(mBackPressManager).removeHandler(eq(coordinator));
         verify(mIncognitoTabSwitcherPane).setPaneHubController(null);
-        verify(mSnackbarManager, times(2)).popParentViewFromOverrideStack(SNACKBAR_OVERRIDE_TOKEN);
-        verify(mMenuOrKeyboardActionController)
-                .unregisterMenuOrKeyboardActionHandler(
-                        mIncognitoTabSwitcherMenuOrKeyboardActionHandler);
+        verify(mSnackbarManager, times(2)).popParentViewOverride(ParentOverrideSlot.HUB);
 
         // Container is still attached and will be removed separately.
         assertEquals(mRootView, containerView.getParent());
@@ -319,6 +414,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -361,6 +457,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -407,6 +504,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
@@ -460,6 +558,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomSheetController,
                         mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,

@@ -57,10 +57,6 @@ namespace login {
 class NetworkStateHelper;
 }
 
-namespace quick_unlock {
-class PinSaltStorage;
-}
-
 // ExistingUserController is used to handle login when someone has already
 // logged into the machine. ExistingUserController is created and owned by
 // LoginDisplayHost.
@@ -170,6 +166,8 @@ class ExistingUserController : public HttpAuthDialog::Observer,
   void FinalizeAuthAndStartSession(const UserContext& user_context);
 
   bool MaybeShowPasswordSelectionScreen(const UserContext& user_context);
+
+  bool MaybeShowRemoveLocalAuthFactorsScreen(const UserContext& user_context);
 
   DemoLoginController* GetDemoLoginControllerForTest();
 
@@ -398,9 +396,6 @@ class ExistingUserController : public HttpAuthDialog::Observer,
   // Used to wait for local account policy during session login, if policy is
   // not yet available when the login is attempted.
   std::unique_ptr<DeviceLocalAccountPolicyWaiter> policy_waiter_;
-
-  // The source of PIN salts. Used to retrieve PIN during TransformPinKey.
-  std::unique_ptr<quick_unlock::PinSaltStorage> pin_salt_storage_;
 
   // Manage auto login for demo mode.
   std::unique_ptr<ash::DemoLoginController> demo_login_controller_;

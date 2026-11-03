@@ -698,7 +698,7 @@ VISIT_CHECK(SeqOneByteString)
 VISIT_CHECK(StringOrStringWrapper)
 VISIT_CHECK(StringOrOddball)
 VISIT_CHECK(Symbol)
-#undef PROCESS_CHECK
+#undef VISIT_CHECK
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValue(
     CheckValue* node, const ProcessingState& state) {
@@ -2041,6 +2041,12 @@ ProcessResult MaglevGraphOptimizer::VisitStringLength(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStringIndexOf(
+    StringIndexOf* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitStringConcat(
     StringConcat* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -2756,6 +2762,13 @@ ProcessResult MaglevGraphOptimizer::VisitObjectIsArray(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitProcessWasmArgument(
+    ProcessWasmArgument*, const ProcessingState&) {
+  // Identity node used to carry an eager deopt frame state for JS-to-Wasm
+  // wrapper inlining (crbug.com/493307329). No optimization needed.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -3005,6 +3018,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
   }
 UNIMPLEMENTED_NODE(AssertRangeInt32)
 UNIMPLEMENTED_NODE(AssertRangeFloat64)
+#undef UNIMPLEMENTED_NODE
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64SpeculateSafeAdd(
     Float64SpeculateSafeAdd* node, const ProcessingState& state) {
@@ -3075,6 +3089,12 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
   }
 
 UNREACHABLE_NODES(UNREACHEABLE_VISITOR)
+#undef UNREACHABLE_VISITOR
+#undef UNREACHABLE_NODES
+
+#undef REPLACE_AND_RETURN_IF_DONE
+#undef RETURN_IF_SUCCESS
+#undef TRACE
 
 }  // namespace maglev
 }  // namespace internal

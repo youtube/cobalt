@@ -14,6 +14,7 @@
 #include <array>
 #include <span>
 
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 
 namespace webrtc {
@@ -33,6 +34,9 @@ class NearendDetector {
       std::span<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       bool initial_state) = 0;
+
+  // Sets the configuration.
+  virtual void SetConfig(const EchoCanceller3Config::Suppressor& config) = 0;
 };
 
 }  // namespace webrtc

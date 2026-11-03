@@ -200,6 +200,8 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
                                 const RtpParameters& parameters,
                                 SetParametersCallback callback) override;
   RtpParameters GetRtpSendParameters(uint32_t ssrc) const override;
+  absl::AnyInvocable<RtpParameters(uint32_t)> GetRtpSendParametersCallback()
+      const override;
   std::optional<Codec> GetSendCodec() const override;
   bool SetSend(bool send) override;
   bool SetVideoSend(uint32_t ssrc,
@@ -209,6 +211,8 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   bool RemoveSendStream(uint32_t ssrc) override;
   void FillBitrateInfo(BandwidthEstimationInfo* bwe_info) override;
   bool GetStats(VideoMediaSendInfo* info) override;
+  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsCallback()
+      override;
 
   void OnPacketSent(const SentPacketInfo& sent_packet) override;
   void OnReadyToSend(bool ready) override;
@@ -531,6 +535,8 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   bool SetSink(uint32_t ssrc, VideoSinkInterface<VideoFrame>* sink) override;
   void SetDefaultSink(VideoSinkInterface<VideoFrame>* sink) override;
   bool GetStats(VideoMediaReceiveInfo* info) override;
+  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsCallback()
+      override;
   void OnPacketReceived(RtpPacketReceived packet) override;
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
 
@@ -705,6 +711,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // Variables.
   const Environment env_;
   TaskQueueBase* const worker_thread_;
+  ScopedTaskSafety task_safety_;
   scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{
       SequenceChecker::kDetached};

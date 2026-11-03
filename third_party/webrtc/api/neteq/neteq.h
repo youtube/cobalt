@@ -16,10 +16,10 @@
 
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_info.h"
@@ -186,14 +186,14 @@ class NetEq {
   virtual ~NetEq() {}
 
   virtual int InsertPacket(const RTPHeader& rtp_header,
-                           ArrayView<const uint8_t> payload) {
+                           std::span<const uint8_t> payload) {
     return InsertPacket(rtp_header, payload,
                         /*receive_time=*/Timestamp::MinusInfinity());
   }
 
   // TODO: webrtc:343501093 - removed unused method.
   virtual int InsertPacket(const RTPHeader& rtp_header,
-                           ArrayView<const uint8_t> payload,
+                           std::span<const uint8_t> payload,
                            Timestamp receive_time) {
     return InsertPacket(rtp_header, payload,
                         RtpPacketInfo(rtp_header, receive_time));
@@ -203,7 +203,7 @@ class NetEq {
   // Returns 0 on success, -1 on failure.
   // TODO: webrtc:343501093 - Make this method pure virtual.
   virtual int InsertPacket(const RTPHeader& rtp_header,
-                           ArrayView<const uint8_t> payload,
+                           std::span<const uint8_t> payload,
                            const RtpPacketInfo& /* rtp_packet_info */) {
     return InsertPacket(rtp_header, payload);
   }

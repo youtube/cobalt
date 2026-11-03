@@ -19,10 +19,10 @@ import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Objects;
 
 /**
- * An interface defining content that can be displayed inside of the bottom sheet for Chrome
- * Home.
+ * An interface defining content that can be displayed inside of the bottom sheet for Chrome Home.
  */
 @NullMarked
 public interface BottomSheetContent {
@@ -56,6 +56,47 @@ public interface BottomSheetContent {
     @interface ContentPriority {
         int HIGH = 0;
         int LOW = 1;
+    }
+
+    /** Carrier class for background glow specifications. */
+    public static class GlowSpec {
+        /** The different possible shadow sizes for the background glow. */
+        @IntDef({ShadowSize.DEFAULT, ShadowSize.LONG})
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface ShadowSize {
+            int DEFAULT = 0;
+            int LONG = 1;
+        }
+
+        /** The color of the background glow. */
+        public final @ColorInt int color;
+
+        /** The size of the background glow. */
+        public final @ShadowSize int size;
+
+        /**
+         * Creates a new background glow spec.
+         *
+         * @param color The color of the background glow.
+         * @param size The size of the background glow.
+         */
+        public GlowSpec(@ColorInt int color, @ShadowSize int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public boolean equals(@Nullable Object obj) {
+            if (obj == this) return true;
+            if (!(obj instanceof GlowSpec)) return false;
+            GlowSpec other = (GlowSpec) obj;
+            return color == other.color && size == other.size;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(color, size);
+        }
     }
 
     /**
@@ -150,6 +191,14 @@ public interface BottomSheetContent {
      */
     default @ColorInt int getSheetBackgroundColorOverride() {
         return Color.TRANSPARENT;
+    }
+
+    /**
+     * Returns the custom background glow spec of the sheet. If spec is not overridden (default to
+     * null), the BottomSheetController will use default glow settings.
+     */
+    default @Nullable GlowSpec getSheetBackgroundGlowSpecOverride() {
+        return null;
     }
 
     /**
@@ -281,5 +330,18 @@ public interface BottomSheetContent {
      */
     default boolean shouldLongPressMoveSheet() {
         return false;
+    }
+
+    /**
+     * Whether snackbars should be shown inside the bottom sheet.
+     *
+     * <p>This should only be set to false if the bottom sheet is rarely or never full screen height
+     * (as otherwise the snackbar will be offscreen) and should only be set when the bottom sheet
+     * does not have a scrim in half or full height.
+     *
+     * @return True if snackbars should be shown inside the bottom sheet.
+     */
+    default boolean allowInSheetContentSnackbars() {
+        return true;
     }
 }

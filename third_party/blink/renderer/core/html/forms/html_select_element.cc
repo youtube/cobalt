@@ -1202,9 +1202,7 @@ void HTMLSelectElement::ParseMultipleAttribute(const AtomicString& value) {
 }
 
 void HTMLSelectElement::UpdateMutationObserver() {
-  if ((UsesMenuList() ||
-       RuntimeEnabledFeatures::CustomizableSelectListboxEnabled()) &&
-      isConnected() && IsAppearanceBase()) {
+  if (isConnected() && IsAppearanceBase()) {
     if (!descendants_observer_) {
       descendants_observer_ =
           MakeGarbageCollected<SelectMutationObserver>(*this);
@@ -1379,9 +1377,8 @@ void HTMLSelectElement::TypeAheadFind(const KeyboardEvent& event) {
   HTMLOptionElement* option_at_index = OptionAtListIndex(index);
 
   const bool customizable_select_popup =
-      select_type_->IsAppearanceBasePicker() && select_type_->PopupIsVisible();
+      PickerIsPopover() && select_type_->PopupIsVisible();
   const bool customizable_select_in_page =
-      RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
       !UsesMenuList() && IsAppearanceBase();
 
   if (customizable_select_popup || customizable_select_in_page) {
@@ -1514,7 +1511,7 @@ String HTMLSelectElement::ItemText(const Element& element) const {
     item_string = option->TextIndentedToRespectGroupLabel();
 
   if (GetLayoutObject() && GetLayoutObject()->Style()) {
-    return GetLayoutObject()->Style()->ApplyTextTransform(item_string);
+    return GetLayoutObject()->StyleRef().ApplyTextTransform(item_string);
   }
   return item_string;
 }
@@ -2020,8 +2017,7 @@ FocusableState HTMLSelectElement::SupportsFocus(
   // if appropriate, which we will make use of here.
   FocusableState superclass_focusable =
       HTMLFormControlElementWithState::SupportsFocus(update_behavior);
-  if (RuntimeEnabledFeatures::CustomizableSelectListboxEnabled() &&
-      !UsesMenuList() && IsAppearanceBase()) {
+  if (!UsesMenuList() && IsAppearanceBase()) {
     // In this case, the child option elements are focusable and keyboard
     // navigating to this element should just go straight to the options. Call
     // HTMLElement::SupportsFocus instead of
@@ -2053,13 +2049,10 @@ bool HTMLSelectElement::SupportsBaseAppearanceInternal(
   if (RuntimeEnabledFeatures::CustomizableSelectMultiplePopupEnabled()) {
     return true;
   }
-  if (RuntimeEnabledFeatures::CustomizableSelectListboxEnabled()) {
-    if (UsesMenuList() && IsMultiple()) {
-      return false;
-    }
-    return true;
+  if (UsesMenuList() && IsMultiple()) {
+    return false;
   }
-  return !IsMultiple() && UsesMenuList();
+  return true;
 }
 
 // static
@@ -2112,6 +2105,7 @@ void HTMLSelectElement::MoveActiveOptionForwards() {
     active_option_ = new_option;
     old_active_option->PseudoStateChanged(CSSSelector::kPseudoActiveOption);
     active_option_->PseudoStateChanged(CSSSelector::kPseudoActiveOption);
+    active_option_->scrollIntoViewIfNeeded(/*center_if_needed=*/false);
   }
 }
 
@@ -2125,6 +2119,7 @@ void HTMLSelectElement::MoveActiveOptionBackwards() {
     active_option_ = new_option;
     old_active_option->PseudoStateChanged(CSSSelector::kPseudoActiveOption);
     active_option_->PseudoStateChanged(CSSSelector::kPseudoActiveOption);
+    active_option_->scrollIntoViewIfNeeded(/*center_if_needed=*/false);
   }
 }
 

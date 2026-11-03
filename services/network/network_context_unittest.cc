@@ -53,6 +53,7 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
@@ -178,6 +179,7 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/proxy_config.mojom.h"
+#include "services/network/public/mojom/reporting_service.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom-shared.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "services/network/test/fake_test_cert_verifier_params_factory.h"
@@ -252,9 +254,12 @@ const std::string kGroup_ = "group";
 const std::string kType_ = "type";
 const std::optional<base::UnguessableToken> kReportingSource_ =
     base::UnguessableToken::Create();
+const GURL kConnectionAllowlistContextUrl_ =
+    GURL("https://connection.allowlist/document.html");
+#endif  // BUILDFLAG(ENABLE_REPORTING)
+
 const net::NetworkAnonymizationKey kNak_ =
     net::NetworkAnonymizationKey::CreateTransient();
-#endif  // BUILDFLAG(ENABLE_REPORTING)
 
 void StoreValue(base::DictValue* result,
                 base::OnceClosure callback,
@@ -1236,10 +1241,10 @@ TEST_F(NetworkContextTest, QueueReportAfterNetworkRevocation) {
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(
-      network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce, kUrl_));
-  EXPECT_TRUE(
-      network_context->IsNetworkForNonceAndUrlAllowed(allowed_nonce, kUrl_));
+  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce,
+                                                               kUrl_, kNak_));
+  EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(allowed_nonce,
+                                                              kUrl_, kNak_));
 
   // Create the 2 NetworkAnonymizationKey(s).
   const auto site = net::SchemefulSite(kUrl_);
@@ -1303,8 +1308,8 @@ TEST_F(NetworkContextTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(
-      network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce, kUrl_));
+  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(revoked_nonce,
+                                                               kUrl_, kNak_));
 
   // Create the 2 NetworkAnonymizationKey(s).
   const auto site = net::SchemefulSite(kUrl_);
@@ -4455,7 +4460,8 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
 
   // Resolve the host without the NetworkAnonymizationKey. The resolve request
   // should succeed.
@@ -4508,7 +4514,8 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
 
   // Create the NetworkAnonymizationKey.
   const auto site = net::SchemefulSite(url);
@@ -4565,7 +4572,7 @@ TEST_F(NetworkContextResolveHostTest,
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL("https://nik.test:160")));
+      nonce, GURL("https://nik.test:160"), kNak_));
 
   // Resolve the host without the NetworkAnonymizationKey. The resolve request
   // should succeed.
@@ -4618,7 +4625,7 @@ TEST_F(NetworkContextResolveHostTest,
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL("https://nik.test:160")));
+      nonce, GURL("https://nik.test:160"), kNak_));
 
   // Create the NetworkAnonymizationKey.
   const auto site = net::SchemefulSite(GURL("https://nik.test:160"));
@@ -4678,11 +4685,12 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
   auto scheme_host_port = network::mojom::HostResolverHost::NewSchemeHostPort(
       url::SchemeHostPort(url::kHttpScheme, url.GetHost(), 160));
   EXPECT_FALSE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *scheme_host_port));
+      nonce, *scheme_host_port, kNak_));
 
   // Resolve the host without the network_restrictions_id. The resolve request
   // should succeed.
@@ -4740,11 +4748,12 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
   auto scheme_host_port = network::mojom::HostResolverHost::NewSchemeHostPort(
       url::SchemeHostPort(url::kHttpScheme, url.GetHost(), 160));
   EXPECT_FALSE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *scheme_host_port));
+      nonce, *scheme_host_port, kNak_));
 
   // Resolve the host. The resolve request should be disabled.
   network_context->ResolveHost(
@@ -4800,11 +4809,12 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
   auto scheme_host_port = network::mojom::HostResolverHost::NewSchemeHostPort(
       url::SchemeHostPort(url::kHttpScheme, url.GetHost(), 160));
   EXPECT_TRUE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *scheme_host_port));
+      nonce, *scheme_host_port, kNak_));
 
   // Resolve the host.
   network_context->ResolveHost(
@@ -4860,11 +4870,11 @@ TEST_F(NetworkContextResolveHostTest,
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL("https://nik.test:160")));
+      nonce, GURL("https://nik.test:160"), kNak_));
   auto host_port_pair = network::mojom::HostResolverHost::NewHostPortPair(
       net::HostPortPair("nik.test", 160));
   EXPECT_FALSE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *host_port_pair));
+      nonce, *host_port_pair, kNak_));
 
   // Resolve the host without the network_restritctions_id. The resolve request
   // should succeed.
@@ -4921,11 +4931,11 @@ TEST_F(NetworkContextResolveHostTest,
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL("https://nik.test:160")));
+      nonce, GURL("https://nik.test:160"), kNak_));
   auto host_port_pair = network::mojom::HostResolverHost::NewHostPortPair(
       net::HostPortPair("nik.test", 160));
   EXPECT_FALSE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *host_port_pair));
+      nonce, *host_port_pair, kNak_));
 
   // Resolve the host with the network_restrictions_id. The resolve request
   // should be disabled.
@@ -4982,11 +4992,12 @@ TEST_F(NetworkContextResolveHostTest,
   network_context->RevokeNetworkForNonces(
       std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
   EXPECT_TRUE(revoked.Wait());
-  EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(nonce, url));
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, url, kNak_));
   auto host_port_pair = network::mojom::HostResolverHost::NewHostPortPair(
       net::HostPortPair(url.GetHost(), 160));
   EXPECT_TRUE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *host_port_pair));
+      nonce, *host_port_pair, kNak_));
 
   // Resolve the host.
   network_context->ResolveHost(
@@ -5050,7 +5061,7 @@ TEST_F(NetworkContextResolveHostTest,
       net::HostPortPair("potato", 160));
   ASSERT_EQ(host_port_pair->get_host_port_pair().host(), "potato");
   EXPECT_FALSE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *host_port_pair));
+      nonce, *host_port_pair, kNak_));
 
   // Resolve the host.
   network_context->ResolveHost(
@@ -5115,7 +5126,7 @@ TEST_F(NetworkContextResolveHostTest,
   auto host_port_pair = network::mojom::HostResolverHost::NewHostPortPair(
       net::HostPortPair("wrong.test", 160));
   EXPECT_TRUE(network_context->IsHostResolutionForNonceAndHostAllowed(
-      nonce, *host_port_pair));
+      nonce, *host_port_pair, kNak_));
 
   // Resolve the host.
   network_context->ResolveHost(
@@ -5657,9 +5668,11 @@ INSTANTIATE_TEST_SUITE_P(All, NetworkContextCanaryDomainTest, testing::Bool());
 TEST_P(NetworkContextCanaryDomainTest, CanaryDomainServiceProbe) {
   base::test::ScopedFeatureList feature_list;
   std::string host = "example.test";
-  feature_list.InitAndEnableFeatureWithParameters(
-      net::features::kProbeSecureDnsCanaryDomain,
-      {{"canary_domain_host", host}});
+  feature_list.InitWithFeaturesAndParameters(
+      {{net::features::kProbeSecureDnsCanaryDomain,
+        {{"canary_domain_host", host}}},
+       {net::features::kForceSecureDnsDohFallback, {}}},
+      {});
 
   network_service_->set_host_resolver_factory_for_testing(
       std::make_unique<net::MockHostResolverFactory>());
@@ -5678,6 +5691,7 @@ TEST_P(NetworkContextCanaryDomainTest, CanaryDomainServiceProbe) {
       nullptr);
   resolve_context.InvalidateCachesAndPerSessionData(session.get(),
                                                     /*network_change=*/false);
+  resolve_context.set_doh_fallback_upgrade_allowed(true);
 
   std::unique_ptr<NetworkContext> network_context =
       CreateContextWithParams(std::move(params));
@@ -5775,7 +5789,6 @@ TEST_F(NetworkContextTest,
   {
     net::DnsConfig config;
     config.secure_dns_mode = net::SecureDnsMode::kSecure;
-    config.should_perform_doh_fallback_upgrade = true;
     auto session = base::MakeRefCounted<net::DnsSession>(
         config, base::BindRepeating([](int min, int max) -> int { return 0; }),
         nullptr);
@@ -10033,12 +10046,12 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, kFooHttpsUrl));
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce3, kFooHttpsUrl));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce1, kFooHttpsUrl, kNak_));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, kFooHttpsUrl, kNak_));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce3, kFooHttpsUrl, kNak_));
   }
 
   // Redundant revocations should have no effect.
@@ -10050,12 +10063,12 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, kFooHttpsUrl));
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce3, kFooHttpsUrl));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce1, kFooHttpsUrl, kNak_));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, kFooHttpsUrl, kNak_));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce3, kFooHttpsUrl, kNak_));
   }
 
   // Revoke nonce2 too.
@@ -10067,10 +10080,32 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, kFooHttpsUrl));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce1, kFooHttpsUrl, kNak_));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, kFooHttpsUrl, kNak_));
+  }
+}
+
+TEST_F(NetworkContextTest, RevokeNetworkForNoncesResponseUrlTest) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+
+  const base::UnguessableToken nonce = base::UnguessableToken::Create();
+  const GURL kResponseUrl = GURL("https://example.com/page.html");
+
+  {
+    base::test::TestFuture<void> revoked;
+    std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+    revoked_nonce_pattern->allowlists.response_url = kResponseUrl;
+    nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
+    network_context->RevokeNetworkForNonces(
+        std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
+    EXPECT_TRUE(revoked.Wait());
+    EXPECT_EQ(
+        kResponseUrl,
+        network_context->GetNetworkRestrictionResponseUrlForTesting(nonce));
   }
 }
 
@@ -10110,8 +10145,8 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce, server_url));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce, server_url, kNak_));
   }
 
   // After revoking network for the nonce, the request should fail with
@@ -10154,8 +10189,8 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, server_url));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, server_url, kNak_));
   }
   {
     auto params = mojom::URLLoaderFactoryParams::New();
@@ -10648,7 +10683,7 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesCancelsPreconnectRequests) {
   test_server.SetConnectionListener(&connection_listener);
   ASSERT_TRUE(test_server.Start());
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, test_server.base_url()));
+      nonce, test_server.base_url(), kNak_));
 
   // Preconnect with a NetworkAnonymizationKey that does not contain the revoked
   // nonce.
@@ -10699,7 +10734,7 @@ TEST_F(NetworkContextTest, PreconnectRequestWithNetworkRestrictionsID) {
   net::EmbeddedTestServer test_server;
   ASSERT_TRUE(test_server.Start());
   ASSERT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      network_restrictions_id, test_server.base_url()));
+      network_restrictions_id, test_server.base_url(), kNak_));
 
   // Attempt to preconnect with the network restrictions id that accoresponds to
   // an empty connection connection allowlist.
@@ -10740,17 +10775,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
   }
   // Since `nonce` isn't revoked yet, everything should be allowed.
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl)));
+      nonce, GURL(kFooHttpsUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "?baz=qux")));
+      nonce, GURL(kFooHttpsUrl + "?baz=qux"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "#section")));
+      nonce, GURL(kFooHttpsUrl + "#section"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "/baz/qux.html")));
+      nonce, GURL(kFooHttpsUrl + "/baz/qux.html"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpUrl)));
+      nonce, GURL(kFooHttpUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl)));
+      nonce, GURL(kBarHttpsUrl), kNak_));
 
   // Revoke `nonce`.
   {
@@ -10764,17 +10799,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
   }
   // Now for `nonce` kFooHttpsUrl should be exempted, but kBarHttpsUrl blocked.
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl)));
+      nonce, GURL(kFooHttpsUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "?baz=qux")));
+      nonce, GURL(kFooHttpsUrl + "?baz=qux"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "#section")));
+      nonce, GURL(kFooHttpsUrl + "#section"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "/baz/qux.html")));
+      nonce, GURL(kFooHttpsUrl + "/baz/qux.html"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpUrl)));
+      nonce, GURL(kFooHttpUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl)));
+      nonce, GURL(kBarHttpsUrl), kNak_));
 
   // Redundant exemptions should have no effect.
   {
@@ -10784,17 +10819,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
     EXPECT_TRUE(exempted.Wait());
   }
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl)));
+      nonce, GURL(kFooHttpsUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "?baz=qux")));
+      nonce, GURL(kFooHttpsUrl + "?baz=qux"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "#section")));
+      nonce, GURL(kFooHttpsUrl + "#section"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "/baz/qux.html")));
+      nonce, GURL(kFooHttpsUrl + "/baz/qux.html"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpUrl)));
+      nonce, GURL(kFooHttpUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl)));
+      nonce, GURL(kBarHttpsUrl), kNak_));
 
   // For `nonce` exempt a file rooted at kBarHttpsUrl too.
   {
@@ -10805,17 +10840,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
     EXPECT_TRUE(exempted.Wait());
   }
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl)));
+      nonce, GURL(kFooHttpsUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl)));
+      nonce, GURL(kBarHttpsUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl + "/baz/qux.html?c=d")));
+      nonce, GURL(kBarHttpsUrl + "/baz/qux.html?c=d"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl + "/baz")));
+      nonce, GURL(kBarHttpsUrl + "/baz"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl + "/baz/")));
+      nonce, GURL(kBarHttpsUrl + "/baz/"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl + "/baz/corge.html")));
+      nonce, GURL(kBarHttpsUrl + "/baz/corge.html"), kNak_));
 
   // Revoke `nonce2`.
   {
@@ -10829,17 +10864,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
   }
   // Nothing should be exempted for `nonce2`.
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kFooHttpsUrl)));
+      nonce2, GURL(kFooHttpsUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kFooHttpsUrl + "?baz=qux")));
+      nonce2, GURL(kFooHttpsUrl + "?baz=qux"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kFooHttpsUrl + "#section")));
+      nonce2, GURL(kFooHttpsUrl + "#section"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kFooHttpsUrl + "/baz/qux.html")));
+      nonce2, GURL(kFooHttpsUrl + "/baz/qux.html"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kFooHttpUrl)));
+      nonce2, GURL(kFooHttpUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce2, GURL(kBarHttpsUrl)));
+      nonce2, GURL(kBarHttpsUrl), kNak_));
 
   // Exempt kFooHttpsUrl for `nonce2`.
   {
@@ -10849,17 +10884,17 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonceTest) {
     EXPECT_TRUE(exempted.Wait());
   }
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl)));
+      nonce, GURL(kFooHttpsUrl), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "?baz=qux")));
+      nonce, GURL(kFooHttpsUrl + "?baz=qux"), kNak_));
   EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "#section")));
+      nonce, GURL(kFooHttpsUrl + "#section"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpsUrl + "/baz/qux.html")));
+      nonce, GURL(kFooHttpsUrl + "/baz/qux.html"), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kFooHttpUrl)));
+      nonce, GURL(kFooHttpUrl), kNak_));
   EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
-      nonce, GURL(kBarHttpsUrl)));
+      nonce, GURL(kBarHttpsUrl), kNak_));
 }
 
 TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonce_InvalidURLs) {
@@ -10896,14 +10931,15 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonce_InvalidURLs) {
   }
 
   // Since `nonce` isn't revoked yet, everything should be allowed.
-  auto is_network_allowed = [&nonce = std::as_const(nonce),
-                             network_context = network_context.get()](
-                                const std::string& url) {
-    return network_context->IsNetworkForNonceAndUrlAllowed(nonce, GURL(url));
-  };
+  auto is_network_allowed =
+      [&nonce = std::as_const(nonce),
+       network_context = network_context.get()](const std::string& url) {
+        return network_context->IsNetworkForNonceAndUrlAllowed(nonce, GURL(url),
+                                                               kNak_);
+      };
   ASSERT_TRUE(std::ranges::all_of(invalid_urls, is_network_allowed));
-  ASSERT_TRUE(
-      network_context->IsNetworkForNonceAndUrlAllowed(nonce, GURL(valid_url)));
+  ASSERT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+      nonce, GURL(valid_url), kNak_));
 
   // Revoke `nonce`.
   base::test::TestFuture<void> revoked;
@@ -10916,8 +10952,8 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonce_InvalidURLs) {
 
   // Now the `invalid_urls` and the `valid_url` all have network disabled.
   ASSERT_TRUE(std::ranges::none_of(invalid_urls, is_network_allowed));
-  ASSERT_FALSE(
-      network_context->IsNetworkForNonceAndUrlAllowed(nonce, GURL(valid_url)));
+  ASSERT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+      nonce, GURL(valid_url), kNak_));
 
   // Exempt the `valid_url`.
   {
@@ -10930,8 +10966,8 @@ TEST_F(NetworkContextTest, ExemptUrlFromNetworkRevocationForNonce_InvalidURLs) {
   // Now the `valid_url` should be exempted. The `invalid_urls` are still
   // disabled for network.
   ASSERT_TRUE(std::ranges::none_of(invalid_urls, is_network_allowed));
-  ASSERT_TRUE(
-      network_context->IsNetworkForNonceAndUrlAllowed(nonce, GURL(valid_url)));
+  ASSERT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+      nonce, GURL(valid_url), kNak_));
 }
 
 TEST_F(NetworkContextTest, ClearNoncesTest) {
@@ -10955,23 +10991,23 @@ TEST_F(NetworkContextTest, ClearNoncesTest) {
     network_context->RevokeNetworkForNonces(
         std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
     EXPECT_TRUE(revoked.Wait());
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, kFooHttpsUrl));
-    EXPECT_FALSE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce3, kFooHttpsUrl));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce1, kFooHttpsUrl, kNak_));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, kFooHttpsUrl, kNak_));
+    EXPECT_FALSE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce3, kFooHttpsUrl, kNak_));
   }
 
   // Clear nonce1 and nonce3.
   {
     network_context->ClearNonces({nonce1, nonce3});
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce1, kFooHttpsUrl));
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce2, kFooHttpsUrl));
-    EXPECT_TRUE(
-        network_context->IsNetworkForNonceAndUrlAllowed(nonce3, kFooHttpsUrl));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce1, kFooHttpsUrl, kNak_));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce2, kFooHttpsUrl, kNak_));
+    EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+        nonce3, kFooHttpsUrl, kNak_));
   }
 }
 
@@ -12905,6 +12941,199 @@ TEST_F(NetworkContextWebSocketNetLogTest,
 
 #endif  // BUILDFLAG(ENABLE_WEBSOCKETS)
 
+#if BUILDFLAG(ENABLE_REPORTING)
+MATCHER(ConnectionAllowlistReportsMatch, "") {
+  const raw_ptr<const net::ReportingReport, VectorExperimental>& report =
+      std::get<0>(arg);
+  const std::pair<GURL, std::string>& expectation = std::get<1>(arg);
+
+  const std::string* reported_url = report->body.FindString("connection");
+  if (report->type != "connection-allowlist" ||
+      report->url != kConnectionAllowlistContextUrl_ ||
+      *reported_url != expectation.first.GetAsReferrer().spec() ||
+      report->group != expectation.second) {
+    *result_listener << "The report with url `" << report->url.spec()
+                     << "` and group `" << report->group
+                     << "` did not match the expectation <`"
+                     << expectation.first.spec() << "`, `" << expectation.second
+                     << "`>.";
+    return false;
+  }
+
+  return true;
+}
+
+class ConnectionAllowlistReportingTest : public NetworkContextTest {
+ public:
+  ConnectionAllowlistReportingTest() {
+    feature_list_.InitAndEnableFeature(
+        network::features::kConnectionAllowlists);
+  }
+
+  std::unique_ptr<NetworkContext> CreateContextWithReporting() {
+    auto reporting_context = std::make_unique<net::TestReportingContext>(
+        base::DefaultClock::GetInstance(),
+        base::DefaultTickClock::GetInstance(), net::ReportingPolicy());
+    return CreateContextWithParams(
+        CreateNetworkContextParamsForTesting(),
+        net::ReportingService::CreateForTesting(std::move(reporting_context)));
+  }
+
+  void RevokeNetworkForNonceWithAllowlists(
+      NetworkContext* network_context,
+      const base::UnguessableToken& nonce,
+      std::optional<network::ConnectionAllowlist> enforced,
+      std::optional<network::ConnectionAllowlist> report_only) {
+    auto allowlist = mojom::NonceAndAllowlistedPatterns::New();
+    allowlist->nonce = nonce;
+
+    allowlist->allowlists.response_url = kConnectionAllowlistContextUrl_;
+    if (enforced) {
+      allowlist->allowlists.enforced = std::move(enforced);
+    }
+    if (report_only) {
+      allowlist->allowlists.report_only = std::move(report_only);
+    }
+    std::vector<mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+    nonces_to_urls.push_back(std::move(allowlist));
+
+    base::test::TestFuture<void> revoked;
+    network_context->RevokeNetworkForNonces(std::move(nonces_to_urls),
+                                            revoked.GetCallback());
+    EXPECT_TRUE(revoked.Wait());
+  }
+
+  void ClearReports(NetworkContext* network_context) {
+    network_context->url_request_context()
+        ->reporting_service()
+        ->GetContextForTesting()
+        ->cache()
+        ->RemoveAllReports();
+  }
+
+  void VerifyReports(
+      NetworkContext* network_context,
+      const std::vector<std::pair<GURL, std::string>>& expected_reports) {
+    std::vector<raw_ptr<const net::ReportingReport, VectorExperimental>>
+        reports = network_context->url_request_context()
+                      ->reporting_service()
+                      ->GetReports();
+    ASSERT_EQ(expected_reports.size(), reports.size());
+
+    EXPECT_THAT(reports,
+                testing::UnorderedPointwise(ConnectionAllowlistReportsMatch(),
+                                            expected_reports));
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(ConnectionAllowlistReportingTest,
+       ConnectionAllowlistsReportingEnforced) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithReporting();
+
+  base::UnguessableToken nonce = base::UnguessableToken::Create();
+  GURL blocked_url("https://blocked.example.com");
+  GURL allowed_url("https://allowed.example.com");
+
+  network::ConnectionAllowlist enforced;
+  enforced.allowlist.push_back(allowed_url.spec());
+  enforced.reporting_endpoint = "enforced-endpoint";
+
+  RevokeNetworkForNonceWithAllowlists(network_context.get(), nonce,
+                                      std::move(enforced), std::nullopt);
+
+  net::NetworkAnonymizationKey nak =
+      net::NetworkAnonymizationKey::CreateTransient();
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, blocked_url, nak));
+  VerifyReports(network_context.get(), {{blocked_url, "enforced-endpoint"}});
+
+  // Allowed URLs should not generate new reports.
+  ClearReports(network_context.get());
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, allowed_url, nak));
+  VerifyReports(network_context.get(), {});
+}
+
+TEST_F(ConnectionAllowlistReportingTest,
+       ConnectionAllowlistsReportingReportOnly) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithReporting();
+
+  base::UnguessableToken nonce = base::UnguessableToken::Create();
+  GURL blocked_url("https://blocked.example.com");
+  GURL allowed_url("https://allowed.example.com");
+
+  network::ConnectionAllowlist report_only;
+  report_only.allowlist.push_back(allowed_url.spec());
+  report_only.reporting_endpoint = "report-only-endpoint";
+
+  RevokeNetworkForNonceWithAllowlists(network_context.get(), nonce,
+                                      std::nullopt, std::move(report_only));
+
+  net::NetworkAnonymizationKey nak =
+      net::NetworkAnonymizationKey::CreateTransient();
+  // Request should be allowed, but a report should be queued.
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, blocked_url, nak));
+  VerifyReports(network_context.get(), {{blocked_url, "report-only-endpoint"}});
+
+  // Allowed URLs should not generate new reports.
+  ClearReports(network_context.get());
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, allowed_url, nak));
+  VerifyReports(network_context.get(), {});
+}
+
+TEST_F(ConnectionAllowlistReportingTest,
+       ConnectionAllowlistsReporting_EnforcedAndReportOnly) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithReporting();
+
+  base::UnguessableToken nonce = base::UnguessableToken::Create();
+  GURL blocked_url("https://blocked.example.com");
+  GURL allowed_by_enforced_url("https://allowed-by-enforced.example.com");
+  GURL allowed_url("https://allowed.example.com");
+
+  network::ConnectionAllowlist enforced;
+  enforced.allowlist.push_back(allowed_url.spec());
+  enforced.allowlist.push_back(allowed_by_enforced_url.spec());
+  enforced.reporting_endpoint = "enforced-endpoint";
+
+  network::ConnectionAllowlist report_only;
+  report_only.allowlist.push_back(allowed_url.spec());
+  report_only.reporting_endpoint = "report-only-endpoint";
+
+  RevokeNetworkForNonceWithAllowlists(network_context.get(), nonce,
+                                      std::move(enforced),
+                                      std::move(report_only));
+
+  net::NetworkAnonymizationKey nak =
+      net::NetworkAnonymizationKey::CreateTransient();
+
+  // 1. Blocked by both (neither matches).
+  EXPECT_FALSE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, blocked_url, nak));
+  VerifyReports(network_context.get(), {{blocked_url, "report-only-endpoint"},
+                                        {blocked_url, "enforced-endpoint"}});
+
+  // 2. Allowed by enforced, but blocked by report-only.
+  ClearReports(network_context.get());
+  EXPECT_TRUE(network_context->IsNetworkForNonceAndUrlAllowed(
+      nonce, allowed_by_enforced_url, nak));
+  VerifyReports(network_context.get(),
+                {{allowed_by_enforced_url, "report-only-endpoint"}});
+
+  // 3. Allowed by both: no reports expected.
+  ClearReports(network_context.get());
+  EXPECT_TRUE(
+      network_context->IsNetworkForNonceAndUrlAllowed(nonce, allowed_url, nak));
+  VerifyReports(network_context.get(), {});
+}
+#endif  // BUILDFLAG(ENABLE_REPORTING)
 }  // namespace
 
 }  // namespace network

@@ -209,6 +209,13 @@ void BeginFrameSource::AsProtozeroInto(
 
 #if BUILDFLAG(IS_MAC)
 void BeginFrameSource::RecordBeginFrameSourceAccuracy(base::TimeDelta delta) {
+  if (base::ShouldRecordSubsampledMetric(0.001)) {
+    UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+        "Viz.BeginFrameSource.Accuracy.CallbackTimeError", delta,
+        /*min=*/base::Microseconds(100),
+        /*max=*/base::Milliseconds(33), /*bucket_count=*/30);
+  }
+
   total_delta_ += delta.magnitude();
   frames_since_last_recording_++;
 
@@ -585,9 +592,17 @@ void ExternalBeginFrameSource::OnBeginFrame(const BeginFrameArgs& args) {
     return;
   }
 
-  TRACE_EVENT2("viz,input.scrolling", "ExternalBeginFrameSource::OnBeginFrame",
-               "frame_time", args.frame_time.since_origin().InMicroseconds(),
-               "interval", args.interval.InMicroseconds());
+  TRACE_EVENT(
+      "viz,input.scrolling", "ExternalBeginFrameSource::OnBeginFrame",
+      [&](perfetto::EventContext context) {
+        // Not using `BeginFrameArgs::AsProtozeroInto()` so that we would only
+        // log the relevant pieces of information and save trace space.
+        auto* event =
+            context.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* out = event->set_begin_frame_args();
+        out->set_frame_time_us(args.frame_time.since_origin().InMicroseconds());
+        out->set_interval_delta_us(args.interval.InMicroseconds());
+      });
 
   if (metrics_sub_sampler_.ShouldSample(0.01)) {
     // We do not expect anything more than 1/24th of a second, but let's support

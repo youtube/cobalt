@@ -29,16 +29,16 @@ TEST(MovingAverageSpectrum, Average) {
   std::array<float, num_elem> output;
 
   ma.Average(data1, output);
-  EXPECT_NEAR(output[0], data1[0] / 3.0f, e);
-  EXPECT_NEAR(output[1], data1[1] / 3.0f, e);
-  EXPECT_NEAR(output[2], data1[2] / 3.0f, e);
-  EXPECT_NEAR(output[3], data1[3] / 3.0f, e);
+  EXPECT_NEAR(output[0], data1[0] / 1.0f, e);
+  EXPECT_NEAR(output[1], data1[1] / 1.0f, e);
+  EXPECT_NEAR(output[2], data1[2] / 1.0f, e);
+  EXPECT_NEAR(output[3], data1[3] / 1.0f, e);
 
   ma.Average(data2, output);
-  EXPECT_NEAR(output[0], (data1[0] + data2[0]) / 3.0f, e);
-  EXPECT_NEAR(output[1], (data1[1] + data2[1]) / 3.0f, e);
-  EXPECT_NEAR(output[2], (data1[2] + data2[2]) / 3.0f, e);
-  EXPECT_NEAR(output[3], (data1[3] + data2[3]) / 3.0f, e);
+  EXPECT_NEAR(output[0], (data1[0] + data2[0]) / 2.0f, e);
+  EXPECT_NEAR(output[1], (data1[1] + data2[1]) / 2.0f, e);
+  EXPECT_NEAR(output[2], (data1[2] + data2[2]) / 2.0f, e);
+  EXPECT_NEAR(output[3], (data1[3] + data2[3]) / 2.0f, e);
 
   ma.Average(data3, output);
   EXPECT_NEAR(output[0], (data1[0] + data2[0] + data3[0]) / 3.0f, e);
@@ -51,6 +51,26 @@ TEST(MovingAverageSpectrum, Average) {
   EXPECT_NEAR(output[1], (data2[1] + data3[1] + data4[1]) / 3.0f, e);
   EXPECT_NEAR(output[2], (data2[2] + data3[2] + data4[2]) / 3.0f, e);
   EXPECT_NEAR(output[3], (data2[3] + data3[3] + data4[3]) / 3.0f, e);
+}
+
+TEST(MovingAverageSpectrum, UpdateMemoryLength) {
+  constexpr size_t num_elem = 4;
+  constexpr float e = 1e-6f;
+  MovingAverageSpectrum ma(num_elem, 3);
+  std::array<float, num_elem> data1 = {1, 2, 3, 4};
+  std::array<float, num_elem> data2 = {5, 1, 9, 7};
+  std::array<float, num_elem> output;
+
+  ma.Average(data1, output);
+  EXPECT_NEAR(output[0], data1[0], e);
+
+  ma.UpdateMemoryLength(1);
+  ma.Average(data2, output);
+  // After update, it should behave as if it was just created with mem_len = 1.
+  EXPECT_NEAR(output[0], data2[0], e);
+  EXPECT_NEAR(output[1], data2[1], e);
+  EXPECT_NEAR(output[2], data2[2], e);
+  EXPECT_NEAR(output[3], data2[3], e);
 }
 
 TEST(MovingAverageSpectrum, PassThrough) {

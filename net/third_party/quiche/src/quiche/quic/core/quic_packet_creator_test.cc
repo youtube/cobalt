@@ -15,7 +15,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -23,8 +25,10 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
@@ -56,28 +60,36 @@ QuicConnectionId CreateTestConnectionId() {
 }
 
 // Run tests with combinations of {ParsedQuicVersion,
-// ToggleVersionSerialization}.
+// ToggleVersionSerialization, and spin bit}.
 struct TestParams {
-  TestParams(ParsedQuicVersion version, bool version_serialization)
-      : version(version), version_serialization(version_serialization) {}
+  TestParams(ParsedQuicVersion version, bool version_serialization,
+             bool spin_bit)
+      : version(version),
+        version_serialization(version_serialization),
+        spin_bit(spin_bit) {}
 
   ParsedQuicVersion version;
   bool version_serialization;
+  bool spin_bit;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
   return absl::StrCat(ParsedQuicVersionToString(p.version), "_",
-                      (p.version_serialization ? "Include" : "No"), "Version");
+                      (p.version_serialization ? "Include" : "No"), "Version",
+                      "_", (p.spin_bit ? "Spin" : "NoSpin"));
 }
 
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
-  for (size_t i = 0; i < all_supported_versions.size(); ++i) {
-    params.push_back(TestParams(all_supported_versions[i], true));
-    params.push_back(TestParams(all_supported_versions[i], false));
+  for (const auto& version : all_supported_versions) {
+    for (bool version_serialization : {true, false}) {
+      for (bool spin_bit : {true, false}) {
+        params.push_back(TestParams(version, version_serialization, spin_bit));
+      }
+    }
   }
   return params;
 }
@@ -146,6 +158,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         .WillRepeatedly(Return(QuicPacketBuffer()));
     EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
         .WillRepeatedly(Return(SEND_TO_WRITER));
+    EXPECT_CALL(delegate_, NextSpinBitToSend())
+        .WillRepeatedly(Return(GetParam().spin_bit));
     creator_.SetEncrypter(
         ENCRYPTION_INITIAL,
         std::make_unique<TaggingEncrypter>(ENCRYPTION_INITIAL));
@@ -248,6 +262,39 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     return QuicUtils::GetFirstBidirectionalStreamId(
                creator_.transport_version(), Perspective::IS_CLIENT) +
            n * 2;
+  }
+
+  // Builds a minimal packet at |level| and tries to coalesce it with
+  // |coalesced|. Returns true if successful. Tries to mimic the responses of
+  // QuicConnection before the Handshake is confirmed.
+  bool BuildAndCoalescePacket(QuicCoalescedPacket& coalesced,
+                              EncryptionLevel level) {
+    creator_.set_encryption_level(level);
+    creator_.AttachPacketFlusher();
+    if (level == ENCRYPTION_INITIAL || level == ENCRYPTION_HANDSHAKE) {
+      EXPECT_CALL(delegate_, MaybeBundleOpportunistically);
+    }
+    EXPECT_CALL(delegate_, ShouldGeneratePacket).WillRepeatedly(Return(true));
+    if (level == ENCRYPTION_FORWARD_SECURE || level == ENCRYPTION_ZERO_RTT) {
+      creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+    } else {
+      std::string data = "crypto data";
+      producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
+      creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data.length(), 0);
+    }
+    EXPECT_CALL(delegate_, GetSerializedPacketFate(false, level))
+        .WillRepeatedly(Return(COALESCE));
+    // OnSerializedPacket() will call WritePacket(), which sees the fate is
+    // COALESCE and puts in QuicConnection::coalesced_packet_.
+    EXPECT_CALL(delegate_, OnSerializedPacket)
+        .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+    creator_.Flush();
+
+    QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+    QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+    return coalesced.MaybeCoalescePacket(
+        *serialized_packet_, self_address, peer_address, &allocator_,
+        creator_.max_packet_length(), ECN_NOT_ECT, 0);
   }
 
   void TestChaosProtection(bool enabled);
@@ -2558,6 +2605,7 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
               (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
               (bool, EncryptionLevel), (override));
+  MOCK_METHOD(bool, NextSpinBitToSend, (), (override));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));
@@ -2691,6 +2739,7 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
         .WillRepeatedly(Return(QuicPacketBuffer()));
     EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
         .WillRepeatedly(Return(SEND_TO_WRITER));
+    EXPECT_CALL(delegate_, NextSpinBitToSend()).WillRepeatedly(Return(false));
     EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(_))
         .WillRepeatedly(Return(std::numeric_limits<QuicByteCount>::max()));
     creator_.SetEncrypter(
@@ -4477,6 +4526,22 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
       });
   creator_.FlushCurrentPacket();
+}
+
+TEST_P(QuicPacketCreatorTest, InitialPacketBufferOverflow) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clear_packet_on_serialization_failure, true);
+  creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  QuicCoalescedPacket coalesced;
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  char buffer[kMaxOutgoingPacketSize];
+  EXPECT_CALL(framer_visitor_, OnError);
+  EXPECT_CALL(delegate_, OnUnrecoverableError);
+  EXPECT_QUIC_BUG(creator_.SerializeCoalescedPacket(coalesced, buffer,
+                                                    kMaxOutgoingPacketSize - 1),
+                  "Client: Failed to encrypt packet number 1");
 }
 
 }  // namespace

@@ -100,6 +100,9 @@ PrefetchRequest::PrefetchRequest(
           should_disable_block_until_head_timeout),
       should_bypass_http_cache_(should_bypass_http_cache),
       initiator_info_(std::move(initiator_info)) {
+  // This can be called from non-main thread, which means that this
+  // should not touch any UI thread bound objects mentioned in the
+  // header's comment about the thread model.
   CHECK(preload_pipeline_info_);
   if (prefetch_type_.IsRendererInitiated()) {
     CHECK(GetRendererInitiatorInfo());
@@ -131,6 +134,7 @@ std::unique_ptr<const PrefetchRequest> PrefetchRequest::CreateRendererInitiated(
     base::WeakPtr<PrefetchDocumentManager> prefetch_document_manager,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return std::make_unique<PrefetchRequest>(
       base::PassKey<PrefetchRequest>(), prefetch_type,
       PrefetchKey(referring_document_token, url),
@@ -168,6 +172,7 @@ std::unique_ptr<const PrefetchRequest> PrefetchRequest::CreateBrowserInitiated(
     base::WeakPtr<PreloadingAttempt> attempt,
     PreloadingHoldbackStatus holdback_status_override,
     std::optional<base::TimeDelta> ttl) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return std::make_unique<PrefetchRequest>(
       base::PassKey<PrefetchRequest>(), prefetch_type,
       PrefetchKey(std::optional<blink::DocumentToken>(std::nullopt), url),
@@ -201,6 +206,7 @@ PrefetchRequest::CreateBrowserInitiatedWithoutWebContents(
     const std::optional<url::Origin>& referring_origin,
     std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
     std::optional<PrefetchPriority> priority,
+    scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt,
     const net::HttpRequestHeaders& additional_headers,
     std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
@@ -208,6 +214,45 @@ PrefetchRequest::CreateBrowserInitiatedWithoutWebContents(
     bool should_append_variations_header,
     bool should_disable_block_until_head_timeout,
     bool should_bypass_http_cache) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  return std::make_unique<PrefetchRequest>(
+      base::PassKey<PrefetchRequest>(), prefetch_type,
+      PrefetchKey(std::optional<blink::DocumentToken>(std::nullopt), url),
+      std::move(no_vary_search_hint), std::move(priority),
+      std::move(preload_pipeline_info), std::move(attempt),
+      /*referring_web_contents=*/nullptr, javascript_enabled, referrer,
+      referring_origin, browser_context->GetWeakPtr(),
+      /*speculation_rules_tags=*/
+      std::nullopt, additional_headers, ttl,
+      /*holdback_status_override=*/PreloadingHoldbackStatus::kUnspecified,
+      should_append_variations_header, should_disable_block_until_head_timeout,
+      should_bypass_http_cache,
+      PrefetchBrowserInitiatorInfo(embedder_histogram_suffix,
+                                   std::move(request_status_listener)));
+}
+
+// static
+std::unique_ptr<const PrefetchRequest>
+PrefetchRequest::CreateBrowserInitiatedWithoutWebContentsOffTheMainThread(
+    base::WeakPtr<BrowserContext> browser_context,
+    const GURL& url,
+    const PrefetchType& prefetch_type,
+    const std::string& embedder_histogram_suffix,
+    const blink::mojom::Referrer& referrer,
+    bool javascript_enabled,
+    const std::optional<url::Origin>& referring_origin,
+    std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+    std::optional<PrefetchPriority> priority,
+    base::WeakPtr<PreloadingAttempt> attempt,
+    const net::HttpRequestHeaders& additional_headers,
+    std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
+    base::TimeDelta ttl,
+    bool should_append_variations_header,
+    bool should_disable_block_until_head_timeout,
+    bool should_bypass_http_cache) {
+  // Avoid touching UI thread objects here. Create PreloadPipelineInfo
+  // so it won't be accessed until the UI thread.
+  // Please see the header's thread model for more details.
   return std::make_unique<PrefetchRequest>(
       base::PassKey<PrefetchRequest>(), prefetch_type,
       PrefetchKey(std::optional<blink::DocumentToken>(std::nullopt), url),
@@ -216,9 +261,8 @@ PrefetchRequest::CreateBrowserInitiatedWithoutWebContents(
           /*planned_max_preloading_type=*/PreloadingType::kPrefetch),
       std::move(attempt), /*referring_web_contents=*/nullptr,
       javascript_enabled, referrer, referring_origin,
-      browser_context->GetWeakPtr(),
-      /*speculation_rules_tags=*/
-      std::nullopt, additional_headers, ttl,
+      std::move(browser_context), /*speculation_rules_tags=*/std::nullopt,
+      additional_headers, ttl,
       /*holdback_status_override=*/PreloadingHoldbackStatus::kUnspecified,
       should_append_variations_header, should_disable_block_until_head_timeout,
       should_bypass_http_cache,
@@ -235,8 +279,9 @@ const PrefetchBrowserInitiatorInfo* PrefetchRequest::GetBrowserInitiatorInfo()
   return std::get_if<PrefetchBrowserInitiatorInfo>(&initiator_info_);
 }
 
-bool PrefetchRequest::IsProxyRequiredForURL(const GURL& url) const {
-  return IsCrossOriginRequest(url::Origin::Create(url)) &&
+bool PrefetchRequest::IsProxyRequiredForURL(
+    const url::Origin& request_url_origin) const {
+  return IsCrossOriginRequest(request_url_origin) &&
          prefetch_type().IsProxyRequiredWhenCrossOrigin();
 }
 
