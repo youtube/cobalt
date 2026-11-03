@@ -4241,8 +4241,13 @@ deps = {
       with mock.patch.object(
           upstream_cl, "_gitiles_text", return_value="x" * (max_chars + 10)):
         self.assertIn(
-            "[... truncated",
+            "[... truncated; pass a file path",
             execute_local_tool("TOOL_CHROMIUM_CL_DIFF: abcdef1234567", tmpdir))
+        # With a path already given, the hint to pass one is left out.
+        out = execute_local_tool(
+            "TOOL_CHROMIUM_CL_DIFF: abcdef1234567 base/foo.h", tmpdir)
+        self.assertIn("[... truncated]", out)
+        self.assertNotIn("pass a file path", out)
 
   def test_gitiles_text_decodes_base64_with_gerrit_util(self):
     gu = upstream_cl.gerrit_util

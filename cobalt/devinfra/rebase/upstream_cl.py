@@ -416,8 +416,8 @@ def format_chromium_cl_diff(repo_path: str, args: str) -> str:
   if not diff.strip():
     return f"Upstream CL {title}{scope}: no changes."
   if len(diff) > _MAX_CL_DIFF_CHARS:
-    diff = (diff[:_MAX_CL_DIFF_CHARS] + "\n[... truncated; pass a file path "
-            "to see the diff of one file]")
+    hint = "" if rel_path else "; pass a file path to see the diff of one file"
+    diff = f"{diff[:_MAX_CL_DIFF_CHARS]}\n[... truncated{hint}]"
   return f"Upstream CL {title}{scope}:\n{diff}"
 
 
