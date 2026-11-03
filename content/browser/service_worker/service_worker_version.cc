@@ -446,18 +446,16 @@ void ServiceWorkerVersion::SetStatus(Status status) {
     // event handlers.
     context_->hid_delegate_observer()->UpdateHasEventHandlers(
         registration_id_, has_hid_event_handlers_);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
     // Notify the usb delegate observer if the active service worker has any usb
     // event handlers. This is limited to platforms that support extensions.
     context_->usb_delegate_observer()->UpdateHasEventHandlers(
         registration_id_, has_usb_event_handlers_);
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
   } else if (status == REDUNDANT) {
     embedded_worker_->OnWorkerVersionDoomed();
 
