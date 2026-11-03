@@ -62,6 +62,11 @@ class ExperimentConfigManager {
   // variations::prefs::kVariationsCrashStreak.
   void StoreSafeConfig();
 
+  void ResetForTesting() {
+    cached_config_type_.reset();
+    called_store_safe_config_ = false;
+  }
+
   // Public getter for testing.
   bool has_called_store_safe_config_for_testing() {
     return called_store_safe_config_;
