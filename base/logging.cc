@@ -572,7 +572,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 =======
   internal::init_rust_log_crate();
 #endif
->>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Ignore file options unless logging to file is set.
   if ((g_logging_destination & LOG_TO_FILE) == 0) {
