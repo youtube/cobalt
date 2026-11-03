@@ -17,7 +17,6 @@
     "PrivacySandboxDisabledBrowserTest.NetworkContextTrustTokenMethodsReturnEmpty",
     "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
-    "H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
     "H5vccMemoryBrowserTest.*",
     "H5vccSystemBrowserTest.*",
