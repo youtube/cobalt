@@ -18,6 +18,8 @@
 #include <optional>
 #include <string>
 
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -41,6 +43,19 @@ enum class SplashScreenFetchedState {
   // cache miss.
   kSkippedCachedAssets = 6,
   kMaxValue = kSkippedCachedAssets,
+};
+
+// An enum for UMA histogram to indicate the result of clearing the cached
+// splash assets. These values are persisted to logs. Entries should not be
+// renumbered and numeric values should never be reused.
+enum class SplashCacheClearResult {
+  // No cached splash asset was found.
+  kNoCachedFiles = 0,
+  // All the cached splash assets found were deleted.
+  kCleared = 1,
+  // Failed to delete some cached splash assets.
+  kFailed = 2,
+  kMaxValue = kFailed,
 };
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
@@ -83,6 +98,14 @@ class H5vccSchemeURLLoaderFactory final
   // kEnableCachedSplashFile, unless overridden for testing.
   static bool IsCachedSplashFileEnabled();
 
+  // Asynchronously deletes the splash assets that the WebApp cached
+  // ("splash.webm" and "splash.png" in the "default" and "music" caches of the
+  // splash domain), e.g., in case they crash Cobalt. Records
+  // Cobalt.SplashScreen.ClearCachedFilesResult, then runs |done_callback|.
+  static void ClearCachedSplashFiles(
+      BrowserContext* browser_context,
+      base::OnceClosure done_callback = base::DoNothing());
+
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(
       const GeneratedResourceMap* resource_map_test);
@@ -95,6 +118,9 @@ class H5vccSchemeURLLoaderFactory final
       const std::optional<bool>& enabled);
 
  private:
+  // The origin of the WebApp that caches the splash assets.
+  static std::string GetSplashDomain();
+
   GeneratedResourceMap resource_map_;
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;

@@ -261,6 +261,8 @@ TEST_F(ExperimentConfigManagerTest,
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
+  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
+            FinchConfigOutcome::kSafeConfig);
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -283,6 +285,9 @@ TEST_F(ExperimentConfigManagerTest,
             ExperimentConfigType::kEmptyConfig);
   histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigState", 1, 1);
   histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigAgeInDays", 31, 1);
+  // Not the crash streak, so the empty config isn't for crash safe mode.
+  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
+            FinchConfigOutcome::kEmptyConfigExpired);
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -297,6 +302,27 @@ TEST_F(ExperimentConfigManagerTest,
   // The crash streak should take precedence over the expiration check.
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
+  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
+            FinchConfigOutcome::kEmptyConfigCrashStreak);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       FinchConfigOutcomeIsUnsetBeforeGetExperimentConfigType) {
+  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(), std::nullopt);
+}
+
+TEST_F(ExperimentConfigManagerTest, FinchConfigOutcomeIsCached) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    kDefaultCrashStreakEmptyConfigThreshold);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
+            FinchConfigOutcome::kEmptyConfigCrashStreak);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.Finch.ConfigOutcome", FinchConfigOutcome::kEmptyConfigCrashStreak,
+      1);
 }
 
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeIsCached) {

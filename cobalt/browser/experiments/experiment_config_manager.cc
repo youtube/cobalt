@@ -154,8 +154,9 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
                 "than to use the safe one.");
 
   // Helper lambda to log UMA metrics and return the config type.
-  auto log_and_return = [](ExperimentConfigType type,
-                           FinchConfigOutcome outcome) {
+  auto log_and_return = [this](ExperimentConfigType type,
+                               FinchConfigOutcome outcome) {
+    cached_config_outcome_ = outcome;
     base::UmaHistogramEnumeration("Cobalt.Finch.ConfigOutcome", outcome);
     return type;
   };

@@ -15,8 +15,12 @@
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
@@ -35,6 +39,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -57,6 +62,7 @@ namespace content {
 using switches::kDefaultSplashCacheName;
 using switches::kDefaultURL;
 using switches::kMaxSplashContentSize;
+using switches::kMusicSplashCacheName;
 
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
@@ -186,6 +192,190 @@ class BlobReader : public blink::mojom::BlobReaderClient {
   std::unique_ptr<mojo::SimpleWatcher> watcher_;
 };
 
+void BindCacheStorage(
+    BrowserContext* browser_context,
+    const std::string& splash_domain,
+    mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
+  auto spc = content::StoragePartitionConfig::CreateDefault(browser_context);
+
+  content::StoragePartition* storage_partition =
+      browser_context->GetStoragePartition(spc);
+  storage::mojom::CacheStorageControl* cache_storage_control =
+      storage_partition->GetCacheStorageControl();
+  url::Origin origin = url::Origin::Create(GURL(splash_domain));
+  blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
+  storage::BucketLocator bucket_locator =
+      storage::BucketLocator::ForDefaultBucket(storage_key);
+
+  cache_storage_control->AddReceiver(
+      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+      network::DocumentIsolationPolicy(), mojo::NullRemote(), bucket_locator,
+      storage::mojom::CacheStorageOwner::kCacheAPI, std::move(receiver));
+}
+
+// Asynchronously deletes the cached splash assets from CacheStorage, then
+// deletes itself. Self-owned so that its lifetime is independent of any
+// WebContents.
+class SplashCacheCleaner {
+ public:
+  static void Start(BrowserContext* browser_context,
+                    const std::string& splash_domain,
+                    base::OnceClosure done_callback) {
+    auto* cleaner =
+        new SplashCacheCleaner(splash_domain, std::move(done_callback));
+    cleaner->Clean(browser_context);
+  }
+
+  SplashCacheCleaner(const SplashCacheCleaner&) = delete;
+  SplashCacheCleaner& operator=(const SplashCacheCleaner&) = delete;
+
+ private:
+  SplashCacheCleaner(const std::string& splash_domain,
+                     base::OnceClosure done_callback)
+      : splash_domain_(splash_domain),
+        done_callback_(std::move(done_callback)) {}
+
+  ~SplashCacheCleaner() = default;
+
+  void Clean(BrowserContext* browser_context) {
+    BindCacheStorage(browser_context, splash_domain_,
+                     cache_storage_remote_.BindNewPipeAndPassReceiver());
+    cache_storage_remote_.set_disconnect_handler(
+        base::BindOnce(&SplashCacheCleaner::Finish, weak_factory_.GetWeakPtr(),
+                       SplashCacheClearResult::kFailed));
+
+    const std::u16string kCacheNames[] = {kDefaultSplashCacheName,
+                                          kMusicSplashCacheName};
+    const std::string kEntries[] = {"splash.webm", "splash.png"};
+
+    // Checks for the entries with Match(), which runs as a shared operation
+    // and, unlike Open(), neither takes the exclusive lock of the
+    // CacheStorage nor creates missing caches. Caches are only opened to
+    // delete entries that exist.
+    base::RepeatingClosure barrier =
+        base::BarrierClosure(std::size(kCacheNames) * std::size(kEntries),
+                             base::BindOnce(&SplashCacheCleaner::OnMatchesDone,
+                                            weak_factory_.GetWeakPtr()));
+    for (const auto& cache_name : kCacheNames) {
+      for (const auto& entry : kEntries) {
+        auto match_options = blink::mojom::MultiCacheQueryOptions::New();
+        match_options->query_options = blink::mojom::CacheQueryOptions::New();
+        match_options->cache_name = cache_name;
+        cache_storage_remote_->Match(
+            CreateRequest(entry), std::move(match_options),
+            /*in_related_fetch_event=*/false,
+            /*in_range_fetch_event=*/false,
+            /*trace_id=*/0,
+            base::BindOnce(&SplashCacheCleaner::OnMatched,
+                           weak_factory_.GetWeakPtr(), cache_name, entry,
+                           barrier));
+      }
+    }
+  }
+
+  blink::mojom::FetchAPIRequestPtr CreateRequest(const std::string& entry) {
+    auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
+    fetch_api_request->url = GURL(splash_domain_).Resolve(entry);
+    fetch_api_request->method = "GET";
+    return fetch_api_request;
+  }
+
+  void OnMatched(const std::u16string& cache_name,
+                 const std::string& entry,
+                 base::OnceClosure on_matched,
+                 blink::mojom::MatchResultPtr result) {
+    if (result->is_response()) {
+      entries_to_delete_[cache_name].push_back(entry);
+    }
+    std::move(on_matched).Run();
+  }
+
+  void OnMatchesDone() {
+    if (entries_to_delete_.empty()) {
+      Finish(SplashCacheClearResult::kNoCachedFiles);
+      return;
+    }
+
+    LOG(INFO) << "Deleting cached splash assets from "
+              << entries_to_delete_.size() << " cache(s).";
+    base::RepeatingClosure barrier = base::BarrierClosure(
+        entries_to_delete_.size(),
+        base::BindOnce(&SplashCacheCleaner::OnDeletionsDone,
+                       weak_factory_.GetWeakPtr()));
+    for (const auto& [cache_name, entries] : entries_to_delete_) {
+      cache_storage_remote_->Open(
+          cache_name, /*trace_id=*/0,
+          base::BindOnce(&SplashCacheCleaner::OnCacheOpened,
+                         weak_factory_.GetWeakPtr(), entries, barrier));
+    }
+  }
+
+  void OnCacheOpened(const std::vector<std::string>& entries_to_delete,
+                     base::OnceClosure on_cache_cleaned,
+                     blink::mojom::OpenResultPtr result) {
+    if (!result->is_cache()) {
+      has_failure_ = true;
+      std::move(on_cache_cleaned).Run();
+      return;
+    }
+
+    mojo::AssociatedRemote<blink::mojom::CacheStorageCache>& cache_remote =
+        cache_remotes_.emplace_back(std::move(result->get_cache()));
+    cache_remote.set_disconnect_handler(
+        base::BindOnce(&SplashCacheCleaner::Finish, weak_factory_.GetWeakPtr(),
+                       SplashCacheClearResult::kFailed));
+    base::RepeatingClosure entry_barrier = base::BarrierClosure(
+        entries_to_delete.size(), std::move(on_cache_cleaned));
+
+    for (const auto& entry : entries_to_delete) {
+      // Batch() accepts only one delete operation per call.
+      auto operation = blink::mojom::BatchOperation::New();
+      operation->operation_type = blink::mojom::OperationType::kDelete;
+      operation->request = CreateRequest(entry);
+      operation->match_options = blink::mojom::CacheQueryOptions::New();
+
+      std::vector<blink::mojom::BatchOperationPtr> operations;
+      operations.push_back(std::move(operation));
+
+      cache_remote->Batch(
+          std::move(operations), /*trace_id=*/0,
+          base::BindOnce(&SplashCacheCleaner::OnCacheEntryDeleted,
+                         weak_factory_.GetWeakPtr(), entry_barrier));
+    }
+  }
+
+  void OnCacheEntryDeleted(base::OnceClosure on_entry_deleted,
+                           blink::mojom::CacheStorageVerboseErrorPtr error) {
+    if (error->value != blink::mojom::CacheStorageError::kSuccess) {
+      has_failure_ = true;
+    }
+    std::move(on_entry_deleted).Run();
+  }
+
+  void OnDeletionsDone() {
+    Finish(has_failure_ ? SplashCacheClearResult::kFailed
+                        : SplashCacheClearResult::kCleared);
+  }
+
+  void Finish(SplashCacheClearResult result) {
+    LOG(INFO) << "Cleared cached splash assets with result: "
+              << static_cast<int>(result);
+    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.ClearCachedFilesResult",
+                              result);
+    std::move(done_callback_).Run();
+    delete this;
+  }
+
+  const std::string splash_domain_;
+  base::OnceClosure done_callback_;
+  mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
+  std::map<std::u16string, std::vector<std::string>> entries_to_delete_;
+  std::vector<mojo::AssociatedRemote<blink::mojom::CacheStorageCache>>
+      cache_remotes_;
+  bool has_failure_ = false;
+  base::WeakPtrFactory<SplashCacheCleaner> weak_factory_{this};
+};
+
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
   H5vccSchemeURLLoader(
@@ -281,22 +471,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                    int32_t intra_priority_value) override {}
 
   void ReadSplashCache(const std::string& path) {
-    auto spc = content::StoragePartitionConfig::CreateDefault(browser_context_);
-
-    content::StoragePartition* storage_partition =
-        browser_context_->GetStoragePartition(spc);
-    storage::mojom::CacheStorageControl* cache_storage_control =
-        storage_partition->GetCacheStorageControl();
-    url::Origin origin = url::Origin::Create(GURL(splash_domain_));
-    blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
-    storage::BucketLocator bucket_locator =
-        storage::BucketLocator::ForDefaultBucket(storage_key);
-
-    cache_storage_control->AddReceiver(
-        network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        network::DocumentIsolationPolicy(), mojo::NullRemote(), bucket_locator,
-        storage::mojom::CacheStorageOwner::kCacheAPI,
-        cache_storage_remote_.BindNewPipeAndPassReceiver());
+    BindCacheStorage(browser_context_, splash_domain_,
+                     cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
     fetch_api_request->url = GURL(splash_domain_).Resolve(path);
@@ -494,10 +670,7 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
-                         .GetURL()
-                         .spec()),
+    : splash_domain_(GetSplashDomain()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
       browser_context_(browser_context) {
@@ -538,6 +711,23 @@ bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
   }
   return base::FeatureList::IsEnabled(
       cobalt::features::kEnableCachedSplashFile);
+}
+
+// static
+void H5vccSchemeURLLoaderFactory::ClearCachedSplashFiles(
+    BrowserContext* browser_context,
+    base::OnceClosure done_callback) {
+  CHECK(browser_context);
+  SplashCacheCleaner::Start(browser_context, GetSplashDomain(),
+                            std::move(done_callback));
+}
+
+// static
+std::string H5vccSchemeURLLoaderFactory::GetSplashDomain() {
+  return url::Origin::Create(
+             GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+      .GetURL()
+      .spec();
 }
 
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(

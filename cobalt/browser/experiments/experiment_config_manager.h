@@ -56,6 +56,12 @@ class ExperimentConfigManager {
   // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
 
+  // Returns why the experiment config type was chosen, once
+  // GetExperimentConfigType() has been called.
+  std::optional<FinchConfigOutcome> finch_config_outcome() const {
+    return cached_config_outcome_;
+  }
+
   // If regular config is used in the current run, save the active config as
   // safe config.
   // This should only be called before any modification to
@@ -81,6 +87,7 @@ class ExperimentConfigManager {
   const raw_ptr<PrefService> metrics_local_state_;
 
   std::optional<ExperimentConfigType> cached_config_type_;
+  std::optional<FinchConfigOutcome> cached_config_outcome_;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            StoreSafeConfigWithRegularConfig);

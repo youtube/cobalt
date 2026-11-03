@@ -37,6 +37,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/constants/cobalt_pref_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
@@ -47,6 +48,7 @@
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -791,9 +793,27 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
+  MaybeClearCachedSplashFiles();
   if (pending_task_) {
     std::move(pending_task_).Run();
   }
+}
+
+void CobaltBrowserMainParts::MaybeClearCachedSplashFiles() {
+  // In Finch's crash safe mode, the cached splash assets may be what crashed
+  // Cobalt. They aren't read in this launch, as kEnableCachedSplashFile is
+  // disabled, but would be in the next launches with the regular config. So
+  // delete them, until the WebApp caches them again.
+  ExperimentConfigManager* experiment_config_manager =
+      GlobalFeatures::GetInstance()->experiment_config_manager();
+  if (!experiment_config_manager ||
+      experiment_config_manager->finch_config_outcome() !=
+          FinchConfigOutcome::kEmptyConfigCrashStreak) {
+    return;
+  }
+  LOG(INFO) << "Clearing cached splash assets in Finch's crash safe mode.";
+  content::H5vccSchemeURLLoaderFactory::ClearCachedSplashFiles(
+      browser_context());
 }
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(

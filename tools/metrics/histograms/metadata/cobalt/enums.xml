@@ -185,6 +185,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="3" label="Unreliable"/>
 </enum>
 
+<enum name="SplashCacheClearResult">
+  <int value="0" label="No cached files"/>
+  <int value="1" label="Cleared"/>
+  <int value="2" label="Failed"/>
+</enum>
+
 <enum name="SplashScreenFetchedState">
   <int value="0" label="Success: Content from builtin"/>
   <int value="1" label="Success: Content from cache"/>
