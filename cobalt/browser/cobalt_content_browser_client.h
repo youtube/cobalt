@@ -38,6 +38,7 @@ namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
+class StoragePartition;
 class WebContents;
 }  // namespace content
 
@@ -180,6 +181,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::URLLoaderFactoryOverridePtr* factory_override,
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
+
+  // Returns the StoragePartition of the primary main frame, or nullptr if there
+  // is no WebContents yet.
+  content::StoragePartition* GetPrimaryStoragePartition();
 
   // Flushes dirty cookies and localStorage when backgrounding/exiting.
   // Note: the completion callback is invoked when the cookie store flush

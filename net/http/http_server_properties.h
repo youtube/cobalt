@@ -24,6 +24,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
@@ -253,6 +254,7 @@ class NET_EXPORT HttpServerProperties
   // disk.
   void Clear(base::OnceClosure callback);
 
+#if BUILDFLAG(IS_COBALT)
   // Writes the current properties to disk immediately instead of waiting for
   // the write-coalescing timer, and runs |callback| once the write has been
   // committed, with |flushed| set to true if an update was queued (that is, it
@@ -261,6 +263,7 @@ class NET_EXPORT HttpServerProperties
   // clobber them), nothing is written and |callback| is posted asynchronously
   // with |flushed| set to false. |callback| must not be null.
   void FlushWriteProperties(base::OnceCallback<void(bool flushed)> callback);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Returns true if `server`, in the context of `network_anonymization_key`,
   // has previously supported a network protocol which honors request

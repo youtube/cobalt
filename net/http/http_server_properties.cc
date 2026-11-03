@@ -17,6 +17,7 @@
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/url_util.h"
@@ -1254,6 +1255,7 @@ void HttpServerProperties::FlushWritePropertiesForTesting(
   WriteProperties(std::move(callback));
 }
 
+#if BUILDFLAG(IS_COBALT)
 void HttpServerProperties::FlushWriteProperties(
     base::OnceCallback<void(bool flushed)> callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -1273,6 +1275,7 @@ void HttpServerProperties::FlushWriteProperties(
   prefs_update_timer_.Stop();
   WriteProperties(base::BindOnce(std::move(callback), flushed));
 }
+#endif  // BUILDFLAG(IS_COBALT)
 
 void HttpServerProperties::WriteProperties(base::OnceClosure callback) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

@@ -59,7 +59,6 @@
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -72,7 +71,6 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
@@ -817,23 +815,25 @@ void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
 #endif
 }
 
-void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
-    base::OnceClosure callback) {
+content::StoragePartition*
+CobaltContentBrowserClient::GetPrimaryStoragePartition() {
   if (!web_contents_observer_) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   auto* web_contents = web_contents_observer_->web_contents();
   if (!web_contents) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
   if (!rfh) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
-  auto* storage_partition = rfh->GetStoragePartition();
+  return rfh->GetStoragePartition();
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
   if (!storage_partition) {
     std::move(callback).Run();
     return;
@@ -851,13 +851,13 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
 
 void CobaltContentBrowserClient::FlushHttpServerProperties(
     base::OnceCallback<void(bool flushed)> callback) {
-  content::BrowserContext* context = browser_context();
-  if (!context) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
+  if (!storage_partition) {
     std::move(callback).Run(/*flushed=*/false);
     return;
   }
   network::mojom::NetworkContext* network_context =
-      context->GetDefaultStoragePartition()->GetNetworkContext();
+      storage_partition->GetNetworkContext();
   if (!network_context) {
     std::move(callback).Run(/*flushed=*/false);
     return;
