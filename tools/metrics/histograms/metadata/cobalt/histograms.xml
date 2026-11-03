@@ -888,10 +888,10 @@ Always run the pretty print utility on this file after editing:
     units="ms" expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the time it takes to write HttpServerProperties to disk during the
-    onPause event on Android TV when CobaltFlushHttpServerPropertiesOnPause is
-    enabled. Recorded only when an update was pending and therefore actually
-    written; pauses where nothing was pending are counted in
+    Records the time it takes to write HttpServerProperties to disk when the
+    app pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded
+    only when an update was pending and therefore actually written; pauses
+    where nothing was pending are counted in
     Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
   </summary>
 </histogram>
@@ -900,11 +900,10 @@ Always run the pretty print utility on this file after editing:
     enum="Boolean" expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records, for each onPause event on Android TV with
-    CobaltFlushHttpServerPropertiesOnPause enabled, whether HttpServerProperties
-    had an update pending that was written to disk by the pause flush. The
-    true/false ratio shows how often the 60 s write-coalescing timer would have
-    lost state to a background kill.
+    Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
+    enabled, whether HttpServerProperties had an update pending that was
+    written to disk by the pause flush. The true/false ratio shows how often
+    the 60 s write-coalescing timer would have lost state to a background kill.
   </summary>
 </histogram>
 

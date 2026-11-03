@@ -59,6 +59,7 @@
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -71,6 +72,7 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
@@ -106,11 +108,6 @@
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_ANDROIDTV)
-#include "cobalt/shell/browser/shell_browser_context.h"
-#include "content/public/browser/browser_context.h"
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 #if BUILDFLAG(IS_STARBOARD)
@@ -745,12 +742,12 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
                             timer->Elapsed());
       },
       std::move(start_time)));
-#if BUILDFLAG(IS_ANDROIDTV)
   // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
   // broken-QUIC marks), which is otherwise written on a 60 s timer that a
   // background kill does not honor. This lives here rather than in
   // DispatchBlur() so that both the Activity (DispatchBlur) and the Starboard
-  // (AppEventRunner::DoBlur) lifecycle paths reach it.
+  // (AppEventRunner::DoBlur) lifecycle paths reach it; platform targeting is
+  // left to the Finch study.
   if (base::FeatureList::IsEnabled(
           features::kCobaltFlushHttpServerPropertiesOnPause)) {
     FlushHttpServerProperties(base::BindOnce(
@@ -767,7 +764,6 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
         },
         std::make_unique<base::ElapsedTimer>()));
   }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
 void CobaltContentBrowserClient::DispatchBlur() {
@@ -853,7 +849,6 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
-#if BUILDFLAG(IS_ANDROIDTV)
 void CobaltContentBrowserClient::FlushHttpServerProperties(
     base::OnceCallback<void(bool flushed)> callback) {
   content::BrowserContext* context = browser_context();
@@ -869,7 +864,6 @@ void CobaltContentBrowserClient::FlushHttpServerProperties(
   }
   network_context->FlushHttpServerProperties(std::move(callback));
 }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {
