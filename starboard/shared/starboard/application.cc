@@ -183,6 +183,11 @@ void Application::InjectAccessibilityTextToSpeechSettingsChangedEvent(
                    enabled_data, &DeleteDestructor<bool>));
 }
 
+void Application::InjectCaptionSettingsChangedEvent() {
+  Inject(
+      new Event(kSbEventTypeAccessibilityCaptionSettingsChanged, NULL, NULL));
+}
+
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
