@@ -309,7 +309,6 @@ void RenderWidgetHostViewIOS::NotifyHostAndDelegateOnWasShown(
   // SetRenderWidgetHostIsHidden above will show the DelegatedFrameHost
   // in this state, but doesn't include the presentation time request.
   if (has_saved_frame && visible_time_request) {
-<<<<<<< HEAD
     if (std::optional<blink::RecordContentToVisibleTimeRequest>
             delegated_visible_time_request =
                 visible_time_request->ExtractTabSwitchEvents()) {
@@ -317,11 +316,6 @@ void RenderWidgetHostViewIOS::NotifyHostAndDelegateOnWasShown(
           ->RequestSuccessfulPresentationTimeForNextFrame(
               std::move(*delegated_visible_time_request));
     }
-=======
-    browser_compositor_->GetDelegatedFrameHost()
-        ->RequestSuccessfulPresentationTimeForNextFrame(
-            std::move(*visible_time_request));
->>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   host()->WasShown(std::move(visible_time_request));

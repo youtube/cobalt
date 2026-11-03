@@ -641,7 +641,6 @@ bool ShouldBindNetworkContextDirectReceiver() {
          base::FeatureList::IsEnabled(features::kNetworkContextDirectReceiver);
 }
 
-<<<<<<< HEAD
 BASE_FEATURE(kDelayInitialDohProbeTimeout, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -649,7 +648,7 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kDelayInitialDohProbeTimeout,
                    "initial_doh_probe_timeout",
                    base::Seconds(5));
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -676,6 +675,5 @@ BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features

@@ -282,7 +282,7 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
         if (metrics) {
           for (const MemoryBreakdownMetric& entry : *metrics) {
             if (!entry.name.empty()) {
-              AppendMetric(result.get(), String::FromUTF8(entry.name),
+              AppendMetric(result.get(), String::FromUtf8(entry.name),
                            static_cast<double>(entry.value_bytes));
             }
           }
