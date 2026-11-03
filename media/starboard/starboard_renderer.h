@@ -202,9 +202,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                            int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
-  // Builds PipelineStatistics from the running totals reported by
-  // SbPlayerBridge::GetInfo(), and posts them to |client_| if the video frame
-  // counters changed.
+  // Computes PipelineStatistics deltas since the last call from the running
+  // totals reported by SbPlayerBridge::GetInfo(), and posts them to |client_|
+  // if anything changed.
   void UpdateStatistics(const SbPlayerBridge::PlayerStatistics& totals);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 

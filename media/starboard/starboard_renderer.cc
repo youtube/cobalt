@@ -820,6 +820,10 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
+  // Statistics are computed as deltas against the counters of the current
+  // SbPlayerBridge, so reset the baseline whenever a new bridge is created.
+  last_reported_statistics_ = {};
+
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     player_bridge_.reset(new SbPlayerBridge(
@@ -1069,10 +1073,21 @@ void StarboardRenderer::UpdateStatistics(
 
   PipelineStatistics statistics;
 
-  statistics.audio_bytes_decoded = totals.total_audio_bytes_decoded;
-  statistics.video_bytes_decoded = totals.total_video_bytes_decoded;
-
+  // RendererClient::OnStatisticsUpdate() expects deltas since the last call,
+  // while SbPlayerBridge::GetInfo() returns running totals.
   auto& last = last_reported_statistics_;
+  if (totals.total_audio_bytes_decoded > last.total_audio_bytes_decoded) {
+    statistics.audio_bytes_decoded =
+        totals.total_audio_bytes_decoded - last.total_audio_bytes_decoded;
+    last.total_audio_bytes_decoded = totals.total_audio_bytes_decoded;
+  }
+
+  if (totals.total_video_bytes_decoded > last.total_video_bytes_decoded) {
+    statistics.video_bytes_decoded =
+        totals.total_video_bytes_decoded - last.total_video_bytes_decoded;
+    last.total_video_bytes_decoded = totals.total_video_bytes_decoded;
+  }
+
   if (totals.total_video_frames_decoded > last.total_video_frames_decoded) {
     statistics.video_frames_decoded =
         totals.total_video_frames_decoded - last.total_video_frames_decoded;
@@ -1085,7 +1100,9 @@ void StarboardRenderer::UpdateStatistics(
     last.total_video_frames_dropped = totals.total_video_frames_dropped;
   }
 
-  if (statistics.video_frames_decoded > 0 ||
+  if (statistics.audio_bytes_decoded > 0 ||
+      statistics.video_bytes_decoded > 0 ||
+      statistics.video_frames_decoded > 0 ||
       statistics.video_frames_dropped > 0) {
     // TODO(b/375273093): Refine frame drops reporting, and double check
     //                    whether we should report more statistics, and/or
