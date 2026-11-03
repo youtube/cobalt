@@ -19946,24 +19946,7 @@ bool RenderFrameHostImpl::ShouldChangeRenderFrameHostOnSameSiteNavigation()
               kAllowedOverrideLevel);
 }
 
-<<<<<<< HEAD
-=======
-bool RenderFrameHostImpl::CanReadFromSharedStorage() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (!IsNestedWithinFencedFrame()) {
-    return false;
-  }
-
-  auto properties = frame_tree_node()->GetFencedFrameProperties(
-      FencedFramePropertiesNodeSource::kFrameTreeRoot);
-  return properties.has_value() &&
-         properties->HasDisabledNetworkForCurrentAndDescendantFrameTrees();
-#else
-  return false;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> parent of 06e92859d7f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+An empty block is the correct resolution.
 std::optional<mojo::UrgentMessageScope>
 RenderFrameHostImpl::MakeUrgentMessageScopeIfNeeded() {
   // Don't prioritize navigations in RFHs that are prerendering, since that
