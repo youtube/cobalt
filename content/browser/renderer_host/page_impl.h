@@ -160,17 +160,7 @@ class CONTENT_EXPORT PageImpl : public Page {
 
   void SetContentsMimeType(std::string mime_type);
 
-<<<<<<< HEAD
-=======
-  void OnTextAutosizerPageInfoChanged(
-      blink::mojom::TextAutosizerPageInfoPtr page_info);
-
-  blink::mojom::TextAutosizerPageInfo text_autosizer_page_info() const {
-    return text_autosizer_page_info_;
-  }
-
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   FencedFrameURLMapping& fenced_frame_urls_map() {
     return fenced_frame_urls_map_;
   }
