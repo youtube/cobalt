@@ -38,7 +38,11 @@ class PLATFORM_EXPORT ParkableImageManager
   size_t Size() const LOCKS_EXCLUDED(lock_);
 
   static bool IsParkableImagesToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+    return features::IsParkableImagesToDiskEnabled();
+#else
     return base::FeatureList::IsEnabled(features::kParkableImagesToDisk);
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   void MaybeParkImagesForTesting() { MaybeParkImages(); }

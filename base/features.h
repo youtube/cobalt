@@ -111,6 +111,13 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
+// When enabled, disables Blink ParkableImage and DiskDataAllocator disk
+// swapping so encoded images are kept in RAM instead of being written to an
+// unlinked temporary swap file in DIR_CACHE. Disabled by default to allow
+// controlled Finch/Mendel A/B experimentation
+// (--enable-features=CobaltDisableParkableImagesToDisk).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDisableParkableImagesToDisk);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

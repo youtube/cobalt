@@ -20,6 +20,10 @@ Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
+Memory.Experimental.Browser2.Small.ParkableImage.OnDiskSize
+Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize
+Memory.Experimental.Browser2.Small.ParkableImage.TotalSize
+Memory.ParkableImage.Write.Size
 
 # --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
 SimpleCache.Http.CacheSizeOnInit
@@ -61,6 +65,8 @@ SimpleCache.Http.DiskOpenLatency
 SimpleCache.Http.DiskWriteLatency
 SimpleCache.Code.DiskOpenLatency
 SimpleCache.Code.DiskWriteLatency
+Memory.ParkableImage.Write.Latency
+Memory.ParkableImage.Read.Latency
 V8.CompileScriptMicroSeconds
 V8.ProduceCodeCacheMicroseconds
 

@@ -2952,11 +2952,23 @@ bool IsFencedFramesEnabled() {
 }
 
 bool IsParkableStringsToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltDisableParkableImagesToDisk)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   // Always enabled as soon as compression is enabled.
   return base::FeatureList::IsEnabled(kCompressParkableStrings);
 }
 
 bool IsParkableImagesToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltDisableParkableImagesToDisk)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   return base::FeatureList::IsEnabled(kParkableImagesToDisk);
 }
 
