@@ -15,10 +15,8 @@ import collections
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from typing import Dict, List, Optional
 import warnings
@@ -343,13 +341,14 @@ def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
                                 target: str) -> List[str]:
   """Puts changed files that `target` does not build back to base_sha.
 
-  The agent may change files the built target never compiles, such as web
-  test expectations. One `gn gen --ide=json` lists the files of every
-  target; a changed file outside the dependency closure of `target` is
-  checked out from base_sha. The agent only edits existing files, so
-  `git diff` lists every change. GN files are kept (gn reads them, but they
-  are no target's source), and so is DEPS (gclient sync reads it). Returns
-  the restored paths.
+  The agent may change files the built target never compiles, such as unit
+  tests or web test expectations. `siso query inputs --include_deps` lists
+  every input in the Ninja build graph for `target` together with the
+  headers recorded in `.siso_deps` during compilation; a changed file
+  outside that closure is checked out from base_sha. The agent only edits
+  existing files, so `git diff` lists every change. GN files are kept (gn
+  reads them, but they are not Ninja inputs of `target`), and so is DEPS
+  (gclient sync reads it). Returns the restored paths.
 
   base_sha must be the commit at the end of Phase 1, not the start of the
   run: Phase 1 resolves conflicts in files the target does not build, and
@@ -368,37 +367,19 @@ def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
   ]
   if not changed:
     return []
-  # A scratch build dir with the same args, so out/<out_dir> is untouched.
-  with tempfile.TemporaryDirectory(
-      dir=os.path.join(repo_path, "out")) as build_dir:
-    shutil.copy(os.path.join(repo_path, "out", out_dir, "args.gn"), build_dir)
-    if run(["gn", "gen", build_dir, "--ide=json"]).returncode != 0:
-      log.warning("[WARNING] gn gen --ide=json failed; keeping all files.")
-      return []
-    with open(os.path.join(build_dir, "project.json"), encoding="utf-8") as f:
-      targets = json.load(f)["targets"]
-
-  # Default-toolchain labels have no "(toolchain)" suffix, so this finds
-  # e.g. //cobalt/android:cobalt_apk and not its copies in other toolchains.
-  roots = [label for label in targets if label.endswith(":" + target)]
-  if len(roots) != 1:
-    log.warning("[WARNING] No unique GN label for %s; keeping all files.",
-                target)
+  res = run([
+      "siso", "query", "inputs", "-C",
+      os.path.join("out", out_dir), "--include_deps", target
+  ])
+  if res.returncode != 0:
+    log.warning("[WARNING] siso query inputs failed; keeping all files.")
     return []
-  built, seen, pending = set(), set(), roots
-  while pending:
-    label = pending.pop()
-    if label in seen:
-      continue
-    seen.add(label)
-    info = targets[label]
-    for key in ("sources", "inputs", "public"):
-      # "public" is "*" when the target declares no public headers.
-      if isinstance(info.get(key), list):
-        built.update(info[key])
-    pending.extend(info.get("deps", []))
-
-  restored = [rel for rel in changed if "//" + rel not in built]
+  built = {
+      line.removeprefix("../../")
+      for line in res.stdout.splitlines()
+      if line.startswith("../../")
+  }
+  restored = [rel for rel in changed if rel not in built]
   if restored:
     run(["git", "checkout", base_sha, "--", *restored])
   return restored
