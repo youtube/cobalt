@@ -21,15 +21,13 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-<<<<<<< HEAD
 #include "base/memory/aligned_memory.h"
-=======
 #include "base/memory/ptr_util.h"
->>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -3064,8 +3062,8 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
   if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster) &&
       raster_shm_size == sizeof(InProcessRasterPayload*)) {
     InProcessRasterPayload* in_process_payload = nullptr;
-    UNSAFE_TODO(std::memcpy(&in_process_payload, paint_buffer_memory,
-                            sizeof(in_process_payload)));
+    base::byte_span_from_ref(in_process_payload)
+        .copy_from(paint_buffer.first<sizeof(in_process_payload)>());
     if (in_process_payload &&
         InProcessRasterPayloadRegistry::GetInstance().Take(
             in_process_payload)) {
