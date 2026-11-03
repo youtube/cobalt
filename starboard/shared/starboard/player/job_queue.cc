@@ -16,7 +16,9 @@
 
 #include <atomic>
 #include <chrono>
+#include <utility>
 
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -29,14 +31,24 @@ JobQueue::JobToken JobQueue::JobToken::Generate() {
   return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
 }
 
-JobQueue::JobQueue() = default;
+JobQueue::JobQueue(const MonotonicClock* clock) : clock_(clock) {
+  SB_CHECK(clock_);
+#if ENABLE_JOB_QUEUE_PROFILING
+  last_reset_time_ = clock_->Now();
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+}
 
 JobQueue::~JobQueue() {
   StopSoon();
 }
 
+JobQueue::JobToken JobQueue::Schedule(Job job,
+                                      std::chrono::microseconds delay) {
+  return Schedule(std::move(job), /*owner=*/nullptr, delay);
+}
+
 JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
-  return Schedule(std::move(job), /*owner=*/nullptr, delay_usec);
+  return Schedule(std::move(job), std::chrono::microseconds(delay_usec));
 }
 
 void JobQueue::ScheduleAndWait(Job job) {
@@ -115,9 +127,9 @@ bool JobQueue::BelongsToCurrentThread() const {
 
 JobQueue::JobToken JobQueue::Schedule(Job job,
                                       JobOwner* owner,
-                                      int64_t delay_usec) {
+                                      std::chrono::microseconds delay) {
   SB_DCHECK(job);
-  SB_DCHECK_GE(delay_usec, 0);
+  SB_DCHECK_GE(delay.count(), 0);
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
@@ -133,7 +145,7 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
+  const MonotonicTimestamp time_to_run_job = clock_->Now() + delay;
   bool is_first_job = time_to_job_record_map_.empty() ||
                       time_to_run_job < time_to_job_record_map_.begin()->first;
 
@@ -182,16 +194,18 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     }
     TimeToJobRecordMap::iterator first_delayed_job =
         time_to_job_record_map_.begin();
-    int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
+    const std::chrono::microseconds delay =
+        first_delayed_job->first - clock_->Now();
+    if (delay > std::chrono::microseconds::zero()) {
       if (wait_for_next_job) {
-        int64_t scheduled_time = first_delayed_job->first;
-        condition_.wait_for(
-            lock, std::chrono::microseconds(delay_usec),
-            [this, scheduled_time] {
-              return stopped_ || time_to_job_record_map_.empty() ||
-                     time_to_job_record_map_.begin()->first != scheduled_time;
-            });
+        SB_DCHECK_EQ(clock_, GetSystemMonotonicClock())
+            << "Blocking waits require the system clock; use RunUntilIdle() "
+               "with fake clocks.";
+        const MonotonicTimestamp scheduled_time = first_delayed_job->first;
+        condition_.wait_for(lock, delay, [this, scheduled_time] {
+          return stopped_ || time_to_job_record_map_.empty() ||
+                 time_to_job_record_map_.begin()->first != scheduled_time;
+        });
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -205,8 +219,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     // Try to retrieve the job again as the job map can be altered during the
     // wait.
     first_delayed_job = time_to_job_record_map_.begin();
-    delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
+    if (first_delayed_job->first > clock_->Now()) {
       return false;
     }
     job_record = std::move(first_delayed_job->second);
@@ -216,7 +229,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_DCHECK(job_record.job);
 
 #if ENABLE_JOB_QUEUE_PROFILING
-  int64_t start = CurrentMonotonicTime();
+  const MonotonicTimestamp start = clock_->Now();
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
   job_record.job();
@@ -224,17 +237,17 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
 #if ENABLE_JOB_QUEUE_PROFILING
   ++jobs_processed_;
 
-  auto now = CurrentMonotonicTime();
-  auto elapsed = now - start;
+  const MonotonicTimestamp now = clock_->Now();
+  const std::chrono::microseconds elapsed = now - start;
   if (elapsed > max_job_interval_) {
     job_record_with_max_interval_ = job_record;
     max_job_interval_ = elapsed;
   }
-  if (now - last_reset_time_ > kProfileResetIntervalUsec) {
+  if (now - last_reset_time_ > kProfileResetInterval) {
     SB_LOG(INFO) << "================ " << jobs_processed_
                  << " jobs processed, and waited for " << wait_times_
                  << " times since last reset on 0x" << this
-                 << ", max job takes " << max_job_interval_;
+                 << ", max job takes " << ToString(max_job_interval_);
     for (int i = 0; i < job_record.stack_size; ++i) {
       char function_name[1024];
       // Subtract one as return address of function may be in the next function
@@ -248,7 +261,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       }
     }
     last_reset_time_ = now;
-    max_job_interval_ = 0;
+    max_job_interval_ = std::chrono::microseconds::zero();
     jobs_processed_ = 0;
     wait_times_ = 0;
   }

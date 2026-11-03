@@ -323,6 +323,7 @@ source_set("starboard_platform_tests") {
     ":starboard_platform",
     "//starboard:starboard_with_main",
     "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//starboard/testing:fake_monotonic_clock",
     "//testing/gmock",
     "//testing/gtest",
   ]
