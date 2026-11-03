@@ -192,9 +192,12 @@ class CobaltReasoningEngine:
 
   def set_up(self):
     """Initializes Google GenAI client in remote Vertex AI container."""
-    uses_global_model = any(tag in m.lower()
-                            for m in (self.flash_model, self.expert_model) if m
-                            for tag in ("gemini-3", "gemini-4", "argon"))
+    global_tags = ("gemini-3", "gemini-4", "argon")
+    uses_global_model = False
+    for model in (self.flash_model, self.expert_model):
+      if model and any(tag in model.lower() for tag in global_tags):
+        uses_global_model = True
+        break
     loc = "global" if (uses_global_model or
                        self.location == "global") else self.location
     self.client = genai.Client(
@@ -246,9 +249,10 @@ class CobaltReasoningEngine:
   ) -> Optional[str]:
     """Generates content via the Tier-2 expert model (Gemini or Claude)."""
     expert_name = expert_model or self.expert_model
+    expert_name_lower = (expert_name or "").lower()
 
     # 1. Anthropic Claude on Vertex AI (e.g. Claude Sonnet 5)
-    if "claude" in expert_name.lower():
+    if "claude" in expert_name_lower:
       aclient = self._get_anthropic_client()
       if aclient is not None:
         prompt_text = str(contents) if not isinstance(contents,
@@ -299,8 +303,8 @@ class CobaltReasoningEngine:
     # 2. Gemini thinking expert; a non-Gemini expert falls back to the
     # (Gemini) workhorse model.
     target_gemini_model = (
-        expert_name if ("gemini" in expert_name.lower() or
-                        "argon" in expert_name.lower()) else self.flash_model)
+        expert_name if ("gemini" in expert_name_lower or
+                        "argon" in expert_name_lower) else self.flash_model)
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
