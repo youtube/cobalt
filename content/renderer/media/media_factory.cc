@@ -39,6 +39,7 @@
 #include "content/renderer/render_frame_impl.h"
 #include "content/renderer/render_thread_impl.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
+#include "gpu/ipc/client/gpu_channel_host.h"
 #include "media/base/cdm_factory.h"
 #include "media/base/decoder_factory.h"
 #include "media/base/demuxer.h"
@@ -208,109 +209,92 @@ void PostContextProviderToCallback(
 #endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_COBALT)
-// Cobalt variant of PostContextProviderToCallback() that never blocks the
-// renderer main thread waiting for a GPU channel.
+// Cobalt replaces PostContextProviderToCallback() with the functions below,
+// which never block the renderer main thread waiting for a GPU channel.
 //
 // When Cobalt is concealed, all GPU resources are released: client contexts are
 // marked lost, GPU channels are torn down, and GpuServiceImpl queues any new
 // EstablishGpuChannel requests until the app is revealed again. The video frame
-// submitter reacts to the lost context by requesting a new context provider,
-// and PostContextProviderToCallback() obtains it on the renderer main thread
-// via RenderThreadImpl::EstablishGpuChannelSync(). While concealed, that sync
-// call blocks the renderer main thread for the entire concealed period. All
-// renderer main-thread work is then deferred until reveal, including the memory
-// pressure notification that AppEventRunner sends on conceal: Blink's memory
-// purge and a ~210-330ms V8 compaction GC end up running right when playback is
-// trying to resume.
+// submitter reacts to the lost context by requesting a new context provider.
+// Upstream obtains it on the main thread through EstablishGpuChannelSync(),
+// which would block the renderer main thread for the entire concealed period
+// and defer all main-thread work until reveal, including the memory pressure
+// handling (Blink's memory purge and a ~210-330ms V8 compaction GC) that
+// AppEventRunner triggers on conceal.
 //
-// To avoid that, first establish the GPU channel asynchronously on the main
-// thread (this completes immediately when a channel already exists, and
-// otherwise leaves the main thread free until the GPU service is restored on
-// reveal). Then, in the same main-thread task that receives the channel, get
-// the context provider. GetVideoFrameCompositorContextProvider()'s
-// EstablishGpuChannelSync() call finds the channel that was just established.
-// Doing both in one task (instead of hopping back to the video frame
-// compositor thread and posting PostContextProviderToCallback()) leaves no gap
-// in which a conceal can tear the channel down before the sync call runs.
-// If no usable channel was established, reply with a null context provider
-// instead of falling back to the sync path. The submitter then retries after
-// a delay, and only while the page is visible.
-//
-// VideoFrameSubmitter also defers ContextProvider requests while it knows the
-// page is hidden, but it depends on page visibility being delivered to it
-// before the GPU teardown (and it can't help for a submitter initialized after
-// the teardown). This keeps the main thread from blocking on any path.
+// Instead, establish the channel asynchronously (this completes immediately
+// when a channel exists) and create the context on the channel that is handed
+// back, without any sync call. If no usable channel was established, reply
+// with a null context provider; the submitter then retries after a delay, and
+// only while the page is visible.
+
+// Runs on the video frame compositor thread. |unwanted_context_provider| is
+// only bound here so that its last reference is dropped on that thread.
+void RunSubmitterConfigurationCallback(
+    blink::WebSubmitterConfigurationCallback callback,
+    scoped_refptr<viz::RasterContextProvider> unwanted_context_provider,
+    bool use_gpu_compositing,
+    scoped_refptr<viz::RasterContextProvider> context_provider,
+    scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface) {
+  std::move(callback).Run(use_gpu_compositing, std::move(context_provider),
+                          std::move(shared_image_interface));
+}
+
+// Runs on the main thread once EstablishGpuChannel() completes. While the GPU
+// is torn down on conceal, that is at reveal at the earliest.
+void OnGpuChannelEstablishedForVideoFrameCompositor(
+    scoped_refptr<viz::RasterContextProvider> unwanted_context_provider,
+    blink::WebSubmitterConfigurationCallback reply_cb,
+    scoped_refptr<gpu::GpuChannelHost> gpu_channel_host) {
+  auto* rti = content::RenderThreadImpl::current();
+  if (!rti) {
+    // Only happens while the render thread shuts down. Drop the main thread's
+    // reference first, so that |reply_cb|, which is destroyed on the video
+    // frame compositor thread without running, holds the last one.
+    unwanted_context_provider.reset();
+    return;
+  }
+  const bool use_gpu_compositing = !rti->IsGpuCompositingDisabled();
+  scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface;
+  if (!use_gpu_compositing && gpu_channel_host && !gpu_channel_host->IsLost()) {
+    shared_image_interface = rti->GetRenderThreadSharedImageInterface();
+  }
+  // Consumes the main thread's reference to |unwanted_context_provider| before
+  // |reply_cb| runs.
+  scoped_refptr<viz::RasterContextProvider> context_provider =
+      rti->GetVideoFrameCompositorContextProviderForChannel(
+          std::move(gpu_channel_host), std::move(unwanted_context_provider));
+  std::move(reply_cb).Run(use_gpu_compositing, std::move(context_provider),
+                          std::move(shared_image_interface));
+}
+
+// Runs on the main thread.
+void EstablishGpuChannelForVideoFrameCompositor(
+    scoped_refptr<viz::RasterContextProvider> unwanted_context_provider,
+    blink::WebSubmitterConfigurationCallback reply_cb) {
+  // RenderThreadImpl::EstablishGpuChannel() runs the callback synchronously if
+  // a channel exists, and with a null host if it would otherwise be dropped
+  // (e.g. if the GPU process crashes).
+  content::RenderThreadImpl::current()->EstablishGpuChannel(base::BindOnce(
+      &OnGpuChannelEstablishedForVideoFrameCompositor,
+      std::move(unwanted_context_provider), std::move(reply_cb)));
+}
+
 void EstablishGpuChannelAndPostContextProviderToCallback(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     scoped_refptr<viz::RasterContextProvider> unwanted_context_provider,
     blink::WebSubmitterConfigurationCallback set_context_provider_callback) {
   // |unwanted_context_provider| must be released on the current (video frame
   // compositor) thread. |reply_cb| keeps a reference to it, and
-  // BindPostTaskToCurrentDefault() guarantees that |reply_cb| is run or
-  // destroyed on this thread, even if it is dropped on the main thread. The
-  // copy passed to the main thread is always released there before |reply_cb|
-  // runs, or before |reply_cb|'s posted destruction, so the last reference is
-  // never dropped on the main thread.
+  // BindPostTaskToCurrentDefault() runs or destroys |reply_cb| on this thread.
   blink::WebSubmitterConfigurationCallback reply_cb =
       base::BindPostTaskToCurrentDefault(base::BindOnce(
-          [](blink::WebSubmitterConfigurationCallback cb,
-             scoped_refptr<viz::RasterContextProvider> /*unwanted*/,
-             bool use_gpu_compositing,
-             scoped_refptr<viz::RasterContextProvider> context_provider,
-             scoped_refptr<gpu::ClientSharedImageInterface>
-                 shared_image_interface) {
-            std::move(cb).Run(use_gpu_compositing, std::move(context_provider),
-                              std::move(shared_image_interface));
-          },
+          &RunSubmitterConfigurationCallback,
           std::move(set_context_provider_callback), unwanted_context_provider));
-
   main_task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](scoped_refptr<viz::RasterContextProvider>
-                 unwanted_context_provider,
-             blink::WebSubmitterConfigurationCallback reply_cb) {
-            // RenderThreadImpl::EstablishGpuChannel() runs the callback with a
-            // null host if it would otherwise be dropped, so |reply_cb| always
-            // runs.
-            content::RenderThreadImpl::current()->EstablishGpuChannel(
-                base::BindOnce(
-                    [](scoped_refptr<viz::RasterContextProvider>
-                           unwanted_context_provider,
-                       blink::WebSubmitterConfigurationCallback reply_cb,
-                       scoped_refptr<gpu::GpuChannelHost> host) {
-                      auto* rti = content::RenderThreadImpl::current();
-                      if (!rti) {
-                        // The callback can be run with a null host while the
-                        // render thread is shutting down. Nothing to reply.
-                        unwanted_context_provider.reset();
-                        return;
-                      }
-                      const bool is_gpu_compositing_disabled =
-                          rti->IsGpuCompositingDisabled();
-                      scoped_refptr<viz::RasterContextProvider>
-                          context_provider;
-                      scoped_refptr<gpu::ClientSharedImageInterface>
-                          shared_image_interface;
-                      if (host && !host->IsLost()) {
-                        context_provider =
-                            rti->GetVideoFrameCompositorContextProvider(
-                                std::move(unwanted_context_provider));
-                        if (is_gpu_compositing_disabled) {
-                          shared_image_interface =
-                              rti->GetRenderThreadSharedImageInterface();
-                        }
-                      }
-                      // Drop the main thread's reference before replying.
-                      unwanted_context_provider.reset();
-                      std::move(reply_cb).Run(
-                          !is_gpu_compositing_disabled,
-                          std::move(context_provider),
-                          std::move(shared_image_interface));
-                    },
-                    std::move(unwanted_context_provider), std::move(reply_cb)));
-          },
-          std::move(unwanted_context_provider), std::move(reply_cb)));
+      FROM_HERE, base::BindOnce(&EstablishGpuChannelForVideoFrameCompositor,
+                                std::move(unwanted_context_provider),
+                                std::move(reply_cb)));
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

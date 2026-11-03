@@ -578,7 +578,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // ContextProvider request still runs before this task. That request is made
   // non-blocking in media_factory.cc. This task covers the later requests
   // (OnContextLost() and the delayed retries).
-  if (delegate_->IsPageHidden()) {
+  if (IsPageHidden()) {
     PostCrossThreadTask(
         *vfc_task_runner_, FROM_HERE,
         CrossThreadBindOnce(&VideoFrameCompositor::SetIsPageVisible,
