@@ -131,6 +131,29 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 // Locally: --enable-features=NativeVideoSplashScreen
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 
+// Proof of concept (DO NOT SUBMIT), Android only: with NativeVideoSplashScreen,
+// plays the splash screen video natively without a splash screen WebContents
+// (no splash.html): nothing draws over the punch-out video, as the main
+// WebContents is kept out of the compositor until the switch to it. Otherwise
+// the same as NativeVideoSplashScreen, e.g., the same player, video, splash
+// screen duration and switch, to measure what the splash screen WebContents
+// costs. If the platform can't play VP9, the main WebContents shows right
+// away, as there's no image splash screen to fall back to.
+// Locally:
+// --enable-features=NativeVideoSplashScreen,NativeVideoSplashScreenWithoutPage
+BASE_DECLARE_FEATURE(kNativeVideoSplashScreenWithoutPage);
+
+// Proof of concept (DO NOT SUBMIT): with NativeVideoSplashScreen and
+// EnableCachedSplashFile, the splash screen video played natively is the one
+// that a Wasm module that the WebApp cached, splash_selector.wasm, picks from
+// the splash cache, run with WAMR (WebAssembly Micro Runtime) off the UI
+// thread, instead of splash.webm. Falls back to splash.webm without the module,
+// or if it fails, or if the video that it picks isn't cached. Only built for
+// Android arm (32-bit); elsewhere the module always fails.
+// Locally: --enable-features=NativeVideoSplashScreen,EnableCachedSplashFile,
+// SplashWamrSelector
+BASE_DECLARE_FEATURE(kSplashWamrSelector);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 

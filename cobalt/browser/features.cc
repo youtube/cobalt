@@ -130,6 +130,14 @@ BASE_FEATURE(kNativeVideoSplashScreen,
              "NativeVideoSplashScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kNativeVideoSplashScreenWithoutPage,
+             "NativeVideoSplashScreenWithoutPage",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSplashWamrSelector,
+             "SplashWamrSelector",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);

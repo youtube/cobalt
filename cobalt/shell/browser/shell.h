@@ -35,6 +35,7 @@
 #include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
+#include "cobalt/shell/browser/splash_wasm_runner.h"
 #include "components/js_injection/browser/js_communication_host.h"
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -263,7 +264,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       std::unique_ptr<WebContents> splash_screen_web_contents,
       const gfx::Size& initial_size,
       bool should_set_delegate,
-      const std::string& topic = "");
+      const std::string& topic = "",
+      bool native_splash_without_page = false);
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.
@@ -284,7 +286,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
         std::unique_ptr<WebContents> splash_screen_web_contents,
         bool should_set_delegate,
         const std::string& topic = "",
-        bool skip_for_testing = false);
+        bool skip_for_testing = false,
+        bool native_splash_without_page = false);
 
   static void FinishShellInitialization(Shell* shell);
 
@@ -336,6 +339,29 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ReadCachedSplashVideo();
   void OnCachedSplashVideoRead(SplashScreenFetchedState state,
                                std::string cached_webm);
+
+  // Proof of concept (DO NOT SUBMIT): with kSplashWamrSelector, the cached
+  // video is the one that the WebApp's splash_selector.wasm picks, run with
+  // WAMR off the UI thread, instead of splash.webm. Falls back to splash.webm,
+  // as youtube/cobalt#13705's SplashWasmSelector.
+  void ReadSplashSelector();
+  void OnSplashSelectorRead(base::TimeTicks read_start,
+                            SplashScreenFetchedState state,
+                            std::string selector);
+  void OnSplashSelectorRun(base::TimeTicks run_start, SplashSelectorRun run);
+  void ReadSelectedSplashVideo(const std::string& key);
+  void OnSelectedSplashVideoRead(const std::string& key,
+                                 base::TimeTicks read_start,
+                                 SplashScreenFetchedState state,
+                                 std::string video);
+  // Logs the selection, for the benchmark, and plays the selected video.
+  void FinishSplashSelection(SplashScreenFetchedState state, std::string video);
+
+  // Proof of concept (DO NOT SUBMIT): starts the native video splash screen
+  // without a splash screen WebContents, as LoadSplashScreenWebContents() does
+  // with one. See cobalt::features::kNativeVideoSplashScreenWithoutPage.
+  void StartNativeSplashWithoutPage();
+
   // Starts playing the splash screen video natively: `cached_webm` if it's
   // valid, the built-in video otherwise. Returns false if it can't be played
   // this way.
@@ -386,6 +412,24 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Whether the splash screen page shows the video played natively through a
   // video hole.
   bool shows_native_splash_video_hole_ = false;
+  // Proof of concept (DO NOT SUBMIT): whether this window's splash screen is
+  // the video played natively without a splash screen WebContents, and whether
+  // it shows, i.e., it started and hasn't switched to the main WebContents.
+  const bool native_splash_without_page_;
+  bool shows_native_splash_without_page_ = false;
+  // Proof of concept (DO NOT SUBMIT): the selection of kSplashWamrSelector, as
+  // youtube/cobalt#13705's SplashSelection, for its log.
+  struct SplashSelection {
+    std::string key;
+    bool by_wasm = false;
+    std::string error;
+    base::TimeDelta read_selector;
+    // The selector's run, and the round trip to the thread that runs it.
+    base::TimeDelta run_selector;
+    base::TimeDelta run_selector_round_trip;
+    base::TimeDelta read_video;
+  };
+  SplashSelection splash_selection_;
   // Reads the splash screen video that the WebApp cached, before the native
   // video splash screen plays it.
   std::unique_ptr<SplashCacheReader> splash_cache_reader_;

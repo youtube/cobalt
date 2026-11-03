@@ -261,6 +261,8 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_observer.h",
     "browser/splash_video_webm_indexer.cc",
     "browser/splash_video_webm_indexer.h",
+    "browser/splash_wasm_runner.cc",
+    "browser/splash_wasm_runner.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
@@ -304,6 +306,15 @@ static_library("cobalt_shell_lib") {
     "CONTENT_SHELL_VERSION=\"1.0.0\"",
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
+
+  # Proof of concept (DO NOT SUBMIT): WAMR runs the splash selector of
+  # cobalt::features::kSplashWamrSelector. Only built for Android arm (32-bit),
+  # the devices of the benchmark: WAMR doesn't build for Evergreen or Android
+  # arm64 as is (see youtube/cobalt#13705).
+  if (is_android && current_cpu == "arm") {
+    deps += [ "//third_party/wasm_micro_runtime:wamr" ]
+    defines += [ "COBALT_SPLASH_WAMR" ]
+  }
 
   if (shell_use_toolkit_views) {
     # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
