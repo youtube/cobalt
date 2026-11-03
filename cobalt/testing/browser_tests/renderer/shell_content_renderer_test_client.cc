@@ -191,7 +191,7 @@ void ShellContentRendererTestClient::RenderThreadStarted() {
   ShellContentRendererClient::RenderThreadStarted();
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
-      blink::WebString::FromAscii(content::kH5vccEmbeddedScheme));
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
 
 void ShellContentRendererTestClient::DidInitializeWorkerContextOnWorkerThread(

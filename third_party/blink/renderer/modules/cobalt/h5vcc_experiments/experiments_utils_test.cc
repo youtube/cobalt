@@ -29,9 +29,9 @@ using V8Union = V8UnionBooleanOrDoubleOrLongOrString;
 TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   Vector<std::pair<String, bool>> features_vector;
-  features_vector.push_back(std::make_pair(String::FromUtf8("FeatureA"), true));
+  features_vector.push_back(std::make_pair(String::FromUTF8("FeatureA"), true));
   features_vector.push_back(
-      std::make_pair(String::FromUtf8("FeatureB"), false));
+      std::make_pair(String::FromUTF8("FeatureB"), false));
   config->setFeatures(features_vector);
 
   HeapVector<std::pair<String, Member<V8Union>>> feature_params_vector;
@@ -43,20 +43,20 @@ TEST(ExperimentsUtilsTest, AllFieldsPresent) {
   Member<V8Union> union_bool_true = MakeGarbageCollected<V8Union>(true);
   Member<V8Union> union_bool_false = MakeGarbageCollected<V8Union>(false);
   feature_params_vector.push_back(
-      std::make_pair(String::FromUtf8("ParamString"), union_str));
+      std::make_pair(String::FromUTF8("ParamString"), union_str));
   feature_params_vector.push_back(
-      std::make_pair(String::FromUtf8("ParamLong"), union_long));
+      std::make_pair(String::FromUTF8("ParamLong"), union_long));
   feature_params_vector.push_back(
-      std::make_pair(String::FromUtf8("ParamDouble"), union_double));
+      std::make_pair(String::FromUTF8("ParamDouble"), union_double));
   feature_params_vector.push_back(
-      std::make_pair(String::FromUtf8("ParamBoolTrue"), union_bool_true));
+      std::make_pair(String::FromUTF8("ParamBoolTrue"), union_bool_true));
   feature_params_vector.push_back(
-      std::make_pair(String::FromUtf8("ParamBoolFalse"), union_bool_false));
+      std::make_pair(String::FromUTF8("ParamBoolFalse"), union_bool_false));
   config->setFeatureParams(feature_params_vector);
 
-  config->setActiveExperimentConfigData(String::FromUtf8("active_config_data"));
+  config->setActiveExperimentConfigData(String::FromUTF8("active_config_data"));
   config->setLatestExperimentConfigHashData(
-      String::FromUtf8("latest_hash_data"));
+      String::FromUTF8("latest_hash_data"));
 
   std::optional<base::DictValue> result = ParseConfigToDictionary(config);
 
@@ -91,8 +91,8 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatures) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   // setFeatures NOT called in this test.
   config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setActiveExperimentConfigData(String::FromUtf8(""));
-  config->setLatestExperimentConfigHashData(String::FromUtf8(""));
+  config->setActiveExperimentConfigData(String::FromUTF8(""));
+  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
   std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
@@ -102,8 +102,8 @@ TEST(ExperimentsUtilsTest, ParseConfigToDictionary_MissingFeatureParams) {
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   config->setFeatures(Vector<std::pair<String, bool>>());
   // setFeatureParams NOT called in this test.
-  config->setActiveExperimentConfigData(String::FromUtf8(""));
-  config->setLatestExperimentConfigHashData(String::FromUtf8(""));
+  config->setActiveExperimentConfigData(String::FromUTF8(""));
+  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
 
   std::optional<base::DictValue> result = ParseConfigToDictionary(config);
   ASSERT_FALSE(result.has_value());
@@ -114,7 +114,7 @@ TEST(ExperimentsUtilsTest,
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   config->setFeatures(Vector<std::pair<String, bool>>());
   config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setLatestExperimentConfigHashData(String::FromUtf8(""));
+  config->setLatestExperimentConfigHashData(String::FromUTF8(""));
   // setActiveExperimentConfigData NOT called in this test.
 
   std::optional<base::DictValue> result = ParseConfigToDictionary(config);
@@ -126,7 +126,7 @@ TEST(ExperimentsUtilsTest,
   auto* config = MakeGarbageCollected<ExperimentConfiguration>();
   config->setFeatures(Vector<std::pair<String, bool>>());
   config->setFeatureParams(HeapVector<std::pair<String, Member<V8Union>>>());
-  config->setActiveExperimentConfigData(String::FromUtf8(""));
+  config->setActiveExperimentConfigData(String::FromUTF8(""));
   // setLatestExperimentConfigHashData NOT called in this test.
 
   std::optional<base::DictValue> result = ParseConfigToDictionary(config);
