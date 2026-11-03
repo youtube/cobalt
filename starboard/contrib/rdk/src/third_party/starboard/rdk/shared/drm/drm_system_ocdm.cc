@@ -787,16 +787,15 @@ std::optional<std::string_view> DrmSystemOcdm::GetMetrics() {
       continue;
     } else {
       metrics_.resize(0);
-      SB_LOG(ERROR) << "GetMetrics: failed, rc = " << rc;
+      SB_LOG(WARNING) << "GetMetrics: opencdm_get_metric_system_data failed, rc = " << rc;
     }
 
     break;
   }
 
-  // Use `opencdm_get_metrics` when `opencdm_get_metric_system_data` fails to
-  // get mertics data. This is observed in RDK/Amlogic where
-  // `opencdm_get_metric_system_data` returns with error code
-  // `INTERFACE_NOT_IMPLEMENTED`.
+  // Use `opencdm_get_metrics` as fallback when `opencdm_get_metric_system_data`
+  // fails. This happens in RDK6 where `opencdm_get_metric_system_data` fails
+  // with error code: `INTERFACE_NOT_IMPLEMENTED`.
   if (g_ocdmGetMetrics && metrics_.size() == 0) {
     std::string buffer;
     auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
@@ -805,6 +804,13 @@ std::optional<std::string_view> DrmSystemOcdm::GetMetrics() {
       metrics_.resize(out_length, '\0');
       out_length = modp_b64_encode(&(metrics_[0]), buffer.data(), buffer.size());
       metrics_.resize(out_length);
+      while (!metrics_.empty() && metrics_.back() == '=') {
+        metrics_.pop_back();
+      }
+      std::replace(metrics_.begin(), metrics_.end(), '+', '-');
+      std::replace(metrics_.begin(), metrics_.end(), '/', '_');
+    } else {
+      SB_LOG(ERROR) << "GetMetrics: opencdm_get_metrics failed, rc = " << rc;
     }
   }
 
