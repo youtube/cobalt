@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/file.h"
@@ -31,33 +33,30 @@ const char WidevineStorage::kCobaltWidevineKeyboxChecksumKey[] =
 
 namespace {
 
-void ReadFile(const std::string& path_name, std::vector<uint8_t>* content) {
-  SB_DCHECK(content);
-
+std::vector<uint8_t> ReadFile(const std::string& path_name) {
   ScopedFile file(path_name.c_str(), 0);
 
   if (!file.IsValid()) {
-    content->clear();
     SB_LOG(INFO) << "Failed to open " << path_name
                  << ", returning empty content.";
-    return;
+    return {};
   }
 
   auto size = file.GetSize();
   if (size < 0) {
-    content->clear();
     SB_LOG(INFO) << "Failed to get size of " << path_name
                  << ", returning empty content.";
-    return;
+    return {};
   }
 
-  content->resize(size);
-  if (file.ReadAll(reinterpret_cast<char*>(content->data()), size) != size) {
-    content->clear();
+  std::vector<uint8_t> content(size);
+  if (file.ReadAll(reinterpret_cast<char*>(content.data()), size) != size) {
     SB_LOG(INFO) << "Failed to read content of " << path_name
                  << ", returning empty content.";
-    return;
+    return {};
   }
+
+  return content;
 }
 
 bool WriteFile(const std::string& path_name,
@@ -88,23 +87,22 @@ bool WriteFile(const std::string& path_name,
   return true;
 }
 
-bool ReadString(const std::vector<uint8_t>& data,
-                size_t* offset,
-                std::string* str) {
+std::optional<std::string> ReadString(const std::vector<uint8_t>& data,
+                                      size_t* offset) {
   if (*offset + sizeof(int) > data.size()) {
     SB_LOG(ERROR) << "Failed to read the size of string from |data|.";
-    return false;
+    return std::nullopt;
   }
   int size = *reinterpret_cast<const int*>(data.data() + *offset);
   *offset += sizeof(int);
   if (*offset + size > data.size()) {
     SB_LOG(ERROR) << "Failed to read " << size << " bytes from |data|.";
-    return false;
+    return std::nullopt;
   }
-  str->assign(reinterpret_cast<const char*>(data.data() + *offset),
-              reinterpret_cast<const char*>(data.data() + *offset + size));
+  std::string str(reinterpret_cast<const char*>(data.data() + *offset),
+                  reinterpret_cast<const char*>(data.data() + *offset + size));
   *offset += size;
-  return true;
+  return str;
 }
 
 void WriteString(const std::string& str, std::vector<uint8_t>* content) {
@@ -120,29 +118,27 @@ void WriteString(const std::string& str, std::vector<uint8_t>* content) {
 
 WidevineStorage::WidevineStorage(const std::string& path_name)
     : path_name_(path_name) {
-  std::vector<uint8_t> content;
-  ReadFile(path_name_, &content);
+  const std::vector<uint8_t> content = ReadFile(path_name_);
   size_t offset = 0;
 
   while (offset != content.size()) {
-    std::string name, value;
-    if (!ReadString(content, &offset, &name) ||
-        !ReadString(content, &offset, &value)) {
+    std::optional<std::string> name = ReadString(content, &offset);
+    std::optional<std::string> value =
+        name ? ReadString(content, &offset) : std::nullopt;
+    if (!name || !value) {
       cache_.clear();
       SB_LOG(WARNING) << path_name_ << " is corrupt, returns empty content.";
       return;
     }
-    cache_[name] = value;
+    cache_[std::move(*name)] = std::move(*value);
   }
 
   SB_LOG(INFO) << "Loaded " << cache_.size() << " records from " << path_name_;
 
   // Not a cryptographic hash but is sufficient for this problem space.
   std::string keybox_checksum = GetWidevineKeyboxHash();
-  if (existsInternal(kCobaltWidevineKeyboxChecksumKey)) {
-    std::string cached_checksum;
-    readInternal(kCobaltWidevineKeyboxChecksumKey, &cached_checksum);
-    if (keybox_checksum == cached_checksum) {
+  if (auto cached_checksum = readInternal(kCobaltWidevineKeyboxChecksumKey)) {
+    if (keybox_checksum == *cached_checksum) {
       return;
     }
     SB_LOG(INFO) << "Cobalt widevine keybox checksums do not match. Clearing "
@@ -158,8 +154,13 @@ WidevineStorage::WidevineStorage(const std::string& path_name)
 }
 
 bool WidevineStorage::read(const std::string& name, std::string* data) {
-  SB_DCHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
-  return readInternal(name, data);
+  SB_CHECK_NE(name, kCobaltWidevineKeyboxChecksumKey);
+  SB_CHECK(data);
+  if (auto value = readInternal(name)) {
+    *data = std::move(*value);
+    return true;
+  }
+  return false;
 }
 
 bool WidevineStorage::write(const std::string& name, const std::string& data) {
@@ -197,16 +198,14 @@ bool WidevineStorage::list(std::vector<std::string>* records) {
   return !records->empty();
 }
 
-bool WidevineStorage::readInternal(const std::string& name,
-                                   std::string* data) const {
-  SB_DCHECK(data);
+std::optional<std::string> WidevineStorage::readInternal(
+    const std::string& name) const {
   std::lock_guard scoped_lock(lock_);
   auto iter = cache_.find(name);
   if (iter == cache_.end()) {
-    return false;
+    return std::nullopt;
   }
-  *data = iter->second;
-  return true;
+  return iter->second;
 }
 
 bool WidevineStorage::writeInternal(const std::string& name,
