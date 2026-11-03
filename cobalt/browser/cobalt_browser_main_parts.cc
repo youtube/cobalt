@@ -104,11 +104,6 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
-#include "components/os_crypt/sync/key_storage_config_linux.h"
-#include "components/os_crypt/sync/os_crypt.h"
-#endif
-
 namespace cobalt {
 
 namespace {
@@ -755,25 +750,5 @@ void CobaltBrowserMainParts::PostCreateThreads() {
   ShellBrowserMainParts::PostCreateThreads();
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
-
-#if BUILDFLAG(IS_LINUX)
-void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
-  // Set up crypt config. This needs to be done before anything starts the
-  // network service, as the raw encryption key needs to be shared with the
-  // network service for encrypted cookie storage.
-  // Chrome OS does not need a crypt config as its user data directories are
-  // already encrypted and none of the true encryption backends used by
-  // desktop Linux are available on Chrome OS anyway.
-  std::unique_ptr<os_crypt::Config> config =
-      std::make_unique<os_crypt::Config>();
-  // Forward the product name
-  config->product_name = "Cobalt";
-  // OSCrypt can be disabled in a special settings file.
-  config->should_use_preference = false;
-  base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);
-  OSCrypt::SetConfig(std::move(config));
-  ShellBrowserMainParts::PostCreateMainMessageLoop();
-}
-#endif  // BUILDFLAG(IS_LINUX)
 
 }  // namespace cobalt

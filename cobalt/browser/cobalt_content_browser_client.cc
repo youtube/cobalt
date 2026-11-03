@@ -65,6 +65,9 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
+#if BUILDFLAG(IS_LINUX)
+#include "components/os_crypt/async/browser/posix_key_provider.h"  //nogncheck
+#endif
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -172,6 +175,24 @@ void ParseAndApplyH5vccSettings(std::string_view settings_value,
   }
 }
 
+std::unique_ptr<os_crypt_async::OSCryptAsync> CreateOSCryptAsync() {
+  std::vector<std::pair<os_crypt_async::OSCryptAsync::Precedence,
+                        std::unique_ptr<os_crypt_async::KeyProvider>>>
+      providers;
+#if BUILDFLAG(IS_LINUX)
+  // Unlike chrome/browser/browser_process_impl.cc, only PosixKeyProvider is
+  // registered here. The Freedesktop and SecretPortal key providers need
+  // use_dbus, which Cobalt Linux builds turn off (see
+  // cobalt/build/configs/linux_common.gn). For the same reason the removed
+  // sync OSCrypt backend never found a libsecret or kwallet key and always
+  // used the hardcoded v10 key. PosixKeyProvider gives that same v10 key, so
+  // cookies stored by earlier versions can still be decrypted.
+  providers.emplace_back(
+      /*precedence=*/5u, std::make_unique<os_crypt_async::PosixKeyProvider>());
+#endif  // BUILDFLAG(IS_LINUX)
+  return std::make_unique<os_crypt_async::OSCryptAsync>(std::move(providers));
+}
+
 }  // namespace
 
 void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
@@ -247,10 +268,7 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
     : startup_timestamp_(startup_timestamp),
       deep_link_(deep_link),
       is_visible_(is_visible),
-      os_crypt_async_(std::make_unique<os_crypt_async::OSCryptAsync>(
-          std::vector<
-              std::pair<os_crypt_async::OSCryptAsync::Precedence,
-                        std::unique_ptr<os_crypt_async::KeyProvider>>>{})),
+      os_crypt_async_(CreateOSCryptAsync()),
       cookie_encryption_provider_(
           std::make_unique<CookieEncryptionProviderImpl>(
               os_crypt_async_.get())) {

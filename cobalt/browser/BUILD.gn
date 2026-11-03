@@ -108,7 +108,6 @@ source_set("browser") {
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/async/browser",
-    "//components/os_crypt/sync",
     "//components/prefs",
     "//components/services/storage/public/cpp",
     "//components/variations/service",
@@ -125,6 +124,10 @@ source_set("browser") {
       "//components/services/heap_profiling",
       "//components/services/heap_profiling/public/cpp",
     ]
+  }
+
+  if (is_linux) {
+    deps += [ "//components/os_crypt/async/browser:posix_key_provider" ]
   }
 
   if (is_android) {
