@@ -19963,7 +19963,7 @@ bool RenderFrameHostImpl::CanReadFromSharedStorage() {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 std::optional<mojo::UrgentMessageScope>
 RenderFrameHostImpl::MakeUrgentMessageScopeIfNeeded() {
   // Don't prioritize navigations in RFHs that are prerendering, since that

@@ -321,7 +321,7 @@ void RenderWidgetHostViewIOS::NotifyHostAndDelegateOnWasShown(
     browser_compositor_->GetDelegatedFrameHost()
         ->RequestSuccessfulPresentationTimeForNextFrame(
             std::move(*visible_time_request));
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   host()->WasShown(std::move(visible_time_request));

@@ -24,7 +24,7 @@
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"  // nogncheck
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
 #include "content/public/browser/global_routing_id.h"
@@ -56,7 +56,7 @@ class StorageHandler
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     , public content::InterestGroupManagerImpl::InterestGroupObserver,
       public AttributionObserver,
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       public content::SharedStorageRuntimeManager::
           SharedStorageObserverInterface
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
@@ -194,7 +194,7 @@ class StorageHandler
       std::unique_ptr<SendPendingAttributionReportsCallback>) override;
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void NotifyInterestGroupAuctionEventOccurred(
       base::Time event_time,
       content::InterestGroupAuctionEventType type,
@@ -237,7 +237,7 @@ class StorageHandler
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
 =======
   AttributionManager* GetAttributionManager();
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
@@ -297,7 +297,7 @@ class StorageHandler
   void ResetAttributionReporting();
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b01ce537293 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   Response GetStorageKeyForFrameInternal(const std::string& frame_id,
                                          std::string* serialized_storage_key);
 
