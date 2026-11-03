@@ -178,7 +178,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           auto result =
               ::media::DecoderBufferAllocator::SetSetting(name.Utf8(), value);
           if (!result.has_value()) {
-            return base::unexpected(String::FromUTF8(result.error()));
+            return base::unexpected(String::FromUtf8(result.error()));
           }
           return base::ok();
         });

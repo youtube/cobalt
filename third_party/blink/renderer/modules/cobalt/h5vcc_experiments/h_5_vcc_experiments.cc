@@ -99,7 +99,7 @@ ScriptPromise<V8OverrideState> H5vccExperiments::getFeature(
 
 const String& H5vccExperiments::getFeatureParam(
     const String& feature_param_name) {
-  feature_param_value_ = String::FromUTF8(base::GetFieldTrialParamValue(
+  feature_param_value_ = String::FromUtf8(base::GetFieldTrialParamValue(
       cobalt::kCobaltExperimentName, feature_param_name.Utf8()));
   return feature_param_value_;
 }
