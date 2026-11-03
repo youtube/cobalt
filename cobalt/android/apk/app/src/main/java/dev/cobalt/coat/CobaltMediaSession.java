@@ -25,9 +25,11 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.util.Log;
 import java.util.List;
 import java.util.Set;
+import org.chromium.base.FeatureList;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
@@ -53,7 +55,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final ArtworkLoader mArtworkLoader;
   private WebContents mWebContents;
   private WebContentsObserver mWebContentsObserver;
-  @VisibleForTesting MediaSessionCompat mMediaSession;
+  private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
   private boolean mIsControllable;
   private boolean mIsPaused;
@@ -70,11 +72,26 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     void onMediaSessionLifecycle(boolean isActive, MediaSessionCompat.Token token);
   }
 
+  @VisibleForTesting
+  void setMediaSessionForTesting(MediaSessionCompat mediaSession) {
+    mMediaSession = mediaSession;
+  }
+
+  @VisibleForTesting
+  protected boolean isPlatformServicesOffUiThreadEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isPlatformServicesOffUiThreadEnabled();
+  }
+
   public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
-    if (Looper.myLooper() != Looper.getMainLooper()) {
-      mMainHandler.post(() -> setLifecycleCallback(lifecycleCallback));
+    if (isPlatformServicesOffUiThreadEnabled() && Looper.myLooper() != Looper.getMainLooper()) {
+      mMainHandler.post(() -> applyLifecycleCallback(lifecycleCallback));
       return;
     }
+    applyLifecycleCallback(lifecycleCallback);
+  }
+
+  private void applyLifecycleCallback(LifecycleCallback lifecycleCallback) {
     mLifecycleCallback = lifecycleCallback;
     if (mLifecycleCallback != null && mMediaSession != null) {
       mLifecycleCallback.onMediaSessionLifecycle(true, mMediaSession.getSessionToken());

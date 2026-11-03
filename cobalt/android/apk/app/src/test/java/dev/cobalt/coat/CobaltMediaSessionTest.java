@@ -43,15 +43,15 @@ import org.robolectric.shadows.ShadowLooper;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CobaltMediaSessionTest {
-  private CobaltMediaSession mCobaltMediaSession;
+  private Context mContext;
+  private ArtworkDownloader mMockDownloader;
   private MediaSessionCompat mMockMediaSession;
   private MediaSessionCompat.Token mTestToken;
 
   @Before
   public void setUp() {
-    Context context = RuntimeEnvironment.getApplication();
-    ArtworkDownloader mockDownloader = mock(ArtworkDownloader.class);
-    mCobaltMediaSession = new CobaltMediaSession(context, mockDownloader);
+    mContext = RuntimeEnvironment.getApplication();
+    mMockDownloader = mock(ArtworkDownloader.class);
     mMockMediaSession = mock(MediaSessionCompat.class);
     Parcel parcel = Parcel.obtain();
     parcel.writeParcelable(null, 0);
@@ -59,16 +59,29 @@ public class CobaltMediaSessionTest {
     mTestToken = MediaSessionCompat.Token.CREATOR.createFromParcel(parcel);
     parcel.recycle();
     when(mMockMediaSession.getSessionToken()).thenReturn(mTestToken);
-    mCobaltMediaSession.mMediaSession = mMockMediaSession;
+  }
+
+  private CobaltMediaSession createMediaSession(boolean platformServicesOffUiThreadEnabled) {
+    CobaltMediaSession session =
+        new CobaltMediaSession(mContext, mMockDownloader) {
+          @Override
+          protected boolean isPlatformServicesOffUiThreadEnabled() {
+            return platformServicesOffUiThreadEnabled;
+          }
+        };
+    session.setMediaSessionForTesting(mMockMediaSession);
+    return session;
   }
 
   @Test
   public void setLifecycleCallback_onMainThread_invokesImmediatelyWhenActive() {
+    CobaltMediaSession cobaltMediaSession =
+        createMediaSession(/* platformServicesOffUiThreadEnabled= */ true);
     AtomicBoolean invoked = new AtomicBoolean(false);
     AtomicReference<Looper> callbackLooper = new AtomicReference<>();
     AtomicReference<MediaSessionCompat.Token> receivedToken = new AtomicReference<>();
 
-    mCobaltMediaSession.setLifecycleCallback(
+    cobaltMediaSession.setLifecycleCallback(
         (isActive, token) -> {
           invoked.set(isActive);
           callbackLooper.set(Looper.myLooper());
@@ -81,7 +94,10 @@ public class CobaltMediaSessionTest {
   }
 
   @Test
-  public void setLifecycleCallback_fromBackgroundThread_marshalsToMainLooper() throws Exception {
+  public void setLifecycleCallback_fromBackgroundThreadWithFlagEnabled_marshalsToMainLooper()
+      throws Exception {
+    CobaltMediaSession cobaltMediaSession =
+        createMediaSession(/* platformServicesOffUiThreadEnabled= */ true);
     ShadowLooper.pauseMainLooper();
     AtomicBoolean invoked = new AtomicBoolean(false);
     AtomicReference<Looper> callbackLooper = new AtomicReference<>();
@@ -90,7 +106,7 @@ public class CobaltMediaSessionTest {
     Thread serviceThread =
         new Thread(
             () ->
-                mCobaltMediaSession.setLifecycleCallback(
+                cobaltMediaSession.setLifecycleCallback(
                     (isActive, token) -> {
                       invoked.set(isActive);
                       callbackLooper.set(Looper.myLooper());
@@ -98,7 +114,7 @@ public class CobaltMediaSessionTest {
                     }),
             "CobaltPlatformService");
     serviceThread.start();
-    serviceThread.join(5000);
+    serviceThread.join();
 
     // Must not execute synchronously on the background thread while main looper is paused.
     assertThat(invoked.get()).isFalse();
@@ -107,6 +123,35 @@ public class CobaltMediaSessionTest {
 
     assertThat(invoked.get()).isTrue();
     assertThat(callbackLooper.get()).isEqualTo(Looper.getMainLooper());
+    assertThat(receivedToken.get()).isSameInstanceAs(mTestToken);
+  }
+
+  @Test
+  public void setLifecycleCallback_fromBackgroundThreadWithFlagDisabled_invokesImmediately()
+      throws Exception {
+    CobaltMediaSession cobaltMediaSession =
+        createMediaSession(/* platformServicesOffUiThreadEnabled= */ false);
+    ShadowLooper.pauseMainLooper();
+    AtomicBoolean invoked = new AtomicBoolean(false);
+    AtomicReference<Thread> callbackThread = new AtomicReference<>();
+    AtomicReference<MediaSessionCompat.Token> receivedToken = new AtomicReference<>();
+
+    Thread serviceThread =
+        new Thread(
+            () ->
+                cobaltMediaSession.setLifecycleCallback(
+                    (isActive, token) -> {
+                      invoked.set(isActive);
+                      callbackThread.set(Thread.currentThread());
+                      receivedToken.set(token);
+                    }),
+            "CobaltPlatformService");
+    serviceThread.start();
+    serviceThread.join();
+
+    // With CobaltPlatformServicesOffUiThread disabled, no post to main handler occurs.
+    assertThat(invoked.get()).isTrue();
+    assertThat(callbackThread.get()).isSameInstanceAs(serviceThread);
     assertThat(receivedToken.get()).isSameInstanceAs(mTestToken);
   }
 }

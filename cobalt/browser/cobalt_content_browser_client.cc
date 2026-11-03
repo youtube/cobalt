@@ -232,6 +232,12 @@ static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
     JNIEnv*) {
   return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
 }
+
+static jboolean
+JNI_CobaltContentBrowserClient_IsPlatformServicesOffUiThreadEnabled(JNIEnv*) {
+  return base::FeatureList::IsEnabled(
+      features::kCobaltPlatformServicesOffUiThread);
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
