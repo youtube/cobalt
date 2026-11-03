@@ -757,8 +757,6 @@ void PopulateBinderMapWithContext(
       &EmptyBinderForFrame<blink::mojom::LCPCriticalPathPredictorHost>);
   map->Add<blink::mojom::ScriptToolHost>(
       &EmptyBinderForFrame<blink::mojom::ScriptToolHost>);
-<<<<<<< HEAD
-
   // Currently defined in content/shell/common/shell_switches.h which we cannot
   // have a DEPS on.
   constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
@@ -773,9 +771,7 @@ void PopulateBinderMapWithContext(
         }));
   }
 
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 3cfa4226e43 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(network::features::kBrowsingTopics) &&
       base::FeatureList::IsEnabled(
           blink::features::kBrowsingTopicsDocumentAPI)) {
