@@ -33,12 +33,6 @@
 #include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_handler.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/feature_list.h"
-#include "media/base/media_switches.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-
 namespace blink {
 
 MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(
@@ -109,11 +103,7 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
           context, media_stream, audio_track, std::move(provider));
 
   // Initializes the node with the stereo output channel.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  node->SetFormat(1, context.sampleRate());
-#else
   node->SetFormat(2, context.sampleRate());
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);

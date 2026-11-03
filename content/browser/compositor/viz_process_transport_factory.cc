@@ -50,10 +50,6 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "ui/display/screen.h"
-#endif
-
 #if BUILDFLAG(IS_WIN)
 #include "ui/gfx/win/rendering_window_manager.h"
 #endif
@@ -77,12 +73,7 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateContextProvider(
   constexpr bool kAutomaticFlushes = false;
 
   gpu::SharedMemoryLimits memory_limits =
-#if BUILDFLAG(IS_STARBOARD)
-      gpu::SharedMemoryLimits::ForDisplayCompositor(
-          display::Screen::Get()->GetPrimaryDisplay().size());
-#else
       gpu::SharedMemoryLimits::ForDisplayCompositor();
-#endif
 
   GURL url("chrome://gpu/VizProcessTransportFactory::CreateContextProvider");
   return viz::ContextProviderCommandBuffer::CreateForRaster(
@@ -256,20 +247,6 @@ void VizProcessTransportFactory::RemoveCompositor(ui::Compositor* compositor) {
 #endif
 
   compositor_data_map_.erase(compositor);
-#if BUILDFLAG(IS_COBALT)
-  // Synchronously destroy the RootCompositorFrameSink in Viz (and its
-  // SkiaOutputSurfaceImplOnGpu and EGLSurface on the GPU thread) while keeping
-  // the FrameSinkId registered. RemoveCompositor() is invoked from
-  // ui::Compositor::ReleaseAcceleratedWidget() right before
-  // PlatformWindowStarboard::Hide() calls SbWindowDestroy() and before
-  // ShellPlatformDelegate::OnAllFramesConcealed() shuts down the EGLDisplay.
-  // Without this explicit synchronous teardown, RootCompositorFrameSinkImpl and
-  // NativeViewGLSurfaceEGL outlive both the native SbWindow and the EGLDisplay.
-  if (compositor && compositor->frame_sink_id().is_valid()) {
-    GetHostFrameSinkManager()->DestroyCompositorFrameSink(
-        compositor->frame_sink_id());
-  }
-#endif
 }
 
 cc::TaskGraphRunner* VizProcessTransportFactory::GetTaskGraphRunner() {

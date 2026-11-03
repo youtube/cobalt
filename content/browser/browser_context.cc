@@ -18,8 +18,6 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/feature_list.h"
-#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
@@ -30,7 +28,6 @@
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "components/download/public/common/in_progress_download_manager.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
@@ -39,9 +36,7 @@
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/preloading/prefetch/prefetch_request.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
@@ -423,17 +418,7 @@ BrowserContext::CreateVideoDecodePerfHistory() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const char kUseInMemoryDBParamName[] = "db_in_memory";
-#if BUILDFLAG(IS_COBALT)
-  // StarboardRenderer does not populate video_frame_duration_average, so
-  // VideoDecodeStatsDB never records persistent entries on Cobalt. When
-  // kCobaltStorageCleanup is enabled, default to in-memory storage to avoid
-  // opening VideoDecodeStats and shared_proto_db LevelDB instances on disk
-  // during startup.
-  const bool kUseInMemoryDBDefault =
-      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup);
-#else
   const bool kUseInMemoryDBDefault = false;
-#endif
   bool use_in_memory_db = base::GetFieldTrialParamByFeatureAsBool(
       media::kMediaCapabilitiesWithParameters, kUseInMemoryDBParamName,
       kUseInMemoryDBDefault);
@@ -454,29 +439,17 @@ BrowserContext::CreateVideoDecodePerfHistory() {
 
 FederatedIdentityApiPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityApiPermissionContext() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
-#else
-  return nullptr;
-#endif
 }
 
 FederatedIdentityAutoReauthnPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityAutoReauthnPermissionContext() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
-#else
-  return nullptr;
-#endif
 }
 
 FederatedIdentityPermissionContextDelegate*
 BrowserContext::GetFederatedIdentityPermissionContext() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return impl()->GetFederatedPermissionContext();
-#else
-  return nullptr;
-#endif
 }
 
 KAnonymityServiceDelegate* BrowserContext::GetKAnonymityServiceDelegate() {

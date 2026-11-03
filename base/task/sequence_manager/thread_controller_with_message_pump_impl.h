@@ -73,7 +73,7 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   void SetTaskExecutionAllowedInNativeNestedLoop(bool allowed) override;
   bool IsTaskExecutionAllowed() const override;
   MessagePump* GetBoundMessagePump() const override;
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   void AttachToMessagePump() override;
 #endif
 #if BUILDFLAG(IS_IOS)

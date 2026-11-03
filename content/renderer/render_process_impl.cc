@@ -23,9 +23,6 @@
 #include "base/compiler_specific.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#endif  // BUILDFLAG(IS_COBALT)
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/waitable_event.h"
@@ -125,18 +122,10 @@ RenderProcessImpl::RenderProcessImpl()
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisallowV8FeatureFlagOverrides);
   if (!disallow_v8_feature_flag_overrides) {
-#if BUILDFLAG(IS_COBALT)
-    if (base::FeatureList::IsEnabled(
-            base::features::kCobaltV8OptimizeForSize)) {
-      std::string_view optimize_flag("--optimize-for-size");
-      v8::V8::SetFlagsFromString(optimize_flag.data(), optimize_flag.size());
-    }
-#else
     if (base::SysInfo::IsLowEndDevice()) {
       std::string_view optimize_flag("--optimize-for-size");
       v8::V8::SetFlagsFromString(optimize_flag.data(), optimize_flag.size());
     }
-#endif  // BUILDFLAG(IS_COBALT)
 
     ////////////////////////////////////////////////////////////////////////////
     // V8 flags are typically set in gin/v8_initializer.cc. Only those flags
