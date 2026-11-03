@@ -42,11 +42,6 @@ inline constexpr char kAvoidCcReuseResource[] = "AvoidCCReuseResource";
 inline constexpr char kCobaltBypassHtmlPreloadScanner[] =
     "CobaltBypassHTMLPreloadScanner";
 
-// Bypasses ResourceLoadScheduler subresource queueing and throttling.
-// See b/545658521.
-inline constexpr char kCobaltBypassResourceLoadScheduler[] =
-    "CobaltBypassResourceLoadScheduler";
-
 // Tunes dynamic Mojo data pipe size in bytes for media requests.
 // See b/520888239.
 inline constexpr char kCobaltDynamicMojoPipeMediaSize[] =
