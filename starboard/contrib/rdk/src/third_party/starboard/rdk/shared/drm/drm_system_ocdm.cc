@@ -18,6 +18,7 @@
 #include "third_party/starboard/rdk/shared/drm/drm_system_ocdm.h"
 
 #include <dlfcn.h>
+#include <algorithm>
 #include <mutex>
 #include <cstring>
 #include <gst/gst.h>
@@ -776,6 +777,11 @@ std::optional<std::string_view> DrmSystemOcdm::GetMetrics() {
       metrics_.resize(out_length, '\0');
       out_length = modp_b64_encode(&(metrics_[0]), reinterpret_cast<const char*>(tmp.data()), buffer_length);
       metrics_.resize(out_length);
+      while (!metrics_.empty() && metrics_.back() == '=') {
+        metrics_.pop_back();
+      }
+      std::replace(metrics_.begin(), metrics_.end(), '+', '-');
+      std::replace(metrics_.begin(), metrics_.end(), '/', '_');
     } else if ( rc == kBufferTooSmallErrorCode && i < (kMaxRetry - 1) ) {
       SB_LOG(INFO) << "GetMetrics: buffer is too small, rc = " << rc << ", i = " << i;
       continue;
