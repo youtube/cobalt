@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/android/jni_string.h"
+#include "build/build_config.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
 
@@ -27,7 +28,13 @@ namespace starboard::features {
 static jboolean JNI_StarboardFeatureList_IsEnabled(
     JNIEnv* env,
     const JavaParamRef<jstring>& jfeature_name) {
+#if BUILDFLAG(IS_STARBOARD)
+  // Evergreen builds of the Cobalt core don't send the Android features to
+  // Starboard. Treat them as disabled, like the native callers do.
+  return false;
+#else
   std::string feature_name = ConvertJavaStringToUTF8(env, jfeature_name);
   return FeatureList::IsEnabledByName(feature_name);
+#endif
 }
 }  // namespace starboard::features
