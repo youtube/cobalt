@@ -108,7 +108,6 @@ source_set("browser") {
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/async/browser",
-    "//components/os_crypt/sync",
     "//components/prefs",
     "//components/services/storage/public/cpp",
     "//components/variations/service",
