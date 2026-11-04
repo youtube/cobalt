@@ -356,8 +356,8 @@ class SbPlayerBridge {
   uint32_t cached_video_frames_dropped_;
   // SbPlayerInfo frame counters as of the last GetInfo() call, and the offsets
   // carried over from before SbPlayer reset them. See GetInfo().
-  int last_sb_total_video_frames_ = 0;
-  int last_sb_dropped_video_frames_ = 0;
+  uint32_t last_sb_total_video_frames_ = 0;
+  uint32_t last_sb_dropped_video_frames_ = 0;
   uint32_t video_frames_decoded_offset_ = 0;
   uint32_t video_frames_dropped_offset_ = 0;
   base::TimeDelta preroll_timestamp_;

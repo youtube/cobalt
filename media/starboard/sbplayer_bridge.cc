@@ -84,7 +84,9 @@ class ScopedVectorClearer {
 // SbPlayerInfo frame counters are specified as totals since the creation of
 // the player, but some platforms reset them, e.g. on seek. Treats a decrease
 // as a reset to 0 and returns a total that never decreases.
-uint32_t ToMonotonicTotal(int sb_value, int* last_sb_value, uint32_t* offset) {
+uint32_t ToMonotonicTotal(uint32_t sb_value,
+                          uint32_t* last_sb_value,
+                          uint32_t* offset) {
   if (sb_value < *last_sb_value) {
     *offset += *last_sb_value;
   }
@@ -1061,11 +1063,11 @@ SbPlayerBridge::PlayerInfo SbPlayerBridge::GetInfo() {
   sbplayer_interface_->GetInfo(player_, &sb_player_info);
 
   info.statistics.total_video_frames_decoded = ToMonotonicTotal(
-      sb_player_info.total_video_frames, &last_sb_total_video_frames_,
-      &video_frames_decoded_offset_);
+      static_cast<uint32_t>(sb_player_info.total_video_frames),
+      &last_sb_total_video_frames_, &video_frames_decoded_offset_);
   info.statistics.total_video_frames_dropped = ToMonotonicTotal(
-      sb_player_info.dropped_video_frames, &last_sb_dropped_video_frames_,
-      &video_frames_dropped_offset_);
+      static_cast<uint32_t>(sb_player_info.dropped_video_frames),
+      &last_sb_dropped_video_frames_, &video_frames_dropped_offset_);
   info.media_time = base::Microseconds(sb_player_info.current_media_timestamp);
   if (sb_player_info.duration != SB_PLAYER_NO_DURATION) {
     info.duration = base::Microseconds(sb_player_info.duration);
