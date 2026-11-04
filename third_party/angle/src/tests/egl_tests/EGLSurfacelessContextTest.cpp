@@ -231,8 +231,8 @@ TEST_P(EGLSurfacelessContextTest, Switcheroo)
     ANGLE_SKIP_TEST_IF(!checkExtension());
     ANGLE_SKIP_TEST_IF(!mSupportsPbuffers);
 
-    // Fails on NVIDIA Shield TV (http://anglebug.com/42263498)
-    ANGLE_SKIP_TEST_IF(IsAndroid() && IsNVIDIA());
+    // Used to fail on NVIDIA Shield TV (http://anglebug.com/42263498); fixed by the
+    // resetDefaultFramebufferDrawBuffersAfterSurfaceless workaround.
 
     EGLContext context = createContext();
     EGLSurface pbuffer = createPbuffer(500, 500);
@@ -268,6 +268,33 @@ TEST_P(EGLSurfacelessContextTest, Switcheroo)
         EXPECT_PIXEL_COLOR_EQ(250, 250, GLColor::green);
         ASSERT_GL_NO_ERROR();
     }
+}
+
+// Test that the default framebuffer of a surface is drawable when the context was first made
+// current without a surface. EGL_KHR_surfaceless_context initializes the default framebuffer's
+// draw/read buffers to GL_NONE in that case, which spec-conformant drivers keep after a surface
+// is attached (http://anglebug.com/42263498).
+TEST_P(EGLSurfacelessContextTest, DefaultFramebufferDrawableAfterSurfacelessFirstMakeCurrent)
+{
+    ANGLE_SKIP_TEST_IF(!checkExtension());
+    ANGLE_SKIP_TEST_IF(!mSupportsPbuffers);
+
+    EGLContext context = createContext();
+    EGLSurface pbuffer = createPbuffer(500, 500);
+
+    // The first time the context is made current, do it without a surface.
+    ASSERT_EGL_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, context));
+    ASSERT_GL_NO_ERROR();
+
+    // Then attach a surface and draw to its default framebuffer.
+    ASSERT_EGL_TRUE(eglMakeCurrent(mDisplay, pbuffer, pbuffer, context));
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(250, 250, GLColor::blue);
+    ASSERT_GL_NO_ERROR();
 }
 
 }  // anonymous namespace

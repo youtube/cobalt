@@ -272,6 +272,7 @@ enum class Feature
     RemoveInvariantAndCentroidForESSL3,
     RequireGpuFamily2,
     RescopeGlobalVariables,
+    ResetDefaultFramebufferDrawBuffersAfterSurfaceless,
     ResetSampleCoverageOnFBOChange,
     ResetTexImage2DBaseLevel,
     ResyncDepthRangeOnClipControl,

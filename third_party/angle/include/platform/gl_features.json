@@ -860,6 +860,17 @@
                 "Some Adreno drivers assume incorrect glSampleCoverage if new FBO is bound with different sample count"
             ],
             "issue": "https://crbug.com/408364831"
+        },
+        {
+            "name": "reset_default_framebuffer_draw_buffers_after_surfaceless",
+            "category": "Workarounds",
+            "description": [
+                "When a native context is first made current without a surface (EGL_KHR_surfaceless_context), ",
+                "spec-conformant drivers (e.g. NVIDIA on Android) initialize the default framebuffer's draw and ",
+                "read buffers to GL_NONE and keep them when a window surface is attached later. Explicitly reset ",
+                "them to GL_BACK when a surface is first made current on such a context."
+            ],
+            "issue": "https://anglebug.com/42263498 http://b/576231761"
         }
     ]
 }
