@@ -146,7 +146,7 @@ void H5vccSystemImpl::GetWasLowMemoryKilled(
 void H5vccSystemImpl::GetLowMemoryKillDetails(
     GetLowMemoryKillDetailsCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // Stubbed.
+  NOTIMPLEMENTED();
   std::move(callback).Run(/*supported=*/false, nullptr);
 }
 

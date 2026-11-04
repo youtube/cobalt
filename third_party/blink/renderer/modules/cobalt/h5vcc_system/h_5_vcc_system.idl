@@ -30,17 +30,19 @@ enum LowMemoryKillPressureSource {
   "cobalt",
 };
 
-// `timestampPosixUsec` is required. All other fields are optional; unavailable
-// memory or reason values are null.
+// `timestamp` is required. All other fields are optional; unavailable memory or
+// reason values are null.
 dictionary LowMemoryKillDetails {
-  long long timestampPosixUsec;
+  // Wall-clock time of the kill in milliseconds since the POSIX epoch
+  // (1970-01-01T00:00:00Z).
+  required DOMHighResTimeStamp timestamp;
   LowMemoryKillForegroundStatus foregroundStatus;
   LowMemoryKillPressureSource pressureSource;
-  long long? systemMemoryAvailable = null;
-  long long? systemMemoryTotal = null;
-  long long? cobaltMemoryUsage = null;
-  long long? cobaltMemoryLimit = null;
-  DOMString? reason = null;
+  long long? systemMemoryAvailable;
+  long long? systemMemoryTotal;
+  long long? cobaltMemoryUsage;
+  long long? cobaltMemoryLimit;
+  DOMString? reason;
 };
 
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:

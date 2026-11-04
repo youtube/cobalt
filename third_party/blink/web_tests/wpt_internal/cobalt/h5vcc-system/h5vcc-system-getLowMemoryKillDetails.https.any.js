@@ -37,7 +37,8 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
 
   const actual = await window.h5vcc.system.getLowMemoryKillDetails();
   assert_not_equals(actual, null);
-  assert_equals(actual.timestampPosixUsec, 1700000000123456);
+  assert_equals(actual.timestamp, 1700000000123.456);
+  assert_false('timestampPosixUsec' in actual);
   assert_equals(actual.foregroundStatus, 'foreground');
   assert_equals(actual.pressureSource, 'cobalt');
   assert_equals(actual.systemMemoryAvailable, 1048576);
@@ -64,7 +65,7 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
 
     const actual = await window.h5vcc.system.getLowMemoryKillDetails();
     assert_not_equals(actual, null);
-    assert_equals(actual.timestampPosixUsec, 0);
+    assert_equals(actual.timestamp, 0);
     assert_equals(actual.systemMemoryAvailable, 0);
     assert_true('systemMemoryTotal' in actual);
     assert_equals(actual.systemMemoryTotal, null);
@@ -111,6 +112,8 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
     const actual = await window.h5vcc.system.getLowMemoryKillDetails();
     assert_equals(actual.foregroundStatus, expectedFg);
     assert_equals(actual.pressureSource, expectedPs);
+    assert_true('systemMemoryAvailable' in actual);
+    assert_equals(actual.systemMemoryAvailable, null);
   }
 }, 'getLowMemoryKillDetails() maps all foregroundStatus and pressureSource enum values');
 
@@ -134,7 +137,7 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
   const r3 = await window.h5vcc.system.getLowMemoryKillDetails();
 
   assert_not_equals(r1, r2);
-  assert_equals(r2.timestampPosixUsec, 1700000000999999);
+  assert_equals(r2.timestamp, 1700000000999.999);
   assert_equals(r2.foregroundStatus, 'background');
   assert_equals(r2.pressureSource, 'system');
   assert_equals(r2.systemMemoryAvailable, 4096);

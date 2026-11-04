@@ -14,12 +14,14 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
+#include "base/time/time.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_details.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_foreground_status.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_low_memory_kill_pressure_source.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
+#include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
@@ -297,16 +299,18 @@ void H5vccSystem::OnGetLowMemoryKillDetails(
   }
 
   auto* details = LowMemoryKillDetails::Create();
-  details->setTimestampPosixUsec(result->timestamp_posix_usec);
+  details->setTimestamp(
+      static_cast<DOMHighResTimeStamp>(result->timestamp_posix_usec) /
+      base::Time::kMicrosecondsPerMillisecond);
   details->setForegroundStatus(ToV8ForegroundStatus(result->foreground_status));
   details->setPressureSource(ToV8PressureSource(result->pressure_source));
   details->setSystemMemoryAvailable(result->system_memory_available);
   details->setSystemMemoryTotal(result->system_memory_total);
   details->setCobaltMemoryUsage(result->cobalt_memory_usage);
   details->setCobaltMemoryLimit(result->cobalt_memory_limit);
-  if (!result->reason.empty()) {
-    details->setReason(result->reason);
-  }
+  // Pass a null String when empty so `reason` is populated as JS null rather
+  // than omitted (undefined).
+  details->setReason(result->reason.empty() ? String() : result->reason);
   resolver->Resolve(details);
 }
 
