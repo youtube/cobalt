@@ -924,22 +924,16 @@ PaymentRequest::securePaymentConfirmationAvailability(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
-<<<<<<< HEAD
       ->SecurePaymentConfirmationAvailability(BindOnce(
           &OnSecurePaymentConfirmationAvailabilityResponse,
           std::make_unique<ScopedPromiseResolver>(
               resolver,
               ScopedPromiseResolver::ConnectionType::kPaymentConfirmation)));
-=======
-      ->SecurePaymentConfirmationAvailability(
-          BindOnce(&OnSecurePaymentConfirmationAvailabilityResponse,
-                   std::make_unique<ScopedPromiseResolver>(resolver)));
 #else
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       V8SecurePaymentConfirmationAvailability::Enum::
           kUnavailableFeatureNotEnabled));
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   return promise;
 }
