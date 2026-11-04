@@ -1235,7 +1235,7 @@ WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
 =======
 // This method is used by experimental_wasm_memory_control and is not enabled by default.
 #if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),

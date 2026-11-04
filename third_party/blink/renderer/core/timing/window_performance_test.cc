@@ -205,7 +205,7 @@ class WindowPerformanceTest : public testing::Test,
   void SimulateJustPaintFinished() { performance_->OnPaintFinished(); }
   void SimulateJustCommitFinished(base::TimeTicks commit_time) {
     performance_->SetCommitFinishTimeStampForPendingEvents(commit_time);
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   void SimulateJustPresentationTime(uint64_t frame_index,
                                     uint64_t expected_frame_source_id = 1,

@@ -201,7 +201,7 @@ template("pkg_config") {
     } else {
       cflags += [ "-I$_path" ]
     }
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 
     if (!defined(invoker.ignore_libs) || !invoker.ignore_libs) {

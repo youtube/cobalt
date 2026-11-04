@@ -494,7 +494,7 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual void GetStarboardRendererFactoryTraits(
       media::RendererFactoryTraits* renderer_factory_traits);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

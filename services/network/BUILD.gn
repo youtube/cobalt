@@ -387,7 +387,7 @@ component("network_service") {
     "//services/network/trust_tokens",
 =======
     "//services/network/tpcd/metadata:manager",
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//third_party/liburlpattern",

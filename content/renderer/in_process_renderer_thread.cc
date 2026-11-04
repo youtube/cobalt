@@ -11,7 +11,7 @@
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/threading/platform_thread.h"
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "build/build_config.h"
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -85,7 +85,7 @@ void InProcessRendererThread::Init() {
                        std::move(main_thread_scheduler));
 }
 
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void InProcessRendererThread::CleanUp() {
   render_process_.reset();
 

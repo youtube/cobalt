@@ -14,7 +14,7 @@
 =======
 #include "build/build_config.h"
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
 #include "third_party/jni_zero/logging.h"
@@ -75,7 +75,7 @@ jclass GetClassInternal(JNIEnv* env,
                         const char* class_name,
                         const char* split_name) {
   jclass clazz;
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (g_class_resolver != nullptr) {
     return g_class_resolver(env, class_name);
   }

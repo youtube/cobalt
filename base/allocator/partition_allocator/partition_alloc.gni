@@ -599,4 +599,4 @@ use_checked_span = !(is_asan || is_ubsan || is_tsan) && use_partition_alloc &&
 =======
 use_checked_span = use_partition_alloc && false
 }
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

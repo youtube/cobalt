@@ -348,7 +348,7 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // page will appear smaller.
   virtual void SetAllowAutomaticViewBoundsUpdates(bool allowed) = 0;
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

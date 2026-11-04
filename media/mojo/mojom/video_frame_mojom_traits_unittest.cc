@@ -453,7 +453,7 @@ TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrameMismatchedSize) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 =======
 #if BUILDFLAG(IS_LINUX)  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 TEST_F(VideoFrameStructTraitsTest, DmabufsVideoFrame) {
   constexpr gfx::Size kCodedSize = gfx::Size(256, 256);
   constexpr gfx::Rect kVisibleRect(kCodedSize);

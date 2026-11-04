@@ -424,7 +424,7 @@ int32_t PageImpl::GetSavedQueryResultIndexOrStoreCallback(
 =======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   auto key = std::make_tuple(origin, script_url, operation_name, query_name);
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   auto it = select_url_saved_query_index_results_.find(key);
   if (it == select_url_saved_query_index_results_.end()) {
     select_url_saved_query_index_results_[key] = SharedStorageSavedQueryData();
@@ -461,7 +461,7 @@ void PageImpl::SetSavedQueryResultIndexAndRunCallbacks(
 =======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   auto key = std::make_tuple(origin, script_url, operation_name, query_name);
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 422bba3f599 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   auto it = select_url_saved_query_index_results_.find(key);
   CHECK(it != select_url_saved_query_index_results_.end());
   CHECK_EQ(it->second.index, -1L);
