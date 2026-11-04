@@ -362,6 +362,13 @@ android_assets("coat_assets") {
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
   remove_uncalled_jni = true
+  # TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED] Stubbing JNI for
+  # ChromeFeatureMap.java, ChromeSessionState.java, and
+  # OfflineContentAggregatorBridge.java (pulled in transitively via
+  # //components/browser_ui/widget/android:java) because //chrome/browser/flags
+  # and offline_items_collection depend on //chrome/browser targets that Cobalt
+  # cannot build. Confirm Cobalt never calls these native methods at runtime.
+  add_stubs_for_missing_jni = true
 
   # Optimize at the ThinLTO link step, as Chrome's Android library does
   # (chrome/android/chrome_common_shared_library.gni).
@@ -385,6 +392,8 @@ shared_library_with_jni("libchrobalt") {
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
+    "//components/browser_ui/modaldialog/android",
+    "//components/browser_ui/notifications/android",
     "//components/crash/android:crash_android",
     "//components/crash/android:jni_headers",
     "//components/crash/content/browser",
