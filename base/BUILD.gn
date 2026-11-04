@@ -1839,8 +1839,8 @@ component("base") {
 
   if (is_cobalt && is_partner_toolchain) {
     sources -= [
-      "logging/rust_log_integration.cc",
-      "logging/rust_log_integration.h",
+      "logging/rust_logger/print_rust_log_ffi.cc",
+      "logging/rust_logger/print_rust_log_ffi.h",
     ]
   }
 
