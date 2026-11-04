@@ -311,6 +311,7 @@ source_set("common") {
     deps += [
       "//components/services/storage",
       "//content/public/common",
+      "//services/network/public/cpp",
     ]
   }
 

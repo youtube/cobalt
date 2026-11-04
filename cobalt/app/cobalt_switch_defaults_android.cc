@@ -19,6 +19,7 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/strings/string_util.h"
+#include "build/buildflag.h"
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
@@ -27,6 +28,7 @@
 #include "content/public/common/content_switches.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
+#include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_features.h"
@@ -117,6 +119,13 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // never reported as audible, meaning deferred audio focus is
                // never executed.
                media::kDeferAudioFocusUntilAudible.name,
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+               // Disable Local Network Access checks in devel and QA builds so
+               // that test agents served from public origins (e.g. YTS, WPT)
+               // can connect back to test servers on loopback or private
+               // network addresses. Gold builds keep the Chromium default.
+               network::features::kLocalNetworkAccessChecks.name,
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
            },
            ",")},
   };

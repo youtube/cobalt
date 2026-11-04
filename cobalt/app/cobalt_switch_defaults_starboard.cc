@@ -77,7 +77,16 @@ const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
   static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
       // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan"},
+      {::switches::kDisableFeatures,
+       "Vulkan"
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+       // Disable Local Network Access checks in devel and QA builds so that
+       // test agents served from public origins (e.g. YTS, WPT) can connect
+       // back to test servers on loopback or private network addresses. Gold
+       // builds keep the Chromium default.
+       ",LocalNetworkAccessChecks"
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      },
       {::switches::kEnableFeatures,
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
        // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
