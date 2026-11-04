@@ -168,10 +168,10 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
       static_cast<AudioRendererSinkImpl*>(context);
   SB_CHECK(audio_renderer_sink);
   SB_CHECK(audio_renderer_sink->render_callback_);
-  SB_DCHECK(frames_in_buffer);
-  SB_DCHECK(offset_in_frames);
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_reached);
+  SB_CHECK(frames_in_buffer);
+  SB_CHECK(offset_in_frames);
+  SB_CHECK(is_playing);
+  SB_CHECK(is_eos_reached);
 
   audio_renderer_sink->render_callback_->GetSourceStatus(
       frames_in_buffer, offset_in_frames, is_playing, is_eos_reached);

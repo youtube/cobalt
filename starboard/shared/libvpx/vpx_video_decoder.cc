@@ -65,7 +65,7 @@ void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   if (!decoder_thread_) {
     decoder_thread_ = JobThread::Create("vpx_video_decoder");
-    SB_DCHECK(decoder_thread_);
+    SB_CHECK(decoder_thread_);
   }
 
   const auto& input_buffer = input_buffers[0];
@@ -165,7 +165,7 @@ void VpxVideoDecoder::TeardownCodec() {
 void VpxVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_CHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
   if (!context_ || stream_info.frame_size != current_frame_size_) {

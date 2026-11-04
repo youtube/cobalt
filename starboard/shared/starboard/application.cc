@@ -156,7 +156,7 @@ void Application::Stop(int error_level) {
 }
 
 void Application::Link(const char* link_data) {
-  SB_DCHECK(link_data) << "You must call Link with link_data.";
+  SB_CHECK(link_data) << "You must call Link with link_data.";
   Inject(new Event(kSbEventTypeLink, strdup(link_data), free));
 }
 

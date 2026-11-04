@@ -46,8 +46,8 @@ bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
 template <typename UInt8Type>
 bool AdvanceToNextAnnexBHeader(UInt8Type** annex_b_data,
                                size_t* annex_b_data_size) {
-  SB_DCHECK(annex_b_data);
-  SB_DCHECK(annex_b_data_size);
+  SB_CHECK(annex_b_data);
+  SB_CHECK(annex_b_data_size);
 
   if (!StartsWithAnnexBHeader(*annex_b_data, *annex_b_data_size)) {
     return false;
@@ -69,8 +69,8 @@ bool AdvanceToNextAnnexBHeader(UInt8Type** annex_b_data,
 bool ExtractAnnexBNalu(const uint8_t** annex_b_data,
                        size_t* annex_b_data_size,
                        std::vector<uint8_t>* annex_b_nalu) {
-  SB_DCHECK(annex_b_data);
-  SB_DCHECK(annex_b_data_size);
+  SB_CHECK(annex_b_data);
+  SB_CHECK(annex_b_data_size);
   SB_DCHECK(annex_b_nalu);
 
   const uint8_t* saved_data = *annex_b_data;
