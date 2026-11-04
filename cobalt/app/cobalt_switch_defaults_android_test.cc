@@ -64,7 +64,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "UseAAudioInput,"
-      "FontSrcLocalMatching,"
       "DeferAudioFocusUntilAudible",
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
 }
@@ -96,7 +95,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
   EXPECT_EQ(
       "TestFeature3,"
       "UseAAudioInput,"
-      "FontSrcLocalMatching,"
       "DeferAudioFocusUntilAudible",
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   EXPECT_EQ(
