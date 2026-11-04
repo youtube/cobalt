@@ -141,6 +141,7 @@ MediaCodecDecoder::CreateForVideo(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
+    bool is_high_bit_depth,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -153,10 +154,11 @@ MediaCodecDecoder::CreateForVideo(
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
       video_codec, frame_size_hint, max_frame_size, fps, j_output_surface,
-      drm_system, color_metadata, require_software_codec, frame_rendered_cb,
-      first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
-      enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
-      use_dual_threads, experimental_options, &error_message);
+      drm_system, color_metadata, require_software_codec, is_high_bit_depth,
+      frame_rendered_cb, first_tunnel_frame_ready_cb,
+      tunnel_mode_audio_session_id, enable_frame_renderer_listener,
+      max_video_input_size, flush_delay_usec, use_dual_threads,
+      experimental_options, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -219,6 +221,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
+    bool is_high_bit_depth,
     const FrameRenderedCB& frame_rendered_cb,
     const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
     std::optional<int> tunnel_mode_audio_session_id,
@@ -264,7 +267,7 @@ MediaCodecDecoder::MediaCodecDecoder(
       {max_video_input_size, experimental_options.skip_video_frames_over_60_fps,
        enable_frame_renderer_listener, require_secured_decoder,
        require_software_codec, tunnel_mode_audio_session_id,
-       experimental_options.enable_ndk_video});
+       experimental_options.enable_ndk_video, is_high_bit_depth});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());

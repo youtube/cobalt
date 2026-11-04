@@ -1,0 +1,137 @@
+name: Bump Version On Release
+
+# Opens a PR that bumps the minor version in cobalt/version.h on the release
+# branch after a release for that branch is published.
+#
+# Example: publishing release "27.lts.10" opens a PR against 27.lts that sets
+# COBALT_VERSION to "27.lts.11".
+#
+# Note: for `release` events GitHub runs the workflow file from the tagged
+# commit, so this file must also exist on the release branch (main is
+# autorolled into 27.lts).
+
+on:
+  release:
+    # `released` fires when a non-prerelease, non-draft release is published,
+    # which skips tags like "25.lts.40_pre_check".
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Released tag to bump from (e.g. 27.lts.10)'
+        required: true
+        type: string
+      next_version:
+        description: 'Optional explicit next version (e.g. 27.lts.20). Defaults to tag minor + 1.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  bump_version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+    steps:
+      - name: Update version.h and create PR
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          NEXT_VERSION_OVERRIDE: ${{ inputs.next_version }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${TAG}" =~ ^([0-9]+)\.([a-z]+)\.([0-9]+)$ ]]; then
+            echo "::notice::Tag '${TAG}' is not a <major>.<purpose>.<minor> release tag; skipping."
+            exit 0
+          fi
+          major="${BASH_REMATCH[1]}"
+          purpose="${BASH_REMATCH[2]}"
+          minor="${BASH_REMATCH[3]}"
+
+          if [[ -n "${NEXT_VERSION_OVERRIDE}" ]]; then
+            if [[ ! "${NEXT_VERSION_OVERRIDE}" =~ ^${major}\.${purpose}\.([0-9]+)$ ]]; then
+              echo "::error::next_version '${NEXT_VERSION_OVERRIDE}' must look like ${major}.${purpose}.<minor>."
+              exit 1
+            fi
+            next_minor="${BASH_REMATCH[1]}"
+          else
+            next_minor=$((minor + 1))
+          fi
+          next_version="${major}.${purpose}.${next_minor}"
+
+          # Release branches are named either "<major>.<purpose>" (e.g. 27.lts)
+          # or "<major>.<purpose>.1+" (e.g. 25.lts.1+).
+          branch=""
+          for candidate in "${major}.${purpose}" "${major}.${purpose}.1+"; do
+            if file_json=$(gh api "repos/${GITHUB_REPOSITORY}/contents/cobalt/version.h?ref=${candidate}" 2>/dev/null); then
+              branch="${candidate}"
+              break
+            fi
+          done
+          if [[ -z "${branch}" ]]; then
+            echo "::error::No release branch found for tag '${TAG}'."
+            exit 1
+          fi
+
+          file_sha=$(jq -r '.sha' <<< "${file_json}")
+          content=$(jq -r '.content' <<< "${file_json}" | base64 -d)
+          current_version=$(sed -nE 's/^#define COBALT_VERSION "(.*)"$/\1/p' <<< "${content}")
+          if [[ -z "${current_version}" ]]; then
+            echo "::error::Failed to parse COBALT_VERSION from cobalt/version.h on ${branch}."
+            exit 1
+          fi
+          current_minor="${current_version##*.}"
+          echo "Current version on ${branch}: ${current_version}"
+
+          # Idempotency: the branch may already have been bumped (manually or
+          # by a previous run) past the released version.
+          if [[ -z "${NEXT_VERSION_OVERRIDE}" && "${current_minor}" -gt "${minor}" ]]; then
+            echo "::notice::${branch} is already at ${current_version} (> ${TAG}); nothing to do."
+            exit 0
+          fi
+          if [[ "${current_version}" == "${next_version}" ]]; then
+            echo "::notice::${branch} is already at ${next_version}; nothing to do."
+            exit 0
+          fi
+
+          pr_branch="bump-version-${next_version}"
+          if gh pr list --repo "${GITHUB_REPOSITORY}" --head "${pr_branch}" --state open --json number --jq '.[0].number' | grep -q .; then
+            echo "::notice::A PR for ${pr_branch} is already open; nothing to do."
+            exit 0
+          fi
+
+          base_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/heads/${pr_branch}" -f sha="${base_sha}" >/dev/null 2>&1 || \
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${pr_branch}" \
+            -f sha="${base_sha}" -F force=true >/dev/null
+
+          new_content=$(sed -E "s/^#define COBALT_VERSION \".*\"$/#define COBALT_VERSION \"${next_version}\"/" <<< "${content}" | base64 -w0)
+          commit_msg=$(printf 'Update version.h for %s\n\nAutomated bump after release %s was published.\n\nBug: 538269087' "${next_version}" "${TAG}")
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/cobalt/version.h" \
+            -f message="${commit_msg}" \
+            -f content="${new_content}" \
+            -f sha="${file_sha}" \
+            -f branch="${pr_branch}" \
+            -f author[name]="cobalt-github-releaser-bot" \
+            -f author[email]="cobalt-github-releaser-bot@google.com" \
+            -f committer[name]="cobalt-github-releaser-bot" \
+            -f committer[email]="cobalt-github-releaser-bot@google.com" >/dev/null
+
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base "${branch}" \
+            --head "${pr_branch}" \
+            --title "Update version.h for ${next_version}" \
+            --reviewer andrewsavage1,oxve,briantting \
+            --body "$(printf 'Updates cobalt/version.h to %s.\n\nAutomated bump after release [%s](%s) was published.\n\nBug: 538269087' \
+              "${next_version}" "${TAG}" "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${TAG}")"
+        shell: bash
