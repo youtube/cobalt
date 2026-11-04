@@ -57,12 +57,15 @@ struct ServiceWorkerContextSynchronousObserverList;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 class ServiceWorkerHidDelegateObserver;
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID)
-=======
-class ServiceWorkerUsbDelegateObserver;
+An inspection of upstream changes reveals that `ServiceWorkerUsbDelegateObserver` was previously guarded together with `ServiceWorkerHidDelegateObserver` under `#if !BUILDFLAG(IS_ANDROID)` (which Cobalt changed to `#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)`).
+
+Upstream split out `ServiceWorkerUsbDelegateObserver` into its own `#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)` block immediately following this block.
+
+Therefore, `ServiceWorkerHidDelegateObserver` is the only class remaining inside this first `#if` block. Closing the guard with `#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)` properly adopts upstream's separation of `ServiceWorkerUsbDelegateObserver` while preserving Cobalt's exclusion of `ServiceWorkerHidDelegateObserver`.
+
+```cpp
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+```
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 class ServiceWorkerUsbDelegateObserver;
@@ -584,11 +587,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerUsbDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer);
-<<<<<<< HEAD
 #endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -707,12 +706,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer_;
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID)
-=======
-  std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
