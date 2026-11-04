@@ -399,7 +399,11 @@ error::Error GLES2DecoderPassthroughImpl::DoActiveTexture(GLenum texture) {
   }
 
   active_texture_unit_ = static_cast<size_t>(texture) - GL_TEXTURE0;
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(active_texture_unit_ < bound_textures_[0].size());
+#else
   DCHECK(active_texture_unit_ < kMaxTextureUnits);
+#endif
 
   return error::kNoError;
 }
