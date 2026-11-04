@@ -355,12 +355,15 @@ ShellContentBrowserClient::GetWebContentsViewDelegate(
   return CreateShellWebContentsViewDelegate(web_contents);
 }
 
-bool ShellContentBrowserClient::IsIsolatedContextAllowedForUrl(
+bool ShellContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
     BrowserContext* browser_context,
-    const GURL& lock_url) {
-  static base::flat_set<url::Origin> isolated_context_origins =
-      GetIsolatedContextOriginSetFromFlag();
-  return isolated_context_origins.contains(url::Origin::Create(lock_url));
+    const GURL& url) {
+  static auto kIsolatedContextOrigins = GetIsolatedContextOriginSetFromFlag();
+
+  GURL::Replacements replacements;
+  replacements.ClearPort();
+  return kIsolatedContextOrigins.contains(
+      url::Origin::Create(url.ReplaceComponents(replacements)));
 }
 
 bool ShellContentBrowserClient::IsSharedStorageAllowed(
@@ -722,6 +725,7 @@ ShellContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
 void ShellContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         BrowserContext* browser_context,
+        const std::optional<url::Origin>& request_initiator,
         NonNetworkURLLoaderFactoryMap* factories) {
   // Registers factories for kH5vccEmbeddedScheme used to load the main script
   // for Web Workers.
