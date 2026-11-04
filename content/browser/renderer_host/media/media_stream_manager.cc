@@ -4286,6 +4286,7 @@ void MediaStreamManager::OnCaptureConfigurationChanged(
   }
 }
 
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::OpenNativeScreenCapturePicker(
     DesktopMediaID::Type type,
     base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
@@ -4327,6 +4328,7 @@ void MediaStreamManager::StopAudioForPickerSessionId(
     }
   }
 }
+#endif  // !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 void MediaStreamManager::OnRegionCaptureRectChanged(
     const base::UnguessableToken& session_id,
