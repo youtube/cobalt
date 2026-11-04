@@ -36,27 +36,6 @@ InProcessRendererThread::~InProcessRendererThread() {
   Stop();
 }
 
-// TODO(cobalt-rebase): Upstream (crrev.com/c/3399727) replaced
-// InProcessRendererThread::Init() with
-// InProcessRendererThread::ThreadDelegate::BindToCurrentThread() below.
-// In the compile-fix phase, move this #if BUILDFLAG(IS_COBALT) &&
-// BUILDFLAG(IS_ANDROID) block into BindToCurrentThread() right before
-// blink::Platform::InitializeBlink(), and delete this Init() definition.
-void InProcessRendererThread::Init() {
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
-  // critical, but single-process mode never runs that code, so the renderer
-  // main thread stayed at default priority behind the compositor/GPU threads.
-  // Gated behind kCobaltAndroidDisplayCriticalInProcessRenderer for controlled
-  // Finch experimentation. On Starboard/Linux, this is turned off because
-  // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
-    base::PlatformThread::SetCurrentThreadType(
-        base::ThreadType::kPresentation);
-  }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-}
 void InProcessRendererThread::CleanUp() {
   render_process_.reset();
 
@@ -108,6 +87,19 @@ void InProcessRendererThread::ThreadDelegate::BindToCurrentThread() {
   // Android. Temporary CHECK() to debug http://crbug.com/514141
   CHECK(!outer_->render_process_);
 #endif
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
+  // critical, but single-process mode never runs that code, so the renderer
+  // main thread stayed at default priority behind the compositor/GPU threads.
+  // Gated behind kCobaltAndroidDisplayCriticalInProcessRenderer for controlled
+  // Finch experimentation. On Starboard/Linux, this is turned off because
+  // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
+    base::PlatformThread::SetCurrentThreadType(
+        base::ThreadType::kPresentation);
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   blink::Platform::InitializeBlink();
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
       blink::scheduler::WebThreadScheduler::CreateInProcessMainThreadScheduler(
