@@ -559,11 +559,10 @@ config("compiler") {
       ]
     }
 
-<<<<<<< HEAD
     # TODO(crbug.com/500431896): Figure out why constant literals breaks tests.
     cflags_objc = [ "-fno-objc-constant-literals" ]
     cflags_objcc = [ "-fno-objc-constant-literals" ]
-=======
+
     if (xcode_version_int >= 2700) {
       # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
       # requires at least LLVM 22.1.0 to work correctly.
@@ -575,7 +574,6 @@ config("compiler") {
       # on a local variable, which depends on LLVM 23.1.0.
       cflags += [ "-Wno-unknown-attributes" ]
     }
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # Linux/Android/Fuchsia common flags setup.
