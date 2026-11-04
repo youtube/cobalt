@@ -79,6 +79,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -138,14 +139,15 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 
 // Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
 // HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
-// V8 JS code cache (see GetGeneratedCodeCacheSettings).
+// V8 JS code cache (see GetGeneratedCodeCacheSettings) and Wasm code cache
+// (see GeneratedCodeCacheContext::InitializeOnThread).
 constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
 // Directory headroom for index files, persistent metrics, and metadata
 // (matching Cobalt 25's 1 << 20 reserve).
 constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
-// Total of 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+// Total of 13 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
 constexpr uint32_t kNonHttpReserveBytes =
-    kGeneratedCodeCacheBytes +
+    kGeneratedCodeCacheBytes + content::kGeneratedWasmCodeCacheBytes +
     CobaltContentBrowserClient::kCacheStorageQuotaBytes +
     kCacheDirectoryHeadroomBytes;
 constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
@@ -346,6 +348,7 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   const int path_key =
@@ -358,6 +361,7 @@ base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   }
   return base::FilePath();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache), and
@@ -365,16 +369,20 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // under storage pressure and it does not count against persistent app data,
   // unlike SHELL_DIR_USER_DATA, where Local Storage lives. This does not depend
   // on kCobaltStorageCleanup so that the kCobaltGpuShaderDiskCache treatment
-  // arm always uses the same location.
+  // arm always uses the same location. Starboard: always DIR_CACHE too.
+#if BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    return base::FilePath();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   base::FilePath cache_dir;
-  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache) &&
-      base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
       !cache_dir.empty()) {
     return cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
@@ -444,6 +452,8 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
   return base::android::GetDefaultLocaleString();
+#elif BUILDFLAG(IS_IOS_TVOS)
+  return content::ShellContentBrowserClient::GetApplicationLocale();
 #else
   return base::i18n::GetConfiguredLocale();
 #endif

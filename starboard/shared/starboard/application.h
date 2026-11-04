@@ -259,6 +259,7 @@ class SB_EXPORT_ANDROID Application {
   void InjectOsNetworkConnectedEvent();
   void InjectDateTimeConfigurationChangedEvent();
   void InjectAccessibilityTextToSpeechSettingsChangedEvent(bool enabled);
+  void InjectCaptionSettingsChangedEvent();
 
   // Inject a window size change event.
   //

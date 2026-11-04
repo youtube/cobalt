@@ -127,6 +127,11 @@
 #include "services/network/public/mojom/ct_log_info.mojom.h"
 #endif
 
+#if BUILDFLAG(IS_IOS)
+#include "components/application_locale_storage/application_locale_storage.h"  // nogncheck
+#include "ui/base/l10n/l10n_util_mac.h"
+#endif
+
 namespace content {
 
 namespace {
@@ -335,6 +340,17 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
   }
 #endif  // BUILDFLAG(IS_LINUX)
 }
+
+#if BUILDFLAG(IS_IOS)
+std::string ShellContentBrowserClient::GetApplicationLocale() {
+  if (!application_locale_storage_) {
+    application_locale_storage_ = std::make_unique<ApplicationLocaleStorage>();
+    application_locale_storage_->Set(l10n_util::GetLocaleOverride());
+  }
+
+  return application_locale_storage_->Get();
+}
+#endif
 
 device::GeolocationSystemPermissionManager*
 ShellContentBrowserClient::GetGeolocationSystemPermissionManager() {
