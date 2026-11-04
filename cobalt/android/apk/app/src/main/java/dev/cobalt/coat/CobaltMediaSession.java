@@ -29,6 +29,7 @@ import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.util.Log;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.FeatureList;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
@@ -64,7 +65,10 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
   private final MediaSessionCompat.Callback mMediaSessionCallback;
+  // Only read and written on the main looper when CobaltPlatformServicesOffUiThread is enabled.
   private LifecycleCallback mLifecycleCallback = null;
+  // Incremented by every setLifecycleCallback() call, from any thread, to order posted updates.
+  private final AtomicInteger mLifecycleCallbackGeneration = new AtomicInteger();
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
   /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
@@ -83,9 +87,29 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         && CobaltContentBrowserClient.isPlatformServicesOffUiThreadEnabled();
   }
 
+  @VisibleForTesting
+  LifecycleCallback getLifecycleCallbackForTesting() {
+    return mLifecycleCallback;
+  }
+
+  /**
+   * Sets the callback notified when the media session becomes active or inactive.
+   *
+   * <p>When CobaltPlatformServicesOffUiThread is enabled and this is called off the main looper,
+   * the update is posted to the main looper, so {@code onMediaSessionLifecycle} is delivered
+   * asynchronously on the UI thread. Main-thread calls are still applied synchronously. Each call
+   * takes a generation number; a posted update is dropped if a newer call has been made since, so a
+   * stale background update can never overwrite a newer callback (or a cleared one).
+   */
   public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
+    final int generation = mLifecycleCallbackGeneration.incrementAndGet();
     if (isPlatformServicesOffUiThreadEnabled() && Looper.myLooper() != Looper.getMainLooper()) {
-      mMainHandler.post(() -> applyLifecycleCallback(lifecycleCallback));
+      mMainHandler.post(
+          () -> {
+            if (generation == mLifecycleCallbackGeneration.get()) {
+              applyLifecycleCallback(lifecycleCallback);
+            }
+          });
       return;
     }
     applyLifecycleCallback(lifecycleCallback);
