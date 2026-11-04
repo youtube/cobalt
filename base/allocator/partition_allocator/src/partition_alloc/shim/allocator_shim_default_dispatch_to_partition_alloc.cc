@@ -1093,8 +1093,7 @@ void ConfigurePartitions(
   // If the initial PartitionRoots already match the required options, skip
   // re-creating the root allocators to avoid duplicate PartitionRoot overhead.
   bool settings_match = true;
-  for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
-       alloc_token++) {
+  for (size_t alloc_token = 0; alloc_token < kNumPartitions; alloc_token++) {
     // Calling Get() is actually important, even if the return value isn't
     // used, because it has a side effect of initializing the variable, if it
     // wasn't already.
@@ -1109,8 +1108,7 @@ void ConfigurePartitions(
     }
   }
   if (settings_match) {
-    for (size_t alloc_token = 0; alloc_token <= kMaxAllocToken.value();
-         alloc_token++) {
+    for (size_t alloc_token = 0; alloc_token < kNumPartitions; alloc_token++) {
       auto* root = PA_UNSAFE_TODO(g_roots[alloc_token]).Get();
       // EnableThreadCacheIfSupported() no longer assigns the thread cache
       // index, so give the reused root the one `new_main_allocators` would.
