@@ -330,6 +330,28 @@ bool MimeType::ValidateBoolParameter(const MimeParam& param) const {
   return type == kParamTypeBoolean;
 }
 
+std::string MimeType::ToStringWithout(const MimeParam& excluded_param) const {
+  std::string result = type_ + "/" + subtype_;
+  for (const auto& param : params_) {
+    if (excluded_param.EqualsCaseInsensitive(param.name)) {
+      continue;
+    }
+    result += "; ";
+    result += param.name;
+    result += '=';
+    // Quote string values so that Create() parses them back as strings, even
+    // if they look like other types (e.g. "1" or "true").
+    if (param.type == kParamTypeString) {
+      result += '"';
+      result += param.string_value;
+      result += '"';
+    } else {
+      result += param.string_value;
+    }
+  }
+  return result;
+}
+
 MimeType::MimeType(std::string type,
                    std::string subtype,
                    std::vector<std::string> codecs,

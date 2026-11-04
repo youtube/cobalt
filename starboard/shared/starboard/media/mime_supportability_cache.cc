@@ -14,8 +14,8 @@
 
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
-#include <cstring>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -34,115 +34,29 @@ namespace starboard {
 
 namespace {
 
-// RemoveAttributeFromMime() will return a new mime string with the specified
-// attribute removed. If |attribute_string| is not null, the removed attribute
-// string will be returned via |attribute_string|. Following are some examples:
-//   mime: "video/webm; codecs=\"vp9\"; bitrate=300000"
-//   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\""
-//   attribute_string: "bitrate=300000"
-//
-//   mime: "video/webm; codecs=\"vp9\"; bitrate=300000; eotf=bt709"
-//   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\"; eotf=bt709"
-//   attribute_string: "bitrate=300000"
-//
-//   mime: "bitrate=300000"
-//   attribute_name: "bitrate"
-//   return: ""
-//   attribute_string: "bitrate=300000"
-std::string RemoveAttributeFromMime(const char* mime,
-                                    const char* attribute_name,
-                                    std::string* attribute_string) {
-  size_t name_length = strlen(attribute_name);
-  if (name_length == 0) {
-    return mime;
+// The cache key and bitrate parsed from a mime string. See
+// ParseCacheKeyAndBitrate().
+struct CacheKeyAndBitrate {
+  std::string key;
+  int bitrate;
+};
+
+// Parses |mime| with MimeType, and returns the cache key, which is the
+// normalized mime string with the "bitrate" parameter removed, and the
+// bitrate (0 if absent). Removing the bitrate lets mime strings that only
+// differ in bitrate share a cache entry. Returns std::nullopt if |mime| is not
+// a valid mime string, or if its bitrate is not a non-negative integer.
+std::optional<CacheKeyAndBitrate> ParseCacheKeyAndBitrate(const char* mime) {
+  std::optional<MimeType> mime_type = MimeType::Create(mime);
+  if (!mime_type || !mime_type->ValidateIntParameter(kMimeParamBitrate)) {
+    return std::nullopt;
   }
-
-  std::string mime_without_attribute;
-  const char* start_pos = strstr(mime, attribute_name);
-  while (start_pos) {
-    if ((start_pos == mime || start_pos[-1] == ';' || isspace(start_pos[-1])) &&
-        (start_pos[name_length] &&
-         (start_pos[name_length] == '=' || isspace(start_pos[name_length])))) {
-      break;
-    }
-    start_pos += name_length;
-    start_pos = strstr(start_pos, attribute_name);
+  int bitrate = mime_type->GetParamIntValue(kMimeParamBitrate, 0);
+  if (bitrate < 0) {
+    return std::nullopt;
   }
-
-  if (!start_pos) {
-    // Target attribute is not found.
-    return std::string(mime);
-  }
-  const char* end_pos = strstr(start_pos, ";");
-  if (end_pos) {
-    // There may be other attribute after target attribute.
-    if (attribute_string) {
-      // Returned |attribute_string| will not have a trailing ';'.
-      attribute_string->assign(start_pos, end_pos - start_pos);
-    }
-
-    end_pos++;
-    // Remove leading spaces.
-    while (*end_pos && isspace(*end_pos)) {
-      end_pos++;
-    }
-    if (*end_pos) {
-      // Append the string after target attribute.
-      mime_without_attribute = std::string(mime, start_pos - mime);
-      mime_without_attribute.append(end_pos);
-    } else {
-      // Target attribute is the last one. Remove trailing spaces.
-      size_t mime_length = start_pos - mime;
-      while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
-        mime_length--;
-      }
-      mime_without_attribute = std::string(mime, mime_length);
-    }
-  } else {
-    // It can't find a trailing ';'. The target attribute must be the last one.
-    size_t mime_length = start_pos - mime;
-    // Remove trailing spaces.
-    while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
-      mime_length--;
-    }
-    // Remove the trailing ';'.
-    if (mime_length > 0 && mime[mime_length - 1] == ';') {
-      mime_length--;
-    }
-    mime_without_attribute = std::string(mime, mime_length);
-    if (attribute_string) {
-      *attribute_string = std::string(start_pos);
-    }
-  }
-  return mime_without_attribute;
-}
-
-// Note that if bitrate parsing failed, |bitrate| will be set to -1.
-void StripAndParseBitrate(const char* mime,
-                          std::string* mime_without_bitrate,
-                          int* bitrate) {
-  SB_DCHECK(mime_without_bitrate);
-  SB_DCHECK(bitrate);
-
-  std::string bitrate_string;
-  *mime_without_bitrate =
-      RemoveAttributeFromMime(mime, "bitrate", &bitrate_string);
-
-  if (bitrate_string.empty()) {
-    *bitrate = 0;
-    return;
-  }
-
-  MimeType::Param param;
-  if (!MimeType::ParseParamString(bitrate_string, &param) ||
-      param.type != MimeType::kParamTypeInteger) {
-    *bitrate = -1;
-    return;
-  }
-  SB_DCHECK_EQ(param.name, "bitrate");
-  *bitrate = param.int_value;
+  return CacheKeyAndBitrate{mime_type->ToStringWithout(kMimeParamBitrate),
+                            bitrate};
 }
 
 }  // namespace
@@ -155,19 +69,18 @@ MimeSupportabilityCache::MimeSupportabilityResult
 MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
   SB_DCHECK(mime);
 
-  // Strip the bitrate from mime string and check it separately.
-  std::string mime_without_bitrate;
-  int bitrate;
-  StripAndParseBitrate(mime, &mime_without_bitrate, &bitrate);
-
-  if (bitrate < 0) {
-    // The mime string contains an invalid bitrate attribute. In that case, we
+  // Look up the cache without the bitrate, and check the bitrate separately.
+  std::optional<CacheKeyAndBitrate> key_and_bitrate =
+      ParseCacheKeyAndBitrate(mime);
+  if (!key_and_bitrate) {
+    // The mime string or its bitrate attribute is invalid. In that case, we
     // return an empty mime_info with kSupportabilityNotSupported.
     return {kSupportabilityNotSupported, std::nullopt};
   }
+  const int bitrate = key_and_bitrate->bitrate;
 
   std::lock_guard scoped_lock(mutex_);
-  Entry* entry = GetEntry_Locked(mime_without_bitrate);
+  Entry* entry = GetEntry_Locked(key_and_bitrate->key);
 
   if (!entry) {
     // Failed to parse mime string.
@@ -194,21 +107,20 @@ void MimeSupportabilityCache::CacheMimeSupportability(
     return;
   }
 
-  // Strip bitrate as what we do in GetMimeSupportability().
-  std::string mime_without_bitrate;
-  int bitrate;
-  StripAndParseBitrate(mime, &mime_without_bitrate, &bitrate);
-
-  if (bitrate < 0) {
-    // The mime string contains an invalid bitrate attribute.
+  // Use the same cache key as GetMimeSupportability().
+  std::optional<CacheKeyAndBitrate> key_and_bitrate =
+      ParseCacheKeyAndBitrate(mime);
+  if (!key_and_bitrate) {
+    // The mime string or its bitrate attribute is invalid.
     return;
   }
 
   std::lock_guard scoped_lock(mutex_);
-  Entry* entry = GetEntry_Locked(mime_without_bitrate);
+  Entry* entry = GetEntry_Locked(key_and_bitrate->key);
 
   if (entry) {
-    UpdateBitrateSupportability_Locked(entry, bitrate, supportability);
+    UpdateBitrateSupportability_Locked(entry, key_and_bitrate->bitrate,
+                                       supportability);
   }
 }
 
