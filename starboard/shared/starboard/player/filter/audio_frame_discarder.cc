@@ -22,7 +22,7 @@ namespace starboard {
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
   std::lock_guard lock(mutex_);
   for (auto&& input_buffer : input_buffers) {
-    SB_DCHECK(input_buffer);
+    SB_CHECK(input_buffer);
     SB_DCHECK_EQ(input_buffer->sample_type(), kSbMediaTypeAudio);
 
     input_buffer_infos_.push({

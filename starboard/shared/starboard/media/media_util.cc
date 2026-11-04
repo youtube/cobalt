@@ -30,7 +30,7 @@ namespace starboard {
 namespace {
 
 void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   if (source.audio_specific_config_size > 0) {
     SB_DCHECK(source.audio_specific_config);
@@ -44,7 +44,7 @@ void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
     return;
   }
 
-  SB_DCHECK(source.mime);
+  SB_CHECK(source.mime);
 
   dest->mime = source.mime;
   dest->number_of_channels = source.number_of_channels;
@@ -57,7 +57,7 @@ void Assign(const SbMediaAudioStreamInfo& source, AudioStreamInfo* dest) {
 }
 
 void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   dest->codec = source.codec;
 
@@ -67,8 +67,8 @@ void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
     return;
   }
 
-  SB_DCHECK(source.mime);
-  SB_DCHECK(source.max_video_capabilities);
+  SB_CHECK(source.mime);
+  SB_CHECK(source.max_video_capabilities);
 
   dest->mime = source.mime;
   dest->max_video_capabilities = source.max_video_capabilities;
@@ -77,7 +77,7 @@ void Assign(const SbMediaVideoStreamInfo& source, VideoStreamInfo* dest) {
 }
 
 void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   *dest = {};
 
@@ -94,7 +94,7 @@ void Assign(const AudioStreamInfo& source, SbMediaAudioStreamInfo* dest) {
 }
 
 void Assign(const VideoStreamInfo& source, SbMediaVideoStreamInfo* dest) {
-  SB_DCHECK(dest);
+  SB_CHECK(dest);
 
   *dest = {};
 
@@ -156,7 +156,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 
 void AudioSampleInfo::ConvertTo(
     SbMediaAudioSampleInfo* audio_sample_info) const {
-  SB_DCHECK(audio_sample_info);
+  SB_CHECK(audio_sample_info);
 
   *audio_sample_info = {};
   stream_info.ConvertTo(&audio_sample_info->stream_info);
@@ -202,7 +202,7 @@ VideoSampleInfo& VideoSampleInfo::operator=(
 
 void VideoSampleInfo::ConvertTo(
     SbMediaVideoSampleInfo* video_sample_info) const {
-  SB_DCHECK(video_sample_info);
+  SB_CHECK(video_sample_info);
 
   *video_sample_info = {};
   stream_info.ConvertTo(&video_sample_info->stream_info);
