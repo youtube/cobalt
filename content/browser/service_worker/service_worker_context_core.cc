@@ -1495,7 +1495,8 @@ void ServiceWorkerContextCore::SetServiceWorkerHidDelegateObserverForTesting(
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
 ServiceWorkerUsbDelegateObserver*
 ServiceWorkerContextCore::usb_delegate_observer() {
   if (!usb_delegate_observer_) {

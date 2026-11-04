@@ -57,19 +57,13 @@ struct ServiceWorkerContextSynchronousObserverList;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 class ServiceWorkerHidDelegateObserver;
-An inspection of upstream changes reveals that `ServiceWorkerUsbDelegateObserver` was previously guarded together with `ServiceWorkerHidDelegateObserver` under `#if !BUILDFLAG(IS_ANDROID)` (which Cobalt changed to `#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)`).
-
-Upstream split out `ServiceWorkerUsbDelegateObserver` into its own `#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)` block immediately following this block.
-
-Therefore, `ServiceWorkerHidDelegateObserver` is the only class remaining inside this first `#if` block. Closing the guard with `#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)` properly adopts upstream's separation of `ServiceWorkerUsbDelegateObserver` while preserving Cobalt's exclusion of `ServiceWorkerHidDelegateObserver`.
-
-```cpp
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
-```
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
 class ServiceWorkerUsbDelegateObserver;
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
 // A smart pointer of `ServiceWorkerClient`.
 //
@@ -577,9 +571,10 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerHidDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
   // In the service worker case, WebUSB is only available in extension service
   // workers. Limit ServiceWorkerUsbDelegateObserver to platforms that support
   // extensions.
@@ -587,7 +582,8 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerUsbDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer);
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -708,9 +704,11 @@ class CONTENT_EXPORT ServiceWorkerContextCore
   std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer_;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
   base::ObserverList<TestVersionObserver> test_version_observers_;
 
