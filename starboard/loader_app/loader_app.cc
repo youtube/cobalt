@@ -26,10 +26,8 @@
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
 #include "starboard/common/paths.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
@@ -203,22 +201,6 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   if (!CheckSabi(get_evergreen_sabi_string_func)) {
     SB_LOG(ERROR) << "CheckSabi failed";
     return;
-  }
-
-  auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
-      GetElfLoader().LookupSymbol("GetCobaltUserAgentString"));
-  if (!get_user_agent_func) {
-    SB_LOG(ERROR) << "Failed to get user agent string";
-  } else {
-    std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
-    starboard::strlcpy(buffer.data(), get_user_agent_func(),
-                       USER_AGENT_STRING_MAX_SIZE);
-    if (crashpad::InsertCrashpadAnnotation(
-            crashpad::kCrashpadUserAgentStringKey, buffer.data())) {
-      SB_DLOG(INFO) << "Added user agent string to Crashpad.";
-    } else {
-      SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
-    }
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(

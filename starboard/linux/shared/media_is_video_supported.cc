@@ -40,7 +40,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
-  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
+  if (!Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {
       return false;
     }

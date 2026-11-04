@@ -153,7 +153,7 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
     int preferred_buffer_size_in_bytes,
     std::optional<int> tunnel_mode_audio_session_id,
     jboolean is_web_audio) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_AudioOutputManager_createAudioTrackBridge(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count,
       max_samples_per_write, preferred_buffer_size_in_bytes,
@@ -164,7 +164,7 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
 void AudioOutputManager::DestroyAudioTrackBridge(
     JNIEnv* env,
     ScopedJavaLocalRef<jobject>& obj) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_AudioOutputManager_destroyAudioTrackBridge(
       env, j_audio_output_manager_, obj);
 }
@@ -172,7 +172,7 @@ void AudioOutputManager::DestroyAudioTrackBridge(
 bool AudioOutputManager::GetOutputDeviceInfo(JNIEnv* env,
                                              jint index,
                                              ScopedJavaLocalRef<jobject>& obj) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   jboolean output_device_info_java =
       Java_AudioOutputManager_getOutputDeviceInfo(env, j_audio_output_manager_,
                                                   index, obj);
@@ -184,7 +184,7 @@ int AudioOutputManager::GetMinBufferSize(JNIEnv* env,
                                          jint sample_type,
                                          jint sample_rate,
                                          jint channel_count) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_AudioOutputManager_getMinBufferSize(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count);
 }
@@ -204,7 +204,7 @@ int AudioOutputManager::GetMinBufferSizeInFrames(
 std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
     JNIEnv* env,
     int numberOfChannels) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   int session_id = Java_AudioOutputManager_generateTunnelModeAudioSessionId(
       env, j_audio_output_manager_, numberOfChannels);
   if (session_id == TUNNEL_MODE_AUDIO_SESSION_ID_NONE) {
@@ -214,7 +214,7 @@ std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
 }
 
 bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_AudioOutputManager_hasPassthroughSupportFor(
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
 }
@@ -224,7 +224,7 @@ bool AudioOutputManager::GetDirectPlaybackSupport(JNIEnv* env,
                                                   int sample_rate,
                                                   int channel_count,
                                                   bool require_hw_av_sync) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_AudioOutputManager_getDirectPlaybackSupport(
              env, j_audio_output_manager_, encoding, sample_rate, channel_count,
              require_hw_av_sync) == JNI_TRUE;
@@ -263,7 +263,7 @@ bool AudioOutputManager::GetAudioConfiguration(
 
 AudioOutputManager::AudioOutputManager() {
   JNIEnv* env = jni_zero::AttachCurrentThread();
-  SB_DCHECK(env);
+  SB_CHECK(env);
   j_audio_output_manager_ =
       StarboardBridge::GetInstance()->GetAudioOutputManager(env);
 }
