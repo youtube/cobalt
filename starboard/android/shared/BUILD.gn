@@ -166,7 +166,6 @@ static_library("starboard_platform") {
     "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
-    "egl_swap_buffers.cc",
     "exoplayer/exoplayer_bridge.cc",
     "exoplayer/exoplayer_bridge.h",
     "exoplayer/exoplayer_player_worker_handler.cc",
