@@ -37,11 +37,6 @@ inline constexpr char kAreaBasedVideoBufferBudget[] =
 // See b/424591313.
 inline constexpr char kAvoidCcReuseResource[] = "AvoidCCReuseResource";
 
-// Bypasses Blink HTMLPreloadScanner and HTMLResourcePreloader.
-// See b/545695147.
-inline constexpr char kCobaltBypassHtmlPreloadScanner[] =
-    "CobaltBypassHTMLPreloadScanner";
-
 // Tunes dynamic Mojo data pipe size in bytes for media requests.
 // See b/520888239.
 inline constexpr char kCobaltDynamicMojoPipeMediaSize[] =

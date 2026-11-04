@@ -452,6 +452,11 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  // GetMediaTime() reports |seek_time_| until the SbPlayer presents. This is
+  // set before the delayed retry below, as the pipeline already queries media
+  // time once StartPlayingFrom() has been called.
+  seek_time_ = time;
+
   if (audio_read_in_progress_ || video_read_in_progress_) {
     constexpr TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
@@ -468,8 +473,6 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   // Ignore pending delayed calls to OnNeedData, and update variables used to
   // decide when to delay.
   audio_read_delayed_ = false;
-
-  seek_time_ = time;
 
   if (state_ != STATE_FLUSHED) {
     DCHECK_EQ(state_, STATE_ERROR);
@@ -596,6 +599,20 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     }
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  // |buffering_state_| is BUFFERING_HAVE_NOTHING from Flush() until the
+  // SbPlayer reports kSbPlayerStatePresenting, i.e. while a seek is pending.
+  // SbPlayerGetInfo() may keep reporting the pre-seek position until the
+  // SbPlayer completes the seek asynchronously. PipelineImpl clamps media time
+  // so that it never goes backwards, so leaking a stale pre-seek position here
+  // would freeze currentTime after a backwards seek until playback catches up.
+  // Report the seek time until the SbPlayer presents.
+  // Note that this has to be revisited if StarboardRenderer ever reports
+  // underflow via BUFFERING_HAVE_NOTHING during playback, as media time would
+  // then jump back to the last seek time.
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+    media_time = seek_time_;
+  }
 
   StoreMediaTime(media_time);
 
