@@ -263,8 +263,6 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
 
   append_switch_if_set(flags::kAvoidCcReuseResource,
                        ::switches::kAvoidCCReuseResource);
-  enable_feature_if_set(flags::kCobaltBypassHtmlPreloadScanner,
-                        blink::features::kCobaltBypassHTMLPreloadScanner.name);
   enable_feature_if_set(flags::kEnableCobaltMmapFontCache,
                         kCobaltMmapFontCacheFeature);
   enable_feature_if_set(flags::kAreaBasedVideoBufferBudget,
