@@ -153,11 +153,16 @@ class AudioRendererPcm : public AudioRenderer,
                      const int decoded_sample_rate);
   bool IsEndOfStreamPlayed_Locked() const;
 
+  struct AppendAudioResult {
+    bool audio_appended = false;
+    bool is_frame_buffer_full = false;
+  };
+
   void OnDecoderConsumed();
   void OnDecoderOutput();
   void ProcessAudioData();
   void FillResamplerAndTimeStretcher();
-  bool AppendAudioToFrameBuffer(bool* is_frame_buffer_full);
+  AppendAudioResult AppendAudioToFrameBuffer();
 
   EOSState eos_state_ = kEOSNotReceived;
   const int channels_;

@@ -90,32 +90,30 @@ int64_t AudioFrameTracker::GetTotalOriginalFrames() const {
   return ret;
 }
 
-int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
-    int number_of_frames,
-    double* playback_rate) const {
-  SB_DCHECK(playback_rate);
+AudioFrameTracker::AdjustedFrameInfo
+AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
+    int number_of_frames) const {
+  AdjustedFrameInfo info;
+  info.playback_rate = last_playback_rate_;
+  info.adjusted_frames = current_original_frame_head_position_;
 
-  if (frame_records_.empty()) {
-    *playback_rate = last_playback_rate_;
-  }
-
-  int64_t frames_played = current_original_frame_head_position_;
-  for (auto& record : frame_records_) {
-    *playback_rate = record.playback_rate;
+  for (const auto& record : frame_records_) {
+    info.playback_rate = record.playback_rate;
 
     int64_t unplayed_frames =
         record.number_of_frames - record.number_of_played_frames;
     if (unplayed_frames >= number_of_frames) {
-      frames_played += (number_of_frames + record.number_of_played_frames) *
-                       record.playback_rate;
+      info.adjusted_frames +=
+          (number_of_frames + record.number_of_played_frames) *
+          record.playback_rate;
       number_of_frames = 0;
       break;
     } else {
-      frames_played += record.number_of_frames * record.playback_rate;
+      info.adjusted_frames += record.number_of_frames * record.playback_rate;
       number_of_frames -= unplayed_frames;
     }
   }
-  return frames_played;
+  return info;
 }
 
 int64_t AudioFrameTracker::ConvertOriginalFramePositionToAdjustedFrames(

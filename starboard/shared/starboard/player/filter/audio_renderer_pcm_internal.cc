@@ -340,9 +340,11 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     samples_per_second = *decoder_sample_rate_;
     int64_t elapsed_frames =
         elasped_since_last_set * samples_per_second / 1'000'000LL;
-    frames_played =
+    AudioFrameTracker::AdjustedFrameInfo adjusted_frame_info =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
-            elapsed_frames, playback_rate);
+            elapsed_frames);
+    frames_played = adjusted_frame_info.adjusted_frames;
+    *playback_rate = adjusted_frame_info.playback_rate;
     if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
       frames_played += audio_frame_tracker_.GetOverflowedFrames();
     }
@@ -650,12 +652,12 @@ void AudioRendererPcm::ProcessAudioData() {
 
   process_audio_data_job_token_ = JobQueue::JobToken::kUnscheduled;
 
-  // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
-  // false.
-  bool is_frame_buffer_full = false;
+  // Loop until no audio is appended.
+  AppendAudioResult append_result;
   if (audio_renderer_sink_->HasStarted()) {
-    while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
-    }
+    do {
+      append_result = AppendAudioToFrameBuffer();
+    } while (append_result.audio_appended);
   }
 
   while (pending_decoder_outputs_ > 0) {
@@ -717,10 +719,10 @@ void AudioRendererPcm::ProcessAudioData() {
       time_stretcher_.EnqueueBuffer(std::move(*resampled_audio));
     }
 
-    // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
-    // false.
-    while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
-    }
+    // Loop until no audio is appended.
+    do {
+      append_result = AppendAudioToFrameBuffer();
+    } while (append_result.audio_appended);
   }
 
   if (seeking_ || playback_rate_ == 0.0) {
@@ -728,7 +730,7 @@ void AudioRendererPcm::ProcessAudioData() {
     return;
   }
 
-  if (is_frame_buffer_full) {
+  if (append_result.is_frame_buffer_full) {
     // There are still audio data not appended so schedule a callback later.
     int64_t delay = 0;
     int64_t frames_in_buffer =
@@ -742,11 +744,9 @@ void AudioRendererPcm::ProcessAudioData() {
   }
 }
 
-bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
+AudioRendererPcm::AppendAudioResult
+AudioRendererPcm::AppendAudioToFrameBuffer() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(is_frame_buffer_full);
-
-  *is_frame_buffer_full = false;
 
   if (time_stretcher_.IsQueueFull()) {
     std::lock_guard lock(mutex_);
@@ -757,15 +757,16 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   }
 
   if (seeking_ || playback_rate_ == 0.0) {
-    return false;
+    return {};
   }
 
   int frames_in_buffer = static_cast<int>(total_frames_sent_to_sink_ -
                                           total_frames_consumed_by_sink_);
 
   if (max_cached_frames_ - frames_in_buffer < min_frames_per_append_) {
-    *is_frame_buffer_full = true;
-    return false;
+    AppendAudioResult result;
+    result.is_frame_buffer_full = true;
+    return result;
   }
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
@@ -810,7 +811,9 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   total_frames_sent_to_sink_ += frames_appended;
 
-  return frames_appended > 0;
+  AppendAudioResult result;
+  result.audio_appended = frames_appended > 0;
+  return result;
 }
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
