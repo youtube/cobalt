@@ -1342,14 +1342,10 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       ,
       fenced_frame_viewport_observer_(
-<<<<<<< HEAD
-          std::make_unique<FencedFrameViewportObserver>(this)),
-      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
-=======
           std::make_unique<FencedFrameViewportObserver>(this))
 #endif
-{
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      ,
+      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
