@@ -2206,6 +2206,7 @@ void WebContentsImpl::DidCapturedSurfaceControl() {
 
 void WebContentsImpl::OnFedCmFederatedLogin(
     webid::FederatedLoginResult result) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   observers_.NotifyObservers(&WebContentsObserver::OnFedCmFederatedLogin,
                              result == webid::FederatedLoginResult::kSuccess);
 
@@ -2220,6 +2221,7 @@ void WebContentsImpl::OnFedCmFederatedLogin(
   if (embedder_login_request) {
     embedder_login_request->OnFederatedResultReceived(result);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void WebContentsImpl::ResetAccessibility() {
