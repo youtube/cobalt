@@ -68,7 +68,7 @@ class ShellPlatformDelegate::WebContentsTracker final
   ~WebContentsTracker() override = default;
 
   void WebContentsDestroyed() override {
-    delegate_->RemovePreviouslyVisibleWebContents(web_contents());
+    delegate_->RemoveWebContentsToReveal(web_contents());
   }
 
  private:
@@ -80,16 +80,16 @@ void ShellPlatformDelegate::WebContentsTrackerDeleter::operator()(
   delete ptr;
 }
 
-void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
+void ShellPlatformDelegate::TrackWebContentsToReveal(
     content::WebContents* web_contents) {
-  previously_visible_web_contents_[web_contents] =
+  web_contents_to_reveal_[web_contents] =
       std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>(
           new WebContentsTracker(web_contents, this));
 }
 
-void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
+void ShellPlatformDelegate::RemoveWebContentsToReveal(
     content::WebContents* web_contents) {
-  previously_visible_web_contents_.erase(web_contents);
+  web_contents_to_reveal_.erase(web_contents);
   pending_reveal_web_contents_.erase(web_contents);
 
   if (is_visible_ && IsWaitingForRevealAck() &&
@@ -103,9 +103,9 @@ void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
   }
 }
 
-void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
+void ShellPlatformDelegate::AddWebContentsToRevealForTesting(
     content::WebContents* web_contents) {
-  TrackPreviouslyVisibleWebContents(web_contents);
+  TrackWebContentsToReveal(web_contents);
 }
 
 bool ShellPlatformDelegate::IsVisible() const {
@@ -146,15 +146,28 @@ void ShellPlatformDelegate::OnConceal() {
   }
   weak_factory_.InvalidateWeakPtrs();
 
-  // Save the set of WebContents that were visible before conceal.
-  // This is used on reveal to decide which WebContents we should wait for
-  // Reveal ACK from. We only wait for those that were actually active/visible.
-  previously_visible_web_contents_.clear();
+  // A reveal that couldn't create a platform window never gets its Reveal ACK.
+  // Stop waiting for it.
+  pending_reveal_web_contents_.clear();
+  if (IsWaitingForRevealAck()) {
+    ClearWaitingForRevealAck();
+    deferred_focus_ = false;
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  }
+
+  // Rebuild both from the current Shells.
+  web_contents_to_reveal_.clear();
   pending_conceal_web_contents_.clear();
   for (auto* shell : Shell::windows()) {
+    // Show every WebContents again on the next reveal, which waits for a
+    // Reveal ACK from each. Include hidden ones, such as the main
+    // WebContents while the splash screen is up.
+    TrackWebContentsToReveal(shell->web_contents());
+    // Wait for a Conceal ACK only from visible ones. A hidden one doesn't
+    // change state, so it never sends one.
     if (shell->web_contents()->GetVisibility() ==
         content::Visibility::VISIBLE) {
-      TrackPreviouslyVisibleWebContents(shell->web_contents());
       pending_conceal_web_contents_.insert(shell->web_contents());
     }
     // Trigger logical JS conceal.
@@ -202,7 +215,7 @@ void ShellPlatformDelegate::OnReveal() {
   pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
-    if (previously_visible_web_contents_.count(shell->web_contents())) {
+    if (web_contents_to_reveal_.count(shell->web_contents())) {
       pending_reveal_web_contents_.insert(shell->web_contents());
       if (!started_waiting) {
         waiting_for_reveal_ack_ = true;
@@ -337,7 +350,7 @@ void ShellPlatformDelegate::OnProactiveMapWindow(
     content::WebContents* web_contents) {
   Shell* shell = Shell::FromWebContents(web_contents);
   if (shell) {
-    SetContents(shell);
+    SetContentsOnReveal(shell);
     MapWindowShell(shell);
   }
 }
@@ -410,11 +423,15 @@ void ShellPlatformDelegate::CompleteConcealAfterMediaBarrier(
 }
 
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)
+bool ShellPlatformDelegate::HasPlatformWindow() const {
+  return true;
+}
+
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
   if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
+    TrackWebContentsToReveal(web_contents);
   }
 }
 #endif

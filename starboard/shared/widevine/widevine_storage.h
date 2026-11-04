@@ -17,6 +17,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,7 +48,7 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
   bool list(std::vector<std::string>* records) override;
 
  private:
-  bool readInternal(const std::string& name, std::string* data) const;
+  std::optional<std::string> readInternal(const std::string& name) const;
   bool writeInternal(const std::string& name, const std::string& data);
   bool existsInternal(const std::string& name) const;
   bool removeInternal(const std::string& name);

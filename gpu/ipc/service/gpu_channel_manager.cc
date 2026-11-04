@@ -448,6 +448,15 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
                                : kDefaultMaxProgramCacheMemoryBytes;
     }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+    // Same for --gpu-shader-disk-cache-gr-only: --gpu-disk-cache-size-kb also
+    // sets gpu_program_cache_size but is meant for the GrShaderCache.
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kGpuShaderDiskCacheGrOnly)) {
+      disable_disk_cache = true;
+      program_cache_size = kDefaultMaxProgramCacheMemoryBytes;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
 
     // Use the EGL blob cache extension for the passthrough decoder.
     if (use_passthrough_cmd_decoder()) {

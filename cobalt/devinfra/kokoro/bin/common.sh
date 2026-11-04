@@ -32,6 +32,28 @@ get_kokoro_env () {
 }
 
 
+branch_from_ref () {
+  # Maps a nightly tag back to its branch, e.g. 27.nightly.latest => 27.lts
+  # and main.nightly.latest => main. Other refs are returned unchanged.
+  local ref="${1#refs/tags/}"
+  if [[ "${ref}" =~ ^([0-9]+)\.nightly\. ]]; then
+    echo "${BASH_REMATCH[1]}.lts"
+  elif [[ "${ref}" =~ ^main\.nightly\. ]]; then
+    echo "main"
+  else
+    echo "$1"
+  fi
+}
+
+
+configure_cobalt_branch () {
+  # The branch being built. Nightly builds check out a nightly tag, so
+  # KOKORO_GOB_BRANCH_src may be a tag rather than a branch.
+  COBALT_BRANCH="$(branch_from_ref "${KOKORO_GOB_BRANCH_src:-}")"
+  export COBALT_BRANCH
+}
+
+
 configure_environment () {
   # Tell git the repo is safe.
   git config --global --add safe.directory "${WORKSPACE_COBALT}"
@@ -42,17 +64,7 @@ configure_environment () {
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-  # In some instances KOKORO_GOB_BRANCH_src is not set, set by default to 'COBALT'.
-  if [ -z "${KOKORO_GOB_BRANCH_src+set}" ]; then
-    echo 'WARNING: $KOKORO_GOB_BRANCH_src is unset. Defaulting to "COBALT"'
-    export KOKORO_GOB_BRANCH_src="COBALT"
-  fi
-
-  # In some instances kokoro uses KOKORO_GOB_BRANCH instead.
-  if [ -z "${KOKORO_GOB_BRANCH+set}" ]; then
-    echo 'WARNING: $KOKORO_GOB_BRANCH is unset. Defaulting to "COBALT"'
-    export KOKORO_GOB_BRANCH="COBALT"
-  fi
+  configure_cobalt_branch
 
   env | sort
 }
@@ -73,6 +85,7 @@ configure_gob_auth () {
 }
 
 configure_dind_environment () {
+  configure_cobalt_branch
   export REGISTRY_PATH="$(get_registry_bucket_path)"
 
   # Authenticate with GCR or GAR.
@@ -236,7 +249,7 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-    local gcs_archive_path="gs://${bucket}/${PLATFORM}${GCS_PLATFORM_SUFFIX:-}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    local gcs_archive_path="gs://${bucket}/${PLATFORM}${GCS_PLATFORM_SUFFIX:-}_${COBALT_BRANCH}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
     # Ensure that only package directory contents are uploaded and not the
     # directory itself.

@@ -307,15 +307,7 @@ class PLATFORM_EXPORT ResourceFetcher
 
   void RemovePreload(Resource*);
 
-#if BUILDFLAG(IS_COBALT)
-  void LoosenLoadThrottlingPolicy() {
-    if (scheduler_) {
-      scheduler_->LoosenThrottlingPolicy();
-    }
-  }
-#else
   void LoosenLoadThrottlingPolicy() { scheduler_->LoosenThrottlingPolicy(); }
-#endif  // BUILDFLAG(IS_COBALT)
 
   // Workaround for https://crbug.com/666214.
   // TODO(hiroshige): Remove this hack.
@@ -358,13 +350,7 @@ class PLATFORM_EXPORT ResourceFetcher
 
   void SetThrottleOptionOverride(
       ResourceLoadScheduler::ThrottleOptionOverride throttle_option_override) {
-#if BUILDFLAG(IS_COBALT)
-    if (scheduler_) {
-      scheduler_->SetThrottleOptionOverride(throttle_option_override);
-    }
-#else
     scheduler_->SetThrottleOptionOverride(throttle_option_override);
-#endif  // BUILDFLAG(IS_COBALT)
   }
 
   SubresourceWebBundleList* GetOrCreateSubresourceWebBundleList();
