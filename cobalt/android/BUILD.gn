@@ -388,6 +388,7 @@ shared_library_with_jni("libchrobalt") {
     "//components/crash/android:crash_android",
     "//components/crash/android:jni_headers",
     "//components/crash/content/browser",
+    "//components/embedder_support/android:util",
     "//components/embedder_support/android:web_contents_delegate",
     "//components/memory_system",
     "//components/minidump_uploader",
