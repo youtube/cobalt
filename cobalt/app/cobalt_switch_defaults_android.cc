@@ -106,8 +106,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // OpenSL ES supports seamless switching to virtual microphones
                // like AtvRemote. For details, see http://b/478022126#comment6.
                features::kUseAAudioInput.name,
-               // Disable FontSrcLocalMatching lookup table.
-               features::kFontSrcLocalMatching.name,
                // Disable deferring audio focus until audible for
                // Starboard/Cobalt:
                // 1. Cobalt runs on living-room/TV devices where playback is
