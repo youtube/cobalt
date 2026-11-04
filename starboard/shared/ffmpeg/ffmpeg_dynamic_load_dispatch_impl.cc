@@ -272,7 +272,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
 
   // Load symbols from the avutil shared library.
   INITSYMBOL(avutil_, avutil_version);
-  SB_DCHECK(ffmpeg_->avutil_version);
+  SB_CHECK(ffmpeg_->avutil_version);
   SB_LOG(INFO) << "Opened libavutil: version="
                << VersionString(ffmpeg_->avutil_version());
   INITSYMBOL(avutil_, av_malloc);
@@ -286,7 +286,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
 
   // Load symbols from the avcodec shared library.
   INITSYMBOL(avcodec_, avcodec_version);
-  SB_DCHECK(ffmpeg_->avcodec_version);
+  SB_CHECK(ffmpeg_->avcodec_version);
   SB_LOG(INFO) << "Opened libavcodec: version="
                << VersionString(ffmpeg_->avcodec_version());
 
@@ -321,7 +321,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
-  SB_DCHECK(ffmpeg_->avformat_version);
+  SB_CHECK(ffmpeg_->avformat_version);
   SB_LOG(INFO) << "Opened libavformat: version="
                << VersionString(ffmpeg_->avformat_version());
   if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {

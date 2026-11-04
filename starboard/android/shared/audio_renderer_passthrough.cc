@@ -353,10 +353,10 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
                                                       bool* is_eos_played,
                                                       bool* is_underflow,
                                                       double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
+  SB_CHECK(is_playing);
+  SB_CHECK(is_eos_played);
+  SB_CHECK(is_underflow);
+  SB_CHECK(playback_rate);
 
   std::lock_guard scoped_lock(mutex_);
   *is_playing = !paused_;
@@ -513,7 +513,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
   SB_DCHECK(error_cb_);
-  SB_DCHECK(audio_track_);
+  SB_CHECK(audio_track_);
 
   // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
   // across different sinks (e.g. Bluetooth or built-in speakers), so any device

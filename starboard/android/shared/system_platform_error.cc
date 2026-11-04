@@ -73,7 +73,7 @@ void JNI_PlatformError_SendResponse(JNIEnv* env,
   SendResponseCallback* send_response_callback =
       reinterpret_cast<SendResponseCallback*>(jni_data);
   if (send_response_callback) {
-    SB_DCHECK(*send_response_callback)
+    SB_CHECK(*send_response_callback)
         << "send_response_callback should never be an empty function";
     SbSystemPlatformErrorResponse error_response =
         jni_response < 0   ? kSbSystemPlatformErrorResponseNegative

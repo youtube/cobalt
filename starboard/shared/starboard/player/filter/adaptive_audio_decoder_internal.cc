@@ -94,7 +94,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(!flushing_);
   SB_DCHECK(pending_input_buffers_.empty());
   SB_DCHECK(!pending_consumed_cb_);
-  SB_DCHECK(!input_buffers.empty());
+  SB_CHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeAudio);
   SB_DCHECK_NE(input_buffers.front()->audio_stream_info().codec,
                kSbMediaAudioCodecNone);

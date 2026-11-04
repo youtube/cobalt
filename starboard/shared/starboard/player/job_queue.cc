@@ -213,7 +213,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     time_to_job_record_map_.erase(first_delayed_job);
   }
 
-  SB_DCHECK(job_record.job);
+  SB_CHECK(job_record.job);
 
 #if ENABLE_JOB_QUEUE_PROFILING
   int64_t start = CurrentMonotonicTime();

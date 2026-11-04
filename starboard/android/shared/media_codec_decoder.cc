@@ -931,8 +931,8 @@ void MediaCodecDecoder::CollectPendingData_Locked(
 void MediaCodecDecoder::CollectPendingInputData_Locked(
     std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
-  SB_DCHECK(pending_inputs);
-  SB_DCHECK(input_buffer_indices);
+  SB_CHECK(pending_inputs);
+  SB_CHECK(input_buffer_indices);
 
   if (enable_trivial_optimizations_) {
     pending_inputs->insert(pending_inputs->end(),
@@ -952,7 +952,7 @@ void MediaCodecDecoder::CollectPendingInputData_Locked(
 
 void MediaCodecDecoder::CollectPendingOutputData_Locked(
     std::vector<DequeueOutputResult>* dequeue_output_results) {
-  SB_DCHECK(dequeue_output_results);
+  SB_CHECK(dequeue_output_results);
 
   dequeue_output_results->insert(dequeue_output_results->end(),
                                  dequeue_output_results_.begin(),

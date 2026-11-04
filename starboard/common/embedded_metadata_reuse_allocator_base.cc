@@ -84,8 +84,8 @@ void EmbeddedMetadataReuseAllocatorBase::MemoryBlock::Allocate(
     MemoryBlock* allocated,
     MemoryBlock* free) const {
   SB_DCHECK_GE(fallback_allocation_index_, 0);
-  SB_DCHECK(allocated);
-  SB_DCHECK(free);
+  SB_CHECK(allocated);
+  SB_CHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
 
   // Minimum block size to avoid extremely small blocks inside the block list
