@@ -497,6 +497,18 @@ public class AccessibilityState {
     public static int getRecommendedTimeoutMillis(int minimumTimeout, int nonA11yTimeout) {
         if (!sInitialized) updateAccessibilityServices();
 
+        // NEW GUARD: AccessibilityManager#getRecommendedTimeoutMillis is API 29 (Android Q).
+        // No Cobalt guard to restore - none was present at min SDK 24 either. The behaviour is
+        // not invented, though: the javadoc directly above still specifies it ("for versions
+        // < Q this will return the maximum of the two timeouts"), so this re-implements what
+        // the file already documents.
+        //
+        // WARNING: upstream has no guard here, because upstream's floor is API 29.
+        // A roll that rewrites this code will drop the guard silently.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return Math.max(minimumTimeout, nonA11yTimeout);
+        }
+
         int recommendedTimeout =
                 fetchAccessibilityManager()
                         .getRecommendedTimeoutMillis(
