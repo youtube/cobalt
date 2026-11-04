@@ -213,7 +213,7 @@ class FirstPartySchemeContentBrowserClient
 }  // namespace
 
 // TODO(mlamouri): part of these tests were removed because they were dependent
-// on an environment were focus is guaranteed. This is only for
+// on an environment where focus is guaranteed. This is only for
 // interactive_ui_tests so these bits need to move there.
 // See https://crbug.com/491535
 class RenderFrameHostImplBrowserTest : public ContentBrowserTest {
@@ -509,7 +509,8 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest, IsFocused_Change) {
         ExecJs(web_contents()->GetPrimaryMainFrame(), "focus" + frame + "()"));
 
     // The main frame is not the focused frame in the frame tree but the main
-    // frame is focused per RFHI rules because one of its descendant is focused.
+    // frame is focused per RFHI rules because one of its descendants is
+    // focused.
     // TODO(mlamouri): we should check the frame focus state per RFHI, see the
     // general comment at the beginning of this test file.
     EXPECT_NE(web_contents()->GetPrimaryMainFrame(),
@@ -2243,12 +2244,13 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBeforeUnloadBrowserTest,
 }
 
 // During a complex WebContents destruction, test resuming a navigation, due to
-// of a beforeunloader. This is a regersion test for: https://crbug.com/1147567.
+// of a beforeunloader. This is a regression test for:
+// https://crbug.com/1147567.
 // - Start from A(B(C))
 // - C adds a beforeunload handler.
 // - B starts a navigation, waiting for C.
 // - The WebContents is closed, which deletes C, then B, then A.
-// When deleting C, the navigations in B can begin, but this happen while B was
+// When deleting C, the navigations in B can begin, but this happens while B was
 // destructing itself.
 //
 // Note: This needs 3 nested documents instead of 2, because deletion of the
@@ -8103,7 +8105,7 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBeforeUnloadBrowserTest,
   GURL new_url(embedded_test_server()->GetURL("c.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), new_url));
 
-  // We should have received one pings (for the grandchild 'a').
+  // We should have received one ping (for the grandchild 'a').
   EXPECT_EQ(1, RetrievePingsFromMessageQueue(&msg_queue));
 
   // We shouldn't have seen any beforeunload dialogs.
@@ -8226,6 +8228,7 @@ class RenderFrameHostImplAsyncBeforeUnloadBrowserTest
           RenderFrameHostImplAsyncBeforeUnloadBrowserTestParam> {
  public:
   using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
+  enum class OriginType { kSameOrigin, kCrossOrigin };
   class AsyncBeforeUnloadObserver : public WebContentsObserver {
    public:
     AsyncBeforeUnloadObserver(WebContents* contents, const GURL& target_url)
@@ -8252,20 +8255,30 @@ class RenderFrameHostImplAsyncBeforeUnloadBrowserTest
 
   class BeforeUnloadExecutionModeMetricsObserver {
    public:
-    explicit BeforeUnloadExecutionModeMetricsObserver(
-        BeforeUnloadExecutionMode expected_mode)
-        : expected_mode_(expected_mode) {}
+    BeforeUnloadExecutionModeMetricsObserver(
+        BeforeUnloadExecutionMode expected_mode,
+        OriginType expected_origin_type)
+        : expected_mode_(expected_mode),
+          expected_origin_type_(expected_origin_type) {}
     void Wait(const base::Location& location = FROM_HERE) {
-      const char name[] =
+      const char kBaseName[] =
           "Navigation.BeforeUnloadExecutionMode.IsInOutermostMainFrame";
+      const std::string name = base::StrCat(
+          {kBaseName, expected_origin_type_ == OriginType::kSameOrigin
+                          ? ".SameOrigin"
+                          : ".CrossOrigin"});
       EXPECT_TRUE(base::test::RunUntil([&]() {
-        return histogram_tester_.GetTotalCountForPrefix(name) >= 1;
+        return histogram_tester_.GetTotalCountForPrefix(kBaseName) >= 1 &&
+               histogram_tester_.GetTotalCountForPrefix(name) >= 1;
       })) << location.ToString();
+      histogram_tester_.ExpectUniqueSample(kBaseName, expected_mode_, 1,
+                                           location);
       histogram_tester_.ExpectUniqueSample(name, expected_mode_, 1, location);
     }
 
    private:
     BeforeUnloadExecutionMode expected_mode_;
+    OriginType expected_origin_type_;
     base::HistogramTester histogram_tester_;
   };
 
@@ -8338,7 +8351,8 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
                                                          target_url);
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
       IsAsyncBeforeUnloadEnabled() ? BeforeUnloadExecutionMode::kAsync
-                                   : BeforeUnloadExecutionMode::kSync);
+                                   : BeforeUnloadExecutionMode::kSync,
+      OriginType::kCrossOrigin);
   DOMMessageQueue msg_queue(web_contents());
   shell()->LoadURL(target_url);
 
@@ -8350,6 +8364,48 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
   // Verify that both beforeunload handlers from b and c were executed.
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return RetrievePingsFromMessageQueue(&msg_queue) == 2; }));
+}
+
+// Tests that beforeunload handlers are executed asynchronously for same-origin
+// navigations and recorded correctly in metrics.
+IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
+                       SameOriginAsyncExecution) {
+  // Load a page with structure a(b).
+  EXPECT_TRUE(NavigateToURL(
+      shell(), embedded_test_server()->GetURL(
+                   "a.com", "/cross_site_iframe_factory.html?a(b)")));
+  FrameTreeNode* ftn_a = web_contents()->GetPrimaryFrameTree().root();
+  FrameTreeNode* ftn_b = ftn_a->child_at(0);
+
+  // Install a beforeunload handler in frame b without user activation.
+  InstallBeforeUnloadHandler(ftn_b, SEND_PING | SHOW_DIALOG,
+                             EXECUTE_SCRIPT_NO_USER_GESTURE,
+                             /*delay=*/base::Milliseconds(150));
+
+  // Disable beforeunload timer to prevent flakiness.
+  PrepContentsForBeforeUnloadTest(web_contents(),
+                                  /*trigger_user_activation=*/false);
+
+  // Start a same-origin navigation in the main frame.
+  const GURL target_url =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+  AsyncBeforeUnloadObserver async_before_unload_observer(web_contents(),
+                                                         target_url);
+  BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
+      IsAsyncBeforeUnloadEnabled() ? BeforeUnloadExecutionMode::kAsync
+                                   : BeforeUnloadExecutionMode::kSync,
+      OriginType::kSameOrigin);
+  DOMMessageQueue msg_queue(web_contents());
+  shell()->LoadURL(target_url);
+
+  before_unload_mode_observer.Wait();
+  EXPECT_TRUE(WaitForLoadStop(web_contents()));
+  EXPECT_EQ(0, dialog_manager()->num_beforeunload_dialogs_seen());
+  EXPECT_EQ(IsAsyncBeforeUnloadEnabled(),
+            async_before_unload_observer.is_async_before_unload_detected());
+  // Verify that beforeunload handler from b was executed.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return RetrievePingsFromMessageQueue(&msg_queue) == 1; }));
 }
 
 // Tests that the AsyncBeforeUnload optimization is not triggered and falls back
@@ -8389,7 +8445,7 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
   AsyncBeforeUnloadObserver async_before_unload_observer(web_contents(),
                                                          target_url);
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
-      BeforeUnloadExecutionMode::kSync);
+      BeforeUnloadExecutionMode::kSync, OriginType::kCrossOrigin);
   DOMMessageQueue msg_queue(web_contents());
   shell()->LoadURL(target_url);
 
@@ -8447,7 +8503,7 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
   AsyncBeforeUnloadObserver async_before_unload_observer(web_contents(),
                                                          target_url);
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
-      BeforeUnloadExecutionMode::kAsync);
+      BeforeUnloadExecutionMode::kAsync, OriginType::kCrossOrigin);
   DOMMessageQueue msg_queue(web_contents());
   shell()->LoadURL(target_url);
 
@@ -8485,7 +8541,7 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
   AsyncBeforeUnloadObserver async_before_unload_observer(web_contents(),
                                                          target_url);
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
-      BeforeUnloadExecutionMode::kNotBlocked);
+      BeforeUnloadExecutionMode::kNotBlocked, OriginType::kCrossOrigin);
   DOMMessageQueue msg_queue(web_contents());
   EXPECT_TRUE(ExecJs(ftn, JsReplace("location.href = $1", target_url),
                      EXECUTE_SCRIPT_NO_USER_GESTURE));
@@ -8540,7 +8596,8 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
                                                          target_url);
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
       IsAsyncBeforeUnloadEnabled() ? BeforeUnloadExecutionMode::kAsync
-                                   : BeforeUnloadExecutionMode::kSync);
+                                   : BeforeUnloadExecutionMode::kSync,
+      OriginType::kCrossOrigin);
   DOMMessageQueue msg_queue(web_contents());
 
   // Navigate A(B) -> C.
@@ -8600,7 +8657,7 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplAsyncBeforeUnloadBrowserTest,
   DOMMessageQueue msg_queue(web_contents());
   GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
   BeforeUnloadExecutionModeMetricsObserver before_unload_mode_observer(
-      BeforeUnloadExecutionMode::kAsync);
+      BeforeUnloadExecutionMode::kAsync, OriginType::kCrossOrigin);
   shell()->LoadURL(url_c);
 
   // Wait until B's async beforeunload is kicked off.
@@ -10554,6 +10611,75 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
   navigation_observer.Wait();
   EXPECT_FALSE(navigation_observer.last_navigation_succeeded());
   EXPECT_EQ(allowlist_url, web_contents()->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
+                       DeferredPopupNavigationPreservesInitiatorPolicies) {
+  // 1. Force WebContents in a new Shell to defer new navigations until the
+  // delegate is set.
+  shell()->set_delay_popup_contents_delegate_for_testing(true);
+
+  // 2. Load a page with an iframe.
+  GURL url(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  // 3. Navigate the iframe to a page with CSP form-action 'none'.
+  GURL iframe_url = embedded_test_server()->GetURL(
+      "a.com", "/set-header?Content-Security-Policy: form-action 'none'");
+  EXPECT_TRUE(ExecJs(shell(), JsReplace(R"(
+    let iframe = document.createElement('iframe');
+    iframe.id = 'initiator_iframe';
+    iframe.src = $1;
+    document.body.appendChild(iframe);
+  )",
+                                        iframe_url)));
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+
+  RenderFrameHostImpl* iframe_rfh = static_cast<RenderFrameHostImpl*>(
+      ChildFrameAt(shell()->web_contents()->GetPrimaryMainFrame(), 0));
+  ASSERT_TRUE(iframe_rfh);
+
+  // 4. From the iframe, open a popup that will navigate to a same-site URL.
+  // The navigation should be deferred because of step 1.
+  GURL popup_url = embedded_test_server()->GetURL("a.com", "/title2.html");
+  ShellAddedObserver new_shell_observer;
+  EXPECT_TRUE(ExecJs(iframe_rfh, JsReplace("window.open($1);", popup_url)));
+  Shell* new_shell = new_shell_observer.GetShell();
+  WebContentsImpl* new_contents =
+      static_cast<WebContentsImpl*>(new_shell->web_contents());
+
+  // The navigation in the new popup should be deferred.
+  EXPECT_TRUE(WaitForLoadStop(new_contents));
+  EXPECT_TRUE(new_contents->GetController().IsInitialBlankNavigation());
+
+  // 5. Detach the initiator iframe.
+  EXPECT_TRUE(ExecJs(shell(), R"(
+    let iframe = document.getElementById('initiator_iframe');
+    iframe.remove();
+  )"));
+
+  // 6. Resume the deferred navigation.
+  new_contents->SetDelegate(new_shell);
+  new_contents->ResumeLoadingCreatedWebContents();
+
+  // 7. Verify that the navigation in the popup inherits the initiator's CSP.
+  // Since form-action is 'none', a form submission should be blocked.
+  EXPECT_TRUE(WaitForLoadStop(new_contents));
+  EXPECT_EQ(popup_url, new_contents->GetLastCommittedURL());
+
+  // Try to submit a form. It should be blocked by CSP if policies were
+  // preserved.
+  EXPECT_TRUE(ExecJs(new_contents, R"(
+    let form = document.createElement('form');
+    form.action = '/title3.html';
+    document.body.appendChild(form);
+    form.submit();
+  )"));
+
+  // If CSP form-action 'none' was preserved, the navigation to title3.html
+  // should not happen, and we should still be on popup_url (or about:blank if
+  // blocked early).
+  EXPECT_EQ(popup_url, new_contents->GetLastCommittedURL());
 }
 
 }  // namespace content

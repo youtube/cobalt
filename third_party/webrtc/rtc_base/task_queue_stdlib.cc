@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <queue>
+#include <string>
 #include <tuple>
 #include <utility>
 
@@ -55,6 +56,7 @@ class TaskQueueStdlib final : public TaskQueueBase {
   TaskQueueStdlib(absl::string_view queue_name, ThreadPriority priority);
   ~TaskQueueStdlib() override = default;
 
+  absl::string_view queue_name() const override { return name_; }
   void Delete() override;
 
  protected:
@@ -126,12 +128,15 @@ class TaskQueueStdlib final : public TaskQueueBase {
   // tasks (including delayed tasks).
   // Placing this last ensures the thread doesn't touch uninitialized attributes
   // throughout it's lifetime.
+  const std::string name_;
+
   PlatformThread thread_;
 };
 
 TaskQueueStdlib::TaskQueueStdlib(absl::string_view queue_name,
                                  ThreadPriority priority)
     : flag_notify_(/*manual_reset=*/false, /*initially_signaled=*/false),
+      name_(queue_name),
       thread_(InitializeThread(this, queue_name, priority)) {}
 
 // static

@@ -20,6 +20,13 @@ namespace web {
 class JavaScriptFeature;
 }  // namespace web
 
+// Completion block for Cobalt alerts, called with `granted` set to true if the
+// user accepted the action, or false otherwise.
+typedef void (^CobaltAlertCompletion)(bool granted);
+
+// Completion block for Cobalt popups, called when the popup is fully presented.
+typedef void (^CobaltPopupCompletion)(NSError* error);
+
 namespace ios::provider {
 
 // Attaches the Cobalt tab helpers using the given `attacher`.
@@ -51,6 +58,21 @@ ChromeCoordinator* CreateCobaltCoordinator(
 // Returns the Cobalt JavaScript feature for `profile`.
 web::JavaScriptFeature* GetCobaltJavascriptFeatureForProfile(
     ProfileIOS* profile);
+
+// Returns the coordinator for Cobalt alerts.
+ChromeCoordinator* CreateCobaltAlertCoordinator(
+    UIViewController* base_view_controller,
+    Browser* browser,
+    NSString* title,
+    NSString* message,
+    CobaltAlertCompletion completion);
+
+// Returns the coordinator for Cobalt popups.
+ChromeCoordinator* CreateCobaltPopupCoordinator(
+    UIViewController* base_view_controller,
+    Browser* browser,
+    UIViewController* popup_view_controller,
+    CobaltPopupCompletion completion);
 
 }  // namespace ios::provider
 

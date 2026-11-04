@@ -224,7 +224,6 @@ bool CalculateIsLikelyAheadOfPrerender(
     case PreloadingType::kUnspecified:
     case PreloadingType::kPreconnect:
     case PreloadingType::kNoStatePrefetch:
-    case PreloadingType::kLinkPreview:
       NOTREACHED();
   }
 }
@@ -630,11 +629,12 @@ PrefetchContainer::CreatePrePrefetchURLLoaderFactory() {
 
   // Currently `feature::kPrefetchOffTheMainThread` doesn't support the
   // request w/ isolated context.
-  return CreatePrefetchURLLoaderFactory(request()
-                                            .browser_context()
-                                            ->GetDefaultStoragePartition()
-                                            ->GetNetworkContext(),
-                                        request());
+  return CreatePrefetchURLLoaderFactory(
+      request()
+          .browser_context()
+          ->GetDefaultStoragePartition()
+          ->GetNetworkContext(),
+      request(), std::move(pre_prefetch_url_loader_factory));
 }
 
 scoped_refptr<network::SharedURLLoaderFactory>

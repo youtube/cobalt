@@ -133,6 +133,7 @@ namespace v8::internal::wasm {
   V(WasmStringCodePointAt)                                                     \
   V(WasmStringViewWtf16Encode)                                                 \
   V(WasmStringViewWtf16Slice)                                                  \
+  V(WasmStringSliceShared)                                                     \
   V(WasmStringNewWtf8Array)                                                    \
   V(WasmStringNewWtf16Array)                                                   \
   V(WasmStringNewWtf16ArrayShared)                                             \
@@ -156,6 +157,7 @@ namespace v8::internal::wasm {
   V(WasmAnyConvertExternShared)                                                \
   V(WasmStringFromDataSegment)                                                 \
   V(WasmStringAdd_CheckNone)                                                   \
+  V(WasmStringAdd_CheckNone_Shared)                                            \
   V(DebugPrintWord32)                                                          \
   V(DebugPrintWord64)                                                          \
   V(DebugPrintFloat32)                                                         \

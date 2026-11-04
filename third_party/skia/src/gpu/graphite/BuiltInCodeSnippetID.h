@@ -12,7 +12,7 @@
 
 namespace skgpu::graphite {
 
-enum class BuiltInCodeSnippetID : int32_t {
+enum class BuiltInCodeSnippetID : uint32_t {
     // This isn't just a signal for a failure during paintparams key creation. It also actually
     // implements the default behavior for an erroneous draw. That said, Device discards draws that
     // have a PaintParamsKey referencing an error ID so this behavior is mostly academic.

@@ -51,9 +51,9 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
   result->disallowed_by_locale_filter = enablement.disallowed_by_locale_filter;
   result->live_disallowed = enablement.live_disallowed;
   result->share_image_disallowed = enablement.share_image_disallowed;
+  auto* service = GlicKeyedService::Get(profile);
   result->actuation_not_consented =
-      profile->GetPrefs()->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb) ==
-      false;
+      !(service && service->enabling().GetUserEnabledActuationOnWeb());
 
   using CannotActReason = ::glic::CannotActReason;
   if (actor_policy_checker) {
@@ -190,6 +190,7 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
   options.error_message = std::move(mojo_options->error_message);
   options.timeout = mojo_options->timeout;
   options.fre_override = mojo_options->fre_override;
+  options.wait_for_panel_open = mojo_options->wait_for_panel_open;
 
   switch (mojo_options->allowed_inflight_navigation) {
     case mojom::AllowedInflightNavigation::kSameDomain:

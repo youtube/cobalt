@@ -3167,6 +3167,10 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     // See also: JSContextSpecialization::ReduceJSLoadContext.
     if (slot_value.IsTheHole()) return {};
     if (mode == VariableMode::kVar && slot_value.IsUndefined()) return {};
+    if (IsPrivateMethodOrAccessorVariableMode(mode) &&
+        slot_value.IsUndefined()) {
+      return {};
+    }
   }
 
   // Fold the load of the immutable slot.
@@ -3174,7 +3178,7 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
   return GetConstant(slot_value);
 }
 
-ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
+ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
     ValueNode* context_node, int index, MaybeAssignedFlag assigned) {
   if (!context_node->Is<Constant>()) return {};
   compiler::ContextRef context =
@@ -3226,6 +3230,13 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   UNREACHABLE();
 }
 
+namespace {
+bool HasContextCell(ContextMode context_mode, MaybeAssignedFlag assigned) {
+  return context_mode == ContextMode::kHasContextCells &&
+         assigned == kMaybeAssigned;
+}
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
     ValueNode* context, int index, ContextMode context_mode,
     compiler::ScopeInfoRef scope_info) {
@@ -3250,11 +3261,9 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
     known_node_aspects().UpdateMayHaveAliasingContexts(
         broker(), local_isolate(), context);
   }
-  if (context_mode == ContextMode::kHasContextCells &&
-      (v8_flags.script_context_cells || v8_flags.function_context_cells) &&
-      assigned == kMaybeAssigned) {
+  if (HasContextCell(context_mode, assigned)) {
     // We collect feedback only for mutable context slots.
-    cached_value = TrySpecializeLoadContextSlot(context, index, assigned);
+    cached_value = TrySpecializeLoadContextCell(context, index, assigned);
     if (cached_value) return cached_value;
     GET_VALUE(cached_value, AddNewNode<LoadContextSlot>({context}, offset));
     return cached_value;
@@ -3270,7 +3279,7 @@ bool MaglevGraphBuilder::ContextMayAlias(
   return true;
 }
 
-MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
+MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
     ValueNode* context, int index, ValueNode* value,
     MaybeAssignedFlag assigned) {
   DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
@@ -3361,10 +3370,9 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       maybe_assigned == kNotAssigned ? kMaybeAssigned : kNotAssigned));
 
   Node* store = nullptr;
-  if ((v8_flags.script_context_cells || v8_flags.function_context_cells) &&
-      context_mode == ContextMode::kHasContextCells) {
+  if (HasContextCell(context_mode, maybe_assigned)) {
     MaybeReduceResult result =
-        TrySpecializeStoreContextSlot(context, index, value, maybe_assigned);
+        TrySpecializeStoreContextCell(context, index, value, maybe_assigned);
     RETURN_IF_ABORT(result);
     if (result.IsDoneWithoutPayload()) {
       // If we didn't need to emit any store, there is nothing to cache.
@@ -3815,7 +3823,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       return BuildStoreTaggedField(property_cell_node, value,
-                                   PropertyCell::kValueOffset,
+                                   offsetof(PropertyCell, value_),
                                    StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kMutable: {
@@ -3824,7 +3832,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       return BuildStoreTaggedField(property_cell_node, GetAccumulator(),
-                                   PropertyCell::kValueOffset,
+                                   offsetof(PropertyCell, value_),
                                    StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kInTransition:
@@ -3884,7 +3892,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
   }
 
   ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
-  return BuildLoadTaggedField(property_cell_node, PropertyCell::kValueOffset);
+  return BuildLoadTaggedField(property_cell_node,
+                              offsetof(PropertyCell, value_));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildGlobalStore(
@@ -5844,10 +5853,14 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
           return GetUint32Constant(uint32_value);
         }
       }
-      [[fallthrough]];
+      return AddNewNodeNoInputConversion<CheckedFloat64ToUint32>({object});
 
     case ValueRepresentation::kHoleyFloat64:
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToUint32>({object});
+
     case ValueRepresentation::kIntPtr:
+      return AddNewNodeNoInputConversion<CheckedIntPtrToUint32>({object});
+
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -11516,6 +11529,26 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
       });
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathImul(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetInt32Constant(0);
+  }
+  if (args.count() == 1) {
+    // Fall back to builtin for 1 argument to ensure ToNumber side-effects.
+    return {};
+  }
+  if (!CanSpeculateCall() && (args[0]->is_tagged() || args[1]->is_tagged())) {
+    return {};
+  }
+  ValueNode *left, *right;
+  GET_VALUE_OR_ABORT(
+      left, GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball));
+  GET_VALUE_OR_ABORT(
+      right, GetTruncatedInt32ForToNumber(args[1], NodeType::kNumberOrOddball));
+  return AddNewNode<Int32Multiply>({left, right});
+}
+
 template <typename Int32Binop, typename Float64Binop>
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
     CallArguments& args, Int32Binop&& int32_case, Float64Binop&& float64_case) {
@@ -11698,6 +11731,42 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
   GET_VALUE_OR_ABORT(
       value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
   return AddNewNode<Float64Sqrt>({value});
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathFround(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() < 1) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+
+  if (!CanSpeculateCall() && args[0]->is_tagged()) {
+    return {};
+  }
+
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
+  return AddNewNode<Float64RoundToFloat32>({value});
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathTrunc(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() < 1) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+
+  if (!CanSpeculateCall() && args[0]->is_tagged()) {
+    return {};
+  }
+
+  if (!IsSupported(CpuOperation::kFloat64Round)) {
+    return {};
+  }
+
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
+  return AddNewNode<Float64Round>({value}, Float64Round::Kind::kTrunc);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
@@ -12165,13 +12234,24 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  // Truncate args when they are unreachable.
   if (args.mode() == CallArguments::kDefault &&
       shared.object()->CanOnlyAccessFixedFormalParameters()) {
     auto parameter_count =
         local_isolate_->js_dispatch_table().GetParameterCount(dispatch_handle);
-    if (args.count() > parameter_count - kJSArgcReceiverSlots) {
+    // Truncate args when they are unreachable.
+    size_t arg_count = args.count();
+    if (arg_count > parameter_count - kJSArgcReceiverSlots) {
       args.ResizeDefaultArguments(parameter_count - kJSArgcReceiverSlots);
+      arg_count = parameter_count;
+    }
+    // Now replace remaining unused parameters.
+    uint32_t unused_parameters = shared.object()->unused_parameter_bits();
+    size_t to_check = std::min(arg_count, sizeof(unused_parameters));
+    for (size_t i = 0; unused_parameters != 0 && i < to_check; ++i) {
+      if (unused_parameters & size_t{0x1}) {
+        args.begin()[i] = GetRootConstant(RootIndex::kOptimizedOut);
+      }
+      unused_parameters >>= 1;
     }
   }
   if (v8_flags.maglev_inlining) {
@@ -17109,6 +17189,30 @@ void MaglevGraphBuilder::PrewalkBytecode() {
       }
       break;
     }
+    case interpreter::Bytecode::kMov: {
+      interpreter::Register src = iterator_.GetRegisterOperand(0);
+      interpreter::Register dst = iterator_.GetRegisterOperand(1);
+      register_scope_infos_[dst] = register_scope_infos_[src];
+      break;
+    }
+    case interpreter::Bytecode::kLdar: {
+      interpreter::Register src = iterator_.GetRegisterOperand(0);
+      accumulator_scope_info_ = register_scope_infos_[src];
+      break;
+    }
+    case interpreter::Bytecode::kStar: {
+      interpreter::Register dst = iterator_.GetRegisterOperand(0);
+      register_scope_infos_[dst] = accumulator_scope_info_;
+      break;
+    }
+#define SHORT_STAR_CASE(Name, ...) case interpreter::Bytecode::k##Name:
+    SHORT_STAR_BYTECODE_LIST(SHORT_STAR_CASE) {
+      interpreter::Register dst = interpreter::Register::FromShortStar(
+          iterator_.current_bytecode());
+      register_scope_infos_[dst] = accumulator_scope_info_;
+      break;
+    }
+#undef SHORT_STAR_CASE
     default:
       break;
   }
@@ -17401,6 +17505,7 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
       }
     }
     PrewalkBytecode();
+    HandleTryBlock(current_offset);
   }
   TRACE(TraceColor::kRed << "DEAD " << " : " << TraceBytecode(iterator_));
 

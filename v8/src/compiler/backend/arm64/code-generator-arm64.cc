@@ -146,8 +146,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return InputOperand32(index);
       case kMode_Operand2_R_LSL_I:
         return Operand(InputRegister32(index), LSL, InputInt5(index + 1));
-      case kMode_Operand2_R_UXTW_LSL_I:
-        return Operand(InputRegister32(index), UXTW, InputInt5(index + 1));
       case kMode_Operand2_R_LSR_I:
         return Operand(InputRegister32(index), LSR, InputInt5(index + 1));
       case kMode_Operand2_R_ASR_I:
@@ -178,8 +176,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return InputOperand64(index);
       case kMode_Operand2_R_LSL_I:
         return Operand(InputRegister64(index), LSL, InputInt6(index + 1));
-      case kMode_Operand2_R_UXTW_LSL_I:
-        return Operand(InputRegister32(index), UXTW, InputInt6(index + 1));
       case kMode_Operand2_R_LSR_I:
         return Operand(InputRegister64(index), LSR, InputInt6(index + 1));
       case kMode_Operand2_R_ASR_I:
@@ -221,9 +217,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_LSL_I:
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
                           LSL, InputInt32(index + 2));
-      case kMode_Operand2_R_UXTW_LSL_I:
-        return MemOperand(InputRegister(index + 0), InputRegister32(index + 1),
-                          UXTW, InputInt32(index + 2));
       case kMode_MRI:
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
       case kMode_MRR:
@@ -1975,6 +1968,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Ubfx32:
       __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
               i.InputInt32(2));
+      break;
+    case kArm64Ubfiz:
+      __ Ubfiz(i.OutputRegister(), i.InputRegister(0), i.InputInt6(1),
+               i.InputInt6(2));
       break;
     case kArm64Ubfiz32:
       __ Ubfiz(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),

@@ -94,6 +94,14 @@
   E(kActionShowJsOptimizationsIcon) \
   E(kActionShowCookieControls) \
   E(kActionUnfocusTabGroup, IDC_UNFOCUS_TAB_GROUP) \
+  E(kActionAddNewTabToGroup, IDC_ADD_NEW_TAB_TO_GROUP) \
+  E(kActionCreateNewTabGroup, IDC_CREATE_NEW_TAB_GROUP) \
+  E(kActionFocusNextTabGroup, IDC_FOCUS_NEXT_TAB_GROUP) \
+  E(kActionFocusPrevTabGroup, IDC_FOCUS_PREV_TAB_GROUP) \
+  E(kActionCloseTabGroup, IDC_CLOSE_TAB_GROUP) \
+  E(kActionGroupUngroupedTabs, IDC_GROUP_UNGROUPED_TABS) \
+  E(kActionCreateNewTabGroupTopLevel, IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL) \
+  E(kActionAddNewTabRecentGroup, IDC_ADD_NEW_TAB_RECENT_GROUP) \
   /* Page-manipulation commands that target a specified tab, which may not */ \
   /* be the active one. */ \
   E(kActionMuteTargetSite, IDC_MUTE_TARGET_SITE) \
@@ -212,6 +220,7 @@
     IDC_RECENT_TABS_SEE_DEVICE_TABS) \
   E(kActionOpenRecentTab, IDC_OPEN_RECENT_TAB) \
   E(kActionIndigo) \
+  E(kActionAnchoredContextualCue) \
   /* Spell-check */ \
   /* Insert any additional suggestions before _LAST; these have to be */ \
   /* consecutive. */ \
@@ -273,7 +282,6 @@
     IDC_CONTENT_CONTEXT_OPENLINKINPROFILE) \
   E(kActionContentContextOpenLinkBookmarkApp, \
     IDC_CONTENT_CONTEXT_OPENLINKBOOKMARKAPP) \
-  E(kActionContentContextOpenLinkPreview, IDC_CONTENT_CONTEXT_OPENLINKPREVIEW) \
   /* Image items. */ \
   E(kActionContentContextSaveImageAs, IDC_CONTENT_CONTEXT_SAVEIMAGEAS) \
   E(kActionContentContextCopyImageLocation, \
@@ -558,23 +566,24 @@
   E(kActionSidePanelShowAssistant) \
   E(kActionSidePanelShowBookmarks, IDC_SHOW_BOOKMARK_SIDE_PANEL) \
   E(kActionSidePanelShowComments, IDC_SHOW_COMMENTS_SIDE_PANEL) \
-  E(kActionSidePanelShowCustomizeChrome) \
+  E(kActionSidePanelShowCustomizeChrome, IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL) \
   E(kActionSidePanelShowCustomizeChromeFooter) \
   E(kActionSidePanelShowCustomizeChromeToolbar) \
   E(kActionSidePanelShowFeed) \
   E(kActionSidePanelShowGlic) \
   E(kActionSidePanelShowContextualTasks) \
-  E(kActionSidePanelShowHistoryCluster) \
-  E(kActionSidePanelShowHistory) \
+  E(kActionSidePanelShowHistoryCluster, IDC_SHOW_HISTORY_CLUSTERS_SIDE_PANEL) \
+  E(kActionSidePanelShowHistory, IDC_SHOW_HISTORY_SIDE_PANEL) \
   E(kActionSidePanelShowLens) \
   E(kActionSidePanelShowLensOverlayResults, IDC_CONTENT_CONTEXT_LENS_OVERLAY) \
-  E(kActionSidePanelShowReadAnything) \
+  E(kActionSidePanelShowReadAnything, IDC_SHOW_READING_MODE_SIDE_PANEL) \
   E(kActionSidePanelShowReadingList, IDC_READING_LIST_MENU_SHOW_UI) \
   E(kActionSidePanelShowSearchCompanion, IDC_SHOW_SEARCH_COMPANION) \
   E(kActionSidePanelShowShoppingInsights) \
   E(kActionSidePanelShowSideSearch) \
   E(kActionSidePanelShowMerchantTrust) \
-  E(kActionSidePanelShowTabsFromOtherDevices)
+  E(kActionSidePanelShowTabsFromOtherDevices, \
+    IDC_SHOW_TABS_FROM_OTHER_DEVICES_SIDE_PANEL)
 
 #define TOOLBAR_PINNABLE_ACTION_IDS \
   E(kActionHome, IDC_HOME) \

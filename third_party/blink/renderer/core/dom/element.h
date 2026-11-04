@@ -33,7 +33,6 @@
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
@@ -55,7 +54,6 @@
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/html_names.h"
-#include "third_party/blink/renderer/core/scroll/scoped_scroll_promise_resolver.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
@@ -121,6 +119,7 @@ class ExceptionState;
 class FocusOptions;
 class GetAnimationsOptions;
 class HTMLElement;
+class HTMLSubmitButtonBehavior;
 class HTMLTemplateElement;
 class Image;
 class InputDeviceCapabilities;
@@ -142,6 +141,7 @@ class ScriptState;
 class ScriptValue;
 class ScrollIntoViewOptions;
 class ScrollMarkerGroupData;
+class ScrollPromiseResolver;
 class ScrollResult;
 class ScrollMarkerPseudoElement;
 class ScrollToOptions;
@@ -464,7 +464,7 @@ class CORE_EXPORT Element : public ContainerNode {
                                      const AtomicString& local_name) const;
 
   void setAttribute(AtomicString name,
-                    String value,
+                    AtomicString value,
                     ExceptionState& exception_state = ASSERT_NO_EXCEPTION) {
     AtomicStringTable::WeakResult weak_lowercase_name =
         WeakLowercaseIfNecessary(name);
@@ -494,7 +494,7 @@ class CORE_EXPORT Element : public ContainerNode {
       ExceptionState&);
   void setAttributeNS(const AtomicString& namespace_uri,
                       const AtomicString& qualified_name,
-                      String value,
+                      AtomicString value,
                       ExceptionState& exception_state);
   void setAttributeNS(const AtomicString& namespace_uri,
                       const AtomicString& qualified_name,
@@ -543,10 +543,12 @@ class CORE_EXPORT Element : public ContainerNode {
   // JavaScript and also easily identifiable (it is a single attribute).
   AttributeCollection AttributesWithoutStyleUpdate() const;
 
-  void scrollIntoViewWithOptions(const ScrollIntoViewOptions*);
+  void scrollIntoViewWithOptions(const ScrollIntoViewOptions*,
+                                 ScrollPromiseResolver* = nullptr);
   void ScrollIntoViewNoVisualUpdate(mojom::blink::ScrollIntoViewParamsPtr,
                                     const Element* container = nullptr,
-                                    bool include_self = false);
+                                    bool include_self = false,
+                                    ScrollPromiseResolver* = nullptr);
   void scrollIntoViewIfNeeded(bool center_if_needed = true);
 
   int OffsetLeft();
@@ -591,8 +593,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void scrollByForTesting(double x, double y);
   void scrollToForTesting(double x, double y);
 
-  bool ScrollTo(const ScrollToOptions*,
-                std::unique_ptr<ScopedScrollPromiseResolver> = nullptr);
+  bool ScrollTo(const ScrollToOptions*, ScrollPromiseResolver* = nullptr);
 
   // Returns the bounds of this Element, unclipped, in the coordinate space of
   // the local root's widget. That is, in the outermost main frame, this will
@@ -1625,6 +1626,9 @@ class CORE_EXPORT Element : public ContainerNode {
   ElementInternals& EnsureElementInternals();
   const ElementInternals* GetElementInternals() const;
 
+  // Returns the HTMLSubmitButtonBehavior for this element, if any.
+  HTMLSubmitButtonBehavior* SubmitBehavior() const;
+
   bool ContainsFullScreenElement() const {
     return HasElementFlag(ElementFlags::kContainsFullScreenElement);
   }
@@ -2178,14 +2182,15 @@ class CORE_EXPORT Element : public ContainerNode {
   // containment by modifying the box tree outside the container during layout.
   bool HasSiblingBoxPseudoElements() const;
 
-  bool ScrollLayoutBoxBy(const ScrollToOptions*,
-                         std::unique_ptr<ScopedScrollPromiseResolver>);
-  bool ScrollLayoutBoxTo(const ScrollToOptions*,
-                         std::unique_ptr<ScopedScrollPromiseResolver>);
-  bool ScrollFrameBy(const ScrollToOptions*,
-                     std::unique_ptr<ScopedScrollPromiseResolver>);
-  bool ScrollFrameTo(const ScrollToOptions*,
-                     std::unique_ptr<ScopedScrollPromiseResolver>);
+  // The following four methods return true if the scroll requests cause any
+  // change in scroll positions (vs no scrolling because of errors or early
+  // returns). The `ScrollPromiseResolver` holds a Promise for the JS side,
+  // which gets resolved either through a `ScrollableArea` affected by these
+  // methods, or by the caller if no `ScrollableArea` is affected.
+  bool ScrollLayoutBoxBy(const ScrollToOptions*, ScrollPromiseResolver*);
+  bool ScrollLayoutBoxTo(const ScrollToOptions*, ScrollPromiseResolver*);
+  bool ScrollFrameBy(const ScrollToOptions*, ScrollPromiseResolver*);
+  bool ScrollFrameTo(const ScrollToOptions*, ScrollPromiseResolver*);
 
   bool HasElementFlag(ElementFlags mask) const;
   void SetElementFlag(ElementFlags, bool value = true);
@@ -2467,18 +2472,14 @@ class CORE_EXPORT Element : public ContainerNode {
                                const AtomicString& value,
                                AttributeModificationReason);
   void RemoveAttributeInternal(wtf_size_t index, AttributeModificationReason);
-  String TrustedTypesCheckForAttribute(const QualifiedName&,
-                                       String value,
-                                       const char* legacy_sink_name,
-                                       ExceptionState&) const;
-  String TrustedTypesCheckForAttribute(const QualifiedName&,
-                                       const V8TrustedType* value,
-                                       const char* legacy_sink_name,
-                                       ExceptionState&) const;
-  String TrustedTypesCheckForAttribute(const QualifiedName&,
-                                       const AtomicString&,
-                                       const char* legacy_sink_name,
-                                       ExceptionState&) const;
+  AtomicString TrustedTypesCheckForAttribute(const QualifiedName&,
+                                             AtomicString value,
+                                             const char* legacy_sink_name,
+                                             ExceptionState&) const;
+  AtomicString TrustedTypesCheckForAttribute(const QualifiedName&,
+                                             const V8TrustedType* value,
+                                             const char* legacy_sink_name,
+                                             ExceptionState&) const;
 
   // These Hinted versions of the functions are subtle hot path
   // optimizations designed to reduce the number of unnecessary AtomicString
@@ -2496,7 +2497,7 @@ class CORE_EXPORT Element : public ContainerNode {
                                   AtomicStringTable::WeakResult hint) const;
   void SetAttributeHinted(AtomicString name,
                           AtomicStringTable::WeakResult hint,
-                          String value,
+                          AtomicString value,
                           ExceptionState& = ASSERT_NO_EXCEPTION);
   void SetAttributeHinted(AtomicString name,
                           AtomicStringTable::WeakResult hint,

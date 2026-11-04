@@ -230,7 +230,7 @@ public class RtpParameters {
     }
 
     @CalledByNative("Codec")
-    Map getParameters() {
+    Map<String, String> getParameters() {
       return parameters;
     }
   }

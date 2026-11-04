@@ -375,8 +375,10 @@ CSSValue* ConsumeFilterFunctionList(CSSParserTokenStream&,
                                     CSSParserLocalContext&);
 
 bool IsBaselineKeyword(CSSValueID id);
-bool IsSelfPositionKeyword(CSSValueID);
-bool IsSelfPositionOrLeftOrRightKeyword(CSSValueID);
+bool IsSelfAlignmentKeyword(CSSValueID);
+bool IsSelfAlignmentOrLeftOrRightKeyword(CSSValueID);
+bool IsDefaultAlignmentKeyword(CSSValueID);
+bool IsDefaultAlignmentOrLeftOrRightKeyword(CSSValueID);
 bool IsContentPositionKeyword(CSSValueID);
 bool IsContentPositionOrLeftOrRightKeyword(CSSValueID);
 CORE_EXPORT bool IsCSSWideKeyword(CSSValueID);
@@ -718,6 +720,7 @@ bool ConsumeGapDecorationsRuleInsetStartEndShorthand(
     CSSParserLocalContext& local_context,
     CSSParserTokenStream& stream,
     CSSValue*& rule_inset_value);
+CSSValue* ConsumeHangingPunctuation(CSSParserTokenStream&);
 
 bool ConsumeGapDecorationsRuleInsetShorthand(
     bool important,

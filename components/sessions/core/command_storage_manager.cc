@@ -55,17 +55,13 @@ CommandStorageManager::CommandStorageManager(
                               : CreateDefaultBackendTaskRunner(),
           path,
           type,
-          /*encryptor=*/std::nullopt)),
+          /*encryptor=*/nullptr)),
       delegate_(delegate),
       backend_task_runner_(backend_->owning_task_runner()) {
-#if BUILDFLAG(IS_IOS)
-  CHECK(!os_crypt_async);
-#else
   CHECK(os_crypt_async);
   // TODO(crbug.com/479420496): Use os_crypt_async to encrypt commands.
   // First, we'll call OSCryptAsync::GetInstance() to get an Encryptor.
   // Then we'll create a second CommandStorageBackend with the Encryptor.
-#endif
 }
 
 CommandStorageManager::~CommandStorageManager() = default;

@@ -303,8 +303,7 @@ void SendStatisticsProxy::UmaSamplesContainer::LogPsnrValues(
     RTC_CHECK_LT(*spatial_id, kMaxSpatialLayers);
   }
 
-  char buffer[100];
-  webrtc::SimpleStringBuilder ssb(buffer);
+  StringBuilder ssb;
   ssb << uma_prefix_ << "Psnr";
   if (spatial_id.has_value()) {
     ssb << ".S" << *spatial_id;
@@ -386,8 +385,7 @@ void SendStatisticsProxy::UmaSamplesContainer::UpdateHistograms(
   RTC_DCHECK(uma_prefix_ == kRealtimePrefix || uma_prefix_ == kScreenPrefix);
   const int kIndex = uma_prefix_ == kScreenPrefix ? 1 : 0;
   const int kMinRequiredPeriodicSamples = 6;
-  char log_stream_buf[8 * 1024];
-  SimpleStringBuilder log_stream(log_stream_buf);
+  StringBuilder log_stream;
   int in_width = input_width_counter_.Avg(kMinRequiredMetricsSamples);
   int in_height = input_height_counter_.Avg(kMinRequiredMetricsSamples);
   if (in_width != -1) {

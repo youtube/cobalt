@@ -40,6 +40,7 @@
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"
+#include "api/video/video_layers_allocation.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/rtp_config.h"
 #include "call/rtp_transport_config.h"
@@ -1605,6 +1606,75 @@ TEST(RtpVideoSenderTest, RetransmitsBaseLayerOnly) {
   std::vector<uint16_t> base_rtp_sequence_numbers(
       rtp_sequence_numbers.begin(), rtp_sequence_numbers.begin() + 1);
   EXPECT_EQ(retransmitted_rtp_sequence_numbers, base_rtp_sequence_numbers);
+}
+
+TEST(RtpVideoSenderTest, PostTaskRaceDoesNotLeadToDanglingPointer) {
+  NiceMock<MockTransport> transport;
+  NiceMock<MockRtcpIntraFrameObserver> encoder_feedback;
+
+  GlobalSimulatedTimeController time_controller(Timestamp::Millis(1000000));
+  Environment env = CreateEnvironment(time_controller.GetClock(),
+                                      time_controller.CreateTaskQueueFactory());
+
+  VideoSendStream::Config config(&transport);
+  config.rtp.ssrcs = {kSsrc1};
+
+  SendStatisticsProxy stats_proxy(
+      time_controller.GetClock(), config,
+      VideoEncoderConfig::ContentType::kRealtimeVideo, env.field_trials());
+
+  BitrateConstraints bitrate_config = GetBitrateConfig();
+  RtpTransportConfig transport_config{.env = env,
+                                      .bitrate_config = bitrate_config};
+  RtpTransportControllerSend transport_controller(transport_config);
+  transport_controller.EnsureStarted();
+
+  RateLimiter retransmission_rate_limiter(time_controller.GetClock(),
+                                          kRetransmitWindowSizeMs);
+
+  std::map<uint32_t, RtpState> suspended_ssrcs;
+  std::map<uint32_t, RtpPayloadState> suspended_payload_states;
+
+  auto router = std::make_unique<RtpVideoSender>(
+      env, time_controller.GetMainThread(), suspended_ssrcs,
+      suspended_payload_states, config.rtp, config.rtcp_report_interval_ms,
+      &transport,
+      CreateObservers(&encoder_feedback, &stats_proxy, &stats_proxy,
+                      &stats_proxy, nullptr, &stats_proxy),
+      &transport_controller, &retransmission_rate_limiter,
+      std::make_unique<FecControllerDefault>(env), nullptr, CryptoOptions{},
+      nullptr);
+
+  router->SetSending(true);
+  // Verify it's registered
+  EXPECT_TRUE(
+      transport_controller.packet_router()->SsrcOfFirstSender().has_value());
+
+  // Trigger race:
+  // 1. OnVideoLayersAllocationUpdated posts a task to re-register modules
+  // because it sees active_ is true.
+  VideoLayersAllocation allocation;
+  allocation.active_spatial_layers.push_back({.rtp_stream_index = 0});
+  router->OnVideoLayersAllocationUpdated(allocation);
+
+  // 2. Immediately set active_ to false. This happens BEFORE the posted task
+  // runs.
+  router->SetSending(false);
+
+  // 3. Let the posted task run. With the fix, it should return early and not
+  // re-register the module because active_ is now false.
+  time_controller.AdvanceTime(TimeDelta::Zero());
+
+  // 4. Verify that PacketRouter does NOT have a sender.
+  EXPECT_FALSE(
+      transport_controller.packet_router()->SsrcOfFirstSender().has_value());
+
+  // 5. Destroy the router.
+  router.reset();
+
+  // 6. Verify that PacketRouter still does not have a sender.
+  EXPECT_FALSE(
+      transport_controller.packet_router()->SsrcOfFirstSender().has_value());
 }
 
 }  // namespace webrtc

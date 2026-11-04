@@ -1154,6 +1154,29 @@ base::expected<void, std::string> DeserializeTiling(
   tiling.SetTileSize(wire.tile_size);
   tiling.SetTilingRect(wire.tiling_rect);
   for (auto& wire_tile : wire.tiles) {
+    const bool is_out_of_bounds =
+        wire_tile->column_index >=
+            static_cast<uint32_t>(tiling.tiling_data()->num_tiles_x()) ||
+        wire_tile->row_index >=
+            static_cast<uint32_t>(tiling.tiling_data()->num_tiles_y());
+    if (is_out_of_bounds) {
+      const bool is_deleted = wire_tile->contents->is_missing_reason() &&
+                              wire_tile->contents->get_missing_reason() ==
+                                  cc::mojom::MissingTileReason::kTileDeleted;
+
+      if (!is_deleted) {
+        return base::unexpected("Invalid tile index in Tiling");
+      }
+
+      // OOB deleted tiles are allowed for cleanup, but they cannot track damage
+      // because they have no valid bounds in the current tiling grid.
+      if (wire_tile->update_damage) {
+        return base::unexpected(
+            "Out-of-bounds deleted tile cannot update damage");
+      }
+    }
+    // TODO(zmo): Should we also reject deleted tiles with |update_damage| set
+    // to true?
     ASSIGN_OR_RETURN(auto contents,
                      DeserializeTileContents(host_impl, *wire_tile->contents));
     tiling.SetTileContents(
@@ -2106,6 +2129,16 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
     }
   }
 
+  const bool viewport_deltas_changed =
+      property_trees.inner_viewport_container_bounds_delta() !=
+          update->inner_viewport_container_bounds_delta ||
+      property_trees.outer_viewport_container_bounds_delta() !=
+          update->outer_viewport_container_bounds_delta;
+  property_trees.SetInnerViewportContainerBoundsDelta(
+      update->inner_viewport_container_bounds_delta);
+  property_trees.SetOuterViewportContainerBoundsDelta(
+      update->outer_viewport_container_bounds_delta);
+
   property_trees.UpdateChangeTracking();
   property_trees.transform_tree_mutable().set_needs_update(
       transform_size_changed || transform_properties_changed ||
@@ -2119,9 +2152,10 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       property_trees.effect_tree().needs_update());
 
   const bool any_tree_changed =
-      transform_size_changed || transform_nodes_changed || clip_size_changed ||
-      clip_nodes_changed || effect_size_changed || effect_nodes_changed ||
-      scroll_size_changed || scroll_nodes_changed;
+      viewport_deltas_changed || transform_size_changed ||
+      transform_nodes_changed || clip_size_changed || clip_nodes_changed ||
+      effect_size_changed || effect_nodes_changed || scroll_size_changed ||
+      scroll_nodes_changed;
   property_trees.set_changed(any_tree_changed);
   if (any_tree_changed) {
     property_trees.ResetCachedData();

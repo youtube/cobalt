@@ -557,18 +557,18 @@ bool VulkanTestHelper::init(skiatest::Reporter* reporter) {
     ACQUIRE_INST_VK_PROC(DeviceWaitIdle);
     ACQUIRE_INST_VK_PROC(DestroyDevice);
 
-    if (!fExtensions->hasExtension(VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME,
-                                  2)) {
+    if (!fExtensions->hasExtension(
+                VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME, 2)) {
         return false;
     }
     if (!fExtensions->hasExtension(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME, 1)) {
         return false;
     }
+    if (!fExtensions->hasExtension(VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME, 1)) {
+       return false;
+    }
     if (!fExtensions->hasExtension(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, 1)) {
         return false;
-    }
-    if (!fExtensions->hasExtension(VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME, 1)) {
-    //    return false;
     }
 
     ACQUIRE_INST_VK_PROC(GetPhysicalDeviceMemoryProperties2);

@@ -245,6 +245,8 @@ protected:
 
     bool writeIntrinsicCall(const FunctionCall& c, IntrinsicKind kind);
 
+    void writeTextureTarget(const Expression& arg);
+
     void writeConstructorCompound(const ConstructorCompound& c, Precedence parentPrecedence);
 
     void writeConstructorCompoundVector(const ConstructorCompound& c, Precedence parentPrecedence);
@@ -912,7 +914,7 @@ bool MetalCodeGenerator::writeIntrinsicCall(const FunctionCall& c, IntrinsicKind
     const ExpressionArray& arguments = c.arguments();
     switch (kind) {
         case k_textureRead_IntrinsicKind: {
-            this->writeExpression(*arguments[0], Precedence::kExpression);
+            this->writeTextureTarget(*arguments[0]);
             this->write(".read(");
             this->writeExpression(*arguments[1], Precedence::kSequence);
             this->write(")");
@@ -927,13 +929,21 @@ bool MetalCodeGenerator::writeIntrinsicCall(const FunctionCall& c, IntrinsicKind
             this->write(")");
             return true;
         }
+        case k_textureSize_IntrinsicKind: {
+            this->write("uint2(");
+            this->writeTextureTarget(*arguments[0]);
+            this->write(".get_width(), ");
+            this->writeTextureTarget(*arguments[0]);
+            this->write(".get_height())");
+            return true;
+        }
         case k_textureWidth_IntrinsicKind: {
-            this->writeExpression(*arguments[0], Precedence::kExpression);
+            this->writeTextureTarget(*arguments[0]);
             this->write(".get_width()");
             return true;
         }
         case k_textureHeight_IntrinsicKind: {
-            this->writeExpression(*arguments[0], Precedence::kExpression);
+            this->writeTextureTarget(*arguments[0]);
             this->write(".get_height()");
             return true;
         }
@@ -1385,6 +1395,16 @@ bool MetalCodeGenerator::writeIntrinsicCall(const FunctionCall& c, IntrinsicKind
         }
         default:
             return false;
+    }
+}
+
+void MetalCodeGenerator::writeTextureTarget(const Expression& arg) {
+    SkASSERT(arg.type().typeKind() == Type::TypeKind::kTexture ||
+             arg.type().typeKind() == Type::TypeKind::kSampler);
+
+    this->writeExpression(arg, Precedence::kExpression);
+    if (arg.type().typeKind() == Type::TypeKind::kSampler) {
+        this->write(".tex");
     }
 }
 

@@ -1517,7 +1517,7 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
     // Sets the maximum supported protocol version. The highest version
     // supported by both ends will be used for the connection, i.e. if one
     // party supports DTLS 1.0 and the other DTLS 1.2, DTLS 1.0 will be used.
-    SSLProtocolVersion ssl_max_version = SSL_PROTOCOL_DTLS_12;
+    SSLProtocolVersion ssl_max_version = SSL_PROTOCOL_DTLS_13;
   };
 
   // Set the options to be used for subsequently created PeerConnections.

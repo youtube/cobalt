@@ -118,6 +118,8 @@ class Managed : public Foreign {
   // went out of scope and GC happened.
   class Ptr final {
    public:
+    V8_INLINE Ptr() = default;
+
     V8_INLINE Ptr(Ptr&& other) V8_NOEXCEPT = default;
     Ptr(const Ptr&) = delete;
     V8_INLINE Ptr& operator=(Ptr&& other) V8_NOEXCEPT = default;
@@ -150,10 +152,6 @@ class Managed : public Foreign {
 
     std::shared_ptr<CppType> ptr_;
   };
-
-  // Deprecated. Get a raw pointer to the C++ object.
-  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
-  V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
 
   // Get a raw pointer to the C++ object. The returned pointer is only valid as
   // long as no GC happens; prefer `ptr()` unless on performance-critical code

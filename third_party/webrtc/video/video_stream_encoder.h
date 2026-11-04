@@ -98,7 +98,8 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       std::unique_ptr<FrameCadenceAdapterInterface> frame_cadence_adapter,
       std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
       BitrateAllocationCallbackType allocation_cb_type,
-      VideoEncoderFactory::EncoderSelectorInterface* encoder_selector = nullptr,
+      scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+          encoder_selector = nullptr,
       EncoderSwitchRequestCallback encoder_switch_request_callback = nullptr);
   ~VideoStreamEncoder() override;
 
@@ -311,13 +312,10 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   const BitrateAllocationCallbackType allocation_cb_type_;
   const RateControlSettings rate_control_settings_;
 
-  VideoEncoderFactory::EncoderSelectorInterface* const
-      encoder_selector_from_constructor_;
-  std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface> const
-      encoder_selector_from_factory_;
-  // Pointing to either encoder_selector_from_constructor_ or
-  // encoder_selector_from_factory_ but can be nullptr.
-  VideoEncoderFactory::EncoderSelectorInterface* const encoder_selector_;
+  // Pointing to either encoder_selector from constructor or
+  // encoder_selector from_factory_ but can be nullptr.
+  const scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+      encoder_selector_;
 
   VideoStreamEncoderObserver* const encoder_stats_observer_;
   // Adapter that avoids public inheritance of the cadence adapter's callback
@@ -478,7 +476,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       RTC_GUARDED_BY(encoder_queue_);
 
   // Used to cancel any potentially pending tasks to the worker thread.
-  // Refrenced by tasks running on `encoder_queue_` so need to be destroyed
+  // Referenced by tasks running on `encoder_queue_` so need to be destroyed
   // after stopping that queue. Must be created and destroyed on
   // `worker_queue_`.
   ScopedTaskSafety task_safety_;

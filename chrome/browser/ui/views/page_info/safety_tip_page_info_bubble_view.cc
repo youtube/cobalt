@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/accessibility/theme_tracking_non_accessible_image_view.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -229,19 +230,20 @@ void ShowSafetyTipDialog(
     security_state::SafetyTipStatus safety_tip_status,
     const GURL& suggested_url,
     base::OnceCallback<void(SafetyTipInteraction)> close_callback) {
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  BrowserWindowInterface* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
 
   bubble_anchor_util::AnchorConfiguration configuration =
       bubble_anchor_util::GetPageInfoAnchorConfiguration(
-          browser, bubble_anchor_util::Anchor::kLocationBar);
-  gfx::Rect anchor_rect =
-      std::holds_alternative<std::nullptr_t>(configuration.anchor)
-          ? bubble_anchor_util::GetPageInfoAnchorRect(browser)
-          : gfx::Rect();
-  gfx::NativeWindow parent_window = browser->window()->GetNativeWindow();
+          browser->GetBrowserForMigrationOnly(),
+          bubble_anchor_util::Anchor::kLocationBar);
+  gfx::Rect anchor_rect = configuration.anchor.IsNull()
+                              ? bubble_anchor_util::GetPageInfoAnchorRect(
+                                    browser->GetBrowserForMigrationOnly())
+                              : gfx::Rect();
+  gfx::NativeWindow parent_window = browser->GetWindow()->GetNativeWindow();
   gfx::NativeView parent_view = platform_util::GetViewForWindow(parent_window);
 
   views::BubbleDialogDelegateView* bubble = new SafetyTipPageInfoBubbleView(
@@ -262,6 +264,6 @@ PageInfoBubbleViewBase* CreateSafetyTipBubbleForTesting(
     const GURL& suggested_url,
     base::OnceCallback<void(SafetyTipInteraction)> close_callback) {
   return new SafetyTipPageInfoBubbleView(
-      nullptr, gfx::Rect(), parent_view, web_contents, safety_tip_status,
-      suggested_url, std::move(close_callback));
+      views::BubbleAnchor(), gfx::Rect(), parent_view, web_contents,
+      safety_tip_status, suggested_url, std::move(close_callback));
 }

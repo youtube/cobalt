@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/chrome_browser_interface_binders_webui_parts.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/glic/host/glic_ui.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "components/compose/buildflags.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/safe_browsing/buildflags.h"
@@ -40,9 +42,6 @@
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/glic/fre/glic_fre_ui.h"
-#endif
 #if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "components/guest_view/browser/slim_web_view/slim_web_view.mojom.h"  // nogncheck
 #endif
@@ -104,7 +103,7 @@ void PopulateChromeWebUIFrameBindersPartsFeatures(
     RegisterWebUIControllerInterfaceBinder<glic::mojom::FrePageHandlerFactory,
                                            glic::GlicUI>(map);
     // For GlicUI, the WebUI page will check whether Glic is policy-enabled and
-    // restrict access if needed. This isn't required for the GlicFreUI.
+    // restrict access if needed.
     RegisterWebUIControllerInterfaceBinder<glic::mojom::PageHandlerFactory,
                                            glic::GlicUI>(map);
     RegisterWebUIControllerInterfaceBinder<
@@ -117,8 +116,14 @@ void PopulateChromeWebUIFrameBindersPartsFeatures(
         glic::mojom::InternalsPageHandlerFactory, glic::GlicUI>(map);
   }
 #if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  RegisterWebUIControllerInterfaceBinder<guest_view::mojom::PageHandlerFactory,
-                                         glic::GlicUI>(map);
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    RegisterWebUIControllerInterfaceBinder<
+        guest_view::mojom::PageHandlerFactory, glic::GlicUI, ContextualTasksUI>(
+        map);
+  } else {
+    RegisterWebUIControllerInterfaceBinder<
+        guest_view::mojom::PageHandlerFactory, glic::GlicUI>(map);
+  }
 #endif
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)

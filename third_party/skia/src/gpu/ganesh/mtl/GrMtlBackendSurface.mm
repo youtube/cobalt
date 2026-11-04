@@ -102,9 +102,11 @@ private:
 
     bool isProtected() const override { return false; }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendTextureData* that) const override {
         return this->isSameTexture(that);
     }
+#endif
 
     bool isSameTexture(const GrBackendTextureData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kMetal);
@@ -172,6 +174,7 @@ private:
 
     bool isProtected() const override { return false; }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendRenderTargetData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kMetal);
         if (auto otherMtl = static_cast<const GrMtlBackendRenderTargetData*>(that)) {
@@ -179,6 +182,7 @@ private:
         }
         return false;
     }
+#endif
 
     void copyTo(AnyRenderTargetData& rtData) const override {
         rtData.emplace<GrMtlBackendRenderTargetData>(fTexInfo);

@@ -32,7 +32,6 @@ rtc_library("video_rtp_headers") {
     "../../rtc_base:safe_conversions",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
-    "../units:data_rate",
     "../units:time_delta",
   ]
 }
@@ -66,7 +65,6 @@ rtc_library("video_frame") {
     "..:scoped_refptr",
     "..:video_track_source_constraints",
     "../../rtc_base:checks",
-    "../../rtc_base:refcount",
     "../../rtc_base:safe_conversions",
     "../../rtc_base:timeutils",
     "../../rtc_base/memory:aligned_malloc",
@@ -99,7 +97,6 @@ rtc_library("video_frame_i010") {
     "..:make_ref_counted",
     "..:scoped_refptr",
     "../../rtc_base:checks",
-    "../../rtc_base:refcount",
     "../../rtc_base:safe_conversions",
     "../../rtc_base/memory:aligned_malloc",
     "../../rtc_base/system:rtc_export",
@@ -115,7 +112,6 @@ rtc_source_set("recordable_encoded_frame") {
     ":encoded_image",
     ":video_frame",
     ":video_rtp_headers",
-    "..:make_ref_counted",
     "..:scoped_refptr",
     "../units:timestamp",
   ]
@@ -156,17 +152,14 @@ rtc_library("encoded_image") {
   ]
   deps = [
     ":video_codec_constants",
-    ":video_frame",
     ":video_frame_type",
     ":video_rtp_headers",
     "..:make_ref_counted",
     "..:ref_count",
-    "..:refcountedbase",
     "..:rtp_packet_info",
     "..:scoped_refptr",
     "../../rtc_base:buffer",
     "../../rtc_base:checks",
-    "../../rtc_base:refcount",
     "../../rtc_base/system:rtc_export",
     "../units:timestamp",
     "corruption_detection:filter_settings",
@@ -225,14 +218,12 @@ rtc_library("rtp_video_frame_assembler_unittests") {
   deps = [
     ":encoded_frame",
     ":rtp_video_frame_assembler",
-    ":video_frame",
     ":video_frame_type",
     "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_packetizer_av1_test_helper",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/rtp_rtcp:rtp_video_header",
     "../../modules/video_coding:codec_globals_headers",
-    "../../rtc_base:checks",
     "../../test:test_support",
     "../transport/rtp:dependency_descriptor",
   ]
@@ -246,13 +237,10 @@ if (rtc_use_h265) {
     deps = [
       ":encoded_frame",
       ":rtp_video_frame_assembler",
-      ":video_frame",
       ":video_frame_type",
       "../../modules/rtp_rtcp",
       "../../modules/rtp_rtcp:rtp_rtcp_format",
       "../../modules/rtp_rtcp:rtp_video_header",
-      "../../modules/video_coding:codec_globals_headers",
-      "../../rtc_base:checks",
       "../../test:test_support",
     ]
   }
@@ -372,12 +360,9 @@ rtc_library("builtin_video_bitrate_allocator_factory") {
   ]
 
   deps = [
-    ":video_bitrate_allocation",
     ":video_bitrate_allocator",
     ":video_bitrate_allocator_factory",
     ":video_frame",
-    "../../api:scoped_refptr",
-    "../../media:rtc_media_base",
     "../../modules/video_coding:video_coding_utility",
     "../../modules/video_coding/svc:svc_rate_allocator",
     "../environment",
@@ -393,9 +378,8 @@ rtc_library("frame_buffer") {
     "frame_buffer.h",
   ]
   deps = [
-    "../../api:field_trials_view",
-    "../../api/units:timestamp",
-    "../../api/video:encoded_frame",
+    ":encoded_frame",
+    "..:field_trials_view",
     "../../modules/video_coding:video_coding_utility",
     "../../rtc_base:logging",
     "../../rtc_base:rtc_numerics",
@@ -411,7 +395,6 @@ rtc_library("frame_buffer_unittest") {
   deps = [
     ":frame_buffer",
     "..:field_trials",
-    "../../api/video:encoded_frame",
     "../../test:create_test_field_trials",
     "../../test:fake_encoded_frame",
     "../../test:test_support",
@@ -424,9 +407,7 @@ rtc_library("video_frame_metadata_unittest") {
 
   deps = [
     ":video_frame_metadata",
-    "../../api/video:video_frame",
     "../../modules/video_coding:codec_globals_headers",
     "../../test:test_support",
-    "../../video",
   ]
 }

@@ -119,6 +119,20 @@ size_t GetTypeSize(DataViewOp op_type) {
   }
 }
 
+bool IsDataViewSetOp(DataViewOp op) {
+  switch (op) {
+#define V(Name)                \
+  case DataViewOp::kGet##Name: \
+    return false;              \
+  case DataViewOp::kSet##Name: \
+    return true;
+    DATAVIEW_OP_LIST(V)
+#undef V
+    case DataViewOp::kByteLength:
+      return false;
+  }
+}
+
 bool ReverseBytesSupported(size_t size_in_bytes) {
   switch (size_in_bytes) {
     case 4:
@@ -1679,8 +1693,12 @@ class TurboshaftGraphBuildingInterface
 
   void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
+    TypedArrayAccessMode access_mode = IsDataViewSetOp(op_type)
+                                           ? TypedArrayAccessMode::kWrite
+                                           : TypedArrayAccessMode::kRead;
+
     IF (UNLIKELY(__ ArrayBufferNotValid(V<JSArrayBufferView>::Cast(dataview),
-                                        TypedArrayAccessMode::kRead))) {
+                                        access_mode))) {
       ThrowDataViewDetachedError(decoder, op_type);
     }
   }
@@ -2177,7 +2195,14 @@ class TurboshaftGraphBuildingInterface
         break;
       }
       case WKI::kStringConcatShared: {
-        UNIMPLEMENTED();
+        V<String> head_string = ExternRefToString(args[0]);
+        V<String> tail_string = ExternRefToString(args[1]);
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringAdd_CheckNone_Shared>(
+            decoder, {head_string, tail_string});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
       }
       case WKI::kStringEquals:
       case WKI::kStringEqualsShared: {
@@ -2316,7 +2341,14 @@ class TurboshaftGraphBuildingInterface
         break;
       }
       case WKI::kStringSubstringShared: {
-        UNIMPLEMENTED();
+        V<String> string = ExternRefToString(args[0]);
+        // We do not have to flatten the string; shared strings are always flat.
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringSliceShared>(
+            decoder, {string, args[1].op, args[2].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
       }
       case WKI::kStringToWtf16Array:
       case WKI::kStringToWtf16ArrayShared: {
@@ -4143,11 +4175,7 @@ class TurboshaftGraphBuildingInterface
                 IsolateData::is_on_central_stack_flag_offset());
     V<Context> native_context = instance_cache_.native_context();
 
-    IF (is_on_central_stack) {
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
-                         native_context);
-      __ Unreachable();
-    }
+    __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
 
     V<WordPtr> stack = CheckContAndGetStack(cont_ref);
 
@@ -4243,11 +4271,9 @@ class TurboshaftGraphBuildingInterface
         __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
                 IsolateData::is_on_central_stack_flag_offset());
     V<Context> native_context = instance_cache_.native_context();
-    IF (is_on_central_stack) {
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
-                         native_context);
-      __ Unreachable();
-    }
+
+    __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
+
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
@@ -4861,11 +4887,12 @@ class TurboshaftGraphBuildingInterface
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    // TODO(14616): Data segments aren't available during streaming compilation.
-    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
     // TODO(14616): Fix sharedness.
-    CHECK_EQ(decoder->module_->data_segments[imm.index].shared,
-             SharedFlag::kNo);
+    // TODO(14616): Data segments aren't available during streaming compilation,
+    // hence the `has_shared()` check below. Discussion:
+    // github.com/WebAssembly/shared-everything-threads/issues/83
+    CHECK(!decoder->enabled_.has_shared() ||
+          decoder->module_->data_segments[imm.index].shared == SharedFlag::kNo);
     auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                        MachineType::Uint32());
     CallC(

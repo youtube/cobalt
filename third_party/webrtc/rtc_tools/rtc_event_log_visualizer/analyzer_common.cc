@@ -62,8 +62,7 @@ bool IsAudioSsrc(const ParsedRtcEventLog& parsed_log,
 std::string GetStreamName(const ParsedRtcEventLog& parsed_log,
                           PacketDirection direction,
                           uint32_t ssrc) {
-  char buffer[200];
-  SimpleStringBuilder name(buffer);
+  StringBuilder name;
   if (IsAudioSsrc(parsed_log, direction, ssrc)) {
     name << "Audio ";
   } else if (IsVideoSsrc(parsed_log, direction, ssrc)) {
@@ -79,15 +78,14 @@ std::string GetStreamName(const ParsedRtcEventLog& parsed_log,
   else
     name << "(Out) ";
   name << "SSRC " << ssrc;
-  return name.str();
+  return name.Release();
 }
 
 std::string GetLayerName(LayerDescription layer) {
-  char buffer[100];
-  SimpleStringBuilder name(buffer);
+  StringBuilder name;
   name << "SSRC " << layer.ssrc << " sl " << layer.spatial_layer << ", tl "
        << layer.temporal_layer;
-  return name.str();
+  return name.Release();
 }
 
 std::string SsrcToString(uint32_t ssrc) {

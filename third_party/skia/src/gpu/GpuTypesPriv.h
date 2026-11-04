@@ -66,8 +66,6 @@ static constexpr const char* BackendApiToStr(BackendApi backend) {
     SkUNREACHABLE;
 }
 
-SK_MAKE_BITFIELD_CLASS_OPS(GpuStatsFlags)
-
 } // namespace skgpu
 
 #endif // skgpu_GpuTypesPriv_DEFINED

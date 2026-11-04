@@ -1373,16 +1373,20 @@ class GraphBuildingNodeProcessor {
             TrustedCast<WasmExportedFunctionData>(data);
         wasm_signature = function_data->internal()->sig();
         if (CanInlineJSToWasmCall(wasm_signature)) {
-          Tagged<WasmTrustedInstanceData> instance_data =
-              function_data->instance_data();
-          wasm::NativeModule* native_module = instance_data->native_module();
-          int wasm_function_index = function_data->function_index();
-          bool receiver_is_first_param =
-              function_data->receiver_is_first_param();
-          wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-              native_module, wasm_function_index, shared, feedback,
-              receiver_is_first_param);
-          __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+          int wasm_arity = static_cast<int>(wasm_signature->parameter_count());
+          int js_arity = node->num_args();
+          // TODO(353475584): The old Turbofan-based inlining also handled
+          // mismatched arity by creating the appropriate undefined values.
+          // For now, we conservatively inline only if the arguments match.
+          if (js_arity == wasm_arity) {
+            Tagged<WasmTrustedInstanceData> instance_data =
+                function_data->instance_data();
+            wasm::NativeModule* native_module = instance_data->native_module();
+            int wasm_function_index = function_data->function_index();
+            wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
+                native_module, wasm_function_index, shared, feedback);
+            __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+          }
         }
       }
     }
@@ -2670,13 +2674,12 @@ class GraphBuildingNodeProcessor {
     int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
 
     uint32_t length = node->homomorphic_array().length().value();
-    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map.Get());
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
     V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
         __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
         __ WordPtrConstant(length - 1));
     V<HeapObject> array = __ HeapConstant(node->homomorphic_array().object());
-    V<WordPtr> weak_map =
-        __ WordPtrBitwiseOr(map_word, __ WordPtrConstant(kWeakHeapObjectMask));
+    V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
 
     V<Object> array_entry =
         __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
@@ -2686,28 +2689,24 @@ class GraphBuildingNodeProcessor {
     IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
       // 1. Check descriptor count.
       V<Word32> bitfield3 =
-          __ Load(map, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Int32(), Map::kBitField3Offset);
+          __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
       V<Word32> nof_desc = __ Word32BitwiseAnd(
           bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
-      V<Word32> encoded_descriptor_index = __ Word32Constant(
-          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index));
+      uint32_t encoded_descriptor_index =
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
       __ DeoptimizeIf(
           __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
           frame_state, DeoptimizeReason::kWrongMap,
           node->eager_deopt_info()->feedback_to_update());
 
       // 2. Load descriptor array.
-      V<DescriptorArray> descriptors =
-          __ Load(map, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::TaggedPointer(),
-                  Map::kInstanceDescriptorsOffset);
+      V<DescriptorArray> descriptors = __ template LoadField<DescriptorArray>(
+          map, AccessBuilder::ForMapDescriptors());
 
       // 3. Check key.
       int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
                        DescriptorArray::kEntryKeyOffset;
-      V<Object> key = __ Load(descriptors, LoadOp::Kind::TaggedBase(),
-                              MemoryRepresentation::AnyTagged(), key_offset);
+      V<Object> key = __ LoadTaggedField(descriptors, key_offset);
       V<Object> name = __ HeapConstant(node->name().object());
       __ DeoptimizeIfNot(__ TaggedEqual(key, name), frame_state,
                          DeoptimizeReason::kWrongMap,
@@ -2726,6 +2725,7 @@ class GraphBuildingNodeProcessor {
       uint16_t storage_offset =
           LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
       uint32_t expected_details_mask =
           PropertyDetails::KindField::kMask |
           PropertyDetails::LocationField::kMask |
@@ -2736,6 +2736,12 @@ class GraphBuildingNodeProcessor {
           PropertyDetails::LocationField::encode(PropertyLocation::kField) |
           PropertyDetails::OffsetInWordsField::encode(storage_offset) |
           PropertyDetails::InObjectField::encode(is_inobject);
+      if (is_double) {
+        // 4b. Check Representation is exactly double, if needed.
+        expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+        expected_details |= PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+      }
 
       V<Word32> masked_details =
           __ Word32BitwiseAnd(details, expected_details_mask);
@@ -2743,18 +2749,15 @@ class GraphBuildingNodeProcessor {
                          frame_state, DeoptimizeReason::kWrongMap,
                          node->eager_deopt_info()->feedback_to_update());
 
-      // 4b. Check Representation.
-      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
-      uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
-          PropertyDetails::EncodeRepresentation(Representation::Double()));
+      if (!is_double) {
+        // 4b. Check Representation is NOT double. If we wanted a double
+        // representation, we would have checked it already as part of the
+        // expected details check.
+        uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+        uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
 
-      V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
-      if (is_double) {
-        __ DeoptimizeIfNot(__ Word32Equal(masked_repr, expected_repr),
-                           frame_state, DeoptimizeReason::kWrongMap,
-                           node->eager_deopt_info()->feedback_to_update());
-      } else {
+        V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
         __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
                         DeoptimizeReason::kWrongMap,
                         node->eager_deopt_info()->feedback_to_update());
@@ -4641,6 +4644,8 @@ class GraphBuildingNodeProcessor {
       SetMap(node, __ Float64RoundDown(Map(node->ValueInput())));
     } else if (node->kind() == maglev::Float64Round::Kind::kCeil) {
       SetMap(node, __ Float64RoundUp(Map(node->ValueInput())));
+    } else if (node->kind() == maglev::Float64Round::Kind::kTrunc) {
+      SetMap(node, __ Float64RoundToZero(Map(node->ValueInput())));
     } else {
       DCHECK_EQ(node->kind(), maglev::Float64Round::Kind::kNearest);
       // Nearest rounds to +infinity on ties. We emulate this by rounding up and
@@ -4654,6 +4659,13 @@ class GraphBuildingNodeProcessor {
 
       SetMap(node, result);
     }
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Float64RoundToFloat32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ ChangeFloat32ToFloat64(
+                     __ TruncateFloat64ToFloat32(Map(node->ValueInput()))));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5039,6 +5051,21 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckedIntPtrToUint32* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
+    // non-negative.
+    __ DeoptimizeIfNot(
+        __ UintPtrLessThanOrEqual(Map(node->ValueInput()),
+                                  std::numeric_limits<uint32_t>::max()),
+        frame_state, DeoptimizeReason::kNotUint32,
+        node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, __ TypeHintUint32(
+                     __ TruncateWordPtrToWord32(Map(node->ValueInput()))));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ TypeHintUint32(Map(node->ValueInput())));
@@ -5092,6 +5119,18 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ ChangeFloat64ToInt32OrDeopt(
+                     Map(node->ValueInput()), frame_state,
+                     CheckForMinusZeroMode::kCheckForMinusZero,
+                     node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  template <Either<maglev::CheckedFloat64ToUint32,
+                   maglev::CheckedHoleyFloat64ToUint32>
+                T>
+  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    SetMap(node, __ ChangeFloat64ToUint32OrDeopt(
                      Map(node->ValueInput()), frame_state,
                      CheckForMinusZeroMode::kCheckForMinusZero,
                      node->eager_deopt_info()->feedback_to_update()));
@@ -6395,7 +6434,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     return __ LoadTypedElement(typed_array, base_pointer, data_pointer,
-                               __ ChangeUint32ToUintPtr(index),
+                               __ ChangeInt32ToIntPtr(index),
                                GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6407,7 +6446,7 @@ class GraphBuildingNodeProcessor {
     return __ LoadTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeUint32ToUintPtr(index), GetArrayTypeFromElementsKind(kind));
+        __ ChangeInt32ToIntPtr(index), GetArrayTypeFromElementsKind(kind));
   }
 
   void BuildTypedArrayStore(V<JSTypedArray> typed_array, V<Word32> index,
@@ -6415,7 +6454,7 @@ class GraphBuildingNodeProcessor {
     auto [data_pointer, base_pointer] =
         GetTypedArrayDataAndBasePointers(typed_array);
     __ StoreTypedElement(typed_array, base_pointer, data_pointer,
-                         __ ChangeUint32ToUintPtr(index), value,
+                         __ ChangeInt32ToIntPtr(index), value,
                          GetArrayTypeFromElementsKind(kind));
   }
 
@@ -6428,7 +6467,7 @@ class GraphBuildingNodeProcessor {
     __ StoreTypedElement(
         __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
         __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
-        __ ChangeUint32ToUintPtr(index), value,
+        __ ChangeInt32ToIntPtr(index), value,
         GetArrayTypeFromElementsKind(kind));
   }
 

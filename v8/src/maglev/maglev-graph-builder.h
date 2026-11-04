@@ -455,12 +455,12 @@ class MaglevGraphBuilder {
   MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int index, VariableMode mode,
       MaybeAssignedFlag assigned);
-  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index,
+  ValueNode* TrySpecializeLoadContextCell(ValueNode* context, int index,
                                           MaybeAssignedFlag assigned);
   ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
                                        ContextMode context_mode,
                                        compiler::ScopeInfoRef scope_info);
-  MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
+  MaybeReduceResult TrySpecializeStoreContextCell(ValueNode* context, int index,
                                                   ValueNode* value,
                                                   MaybeAssignedFlag assigned);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
@@ -590,6 +590,19 @@ class MaglevGraphBuilder {
     DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
 
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
+
+    compiler::OptionalScopeInfoRef src_scope_info;
+    if (src == interpreter::Register::virtual_accumulator()) {
+      src_scope_info = accumulator_scope_info_;
+    } else {
+      src_scope_info = register_scope_infos_[src];
+    }
+
+    if (dst == interpreter::Register::virtual_accumulator()) {
+      accumulator_scope_info_ = src_scope_info;
+    } else {
+      register_scope_infos_[dst] = src_scope_info;
+    }
   }
 
   ReduceResult GetTaggedValue(ValueNode* value,
@@ -931,6 +944,9 @@ class MaglevGraphBuilder {
   V(MathClz32)                                 \
   V(MathMin)                                   \
   V(MathMax)                                   \
+  V(MathImul)                                  \
+  V(MathFround)                                \
+  V(MathTrunc)                                 \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
   V(StringFromCharCode)                        \

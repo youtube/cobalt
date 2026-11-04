@@ -370,7 +370,7 @@ DispatchResourceOptional Builder::allocateResource(const ComputeStep* step,
             SkASSERT(!dataBlock.empty());
 
             auto [writer, bufInfo, _] =
-                    bufferMgr->getMappedUniformBuffer(dataBlock.size(), /*stride=*/1);
+                    bufferMgr->getMappedUniformBuffer(dataBlock.size(), /*headroom=*/0);
             if (bufInfo) {
                 writer.write(dataBlock.data(), dataBlock.size());
                 result = bufInfo;

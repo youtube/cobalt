@@ -708,8 +708,6 @@ void OnMakePublicKeyCredentialComplete(
             credential->supplemental_pub_keys));
   }
   if (credential->payment) {
-    CHECK(base::FeatureList::IsEnabled(
-        blink::features::kSecurePaymentConfirmationBrowserBoundKeys));
     extension_outputs->setPayment(
         ConvertTo<blink::AuthenticationExtensionsPaymentOutputs*>(
             credential->payment));
@@ -1422,25 +1420,6 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
     return promise;
   }
 
-  if (options->hasPublicKey() && !options->publicKey()->hasChallenge()) {
-    if (!blink::RuntimeEnabledFeatures::
-            WebAuthenticationChallengeUrlEnabled()) {
-      resolver->RejectWithTypeError(
-          "Failed to read the 'challenge' property from "
-          "'PublicKeyCredentialRequestOptions'");
-      return promise;
-    } else if (!options->publicKey()->hasChallengeUrl()) {
-      resolver->RejectWithTypeError(
-          "Failed to read 'challenge' or 'challengeUrl' property from "
-          "'PublicKeyCredentialRequestOptions'");
-      return promise;
-    }
-    // Relative URLs have to be turned to absolute URLs before the type
-    // converter builds the mojo struct.
-    options->publicKey()->setChallengeUrl(
-        context->CompleteURL(options->publicKey()->challengeUrl()));
-  }
-
   auto required_origin_type = RequiredOriginType::kSecureAndSameWithAncestors;
   // hasPublicKey() implies that this is a WebAuthn request.
   if (options->hasPublicKey()) {
@@ -1949,27 +1928,15 @@ AuthenticationCredentialsContainer::create(
   if (mojo_options->is_payment_credential_creation) {
     String rp_id_for_payment_extension = mojo_options->relying_party->id;
     Vector<uint8_t> user_id_for_payment_extension = mojo_options->user->id;
-    if (base::FeatureList::IsEnabled(
-            blink::features::kSecurePaymentConfirmationBrowserBoundKeys)) {
-      auto* spc_service =
-          CredentialManagerProxy::From(resolver->GetScriptState())
-              ->SecurePaymentConfirmationService();
-      spc_service->MakePaymentCredential(
-          std::move(mojo_options),
-          BindOnce(&OnMakePublicKeyCredentialWithPaymentExtensionComplete,
-                   std::make_unique<ScopedPromiseResolver>(resolver),
-                   std::move(scoped_abort_state), std::move(feature_handle),
-                   rp_id_for_payment_extension,
-                   std::move(user_id_for_payment_extension)));
-    } else {
-      authenticator->MakeCredential(
-          std::move(mojo_options),
-          BindOnce(&OnMakePublicKeyCredentialWithPaymentExtensionComplete,
-                   std::make_unique<ScopedPromiseResolver>(resolver),
-                   std::move(scoped_abort_state), std::move(feature_handle),
-                   rp_id_for_payment_extension,
-                   std::move(user_id_for_payment_extension)));
-    }
+    auto* spc_service = CredentialManagerProxy::From(resolver->GetScriptState())
+                            ->SecurePaymentConfirmationService();
+    spc_service->MakePaymentCredential(
+        std::move(mojo_options),
+        BindOnce(&OnMakePublicKeyCredentialWithPaymentExtensionComplete,
+                 std::make_unique<ScopedPromiseResolver>(resolver),
+                 std::move(scoped_abort_state), std::move(feature_handle),
+                 rp_id_for_payment_extension,
+                 std::move(user_id_for_payment_extension)));
   } else {
     mojo_options->is_conditional =
         options->mediation() ==

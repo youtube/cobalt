@@ -9,6 +9,7 @@
 #define skgpu_GpuTypes_DEFINED
 
 #include "include/core/SkTypes.h"
+#include "include/private/base/SkMacros.h"
 
 /**
  * This file includes numerous public types that are used by all of our gpu backends.
@@ -84,6 +85,7 @@ enum class GpuStatsFlags : uint32_t {
     kElapsedTime = 0b01,
     kOcclusionPassSamples = 0b10,
 };
+SK_MAKE_BITFIELD_CLASS_OPS(GpuStatsFlags)
 
 struct GpuStats {
     uint64_t elapsedTime = 0;

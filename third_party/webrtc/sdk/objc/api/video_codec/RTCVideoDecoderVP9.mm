@@ -14,6 +14,7 @@
 #import "RTCNativeVideoDecoder.h"
 #import "RTCNativeVideoDecoderBuilder+Native.h"
 #import "RTCVideoDecoderVP9.h"
+#import "api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "sdk/objc/base/RTCMacros.h"
 
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
@@ -25,7 +26,13 @@
     @implementation RTC_OBJC_TYPE (RTCVideoDecoderVP9Builder)
 
     - (std::unique_ptr<webrtc::VideoDecoder>)build:
-        (const webrtc::Environment&)env {
+        (const webrtc::Environment &)env {
+      return webrtc::VP9Decoder::Create();
+    }
+
+    - (std::unique_ptr<webrtc::VideoDecoder>)
+        buildWithEnvironment:(const webrtc::Environment &)env
+                      format:(const webrtc::SdpVideoFormat &)format {
       return webrtc::VP9Decoder::Create();
     }
 
@@ -38,6 +45,22 @@
       return [[RTC_OBJC_TYPE(RTCVideoDecoderVP9Builder) alloc] init];
 #else
       return nil;
+#endif
+    }
+
+    + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
+#if defined(RTC_ENABLE_VP9)
+      std::vector<webrtc::SdpVideoFormat> formats =
+          webrtc::SupportedVP9DecoderCodecs();
+      NSMutableArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *result =
+          [NSMutableArray arrayWithCapacity:formats.size()];
+      for (const auto &format : formats) {
+        [result addObject:[[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+                              initWithNativeSdpVideoFormat:format]];
+      }
+      return result;
+#else
+      return @[];
 #endif
     }
 

@@ -332,6 +332,9 @@
       <message name="IDS_IOS_AGE_MISMATCH_HEADER_IPHONE" desc="Heading on a full-screen notice on iPhone. This string explains that age-related safety measures are active. Align ‘set up for a child’ phrasing with TC ID 8512022958027641166. The tone should be informative and reassuring.">
         This iPhone is set up for a child
       </message>
+      <message name="IDS_IOS_AGE_MISMATCH_LEARN_MORE" desc="The title of the 'Learn more' modal WebView presented during age mismatch sign-out. [iOS only]">
+        Learn more
+      </message>
       <message name="IDS_IOS_AGE_MISMATCH_PRIMARY_BUTTON" desc="Found on a primary button that users see on a full-screen notice. Tapping the button opens an account picker, allowing the user to sign in to Chrome with a different Google Account. ‘Use’ functions as an imperative verb. The tone is informative.">
         Use another account
       </message>
@@ -350,6 +353,9 @@
       <message name="IDS_IOS_AI_HUB_GEMINI_LABEL" desc="The button label for the Gemini entry point of the AI hub.">
         Ask Gemini
       </message>
+      <message name="IDS_IOS_AI_HUB_GEMINI_UNAVAILABLE_ENTERPRISE_LABEL" desc="The message displayed in the footer for the Gemini entry point of the AI hub whenever it is unavailable because of enterprise policies.">
+        Gemini is turned off for your account. Contact your admin for more information.
+      </message>
       <message name="IDS_IOS_AI_HUB_HIDE_BUTTON_LABEL" desc="The button label for hiding feature entry points in the AI hub.">
         Turn off
       </message>
@@ -358,6 +364,12 @@
       </message>
       <message name="IDS_IOS_AI_HUB_LENS_LABEL" desc="The button label for the Lens entry point of the AI hub.">
         Search screen
+      </message>
+      <message name="IDS_IOS_AI_HUB_LENS_UNAVAILABLE_ENTERPRISE_LABEL" desc="The message displayed in the footer for the Lens entry point of the AI hub whenever it is unavailable because of enterprise policies.">
+        Search screen is turned off for your account. Contact your admin for more information.
+      </message>
+      <message name="IDS_IOS_AI_HUB_LENS_UNAVAILABLE_SEARCH_ENGINE_LABEL" desc="The message displayed in the footer for the Lens entry point of the AI hub whenever it is unavailable because Google is not set as the default search engine.">
+        Search screen is only available when Google is set as your default search engine. You can change your default search engine in <ph name="BEGIN_LINK">BEGIN_LINK</ph>Settings<ph name="END_LINK">END_LINK</ph>.
       </message>
       <message name="IDS_IOS_AI_HUB_MICROPHONE_PERMISSION_LABEL" desc="The button label for the Microphone permission feature of the AI hub.">
         Microphone
@@ -499,7 +511,7 @@
       </message>
       <message name="IDS_IOS_APP_BAR_ALL_TABS" desc="Title of the button opening the TabGrid where all the tabs are visible. Note that if the translation is too long, the 'all' can be dropped and translate only 'Tabs'. [CHAR_LIMIT=14]" meaning="Tap this button to see all your tabs.">
           All tabs
-          </message>
+      </message>
       <message name="IDS_IOS_APP_BAR_ASK" desc="Title of the button opening a gemini prompt when the text is too long to fit in one line. [CHAR_LIMIT=14]" meaning="Tap this button to ask something to Gemini">
           Ask
           </message>
@@ -512,6 +524,9 @@
       <message name="IDS_IOS_APP_BAR_NEW" desc="Title of the button that is either creating a new tab or a new tab group. [CHAR_LIMIT=14]" meaning="Tap this button to create a new entity based on your current context">
           New
           </message>
+      <message name="IDS_IOS_APP_BAR_TABS" desc="Title of the button opening the TabGrid where all the tabs are visible, used when the text is too long to fit in one line. [CHAR_LIMIT=14]" meaning="Tap this button to see all your tabs.">
+          Tabs
+      </message>
       <message name="IDS_IOS_APP_LAUNCHER_OPEN_APP_BUTTON_LABEL" desc="Label of a button to open an application. [Length: 10em] [iOS only]">
         Open
       </message>
@@ -1373,8 +1388,20 @@
       <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_2" desc="Text for the second link in the BWG consent footnote.">
           Gemini Apps Privacy Notice
       </message>
-      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_TEXT" desc="Format string for the BWG consent footnote for non-managed accounts.">
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_TEXT" desc="Format string for the Gemini consent footnote for non-managed accounts.">
           <ph name="GOOGLE_TERMS">$1<ex>Google Terms</ex></ph> and the <ph name="GEMINI_APPS_PRIVACY">$2<ex>Gemini Apps Privacy Notice</ex></ph> apply. Gemini can make mistakes, so double-check it.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA" desc="Format string for the Gemini consent footnote for accounts in South Korea.">
+          Our <ph name="TERMS">$1<ex>Terms</ex></ph>, <ph name="KOREAN_LOCATION_TERMS">$2<ex>Korean Location Terms</ex></ph>, and <ph name="PRIVACY_NOTICE">$3<ex>Privacy Notice</ex></ph> apply. Gemini is AI and can make mistakes, including about people.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_1" desc="Text for the first link in the Gemini consent footnote for South Korea.">
+          Terms
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_2" desc="Text for the second link in the Gemini consent footnote for South Korea.">
+          Korean Location Terms
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_3" desc="Text for the third link in the Gemini consent footnote for South Korea.">
+          Privacy Notice
       </message>
       <message name="IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for managed accounts.">
           By default, your current tab is shared when you start a new chat. When tabs are shared, their contents and URLs are sent to Google but won’t be used to improve generative AI models. You can change this setting anytime.
@@ -1702,9 +1729,6 @@
         {COUNT, plural,
         =1 {Add up to 1 tab}
         other {Add up to {COUNT} tabs}}
-      </message>
-      <message name="IDS_IOS_COMPOSEBOX_MENU_TITLE" desc="Title for the contextual menu, the menu allows the user to attach images, tabs, files to their query. [iOS only].">
-        Ask Google about tabs and more
       </message>
       <message name="IDS_IOS_COMPOSEBOX_MODEL_SELECTOR_OPTION_AUTO" desc="Title for the contextual menu option where the system automatically selects the optimal model per query. [iOS only].">
         Auto
@@ -6778,6 +6802,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_ACCOUNT_ADDRESS_FOOTER_TEXT" desc="Footer text of an account address profile when it is viewed in settings. [iOS only]">
           You can use saved addresses across Google products. This address is saved in your Google Account, <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_AND_PASSWORDS" desc="Name of the settings page which allows managing passwords, addresses and other related settings.">
+        Autofill and passwords
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESSES_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete account addresses. [iOS only]">
           This deletes addresses saved in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.

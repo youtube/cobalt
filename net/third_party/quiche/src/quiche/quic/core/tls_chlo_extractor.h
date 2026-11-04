@@ -209,6 +209,7 @@ class QUICHE_EXPORT TlsChloExtractor
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
+  void OnSconePacket(uint8_t /*signal*/) override {}
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {
     return nullptr;

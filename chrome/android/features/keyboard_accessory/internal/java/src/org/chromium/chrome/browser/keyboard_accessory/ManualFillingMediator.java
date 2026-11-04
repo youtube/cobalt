@@ -127,6 +127,7 @@ class ManualFillingMediator
     private final HashSet<Tab> mObservedTabs = new HashSet<>();
     private KeyboardAccessoryCoordinator mKeyboardAccessory;
     private AccessorySheetCoordinator mAccessorySheet;
+    private boolean mWaitingForFetch;
     private ChromeActivity mActivity; // Used to control the keyboard.
     private TabModelSelectorTabModelObserver mTabModelObserver;
     private BottomSheetController mBottomSheetController;
@@ -469,6 +470,12 @@ class ManualFillingMediator
         // Autofill suggestions are invalidated on rotation. Dismissing all filling UI forces
         // the user to interact with the field they want to edit. This refreshes Autofill.
         hideSoftKeyboard();
+    }
+
+    void setAtMemoryCallback(Runnable callback) {
+        if (mKeyboardAccessory != null) {
+            mKeyboardAccessory.setAtMemoryCallback(callback);
+        }
     }
 
     void resume() {
@@ -1304,5 +1311,16 @@ class ManualFillingMediator
     @VisibleForTesting
     KeyboardAccessoryCoordinator getKeyboardAccessory() {
         return mKeyboardAccessory;
+    }
+
+    void setWaitingForFetch(boolean waiting) {
+        mWaitingForFetch = waiting;
+    }
+
+    void dismissIfWaitingForFetch() {
+        if (mWaitingForFetch) {
+            mWaitingForFetch = false;
+            dismiss();
+        }
     }
 }

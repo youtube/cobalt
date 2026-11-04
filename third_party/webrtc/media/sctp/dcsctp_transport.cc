@@ -206,7 +206,7 @@ bool DcSctpTransport::Start(const SctpOptions& options) {
                     << (options.remote_init.has_value() ? "(set)" : "(not set)")
                     << ")";
 
-  if (!socket_) {
+  if (socket_ == nullptr) {
     dcsctp::DcSctpOptions dcsctp_options =
         CreateDcSctpOptions(options, env_.field_trials());
     if (options.local_init.has_value()) {
@@ -250,6 +250,9 @@ bool DcSctpTransport::Start(const SctpOptions& options) {
 
   for (const auto& [sid, stream_state] : stream_states_) {
     socket_->SetStreamPriority(sid, stream_state.priority);
+  }
+  if (data_channel_sink_ != nullptr) {
+    data_channel_sink_->OnMaxMessageSize(options.max_message_size);
   }
 
   return true;

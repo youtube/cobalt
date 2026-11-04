@@ -30,6 +30,7 @@ enum class CredentialConfigType {
   kDelegated,
   kSPAKE2PlusV1,
   kPreSharedKey,
+  kRawPublicKey,
 };
 
 struct CredentialConfig {
@@ -241,6 +242,8 @@ struct TestConfig {
   bool fips_202205 = false;
   bool wpa_202304 = false;
   bool cnsa_202407 = false;
+  bool cnsa1_202603 = false;
+  bool cnsa2_202603 = false;
   std::optional<bool> expect_peer_match_trust_anchor;
   std::optional<std::vector<uint8_t>> expect_peer_available_trust_anchors;
   std::optional<std::vector<uint8_t>> requested_trust_anchors;
@@ -251,7 +254,9 @@ struct TestConfig {
   std::optional<bool> expect_resumable_across_names;
   bool no_server_name_ack = false;
   std::vector<uint8_t> accepted_peer_cert_types;
+  std::vector<uint8_t> available_client_cert_types;
   std::optional<uint8_t> expect_client_certificate_type;
+  std::optional<uint8_t> expect_server_certificate_type;
 
   std::vector<const char *> handshaker_args;
 

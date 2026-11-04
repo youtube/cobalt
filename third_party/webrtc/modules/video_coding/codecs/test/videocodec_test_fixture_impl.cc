@@ -131,8 +131,7 @@ void ConfigureSvc(VideoCodec* codec_settings,
 }
 
 std::string CodecSpecificToString(const VideoCodec& codec) {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   switch (codec.codecType) {
     case kVideoCodecVP8:
       ss << "\nnum_temporal_layers: "
@@ -163,7 +162,7 @@ std::string CodecSpecificToString(const VideoCodec& codec) {
     default:
       break;
   }
-  return ss.str();
+  return ss.Release();
 }
 
 bool RunEncodeInRealTime(const VideoCodecTestFixtureImpl::Config& config) {
@@ -576,8 +575,7 @@ void VideoCodecTestFixtureImpl::AnalyzeAllFrames(
       RTC_LOG(LS_INFO) << layer_stat.ToString("recv_") << "\n";
 
       // For perf dashboard.
-      char modifier_buf[256];
-      SimpleStringBuilder modifier(modifier_buf);
+      StringBuilder modifier;
       modifier << "_r" << rate_profile_idx << "_sl" << layer_stat.spatial_idx;
 
       auto PrintResultHelper = [&modifier, this](

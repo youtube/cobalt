@@ -353,6 +353,7 @@ TEST_F(NetworkTest, TestNetworkConstruct) {
   EXPECT_EQ(24, ipv4_network1.prefix_length());
   EXPECT_EQ(AF_INET, ipv4_network1.family());
   EXPECT_FALSE(ipv4_network1.ignored());
+  EXPECT_EQ(NetworkSlice::NO_SLICE, ipv4_network1.network_slice());
 }
 
 TEST_F(NetworkTest, TestIsIgnoredNetworkIgnoresIPsStartingWith0) {
@@ -1838,6 +1839,29 @@ TEST(CompareNetworks, TransitivityOfIncomparabilityTest) {
   // network_d == network_f
   EXPECT_FALSE(webrtc_network_internal::CompareNetworks(network_d, network_f));
   EXPECT_FALSE(webrtc_network_internal::CompareNetworks(network_f, network_d));
+}
+
+TEST_F(NetworkTest, TestNetworkSliceChanged) {
+  Network network("test_eth0", "Test Network Adapter 1", IPAddress(0x12345600U),
+                  24);
+  int callback_count = 0;
+  NetworkSlice last_slice = NetworkSlice::NO_SLICE;
+  network.SubscribeNetworkSliceChanged(&network, [&](const Network* n) {
+    callback_count++;
+    last_slice = n->network_slice();
+  });
+
+  network.set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+  EXPECT_EQ(1, callback_count);
+  EXPECT_EQ(NetworkSlice::UNIFIED_COMMUNICATIONS, last_slice);
+
+  // Setting the same value should not trigger the callback.
+  network.set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+  EXPECT_EQ(1, callback_count);
+
+  network.UnsubscribeNetworkSliceChanged(&network);
+  network.set_network_slice(NetworkSlice::NO_SLICE);
+  EXPECT_EQ(1, callback_count);
 }
 
 }  // namespace webrtc

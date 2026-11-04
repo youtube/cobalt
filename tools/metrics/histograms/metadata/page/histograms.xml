@@ -219,7 +219,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".Embedder_BookmarkBar"/>
   <variant name=".Embedder_DefaultSearchEngine"/>
   <variant name=".Embedder_DirectURLInput"/>
-  <variant name=".Embedder_LinkPreview"/>
   <variant name=".Embedder_NewTabPage"/>
   <variant name=".Embedder_PrewarmDefaultSearchEngine"/>
   <variant name=".Embedder_WebView"/>
@@ -304,6 +303,7 @@ chromium-metrics-reviews@google.com.
   <variant name=""/>
   <variant name=".access-code-cast"/>
   <variant name=".accessibility"/>
+  <variant name=".accessibility-annotator-info"/>
   <variant name=".accessory-update"/>
   <variant name=".account-manager-error"/>
   <variant name=".account-migration-welcome"/>
@@ -373,6 +373,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".extended-updates-dialog"/>
   <variant name=".extensions"/>
   <variant name=".extensions-zero-state"/>
+  <variant name=".feature-showcase"/>
   <variant name=".feedback"/>
   <variant name=".file-manager"/>
   <variant name=".files-internals"/>
@@ -532,6 +533,7 @@ chromium-metrics-reviews@google.com.
 
 <variants name="WebUIName">
   <variant name=""/>
+  <variant name=".AccessibilityAnnotatorInfo"/>
   <variant name=".BookmarksSidePanel"/>
   <variant name=".CommentsSidePanel"/>
   <variant name=".Compose"/>
@@ -1458,8 +1460,101 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToDOMContentLoadedEventFired"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can begin before beforeunload handlers run to b) the time the
+    DOMContentLoaded event is fired, excluding the time spent waiting for user
+    interaction in beforeunload dialogs. This includes the time spent running
+    beforeunload JavaScript handlers. This is recorded for Google Search page
+    loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToFirstContentfulPaint"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can begin before beforeunload handlers run to b) the first contentful paint,
+    excluding the time spent waiting for user interaction in beforeunload
+    dialogs. This includes the time spent running beforeunload JavaScript
+    handlers. This is recorded for Google Search page loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToLargestContentfulPaint"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can begin before beforeunload handlers run to b) the largest contentful
+    paint, excluding the time spent waiting for user interaction in beforeunload
+    dialogs. This includes the time spent running beforeunload JavaScript
+    handlers. This is recorded for Google Search page loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToNavigationCommitSent"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can begin before beforeunload handlers run to b) the time the navigation
+    commit request is sent to the renderer, excluding the time spent waiting for
+    user interaction in beforeunload dialogs. This includes the time spent
+    running beforeunload JavaScript handlers. This is recorded for Google Search
+    page loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToNavigationStart"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can start before the beforeunload handler runs to b) when the (existing
+    regular) navigation starts, excluding the time spent waiting for user
+    interaction in beforeunload dialogs. This includes the time spent running
+    beforeunload JavaScript handlers. This is recorded for Google Search page
+    loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ActualNavigationStartToParseStart"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the &quot;actual&quot; navigation starts which
+    can begin before beforeunload handlers run to b) the time the parser
+    started, excluding the time spent waiting for user interaction in
+    beforeunload dialogs. This includes the time spent running beforeunload
+    JavaScript handlers. This is recorded for Google Search page loads.
+  </summary>
+</histogram>
+
+<histogram
     name="PageLoad.Clients.GoogleSearch.AdvertisedAltSvcState{QuicAvailability}{IncognitoSuffix}"
-    enum="AdvertisedAltSvcState" expires_after="2026-08-02">
+    enum="AdvertisedAltSvcState" expires_after="2026-10-04">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1597,6 +1692,32 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDohDetails.ConnectionInfo"
+    enum="HttpConnectionInfoCoarse" expires_after="2026-09-06">
+  <owner>bashi@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    The coarse connection info used for the DNS-over-HTTPS resolution of the
+    first HTTP request sent for the main resource of a main frame navigation,
+    for Google Search page loads. Only recorded for Search navigations that
+    happen entirely in the foreground.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDohDetails.SessionSource"
+    enum="NetworkSessionSource" expires_after="2026-09-06">
+  <owner>bashi@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    The session source (e.g. new, existing) used for the DNS-over-HTTPS
+    resolution of the first HTTP request sent for the main resource of a main
+    frame navigation, for Google Search page loads. Only recorded for Search
+    navigations that happen entirely in the foreground.
+  </summary>
+</histogram>
+
+<histogram
     name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDomainLookupDelay.InsecureDns"
     units="ms" expires_after="2026-09-06">
   <owner>bashi@chromium.org</owner>
@@ -1640,6 +1761,25 @@ chromium-metrics-reviews@google.com.
     navigation is completed or the app is backgrounded on Android.
   </summary>
   <token key="ConnectionProtocolType" variants="ConnectionProtocolType"/>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestResolutionDetails.TaskCompletionDelay.{ResolutionSource}"
+    units="ms" expires_after="2026-09-06">
+  <owner>bashi@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The delay caused by non-caching asynchronous task completion for domain
+    lookup in the first HTTP request sent for the main resource of a main frame
+    navigation, for Google Search page loads, when {ResolutionSource} was used.
+    Only recorded for Search navigations that happen entirely in the foreground.
+  </summary>
+  <token key="ResolutionSource">
+    <variant name="InsecureDns" summary="Insecure DNS"/>
+    <variant name="SecureDns" summary="Secure DNS (DoH)"/>
+    <variant name="System" summary="System DNS"/>
+  </token>
 </histogram>
 
 <histogram
@@ -1765,7 +1905,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Clients.GoogleSearch.HttpNetworkSessionQuicEnabled"
-    enum="Boolean" expires_after="2026-08-02">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1793,6 +1933,36 @@ chromium-metrics-reviews@google.com.
     <variant name="" summary="for any traffic"/>
     <variant name=".Incognito" summary="for incognito traffic"/>
   </token>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.InteractionToActualNavigationStart"
+    units="ms" expires_after="2027-04-01">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the OS-level timestamp of the user input event
+    that started a navigation to b) when the &quot;actual&quot; navigation
+    starts. Recorded at the point when a navigation finishes committing, i.e.
+    finishes processing the DidCommitNavigation message. This is recorded only
+    for main frame cross-document Google Search Page navigations where the user
+    interaction timestamp is available.
+  </summary>
+</histogram>
+
+<histogram name="PageLoad.Clients.GoogleSearch.InteractionToNavigationStart"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the OS-level timestamp of the user input event
+    that started a navigation to b) when the navigation starts, excluding the
+    time spent waiting for user interaction in beforeunload dialogs. This
+    includes the time spent running beforeunload JavaScript handlers. This is
+    recorded for Google Search page loads.
+  </summary>
 </histogram>
 
 <histogram name="PageLoad.Clients.GoogleSearch.IsFirstNavigationForGWS"
@@ -1835,15 +2005,34 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients.GoogleSearch.Navigation.BeforeUnloadExecutionMode"
+    name="PageLoad.Clients.GoogleSearch.Navigation.BeforeUnloadExecutionMode{SameOrCrossOrigin}"
     enum="BeforeUnloadExecutionMode" expires_after="2027-01-10">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
     Records the execution mode of the beforeunload handlers for a Google Search
     navigation. This is a GWS-specific version of
-    PageLoad.Navigation.BeforeUnloadExecutionMode. Recorded at the time of
-    navigation commit for cross-document outermost main frame navigations.
+    PageLoad.Navigation.BeforeUnloadExecutionMode{SameOrCrossOrigin}. Recorded
+    at the time of navigation commit for cross-document {SameOrCrossOrigin}
+    outermost main frame navigations.
+  </summary>
+  <token key="SameOrCrossOrigin">
+    <variant name="" summary=""/>
+    <variant name=".CrossOrigin" summary="cross-origin"/>
+    <variant name=".SameOrigin" summary="same-origin"/>
+  </token>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.NavigationCommitSentToParseStart"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the time the navigation commit request is sent
+    to the renderer to b) the time the renderer starts parsing the HTML. This is
+    recorded for Google Search page loads.
   </summary>
 </histogram>
 
@@ -1865,6 +2054,19 @@ chromium-metrics-reviews@google.com.
     <variant name=".NonConnectionReuse"
         summary="for non connection reuse cases"/>
   </token>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.NavigationStartToNavigationCommitSent"
+    units="ms" expires_after="2027-04-01">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The time relative to navigation start that navigation commit message for a
+    main frame navigation is sent to a renderer process. This is recorded for
+    Google Search page loads.
+  </summary>
 </histogram>
 
 <histogram
@@ -2166,6 +2368,24 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="PageLoad.Clients.GoogleSearch.PaintTiming.NavigationToFirstContentfulPaint.IgnoredDuplicateNavigation"
+    units="ms" expires_after="2027-01-10">
+  <owner>annasato@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Recorded when the first contentful paint (FCP) occurs on a Google Search
+    page load.
+
+    Measures the time in milliseconds from navigation timing's navigation start
+    to the time when the page first paints content, for Google Search page loads
+    where subsequent duplicate navigation requests were ignored. Only recorded
+    for Search navigations that start in the foreground and stay in the
+    foreground until the first contentful paint.
+  </summary>
+</histogram>
+
+<histogram
     name="PageLoad.Clients.GoogleSearch.PaintTiming.NavigationToFirstContentfulPaint{SyntheticResponseSuffix}"
     units="ms" expires_after="2026-08-23">
   <owner>spelchat@chromium.org</owner>
@@ -2272,6 +2492,44 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="PageLoad.Clients.GoogleSearch.ParseStartToDOMContentLoadedEventFired"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from the time the renderer starts parsing the HTML to
+    the time the DOMContentLoaded event is fired. This is recorded for Google
+    Search page loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ParseStartToFirstContentfulPaint"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the time from when the HTML parser started, to when the page first
+    paints content. This is recorded for Google Search page loads.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.ParseStartToLargestContentfulPaint"
+    units="ms" expires_after="2027-02-04">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from the time the renderer starts parsing the HTML to
+    the time the largest contentful paint occurs. This is recorded for Google
+    Search page loads.
+  </summary>
+</histogram>
+
+<histogram
     name="PageLoad.Clients.GoogleSearch.ParseTiming.NavigationToParseStart{SyntheticResponseSuffix}"
     units="ms" expires_after="2026-09-27">
   <owner>kouhei@chromium.org</owner>
@@ -2318,7 +2576,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.Prerender.HostReused{IncognitoSuffix}"
-    enum="Boolean" expires_after="2026-08-02">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2358,7 +2616,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.SessionSource{ConnectionProtocolType}"
-    enum="NetworkSessionSource" expires_after="2026-08-02">
+    enum="NetworkSessionSource" expires_after="2026-10-04">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -3562,7 +3820,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.CommittedPageIsDseSerp" enum="Boolean"
-    expires_after="2026-08-01">
+    expires_after="2026-10-04">
   <owner>anunoy@chromium.org</owner>
   <summary>
     For each page load, records whether the page is a search results page from
@@ -4057,7 +4315,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.InteractiveTiming.INPOffset" units="offset"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <summary>
@@ -4187,7 +4445,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Internal.PageLoadTimingStatus{Condition}"
-    enum="PageLoadTimingStatus" expires_after="2026-08-01">
+    enum="PageLoadTimingStatus" expires_after="2026-10-04">
   <owner>toyoshim@chromium.org</owner>
   <owner>src/components/page_load_metrics/OWNERS</owner>
   <owner>src/content/browser/preloading/prerender/OWNERS</owner>
@@ -4253,7 +4511,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Internal.Prerender2.DomContentLoadedToActivation3{PreloadingTriggerType}"
-    units="ms" expires_after="2026-08-02">
+    units="ms" expires_after="2026-10-04">
   <owner>lingqi@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -4365,7 +4623,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Internal.SuppressedEventsCountBeforePaint3"
-    units="count" expires_after="2026-08-02">
+    units="count" expires_after="2026-10-04">
   <owner>mustaq@chromium.org</owner>
   <owner>blink-interactions-team@google.com</owner>
   <summary>

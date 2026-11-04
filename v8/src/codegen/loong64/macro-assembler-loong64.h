@@ -92,6 +92,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
+    // TODO(loong64_dev): Initialize kDoubleRegZero for use by cctest.
+    movgr2fr_d(kDoubleRegZero, zero_reg);
 #ifdef V8_COMPRESS_POINTERS
     LoadRootRelative(kPtrComprCageBaseRegister,
                      IsolateData::cage_base_offset());
@@ -783,8 +785,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
 
-  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
-
   void mov(Register rd, Register rj) { or_(rd, rj, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
@@ -1118,13 +1118,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                    IndirectPointerTagRange tag_range);
   // Retrieve the Code object referenced by the given code pointer handle.
   void ResolveCodePointerHandle(Register destination, Register handle);
-
-  // Load the pointer to a Code's entrypoint via a code pointer.
-  // Only available when the sandbox is enabled as it requires the code pointer
-  // table.
-  void LoadCodeEntrypointViaCodePointer(Register destination,
-                                        MemOperand field_operand,
-                                        CodeEntrypointTag tag);
 
   // Load the value of Code pointer table corresponding to
   // IsolateGroup::current()->code_pointer_table_.
@@ -1466,7 +1459,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline int32_t GetOffset(Label* L, OffsetSize bits);
 
  private:
-  bool has_double_zero_reg_set_ = false;
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

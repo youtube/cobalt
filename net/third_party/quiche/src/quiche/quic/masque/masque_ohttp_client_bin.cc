@@ -59,6 +59,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "file.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::optional<std::string>, method, std::nullopt,
+    "Sets the method of the encapsulated request. Defaults to GET, or POST if "
+    "--post_data or --post_data_file is set.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::vector<std::string>, header, {},
     "Adds a header field to the encapsulated binary request. Separate the "
     "header name and value with a colon. Can be specified multiple times.");
@@ -149,6 +154,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     }
     post_data = *post_data_from_file;
   }
+  std::optional<std::string> method =
+      quiche::GetQuicheCommandLineFlag(FLAGS_method);
   std::vector<std::string> headers =
       quiche::GetQuicheCommandLineFlag(FLAGS_header);
   std::vector<std::string> key_fetch_headers =
@@ -201,6 +208,9 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   for (size_t i = 2; i < urls.size(); ++i) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
+    if (method.has_value()) {
+      per_request_config.SetMethod(*method);
+    }
     QUICHE_RETURN_IF_ERROR(per_request_config.AddHeaders(headers));
     QUICHE_RETURN_IF_ERROR(per_request_config.AddOuterHeaders(outer_headers));
     if (!private_token.empty()) {

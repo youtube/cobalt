@@ -640,25 +640,6 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   Or(destination, destination, Operand(kHeapObjectTag));
 }
 
-void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
-                                                      MemOperand field_operand,
-                                                      CodeEntrypointTag tag) {
-  DCHECK_NE(tag, kInvalidEntrypointTag);
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  LoadCodePointerTableBase(scratch);
-  Ld_wu(destination, field_operand);
-  srli_d(destination, destination, kCodePointerHandleShift);
-  slli_d(destination, destination, kCodePointerTableEntrySizeLog2);
-  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
-  Ld_d(destination, MemOperand(scratch, destination));
-  if (tag != 0) {
-    li(scratch, Operand(tag));
-    xor_(destination, destination, scratch);
-  }
-}
-
 void MacroAssembler::LoadCodePointerTableBase(Register destination) {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   if (!options().isolate_independent_code && isolate()) {
@@ -2643,8 +2624,8 @@ void MacroAssembler::Dotp_h(VRegister dst, VRegister src1, VRegister src2,
   case type:                                                   \
     vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero); \
     ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1);      \
-    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2);         \
-    Dotp_instr(dst, kSimd128ScratchReg, kSimd128RegZero);      \
+    ilv_instr(kSimd128ScratchReg1, kSimd128RegZero, src2);     \
+    Dotp_instr(dst, kSimd128ScratchReg, kSimd128ScratchReg1);  \
     break;
 
 void MacroAssembler::ExtMulLow(LSXDataType type, VRegister dst, VRegister src1,
@@ -2936,17 +2917,15 @@ void MacroAssembler::Move(FPURegister dst, uint32_t src) {
 
 void MacroAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
-    fmov_d(dst, kDoubleRegZero);
-  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
-             has_double_zero_reg_set_) {
-    Neg_d(dst, kDoubleRegZero);
+  if (src == base::bit_cast<uint64_t>(0.0)) {
+    // TODO(loong64_dev): fmov_d is better, but kDoubleRegZero is not
+    // initialized in cctest and unittest, so it cannot be used directly.
+    movgr2fr_d(dst, zero_reg);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     li(scratch, Operand(static_cast<int64_t>(src)));
     movgr2fr_d(dst, scratch);
-    if (dst == kDoubleRegZero) has_double_zero_reg_set_ = true;
   }
 }
 
@@ -5747,13 +5726,15 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  LoadCodeEntrypointViaCodePointer(
-      destination,
-      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset), tag);
-#else
   Ld_d(destination,
        FieldMemOperand(code_object, Code::kInstructionStartOffset));
+#ifdef V8_ENABLE_SANDBOX
+  if (tag != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, Operand(tag));
+    xor_(destination, destination, scratch);
+  }
 #endif
 }
 

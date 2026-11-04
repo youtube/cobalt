@@ -347,6 +347,30 @@ TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
   // EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
 }
 
+TEST(VCMTimingTest, StopDecodeTimerClearsOldEstimates) {
+  FieldTrials field_trials = CreateTestFieldTrials();
+  SimulatedClock clock(0);
+  VCMTiming timing(&clock, field_trials);
+
+  UpdateDecodeTimer(timing, clock, kDecodeTime);
+  EXPECT_EQ(timing.GetTimings().estimated_max_decode_time, kDecodeTime);
+
+  // Advance time beyond the filter window, old estimates should be cleared.
+  clock.AdvanceTime(TimeDelta::Seconds(30));
+  timing.StopDecodeTimer(TimeDelta::Millis(3), clock.CurrentTime());
+  EXPECT_EQ(timing.GetTimings().estimated_max_decode_time,
+            TimeDelta::Millis(3));
+}
+
+TEST(VCMTimingTest, GetMinPlayoutDelay) {
+  FieldTrials field_trials = CreateTestFieldTrials();
+  SimulatedClock clock(0);
+  VCMTiming timing(&clock, field_trials);
+
+  timing.set_min_playout_delay(TimeDelta::Millis(123));
+  EXPECT_EQ(timing.min_playout_delay(), TimeDelta::Millis(123));
+}
+
 TEST(VCMTimingTest, InitialVideoDelayTimings) {
   FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);

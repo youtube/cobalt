@@ -525,7 +525,7 @@ VideoSendStream::Stats SendVideoStream::GetStats() const {
 ColumnPrinter SendVideoStream::StatsPrinter() {
   return ColumnPrinter::Lambda(
       "video_target_rate video_sent_rate width height",
-      [this](SimpleStringBuilder& sb) {
+      [this](StringBuilder& sb) {
         VideoSendStream::Stats video_stats = send_stream_->GetStats();
         int width = 0;
         int height = 0;

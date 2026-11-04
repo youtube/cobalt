@@ -50,8 +50,6 @@ SimpleStringBuilder& SimpleStringBuilder::operator<<(absl::string_view str) {
 //   may result in partial serialization of calls
 // * snprintf allows us to print the number directly into our buffer.
 // * avoid allocating a std::string (potential heap alloc).
-// TODO(tommi): Switch to std::to_chars in C++17.
-
 SimpleStringBuilder& SimpleStringBuilder::operator<<(int i) {
   return AppendFormat("%d", i);
 }

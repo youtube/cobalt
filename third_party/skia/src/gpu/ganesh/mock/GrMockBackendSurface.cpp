@@ -165,6 +165,7 @@ private:
 
     bool isProtected() const override { return fInfo.isProtected(); }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendTextureData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kMock);
         if (auto otherMock = static_cast<const GrMockBackendTextureData*>(that)) {
@@ -172,6 +173,7 @@ private:
         }
         return false;
     }
+#endif
 
     bool isSameTexture(const GrBackendTextureData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kMock);
@@ -235,6 +237,7 @@ private:
 
     bool isProtected() const override { return fInfo.isProtected(); }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendRenderTargetData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kMock);
         if (auto otherMock = static_cast<const GrMockBackendRenderTargetData*>(that)) {
@@ -242,6 +245,7 @@ private:
         }
         return false;
     }
+#endif
 
     GrBackendFormat getBackendFormat() const override { return fInfo.getBackendFormat(); }
 

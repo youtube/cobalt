@@ -14,7 +14,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window_theme_observer.h"
@@ -22,7 +21,9 @@
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/find_bar_host.h"
+#include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_exclusive_access_context.h"
@@ -32,6 +33,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h"
 #include "chrome/browser/ui/webui_browser/webui_stub_location_bar.h"
+#include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -157,6 +159,12 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
     theme_changed_subscription_ =
         theme_observer->RegisterThemeChangedCallback(base::BindRepeating(
             &WebUIBrowserWindow::UserChangedTheme, base::Unretained(this)));
+  }
+
+  if (auto* zoom_observer = BrowserWindowZoomObserver::From(browser_.get())) {
+    zoom_changed_subscription_ = zoom_observer->RegisterZoomChangedCallback(
+        base::BindRepeating(&WebUIBrowserWindow::ZoomChangedForActiveTab,
+                            base::Unretained(this)));
   }
 
   LoadAccelerators();
@@ -702,10 +710,6 @@ void WebUIBrowserWindow::OnTabDetached(content::WebContents* contents,
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
-void WebUIBrowserWindow::ZoomChangedForActiveTab(bool can_show_bubble) {
-  NOTIMPLEMENTED_LOG_ONCE();
-}
-
 bool WebUIBrowserWindow::ShouldHideUIForFullscreen() const {
   NOTIMPLEMENTED_LOG_ONCE();
   return false;
@@ -957,6 +961,21 @@ void WebUIBrowserWindow::UserChangedTheme(
     BrowserThemeChangeType theme_change_type) {
   NotifyColorProviderChanged();
   extensions_container_->NotifyOfAllActions();  // Icons may need re-rendering.
+}
+
+void WebUIBrowserWindow::ZoomChangedForActiveTab(bool can_show_bubble) {
+  auto* tab = browser_->GetActiveTabInterface();
+  if (!tab) {
+    return;
+  }
+
+  auto* zoom_view_controller = tab->GetTabFeatures()->zoom_view_controller();
+  if (!zoom_view_controller) {
+    return;
+  }
+
+  zoom_view_controller->UpdatePageActionIconAndBubbleVisibility(
+      /*prefer_to_show_bubble=*/can_show_bubble, /*from_user_gesture=*/false);
 }
 
 void WebUIBrowserWindow::ShowAppMenu() {

@@ -73,6 +73,7 @@ rtc_library("video") {
     ":frame_cadence_adapter",
     ":frame_decode_scheduler",
     ":frame_dumping_decoder",
+    ":null_video_decoder",
     ":task_queue_frame_decode_scheduler",
     ":unique_timestamp_counter",
     ":video_stream_buffer_controller",
@@ -189,6 +190,23 @@ rtc_library("video") {
   if (!build_with_mozilla) {
     deps += [ "../media:rtc_media_base" ]
   }
+}
+
+rtc_library("null_video_decoder") {
+  visibility = [ "*" ]
+
+  sources = [
+    "null_video_decoder.cc",
+    "null_video_decoder.h",
+  ]
+
+  deps = [
+    "../api/video:encoded_image",
+    "../api/video_codecs:video_codecs_api",
+    "../modules/video_coding:video_codec_interface",
+    "../rtc_base:logging",
+    "../rtc_base/system:rtc_export",
+  ]
 }
 
 rtc_library("frame_dumping_decoder") {

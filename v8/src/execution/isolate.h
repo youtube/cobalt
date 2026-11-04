@@ -1019,7 +1019,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Exception throwing support. The caller should use the result of Throw() as
   // its return value. Returns the Exception sentinel.
   Tagged<Object> Throw(Tagged<Object> exception,
-                       MessageLocation* location = nullptr);
+                       MessageLocation* location = nullptr,
+                       bool is_stack_overflow = false);
   Tagged<Object> ThrowAt(DirectHandle<JSObject> exception,
                          MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
@@ -1459,10 +1460,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(jgruber): Consider removing it.
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
-  size_t total_regexp_code_generated() const {
-    return total_regexp_code_generated_;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  void PrintAndClearRegExpSubjectStrings();
+  int64_t& trace_regexp_exec_start_ticks() {
+    return trace_regexp_exec_start_ticks_;
   }
-  void IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code);
+  int& trace_regexp_exec_nesting_level() {
+    return trace_regexp_exec_nesting_level_;
+  }
+  std::vector<int>& trace_regexp_exec_subject_indices() {
+    return trace_regexp_exec_subject_indices_;
+  }
+  std::unordered_map<uint32_t, int>& trace_regexp_exec_subject_hash_to_index() {
+    return trace_regexp_exec_subject_hash_to_index_;
+  }
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   Debug* debug() const { return debug_; }
 
@@ -2874,7 +2886,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // always null.
   ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
-  size_t total_regexp_code_generated_ = 0;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  int64_t trace_regexp_exec_start_ticks_ = 0;
+  // -1 is used to print the csv header on first use.
+  int trace_regexp_exec_nesting_level_ = -1;
+  // Indices into EternalHandles for OOL subject strings.
+  std::vector<int> trace_regexp_exec_subject_indices_;
+  std::unordered_map<uint32_t, int> trace_regexp_exec_subject_hash_to_index_;
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   size_t elements_deletion_counter_ = 0;
 

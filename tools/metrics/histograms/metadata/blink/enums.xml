@@ -6301,7 +6301,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5674" label="SmartCardConnect"/>
   <int value="5675" label="NavigatorCPUPerformance"/>
   <int value="5676" label="OBSOLETE_SelectionRemoveRangeNotFoundWouldThrow"/>
-  <int value="5677" label="NestedSvgCssSizingProperties"/>
+  <int value="5677" label="OBSOLETE_NestedSvgCssSizingProperties"/>
   <int value="5678" label="CryptoAlgorithmChaCha20Poly1305"/>
   <int value="5679" label="CryptoAlgorithmMlDsa44"/>
   <int value="5680" label="CryptoAlgorithmMlDsa65"/>
@@ -6505,6 +6505,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5863" label="V8HoleyArrayReadthrough"/>
   <int value="5864" label="LanguageModel_Create_Temperature"/>
   <int value="5865" label="LanguageModel_Create_TopK"/>
+  <int value="5866" label="HTMLInCanvas"/>
+  <int value="5867" label="ConnectionAllowlist"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8398,6 +8400,7 @@ Called by update_use_counter_css.py.-->
   <int value="938" label="rule-inset-start"/>
   <int value="939" label="rule-inset-end"/>
   <int value="940" label="path-length"/>
+  <int value="941" label="hanging-punctuation"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->

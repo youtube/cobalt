@@ -21,7 +21,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/functional/any_invocable.h"
-#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
@@ -40,6 +39,7 @@
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "p2p/dtls/dtls_transport_internal.h"
+#include "pc/channel_interface.h"
 #include "pc/rtp_media_utils.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
@@ -157,11 +157,9 @@ RTCError MaybeIgnorePacketization(const MediaChannelParameters& new_params,
       // Note: this writes into old_params
       codec.packetization = std::nullopt;
     } else if (!has_matching_packetization) {
-      std::string error_desc = absl::StrFormat(
-          "Failed to set local answer due to incompatible codec "
-          "packetization for pt='%v' specified.",
-          codec.id);
-      return RTCError(RTCErrorType::INTERNAL_ERROR, error_desc);
+      return RTCError(RTCErrorType::INTERNAL_ERROR)
+             << "Failed to set local answer due to incompatible codec "
+             << "packetization for pt='" << codec.id << "' specified.";
     }
 
     if (has_matching_packetization) {
@@ -182,13 +180,17 @@ BaseChannel::BaseChannel(
     absl::string_view mid,
     bool srtp_required,
     CryptoOptions crypto_options,
-    UniqueRandomIdGenerator* ssrc_generator)
+    UniqueRandomIdGenerator* ssrc_generator,
+    ChannelCallbacks callbacks)
     : media_send_channel_(std::move(send_media_channel_impl)),
       media_receive_channel_(std::move(receive_media_channel_impl)),
       worker_thread_(worker_thread),
       network_thread_(network_thread),
       signaling_thread_(signaling_thread),
       alive_(PendingTaskSafetyFlag::Create()),
+      on_first_packet_received_(std::move(callbacks.on_first_packet_received)),
+      on_first_packet_sent_(std::move(callbacks.on_first_packet_sent)),
+      on_packet_received_n_(std::move(callbacks.on_packet_received)),
       srtp_required_(srtp_required),
       extensions_filter_(
           crypto_options.srtp.enable_encrypted_rtp_header_extensions
@@ -402,35 +404,7 @@ void BaseChannel::OnNetworkRouteChanged(
   media_send_channel()->OnNetworkRouteChanged(transport_name(), new_route);
 }
 
-void BaseChannel::SetFirstPacketReceivedCallback_n(
-    absl::AnyInvocable<void(const RtpPacketReceived&) &&> callback) {
-  RTC_DCHECK_RUN_ON(network_thread());
-  RTC_DCHECK(!on_first_packet_received_ || !callback);
 
-  // TODO(bugs.webrtc.org/11992): Rename SetFirstPacketReceivedCallback_n to
-  // something that indicates network thread initialization/uninitialization and
-  // call Init_n() / Deinit_n() respectively.
-  // if (!callback)
-  //   Deinit_n();
-
-  on_first_packet_received_ = std::move(callback);
-}
-
-void BaseChannel::SetFirstPacketSentCallback_n(
-    absl::AnyInvocable<void() &&> callback) {
-  RTC_DCHECK_RUN_ON(network_thread());
-  RTC_DCHECK(!on_first_packet_sent_ || !callback);
-
-  on_first_packet_sent_ = std::move(callback);
-}
-
-void BaseChannel::SetPacketReceivedCallback_n(
-    absl::AnyInvocable<void(const RtpPacketReceived&)> callback) {
-  RTC_DCHECK_RUN_ON(network_thread());
-  RTC_DCHECK(!on_packet_received_n_ || !callback);
-
-  on_packet_received_n_ = std::move(callback);
-}
 
 void BaseChannel::OnTransportReadyToSend(bool ready) {
   RTC_DCHECK_RUN_ON(network_thread());
@@ -884,7 +858,8 @@ VoiceChannel::VoiceChannel(
     absl::string_view mid,
     bool srtp_required,
     CryptoOptions crypto_options,
-    UniqueRandomIdGenerator* ssrc_generator)
+    UniqueRandomIdGenerator* ssrc_generator,
+    ChannelCallbacks callbacks)
     : BaseChannel(worker_thread,
                   network_thread,
                   signaling_thread,
@@ -893,7 +868,8 @@ VoiceChannel::VoiceChannel(
                   mid,
                   srtp_required,
                   crypto_options,
-                  ssrc_generator) {}
+                  ssrc_generator,
+                  std::move(callbacks)) {}
 
 VoiceChannel::~VoiceChannel() {
   TRACE_EVENT0("webrtc", "VoiceChannel::~VoiceChannel");
@@ -1055,7 +1031,8 @@ VideoChannel::VideoChannel(
     absl::string_view mid,
     bool srtp_required,
     CryptoOptions crypto_options,
-    UniqueRandomIdGenerator* ssrc_generator)
+    UniqueRandomIdGenerator* ssrc_generator,
+    ChannelCallbacks callbacks)
     : BaseChannel(worker_thread,
                   network_thread,
                   signaling_thread,
@@ -1064,8 +1041,8 @@ VideoChannel::VideoChannel(
                   mid,
                   srtp_required,
                   crypto_options,
-                  ssrc_generator) {
-}
+                  ssrc_generator,
+                  std::move(callbacks)) {}
 
 VideoChannel::~VideoChannel() {
   TRACE_EVENT0("webrtc", "VideoChannel::~VideoChannel");

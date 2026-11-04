@@ -6,6 +6,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/file_system_access/file_system_access_ui_helpers.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_scroll_panel.h"
@@ -124,7 +125,7 @@ FileSystemAccessRestorePermissionBubbleView::CreateAndShow(
                                      RequestType::kRestorePermissions);
 
   auto* browser = chrome::FindBrowserWithTab(web_contents);
-  if (!browser || !browser->window()) {
+  if (!browser || !browser->GetWindow()) {
     return nullptr;
   }
 
@@ -169,7 +170,7 @@ void FileSystemAccessRestorePermissionBubbleView::UpdateAnchor(
   if (configuration.highlighted_element) {
     SetHighlightedElement(*configuration.highlighted_element);
   }
-  if (std::holds_alternative<std::nullptr_t>(configuration.anchor)) {
+  if (configuration.anchor.IsNull()) {
     SetAnchorRect(bubble_anchor_util::GetPageInfoAnchorRect(browser));
   }
   SetArrow(configuration.bubble_arrow);

@@ -142,24 +142,21 @@ const SkStrokeRec& DefaultFillStyle() {
     return kFillStyle;
 }
 
-/** If the paint can be reduced to a solid flood-fill, determine the correct color to fill with. */
+// If the paint can be reduced to a solid flood-fill, compute the correct color to fill with.
 std::optional<SkColor4f> extract_paint_color(const PaintParams& paint,
                                              const SkColorInfo& dstColorInfo) {
-    SkBlendMode bm = paint.finalBlendMode();
-    // Since we don't depend on the dst, a dst-out blend mode implies source is
-    // opaque, which causes dst-out to behave like clear.
-    if (bm == SkBlendMode::kClear || bm == SkBlendMode::kDstOut) {
-        return SkColors::kTransparent;
-    }
-
+    // kClear is converted to kSrc automatically; if we're here that means the final blend must be
+    // src or src-over with an opaque effect.
+    SkASSERT(paint.finalBlendMode() == SkBlendMode::kSrc ||
+             paint.finalBlendMode() == SkBlendMode::kSrcOver);
     // PaintParams has already consolidated constant shaders or images and applied color filters to
     // constant input colors. If the paint still has any of those fields, then we can't extract it.
     if (paint.shader() || paint.imageShader() || paint.colorFilter()) {
         return std::nullopt;
     }
 
-    // However, PaintParams converted the color in sRGB and we need to return this in the
-    // destination color space.
+    // However, PaintParams stores the color in sRGB and we need to return this in the destination
+    // color space.
     return PaintParams::Color4fPrepForDst(paint.color(), dstColorInfo);
 }
 
@@ -329,14 +326,17 @@ public:
             : fRecorder(recorder),
               fKeyAndDataBuilder(fRecorder->priv().popOrCreateKeyAndDataBuilder()) {
         SkASSERT(fKeyAndDataBuilder);
-        SkDEBUGCODE(this->gatherer()->checkReset());
-        SkDEBUGCODE(this->builder()->checkReset());
+        // The PipelineDataGatherer and builder must be reset before being returned to the pool for
+        // reuse, so they should be empty when we fetch them here
+        SkDEBUGCODE(this->gatherer()->checkReset();)
+        SkDEBUGCODE(this->builder()->checkReset();)
     }
 
     ~ScopedDrawBuilder() {
         SkASSERT(fKeyAndDataBuilder && fRecorder);
-        // The PipelineDataGatherer must be reset before being returned to the pool for reuse.
+        // The PipelineDataGatherer and builder must be reset before being returned to the pool.
         this->gatherer()->resetForDraw();
+        this->builder()->resetForDraw();
         fRecorder->priv().pushKeyAndDataBuilder(std::move(fKeyAndDataBuilder));
     }
 
@@ -1584,10 +1584,6 @@ void Device::drawGeometry(const Transform& localToDevice,
     if (!renderer || renderer->outsetBoundsForAA()) {
         clip.outsetBoundsForAA();
     }
-
-    // A renderer that emits a primitive color should only be used by a drawX() call that sets a
-    // non-null primitive blender.
-    SkASSERT(SkToBool(paint.primitiveBlender()) == (renderer && renderer->emitsPrimitiveColor()));
 
     TextureFormat format = fDC->target().proxy()->format();
     ShadingParams shading{fRecorder->priv().caps(),

@@ -4,12 +4,15 @@
 
 #include "src/objects/templates.h"
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -169,17 +172,17 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
   return Cast<Name>(maybe_name);
 }
 
-int FunctionTemplateInfo::GetCFunctionsCount() const {
+uint32_t FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
   return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value();
 }
 
-CFunctionWithSignature FunctionTemplateInfo::GetCFunction(Isolate* isolate,
-                                                          int index) const {
-  i::DisallowHeapAllocation no_gc;
+CFunctionWithSignature FunctionTemplateInfo::GetCFunction(
+    uint32_t index) const {
+  i::DisallowGarbageCollection no_gc;
   return *Cast<Managed<CFunctionWithSignature>>(
               Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-              ->raw();
+              ->raw(no_gc);
 }
 
 // static

@@ -722,7 +722,9 @@ void PasswordManager::OnPresaveGeneratedPassword(
     PasswordManagerDriver* driver,
     const FormData& form_data,
     const std::u16string& generated_password) {
-  DCHECK(client_->IsSavingAndFillingEnabled(form_data.url()));
+  if (!client_->IsSavingAndFillingEnabled(form_data.url())) {
+    return;
+  }
   PasswordFormManager* form_manager =
       GetMatchedManagerForForm(driver, form_data.renderer_id());
   UMA_HISTOGRAM_BOOLEAN("PasswordManager.GeneratedFormHasNoFormManager",
@@ -1042,8 +1044,7 @@ bool PasswordManager::HaveFormManagersReceivedData(
   }
   for (const auto& form_manager : password_form_cache_.GetFormManagers()) {
     if (form_manager->GetDriver().get() == driver &&
-        form_manager->GetFormFetcher()->GetState() ==
-            FormFetcher::State::WAITING) {
+        !form_manager->IsFetchCompleted()) {
       return false;
     }
   }
@@ -1214,8 +1215,7 @@ PasswordFormManager* PasswordManager::ProvisionallySaveForm(
     }
   }
 
-  if (is_manual_fallback && matched_manager->GetFormFetcher()->GetState() ==
-                                FormFetcher::State::WAITING) {
+  if (is_manual_fallback && !matched_manager->IsFetchCompleted()) {
     // In case of manual fallback, the form manager has to be ready for saving.
     return nullptr;
   }
@@ -1462,8 +1462,7 @@ bool PasswordManager::IsAutomaticSavePromptAvailable(
     return false;
   }
 
-  if (submitted_manager->GetFormFetcher()->GetState() ==
-      FormFetcher::State::WAITING) {
+  if (!submitted_manager->IsFetchCompleted()) {
     // We have a provisional save manager, but it didn't finish matching yet.
     // We just give up.
     RecordProvisionalSaveFailure(
@@ -1690,7 +1689,10 @@ void PasswordManager::OnLoginSuccessful() {
     if (logger) {
       logger->LogMessage(Logger::STRING_DECISION_SAVE);
     }
-    submitted_manager->Save();
+    std::unique_ptr<PasswordFormManagerForUI> owned_submitted_manager =
+        MoveOwnedSubmittedManager();
+    CHECK_EQ(owned_submitted_manager.get(), submitted_manager);
+    owned_submitted_manager->Save();
 
     if (!submitted_manager->IsNewLogin()) {
       client_->NotifySuccessfulLoginWithExistingPassword(
@@ -1698,7 +1700,7 @@ void PasswordManager::OnLoginSuccessful() {
     }
 
     if (submitted_manager->HasGeneratedPassword()) {
-      client_->AutomaticPasswordSave(MoveOwnedSubmittedManager(),
+      client_->AutomaticPasswordSave(std::move(owned_submitted_manager),
                                      /*is_update_confirmation=*/false);
     }
   }
@@ -1942,6 +1944,10 @@ void PasswordManager::ShowManualFallbackForSaving(
   // `form_manager` will become nullptr.
   if (!form_manager) {
     HideManualFallbackForSaving();
+    return;
+  }
+
+  if (!form_manager->IsFetchCompleted()) {
     return;
   }
 

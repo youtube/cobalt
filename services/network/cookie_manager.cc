@@ -29,7 +29,6 @@
 #include "net/url_request/url_request_context.h"
 #include "services/network/cookie_access_delegate_impl.h"
 #include "services/network/session_cleanup_cookie_store.h"
-#include "services/network/tpcd/metadata/manager.h"
 #include "url/gurl.h"
 
 using CookieDeletionInfo = net::CookieDeletionInfo;
@@ -59,8 +58,7 @@ CookieManager::CookieManager(
     net::URLRequestContext* url_request_context,
     FirstPartySetsAccessDelegate* const first_party_sets_access_delegate,
     scoped_refptr<SessionCleanupCookieStore> session_cleanup_cookie_store,
-    mojom::CookieManagerParamsPtr params,
-    network::tpcd::metadata::Manager* tpcd_metadata_manager)
+    mojom::CookieManagerParamsPtr params)
     : cookie_store_(url_request_context->cookie_store()),
       session_cleanup_cookie_store_(std::move(session_cleanup_cookie_store)) {
   mojom::CookieAccessDelegateType cookie_access_delegate_type =
@@ -71,7 +69,6 @@ CookieManager::CookieManager(
     // Don't wait for callback, the work happens synchronously.
     AllowFileSchemeCookies(params->allow_file_scheme_cookies,
                            base::DoNothing());
-    cookie_settings_.set_tpcd_metadata_manager(tpcd_metadata_manager);
   }
   cookie_store_->SetCookieAccessDelegate(
       std::make_unique<CookieAccessDelegateImpl>(
@@ -164,7 +161,8 @@ void CookieManager::SetCanonicalCookie(const net::CanonicalCookie& cookie,
     DCHECK(result) << result;
   }
   cookie_store_->SetCanonicalCookieAsync(std::move(cookie_ptr), source_url,
-                                         cookie_options, std::move(callback));
+                                         cookie_options, std::move(callback),
+                                         /*cookie_access_result=*/std::nullopt);
 }
 
 void CookieManager::DeleteCanonicalCookie(
@@ -386,6 +384,13 @@ void CookieManager::ConfigureCookieSettings(
   out->set_mitigations_enabled_for_3pcd(params.mitigations_enabled_for_3pcd);
   out->set_secure_origin_cookies_allowed_schemes(
       params.secure_origin_cookies_allowed_schemes);
+  std::vector<url::Origin> filtered_origins;
+  for (const auto& origin : params.secure_origin_cookies_allowed_origins) {
+    if (!origin.opaque()) {
+      filtered_origins.push_back(origin);
+    }
+  }
+  out->set_secure_origin_cookies_allowed_origins(filtered_origins);
   out->set_matching_scheme_cookies_allowed_schemes(
       params.matching_scheme_cookies_allowed_schemes);
   out->set_third_party_cookies_allowed_schemes(

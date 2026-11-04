@@ -128,9 +128,21 @@ class RTC_EXPORT RtpSenderInterface : public RefCountInterface,
 
   // Sets a user defined encoder selector.
   // Overrides selector that is (optionally) provided by VideoEncoderFactory.
+  [[deprecated(
+      "Use SetEncoderSelector with Ref Counted EncoderSelectorInterface")]]
   virtual void SetEncoderSelector(
       std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
-          encoder_selector) = 0;
+          encoder_selector) {
+    SetEncoderSelector(
+        scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>(
+            encoder_selector.release()));
+  }
+
+  virtual void SetEncoderSelector(
+      scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+          encoder_selector) {
+    RTC_DCHECK_NOTREACHED();
+  }
 
   // Default implementation of SetFrameTransformer.
   // TODO: bugs.webrtc.org/15929 - remove when all implementations are good

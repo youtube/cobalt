@@ -19,6 +19,7 @@
 @class LocationBarCoordinator;
 @protocol OmniboxPopupPresenterDelegate;
 @protocol OmniboxFocusDelegate;
+@protocol ReaderModeChipCommands;
 @protocol ToolbarOmniboxConsumer;
 
 // Location bar coordinator.
@@ -32,6 +33,10 @@
 // View controller containing the omnibox.
 @property(nonatomic, strong, readonly)
     UIViewController* locationBarViewController;
+
+// Handler for Reader Mode chip commands.
+@property(nonatomic, readonly) id<ReaderModeChipCommands> readerModeChipHandler;
+
 // Delegate for this coordinator.
 // TODO(crbug.com/41363340): Change this.
 @property(nonatomic, weak) id<OmniboxFocusDelegate> delegate;
@@ -77,6 +82,13 @@
 
 // Sets command dispatcher for page action menu entry point.
 - (void)setPageActionMenuEntryPointDispatcher;
+
+// Sets whether this location bar is active or not.
+- (void)setLocationBarActive:(BOOL)active;
+
+// Sets whether the location bar is at the top or bottom position. Only set when
+// `kChromeNextIa` is enabled.
+- (void)setTopPosition:(BOOL)topPosition;
 
 // Highlights or un-highlights the entry point for page action menu.
 - (void)togglePageActionMenuEntryPointHighlight:(BOOL)highlight;

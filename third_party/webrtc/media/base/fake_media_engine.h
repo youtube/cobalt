@@ -125,6 +125,9 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   bool CheckNoRtcp() { return rtcp_packets_.empty(); }
   void set_fail_set_recv_codecs(bool fail) { fail_set_recv_codecs_ = fail; }
   void ResetUnsignaledRecvStream() override {}
+  absl::AnyInvocable<void() &&> GetResetUnsignaledRecvStreamTask() override {
+    return [this]() { ResetUnsignaledRecvStream(); };
+  }
   std::optional<uint32_t> GetUnsignaledSsrc() const override {
     return std::nullopt;
   }
@@ -524,7 +527,7 @@ class FakeVoiceMediaReceiveChannel
 
   bool GetStats(VoiceMediaReceiveInfo* info,
                 bool get_and_clear_legacy_stats) override;
-  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsCallback(
+  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsTask(
       bool reset_legacy) override;
 
   void SetRawAudioSink(uint32_t ssrc,
@@ -618,7 +621,7 @@ class FakeVoiceMediaSendChannel
   std::optional<Codec> GetSendCodec() const override;
 
   bool GetStats(VoiceMediaSendInfo* stats) override;
-  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsTask()
       override;
 
  private:
@@ -704,7 +707,7 @@ class FakeVideoMediaReceiveChannel
   void ClearRecordableEncodedFrameCallback(uint32_t ssrc) override;
   void RequestRecvKeyFrame(uint32_t ssrc) override;
   bool GetStats(VideoMediaReceiveInfo* info) override;
-  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsTask()
       override;
 
   bool AddDefaultRecvStreamForTesting(const StreamParams& /* sp */) override {
@@ -766,7 +769,7 @@ class FakeVideoMediaSendChannel
 
   bool SendCodecHasNack() const override { return false; }
   bool GetStats(VideoMediaSendInfo* info) override;
-  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsTask()
       override;
   bool SetOptions(const VideoOptions& options) override;
 

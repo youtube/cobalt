@@ -12,6 +12,10 @@ source_set("renderer_context_menu") {
     # chrome/browser/ui gets componentized further.
     allow_circular_includes_from = [ "//chrome/browser/ui" ]
 
+    if (is_mac) {
+      allow_circular_includes_from += [ "//chrome/browser/ui/cocoa" ]
+    }
+
     public = [
       "accessibility_labels_bubble_model.h",
       "render_view_context_menu.h",
@@ -40,6 +44,10 @@ source_set("renderer_context_menu") {
       "//ui/menus",
       "//url",
     ]
+
+    if (is_mac) {
+      public_deps += [ "//chrome/browser/ui/cocoa" ]
+    }
 
     if (is_chromeos) {
       public_deps += [ "//chromeos/ui/clipboard_history" ]
@@ -96,6 +104,7 @@ source_set("impl") {
       "//chrome/browser/glic/browser_ui",
       "//chrome/browser/glic/public:features",
       "//chrome/browser/glic/resources:browser_resources",
+      "//chrome/browser/language",
       "//chrome/browser/lens/region_search",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/pdf",
@@ -106,6 +115,7 @@ source_set("impl") {
       "//chrome/browser/profiles:profile_io_data",
       "//chrome/browser/search_engines",
       "//chrome/browser/send_tab_to_self",
+      "//chrome/browser/sharing/click_to_call",
       "//chrome/browser/sharing_hub",
       "//chrome/browser/spellchecker",
       "//chrome/browser/sync",

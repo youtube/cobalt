@@ -15,6 +15,7 @@
 #include "base/android/jni_android.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/notimplemented.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "starboard/android/shared/starboard_bridge.h"

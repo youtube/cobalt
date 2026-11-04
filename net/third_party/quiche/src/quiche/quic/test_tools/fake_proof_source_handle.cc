@@ -121,31 +121,16 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
   }
 
   QUICHE_DCHECK(select_cert_action_ == Action::DELEGATE_SYNC);
-  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
-    ProofSource::CertChainsResult chains_result =
-        delegate_->GetCertChains(server_address, client_address, hostname);
-    const bool ok = !chains_result.chains.empty();
-    callback_->OnSelectCertificateDone(
-        ok, /*is_sync=*/true,
-        ProofSourceHandleCallback::LocalSSLConfig(
-            absl::MakeConstSpan(chains_result.chains), delayed_ssl_config_),
-        /*ticket_encryption_key=*/absl::string_view(),
-        /*cert_matched_sni=*/chains_result.chains_match_sni);
-    return ok ? QUIC_SUCCESS : QUIC_FAILURE;
-  }
 
-  bool cert_matched_sni;
-  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
-      delegate_->GetCertChain(server_address, client_address, hostname,
-                              &cert_matched_sni);
-
-  bool ok = chain && !chain->certs.empty();
+  ProofSource::CertChainsResult chains_result =
+      delegate_->GetCertChains(server_address, client_address, hostname);
+  const bool ok = !chains_result.chains.empty();
   callback_->OnSelectCertificateDone(
       ok, /*is_sync=*/true,
-      ProofSourceHandleCallback::LocalSSLConfig{chain.get(),
-                                                delayed_ssl_config_},
+      ProofSourceHandleCallback::LocalSSLConfig(
+          absl::MakeConstSpan(chains_result.chains), delayed_ssl_config_),
       /*ticket_encryption_key=*/absl::string_view(),
-      /*cert_matched_sni=*/cert_matched_sni);
+      /*cert_matched_sni=*/chains_result.chains_match_sni);
   return ok ? QUIC_SUCCESS : QUIC_FAILURE;
 }
 
@@ -222,37 +207,20 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
     callback_->OnSelectCertificateDone(
         /*ok=*/false,
         /*is_sync=*/false,
-        callback_->DoesOnSelectCertificateDoneExpectChains()
-            ? ProofSourceHandleCallback::LocalSSLConfig(
-                  /*chains=*/{}, delayed_ssl_config_)
-            : ProofSourceHandleCallback::LocalSSLConfig(/*chain=*/nullptr,
-                                                        delayed_ssl_config_),
+        ProofSourceHandleCallback::LocalSSLConfig(
+            /*chains=*/{}, delayed_ssl_config_),
         /*ticket_encryption_key=*/absl::string_view(),
         /*cert_matched_sni=*/false);
   } else if (action_ == Action::DELEGATE_ASYNC) {
-    if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
-      ProofSource::CertChainsResult chains_result = delegate_->GetCertChains(
-          args_.server_address, args_.client_address, args_.hostname);
-      const bool ok = !chains_result.chains.empty();
-      callback_->OnSelectCertificateDone(
-          ok, /*is_sync=*/false,
-          ProofSourceHandleCallback::LocalSSLConfig(
-              absl::MakeConstSpan(chains_result.chains), delayed_ssl_config_),
-          /*ticket_encryption_key=*/absl::string_view(),
-          /*cert_matched_sni=*/chains_result.chains_match_sni);
-    } else {
-      bool cert_matched_sni;
-      quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
-          delegate_->GetCertChain(args_.server_address, args_.client_address,
-                                  args_.hostname, &cert_matched_sni);
-      bool ok = chain && !chain->certs.empty();
-      callback_->OnSelectCertificateDone(
-          ok, /*is_sync=*/false,
-          ProofSourceHandleCallback::LocalSSLConfig{chain.get(),
-                                                    delayed_ssl_config_},
-          /*ticket_encryption_key=*/absl::string_view(),
-          /*cert_matched_sni=*/cert_matched_sni);
-    }
+    ProofSource::CertChainsResult chains_result = delegate_->GetCertChains(
+        args_.server_address, args_.client_address, args_.hostname);
+    const bool ok = !chains_result.chains.empty();
+    callback_->OnSelectCertificateDone(
+        ok, /*is_sync=*/false,
+        ProofSourceHandleCallback::LocalSSLConfig(
+            absl::MakeConstSpan(chains_result.chains), delayed_ssl_config_),
+        /*ticket_encryption_key=*/absl::string_view(),
+        /*cert_matched_sni=*/chains_result.chains_match_sni);
   } else {
     QUIC_BUG(quic_bug_10139_1)
         << "Unexpected action: " << static_cast<int>(action_);

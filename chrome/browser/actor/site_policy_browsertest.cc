@@ -10,17 +10,17 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_switches.h"
 #include "chrome/browser/actor/actor_test_util.h"
-#include "chrome/browser/actor/origin_checker.h"
 #include "chrome/browser/lookalikes/lookalike_test_helper.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/actor/core/actor_features.h"
+#include "components/actor/core/actor_switches.h"
+#include "components/actor/core/origin_checker.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/browser_thread.h"
@@ -100,10 +100,11 @@ class ActorSitePolicyBrowserTest : public InProcessBrowserTest {
 
     base::test::TestFuture<MayActOnUrlBlockReason> allowed;
     auto* actor_service = ActorKeyedService::Get(browser()->profile());
-    MayActOnTab(*browser()->tab_strip_model()->GetActiveTab(),
-                actor_service->GetJournal(), TaskId(), OriginChecker(),
-                MockPolicyChecker(EnterprisePolicyBlockReason::kNotBlocked),
-                allowed.GetCallback());
+    MayActOnTab(
+        *browser()->tab_strip_model()->GetActiveTab(),
+        actor_service->GetJournal(), TaskId(), OriginChecker(),
+        MockPolicyChecker(EnterprisePolicyChecker::UrlBlockReason::kNotBlocked),
+        allowed.GetCallback());
     // The result should not be provided synchronously.
     EXPECT_FALSE(allowed.IsReady());
     EXPECT_EQ(expected_allowed,
@@ -176,10 +177,11 @@ IN_PROC_BROWSER_TEST_F(ActorSitePolicyMissingBlocklistBrowserTest, FailOpen) {
 
   base::test::TestFuture<MayActOnUrlBlockReason> allowed;
   auto* actor_service = ActorKeyedService::Get(browser()->profile());
-  MayActOnTab(*browser()->tab_strip_model()->GetActiveTab(),
-              actor_service->GetJournal(), TaskId(), OriginChecker(),
-              MockPolicyChecker(EnterprisePolicyBlockReason::kNotBlocked),
-              allowed.GetCallback());
+  MayActOnTab(
+      *browser()->tab_strip_model()->GetActiveTab(),
+      actor_service->GetJournal(), TaskId(), OriginChecker(),
+      MockPolicyChecker(EnterprisePolicyChecker::UrlBlockReason::kNotBlocked),
+      allowed.GetCallback());
   EXPECT_TRUE(allowed.Get() == MayActOnUrlBlockReason::kAllowed);
 }
 

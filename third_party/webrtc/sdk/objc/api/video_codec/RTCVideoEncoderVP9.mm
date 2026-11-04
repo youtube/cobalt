@@ -14,10 +14,12 @@
 #import "RTCNativeVideoEncoder.h"
 #import "RTCNativeVideoEncoderBuilder+Native.h"
 #import "RTCVideoEncoderVP9.h"
+#import "api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "helpers/NSString+StdString.h"
 #import "sdk/objc/base/RTCMacros.h"
 
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/vp9_profile.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 
 @interface RTC_OBJC_TYPE (RTCVideoEncoderVP9Builder)
@@ -27,8 +29,17 @@
     @implementation RTC_OBJC_TYPE (RTCVideoEncoderVP9Builder)
 
     - (std::unique_ptr<webrtc::VideoEncoder>)build:
-        (const webrtc::Environment&)env {
+        (const webrtc::Environment &)env {
       return webrtc::CreateVp9Encoder(env);
+    }
+
+    - (std::unique_ptr<webrtc::VideoEncoder>)
+        buildWithEnvironment:(const webrtc::Environment &)env
+                      format:(const webrtc::SdpVideoFormat &)format {
+      return webrtc::CreateVp9Encoder(
+          env,
+          {.profile = webrtc::ParseSdpForVP9Profile(format.parameters)
+                          .value_or(webrtc::VP9Profile::kProfile0)});
     }
 
     @end
@@ -53,6 +64,22 @@
         }
       }
       return result;
+    }
+
+    + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
+#if defined(RTC_ENABLE_VP9)
+      std::vector<webrtc::SdpVideoFormat> formats =
+          webrtc::SupportedVP9Codecs(/*add_scalability_modes=*/true);
+      NSMutableArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *result =
+          [NSMutableArray arrayWithCapacity:formats.size()];
+      for (const auto &format : formats) {
+        [result addObject:[[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+                              initWithNativeSdpVideoFormat:format]];
+      }
+      return result;
+#else
+      return @[];
+#endif
     }
 
     + (bool)isSupported {

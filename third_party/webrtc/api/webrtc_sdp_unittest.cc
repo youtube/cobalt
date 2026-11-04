@@ -5111,5 +5111,63 @@ TEST_F(WebRtcSdpTest, ShrugsOnUnknownStaticAudioCodecs) {
   EXPECT_TRUE(SdpDeserialize(sdp_with_audio_codec_1));
 }
 
+TEST_F(WebRtcSdpTest, DeserializeSframeAttribute) {
+  std::string sdp = kSdpSessionString;
+  sdp += kSdpVideoString;
+  sdp += "a=sframe\r\n";
+
+  auto jdesc = SdpDeserialize(sdp);
+  ASSERT_THAT(jdesc, NotNull());
+  ASSERT_EQ(1u, jdesc->description()->contents().size());
+  EXPECT_TRUE(jdesc->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+}
+
+TEST_F(WebRtcSdpTest, DeserializeWithoutSframeAttribute) {
+  std::string sdp = kSdpSessionString;
+  sdp += kSdpVideoString;
+
+  auto jdesc = SdpDeserialize(sdp);
+  ASSERT_THAT(jdesc, NotNull());
+  ASSERT_EQ(1u, jdesc->description()->contents().size());
+  EXPECT_FALSE(jdesc->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+}
+
+TEST_F(WebRtcSdpTest, SerializeSframeAttribute) {
+  video_desc_->set_sframe_enabled(true);
+  std::string message = SdpSerialize(MakeDescriptionWithoutCandidates());
+  EXPECT_NE(std::string::npos, message.find("a=sframe\r\n"));
+}
+
+TEST_F(WebRtcSdpTest, SerializeWithoutSframeAttribute) {
+  video_desc_->set_sframe_enabled(false);
+  std::string message = SdpSerialize(MakeDescriptionWithoutCandidates());
+  EXPECT_EQ(std::string::npos, message.find("a=sframe"));
+}
+
+TEST_F(WebRtcSdpTest, SframeAttributeRoundTrip) {
+  video_desc_->set_sframe_enabled(true);
+  std::string message = SdpSerialize(MakeDescriptionWithoutCandidates());
+  EXPECT_NE(std::string::npos, message.find("a=sframe\r\n"));
+
+  auto jdesc = SdpDeserialize(message);
+  ASSERT_THAT(jdesc, NotNull());
+  ASSERT_EQ(2u, jdesc->description()->contents().size());
+  // audio (index 0) should not have sframe, video (index 1) should.
+  EXPECT_FALSE(jdesc->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+  EXPECT_TRUE(jdesc->description()
+                  ->contents()[1]
+                  .media_description()
+                  ->sframe_enabled());
+}
+
 }  // namespace
 }  // namespace webrtc

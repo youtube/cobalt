@@ -18,6 +18,7 @@
 #endif
 
 #include "src/api/api-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -213,13 +214,13 @@ namespace {
 
 ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
     Tagged<FixedArray> function_overloads, Isolate* isolate, Zone* zone) {
+  DisallowGarbageCollection no_gc;
   const uint32_t len = function_overloads->ulength().value();
-  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures =
-      ZoneVector<CFunctionInfoWithDetails>(len, zone);
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(len, zone);
   for (uint32_t i = 0; i < len; i++) {
     auto overload =
         Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
-            ->raw();
+            ->raw(no_gc);
     c_functions_with_signatures[i] = {overload->address, overload->signature};
   }
   return c_functions_with_signatures;
@@ -1036,22 +1037,24 @@ class JSGlobalProxyData : public JSObjectData {
       : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
-#define DEFINE_IS(Name)                                                   \
-  bool ObjectData::Is##Name() const {                                     \
-    if (should_access_heap()) {                                           \
-      return i::Is##Name(*object());                                      \
-    }                                                                     \
-    if (is_smi()) return false;                                           \
-    auto ho_data = static_cast<const HeapObjectData*>(this);              \
-    InstanceType data_instance_type = ho_data->data_instance_type();      \
-    /* Make sure HeapObjectData subclass has matching type. */            \
-    if (!InstanceTypeChecker::Is##Name(data_instance_type)) return false; \
-    /* Check if object()'s map's instance_type matches. */                \
-    InstanceType instance_type = ho_data->GetMapInstanceType();           \
-    /* As long as Maps are background serialized, the heap object's */    \
-    /* instance type should match the HeapObjectData subclass. */         \
-    DCHECK_EQ(data_instance_type, instance_type);                         \
-    return InstanceTypeChecker::Is##Name(instance_type);                  \
+#define DEFINE_IS(Name)                                                \
+  bool ObjectData::Is##Name() const {                                  \
+    if (should_access_heap()) {                                        \
+      return i::Is##Name(*object());                                   \
+    }                                                                  \
+    if (is_smi()) return false;                                        \
+    auto ho_data = static_cast<const HeapObjectData*>(this);           \
+    InstanceType data_instance_type = ho_data->data_instance_type();   \
+    /* Make sure HeapObjectData subclass has matching type. */         \
+    if (!InstanceTypeChecker::Is##Name(data_instance_type)) {          \
+      return false;                                                    \
+    }                                                                  \
+    /* Check if object()'s map's instance_type matches. */             \
+    InstanceType instance_type = ho_data->GetMapInstanceType();        \
+    /* As long as Maps are background serialized, the heap object's */ \
+    /* instance type should match the HeapObjectData subclass. */      \
+    DCHECK_EQ(data_instance_type, instance_type);                      \
+    return InstanceTypeChecker::Is##Name(instance_type);               \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
@@ -2277,6 +2280,8 @@ std::optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
   Float64 unboxed_value = Float64::FromBits(
       RacyReadHeapNumberBits(Cast<HeapNumber>(constant.value())));
 
+  // Const double fields should not contain values with the hole NaN pattern.
+  DCHECK(!unboxed_value.is_hole_nan());
   dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
                                                   unboxed_value);
   return unboxed_value;

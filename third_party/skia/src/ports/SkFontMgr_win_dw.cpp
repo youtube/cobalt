@@ -17,6 +17,7 @@
 #include "include/private/base/SkTPin.h"
 #include "src/base/SkEndian.h"
 #include "src/base/SkUTF.h"
+#include "src/base/SkZip.h"
 #include "src/core/SkFontDescriptor.h"
 #include "src/core/SkTypefaceCache.h"
 #include "src/ports/SkTypeface_win_dw.h"
@@ -34,6 +35,7 @@ using namespace skia_private;
 
 namespace {
 
+#ifdef SK_WIN_FONTMGR_NO_SIMULATIONS
 // Korean fonts Gulim, Dotum, Batang, Gungsuh have bitmap strikes that get
 // artifically emboldened by Windows without antialiasing. Korean users prefer
 // these over the synthetic boldening performed by Skia. So let's make an
@@ -44,10 +46,10 @@ bool HasBitmapStrikes(const SkTScopedComPtr<IDWriteFont>& font) {
   SkTScopedComPtr<IDWriteFontFace> fontFace;
   HRB(font->CreateFontFace(&fontFace));
 
-  AutoDWriteTable ebdtTable(fontFace.get(),
-                            SkEndian_SwapBE32(SkSetFourByteTag('E', 'B', 'D', 'T')));
+  AutoDWriteTable ebdtTable(fontFace.get(), DWRITE_MAKE_OPENTYPE_TAG('E', 'B', 'D', 'T'));
   return ebdtTable.fExists;
 }
+#endif
 
 // Iterate calls to GetFirstMatchingFont incrementally removing bold or italic
 // styling that can trigger the simulations. Implementing it this way gets us a
@@ -121,6 +123,8 @@ protected:
     sk_sp<SkTypeface> onMatchFamilyStyleCharacter(const char familyName[], const SkFontStyle&,
                                                   const char* bcp47[], int bcp47Count,
                                                   SkUnichar character) const override;
+    sk_sp<SkTypeface> onMatch(const Request&) const override;
+    sk_sp<SkTypeface> onFallback(const Request&) const override;
     sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset>, int ttcIndex) const override;
     sk_sp<SkTypeface> onMakeFromStreamArgs(std::unique_ptr<SkStreamAsset>, const SkFontArguments&) const override;
     sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData>, int ttcIndex) const override;
@@ -129,15 +133,27 @@ protected:
 
 private:
     HRESULT getByFamilyName(const WCHAR familyName[], IDWriteFontFamily** fontFamily) const;
+    sk_sp<SkTypeface> fallback1(IDWriteFontFallback1* fontFallback1,
+                                const WCHAR* dwFamilyName,
+                                SkSpan<const DWRITE_FONT_AXIS_VALUE> model,
+                                bool italicRequested,
+                                const WCHAR* dwBcp47,
+                                SkSpan<const SkFontMgr::Request::CMapEntry> cmapEntries,
+                                DWRITE_FONT_SIMULATIONS allowedSimulations) const;
     sk_sp<SkTypeface> fallback(const WCHAR* dwFamilyName, DWriteStyle,
-                               const WCHAR* dwBcp47, UINT32 character) const;
+                               const WCHAR* dwBcp47, UINT32 character,
+                               DWRITE_FONT_SIMULATIONS allowedSimulations) const;
     sk_sp<SkTypeface> layoutFallback(const WCHAR* dwFamilyName, DWriteStyle,
-                                     const WCHAR* dwBcp47, UINT32 character) const;
+                                     const WCHAR* dwBcp47, UINT32 character,
+                                     DWRITE_FONT_SIMULATIONS allowedSimulations) const;
+    static constexpr DWRITE_FONT_SIMULATIONS kDefaultSimulations =
+            DWRITE_FONT_SIMULATIONS_BOLD | DWRITE_FONT_SIMULATIONS_OBLIQUE;
 
     /** Creates a typeface using a typeface cache. */
     sk_sp<SkTypeface> makeTypefaceFromDWriteFont(IDWriteFontFace* fontFace,
                                                  IDWriteFont* font,
                                                  IDWriteFontFamily* fontFamily) const;
+    sk_sp<SkTypeface> makeTypefaceFromDWriteFontFace(IDWriteFontFace3* fontFace) const;
 
     SkTScopedComPtr<IDWriteFactory> fFactory;
     SkTScopedComPtr<IDWriteFontFallback> fFontFallback;
@@ -199,14 +215,14 @@ static bool FindByDWriteFont(SkTypeface* cached, void* ctx) {
         return cshFontFace5->Equals(ctxFontFace5.get());
     }
 
+    SkTScopedComPtr<IDWriteFontFace3> cshFontFace3;
+    SkTScopedComPtr<IDWriteFontFace3> ctxFontFace3;
+    cshFace->fDWriteFontFace->QueryInterface(&cshFontFace3);
+    ctxFace->fDWriteFontFace->QueryInterface(&ctxFontFace3);
+
     bool same;
 
     //Check to see if the two fonts are identical.
-    HRB(are_same(cshFace->fDWriteFont.get(), ctxFace->fDWriteFont, same));
-    if (same) {
-        return true;
-    }
-
     HRB(are_same(cshFace->fDWriteFontFace.get(), ctxFace->fDWriteFontFace, same));
     if (same) {
         return true;
@@ -254,8 +270,13 @@ static bool FindByDWriteFont(SkTypeface* cached, void* ctx) {
     //NOTE: .ttc and fake bold/italic will end up here.
     SkTScopedComPtr<IDWriteLocalizedStrings> cshFamilyNames;
     SkTScopedComPtr<IDWriteLocalizedStrings> cshFaceNames;
-    HRB(cshFace->fDWriteFontFamily->GetFamilyNames(&cshFamilyNames));
-    HRB(cshFace->fDWriteFont->GetFaceNames(&cshFaceNames));
+    if (cshFontFace3) {
+        HRB(cshFontFace3->GetFamilyNames(&cshFamilyNames));
+        HRB(cshFontFace3->GetFaceNames(&cshFaceNames));
+    } else {
+        HRB(cshFace->fDWriteFontFamily->GetFamilyNames(&cshFamilyNames));
+        HRB(cshFace->fDWriteFont->GetFaceNames(&cshFaceNames));
+    }
     UINT32 cshFamilyNameLength;
     UINT32 cshFaceNameLength;
     HRB(cshFamilyNames->GetStringLength(0, &cshFamilyNameLength));
@@ -263,8 +284,13 @@ static bool FindByDWriteFont(SkTypeface* cached, void* ctx) {
 
     SkTScopedComPtr<IDWriteLocalizedStrings> ctxFamilyNames;
     SkTScopedComPtr<IDWriteLocalizedStrings> ctxFaceNames;
-    HRB(ctxFace->fDWriteFontFamily->GetFamilyNames(&ctxFamilyNames));
-    HRB(ctxFace->fDWriteFont->GetFaceNames(&ctxFaceNames));
+    if (ctxFontFace3) {
+        HRB(ctxFontFace3->GetFamilyNames(&ctxFamilyNames));
+        HRB(ctxFontFace3->GetFaceNames(&ctxFaceNames));
+    } else {
+        HRB(ctxFace->fDWriteFontFamily->GetFamilyNames(&ctxFamilyNames));
+        HRB(ctxFace->fDWriteFont->GetFaceNames(&ctxFaceNames));
+    }
     UINT32 ctxFamilyNameLength;
     UINT32 ctxFaceNameLength;
     HRB(ctxFamilyNames->GetStringLength(0, &ctxFamilyNameLength));
@@ -305,6 +331,11 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::makeTypefaceFromDWriteFont(
         }
     }
     return face;
+}
+
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::makeTypefaceFromDWriteFontFace(
+        IDWriteFontFace3* fontFace) const {
+    return this->makeTypefaceFromDWriteFont(fontFace, nullptr, nullptr);
 }
 
 int SkFontMgr_DirectWrite::onCountFamilies() const {
@@ -415,8 +446,7 @@ public:
             fResolvedTypeface = fOuter->makeTypefaceFromDWriteFont(glyphRun->fontFace,
                                                                    font.get(),
                                                                    fontFamily.get());
-            fHasSimulations = (font->GetSimulations() != DWRITE_FONT_SIMULATIONS_NONE) &&
-                              !HasBitmapStrikes(font);
+            fSimulations = font->GetSimulations();
         }
 
         return S_OK;
@@ -476,7 +506,7 @@ public:
 
     sk_sp<SkTypeface> ConsumeFallbackTypeface() { return std::move(fResolvedTypeface); }
 
-    bool FallbackTypefaceHasSimulations() { return fHasSimulations; }
+    DWRITE_FONT_SIMULATIONS FallbackTypefaceSimulations() { return fSimulations; }
 
 private:
     virtual ~FontFallbackRenderer() { }
@@ -485,7 +515,7 @@ private:
     sk_sp<const SkFontMgr_DirectWrite> fOuter;
     UINT32 fCharacter;
     sk_sp<SkTypeface> fResolvedTypeface;
-    bool fHasSimulations{false};
+    DWRITE_FONT_SIMULATIONS fSimulations{DWRITE_FONT_SIMULATIONS_NONE};
 };
 
 class FontFallbackSource : public IDWriteTextAnalysisSource {
@@ -615,23 +645,272 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::onMatchFamilyStyleCharacter(
     }
 
     if (fFontFallback) {
-        return this->fallback(dwFamilyName, dwStyle, dwBcp47->get(), character);
+        return this->fallback(dwFamilyName, dwStyle, *dwBcp47, character, kDefaultSimulations);
     }
 
     // LayoutFallback may use the system font collection for fallback.
-    return this->layoutFallback(dwFamilyName, dwStyle, dwBcp47->get(), character);
+    return this->layoutFallback(dwFamilyName, dwStyle, *dwBcp47, character, kDefaultSimulations);
 }
 
-sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback(const WCHAR* dwFamilyName,
-                                                  DWriteStyle dwStyle,
-                                                  const WCHAR* dwBcp47,
-                                                  UINT32 character) const {
-    WCHAR str[16];
-    UINT32 strLen = SkTo<UINT32>(SkUTF::ToUTF16(character, reinterpret_cast<uint16_t*>(str)));
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::onMatch(const Request& request) const {
+    if (!request.familyName) {
+        return nullptr;
+    }
 
+    SkTScopedComPtr<IDWriteFontCollection1> fontCollection1;
+    fFontCollection->QueryInterface(&fontCollection1);
+    if (!fontCollection1) {
+        return this->SkFontMgr::onMatch(request);
+    }
+    SkTScopedComPtr<IDWriteFontSet> fontSet;
+    fontCollection1->GetFontSet(&fontSet);
+    if (!fontSet) {
+        return this->SkFontMgr::onMatch(request);
+    }
+    SkTScopedComPtr<IDWriteFontSet4> fontSet4;
+    fontSet->QueryInterface(&fontSet4);
+    if (!fontSet4) {
+        return this->SkFontMgr::onMatch(request);
+    }
+
+    SkSMallocWCHAR dwFamilyName;
+    HRN(sk_cstring_to_wchar(request.familyName, &dwFamilyName));
+
+    AutoSTMalloc<8, DWRITE_FONT_AXIS_VALUE> dwModel(request.model.size());
+    for (auto&& [axis, dwAxis] : SkMakeZip(request.model, dwModel.data())) {
+        dwAxis.axisTag = (DWRITE_FONT_AXIS_TAG)SkEndianSwap32(axis.axis);
+        dwAxis.value = axis.value;
+    }
+
+    DWRITE_FONT_SIMULATIONS allowedSimulations = DWRITE_FONT_SIMULATIONS_NONE;
+    if (request.syntheticBold.value_or(true)) {
+        allowedSimulations |= DWRITE_FONT_SIMULATIONS_BOLD;
+    }
+    if (request.syntheticOblique.value_or(true)) {
+        allowedSimulations |= DWRITE_FONT_SIMULATIONS_OBLIQUE;
+    }
+
+    // Fake oblique slant is usually -10. There is a font "MV Boli" with post::italicAngle -16.
+    // It is given a fake bold and fake oblique version in the system font collection.
+    // IDWriteFontSet4::GetMatchingFonts appears to ignore fake oblique on already oblique fonts,
+    // even if the font collection has a fake oblique version.
+    // "MV Boli" in particular appears to set OS2::fsSelection::bit9 (OBLIQUE).
+    // (In OS2::Version is 3 which means this bit should be ignored?)
+    SkTScopedComPtr<IDWriteFontSet4> matches;
+    HRNM(fontSet4->GetMatchingFonts(dwFamilyName,
+                                    dwModel.data(), request.model.size(), allowedSimulations,
+                                    &matches), "Failed to match");
+
+    if constexpr (false) {
+        UINT32 numMatches = matches->GetFontCount();
+        SkString modelString;
+        for (size_t i = 0; i < request.model.size(); ++i) {
+            modelString.append(reinterpret_cast<const char*>(&dwModel[i].axisTag), 4);
+            modelString.append(":");
+            modelString.appendScalar(dwModel[i].value);
+            modelString.append(" ");
+        }
+        SkDebugf("Matches for %s [%s]\n", request.familyName, modelString.c_str());
+        for (UINT32 i = 0; i < numMatches; ++i) {
+            SkTScopedComPtr<IDWriteFontFace5> fontFace;
+            if (FAILED(matches->CreateFontFace(i, &fontFace))) {
+                SkDebugf("Failed to create face!");
+                continue;
+            }
+            DWRITE_FONT_SIMULATIONS simulations = fontFace->GetSimulations();
+            sk_sp<SkTypeface> tf = this->makeTypefaceFromDWriteFontFace(fontFace.get());
+            SkString name;
+            tf->getFamilyName(&name);
+            SkFontStyle s = tf->fontStyle();
+            SkDebugf("%s [%3d %d %d]%s%s,%s%s\n",
+                     name.c_str(), s.weight(), s.width(), s.slant(),
+                     tf->isSyntheticBold() ? "(B)" : "",
+                     tf->isSyntheticOblique() ? "(O)" : "",
+                     simulations & DWRITE_FONT_SIMULATIONS_BOLD ? "(b)" : "",
+                     simulations & DWRITE_FONT_SIMULATIONS_OBLIQUE ? "(o)" : "");
+            SkFontArguments::VariationPosition::Coordinate coords[100];
+            tf->getVariationDesignPosition(SkSpan(coords, 100));
+        }
+    }
+
+    if (!matches->GetFontCount()) {
+        return nullptr;
+    }
+
+    SkTScopedComPtr<IDWriteFontFace5> fontFace5;
+    HRNM(matches->CreateFontFace(0, &fontFace5), "Failed to create match");
+    return this->makeTypefaceFromDWriteFontFace(fontFace5.get());
+}
+
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::onFallback(const Request& request) const {
+    const WCHAR* dwFamilyName = nullptr;
+    SkSMallocWCHAR dwFamilyNameLocal;
+    if (request.familyName) {
+        HRN(sk_cstring_to_wchar(request.familyName, &dwFamilyNameLocal));
+        dwFamilyName = dwFamilyNameLocal;
+    }
+
+    const SkSMallocWCHAR* dwBcp47;
+    SkSMallocWCHAR dwBcp47Local;
+    if (request.bcp47.empty()) {
+        dwBcp47 = &fLocaleName;
+    } else {
+        // TODO: support fallback stack.
+        // TODO: DirectWrite supports 'zh-CN' or 'zh-Hans', but 'zh' misses completely
+        // and may produce a Japanese font.
+        HRN(sk_cstring_to_wchar(request.bcp47.back(), &dwBcp47Local));
+        dwBcp47 = &dwBcp47Local;
+    }
+
+    DWRITE_FONT_SIMULATIONS allowedSimulations = DWRITE_FONT_SIMULATIONS_NONE;
+    if (request.syntheticBold.value_or(true)) {
+        allowedSimulations |= DWRITE_FONT_SIMULATIONS_BOLD;
+    }
+    if (request.syntheticOblique.value_or(true)) {
+        allowedSimulations |= DWRITE_FONT_SIMULATIONS_OBLIQUE;
+    }
+
+    if (fFontFallback) {
+        SkTScopedComPtr<IDWriteFontFallback1> fontFallback1;
+        fFontFallback->QueryInterface(&fontFallback1);
+        if (fontFallback1) {
+            bool italicRequested = false;
+            AutoSTMalloc<8, DWRITE_FONT_AXIS_VALUE> dwModel(request.model.size());
+            for (auto&& [axis, dwAxis] : SkMakeZip(request.model, dwModel.data())) {
+                dwAxis.axisTag = (DWRITE_FONT_AXIS_TAG)SkEndianSwap32(axis.axis);
+                dwAxis.value = axis.value;
+
+                if (dwAxis.axisTag == DWRITE_FONT_AXIS_TAG_ITALIC) {
+                    italicRequested = 0.5f < dwAxis.value;
+                }
+            }
+            return this->fallback1(fontFallback1.get(),
+                                   dwFamilyName,
+                                   SkSpan(dwModel.data(), request.model.size()),
+                                   italicRequested,
+                                   dwBcp47->get(),
+                                   request.cmapEntries,
+                                   allowedSimulations);
+        }
+    }
+
+    DWriteStyle dwStyle(request.fontStyleFromModel());
+    SkUnichar character = 0x20;
+    if (!request.cmapEntries.empty()) {
+        character = request.cmapEntries[0].character;
+    }
+
+    if (fFontFallback) {
+        return this->fallback(dwFamilyName, dwStyle, *dwBcp47, character, allowedSimulations);
+    }
+
+    // LayoutFallback may use the system font collection for fallback.
+    return this->layoutFallback(dwFamilyName, dwStyle, *dwBcp47, character, allowedSimulations);
+}
+
+static bool has_only_allowed(DWRITE_FONT_SIMULATIONS actual, DWRITE_FONT_SIMULATIONS allowed) {
+    return (actual & ~allowed) == 0;
+}
+
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback1(
+        IDWriteFontFallback1* fontFallback1,
+        const WCHAR* dwFamilyName,
+        SkSpan<const DWRITE_FONT_AXIS_VALUE> model,
+        bool italicRequested,
+        const WCHAR* dwBcp47,
+        SkSpan<const SkFontMgr::Request::CMapEntry> cmapEntries,
+        DWRITE_FONT_SIMULATIONS allowedSimulations) const
+{
+    SkASSERT(fontFallback1);
+
+    size_t utf16Size = 0;
+    for (auto&& cmapEntry : cmapEntries) {
+        utf16Size += SkUTF::ToUTF16(cmapEntry.character);
+        if (cmapEntry.variation) {
+            utf16Size += SkUTF::ToUTF16(cmapEntry.variation);
+        }
+    }
+    AutoSTMalloc<16, WCHAR> str(utf16Size);
+    uint16_t* curr = reinterpret_cast<uint16_t*>(str.data());
+    for (auto&& cmapEntry : cmapEntries) {
+        curr += SkUTF::ToUTF16(cmapEntry.character, curr);
+        if (cmapEntry.variation) {
+            curr += SkUTF::ToUTF16(cmapEntry.variation, curr);
+        }
+    }
+    UINT32 strLen = SkTo<UINT32>(utf16Size);
+
+    SkTScopedComPtr<IDWriteNumberSubstitution> numberSubstitution;
+    HRNM(fFactory->CreateNumberSubstitution(DWRITE_NUMBER_SUBSTITUTION_METHOD_NONE, dwBcp47,
+                                            TRUE, &numberSubstitution),
+         "Could not create number substitution.");
+    SkTScopedComPtr<FontFallbackSource> fontFallbackSource(
+        new FontFallbackSource(str.get(), strLen, dwBcp47, numberSubstitution.get()));
+
+    UINT32 mappedLength;
+    SkTScopedComPtr<IDWriteFontFace5> fontFace5;
+    FLOAT scale;
+
+    HRNM(fontFallback1->MapCharacters(fontFallbackSource.get(),
+                                      0,  // textPosition,
+                                      strLen,
+                                      fFontCollection.get(),
+                                      dwFamilyName,
+                                      model.data(),
+                                      model.size(),
+                                      &mappedLength,
+                                      &scale,
+                                      &fontFace5),
+         "Could not map characters");
+    if (!fontFace5.get()) {
+        return nullptr;
+    }
+
+    // IDWriteFontFallback1::MapCharacters does not return a fake oblique on an italic request.
+    // If italic was requested but result is not italic or oblique and synthetic oblique is allowed,
+    // add the synthetic oblique to match previous behavior.
+
+    const DWRITE_FONT_SIMULATIONS simulations = fontFace5->GetSimulations();
+    const DWRITE_FONT_STYLE style = fontFace5->GetStyle();
+    const bool removeSimulations = !has_only_allowed(simulations, allowedSimulations);
+    const bool syntheticObliqueAllowed = allowedSimulations & DWRITE_FONT_SIMULATIONS_OBLIQUE;
+    const bool isNormalStyle = style == DWRITE_FONT_STYLE_NORMAL;
+    const bool addObliqueSimulation = italicRequested && isNormalStyle && syntheticObliqueAllowed;
+
+    if (!removeSimulations && !addObliqueSimulation) {
+        return this->makeTypefaceFromDWriteFontFace(fontFace5.get());
+    }
+
+    const DWRITE_FONT_SIMULATIONS finalSimulations =
+        (simulations & allowedSimulations) |
+        (addObliqueSimulation ? DWRITE_FONT_SIMULATIONS_OBLIQUE : DWRITE_FONT_SIMULATIONS_NONE);
+    SkTScopedComPtr<IDWriteFontFaceReference> fontFaceReference;
+    fontFace5->GetFontFaceReference(&fontFaceReference);
+    if (!fontFaceReference) {
+        return this->makeTypefaceFromDWriteFontFace(fontFace5.get());
+    }
+    SkTScopedComPtr<IDWriteFontFace3> fontFace3;
+    fontFaceReference->CreateFontFaceWithSimulations(finalSimulations, &fontFace3);
+    if (!fontFace3) {
+        return this->makeTypefaceFromDWriteFontFace(fontFace5.get());
+    }
+
+    return this->makeTypefaceFromDWriteFontFace(fontFace3.get());
+}
+
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback(
+        const WCHAR* dwFamilyName,
+        DWriteStyle dwStyle,
+        const WCHAR* dwBcp47,
+        UINT32 character,
+        DWRITE_FONT_SIMULATIONS allowedSimulations) const
+{
     if (!fFontFallback) {
         return nullptr;
     }
+
+    WCHAR str[16];
+    UINT32 strLen = SkTo<UINT32>(SkUTF::ToUTF16(character, reinterpret_cast<uint16_t*>(str)));
 
     SkTScopedComPtr<IDWriteNumberSubstitution> numberSubstitution;
     HRNM(fFactory->CreateNumberSubstitution(DWRITE_NUMBER_SUBSTITUTION_METHOD_NONE, dwBcp47,
@@ -644,8 +923,7 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback(const WCHAR* dwFamilyName,
     SkTScopedComPtr<IDWriteFont> font;
     FLOAT scale;
 
-    bool noSimulations = false;
-    while (!noSimulations) {
+    while (true) {
         font.reset();
         HRNM(fFontFallback->MapCharacters(fontFallbackSource.get(),
                                           0,  // textPosition,
@@ -664,12 +942,12 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback(const WCHAR* dwFamilyName,
         }
 
         DWRITE_FONT_SIMULATIONS simulations = font->GetSimulations();
-
-#ifdef SK_WIN_FONTMGR_NO_SIMULATIONS
-        noSimulations = simulations == DWRITE_FONT_SIMULATIONS_NONE || HasBitmapStrikes(font);
-#else
-        noSimulations = true;
-#endif
+        if (has_only_allowed(simulations, allowedSimulations) ||
+            (dwStyle.fWeight == DWRITE_FONT_WEIGHT_REGULAR &&
+             dwStyle.fSlant == DWRITE_FONT_STYLE_NORMAL))
+        {
+            break;
+        }
 
         if (simulations & DWRITE_FONT_SIMULATIONS_BOLD) {
             dwStyle.fWeight = DWRITE_FONT_WEIGHT_REGULAR;
@@ -690,10 +968,12 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::fallback(const WCHAR* dwFamilyName,
     return this->makeTypefaceFromDWriteFont(fontFace.get(), font.get(), fontFamily.get());
 }
 
-sk_sp<SkTypeface> SkFontMgr_DirectWrite::layoutFallback(const WCHAR* dwFamilyName,
-                                                        DWriteStyle dwStyle,
-                                                        const WCHAR* dwBcp47,
-                                                        UINT32 character) const
+sk_sp<SkTypeface> SkFontMgr_DirectWrite::layoutFallback(
+        const WCHAR* dwFamilyName,
+        DWriteStyle dwStyle,
+        const WCHAR* dwBcp47,
+        UINT32 character,
+        DWRITE_FONT_SIMULATIONS allowedSimulations) const
 {
     WCHAR str[16];
     UINT32 strLen = SkTo<UINT32>(SkUTF::ToUTF16(character, reinterpret_cast<uint16_t*>(str)));
@@ -727,14 +1007,17 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::layoutFallback(const WCHAR* dwFamilyNam
         HRNM(fallbackLayout->Draw(nullptr, fontFallbackRenderer.get(), 50.0f, 50.0f),
              "Could not draw layout with renderer.");
 
-#ifdef SK_WIN_FONTMGR_NO_SIMULATIONS
-        noSimulations = !fontFallbackRenderer->FallbackTypefaceHasSimulations();
-#else
-        noSimulations = true;
-#endif
+        DWRITE_FONT_SIMULATIONS simulations = fontFallbackRenderer->FallbackTypefaceSimulations();
+        if (has_only_allowed(simulations, allowedSimulations) ||
+            (dwStyle.fWeight == DWRITE_FONT_WEIGHT_REGULAR &&
+             dwStyle.fSlant == DWRITE_FONT_STYLE_NORMAL))
+        {
+            break;
+        }
 
         if (noSimulations) {
             returnTypeface = fontFallbackRenderer->ConsumeFallbackTypeface();
+            break;
         }
 
         if (dwStyle.fWeight != DWRITE_FONT_WEIGHT_REGULAR) {
@@ -793,14 +1076,14 @@ sk_sp<SkTypeface> SkFontMgr_DirectWrite::onLegacyMakeTypeface(const char familyN
             this->getByFamilyName(dwFamilyName, &fontFamily);
             if (!fontFamily && fFontFallback) {
                 return this->fallback(
-                        dwFamilyName, dwStyle, fLocaleName.get(), 32);
+                        dwFamilyName, dwStyle, fLocaleName.get(), 32, kDefaultSimulations);
             }
         }
     }
 
     if (!fontFamily) {
         if (fFontFallback) {
-            return this->fallback(nullptr, dwStyle, fLocaleName.get(), 32);
+            return this->fallback(nullptr, dwStyle, fLocaleName.get(), 32, kDefaultSimulations);
         }
         // SPI_GETNONCLIENTMETRICS lfMessageFont can fail in Win8. (DisallowWin32kSystemCalls)
         // layoutFallback causes DCHECK in Chromium. (Uses system font collection.)

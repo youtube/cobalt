@@ -175,7 +175,7 @@ bool FakeVoiceMediaReceiveChannel::GetStats(
   return false;
 }
 absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
-FakeVoiceMediaReceiveChannel::GetStatsCallback(bool reset_legacy) {
+FakeVoiceMediaReceiveChannel::GetStatsTask(bool reset_legacy) {
   return [this, reset_legacy]() -> std::optional<VoiceMediaReceiveInfo> {
     VoiceMediaReceiveInfo info;
     if (GetStats(&info, reset_legacy)) {
@@ -330,7 +330,7 @@ bool FakeVoiceMediaSendChannel::GetStats(VoiceMediaSendInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
-FakeVoiceMediaSendChannel::GetStatsCallback() {
+FakeVoiceMediaSendChannel::GetStatsTask() {
   return [this]() -> std::optional<VoiceMediaSendInfo> {
     VoiceMediaSendInfo info;
     if (GetStats(&info)) {
@@ -441,7 +441,7 @@ bool FakeVideoMediaSendChannel::GetStats(VideoMediaSendInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
-FakeVideoMediaSendChannel::GetStatsCallback() {
+FakeVideoMediaSendChannel::GetStatsTask() {
   return [this]() -> std::optional<VideoMediaSendInfo> {
     VideoMediaSendInfo info;
     if (GetStats(&info)) {
@@ -591,7 +591,7 @@ bool FakeVideoMediaReceiveChannel::GetStats(VideoMediaReceiveInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
-FakeVideoMediaReceiveChannel::GetStatsCallback() {
+FakeVideoMediaReceiveChannel::GetStatsTask() {
   return [this]() -> std::optional<VideoMediaReceiveInfo> {
     VideoMediaReceiveInfo info;
     if (GetStats(&info)) {

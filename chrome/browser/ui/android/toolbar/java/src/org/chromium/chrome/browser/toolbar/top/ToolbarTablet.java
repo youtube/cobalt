@@ -25,7 +25,6 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.ColorRes;
 import androidx.annotation.DimenRes;
 import androidx.annotation.DrawableRes;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
@@ -59,6 +58,7 @@ import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.signin_button.SigninButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId;
@@ -391,6 +391,7 @@ public class ToolbarTablet extends ToolbarLayout {
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
             HomeButtonCoordinator homeButtonCoordinator,
+            @Nullable SigninButtonCoordinator signinButtonCoordinator,
             ThemeColorProvider themeColorProvider,
             IncognitoStateProvider incognitoStateProvider,
             @Nullable Supplier<Integer> incognitoWindowCountSupplier) {
@@ -408,6 +409,7 @@ public class ToolbarTablet extends ToolbarLayout {
                 backButtonCoordinator,
                 forwardButtonCoordinator,
                 homeButtonCoordinator,
+                signinButtonCoordinator,
                 themeColorProvider,
                 incognitoStateProvider,
                 incognitoWindowCountSupplier);
@@ -435,6 +437,7 @@ public class ToolbarTablet extends ToolbarLayout {
                 mIncognitoIndicatorCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.ADAPTIVE_BUTTON] =
                 new OptionalButtonToolbarWidthConsumer();
+        mToolbarWidthConsumers[ToolbarComponentId.SIGNIN_BUTTON] = signinButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.TAB_SWITCHER] = tabSwitcherButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.MENU] = menuButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.PADDING] =
@@ -512,17 +515,6 @@ public class ToolbarTablet extends ToolbarLayout {
                     width >= DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(getContext()));
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-
-        // Trigger a second update if the incognito indicator was measured at a different width than
-        // originally expected, requiring another pass at allocating toolbar width.
-        // TODO(crbug.com/444068280): Revisit this approach to re-allocating width for variable
-        //  width components.
-        if (isToolbarTabletResizeRefactorEnabled()
-                && mIncognitoIndicatorCoordinator.needsUpdateBeforeShowing()) {
-            allocateAvailableToolbarWidth(
-                    mToolbarWidthConsumers, width, widthMeasureSpec, heightMeasureSpec);
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        }
     }
 
     @Override
@@ -543,7 +535,6 @@ public class ToolbarTablet extends ToolbarLayout {
      * @param widthMeasureSpec The width measure spec to be used for measurement.
      * @param heightMeasureSpec The height measure spec to be used for measurement.
      */
-    @VisibleForTesting
     static void allocateAvailableToolbarWidth(
             @Nullable ToolbarWidthConsumer[] toolbarWidthConsumer,
             int availableWidthDp,
@@ -849,16 +840,20 @@ public class ToolbarTablet extends ToolbarLayout {
         mToolbarButtonsVisible = value;
     }
 
-    @VisibleForTesting
-    void setReloadButtonCoordinator(ReloadButtonCoordinator coordinator) {
+    void setReloadButtonCoordinatorForTesting(ReloadButtonCoordinator coordinator) {
         mReloadButtonCoordinator = coordinator;
         mToolbarWidthConsumers[ToolbarComponentId.RELOAD] = mReloadButtonCoordinator;
     }
 
-    @VisibleForTesting
-    void setBackButtonCoordinator(BackButtonCoordinator coordinator) {
+    void setBackButtonCoordinatorForTesting(BackButtonCoordinator coordinator) {
         mBackButtonCoordinator = coordinator;
         mToolbarWidthConsumers[ToolbarComponentId.BACK] = mBackButtonCoordinator;
+    }
+
+    @Override
+    void setSigninButtonCoordinatorForTesting(SigninButtonCoordinator coordinator) {
+        mSigninButtonCoordinator = coordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.SIGNIN_BUTTON] = coordinator;
     }
 
     void setHomeButtonWidthConsumerForTesting(ToolbarWidthConsumer consumer) {

@@ -11,6 +11,8 @@
 
 #import "RTCVideoDecoderH264.h"
 
+#import "RTCH264ProfileLevelId.h"
+
 #import <VideoToolbox/VideoToolbox.h>
 
 #include <span>
@@ -81,6 +83,30 @@ void decompressionOutputCallback(void *decoderRef,
   VTDecompressionSessionRef _decompressionSession;
   RTCVideoDecoderCallback _callback;
   OSStatus _error;
+}
+
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
+  NSDictionary<NSString *, NSString *> *constrainedHighParams = @{
+    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedHigh,
+    @"level-asymmetry-allowed" : @"1",
+    @"packetization-mode" : @"1",
+  };
+  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedHighInfo =
+      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithName:kRTCVideoCodecH264Name
+            parameters:constrainedHighParams];
+
+  NSDictionary<NSString *, NSString *> *constrainedBaselineParams = @{
+    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedBaseline,
+    @"level-asymmetry-allowed" : @"1",
+    @"packetization-mode" : @"1",
+  };
+  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedBaselineInfo =
+      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithName:kRTCVideoCodecH264Name
+            parameters:constrainedBaselineParams];
+
+  return @[ constrainedHighInfo, constrainedBaselineInfo ];
 }
 
 - (instancetype)init {

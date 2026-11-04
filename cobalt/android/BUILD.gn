@@ -413,6 +413,12 @@ shared_library_with_jni("libchrobalt") {
     "//components/permissions/android:core",
     "//components/webxr/android:features",
     "//media/capture/video/android",
+
+    # Added in 149.7790: https://crrev.com/c/7749364 made
+    # //components/thin_webview/internal:internal_java depend on
+    # //components/embedder_support/android:util_java, whose JNI natives are
+    # in //components/embedder_support/android:util.
+    "//components/embedder_support/android:util",
   ]
 
   # Explicit dependency required for JNI registration to be able to

@@ -13,6 +13,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/net_helpers.h"
@@ -981,6 +982,17 @@ TEST(IPAddressTest, TestInterfaceAddress) {
 
   InterfaceAddress addr5(kIPv6LinkLocalAddr, IPV6_ADDRESS_FLAG_TEMPORARY);
   EXPECT_NE(addr1, addr5);
+}
+
+TEST(IPAddressTest, AbslStringify) {
+  IPAddress addr_v4(kIPv4PublicAddr);
+  EXPECT_EQ(absl::StrCat(addr_v4), "ipv4:" + kIPv4PublicAddrString);
+
+  IPAddress addr_v6(kIPv6PublicAddr);
+  EXPECT_EQ(absl::StrCat(addr_v6), "ipv6:" + kIPv6PublicAddrString);
+
+  IPAddress addr_unspec;
+  EXPECT_EQ(absl::StrCat(addr_unspec), "unspecified");
 }
 
 }  // namespace webrtc

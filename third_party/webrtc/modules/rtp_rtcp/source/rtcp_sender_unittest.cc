@@ -40,13 +40,13 @@
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "rtc_base/rate_limiter.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
 #include "test/rtcp_packet_parser.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -152,7 +152,7 @@ class RtcpSenderTest : public ::testing::Test {
     return rtp_rtcp_impl_->GetFeedbackState();
   }
 
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   SimulatedClock clock_;
   const Environment env_;
   TestTransport test_transport_;

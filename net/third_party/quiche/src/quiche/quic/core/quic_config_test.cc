@@ -64,6 +64,8 @@ TEST_P(QuicConfigTest, SetDefaults) {
   EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
   EXPECT_EQ(kMaxIncomingPacketSize, config_.GetMaxPacketSizeToSend());
   EXPECT_FALSE(config_.HasReceivedMaxPacketSize());
+  EXPECT_TRUE(config_.scone_packet_interval().IsZero());
+  EXPECT_FALSE(config_.parse_scone_packets());
 }
 
 TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
@@ -94,6 +96,55 @@ TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
             config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
   EXPECT_EQ(kTestWindowSize,
             config_.GetInitialMaxStreamDataBytesUnidirectionalToSend());
+}
+
+TEST_P(QuicConfigTest, SconeConfig) {
+  EXPECT_TRUE(config_.scone_packet_interval().IsZero());
+
+  config_.set_scone_packet_interval(QuicTimeDelta::FromSeconds(100));
+  EXPECT_EQ(100, config_.scone_packet_interval().ToSeconds());
+
+  config_.set_parse_scone_packets(true);
+  EXPECT_TRUE(config_.parse_scone_packets());
+}
+
+TEST_P(QuicConfigTest, NoSconeTransportParameter) {
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+  TransportParameters params;
+  // If scone_packet_interval_ is nonzero and peer does not support Scone,
+  // scone_packet_interval_s_ should become zero.
+  config_.set_scone_packet_interval(QuicTimeDelta::FromSeconds(29));
+  params.scone_supported = false;
+  std::string error_details;
+  config_.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                     &error_details);
+  EXPECT_TRUE(config_.scone_packet_interval().IsZero());
+}
+
+TEST_P(QuicConfigTest, SconeTransportParameter) {
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+  TransportParameters params;
+  // If scone_packet_interval_s_ is nonzero and peer supports Scone,
+  // scone_packet_interval_s_ should remain unchanged.
+  config_.set_scone_packet_interval(QuicTimeDelta::FromSeconds(20));
+  params.scone_supported = true;
+  std::string error_details;
+  config_.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                     &error_details);
+  EXPECT_EQ(config_.scone_packet_interval().ToSeconds(), 20);
+
+  // If parse_scone_packets_ is false, scone_supported should be false.
+  config_.FillTransportParameters(&params);
+  EXPECT_FALSE(params.scone_supported);
+
+  // If parse_scone_packets_ is true, scone_supported should be true.
+  config_.set_parse_scone_packets(true);
+  config_.FillTransportParameters(&params);
+  EXPECT_TRUE(params.scone_supported);
 }
 
 TEST_P(QuicConfigTest, ToHandshakeMessage) {

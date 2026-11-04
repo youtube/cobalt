@@ -544,6 +544,13 @@ bool SetCodecsInAnswer(const MediaContentDescription* offer,
   return true;
 }
 
+// Negotiates Sframe support between the offer and the local answerer options.
+bool NegotiateSframeUsage(
+    const MediaContentDescription* offer,
+    const MediaDescriptionOptions& media_description_options) {
+  return offer->sframe_enabled() && media_description_options.sframe_enabled;
+}
+
 // Create a media content to be answered for the given `sender_options`
 // according to the given session_options.rtcp_mux, session_options.streams,
 // codecs, crypto, and current_streams.  If we don't currently have crypto (in
@@ -598,6 +605,8 @@ bool CreateMediaContentAnswer(
 
   answer->set_direction(NegotiateRtpTransceiverDirection(
       offer->direction(), media_description_options.direction));
+  answer->set_sframe_enabled(
+      NegotiateSframeUsage(offer, media_description_options));
 
   return true;
 }
@@ -1206,6 +1215,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
   SetMediaProtocol(secure_transport, content_description.get());
 
   content_description->set_direction(media_description_options.direction);
+  content_description->set_sframe_enabled(
+      media_description_options.sframe_enabled);
   bool has_codecs = !content_description->codecs().empty();
 
   session_description->AddContent(

@@ -127,6 +127,16 @@ void LogPixCodeCopiedInIframe() {
                             /*sample=*/true);
 }
 
+void LogPixIframeUrlType(PixIframeUrlType url_type) {
+  base::UmaHistogramEnumeration("FacilitatedPayments.Pix.Iframe.UrlType",
+                                url_type);
+}
+
+void LogPixIframeIsSameOriginAsMainFrame(bool is_same_origin) {
+  base::UmaHistogramBoolean("FacilitatedPayments.Pix.Iframe.IsSameOrigin",
+                            is_same_origin);
+}
+
 void LogPaymentLinkDetected(ukm::SourceId ukm_source_id) {
   base::UmaHistogramBoolean("FacilitatedPayments.PaymentLinkDetected",
                             /*sample=*/true);

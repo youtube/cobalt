@@ -592,13 +592,17 @@ suite('DeleteBrowsingDataDialog', function() {
         dialog.getPref('browser.clear_data.time_period').value);
 
     // Verify DataType prefs are updated.
-    assertTrue(dialog.getPref('browser.clear_data.browsing_history').value);
-    assertFalse(dialog.getPref('browser.clear_data.cookies').value);
-    assertFalse(dialog.getPref('browser.clear_data.cache').value);
-    assertFalse(dialog.getPref('browser.clear_data.form_data').value);
-    assertFalse(dialog.getPref('browser.clear_data.site_settings').value);
-    assertTrue(dialog.getPref('browser.clear_data.download_history').value);
-    assertTrue(dialog.getPref('browser.clear_data.hosted_apps_data').value);
+    assertEquals(
+        true, dialog.getPref('browser.clear_data.browsing_history').value);
+    assertEquals(false, dialog.getPref('browser.clear_data.cookies').value);
+    assertEquals(false, dialog.getPref('browser.clear_data.cache').value);
+    assertEquals(false, dialog.getPref('browser.clear_data.form_data').value);
+    assertEquals(
+        false, dialog.getPref('browser.clear_data.site_settings').value);
+    assertEquals(
+        true, dialog.getPref('browser.clear_data.download_history').value);
+    assertEquals(
+        true, dialog.getPref('browser.clear_data.hosted_apps_data').value);
 
     // Verify correct TimePeriod and DataTypes are sent to the proxy.
     const args =
@@ -845,7 +849,8 @@ suite('DeleteBrowsingDataDialog', function() {
 
     dialog.$.deleteButton.click();
     const deletionEvent1 =
-        await eventToPromise('browsing-data-deleted', dialog);
+        await eventToPromise<CustomEvent<{deletionConfirmationText: string}>>(
+            'browsing-data-deleted', dialog);
     assertEquals(
         deletionEvent1.detail.deletionConfirmationText,
         loadTimeData.getStringF(
@@ -865,7 +870,8 @@ suite('DeleteBrowsingDataDialog', function() {
 
     dialog.$.deleteButton.click();
     const deletionEvent2 =
-        await eventToPromise('browsing-data-deleted', dialog);
+        await eventToPromise<CustomEvent<{deletionConfirmationText: string}>>(
+            'browsing-data-deleted', dialog);
     assertEquals(
         deletionEvent2.detail.deletionConfirmationText,
         loadTimeData.getString('deletionConfirmationAllTimeToast'));

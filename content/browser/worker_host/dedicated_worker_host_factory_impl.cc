@@ -118,6 +118,14 @@ void DedicatedWorkerHostFactoryImpl::CreateWorkerHostAndStartScriptLoad(
 
   // TODO(crbug.com/40051700): Compare `creator_storage_key_.origin()` to
   // `script_url`, and report as bad message if that fails.
+  if (base::FeatureList::IsEnabled(
+          features::kEnforceDedicatedWorkerSameOriginCheck) &&
+      !script_url.SchemeIs(url::kDataScheme) &&
+      !creator_storage_key_.origin().IsSameOriginWith(
+          url::Origin::Create(script_url))) {
+    mojo::ReportBadMessage("DWH_INVALID_SCRIPT_URL_ORIGIN");
+    return;
+  }
 
   mojo::PendingRemote<blink::mojom::DedicatedWorkerHost> pending_remote_host;
 
@@ -133,8 +141,8 @@ void DedicatedWorkerHostFactoryImpl::CreateWorkerHostAndStartScriptLoad(
 
   auto* host = new DedicatedWorkerHost(
       service, token, worker_process_host, creator_,
-      ancestor_render_frame_host_id_, creator_storage_key_, worker_storage_key,
-      renderer_origin, isolation_info_,
+      ancestor_render_frame_host_id_, creator_storage_key_.origin(),
+      worker_storage_key, renderer_origin, isolation_info_,
       std::move(creator_client_security_state_), creator_policies_,
       std::move(creator_coep_reporter_), creator_network_restrictions_id_,
       pending_remote_host.InitWithNewPipeAndPassReceiver(),

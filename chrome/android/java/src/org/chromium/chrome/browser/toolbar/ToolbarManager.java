@@ -51,6 +51,7 @@ import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -102,6 +103,7 @@ import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
+import org.chromium.chrome.browser.merchant_viewer.PageInfoStoreInfoController.StoreInfoActionHandler;
 import org.chromium.chrome.browser.metrics.UmaActivityObserver;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
@@ -322,6 +324,8 @@ public class ToolbarManager
     private @MonotonicNonNull TemplateUrlService mTemplateUrlService;
     private @MonotonicNonNull TemplateUrlServiceObserver mTemplateUrlObserver;
     private LocationBar mLocationBar;
+    private final OneshotSupplierImpl<OmniboxStub> mOmniboxStubSupplier =
+            new OneshotSupplierImpl<>();
     private final Supplier<LocationBar> mLocationBarSupplier = () -> mLocationBar;
     private FindToolbarManager mFindToolbarManager;
 
@@ -823,7 +827,8 @@ public class ToolbarManager
             @Nullable DataSharingTabManager dataSharingTabManager,
             TabContentManager tabContentManager,
             TabCreatorManager tabCreatorManager,
-            Supplier<MerchantTrustSignalsCoordinator> merchantTrustSignalsCoordinatorSupplier,
+            MonotonicObservableSupplier<MerchantTrustSignalsCoordinator>
+                    merchantTrustSignalsCoordinatorSupplier,
             OmniboxActionDelegateImpl omniboxActionDelegate,
             MonotonicObservableSupplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             boolean initializeWithIncognitoColors,
@@ -1253,7 +1258,9 @@ public class ToolbarManager
                             modalDialogManagerSupplier,
                             null,
                             OpenedFromSource.TOOLBAR,
-                            merchantTrustSignalsCoordinatorSupplier::get,
+                            SupplierUtils.upcast(
+                                    merchantTrustSignalsCoordinatorSupplier,
+                                    StoreInfoActionHandler.class),
                             mEphemeralTabCoordinatorSupplier,
                             mTabCreatorManager.getTabCreator(
                                     mIncognitoStateProvider.isIncognitoSelected()));
@@ -1300,7 +1307,6 @@ public class ToolbarManager
                             () ->
                                     mToolbar.getCurrentOptionalButtonVariant()
                                             == AdaptiveToolbarButtonVariant.VOICE,
-                            merchantTrustSignalsCoordinatorSupplier,
                             omniboxActionDelegate,
                             mControlsVisibilityDelegate,
                             backPressManager,
@@ -1341,6 +1347,7 @@ public class ToolbarManager
 
         var omnibox = mLocationBar.getOmniboxStub();
         if (omnibox != null) {
+            mOmniboxStubSupplier.set(omnibox);
             omnibox.addUrlFocusChangeListener(this);
             omnibox.addUrlFocusChangeListener(mStatusBarColorController);
             omnibox.addUrlFocusChangeListener(mLocationBarFocusHandler);
@@ -1852,6 +1859,11 @@ public class ToolbarManager
         mSideUiObserver =
                 (sideUiSpecs) -> {
                     mControlContainer.onSideUiSpecsChanged(sideUiSpecs);
+                    // Can be null after destroy(), empty specs are passed when the observer
+                    // is removed.
+                    if (mFindToolbarManager != null) {
+                        mFindToolbarManager.onSideUiSpecsChanged(sideUiSpecs);
+                    }
                 };
         mSideUiStateProvider.addObserver(mSideUiObserver);
     }
@@ -1930,6 +1942,7 @@ public class ToolbarManager
                         mControlContainer,
                         mToolbarLayout,
                         mBottomControlsStacker,
+                        mBottomSheetController,
                         mBottomToolbarControlsOffsetSupplier,
                         mProgressBarContainer,
                         controlContainerTranslationSupplier,
@@ -2051,6 +2064,7 @@ public class ToolbarManager
                                         PersistedInstanceType.ACTIVE
                                                 | PersistedInstanceType.OFF_THE_RECORD),
                         profileSupplier,
+                        mOmniboxStubSupplier,
                         SigninAndHistorySyncActivityLauncherImpl.get(),
                         mWindowAndroid,
                         activityResultTracker,
@@ -2496,7 +2510,8 @@ public class ToolbarManager
                                 getBrowsingModeThemeColorProvider(),
                                 (ToolbarTablet) mToolbarLayout,
                                 contextMenuPopulatorFactory,
-                                selectionDropdownMenuDelegate);
+                                selectionDropdownMenuDelegate,
+                                mTabModelSelector);
                 if (mExtensionsToolbarCoordinator != null) {
                     mToolbar.setExtensionsToolbarCoordinator(mExtensionsToolbarCoordinator);
                 }

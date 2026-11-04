@@ -163,7 +163,7 @@ class FrameAnalyzerMetricsExporter : public webrtc::test::MetricsExporter {
     value_stream << "} " << ToString(metric.unit) << " ("
                  << ToString(metric.improvement_direction) << ")";
 
-    fprintf(output_, "RESULT: %s\n", value_stream.str().c_str());
+    fprintf(output_, "RESULT: %s\n", value_stream.Release().c_str());
   }
 
   FILE* const output_;
@@ -231,15 +231,14 @@ int main(int argc, char* argv[]) {
   const webrtc::test::ColorTransformationMatrix color_transformation =
       CalculateColorTransformationMatrix(aligned_reference_video, test_video);
 
-  char buf[256];
-  webrtc::SimpleStringBuilder string_builder(buf);
+  webrtc::StringBuilder string_builder;
   for (int i = 0; i < 3; ++i) {
     string_builder << "\n";
     for (int j = 0; j < 4; ++j)
       string_builder.AppendFormat("%6.2f ", color_transformation[i][j]);
   }
   printf("Adjusting test video with color transformation: %s\n",
-         string_builder.str());
+         string_builder.Release().c_str());
 
   // Adjust all frames in the test video with the calculated color
   // transformation.

@@ -357,7 +357,10 @@ precompile_tests_sources = [
   "$_tests/graphite/precompile/UserdefinedStableKeyTest.cpp",
 ]
 
-sparse_strips_test_sources = [ "$_tests/graphite/sparse_strips/LUTTest.cpp" ]
+sparse_strips_test_sources = [
+  "$_tests/graphite/sparse_strips/LUTTest.cpp",
+  "$_tests/graphite/sparse_strips/PolylineTest.cpp",
+]
 
 graphite_dawn_tests_sources = [ "$_tests/graphite/DawnBackendTextureTest.cpp" ]
 graphite_metal_tests_sources = [ "$_tests/graphite/MtlBackendTextureTest.mm" ]

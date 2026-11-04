@@ -27,6 +27,10 @@
 #include "modules/desktop_capture/mac/desktop_configuration_monitor.h"
 #endif
 
+#if defined(WEBRTC_WIN)
+#include <windows.h>
+#endif
+
 #include "modules/desktop_capture/full_screen_window_detector.h"
 
 namespace webrtc {
@@ -234,6 +238,11 @@ class RTC_EXPORT DesktopCaptureOptions {
   void set_allow_wgc_using_texture(bool allow) {
     allow_wgc_using_texture_ = allow;
   }
+
+  // The LUID of the GPU adapter to use for D3D11 device creation in the WGC
+  // capturer. A zero LUID means use the system default adapter.
+  LUID d3d_device_luid() const { return d3d_device_luid_; }
+  void set_d3d_device_luid(LUID luid) { d3d_device_luid_ = luid; }
 #endif  // defined(RTC_ENABLE_WIN_WGC)
 #endif  // defined(WEBRTC_WIN)
 
@@ -293,6 +302,7 @@ class RTC_EXPORT DesktopCaptureOptions {
   bool wgc_require_border_ = false;
   bool wgc_include_secondary_windows_ = false;
   bool allow_wgc_using_texture_ = false;
+  LUID d3d_device_luid_ = {};
 #endif
 #endif
 #if defined(WEBRTC_USE_X11)

@@ -63,6 +63,7 @@
 #include "pc/rtp_receiver_proxy.h"
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/track_media_info_map.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/checks.h"
@@ -98,8 +99,7 @@ std::string RTCCodecStatsIDFromTransportAndCodecParameters(
     const char direction,
     const std::string& transport_id,
     const RtpCodecParameters& codec_params) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << 'C' << direction << transport_id << '_' << codec_params.payload_type;
   // TODO(https://crbug.com/webrtc/14420): If we stop supporting different FMTP
   // lines for the same PT and transport, which should be illegal SDP, then we
@@ -108,69 +108,62 @@ std::string RTCCodecStatsIDFromTransportAndCodecParameters(
   if (WriteFmtpParameters(codec_params.parameters, fmtp)) {
     sb << '_' << fmtp.Release();
   }
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCIceCandidatePairStatsIDFromConnectionInfo(
     const ConnectionInfo& info) {
-  char buf[4096];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "CP" << info.local_candidate.id() << "_" << info.remote_candidate.id();
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCTransportStatsIDFromTransportChannel(
     const std::string& transport_name,
     int channel_component) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << 'T' << transport_name << channel_component;
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCInboundRtpStreamStatsIDFromSSRC(const std::string& transport_id,
                                                MediaType media_type,
                                                uint32_t ssrc) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << 'I' << transport_id << (media_type == MediaType::AUDIO ? 'A' : 'V')
      << ssrc;
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCOutboundRtpStreamStatsIDFromSSRC(const std::string& transport_id,
                                                 MediaType media_type,
                                                 uint32_t ssrc) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << 'O' << transport_id << (media_type == MediaType::AUDIO ? 'A' : 'V')
      << ssrc;
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCRemoteInboundRtpStreamStatsIdFromSourceSsrc(
     MediaType media_type,
     uint32_t source_ssrc) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "RI" << (media_type == MediaType::AUDIO ? 'A' : 'V') << source_ssrc;
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCRemoteOutboundRTPStreamStatsIDFromSSRC(MediaType media_type,
                                                       uint32_t source_ssrc) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "RO" << (media_type == MediaType::AUDIO ? 'A' : 'V') << source_ssrc;
-  return sb.str();
+  return sb.Release();
 }
 
 std::string RTCMediaSourceStatsIDFromKindAndAttachment(MediaType media_type,
                                                        int attachment_id) {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << 'S' << (media_type == MediaType::AUDIO ? 'A' : 'V') << attachment_id;
-  return sb.str();
+  return sb.Release();
 }
 
 const char* DataStateToRTCDataChannelState(
@@ -1412,12 +1405,12 @@ void RTCStatsCollector::ClearCachedStatsReport() {
 }
 
 void RTCStatsCollector::CancelPendingRequestAndGetShutdownTasks(
-    std::vector<absl::AnyInvocable<void() &&>>& network_tasks,
-    std::vector<absl::AnyInvocable<void() &&>>& worker_tasks) {
+    ScopedOperationsBatcher& network_tasks,
+    ScopedOperationsBatcher& worker_tasks) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   signaling_safety_->SetNotAlive();
-  worker_tasks.push_back([flag = worker_safety_]() { flag->SetNotAlive(); });
-  network_tasks.push_back([flag = network_safety_]() { flag->SetNotAlive(); });
+  worker_tasks.Add([flag = worker_safety_]() { flag->SetNotAlive(); });
+  network_tasks.Add([flag = network_safety_]() { flag->SetNotAlive(); });
 }
 
 void RTCStatsCollector::ProducePartialResultsOnSignalingThread(
@@ -2318,8 +2311,8 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
         VoiceMediaReceiveChannelInterface* voice_receive =
             receive_channel->AsVoiceReceiveChannel();
         RTC_CHECK(voice_receive);
-        refs.get_send_stats_voice = voice_send->GetStatsCallback();
-        refs.get_receive_stats_voice = voice_receive->GetStatsCallback(false);
+        refs.get_send_stats_voice = voice_send->GetStatsTask();
+        refs.get_receive_stats_voice = voice_receive->GetStatsTask(false);
         refs.get_send_parameters = voice_send->GetRtpSendParametersCallback();
       } else if (stats.media_type == MediaType::VIDEO) {
         VideoMediaSendChannelInterface* video_send =
@@ -2328,8 +2321,8 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
         VideoMediaReceiveChannelInterface* video_receive =
             receive_channel->AsVideoReceiveChannel();
         RTC_CHECK(video_receive);
-        refs.get_send_stats_video = video_send->GetStatsCallback();
-        refs.get_receive_stats_video = video_receive->GetStatsCallback();
+        refs.get_send_stats_video = video_send->GetStatsTask();
+        refs.get_receive_stats_video = video_receive->GetStatsTask();
         refs.get_send_parameters = video_send->GetRtpSendParametersCallback();
       }
     }

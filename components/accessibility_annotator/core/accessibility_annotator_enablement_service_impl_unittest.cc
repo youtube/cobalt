@@ -4,26 +4,34 @@
 
 #include "components/accessibility_annotator/core/accessibility_annotator_enablement_service_impl.h"
 
+#include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_debug_features.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/prefs.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace accessibility_annotator {
 
 class AccessibilityAnnotatorEnablementServiceImplTest : public testing::Test {
  public:
-  AccessibilityAnnotatorEnablementServiceImplTest()
-      : service_(nullptr, identity_test_env_.identity_manager()) {
+  AccessibilityAnnotatorEnablementServiceImplTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kAccessibilityAnnotator,
                               features::kAccessibilityAnnotatorFirstRun,
                               features::kAccessibilityAnnotatorDatabaseStorage},
         /*disabled_features=*/{});
 
+    SetPrefs();
+    CreateService("us");
     SignIn("test@gmail.com");
   }
   ~AccessibilityAnnotatorEnablementServiceImplTest() override = default;
@@ -37,11 +45,76 @@ class AccessibilityAnnotatorEnablementServiceImplTest : public testing::Test {
     identity_test_env_.UpdateAccountInfoForAccount(account_info);
   }
 
+  void CreateService(const std::string& country_code) {
+    service_ = std::make_unique<AccessibilityAnnotatorEnablementServiceImpl>(
+        nullptr, identity_test_env_.identity_manager(),
+        subscription_eligibility_service_.get(), &pref_service_,
+        GeoIpCountryCode(base::ToUpperASCII(country_code)));
+  }
+
+  void SetPrefs() {
+    accessibility_annotator::prefs::RegisterProfilePrefs(
+        pref_service_.registry());
+    pref_service_.SetBoolean(
+        accessibility_annotator::prefs::kShouldShowRemoteAnnotatorFirstRunInfo,
+        false);
+    subscription_eligibility::prefs::RegisterProfilePrefs(
+        pref_service_.registry());
+    pref_service_.SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+    subscription_eligibility_service_ = std::make_unique<
+        subscription_eligibility::SubscriptionEligibilityService>(
+        &pref_service_);
+  }
+
+  AccessibilityAnnotatorEnablementServiceImpl& service() { return *service_; }
+
   base::test::TaskEnvironment task_environment_;
   signin::IdentityTestEnvironment identity_test_env_;
   base::test::ScopedFeatureList scoped_feature_list_;
-  AccessibilityAnnotatorEnablementServiceImpl service_;
+  sync_preferences::TestingPrefServiceSyncable pref_service_;
+  std::unique_ptr<subscription_eligibility::SubscriptionEligibilityService>
+      subscription_eligibility_service_;
+  std::unique_ptr<AccessibilityAnnotatorEnablementServiceImpl> service_;
 };
+
+TEST_F(AccessibilityAnnotatorEnablementServiceImplTest, ForcedEnablementState) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::debug::kAccessibilityAnnotatorForceEnablementState,
+        {{"remote_annotator_enablement_state", "0"}});
+    EXPECT_EQ(service().GetEnablementState(),
+              RemoteAnnotatorEnablementState::kDisabledNotEligible);
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::debug::kAccessibilityAnnotatorForceEnablementState,
+        {{"remote_annotator_enablement_state", "1"}});
+    EXPECT_EQ(service().GetEnablementState(),
+              RemoteAnnotatorEnablementState::kDisabledPendingInfo);
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::debug::kAccessibilityAnnotatorForceEnablementState,
+        {{"remote_annotator_enablement_state", "2"}});
+    EXPECT_EQ(service().GetEnablementState(),
+              RemoteAnnotatorEnablementState::kDisabledPendingSetup);
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::debug::kAccessibilityAnnotatorForceEnablementState,
+        {{"remote_annotator_enablement_state", "3"}});
+    EXPECT_EQ(service().GetEnablementState(),
+              RemoteAnnotatorEnablementState::kEnabled);
+  }
+}
 
 TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
        DisabledWhenFeaturesAreOff) {
@@ -52,7 +125,7 @@ TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
                              features::kAccessibilityAnnotatorFirstRun,
                              features::kAccessibilityAnnotatorDatabaseStorage});
 
-  EXPECT_EQ(service_.GetEnablementState(),
+  EXPECT_EQ(service().GetEnablementState(),
             RemoteAnnotatorEnablementState::kDisabledNotEligible);
 }
 
@@ -64,29 +137,78 @@ TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
                             features::kAccessibilityAnnotatorDatabaseStorage},
       /*disabled_features=*/{features::kAccessibilityAnnotator});
 
-  EXPECT_EQ(service_.GetEnablementState(),
+  EXPECT_EQ(service().GetEnablementState(),
             RemoteAnnotatorEnablementState::kDisabledNotEligible);
 }
 
 TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
        EnabledWhenAllFeaturesAreOn) {
-  EXPECT_EQ(service_.GetEnablementState(),
+  EXPECT_EQ(service().GetEnablementState(),
             RemoteAnnotatorEnablementState::kEnabled);
+}
+
+TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
+       DisabledPendingInfoWhenInfoNotAcknowledged) {
+  pref_service_.SetBoolean(
+      accessibility_annotator::prefs::kShouldShowRemoteAnnotatorFirstRunInfo,
+      true);
+
+  EXPECT_EQ(service().GetEnablementState(),
+            RemoteAnnotatorEnablementState::kDisabledPendingInfo);
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)  // Signing out does not work on ChromeOS.
 TEST_F(AccessibilityAnnotatorEnablementServiceImplTest, DisabledWhenSignedOut) {
   identity_test_env_.ClearPrimaryAccount();
-  EXPECT_EQ(service_.GetEnablementState(),
+  EXPECT_EQ(service().GetEnablementState(),
             RemoteAnnotatorEnablementState::kDisabledNotEligible);
+}
+
+TEST_F(AccessibilityAnnotatorEnablementServiceImplTest, ClearsPrefOnSignout) {
+  pref_service_.SetBoolean(prefs::kShouldShowRemoteAnnotatorFirstRunInfo,
+                           false);
+  identity_test_env_.ClearPrimaryAccount();
+  EXPECT_TRUE(
+      pref_service_.GetBoolean(prefs::kShouldShowRemoteAnnotatorFirstRunInfo));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(AccessibilityAnnotatorEnablementServiceImplTest, DisabledWhenUnderaged) {
   SignIn("under@gmail.com", /*is_underaged=*/true);
 
-  EXPECT_EQ(service_.GetEnablementState(),
+  EXPECT_EQ(service().GetEnablementState(),
             RemoteAnnotatorEnablementState::kDisabledNotEligible);
+}
+
+TEST_F(AccessibilityAnnotatorEnablementServiceImplTest,
+       DisabledWhenTierNotEligible) {
+  pref_service_.SetInteger(subscription_eligibility::prefs::kAiSubscriptionTier,
+                           3);
+
+  EXPECT_EQ(service().GetEnablementState(),
+            RemoteAnnotatorEnablementState::kDisabledNotEligible);
+}
+
+class AccessibilityAnnotatorEnablementServiceImplGeolocationTest
+    : public AccessibilityAnnotatorEnablementServiceImplTest,
+      public testing::WithParamInterface<
+          std::tuple<std::string, RemoteAnnotatorEnablementState>> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    AccessibilityAnnotatorEnablementServiceImplGeolocationTest,
+    testing::Values(
+        std::make_tuple(/*country_code=*/"au",
+                        RemoteAnnotatorEnablementState::kDisabledNotEligible),
+        std::make_tuple(/*country_code=*/"fr",
+                        RemoteAnnotatorEnablementState::kDisabledNotEligible),
+        std::make_tuple(/*country_code=*/"us",
+                        RemoteAnnotatorEnablementState::kEnabled)));
+
+TEST_P(AccessibilityAnnotatorEnablementServiceImplGeolocationTest,
+       CheckCountryEnablement) {
+  CreateService(std::get<0>(GetParam()));
+  EXPECT_EQ(service().GetEnablementState(), std::get<1>(GetParam()));
 }
 
 }  // namespace accessibility_annotator

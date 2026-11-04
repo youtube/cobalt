@@ -352,7 +352,8 @@ Candidate::Candidate()
       underlying_type_for_vpn_(ADAPTER_TYPE_UNKNOWN),
       generation_(0),
       network_id_(0),
-      network_cost_(0) {}
+      network_cost_(0),
+      network_slice_(NetworkSlice::NO_SLICE) {}
 
 Candidate::Candidate(int component,
                      absl::string_view protocol,
@@ -378,7 +379,8 @@ Candidate::Candidate(int component,
       generation_(generation),
       foundation_(foundation),
       network_id_(network_id),
-      network_cost_(network_cost) {}
+      network_cost_(network_cost),
+      network_slice_(NetworkSlice::NO_SLICE) {}
 
 Candidate::Candidate(const Candidate&) = default;
 
@@ -491,7 +493,7 @@ bool Candidate::operator==(const Candidate& o) const {
          network_type_ == o.network_type_ && generation_ == o.generation_ &&
          foundation_ == o.foundation_ &&
          related_address_ == o.related_address_ && tcptype_ == o.tcptype_ &&
-         network_id_ == o.network_id_;
+         network_id_ == o.network_id_ && network_slice_ == o.network_slice_;
 }
 
 bool Candidate::operator!=(const Candidate& o) const {

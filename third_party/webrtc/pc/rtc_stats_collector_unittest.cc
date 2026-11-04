@@ -69,6 +69,7 @@
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_sender.h"
 #include "pc/rtp_transceiver.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/stream_collection.h"
 #include "pc/test/fake_audio_track.h"
@@ -4229,8 +4230,8 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   // this posts a task to the worker/network threads which will be blocked by
   // the above task.
   wrapper.stats_collector().GetStatsReport(callback);
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  ScopedOperationsBatcher network_tasks(worker_and_network.get());
+  ScopedOperationsBatcher worker_tasks(worker_and_network.get());
 
   // Now cancel any ongoing stats gathering operations.
   // This should cancel the outstanding operations and invoke pending callbacks
@@ -4238,21 +4239,12 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
       network_tasks, worker_tasks);
 
-  // We should have one callback per conceptual thread.
-  EXPECT_EQ(network_tasks.size(), 1u);
-  EXPECT_EQ(worker_tasks.size(), 1u);
-
   // Resume the network and worker threads.
   blocker.Set();
 
   // Run the cleanup tasks.
-  auto quit = loop.QuitClosure();
-  worker_and_network->PostTask([&]() {
-    std::move(network_tasks[0])();
-    std::move(worker_tasks[0])();
-    loop.task_queue()->PostTask([&]() { quit(); });
-  });
-  loop.Run();
+  network_tasks.Run();
+  worker_tasks.Run();
 }
 
 // This covers the following steps:
@@ -4269,16 +4261,14 @@ TEST(RTCStatsCollectorSafetyTest, NetworkThreadSafetyPreventsCallback) {
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
   // Start by canceling any ongoing tasks. There aren't actually any ongoing
   // tasks, but this gives us the network cleanup task.
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  ScopedOperationsBatcher network_tasks(pc->network_thread());
+  ScopedOperationsBatcher worker_tasks(pc->worker_thread());
   wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
       network_tasks, worker_tasks);
   // Clean up the state on the network thread. This will have the effect of
   // dropping any tasks targeting the network thread.
-  ASSERT_EQ(network_tasks.size(), 1u);
-  ASSERT_EQ(worker_tasks.size(), 1u);
-  std::move(network_tasks[0])();
-  std::move(worker_tasks[0])();
+  network_tasks.Run();
+  worker_tasks.Run();
   // Now, attempt to get a stats report. This will try to post a task to the
   // network thread, which will be dropped.
   wrapper.stats_collector().GetStatsReport(callback);

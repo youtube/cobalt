@@ -214,7 +214,7 @@ public:
 
     ~IntrinsicConstantsManager() {
         auto alwaysTrue = [](IntrinsicBuffer* buffer) { return true; };
-        this->purgeBuffersIf(alwaysTrue);
+        this->purgeBuffersUntilDoneOrFalse(alwaysTrue);
         this->releasePendingIntrinsicBuffers();
 
         SkASSERT(fIntrinsicBuffersLRU.isEmpty());
@@ -224,12 +224,16 @@ public:
     // buffer.
     BindBufferInfo add(DawnCommandBuffer* cb, UniformDataBlock intrinsicValues);
 
-    void purgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime) {
-        auto bufferNotUsedSince = [purgeTime, this](IntrinsicBuffer* buffer) {
-            // We always keep the current buffer as it is likely to be used again soon.
-            return buffer != fCurrentBuffer && buffer->lastAccessTime() < purgeTime;
+    void purgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime,
+                                    std::optional<StdSteadyClock::time_point> quitPurgingTime) {
+        auto bufferShouldBePurged = [&](IntrinsicBuffer* buffer) {
+            // We always keep the current buffer as it is likely to be used again soon. If we
+            // surpass quitPurgingTime, further buffers should not be purged.
+            return ( !quitPurgingTime.has_value() ||
+                     skgpu::StdSteadyClock::now() < quitPurgingTime.value()) &&
+                   (buffer != fCurrentBuffer && buffer->lastAccessTime() < purgeTime);
         };
-        this->purgeBuffersIf(bufferNotUsedSince);
+        this->purgeBuffersUntilDoneOrFalse(bufferShouldBePurged);
     }
 
     void releasePendingIntrinsicBuffers() {
@@ -247,15 +251,17 @@ public:
     }
 
     void freeGpuResources() {
-        this->purgeResourcesNotUsedSince(skgpu::StdSteadyClock::now());
+        this->purgeResourcesNotUsedSince(skgpu::StdSteadyClock::now(),
+                                         /*quitPurgingTime=*/std::nullopt);
     }
 
 private:
     // The max number of intrinsic buffers to keep around in the cache.
     static constexpr uint32_t kMaxNumBuffers = 16;
 
-    // Traverse the intrinsic buffers and purge the ones that match the 'pred'.
-    template<typename T> void purgeBuffersIf(T pred);
+    // Traverse the intrinsic buffers, purging all the purgeable LRU buffers until either all of
+    // them are purged OR until `pred` returns false.
+    template<typename T> void purgeBuffersUntilDoneOrFalse(T pred);
 
     DawnResourceProvider* const fResourceProvider;
     // The current buffer being filled up, as well as the how much of it has been written to.
@@ -355,7 +361,8 @@ BindBufferInfo DawnResourceProvider::IntrinsicConstantsManager::add(
     return {fCurrentBuffer->buffer().get(), newOffset, SkTo<uint32_t>(intrinsicValues.size())};
 }
 
-template <typename T> void DawnResourceProvider::IntrinsicConstantsManager::purgeBuffersIf(T pred) {
+template <typename T>
+void DawnResourceProvider::IntrinsicConstantsManager::purgeBuffersUntilDoneOrFalse(T pred) {
     using Iter = SkTInternalLList<IntrinsicBuffer>::Iter;
     Iter iter;
     auto* curr = iter.init(fIntrinsicBuffersLRU, Iter::kHead_IterStart);
@@ -365,6 +372,9 @@ template <typename T> void DawnResourceProvider::IntrinsicConstantsManager::purg
             fIntrinsicBuffersLRU.remove(curr);
             fNumBuffers--;
             delete curr;
+        } else {
+            // If 'pred' returns false, we stop the process of purging buffers.
+            return;
         }
         curr = next;
     }
@@ -753,8 +763,10 @@ void DawnResourceProvider::onFreeGpuResources() {
     fUniformBufferBindGroupCache.reset();
 }
 
-void DawnResourceProvider::onPurgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime) {
-    fIntrinsicConstantsManager->purgeResourcesNotUsedSince(purgeTime);
+void DawnResourceProvider::onPurgeResourcesNotUsedSince(
+        StdSteadyClock::time_point purgeTime,
+        std::optional<StdSteadyClock::time_point> quitPurgingTime) {
+    fIntrinsicConstantsManager->purgeResourcesNotUsedSince(purgeTime, quitPurgingTime);
 }
 
 BindBufferInfo DawnResourceProvider::findOrCreateIntrinsicBindBufferInfo(

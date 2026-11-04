@@ -33,7 +33,7 @@ ChaCha20Poly1305TlsDecrypter::ChaCha20Poly1305TlsDecrypter()
 ChaCha20Poly1305TlsDecrypter::~ChaCha20Poly1305TlsDecrypter() {}
 
 uint32_t ChaCha20Poly1305TlsDecrypter::cipher_id() const {
-  return TLS1_CK_CHACHA20_POLY1305_SHA256;
+  return TLS1_3_CK_CHACHA20_POLY1305_SHA256;
 }
 
 QuicPacketCount ChaCha20Poly1305TlsDecrypter::GetIntegrityLimit() const {

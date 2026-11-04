@@ -366,8 +366,6 @@ void fuzz_graphite(Fuzz* fuzz, Context* context, int depth = 9) {
                                 /* clipShader= */ nullptr,
                                 coverage,
                                 TextureFormat::kRGBA8);
-    SkDEBUGCODE(builder.checkReset());
-    SkDEBUGCODE(gatherer.checkReset());
     KeyContext keyContext(recorder.get(),
                           drawContext.get(),
                           &floatStorageManager,

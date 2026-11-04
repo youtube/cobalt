@@ -306,6 +306,10 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   // Returns true if the error can be mitigated by migrating to a different
   // network.
   virtual bool MaybeMitigateWriteError(const WriteResult& write_result) = 0;
+
+  // Called when the connection has received an expected SCONE packet with a
+  // bandwidth signal othern than unknown.
+  virtual void OnSconePacket(QuicBandwidth bandwidth) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -800,6 +804,7 @@ class QUICHE_EXPORT QuicConnection
       const QuicIetfStatelessResetPacket& packet) override;
   void OnKeyUpdate(KeyUpdateReason reason) override;
   void OnDecryptedFirstPacketInKeyPhase() override;
+  void OnSconePacket(uint8_t signal) override;
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
@@ -2213,6 +2218,10 @@ class QUICHE_EXPORT QuicConnection
     return packet_info.destination_connection_id;
   }
 
+  // Send a scone packet immediately after successfully migrating to a new path
+  // if this Connection is configured to send scone packets.
+  void MaybeSendSconePacketAfterMigration();
+
   QuicConnectionContext context_;
 
   QuicFramer framer_;
@@ -2396,6 +2405,13 @@ class QUICHE_EXPORT QuicConnection
 
   QuicTime::Delta multi_port_probing_interval_;
 
+  // The interval between SCONE packets. If zero, SCONE is disabled.
+  QuicTime::Delta scone_packet_interval_ = QuicTime::Delta::Zero();
+  // If set, the time at which the next SCONE packet should be sent.
+  std::optional<QuicTime> next_scone_packet_time_;
+  // If set, a SCONE packet has arrived but has not been validated yet.
+  std::optional<QuicBandwidth> pending_scone_report_;
+
   // The minimum ack delay time advertised to the peer via transport parameter.
   QuicTime::Delta local_min_ack_delay_ = QuicTime::Delta::Zero();
 
@@ -2538,6 +2554,8 @@ class QUICHE_EXPORT QuicConnection
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.
   bool should_proactively_validate_peer_address_on_path_challenge_ : 1 = false;
+  // If SCONE is enabled, maybe send a SCONE packet.
+  void MaybeSendSconePacket();
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ : 1 = false;
   // If true, disable liveness testing.
@@ -2575,6 +2593,9 @@ class QUICHE_EXPORT QuicConnection
   // If true, stores only one copy of the destination connection ID in
   // ReceivedPacketInfo.
   const bool store_one_dcid_ : 1;
+
+  // If true, the connection will accept SCONE packets from the peer.
+  bool parse_scone_packets_ : 1 = false;
 
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);

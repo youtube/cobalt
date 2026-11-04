@@ -1189,6 +1189,42 @@ TEST_F(PortTest, TestLocalToLocal) {
   TestLocalToLocal();
 }
 
+TEST_F(PortTest, TestNetworkSliceInitiallyDefault) {
+  std::unique_ptr<UDPPort> port = CreateUdpPort(kLocalAddr1);
+  port->PrepareAddress();
+
+  ASSERT_EQ(1U, port->Candidates().size());
+  EXPECT_EQ(NetworkSlice::NO_SLICE, port->Candidates()[0].network_slice());
+}
+
+TEST_F(PortTest, TestNetworkSliceInitiallySet) {
+  std::unique_ptr<UDPPort> port = CreateUdpPort(kLocalAddr1);
+  Network* network = const_cast<Network*>(port->Network());
+  network->set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+
+  port->PrepareAddress();
+  ASSERT_EQ(1U, port->Candidates().size());
+  EXPECT_EQ(NetworkSlice::UNIFIED_COMMUNICATIONS,
+            port->Candidates()[0].network_slice());
+}
+
+TEST_F(PortTest, TestNetworkSliceUpdate) {
+  std::unique_ptr<UDPPort> port = CreateUdpPort(kLocalAddr1);
+  Network* network = const_cast<Network*>(port->Network());
+  network->set_network_slice(NetworkSlice::NO_SLICE);
+
+  port->PrepareAddress();
+  ASSERT_EQ(1U, port->Candidates().size());
+  EXPECT_EQ(NetworkSlice::NO_SLICE, port->Candidates()[0].network_slice());
+
+  network->set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+  EXPECT_EQ(NetworkSlice::UNIFIED_COMMUNICATIONS,
+            port->Candidates()[0].network_slice());
+
+  network->set_network_slice(NetworkSlice::NO_SLICE);
+  EXPECT_EQ(NetworkSlice::NO_SLICE, port->Candidates()[0].network_slice());
+}
+
 TEST_F(PortTest, TestLocalToConeNat) {
   TestLocalToStun(NAT_OPEN_CONE);
 }

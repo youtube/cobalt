@@ -3699,7 +3699,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ CmpU64(target_stack, Operand(0));
   __ bne(&ok);
   // No handler found.
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
@@ -3721,6 +3722,11 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
   MemOperand sig_op(fp, 2 * kSystemPointerSize);
   Label resume;
+  Register scratch = r3;
+
+  __ Move(scratch,
+          MemOperand(target_stack_reg, wasm::StackMemory::arg_buffer_offset()));
+  __ Push(scratch);
   __ Push(kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -3734,7 +3740,7 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
         MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
     __ StoreU64(arg_buffer_reg, MemOperand(sp, (kStackFrameExtraParamSlot + 2) *
                                                    kSystemPointerSize));
-    Register scratch = r3;
+
     __ LoadU64(scratch, sig_op);
     __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 3) *
                                             kSystemPointerSize));
@@ -3751,17 +3757,19 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
 
   // No handler found.
   __ Pop(kContextRegister);  // Retrieve saved context.
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ Drop(1);                // Drop saved arg buffer.
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
-  __ Drop(1);  // Drop saved context.
 
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   // Load the arg buffer to set up resume of target stack
   __ Move(target_stack, kReturnRegister0);
+
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  __ Move(arg_buffer,
-          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+  __ Drop(1);          // Drop saved context.
+  __ Pop(arg_buffer);  // Pick up saved arg_buffer.
 
   DCHECK(!AreAliased(arg_buffer, target_stack, r3, sp, fp));
   LoadJumpBuffer(masm, target_stack, true, r3);

@@ -11,6 +11,7 @@
 #include "modules/desktop_capture/win/wgc_capturer_win.h"
 
 #include <DispatcherQueue.h>
+#include <dxgi1_4.h>
 #include <windows.foundation.metadata.h>
 #include <windows.graphics.capture.h>
 
@@ -284,11 +285,28 @@ void WgcCapturerWin::Start(Callback* callback) {
 
   callback_ = callback;
 
-  // Create a Direct3D11 device to share amongst the WgcCaptureSessions. Many
-  // parameters are nullptr as the implemention uses defaults that work well for
-  // us.
-  HRESULT hr = D3D11CreateDevice(
-      /*adapter=*/nullptr, D3D_DRIVER_TYPE_HARDWARE,
+  // Create a Direct3D11 device to share amongst the WgcCaptureSessions.
+  // When a specific GPU adapter LUID is provided (e.g. for texture sharing with
+  // the GPU process), create the device on that adapter. Otherwise, fall back
+  // to the system default adapter.
+  HRESULT hr;
+  ComPtr<IDXGIAdapter> adapter;
+  const LUID luid = options_.d3d_device_luid();
+  if (luid.LowPart != 0 || luid.HighPart != 0) {
+    ComPtr<IDXGIFactory4> factory4;
+    hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory4));
+    if (SUCCEEDED(hr)) {
+      hr = factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&adapter));
+    }
+    if (FAILED(hr)) {
+      RTC_LOG(LS_WARNING) << "Failed to get adapter by LUID, "
+                          << "falling back to default adapter: " << hr;
+    }
+  }
+
+  hr = D3D11CreateDevice(
+      adapter.Get(),
+      adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
       /*software_rasterizer=*/nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
       /*feature_levels=*/nullptr, /*feature_levels_size=*/0, D3D11_SDK_VERSION,
       &d3d11_device_, /*feature_level=*/nullptr, /*device_context=*/nullptr);

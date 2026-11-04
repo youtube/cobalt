@@ -36,6 +36,7 @@
 #import "components/autofill/ios/common/features.h"
 #import "components/autofill/ios/form_util/child_frame_registrar.h"
 #import "components/autofill/ios/form_util/remote_frame_registration_java_script_feature.h"
+#import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
@@ -95,6 +96,44 @@ class FakeWebStateForFailureTest : public web::FakeWebState {
     std::move(callback).Run(nil);
   }
 };
+
+// Helper to verify geometry existence and basic validity.
+testing::AssertionResult VerifyGeometry(
+    const optimization_guide::proto::ContentNode& node,
+    bool expect_visible = true) {
+  if (!node.content_attributes().geometry().has_outer_bounding_box()) {
+    return testing::AssertionFailure() << "Node is missing outer bounding box.";
+  }
+  if (node.content_attributes().geometry().outer_bounding_box().width() <= 0) {
+    return testing::AssertionFailure()
+           << "Node outer bounding box width should be positive and above 0.";
+  }
+  if (node.content_attributes().geometry().outer_bounding_box().height() <= 0) {
+    return testing::AssertionFailure()
+           << "Node outer bounding box height should be positive and above 0.";
+  }
+
+  if (expect_visible) {
+    if (!node.content_attributes().geometry().has_visible_bounding_box()) {
+      return testing::AssertionFailure()
+             << "Node is missing visible bounding box.";
+    }
+    if (node.content_attributes().geometry().visible_bounding_box().width() <=
+        0) {
+      return testing::AssertionFailure()
+             << "Node visible bounding box width should be positive and above "
+                "0.";
+    }
+    if (node.content_attributes().geometry().visible_bounding_box().height() <=
+        0) {
+      return testing::AssertionFailure()
+             << "Node visible bounding box height should be positive and "
+                "above 0.";
+    }
+  }
+
+  return testing::AssertionSuccess();
+}
 
 }  // namespace
 
@@ -3165,7 +3204,7 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
                .size() == 3;
   }));
 
-  // Helper to select text in a frame
+  // Helper to select and focus text in a frame
   auto select_text = [](web::WebFrame* frame, const std::string& text) {
     NSString* script =
         [NSString stringWithFormat:
@@ -3173,6 +3212,8 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
                       @"  const p = Array.from(document.querySelectorAll('p'))"
                       @"    .find(p => p.innerText.includes('%s'));"
                       @"  if (!p) return;"
+                      @"  p.tabIndex = 0;"
+                      @"  p.focus();"
                       @"  const range = document.createRange();"
                       @"  const node = p.firstChild;"
                       @"  range.selectNode(node);"
@@ -3222,6 +3263,7 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
   EXPECT_EQ(
       main_frame_data.frame_interaction_info().selection().selected_text(),
       "Main frame text");
+  EXPECT_TRUE(main_frame_data.frame_interaction_info().has_focused_node_id());
 
   const optimization_guide::proto::ContentNode* same_origin_iframe_node =
       &root_node.children_nodes(1);
@@ -3241,6 +3283,11 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
                 .selection()
                 .selected_text(),
             "Cross origin text");
+  EXPECT_TRUE(cross_iframe_node->content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .frame_interaction_info()
+                  .has_focused_node_id());
 
   ASSERT_TRUE(same_origin_iframe_node);
   EXPECT_TRUE(same_origin_iframe_node->content_attributes()
@@ -3255,6 +3302,106 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
                 .selection()
                 .selected_text(),
             "Same origin text");
+  EXPECT_TRUE(same_origin_iframe_node->content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .frame_interaction_info()
+                  .has_focused_node_id());
+}
+
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_ApcV2_FrameData_FocusedNodeIdsMultipleFrames) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  // Create a page where focusing an element in an iframe should also make
+  // that iframe the focused element in the main frame.
+  auto page_structure = HtmlPage(
+      "Main", Paragraph("Main frame text"),
+      Iframe(TestOrigin::kCrossA,
+             HtmlPage("Child Cross Origin",
+                      RawHtml("<p id='cross_p'>Cross origin text</p>")),
+             "iframe_cross"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(10), ^{
+    return web_state()
+               ->GetWebFramesManager(web::ContentWorld::kIsolatedWorld)
+               ->GetAllWebFrames()
+               .size() == 2;
+  }));
+
+  web::WebFramesManager* frames_manager =
+      web_state()->GetWebFramesManager(web::ContentWorld::kIsolatedWorld);
+
+  GURL iframe_cross_url = page_helper_->GetUrlForId("iframe_cross");
+
+  web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
+  web::WebFrame* cross_frame = nullptr;
+
+  for (web::WebFrame* frame : frames_manager->GetAllWebFrames()) {
+    if (frame->GetUrl() == iframe_cross_url) {
+      cross_frame = frame;
+    }
+  }
+
+  ASSERT_TRUE(main_frame);
+  ASSERT_TRUE(cross_frame);
+
+  // Focus the paragraph inside the cross-origin iframe.
+  // This should:
+  // 1. Set cross_frame.activeElement = paragraph
+  // 2. Set main_frame.activeElement = <iframe>
+  NSString* script = @"(() => {"
+                     @"  const p = document.getElementById('cross_p');"
+                     @"  if (!p) return;"
+                     @"  p.tabIndex = 0;"
+                     @"  p.focus();"
+                     @"})()";
+  cross_frame->ExecuteJavaScript(base::SysNSStringToUTF16(script));
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root_node = annotated_page_content.root_node();
+  const auto& main_frame_data = annotated_page_content.main_frame_data();
+
+  // 1. Verify Main Frame Focus (should be the iframe node)
+  EXPECT_TRUE(main_frame_data.frame_interaction_info().has_focused_node_id());
+  const optimization_guide::proto::ContentNode* iframe_node =
+      &root_node.children_nodes(1);
+  EXPECT_EQ(main_frame_data.frame_interaction_info().focused_node_id(),
+            iframe_node->content_attributes().common_ancestor_dom_node_id());
+
+  // 2. Verify Cross Origin Iframe Focus (should be the paragraph)
+  EXPECT_TRUE(iframe_node->content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .frame_interaction_info()
+                  .has_focused_node_id());
+  const auto& cross_origin_root = iframe_node->children_nodes(0);
+  const auto& cross_origin_p_node = cross_origin_root.children_nodes(0);
+  EXPECT_EQ(
+      iframe_node->content_attributes()
+          .iframe_data()
+          .frame_data()
+          .frame_interaction_info()
+          .focused_node_id(),
+      cross_origin_p_node.content_attributes().common_ancestor_dom_node_id());
 }
 
 // Tests that the page interaction info is correctly populated for the main
@@ -3933,7 +4080,10 @@ TEST_P(PageContextWrapperTest,
   EXPECT_TRUE(fc_checkbox.is_checked());
 
   ASSERT_TRUE(select_node);
+  EXPECT_EQ(select_node->children_nodes_size(), 0);
   const auto& fc_select = select_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_select.form_control_type(),
+            optimization_guide::proto::FORM_CONTROL_TYPE_SELECT_ONE);
   EXPECT_EQ(fc_select.field_name(), "s1");
   ASSERT_EQ(fc_select.select_options_size(), 2);
   EXPECT_EQ(fc_select.select_options(0).value(), "o1");
@@ -4899,11 +5049,11 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Color) {
             "Green Text");
 
   // Check Color
-  // Green: (0, 255, 0) -> (0 << 24) | (255 << 16) | (0 << 8) | 255
-  // = 0 | 16711680 | 0 | 255 = 16711935
+  // Green: (0, 255, 0) -> (255 << 24) | (0 << 16) | (255 << 8) | 0
+  // = 4278190080 | 0 | 65280 | 0 = 4278255360
   ASSERT_TRUE(p_text_node.content_attributes().text_data().has_text_style());
   EXPECT_EQ(p_text_node.content_attributes().text_data().text_style().color(),
-            16711935u);
+            4278255360u);
 }
 
 // Tests the extraction of paid content metadata based on ld+json.
@@ -5388,6 +5538,280 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_AriaRole_ActionableMode) {
   // No Role -> AX_ROLE_UNKNOWN. Node is preserved due to tabindex.
   EXPECT_EQ(root_node.children_nodes(2).content_attributes().aria_role(),
             optimization_guide::proto::AX_ROLE_UNKNOWN);
+}
+
+// Tests extraction of geometry for fragmented elements (e.g. multi-line text).
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_ApcV2_Geometry_Fragmentation) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  // Create HTML with a wrapping inline element to trigger fragmentation.
+  // We use a small container (50px) and large font (40px) to force wrapping.
+  auto page_structure =
+      HtmlPage("Fragmentation Test",
+               RawHtml("<div style='width: 50px; font-size: 40px; word-break: "
+                       "break-all;'>"
+                       "<a href='#'>LINKS THAT WRAP MANY TIMES</a>"
+                       "</div>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetUseRichExtraction(true)
+          .SetUseRichExtractionWithActionable(true)
+          .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+  ASSERT_TRUE(response.has_value());
+
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+  ASSERT_TRUE(page_context);
+
+  const auto& actual_apc = page_context->annotated_page_content();
+  const auto& root = actual_apc.root_node();
+
+  ASSERT_GE(root.children_nodes_size(), 1);
+  const auto& anchor = root.children_nodes(0);
+  EXPECT_EQ(anchor.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_ANCHOR);
+
+  EXPECT_TRUE(VerifyGeometry(anchor));
+  const auto& geometry = anchor.content_attributes().geometry();
+
+  // Check for fragmentation.
+  // The text "LINKS THAT WRAP MANY TIMES" in a 50px container with 40px font
+  // will wrap across multiple lines, creating multiple fragments.
+  EXPECT_GT(geometry.fragment_visible_bounding_boxes_size(), 1);
+  for (const auto& rect : geometry.fragment_visible_bounding_boxes()) {
+    EXPECT_GT(rect.width(), 0);
+    EXPECT_GT(rect.height(), 0);
+  }
+}
+
+// Tests extraction of geometry with complex clipping (scrollable containers).
+TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_Geometry_Clipping) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  // Layout:
+  // Div (100x100, overflow:hidden)
+  //   -> Div (Content, 200x200)
+  //      -> Target Element (positioned at 150,150 - should be clipped
+  //      out/invisible)
+  //      -> Visible Element (positioned at 10,10)
+  auto page_structure = HtmlPage(
+      "Clipping Test",
+      RawHtml(
+          "<style>body { margin: 0; }</style>"
+          "<div style='width: 100px; height: 100px; overflow: hidden; "
+          "position: "
+          "relative;' id='clipper'>"
+          "  <div style='position: absolute; top: 0; left: 0; width: 200px; "
+          "height: 200px;'>"
+          "     <p id='visible' style='position: absolute; top: 10px; left: "
+          "10px; width: 50px; height: 50px;'>Visible</p>"
+          "     <p id='clipped' style='position: absolute; top: 150px; left: "
+          "150px; width: 50px; height: 50px;'>Clipped</p>"
+          "  </div>"
+          "</div>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetUseRichExtraction(true)
+          .SetUseRichExtractionWithActionable(true)
+          .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+  ASSERT_TRUE(page_context);
+
+  const auto& actual_apc = page_context->annotated_page_content();
+  const auto& root = actual_apc.root_node();
+
+  ASSERT_GE(root.children_nodes_size(), 1);
+  const auto& clipper_div = root.children_nodes(0);
+  EXPECT_EQ(clipper_div.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+
+  ASSERT_GE(clipper_div.children_nodes_size(), 2);
+
+  const auto& visible_p = clipper_div.children_nodes(0);
+  EXPECT_EQ(visible_p.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+  ASSERT_GE(visible_p.children_nodes_size(), 1);
+  EXPECT_EQ(visible_p.children_nodes(0)
+                .content_attributes()
+                .text_data()
+                .text_content(),
+            "Visible");
+
+  EXPECT_TRUE(VerifyGeometry(visible_p));
+  const auto& vis_geo = visible_p.content_attributes().geometry();
+  EXPECT_GT(vis_geo.visible_bounding_box().width(), 0);
+  EXPECT_GT(vis_geo.visible_bounding_box().height(), 0);
+
+  const auto& clipped_p = clipper_div.children_nodes(1);
+  EXPECT_EQ(clipped_p.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+  ASSERT_GE(clipped_p.children_nodes_size(), 1);
+  EXPECT_EQ(clipped_p.children_nodes(0)
+                .content_attributes()
+                .text_data()
+                .text_content(),
+            "Clipped");
+
+  // The 'clipped' paragraph is fully outside the parent's clip rect.
+  // visible_bounding_box should be empty or zero-sized.
+  EXPECT_TRUE(VerifyGeometry(clipped_p, /*expect_visible=*/false));
+  const auto& clipped_geo = clipped_p.content_attributes().geometry();
+
+  // Expect visible bounding box to be effectively empty (width/height 0)
+  // because intersection is empty.
+  EXPECT_EQ(clipped_geo.visible_bounding_box().width(), 0);
+  EXPECT_EQ(clipped_geo.visible_bounding_box().height(), 0);
+
+  // Outer bounding box should still reflect dimensions (unclipped).
+  // Relational geometry assertions (100% deterministic regardless of
+  // screen/rendering engine).
+  EXPECT_EQ(clipped_geo.outer_bounding_box().width(), 50);
+  EXPECT_EQ(clipped_geo.outer_bounding_box().height(), 50);
+  // It is positioned at 150, 150 but relative to its containing block.
+  // We can assure it is mathematically rendered past the 100x100 parent
+  // boundaries.
+  EXPECT_GE(clipped_geo.outer_bounding_box().x(), 100);
+  EXPECT_GE(clipped_geo.outer_bounding_box().y(), 100);
+}
+
+// Tests extraction of geometry for an average case with both visible and outer
+// bounding boxes.
+TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_Geometry_AverageCase) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  // Layout:
+  // Div (200x200, overflow:hidden)
+  //   -> Target Element (positioned at -50,-50, size 100x100)
+  //      This means the outer bounding box is 100x100,
+  //      but the visible bounding box is only the part within the 200x200 div
+  //      (i.e. x:0, y:0, w:50, h:50)
+  auto page_structure = HtmlPage(
+      "Average Geometry Test",
+      RawHtml(
+          "<style>body, p { margin: 0; }</style>"
+          "<div style='width: 200px; height: 200px; overflow: hidden; "
+          "position: relative;' id='clipper'>"
+          "     <p id='target' style='position: absolute; top: -50px; left: "
+          "-50px; width: 100px; height: 100px;'>Target</p>"
+          "</div>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetUseRichExtraction(true)
+          .SetUseRichExtractionWithActionable(true)
+          .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+  ASSERT_TRUE(page_context);
+
+  const auto& actual_apc = page_context->annotated_page_content();
+  const auto& root = actual_apc.root_node();
+
+  ASSERT_GE(root.children_nodes_size(), 1);
+  const auto& clipper_div = root.children_nodes(0);
+  EXPECT_EQ(clipper_div.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+
+  ASSERT_GE(clipper_div.children_nodes_size(), 1);
+
+  const auto& target_p = clipper_div.children_nodes(0);
+  EXPECT_EQ(target_p.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+  ASSERT_GE(target_p.children_nodes_size(), 1);
+
+  EXPECT_TRUE(VerifyGeometry(target_p));
+  const auto& target_geo = target_p.content_attributes().geometry();
+
+  // The outer bounding box is size 100x100, located around -50, -50.
+  // We use ASSERT_GE since rendering engines can vary slightly.
+  // Left side: -50ish, width: 100ish, height: 100ish
+  EXPECT_LE(target_geo.outer_bounding_box().x(), -40);
+  EXPECT_LE(target_geo.outer_bounding_box().y(), -40);
+  EXPECT_GE(target_geo.outer_bounding_box().width(), 90);
+  EXPECT_GE(target_geo.outer_bounding_box().height(), 90);
+
+  // The visible bounding box should be clipped by the parent.
+  // It should be around x: 0, y: 0, width: 50, height: 50.
+  EXPECT_GE(target_geo.visible_bounding_box().x(), 0);
+  EXPECT_LE(target_geo.visible_bounding_box().x(), 10);
+  EXPECT_GE(target_geo.visible_bounding_box().y(), 0);
+  EXPECT_LE(target_geo.visible_bounding_box().y(), 10);
+  EXPECT_GE(target_geo.visible_bounding_box().width(), 40);
+  EXPECT_LE(target_geo.visible_bounding_box().width(), 60);
+  EXPECT_GE(target_geo.visible_bounding_box().height(), 40);
+  EXPECT_LE(target_geo.visible_bounding_box().height(), 60);
+
+  // Relational geometry assertions (100% deterministic regardless of
+  // screen/rendering engine).
+
+  // 1. The visible box MUST be strictly smaller than the outer box because it's
+  // clipped.
+  EXPECT_LT(target_geo.visible_bounding_box().width(),
+            target_geo.outer_bounding_box().width());
+  EXPECT_LT(target_geo.visible_bounding_box().height(),
+            target_geo.outer_bounding_box().height());
+
+  // 2. The visible box MUST be constrained by the parent's boundaries.
+  // In this test setup, the parent starts at 0,0 and is 200x200.
+  // The child is 100x100 but positioned at -50,-50.
+  // So it should be clipped at exactly x=0, y=0.
+  EXPECT_EQ(target_geo.visible_bounding_box().x(), 0);
+  EXPECT_EQ(target_geo.visible_bounding_box().y(), 0);
+
+  // Since it started at -50 and was 100 wide/high, it should only extend to 50.
+  // We use the relational logic: visible_width = outer_width -
+  // clipped_left_amount; clipped_left_amount = 0 - outer_x (which is negative).
+  int clipped_width = target_geo.outer_bounding_box().width() -
+                      (0 - target_geo.outer_bounding_box().x());
+  int clipped_height = target_geo.outer_bounding_box().height() -
+                       (0 - target_geo.outer_bounding_box().y());
+
+  // Since layout subpixels can vary slightly, we assert that the computed
+  // intersection perfectly matches the extracted visible bounding box without
+  // relying on hardcoded numbers.
+  EXPECT_EQ(target_geo.visible_bounding_box().width(), clipped_width);
+  EXPECT_EQ(target_geo.visible_bounding_box().height(), clipped_height);
 }
 
 INSTANTIATE_TEST_SUITE_P(,

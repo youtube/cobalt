@@ -230,9 +230,12 @@ public:
     /**
      * Purge GPU resources on the Context that haven't been used in the past 'msNotUsed'
      * milliseconds or are otherwise marked for deletion, regardless of whether the context is under
-     * budget.
+     * budget. Optionally provide a `microsMaxPurgingDur` after which Skia should stop purging
+     * resources.
      */
-    void performDeferredCleanup(std::chrono::milliseconds msNotUsed);
+    void performDeferredCleanup(
+            std::chrono::milliseconds msNotUsed,
+            std::optional<std::chrono::microseconds> microsMaxPurgingDur = std::nullopt);
 
     /**
      * Returns the number of bytes of the Context's gpu memory cache budget that are currently in

@@ -9,12 +9,18 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/notimplemented.h"
+#include "base/strings/stringprintf.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
+#include "mojo/public/mojom/base/error.mojom.h"
 
 namespace {
+using Code = mojo_base::mojom::Code;
+using Error = mojo_base::mojom::Error;
+
 // Measurement marks.
 constexpr char kChangeVisibleModeToLoadingStartMark[] =
     "ToolbarUI.ChangeVisibleModeToLoading.Start";
@@ -82,14 +88,63 @@ void ToolbarUIService::OnPageInitialized() {
 }
 
 void ToolbarUIService::ShowContentSettingsBubble(
-    ::toolbar_ui_api::mojom::ContentSettingImageType type) {
-  NOTIMPLEMENTED();
+    ::toolbar_ui_api::mojom::ContentSettingImageType type,
+    ShowContentSettingsBubbleCallback callback) {
+  if (delegate_) {
+    delegate_->ShowContentSettingsBubble(type, std::move(callback));
+  } else {
+    std::move(callback).Run(base::unexpected(
+        Error::New(Code::kFailedPrecondition,
+                   base::StringPrintf("ToolbarUIService: cannot create bubble "
+                                      "without delegate_ for type: %d",
+                                      static_cast<int32_t>(type)))));
+  }
 }
 
 void ToolbarUIService::InvokePinnedToolbarAction(
     toolbar_ui_api::mojom::PinnedToolbarAction action_id) {
   if (delegate_) {
     delegate_->InvokePinnedToolbarAction(action_id);
+  }
+}
+
+void ToolbarUIService::OnLhsChipMousePressed(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (delegate_) {
+    delegate_->OnLhsChipMousePressed(identifier);
+  }
+}
+
+void ToolbarUIService::OnLhsChipClicked(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (delegate_) {
+    delegate_->OnLhsChipClicked(identifier);
+  }
+}
+
+void ToolbarUIService::OnLhsChipExpandAnimationEnded(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (delegate_) {
+    delegate_->OnLhsChipExpandAnimationEnded(identifier);
+  }
+}
+
+void ToolbarUIService::OnLhsChipCollapseAnimationEnded(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (delegate_) {
+    delegate_->OnLhsChipCollapseAnimationEnded(identifier);
+  }
+}
+
+void ToolbarUIService::OnHomeButtonDropUrl(const GURL& url) {
+  if (delegate_) {
+    delegate_->OnHomeButtonDropUrl(url);
+  }
+}
+
+void ToolbarUIService::OnHomeButtonDropFile(const gfx::PointF& drop_position) {
+  if (delegate_) {
+    delegate_->OnHomeButtonDropFile(drop_position);
   }
 }
 

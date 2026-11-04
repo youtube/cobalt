@@ -71,7 +71,7 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
 
   protected accessor isUploading_: boolean = false;
 
-  protected get usePdfIcon_(): boolean {
+  protected shouldUsePdfIcon_(): boolean {
     return !this.lensSendRawFileMediaTypesEnabled_ ||
         this.file.type === 'pdf' || this.file.type === 'application/pdf';
   }
@@ -93,16 +93,17 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
     this.fire('delete-file', {uuid: this.file.uuid, fromUserAction: true});
   }
 
-  protected get deleteFileButtonTitle_(): string {
+  protected getDeleteFileButtonTitle_(): string {
     return loadTimeData.getStringF('composeboxDeleteFileTitle', this.file.name);
   }
 
-  protected get formattedUrl_(): string|null {
+  protected getFormattedUrl_(): string|null {
     if (!this.file?.url) {
       return null;
     }
     const link = new URL(this.file.url);
-    return (link.host + link.pathname).replace(/\/$/, '');
+    const host = link.host.replace(/^www\./, '');
+    return (host + link.pathname).replace(/\/$/, '');
   }
 }
 

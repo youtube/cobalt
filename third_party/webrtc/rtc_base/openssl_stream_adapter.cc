@@ -100,6 +100,12 @@ void TimeCallbackForTesting(const SSL* ssl, struct timeval* out_clock) {
 }
 #endif
 
+#ifdef DTLS1_3_VERSION
+#define MAX_SSL_PROTOCOL_DTLS SSL_PROTOCOL_DTLS_13
+#else
+#define MAX_SSL_PROTOCOL_DTLS SSL_PROTOCOL_DTLS_12
+#endif
+
 uint16_t GetMaxVersion(SSLMode ssl_mode, SSLProtocolVersion version) {
   switch (ssl_mode) {
     case SSL_MODE_TLS:
@@ -120,10 +126,10 @@ uint16_t GetMaxVersion(SSLMode ssl_mode, SSLProtocolVersion version) {
     case SSL_MODE_DTLS:
       switch (version) {
         default:
-        case SSL_PROTOCOL_NOT_GIVEN:
         case SSL_PROTOCOL_DTLS_10:
         case SSL_PROTOCOL_DTLS_12:
           return DTLS1_2_VERSION;
+        case SSL_PROTOCOL_NOT_GIVEN:
         case SSL_PROTOCOL_DTLS_13:
 #ifdef DTLS1_3_VERSION
           return DTLS1_3_VERSION;
@@ -132,45 +138,6 @@ uint16_t GetMaxVersion(SSLMode ssl_mode, SSLProtocolVersion version) {
 #endif
       }
   }
-}
-
-constexpr int kForceDtls13Off = 0;
-#ifdef DTLS1_3_VERSION
-constexpr int kForceDtls13Enabled = 1;
-constexpr int kForceDtls13Only = 2;
-#endif
-
-int GetForceDtls13(const FieldTrialsView* field_trials) {
-#ifdef DTLS1_3_VERSION
-  if (field_trials) {
-#if defined(WEBRTC_CHROMIUM_BUILD)
-    if (field_trials->IsDisabled("WebRTC-ForceDtls13")) {
-      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
-      return kForceDtls13Off;
-    }
-#else
-    if (field_trials->IsEnabled("WebRTC-ForceDtls13")) {
-      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
-      return kForceDtls13Enabled;
-    }
-#endif  // defined(WEBRTC_CHROMIUM_BUILD)
-    if (field_trials->Lookup("WebRTC-ForceDtls13") == "Only") {
-      RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Only";
-      return kForceDtls13Only;
-    }
-  }
-  // Default behavior:
-#if defined(WEBRTC_CHROMIUM_BUILD)
-  RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
-  return kForceDtls13Enabled;
-#else
-  RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
-  return kForceDtls13Off;
-#endif  // defined(WEBRTC_CHROMIUM_BUILD)
-
-#else
-  return kForceDtls13Off;
-#endif  // DTLS1_3_VERSION
 }
 
 #ifdef OPENSSL_IS_BORINGSSL
@@ -334,8 +301,7 @@ OpenSSLStreamAdapter::OpenSSLStreamAdapter(
       ssl_(nullptr),
       ssl_ctx_(nullptr),
       ssl_mode_(SSL_MODE_DTLS),
-      ssl_max_version_(SSL_PROTOCOL_DTLS_12),
-      force_dtls_13_(GetForceDtls13(field_trials)),
+      ssl_max_version_(MAX_SSL_PROTOCOL_DTLS),
       disable_ssl_group_ids_(field_trials && field_trials->IsEnabled(
                                                  "WebRTC-DisableSslGroupIds")) {
   stream_->SetEventCallback(
@@ -1154,14 +1120,6 @@ SSL_CTX* OpenSSLStreamAdapter::SetupSSLContext() {
   auto min_version =
       ssl_mode_ == SSL_MODE_DTLS ? DTLS1_2_VERSION : TLS1_2_VERSION;
   auto max_version = GetMaxVersion(ssl_mode_, ssl_max_version_);
-#ifdef DTLS1_3_VERSION
-  if (force_dtls_13_ == kForceDtls13Enabled) {
-    max_version = DTLS1_3_VERSION;
-  } else if (force_dtls_13_ == kForceDtls13Only) {
-    min_version = DTLS1_3_VERSION;
-    max_version = DTLS1_3_VERSION;
-  }
-#endif
 
   SSL_CTX_set_min_proto_version(ctx, min_version);
   SSL_CTX_set_max_proto_version(ctx, max_version);

@@ -146,6 +146,7 @@ const char kAttributeXGoogleFlag[] = "x-google-flag";
 const char kValueConference[] = "conference";
 
 const char kAttributeRtcpRemoteEstimate[] = "remote-net-estimate";
+const char kAttributeSframe[] = "sframe";
 
 // StringBuilder doesn't have a << overload for chars, while
 // split and tokenize_first both take a char delimiter. To
@@ -1307,6 +1308,13 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
     AddLine(os.str(), message);
   }
 
+  // draft-ietf-avtcore-rtp-sframe-02 §6
+  // a=sframe
+  if (media_desc->sframe_enabled()) {
+    InitAttrLine(kAttributeSframe, &os);
+    AddLine(os.str(), message);
+  }
+
   // RFC 4566
   // a=rtpmap:<payload type> <encoding name>/<clock rate>
   // [/<encodingparameters>]
@@ -1387,6 +1395,7 @@ void BuildMediaDescription(const ContentInfo* content_info,
                            const MediaType media_type,
                            const std::vector<Candidate>& candidates,
                            int msid_signaling,
+                           bool use_wildcard,
                            std::string* message) {
   RTC_DCHECK(message);
   if (!content_info) {
@@ -1470,9 +1479,8 @@ void BuildMediaDescription(const ContentInfo* content_info,
   if (IsDtlsSctp(media_desc->protocol())) {
     BuildSctpContentAttributes(media_desc, message);
   } else if (IsRtpProtocol(media_desc->protocol())) {
-    // TODO: issues.webrtc.org/48979442 - Make this field trial controlled
     BuildRtpContentAttributes(media_desc, media_type, msid_signaling,
-                              /* use_wildcard= */ false, message);
+                              use_wildcard, message);
   }
 }
 
@@ -2700,6 +2708,8 @@ bool ParseContent(absl::string_view message,
         media_desc->set_rtcp_reduced_size(true);
       } else if (HasAttribute(*line, kAttributeRtcpRemoteEstimate)) {
         media_desc->set_remote_estimate(true);
+      } else if (HasAttribute(*line, kAttributeSframe)) {
+        media_desc->set_sframe_enabled(true);
       } else if (HasAttribute(*line, kAttributeSsrcGroup)) {
         if (!ParseSsrcGroupAttribute(*line, &ssrc_groups, error)) {
           return false;
@@ -3312,7 +3322,8 @@ std::string SdpSerialize(const SessionDescriptionInterface& jdesc) {
     GetCandidatesByMindex(jdesc, ++mline_index, &candidates);
     BuildMediaDescription(&content, desc->GetTransportInfoByName(content.mid()),
                           content.media_description()->type(), candidates,
-                          desc->msid_signaling(), &message);
+                          desc->msid_signaling(),
+                          jdesc.encoding_options().use_wildcard, &message);
   }
   return message;
 }

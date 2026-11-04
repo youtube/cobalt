@@ -68,11 +68,11 @@
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/rate_limiter.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
@@ -213,7 +213,7 @@ class RtpSenderVideoTest : public ::testing::Test {
       int version);
 
  protected:
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   SimulatedClock fake_clock_;
   const Environment env_;
   LoopbackTransportTest transport_;

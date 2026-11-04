@@ -54,6 +54,7 @@ namespace webrtc {
 
 class RtpSenderInternal;
 class RtpReceiverInternal;
+class ScopedOperationsBatcher;
 
 // Structure for tracking stats about each RtpTransceiver managed by the
 // PeerConnection. This can either by a Plan B style or Unified Plan style
@@ -123,8 +124,8 @@ class RTCStatsCollector {
   // on the worker and network threads before the RTCStatsCollector instance is
   // deleted.
   void CancelPendingRequestAndGetShutdownTasks(
-      std::vector<absl::AnyInvocable<void() &&>>& network_tasks,
-      std::vector<absl::AnyInvocable<void() &&>>& worker_tasks);
+      ScopedOperationsBatcher& network_tasks,
+      ScopedOperationsBatcher& worker_tasks);
 
   // Called by the PeerConnection instance when data channel states change.
   void OnSctpDataChannelStateChanged(int channel_id,

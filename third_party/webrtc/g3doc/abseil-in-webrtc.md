@@ -1,5 +1,5 @@
 <!-- go/cmark -->
-<!--* freshness: {owner: 'danilchap' reviewed: '2025-09-24'} *-->
+<!--* freshness: {owner: 'danilchap' reviewed: '2026-04-02'} *-->
 
 # Using Abseil in WebRTC
 
@@ -15,12 +15,13 @@ adds the first use.
 
 ## How to depend on Abseil
 
-For build targets of type `rtc_library`, `rtc_source_set` and
-`rtc_static_library`, dependencies on Abseil need to be listed in `deps`.
+Dependencies on Abseil need to be listed in `deps` using absolute path,
+for example `"//third_party/abseil-cpp/absl/base:core_headers"`
 
-The GN templates will take care of generating the proper dependency when
-used within Chromium or standalone. In that build mode, WebRTC will depend
-on a monolithic Abseil build target that will generate a shared library.
+The rtc GN templates will take care of generating the proper dependency when
+used within Chromium or standalone. In the `build_with_chromium` mode, WebRTC
+will depend on the monolithic Abseil build target that will generate a shared
+library.
 
 ## **Allowed**
 

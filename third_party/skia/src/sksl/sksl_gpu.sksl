@@ -40,6 +40,12 @@ $pure half4 sampleLod(sampler2D s, float3 P, float lod);
 
 $pure half4 sampleGrad(sampler2D s, float2, float2 dPdx, float2 dPdy);
 
+$pure half4 textureRead($readableTexture2D t, uint2 pos);
+$pure half4 textureRead(sampler2D s, uint2 pos);
+
+$pure uint2 textureSize(sampler2D s);
+$pure uint2 textureSize($genTexture2D t);
+
 // Currently we do not support the generic types of loading subpassInput so we have some explicit
 // versions that we currently use
 $pure half4 subpassLoad(subpassInput subpass);

@@ -124,7 +124,7 @@ typedef FILE* FileHandle;
 #endif
 
 #if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
-#include "base/logging/logger.rs.h"
+#include "base/logging/rust_logger/lib.rs.h"
 #endif
 
 namespace logging {
@@ -506,7 +506,7 @@ void SetLogFatalCrashKey(LogMessage* log_message) {
 
 std::string BuildCrashString(const char* file,
                              int line,
-                             const char* message_without_prefix) {
+                             std::string_view message_without_prefix) {
   // Only log last path component.
   if (file) {
     const char* slash = UNSAFE_TODO(strrchr(file,
@@ -725,7 +725,7 @@ LogMessageHandlerFunction GetLogMessageHandler() {
 // This is for developers only; we don't use this in circumstances
 // (like release builds) where users could see it, since users don't
 // understand these messages anyway.
-void DisplayDebugMessageInDialog(const std::string& str) {
+void DisplayDebugMessageInDialog(std::string_view str) {
   if (str.empty()) {
     return;
   }
@@ -760,7 +760,7 @@ void LogMessage::Flush() {
   // Don't let actions from this method affect the system error after returning.
   base::ScopedClearLastError scoped_clear_last_error;
 
-  size_t stack_start = stream_.str().length();
+  size_t stack_start = stream_.view().length();
 #if !defined(OFFICIAL_BUILD) && !defined(__UCLIBC__) && !BUILDFLAG(IS_AIX)
   // Include a stack trace on a fatal, unless a debugger is attached.
   if (severity_ == LOGGING_FATAL && !base::debug::BeingDebugged()) {
@@ -994,7 +994,7 @@ void LogMessage::Flush() {
 
 std::string LogMessage::BuildCrashString() const {
   return logging::BuildCrashString(file(), line(),
-                                   UNSAFE_TODO(str().c_str() + message_start_));
+                                   stream_.view().substr(message_start_));
 }
 
 // writes the common header info to the stream
@@ -1076,7 +1076,7 @@ void LogMessage::Init(const char* file, int line) {
     }
     stream_ << ":" << filename << ":" << line << "] ";
   }
-  message_start_ = stream_.str().length();
+  message_start_ = stream_.view().length();
 }
 
 void LogMessage::HandleFatal(size_t stack_start,
@@ -1107,7 +1107,7 @@ void LogMessage::HandleFatal(size_t stack_start,
     if (!base::debug::BeingDebugged()) {
       // Displaying a dialog is unnecessary when debugging and can complicate
       // debugging.
-      DisplayDebugMessageInDialog(stream_.str());
+      DisplayDebugMessageInDialog(stream_.view());
     }
 #endif
 

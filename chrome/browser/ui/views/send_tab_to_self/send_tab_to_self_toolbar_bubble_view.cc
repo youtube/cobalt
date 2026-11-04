@@ -9,18 +9,13 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
-#include "chrome/browser/send_tab_to_self/send_tab_to_self_scroll_observer.h"
-#include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
-#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
@@ -41,12 +36,9 @@ namespace send_tab_to_self {
 SendTabToSelfToolbarBubbleView* SendTabToSelfToolbarBubbleView::CreateBubble(
     BrowserWindowInterface& browser,
     views::BubbleAnchor anchor,
-    const SendTabToSelfEntry& entry,
-    base::OnceCallback<base::WeakPtr<content::NavigationHandle>(
-        NavigateParams*)> navigate_callback) {
+    const SendTabToSelfEntry& entry) {
   SendTabToSelfToolbarBubbleView* bubble_view =
-      new SendTabToSelfToolbarBubbleView(browser, anchor, entry,
-                                         std::move(navigate_callback));
+      new SendTabToSelfToolbarBubbleView(browser, anchor, entry);
   // The widget is owned by the views system.
   views::Widget* widget =
       views::BubbleDialogDelegateView::CreateBubble(bubble_view);
@@ -59,11 +51,8 @@ SendTabToSelfToolbarBubbleView::~SendTabToSelfToolbarBubbleView() = default;
 SendTabToSelfToolbarBubbleView::SendTabToSelfToolbarBubbleView(
     BrowserWindowInterface& browser,
     views::BubbleAnchor anchor,
-    const SendTabToSelfEntry& entry,
-    base::OnceCallback<base::WeakPtr<content::NavigationHandle>(
-        NavigateParams*)> navigate_callback)
+    const SendTabToSelfEntry& entry)
     : views::BubbleDialogDelegateView(anchor, views::BubbleBorder::TOP_RIGHT),
-      navigate_callback_(std::move(navigate_callback)),
       browser_(browser),
       entry_(entry) {
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
@@ -136,43 +125,9 @@ SendTabToSelfToolbarBubbleView::SendTabToSelfToolbarBubbleView(
 
 void SendTabToSelfToolbarBubbleView::OpenInNewTab() {
   opened_ = true;
-
-  RecordHasScrollPositionOnOpened(
-      !entry_.GetPageContext().scroll_position.IsEmpty());
-
-  NavigateParams params(browser_->GetProfile(), entry_.GetURL(),
-                        ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-  params.window_action = NavigateParams::WindowAction::kShowWindow;
-
-  std::optional<std::string> scroll_to_text_fragment =
-      GetScrollPositionAsTextFragment(&entry_);
-  if (scroll_to_text_fragment) {
-    params.internal_scroll_to_text_fragment = *scroll_to_text_fragment;
-  }
-
-  base::WeakPtr<content::NavigationHandle> handle =
-      std::move(navigate_callback_).Run(&params);
-
-  if (params.navigated_or_inserted_contents) {
-    SendTabToSelfScrollObserver::CreateForWebContents(
-        params.navigated_or_inserted_contents,
-        /*restoration_attempted=*/scroll_to_text_fragment.has_value());
-  }
-
-  if (handle &&
-      base::FeatureList::IsEnabled(kSendTabToSelfPropagateFormFields)) {
-    FillWebContents(params.navigated_or_inserted_contents,
-                    url::Origin::Create(entry_.GetURL()),
-                    entry_.GetPageContext());
-  }
-
-  SendTabToSelfSyncServiceFactory::GetForProfile(browser_->GetProfile())
-      ->GetSendTabToSelfModel()
-      ->MarkEntryOpened(entry_.GetGUID());
-
-  GetWidget()->Close();
   send_tab_to_self::RecordNotificationOpened();
+  OpenEntryInNewTab(browser_->GetProfile(), entry_);
+  GetWidget()->Close();
 }
 
 void SendTabToSelfToolbarBubbleView::Timeout() {
@@ -197,8 +152,8 @@ void SendTabToSelfToolbarBubbleView::ReplaceEntry(
   SendTabToSelfSyncServiceFactory::GetForProfile(browser_->GetProfile())
       ->GetSendTabToSelfModel()
       ->DismissEntry(entry_.GetGUID());
-
   title_label_->SetText(base::UTF8ToUTF16(new_entry.GetTitle()));
+
   url_label_->SetText(
       url_formatter::FormatUrlForSecurityDisplay(new_entry.GetURL()));
   device_label_->SetText(l10n_util::GetStringFUTF16(

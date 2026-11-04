@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-shared --allow-natives-syntax
+// Flags: --expose-externalize-string
 
 // Adapted from 'test/mjsunit/wasm/imported-strings.js'.
 
@@ -115,7 +116,6 @@ function MakeBuilder() {
   kStringCompareShared =
       builder.addImport('wasm:js-string', 'compare', kSig_i_ss);
   kStringIndexOfImported = builder.addImport('m', 'indexOf', kSig_i_ssi);
-  // TODO(448741522): This will work out of the box.
   kStringToLowerCaseImported =
       builder.addImport('m', 'toLowerCase', kSig_s_s);
 
@@ -237,8 +237,6 @@ let kBuiltins = { builtins: ["js-string"] };
       'illegal cast');
 })();
 
-// TODO(448741522): This works, but we need additional testing to ensure the
-// lowercase string is allocated in the shared space inside Wasm.
 (function TestStringToLowerCaseImported() {
   print(arguments.callee.name);
   let builder = new MakeBuilder();
@@ -311,7 +309,51 @@ let kBuiltins = { builtins: ["js-string"] };
                WebAssembly.RuntimeError, "illegal cast");
 })();
 
-// TODO(448741522): Implement shared string concat.
+(function TestStringConcat() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("concat", kSig_t_ss)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  builder.addFunction("concat_null_head", kSig_t_s)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  builder.addFunction("concat_null_tail", kSig_t_s)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+
+  for (let head of interestingStrings) {
+    for (let tail of interestingStrings) {
+      assertEquals(head + tail, instance.exports.concat(head, tail));
+    }
+  }
+
+  assertThrows(() => instance.exports.concat(null, "hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat('hey', null),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat_null_head("hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat_null_tail("hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+})();
 
 (function TestStringEq() {
   print(arguments.callee.name);
@@ -366,7 +408,132 @@ let kBuiltins = { builtins: ["js-string"] };
   assertEquals(1, instance.exports.eq(null, null));
 })();
 
-// TODO(448741522): Implement substring and adapt the TestStringViewWtf16 test.
+(function TestStringViewWtf16() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("get_codeunit", kSig_i_si)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringCharCodeAtShared,
+    ]);
+
+  builder.addFunction("get_codeunit_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringCharCodeAtShared,
+    ]);
+
+  builder.addFunction("get_codepoint", kSig_i_si)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringCodePointAtShared,
+    ]);
+
+  builder.addFunction("get_codepoint_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringCodePointAtShared,
+    ]);
+
+  builder.addFunction("slice", kSig_t_sii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprCallFunction, kStringSubstringShared,
+    ]);
+
+  builder.addFunction("slice_null", kSig_t_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringSubstringShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  for (let str of interestingStrings) {
+    for (let i = 0; i < str.length; i++) {
+      assertEquals(str.charCodeAt(i),
+                   instance.exports.get_codeunit(str, i));
+      assertEquals(str.codePointAt(i),
+                   instance.exports.get_codepoint(str, i));
+    }
+    assertEquals(str, instance.exports.slice(str, 0, -1));
+  }
+
+  assertEquals("", instance.exports.slice("foo", 0, 0));
+  assertEquals("f", instance.exports.slice("foo", 0, 1));
+  assertEquals("fo", instance.exports.slice("foo", 0, 2));
+  assertEquals("foo", instance.exports.slice("foo", 0, 3));
+  assertEquals("foo", instance.exports.slice("foo", 0, 4));
+  assertEquals("o", instance.exports.slice("foo", 1, 2));
+  assertEquals("oo", instance.exports.slice("foo", 1, 3));
+  assertEquals("oo", instance.exports.slice("foo", 1, 100));
+  assertEquals("", instance.exports.slice("foo", 1, 0));
+  assertEquals("", instance.exports.slice("foo", 3, 4));
+  assertEquals("foo", instance.exports.slice("foo", 0, -1));
+  assertEquals("", instance.exports.slice("foo", -1, 1));
+
+  assertThrows(() => instance.exports.get_codeunit(null, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codeunit_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codeunit("", 0),
+               WebAssembly.RuntimeError, "string offset out of bounds");
+  assertThrows(() => instance.exports.get_codepoint(null, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codepoint_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codepoint("", 0),
+               WebAssembly.RuntimeError, "string offset out of bounds");
+  assertThrows(() => instance.exports.slice(null, 0, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+
+  // Cover runtime code path for long slices.
+  const prefix = "a".repeat(10);
+  const slice = "x".repeat(40);
+  const suffix = "b".repeat(40);
+  const input = prefix + slice + suffix;
+  const start = prefix.length;
+  const end = start + slice.length;
+  assertEquals(slice, instance.exports.slice(input, start, end));
+
+  // Check that we create one-byte substrings when possible.
+  let onebyte = instance.exports.slice("\u1234abcABCDE", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the CodeStubAssembler implementation also creates one-byte
+  // substrings.
+  onebyte = instance.exports.slice("\u1234abcA", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+  // Cover the code path that checks 8 characters at a time.
+  onebyte = instance.exports.slice("\u1234abcdefgh\u1234", 1, 9);
+  assertEquals("abcdefgh", onebyte);  // Exactly 8 characters.
+  assertTrue(isOneByteString(onebyte));
+  onebyte = instance.exports.slice("\u1234abcdefghij\u1234", 1, 11);
+  assertEquals("abcdefghij", onebyte);  // Longer than 8.
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the runtime code path also creates one-byte substrings.
+  assertTrue(isOneByteString(
+      instance.exports.slice(input + "\u1234", start, end)));
+})();
 
 (function TestStringCompare() {
   print(arguments.callee.name);
@@ -490,8 +657,101 @@ let kBuiltins = { builtins: ["js-string"] };
   }
 })();
 
-// TODO(448741522, 42204563): Fix shared array.new_data behavior and port the
-// TestStringNewWtf16Array test.
+function encodeWtf16LE(str) {
+  // String iterator coalesces surrogate pairs.
+  let out = [];
+  for (let i = 0; i < str.length; i++) {
+    codeunit = str.charCodeAt(i);
+    out.push(codeunit & 0xff)
+    out.push(codeunit >> 8);
+  }
+  return out;
+}
+
+function makeWtf16TestDataSegment(strings) {
+  let data = []
+  let valid = {};
+
+  for (let str of strings) {
+    valid[str] = { offset: data.length, length: str.length };
+    for (let byte of encodeWtf16LE(str)) {
+      data.push(byte);
+    }
+  }
+
+  return { valid, data: Uint8Array.from(data) };
+};
+
+(function TestStringNewWtf16Array() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  // string.new_wtf16_array switches to a different implementation (runtime
+  // instead of Torque) for more than 32 characters, so provide some coverage
+  // for that case.
+  let strings = interestingStrings.concat([
+    "String with more than 32 characters, all of which are ASCII",
+    "Two-byte string with more than 32 characters \ucccc \ud800\udc00 \xa9?"
+  ]);
+
+  let data = makeWtf16TestDataSegment(strings);
+  let data_index = builder.addPassiveDataSegment(data.data);
+  let ascii_data_index =
+      builder.addPassiveDataSegment(Uint8Array.from(encodeWtf16LE("ascii")));
+
+  let make_i16_array = builder.addFunction(
+      "make_i16_array", makeSig([], [wasmRefType(kArrayI16Shared)]))
+    .addBody([
+      ...wasmI32Const(0),
+      ...wasmI32Const(data.data.length / 2),
+      kGCPrefix, kExprArrayNewData, kArrayI16Shared, data_index
+    ]).index;
+
+  builder.addFunction("new_wtf16", kSig_t_ii)
+    .exportFunc()
+    .addBody([
+      kExprCallFunction, make_i16_array,
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  builder.addFunction("bounds_check", kSig_t_ii)
+    .exportFunc()
+    .addBody([
+      ...wasmI32Const(0),
+      ...wasmI32Const("ascii".length),
+      kGCPrefix, kExprArrayNewData, kArrayI16Shared, ascii_data_index,
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  builder.addFunction("null_array", kSig_t_v).exportFunc()
+    .addBody([
+      kExprRefNull, kArrayI16Shared,
+      kExprI32Const, 0, kExprI32Const, 0,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  for (let [str, {offset, length}] of Object.entries(data.valid)) {
+    let start = offset / 2;
+    let end = start + length;
+    assertEquals(str, instance.exports.new_wtf16(start, end));
+  }
+
+  assertEquals("ascii", instance.exports.bounds_check(0, "ascii".length));
+  assertEquals("", instance.exports.bounds_check("ascii".length,
+                                                 "ascii".length));
+  assertEquals("i", instance.exports.bounds_check("ascii".length - 1,
+                                                  "ascii".length));
+  assertThrows(() => instance.exports.bounds_check(0, 100),
+               WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.bounds_check("ascii".length,
+                                                   "ascii".length + 1),
+               WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
 
 (function TestStringEncodeWtf16Array() {
   print(arguments.callee.name);

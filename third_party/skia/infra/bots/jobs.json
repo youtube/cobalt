@@ -9,22 +9,19 @@
     "name": "BazelBuild-full_library-for_windows_x64_release-windows_x64"
   },
   {
-    "name": "BazelBuild-full_library-release-linux_x64",
-    "cq_config": {}
+    "name": "BazelBuild-full_library-release-linux_x64"
   },
   {
     "name": "BazelBuild-ganesh_gl-release-linux_x64"
   },
   {
-    "name": "BazelBuild-modules_canvaskit-ck_full_webgl2_debug-linux_x64",
-    "cq_config": {}
+    "name": "BazelBuild-modules_canvaskit-ck_full_webgl2_debug-linux_x64"
   },
   {
     "name": "BazelBuild-use_ganesh_gl-for_windows_x64_release-windows_x64"
   },
   {
-    "name": "BazelBuild-viewer-debug-linux_x64",
-    "cq_config": {}
+    "name": "BazelBuild-viewer-debug-linux_x64"
   },
   {
     "name": "BazelBuild-viewer-release-linux_x64"
@@ -63,8 +60,7 @@
     "name": "BazelTest-external_client-use_ganesh_vulkan-default-linux_x64"
   },
   {
-    "name": "BazelTest-external_client-use_graphite_native_vulkan-default-linux_x64",
-    "cq_config": {}
+    "name": "BazelTest-external_client-use_graphite_native_vulkan-default-linux_x64"
   },
   {
     "name": "BazelTest-external_client-use_skresources-default-linux_x64"

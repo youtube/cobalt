@@ -1602,6 +1602,9 @@ pub enum BuiltIn {
     // The BuiltIn enum value X corresponds to gl_X in GLSL.
     InstanceID,
     VertexID,
+    // InstanceIndex and VertexIndex are used internally to implement InstanceID and VertexID.
+    InstanceIndex,
+    VertexIndex,
     Position,
     PointSize,
     BaseVertex,
@@ -1808,6 +1811,14 @@ pub enum TessellationOrdering {
 
 #[derive(Copy, Clone, PartialEq)]
 #[cfg_attr(debug_assertions, derive(Debug))]
+pub enum EmulatedMultiDraw {
+    DrawID,
+    BaseVertex,
+    BaseInstance,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Decoration {
     // Corresponding to GLSL qualifiers with the same name
     Invariant,
@@ -1865,7 +1876,7 @@ pub enum Decoration {
     EmulatedViewIDOut,
     EmulatedViewIDIn,
     // Used internally to emulate multidraw built-ins.
-    EmulatedMultiDrawBuiltIn,
+    EmulatedMultiDrawBuiltIn(EmulatedMultiDraw),
 }
 
 // A set of decorations that only affect variables.  They are placed in a vector that's expected to
@@ -1903,15 +1914,15 @@ impl Decorations {
 //
 // has_decoration: Similar to Decorations::has, but for enums with data.  For example:
 //
-//     has_decoration!(decoration, Decoration::Location) // returns a bool
+//     has_decoration!(decorations, Decoration::Location) // returns a bool
 //
 // get_decoration: Get a decoration matching a variant.  For example:
 //
-//     get_decoration!(decoration, Decoration::Location) // returns Some(Location(l)) or None
+//     get_decoration!(decorations, Decoration::Location) // returns Some(Location(l)) or None
 //
 // get_decoration_value: Get the value inside a decoration matching a variant.  For example:
 //
-//     get_decoration_value!(decoration, Decoration::Location) // returns Some(l) or None
+//     get_decoration_value!(decorations, Decoration::Location) // returns Some(l) or None
 macro_rules! has_decoration {
     ($decorations:expr, $variant:path) => {
         $decorations.decorations.iter().any(|decoration| matches!(decoration, $variant(..)))
@@ -2666,6 +2677,7 @@ impl IRMeta {
             let should_keep = keep(id, &self.variables[id.id as usize]);
             if !should_keep {
                 self.variables[id.id as usize].is_dead_code_eliminated = true;
+                self.variables_pending_zero_initialization.remove(&id);
             }
             should_keep
         });
@@ -2980,9 +2992,12 @@ impl IRMeta {
     }
 
     pub fn dead_code_eliminate_variable(&mut self, id: VariableId) {
-        // The variable is expected to already be removed from the IR, and this is just marking it
-        // as eliminated.
+        // Mark the variable as eliminated.
+        // Also remove it from pending initialization list.
+        // If the variable is referenced in other parts of the IR, it is expected to already be
+        // removed.
         self.variables[id.id as usize].is_dead_code_eliminated = true;
+        self.variables_pending_zero_initialization.remove(&id);
     }
     pub fn dead_code_eliminate_constant(&mut self, id: ConstantId) {
         // Don't dead-code-eliminate predefined constants, they may be referenced by future

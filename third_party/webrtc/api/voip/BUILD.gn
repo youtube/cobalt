@@ -65,7 +65,6 @@ if (rtc_include_tests) {
     sources = [ "test/voip_engine_factory_unittest.cc" ]
     deps = [
       ":voip_engine_factory",
-      "..:field_trials",
       "..:make_ref_counted",
       "../../modules/audio_device:mock_audio_device",
       "../../modules/audio_processing:mocks",

@@ -196,16 +196,27 @@ void ProxyCache::processInvalidKeyMsgs() {
     }
 }
 
-void ProxyCache::removeEntriesAndListeners(SkSpan<const UniqueKey> toRemove) {
+void ProxyCache::removeEntriesAndListeners(
+        SkSpan<const UniqueKey> toRemove,
+        std::optional<StdSteadyClock::time_point> quitPurgingTime) {
     // This assumes that the entry removal is coming from not polling the invalid key
     // messages, so it's necessary to mark the listeners as done. Removing the listeners also means
     // we don't leak change listeners if the bitmap is ever re-cached.
+
+    auto time_remains_before_stop_time = [&]() {
+        return !quitPurgingTime.has_value() ||
+               skgpu::StdSteadyClock::now() < quitPurgingTime.value();
+    };
+
     for (const UniqueKey& k : toRemove) {
         CacheEntry* e = fCache.find(k);
         if (e->fListener) {
             e->fListener->markShouldDeregister();
         }
         fCache.remove(k);
+        if (!time_remains_before_stop_time()) {
+            return;
+        }
     }
 }
 
@@ -224,7 +235,9 @@ void ProxyCache::freeUniquelyHeld() {
     this->removeEntriesAndListeners(toRemove);
 }
 
-void ProxyCache::purgeProxiesNotUsedSince(const skgpu::StdSteadyClock::time_point* purgeTime) {
+void ProxyCache::purgeProxiesNotUsedSince(
+        const skgpu::StdSteadyClock::time_point* purgeTime,
+        std::optional<skgpu::StdSteadyClock::time_point> quitPurgingTime) {
     this->processInvalidKeyMsgs();
 
     skia_private::TArray<skgpu::UniqueKey> toRemove;
@@ -238,7 +251,7 @@ void ProxyCache::purgeProxiesNotUsedSince(const skgpu::StdSteadyClock::time_poin
         }
     });
 
-    this->removeEntriesAndListeners(toRemove);
+    this->removeEntriesAndListeners(toRemove, quitPurgingTime);
 }
 
 #if defined(GPU_TEST_UTILS)
@@ -269,6 +282,7 @@ void ProxyCache::forceFreeUniquelyHeld() {
 }
 
 void ProxyCache::forcePurgeProxiesNotUsedSince(skgpu::StdSteadyClock::time_point purgeTime) {
+    // If forcing, do not limit how long the cache has to do so.
     this->purgeProxiesNotUsedSince(&purgeTime);
 }
 

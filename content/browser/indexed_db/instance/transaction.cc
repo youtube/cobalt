@@ -125,7 +125,7 @@ Transaction::Transaction(
       object_store_ids_(object_store_ids),
       mode_(mode),
       durability_(durability),
-      connection_(connection->GetWeakPtr()),
+      connection_(*connection),
       bucket_context_(&bucket_context),
       backing_store_transaction_(std::move(backing_store_transaction)),
       receiver_(this) {
@@ -196,7 +196,7 @@ void Transaction::ScheduleTask(blink::mojom::IDBTaskType type,
     return;
   }
 
-  ResetTimeoutTimer();
+  timeout_timer_.Stop();
   used_ = true;
   if (type == blink::mojom::IDBTaskType::Normal) {
     task_queue_.emplace(std::move(operation_name_for_metrics),
@@ -225,7 +225,7 @@ void Transaction::Abort(const DatabaseError& error) {
                                 UmaIDBExceptionExclusiveMaxValue);
 
   aborted_ = true;
-  ResetTimeoutTimer();
+  timeout_timer_.Stop();
 
   SetState(FINISHED);
 
@@ -240,7 +240,7 @@ void Transaction::Abort(const DatabaseError& error) {
   locks_receiver_.locks.clear();
   locks_receiver_.CancelLockRequest();
 
-  connection()->callbacks()->OnAbort(*this, error);
+  connection_->callbacks()->OnAbort(*this, error);
 
   bucket_context_->QueueRunTasks();
   bucket_context_ = nullptr;
@@ -365,7 +365,7 @@ void Transaction::CreateObjectStore(int64_t object_store_id,
                                     const std::u16string& name,
                                     const IndexedDBKeyPath& key_path,
                                     bool auto_increment) {
-  if (!connection()
+  if (!connection_
            ->GetTransactionAndVerifyState(
                id(), blink::mojom::IDBTransactionMode::VersionChange)
            .has_value()) {
@@ -387,10 +387,9 @@ void Transaction::CreateObjectStore(int64_t object_store_id,
           [](int64_t object_store_id,
              mojo::ReportBadMessageCallback report_bad_message_callback,
              Transaction& transaction) {
-            if (transaction.connection()->database()->IsObjectStoreIdInMetadata(
+            if (transaction.connection_->database()->IsObjectStoreIdInMetadata(
                     object_store_id) ||
-                object_store_id <= transaction.connection()
-                                       ->database()
+                object_store_id <= transaction.connection_->database()
                                        ->metadata()
                                        .max_object_store_id) {
               std::move(report_bad_message_callback)
@@ -404,7 +403,7 @@ void Transaction::CreateObjectStore(int64_t object_store_id,
 }
 
 void Transaction::DeleteObjectStore(int64_t object_store_id) {
-  if (!connection()
+  if (!connection_
            ->GetTransactionAndVerifyState(
                id(), blink::mojom::IDBTransactionMode::VersionChange)
            .has_value()) {
@@ -433,7 +432,7 @@ void Transaction::Put(int64_t object_store_id,
     return;
   }
 
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
+  if (!IsAcceptingRequests() || !connection_->IsConnected()) {
     DatabaseError error(blink::mojom::IDBException::kUnknownError,
                         "Not connected.");
     std::move(callback).Run(
@@ -508,7 +507,7 @@ Status Transaction::DoPut(int64_t object_store_id,
   };
 
   const IndexedDBObjectStoreMetadata* object_store =
-      connection()->database()->GetObjectStoreMetadataIfExists(object_store_id);
+      connection_->database()->GetObjectStoreMetadataIfExists(object_store_id);
   if (!object_store) {
     std::move(bad_message_callback).Run("Invalid object_store_id");
     return Status::InvalidArgument("Invalid object_store_id.");
@@ -606,14 +605,14 @@ Status Transaction::DoPut(int64_t object_store_id,
   }
 
   bucket_context().delegate().on_content_changed.Run(
-      connection()->database()->name(), object_store->name);
+      connection_->database()->name(), object_store->name);
   return Status::OK();
 }
 
 void Transaction::SetIndexKeys(int64_t object_store_id,
                                IndexedDBKey primary_key,
                                IndexedDBIndexKeys index_keys) {
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
+  if (!IsAcceptingRequests() || !connection_->IsConnected()) {
     return;
   }
 
@@ -658,7 +657,7 @@ Status Transaction::DoSetIndexKeys(int64_t object_store_id,
   bool obeys_constraints = false;
 
   const IndexedDBObjectStoreMetadata& object_store_metadata =
-      connection()->database()->GetObjectStoreMetadata(object_store_id);
+      connection_->database()->GetObjectStoreMetadata(object_store_id);
   std::vector<IndexedDBIndexKeys> keys_vec;
   keys_vec.emplace_back(std::move(index_keys));
   bool backing_store_success = MakeIndexWriters(
@@ -686,7 +685,7 @@ Status Transaction::DoSetIndexKeys(int64_t object_store_id,
 }
 
 void Transaction::SetIndexKeysDone() {
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
+  if (!IsAcceptingRequests() || !connection_->IsConnected()) {
     return;
   }
 
@@ -718,7 +717,7 @@ void Transaction::SetIndexKeysDone() {
 }
 
 void Transaction::Commit(int64_t num_errors_handled) {
-  if (!IsAcceptingRequests() || !connection()->IsConnected()) {
+  if (!IsAcceptingRequests() || !connection_->IsConnected()) {
     return;
   }
 
@@ -737,7 +736,7 @@ void Transaction::Commit(int64_t num_errors_handled) {
 
 void Transaction::OnQuotaCheckDone(bool allowed) {
   // May have disconnected while quota check was pending.
-  if (!connection()->IsConnected()) {
+  if (!connection_->IsConnected()) {
     return;
   }
 
@@ -823,7 +822,7 @@ Status Transaction::DoPendingCommit() {
   TRACE_EVENT1("IndexedDB", "Transaction::DoPendingCommit", "txn.id", id());
   CHECK(is_commit_pending_, base::NotFatalUntil::M145);
 
-  ResetTimeoutTimer();
+  timeout_timer_.Stop();
 
   // In multiprocess ports, front-end may have requested a commit but
   // an abort has already been initiated asynchronously by the
@@ -984,7 +983,7 @@ Status Transaction::CommitPhaseTwo() {
       TRACE_EVENT1("IndexedDB",
                    "Transaction::CommitPhaseTwo.TransactionCompleteCallbacks",
                    "txn.id", id());
-      connection()->callbacks()->OnComplete(*this);
+      connection_->callbacks()->OnComplete(*this);
     }
 
     return s;
@@ -999,7 +998,7 @@ Status Transaction::CommitPhaseTwo() {
     error = DatabaseError(blink::mojom::IDBException::kUnknownError,
                           "Internal error committing transaction.");
   }
-  connection()->callbacks()->OnAbort(*this, error);
+  connection_->callbacks()->OnAbort(*this, error);
   return s;
 }
 
@@ -1091,9 +1090,10 @@ Status Transaction::RunTasks() {
     } else if (g_inactivity_timeout_enabled) {
       // Otherwise, start a timer in case the front-end gets wedged and never
       // requests further activity.
-      timeout_timer_.Start(FROM_HERE, kInactivityTimeoutPollPeriod,
-                           base::BindRepeating(&Transaction::TimeoutFired,
-                                               ptr_factory_.GetWeakPtr()));
+      timeout_timer_.Start(
+          FROM_HERE, kInactivityTimeout,
+          base::BindRepeating(&Transaction::OnInactivityTimeout,
+                              ptr_factory_.GetWeakPtr()));
     }
   }
 
@@ -1123,8 +1123,8 @@ storage::mojom::IdbTransactionMetadataPtr Transaction::GetIdbInternalsMetadata()
   }
 
   info->tid = id();
-  info->connection_id = connection()->id();
-  info->client_token = connection()->client_token().ToString();
+  info->connection_id = connection_->id();
+  info->client_token = connection_->client_token().ToString();
   info->age =
       (base::Time::Now() - diagnostics().creation_time).InMillisecondsF();
   if (diagnostics().start_time.InMillisecondsSinceUnixEpoch() > 0) {
@@ -1150,13 +1150,12 @@ void Transaction::NotifyOfIdbInternalsRelevantChange() {
   }
 }
 
-void Transaction::TimeoutFired() {
+void Transaction::OnInactivityTimeout() {
   // The timeout timer should only be running when these conditions are met:
   CHECK(used_, base::NotFatalUntil::M145);
   CHECK(!diagnostics_.mojo_receiver_disconnected, base::NotFatalUntil::M145);
   CHECK(task_queue_.empty(), base::NotFatalUntil::M145);
   CHECK(preemptive_task_queue_.empty(), base::NotFatalUntil::M145);
-  CHECK(connection_);
 
   const size_t num_transactions_across_all_connections =
       database_->GetNumTransactionsAcrossAllConnections();
@@ -1207,26 +1206,14 @@ void Transaction::TimeoutFired() {
     return;
   }
 
-  if (++timeout_strikes_ >= kMaxTimeoutStrikes) {
-    Abort(DatabaseError(blink::mojom::IDBException::kTimeoutError,
-                        u"Transaction timed out due to inactivity."));
-    ResetTimeoutTimer();
-  }
-}
-
-void Transaction::ResetTimeoutTimer() {
-  timeout_timer_.Stop();
-  timeout_strikes_ = 0;
+  Abort(DatabaseError(blink::mojom::IDBException::kTimeoutError,
+                      u"Transaction timed out due to inactivity."));
 }
 
 void Transaction::SetState(State state) {
   state_ = state;
-  if (connection_) {
     scheduling_priority_at_last_state_change_ =
         connection_->scheduling_priority();
-  } else {
-    scheduling_priority_at_last_state_change_ = std::nullopt;
-  }
   if (!IsAcceptingRequests()) {
     CloseOpenCursors();
   }
@@ -1294,7 +1281,7 @@ Transaction::VerificationCallback Transaction::ObjectStoreMustExist(
       [](int64_t object_store_id,
          mojo::ReportBadMessageCallback report_bad_message_callback,
          Transaction& transaction) {
-        if (!transaction.connection()->database()->IsObjectStoreIdInMetadata(
+        if (!transaction.connection_->database()->IsObjectStoreIdInMetadata(
                 object_store_id)) {
           std::move(report_bad_message_callback).Run("Invalid object_store_id");
           return Status::InvalidArgument("Invalid object_store_id.");
@@ -1318,8 +1305,7 @@ Transaction::VerificationCallback Transaction::ObjectStoreAndIndexMustExist(
           std::move(report_bad_message_callback).Run("index_id must be valid");
           return Status::InvalidArgument("index_id must be valid.");
         }
-        if (!transaction.connection()
-                 ->database()
+        if (!transaction.connection_->database()
                  ->IsObjectStoreIdAndMaybeIndexIdInMetadata(
                      object_store_id,
                      index_id.value_or(IndexedDBIndexMetadata::kInvalidId))) {

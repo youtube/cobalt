@@ -560,6 +560,8 @@ class RTC_EXPORT Port : public PortInterface {
 
   void OnNetworkTypeChanged(const ::webrtc::Network* network);
 
+  void OnNetworkSliceChanged(const ::webrtc::Network* network);
+
   void OnRequestLocalNetworkAccessPermission(
       LocalNetworkAccessPermissionInterface* permission_query,
       absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,

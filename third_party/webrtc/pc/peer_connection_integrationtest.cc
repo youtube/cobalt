@@ -3808,6 +3808,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
     caller()->UpdateDelayStats("caller reception", current_size);
     callee()->UpdateDelayStats("callee reception", current_size);
   }
+  EXPECT_TRUE(caller()->AudioDelayStatsPercentageChecked());
+  EXPECT_TRUE(callee()->AudioDelayStatsPercentageChecked());
 }
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
@@ -4177,11 +4179,11 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndRtpSenderVideoEncoderSelector) {
               IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
 
-  std::unique_ptr<MockEncoderSelector> encoder_selector =
-      std::make_unique<MockEncoderSelector>();
+  scoped_refptr<MockEncoderSelector> encoder_selector =
+      make_ref_counted<MockEncoderSelector>();
   EXPECT_CALL(*encoder_selector, OnCurrentEncoder);
 
-  sender->SetEncoderSelector(std::move(encoder_selector));
+  sender->SetEncoderSelector(encoder_selector);
 
   // Expect video to be received in one direction.
   MediaExpectations media_expectations;
@@ -4208,8 +4210,8 @@ TEST_P(PeerConnectionIntegrationTest,
               IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
 
-  std::unique_ptr<MockEncoderSelector> encoder_selector =
-      std::make_unique<MockEncoderSelector>();
+  scoped_refptr<MockEncoderSelector> encoder_selector =
+      make_ref_counted<MockEncoderSelector>();
   std::optional<SdpVideoFormat> next_format;
   EXPECT_CALL(*encoder_selector, OnCurrentEncoder)
       .WillOnce([&](const SdpVideoFormat& format) {
@@ -4221,7 +4223,7 @@ TEST_P(PeerConnectionIntegrationTest,
   EXPECT_CALL(*encoder_selector, OnAvailableBitrate)
       .WillRepeatedly([&](const DataRate& rate) { return next_format; });
 
-  sender->SetEncoderSelector(std::move(encoder_selector));
+  sender->SetEncoderSelector(encoder_selector);
 
   // Expect video to be received in one direction.
   MediaExpectations media_expectations;

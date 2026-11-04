@@ -74,7 +74,7 @@ bool IsComposeboxCompactModeEnabled() {
   return base::FeatureList::IsEnabled(kComposeboxCompactMode);
 }
 
-BASE_FEATURE(kComposeboxForceTop, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kComposeboxForceTop, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsComposeboxForceTopEnabled() {
   return base::FeatureList::IsEnabled(kComposeboxForceTop);
@@ -85,12 +85,6 @@ BASE_FEATURE(kComposeboxAIMNudge, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsComposeboxAIMNudgeEnabled() {
   // Reminder to also check AIM availability.
   return base::FeatureList::IsEnabled(kComposeboxAIMNudge);
-}
-
-BASE_FEATURE(kComposeboxMenuTitle, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsComposeboxMenuTitleEnabled() {
-  return base::FeatureList::IsEnabled(kComposeboxMenuTitle);
 }
 
 BASE_FEATURE(kComposeboxFetchContextualSuggestionsForMultipleAttachments,

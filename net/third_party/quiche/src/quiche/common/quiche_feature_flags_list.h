@@ -66,7 +66,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normal
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_update_max_datagram, false, true, "If true, updates the maximum datagram size after flushing pending packets.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_proof_source_get_cert_chains, true, true, "When true, quic::TlsServerHandshaker will use ProofSource::GetCertChains() instead of ProofSource::GetCertChain()")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_dispatcher_close_connection_on_invalid_ack, false, false, "An invalid ack is an ack that the peer sent for a packet that was not sent by the dispatcher. If true, the dispatcher will close the connection if it receives an invalid ack.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_shed_tls_handshake_config, false, false, "If true, QUIC connections will call SSL_set_shed_handshake_config to drop BoringSSL handshake state after the handshake finishes in order to save memory.")

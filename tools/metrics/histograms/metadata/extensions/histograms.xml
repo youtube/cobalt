@@ -77,12 +77,6 @@ chromium-metrics-reviews@google.com.
       summary="Execution took over 4 and half minutes, close to timeout."/>
 </variants>
 
-<variants name="ExtensionMessagingPortType">
-  <variant name=".Extension" summary="A port opened to an extension context."/>
-  <variant name=".NativeApp" summary="A port opened to a native application."/>
-  <variant name=".Tab" summary="A port opened to a tab context."/>
-</variants>
-
 <variants name="ExtensionsBackgroundCompileScriptState">
   <variant name="Success"
       summary="Script was successfully compiled in the background."/>
@@ -1300,7 +1294,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.DeclarativeNetRequest.RegexRulesBeforeRequestActionTime.{RegexRulesetSize}"
-    units="microseconds" expires_after="2026-08-01">
+    units="microseconds" expires_after="2026-10-04">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -1674,16 +1668,6 @@ This is emitted for two scenarios when a worker may be unregistered:
     disabled, it can be for one or more reasons (although typically just one),
     so the sum of these may be greater than 'Extensions.Disabled' which is a
     count of the number of unique extensions that are disabled.
-  </summary>
-</histogram>
-
-<histogram name="Extensions.ErrorCodeFromCrxOpen" units="units"
-    expires_after="M85">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <owner>extensions-core@chromium.org</owner>
-  <summary>
-    If opening the CRX file for unpacking fails, this integer is the error code
-    given by the OS.
   </summary>
 </histogram>
 
@@ -3646,7 +3630,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ManifestVersion3Count.{ManifestLocation}"
-    units="number of extensions" expires_after="2026-08-01">
+    units="number of extensions" expires_after="2026-10-04">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3799,53 +3783,8 @@ This is emitted for two scenarios when a worker may be unregistered:
   <token key="ChannelType" variants="ChannelType"/>
 </histogram>
 
-<histogram
-    name="Extensions.Messaging.ExtensionPortsCreated{ExtensionMessagingPortCreationTime}"
-    units="number of ports" expires_after="M85">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <summary>
-    The number of ports created in a given script context at a specific time.
-    Recorded once at the destruction of the script context (when no more ports
-    could be created) if and only if at least one port was created in the
-    context. Only includes ports to extension contexts (i.e., not ports created
-    to tabs or native apps). {ExtensionMessagingPortCreationTime}
-  </summary>
-  <token key="ExtensionMessagingPortCreationTime">
-    <variant name=""/>
-    <variant name=".Total" summary="The total number of ports created."/>
-  </token>
-</histogram>
-
-<histogram
-    name="Extensions.Messaging.GetPortIdAsyncTime{ExtensionMessagingPortType}"
-    units="ms" expires_after="M85">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <summary>
-    The total amount of time between when an extension opens a new channel and
-    when it receives the global port id from the browser and can begin sending
-    messages. {ExtensionMessagingPortType}
-  </summary>
-  <token key="ExtensionMessagingPortType" variants="ExtensionMessagingPortType">
-    <variant name=""/>
-  </token>
-</histogram>
-
-<histogram
-    name="Extensions.Messaging.GetPortIdSyncTime{ExtensionMessagingPortType}"
-    units="ms" expires_after="M85">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <summary>
-    The amount of synchronous time taken for the renderer to request an
-    extension message port id from the browser when a new channel is first
-    opened by an extension. {ExtensionMessagingPortType}
-  </summary>
-  <token key="ExtensionMessagingPortType" variants="ExtensionMessagingPortType">
-    <variant name=""/>
-  </token>
-</histogram>
-
 <histogram name="Extensions.Messaging.NativeMessagingCount" units="extensions"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3855,20 +3794,6 @@ This is emitted for two scenarios when a worker may be unregistered:
     profile&quot; (profiles where people can install extensions, specifically
     profiles that can have non-component extensions installed) initialization.
   </summary>
-</histogram>
-
-<histogram
-    name="Extensions.Messaging.SetPortIdTime{ExtensionMessagingPortType}"
-    units="ms" expires_after="M85">
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <summary>
-    The amount of time for the renderer to inform the browser process of a new
-    port being created with a certain id. This replaces the flow for
-    Extensions.Messaging.GetPortId[A]SyncTime. {ExtensionMessagingPortType}
-  </summary>
-  <token key="ExtensionMessagingPortType" variants="ExtensionMessagingPortType">
-    <variant name=""/>
-  </token>
 </histogram>
 
 <histogram
@@ -3941,7 +3866,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.NonWebstoreLocationWith{DeveloperModeState}{ExtensionState}3"
-    enum="ExtensionLocation" expires_after="2026-08-02">
+    enum="ExtensionLocation" expires_after="2026-10-04">
   <owner>richche@google.com</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -4195,7 +4120,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ServiceWorkerBackground.MultiWorkerVersionIdMatch"
-    enum="Boolean" expires_after="2026-08-02">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>

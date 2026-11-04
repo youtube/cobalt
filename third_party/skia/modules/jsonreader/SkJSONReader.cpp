@@ -16,8 +16,10 @@
 #include "include/private/base/SkTo.h"
 #include "include/utils/SkParse.h"
 #include "src/base/SkArenaAlloc.h"
+#include "src/base/SkAutoLocaleSetter.h"
 #include "src/base/SkUTF.h"
 
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -334,6 +336,11 @@ public:
             return this->error(NullValue(), p, "invalid empty input");
         }
 
+        #if !defined(__cpp_lib_to_chars)
+        // Setting locale with dot decimal separator
+        SkAutoLocaleSetter locale("C");
+        #endif // !defined(__cpp_lib_to_chars)
+
         const char* p_stop = p + size - 1;
 
         // We're only checking for end-of-stream on object/array close('}',']'),
@@ -406,7 +413,7 @@ public:
             case '{':
                 goto match_object;
             default:
-                p = this->matchNumber(p);
+                p = this->matchNumber(p, p_stop);
                 break;
         }
 
@@ -861,16 +868,25 @@ private:
         return this->matchFastFloatPart(p, sign, n32);
     }
 
-    const char* matchNumber(const char* p) {
+    const char* matchNumber(const char* p, const char* p_stop) {
         if (const auto* fast = this->matchFast32OrFloat(p)) return fast;
 
         // slow fallback
+        float f;
+#if defined(__cpp_lib_to_chars)
+        auto result = std::from_chars(p, p_stop + 1, f);
+        if (result.ec == std::errc{}) {
+            this->pushFloat(f);
+            return result.ptr;
+        }
+#else
         char* matched;
-        float f = strtof(p, &matched);
+        f = strtof(p, &matched);
         if (matched > p) {
             this->pushFloat(f);
             return matched;
         }
+#endif // defined(__cpp_lib_to_chars)
         return this->error(nullptr, p, "invalid numeric token");
     }
 };

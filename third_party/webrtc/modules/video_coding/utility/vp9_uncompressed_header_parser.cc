@@ -257,14 +257,13 @@ const Vp9InterpolationFilter kLiteralToType[4] = {
 }  // namespace
 
 std::string Vp9UncompressedHeader::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder oss(buf);
+  StringBuilder oss;
 
   oss << "Vp9UncompressedHeader { " << "profile = " << profile;
 
   if (show_existing_frame) {
     oss << ", show_existing_frame = " << *show_existing_frame << " }";
-    return oss.str();
+    return oss.Release();
   }
 
   oss << ", frame type = " << (is_keyframe ? "key" : "delta")
@@ -383,7 +382,7 @@ std::string Vp9UncompressedHeader::ToString() const {
   oss << ", compressed_header_size_bytes = " << compressed_header_size;
 
   oss << " }";
-  return oss.str();
+  return oss.Release();
 }
 
 void Parse(BitstreamReader& br,

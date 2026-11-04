@@ -163,7 +163,7 @@ int AudioDestination::Render(base::TimeDelta delay,
 
   if (is_output_buffer_bypassed_) {
     // Fill the FIFO if necessary.
-    const uint32_t frames_available = fifo_->GetFramesAvailable();
+    const uint32_t frames_available = fifo_->FramesAvailable();
     const uint32_t frames_to_render = number_of_frames > frames_available
                                           ? number_of_frames - frames_available
                                           : 0;
@@ -206,7 +206,7 @@ int AudioDestination::Render(base::TimeDelta delay,
           glitch_info, /*request_timestamp=*/base::TimeTicks::Now());
     }
 
-    const uint32_t frames_after_render = fifo_->GetFramesAvailable();
+    const uint32_t frames_after_render = fifo_->FramesAvailable();
     if (frames_after_render < number_of_frames) {
       // This can happen if the device has stopped or is stopping when
       // `Render()` is called.
@@ -223,8 +223,8 @@ int AudioDestination::Render(base::TimeDelta delay,
   // Fill the FIFO.
   if (worklet_task_runner_) {
     // Use the dual-thread rendering if the AudioWorklet is activated.
-    auto result =
-        fifo_->PullAndUpdateEarmark(output_bus_.get(), number_of_frames);
+    auto result = fifo_->PullAndUpdateEarmarkedFrames(output_bus_.get(),
+                                                      number_of_frames);
     // The audio that we just pulled from the fifo will be played before the
     // audio that we are about to request, so we add that duration to the
     // delay of the audio we request. Note that it doesn't matter if there was
@@ -341,7 +341,7 @@ void AudioDestination::SetWorkletTaskRunner(
 
   // The dual-thread rendering kicks off, so update the earmark frames
   // accordingly.
-  fifo_->SetEarmarkFrames(callback_buffer_size_);
+  fifo_->SetEarmarkedFrames(callback_buffer_size_);
   worklet_task_runner_ = std::move(worklet_task_runner);
 
   uma_reporter_.UpdateMetricNameForDualThreadMode();
@@ -570,7 +570,7 @@ bool AudioDestination::RequestRender(size_t frames_requested,
               "delay_timestamp (ms)",
               (delay_timestamp - base::TimeTicks()).InMillisecondsF(),
               "playout_delay (ms)", delay.InMillisecondsF(), "delay (frames)",
-              fifo_->GetFramesAvailable());
+              fifo_->FramesAvailable());
 
   // The state might be changing by ::Stop() call. If the state is locked, do
   // not touch the below.
@@ -590,7 +590,7 @@ bool AudioDestination::RequestRender(size_t frames_requested,
 
   // FIFO contains audio at the output device sample rate.
   base::TimeDelta fifo_delay = audio_utilities::FramesToTime(
-      fifo_->GetFramesAvailable(), web_audio_device_->SampleRate());
+      fifo_->FramesAvailable(), web_audio_device_->SampleRate());
   uma_reporter_.AddFifoDelay(fifo_delay);
   if (has_fifo_underrun_occurred) {
     uma_reporter_.IncreaseFifoUnderrunCount();

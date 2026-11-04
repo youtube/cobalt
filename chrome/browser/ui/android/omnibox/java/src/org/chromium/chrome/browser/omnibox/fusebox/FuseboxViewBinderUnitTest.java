@@ -77,6 +77,7 @@ public class FuseboxViewBinderUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private AnchoredPopupWindow mPopupWindow;
+    @Mock private DynamicRectProvider mDynamicRectProvider;
 
     private final PropertyModel mModel = new PropertyModel(FuseboxProperties.ALL_KEYS);
 
@@ -99,7 +100,7 @@ public class FuseboxViewBinderUnitTest {
                                 .inflate(R.layout.fusebox_context_popup, /* root= */ null);
         doReturn(popupView).when(mPopupWindow).getContentView();
 
-        mPopup = new FuseboxPopup(activity, mPopupWindow, popupView);
+        mPopup = new FuseboxPopup(activity, mPopupWindow, popupView, mDynamicRectProvider);
         mViewHolder = new FuseboxViewHolder(parent, mPopup);
 
         // Initialize workable defaults.
@@ -369,6 +370,18 @@ public class FuseboxViewBinderUnitTest {
     public void testCurrentTabButtonEnabled() {
         mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, true);
         assertTrue(mViewHolder.popup.mAddCurrentTab.isEnabled());
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, false);
+        assertFalse(mViewHolder.popup.mAddCurrentTab.isEnabled());
+    }
+
+    @Test
+    public void testCurrentTabButtonEnabled_withFavicon() {
+        Bitmap favicon = UiUtils.createBitmap(/* size= */ 1, Color.RED);
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON, favicon);
+
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, true);
+        assertTrue(mViewHolder.popup.mAddCurrentTab.isEnabled());
+
         mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, false);
         assertFalse(mViewHolder.popup.mAddCurrentTab.isEnabled());
     }

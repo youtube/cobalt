@@ -435,28 +435,10 @@ const GridLayoutSubtree* GridLayoutAlgorithm::ComputeGridGeometry(
             (block_size - border_scrollbar_padding.BlockSum())
                 .ClampNegativeToZero();
 
-    // If we have any rows, gaps which will resolve differently if we have a
-    // definite |grid_available_size_| re-compute the grid using the
-    // |block_size| calculated above.
-    needs_additional_pass |=
-        (container_style.RowGap() && container_style.RowGap()->HasPercent()) ||
-        layout_data.Rows().IsDependentOnAvailableSize();
-
-    // If we are a flex-item, we may have our initial block-size forced to be
-    // indefinite, however grid layout always re-computes the grid using the
-    // final "used" block-size.
-    // We can detect this case by checking if computing our block-size (with an
-    // indefinite intrinsic size) is definite.
-    //
-    // TODO(layout-dev): A small optimization here would be to do this only if
-    // we have 'auto' tracks which fill the remaining available space.
-    if (constraint_space.IsInitialBlockSizeIndefinite()) {
-      needs_additional_pass |=
-          ComputeBlockSizeForFragment(
-              constraint_space, node, BorderPadding(),
-              /* intrinsic_block_size */ kIndefiniteSize,
-              container_builder_.InlineSize()) != kIndefiniteSize;
-    }
+    needs_additional_pass |= NeedsAdditionalLayoutPass(
+        container_style, constraint_space, node, BorderPadding(),
+        layout_data.SizingCollection(kForRows),
+        container_builder_.InlineSize());
 
     // After resolving the block-size, if we don't need to rerun the track
     // sizing algorithm, simply apply any content alignment to its rows.
@@ -757,29 +739,34 @@ LayoutUnit GridLayoutAlgorithm::ContributionSizeForGridItem(
           (grid_item->IsSpanningFlexibleTrack(track_direction) &&
            grid_item->SpanSize(track_direction) > 1);
 
-      const LayoutUnit min_content_contribution =
-          is_parallel_with_track_direction ? MinContentSize()
-                                           : BlockContributionSize();
-      const LayoutUnit max_content_contribution =
-          is_parallel_with_track_direction ? MaxContentSize()
-                                           : min_content_contribution;
+      auto min_content_contribution = [&]() -> LayoutUnit {
+        return is_parallel_with_track_direction ? MinContentSize()
+                                                : BlockContributionSize();
+      };
+      auto max_content_contribution = [&]() -> LayoutUnit {
+        return is_parallel_with_track_direction ? MaxContentSize()
+                                                : BlockContributionSize();
+      };
 
-      MinMaxSizesResult subgrid_minmax_sizes;
-      if (grid_item->IsSubgrid()) {
+      auto subgrid_minmax_sizes = [&]() -> MinMaxSizesResult {
+        if (!grid_item->IsSubgrid()) {
+          return MinMaxSizesResult();
+        }
         const GridSizingSubtree& subgrid_sizing_subtree =
             sizing_subtree.SubgridSizingSubtree(*grid_item);
         if (subgrid_sizing_subtree.LayoutData().IsSubgridWithStandaloneAxis(
                 kForColumns)) {
-          subgrid_minmax_sizes = To<GridNode>(node).ComputeSubgridMinMaxSizes(
+          return To<GridNode>(node).ComputeSubgridMinMaxSizes(
               subgrid_sizing_subtree, space);
         }
-      }
+        return MinMaxSizesResult();
+      };
 
       bool maybe_clamp = false;
       contribution = CalculateIntrinsicMinimumContribution(
           is_parallel_with_track_direction, special_spanning_criteria,
-          min_content_contribution, max_content_contribution, space,
-          subgrid_minmax_sizes, grid_item, maybe_clamp);
+          min_content_contribution, max_content_contribution,
+          subgrid_minmax_sizes, space, grid_item, maybe_clamp);
 
       if (!maybe_clamp) {
         break;

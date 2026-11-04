@@ -979,8 +979,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     }
     if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
       Tagged<JSRegExp> re = Cast<JSRegExp>(object);
-      return AddEntry(object, HeapEntry::kRegExp,
-                      names_->GetName(re->source(isolate())));
+      const char* name = re->has_data() ? names_->GetName(re->source(isolate()))
+                                        : "JSRegExp (uninitialized)";
+      return AddEntry(object, HeapEntry::kRegExp, name);
     }
     // TODO(v8:12674) Fix and run full gcmole.
     DisableGCMole no_gcmole;
@@ -1923,27 +1924,6 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
              static_cast<int>(map->visitor_id()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "visitor_name",
                 ToString(map->visitor_id()));
-  AddIntEdge(entry, HeapGraphEdge::kInternal,
-             "inobject_properties_start_or_constructor_function_index",
-             map->inobject_properties_start_or_constructor_function_index());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_non_instance_prototype",
-              map->has_non_instance_prototype());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_callable",
-              map->is_callable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_named_interceptor",
-              map->has_named_interceptor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_indexed_interceptor",
-              map->has_indexed_interceptor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_undetectable",
-              map->is_undetectable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_access_check_needed",
-              map->is_access_check_needed());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_constructor",
-              map->is_constructor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "new_target_is_base",
-              map->new_target_is_base());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_immutable_proto",
-              map->is_immutable_proto());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "elements_kind",
              static_cast<int>(map->elements_kind()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "elements_kind_name",
@@ -1951,26 +1931,6 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   AddIntEdge(entry, HeapGraphEdge::kInternal, "enum_length", map->EnumLength());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "number_of_own_descriptors",
              map->NumberOfOwnDescriptors());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_prototype_map",
-              map->is_prototype_map());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_dictionary_map",
-              map->is_dictionary_map());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "owns_descriptors",
-              map->owns_descriptors());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_in_retained_map_list",
-              map->is_in_retained_map_list());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_deprecated",
-              map->is_deprecated());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_stable", map->is_stable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_migration_target",
-              map->is_migration_target());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_extensible",
-              map->is_extensible());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal,
-              "may_have_interesting_properties",
-              map->may_have_interesting_properties());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "construction_counter",
-             map->construction_counter());
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
@@ -2018,11 +1978,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
              shared->EndPosition());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "function_literal_id",
              shared->function_literal_id(kRelaxedLoad));
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "unique_id", shared->unique_id());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "formal_parameter_count",
-             shared->formal_parameter_count());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "expected_nof_properties",
-             shared->expected_nof_properties());
   if (shared->HasBuiltinId()) {
     AddIntEdge(entry, HeapGraphEdge::kInternal, "builtin_id",
                static_cast<int>(shared->builtin_id()));
@@ -2043,28 +1998,28 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
   AddStringEdge(entry, HeapGraphEdge::kInternal, "script_type_name",
                 ToString(script->type()));
   SetInternalReference(entry, "source", script->source(),
-                       Script::kSourceOffset);
-  SetInternalReference(entry, "name", script->name(), Script::kNameOffset);
+                       offsetof(Script, source_));
+  SetInternalReference(entry, "name", script->name(), offsetof(Script, name_));
   SetInternalReference(entry, "context_data", script->context_data(),
-                       Script::kContextDataOffset);
+                       offsetof(Script, context_data_));
   TagObject(script->line_ends(), "(script line ends)", HeapEntry::kCode);
   SetInternalReference(entry, "line_ends", script->line_ends(),
-                       Script::kLineEndsOffset);
+                       offsetof(Script, line_ends_));
   TagObject(script->infos(), "(infos)", HeapEntry::kCode);
   TagObject(script->host_defined_options(), "(host-defined options)",
             HeapEntry::kCode);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::Type::kWasm) {
     // Wasm reuses some otherwise unused fields for wasm-specific information.
-    SetInternalReference(entry, "wasm_breakpoint_infos",
-                         script->wasm_breakpoint_infos(),
-                         Script::kEvalFromSharedOrWrappedArgumentsOffset);
+    SetInternalReference(
+        entry, "wasm_breakpoint_infos", script->wasm_breakpoint_infos(),
+        offsetof(Script, eval_from_shared_or_wrapped_arguments_));
     SetInternalReference(entry, "wasm_managed_native_module",
                          script->wasm_managed_native_module(),
-                         Script::kEvalFromPositionOffset);
+                         offsetof(Script, eval_from_position_));
     SetInternalReference(entry, "wasm_weak_instance_list",
                          script->wasm_weak_instance_list(),
-                         Script::kInfosOffset);
+                         offsetof(Script, infos_));
   }
 #endif
 }
@@ -2190,10 +2145,10 @@ void V8HeapExplorer::ExtractFeedbackCellReferences(
 void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
                                                    Tagged<PropertyCell> cell) {
   SetInternalReference(entry, "value", cell->value(),
-                       PropertyCell::kValueOffset);
+                       offsetof(PropertyCell, value_));
   TagObject(cell->dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", cell->dependent_code(),
-                       PropertyCell::kDependentCodeOffset);
+                       offsetof(PropertyCell, dependent_code_));
 }
 
 void V8HeapExplorer::ExtractPrototypeInfoReferences(

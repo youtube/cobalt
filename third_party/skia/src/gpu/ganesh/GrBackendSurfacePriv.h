@@ -69,7 +69,6 @@ protected:
 private:
     friend class GrBackendTexture;
     virtual bool isProtected() const = 0;
-    virtual bool equal(const GrBackendTextureData* that) const = 0;
     virtual bool isSameTexture(const GrBackendTextureData*) const = 0;
     virtual GrBackendFormat getBackendFormat() const = 0;
     virtual void copyTo(AnyTextureData&) const = 0;
@@ -77,6 +76,9 @@ private:
     // Vulkan-only API:
     virtual sk_sp<skgpu::MutableTextureState> getMutableState() const { return nullptr; }
     virtual void setMutableState(const skgpu::MutableTextureState&) {}
+#if defined(GPU_TEST_UTILS)
+    virtual bool equal(const GrBackendTextureData* that) const = 0;
+#endif
 };
 
 class GrBackendRenderTargetData {
@@ -95,12 +97,14 @@ private:
     friend class GrBackendRenderTarget;
     virtual GrBackendFormat getBackendFormat() const = 0;
     virtual bool isProtected() const = 0;
-    virtual bool equal(const GrBackendRenderTargetData* that) const = 0;
     virtual void copyTo(AnyRenderTargetData&) const = 0;
 
     // Vulkan-only API:
     virtual sk_sp<skgpu::MutableTextureState> getMutableState() const { return nullptr; }
     virtual void setMutableState(const skgpu::MutableTextureState&) {}
+#if defined(GPU_TEST_UTILS)
+    virtual bool equal(const GrBackendRenderTargetData* that) const = 0;
+#endif
 };
 
 class GrBackendSurfacePriv final {

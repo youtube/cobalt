@@ -80,7 +80,7 @@ public:
     SkTScopedComPtr<IDWriteFontFace> fDWriteFontFace;
     SkTScopedComPtr<IDWriteFontFace1> fDWriteFontFace1;
     SkTScopedComPtr<IDWriteFontFace2> fDWriteFontFace2;
-    SkTScopedComPtr<IDWriteFontFace3> fDWriteFontFace3;
+    SkTScopedComPtr<IDWriteFontFace3> fDWriteFontFace3; // With this family and font are not needed
     SkTScopedComPtr<IDWriteFontFace4> fDWriteFontFace4;
     SkTScopedComPtr<IDWriteFontFace5> fDWriteFontFace5;
     // Once WDK 10.0.25357.0 or newer is required to build, fDWriteFontFace7 can be a smart pointer.

@@ -28,6 +28,7 @@
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
+#include "api/environment/environment.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
@@ -37,6 +38,7 @@
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/transport_description.h"
@@ -47,7 +49,6 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/copy_on_write_buffer.h"
-#include "rtc_base/fake_clock.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
@@ -61,7 +62,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/run_loop.h"
+#include "test/time_controller/simulated_time_controller.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
@@ -119,7 +120,9 @@ class DtlsTestClient {
   }
 
   // Set up fake ICE transport and real DTLS transport under test.
-  void SetupTransports(IceRole role, bool rtt_estimate = true) {
+  void SetupTransports(const Environment& env,
+                       IceRole role,
+                       bool rtt_estimate = true) {
     dtls_transport_ = nullptr;
     ice_transport_ = nullptr;
 
@@ -152,8 +155,8 @@ class DtlsTestClient {
         make_ref_counted<FakeIceTransport>(std::move(fake_ice_transport));
 
     dtls_transport_ = std::make_unique<DtlsTransportInternalImpl>(
-        CreateTestEnvironment(), ice_transport_, crypto_options,
-        ssl_max_version_, ssl_stream_factory_);
+        env, ice_transport_, crypto_options, ssl_max_version_,
+        ssl_stream_factory_);
     // Note: Certificate may be null here if testing passthrough.
     dtls_transport_->SetLocalCertificate(certificate_);
     dtls_transport_->SubscribeWritableState(
@@ -551,9 +554,12 @@ class FakeSSLStreamAdapter : public SSLStreamAdapter {
 class DtlsTransportInternalImplTestBase {
  public:
   DtlsTransportInternalImplTestBase()
-      : client1_("P1"), client2_("P2"), use_dtls_(false) {
-    start_time_ns_ = fake_clock_.TimeNanos();
-  }
+      : time_controller_(Timestamp::Millis(0)),
+        env_(CreateTestEnvironment({.time = &time_controller_})),
+        client1_("P1"),
+        client2_("P2"),
+        use_dtls_(false),
+        start_time_(time_controller_.GetClock()->CurrentTime()) {}
 
   void SetPqc(bool value) {
     client1_.SetPqc(value);
@@ -579,15 +585,15 @@ class DtlsTransportInternalImplTestBase {
     Negotiate(client1_server);
     EXPECT_TRUE(client1_.Connect(&client2_, false));
 
-    EXPECT_THAT(
-        webrtc::WaitUntil(
-            [&] {
-              return client1_.dtls_transport()->writable() &&
-                     client2_.dtls_transport()->writable();
-            },
-            IsTrue(),
-            {.timeout = TimeDelta::Millis(kTimeout), .clock = &fake_clock_}),
-        IsRtcOk());
+    EXPECT_THAT(webrtc::WaitUntil(
+                    [&] {
+                      return client1_.dtls_transport()->writable() &&
+                             client2_.dtls_transport()->writable();
+                    },
+                    IsTrue(),
+                    {.timeout = TimeDelta::Millis(kTimeout),
+                     .clock = &time_controller_}),
+                IsRtcOk());
     if (!client1_.dtls_transport()->writable() ||
         !client2_.dtls_transport()->writable())
       return false;
@@ -617,8 +623,8 @@ class DtlsTransportInternalImplTestBase {
   }
 
   void Negotiate(bool client1_server = true) {
-    client1_.SetupTransports(ICEROLE_CONTROLLING);
-    client2_.SetupTransports(ICEROLE_CONTROLLED);
+    client1_.SetupTransports(env_, ICEROLE_CONTROLLING);
+    client2_.SetupTransports(env_, ICEROLE_CONTROLLED);
     client1_.dtls_transport()->SetDtlsRole(client1_server ? SSL_SERVER
                                                           : SSL_CLIENT);
     client2_.dtls_transport()->SetDtlsRole(client1_server ? SSL_CLIENT
@@ -637,11 +643,11 @@ class DtlsTransportInternalImplTestBase {
     RTC_LOG(LS_INFO) << "Expect packets, size=" << size;
     client2_.ExpectPackets(size);
     client1_.SendPackets(size, count, srtp);
-    EXPECT_THAT(
-        webrtc::WaitUntil(
-            [&] { return client2_.NumPacketsReceived(); }, Eq(count),
-            {.timeout = TimeDelta::Millis(kTimeout), .clock = &fake_clock_}),
-        IsRtcOk());
+    EXPECT_THAT(webrtc::WaitUntil([&] { return client2_.NumPacketsReceived(); },
+                                  Eq(count),
+                                  {.timeout = TimeDelta::Millis(kTimeout),
+                                   .clock = &time_controller_}),
+                IsRtcOk());
   }
 
   int client1_recv_packets = 0;
@@ -678,7 +684,8 @@ class DtlsTransportInternalImplTestBase {
   }
 
   bool LogRecv(absl::string_view name, const CopyOnWriteBuffer& packet) {
-    auto timestamp_ms = (fake_clock_.TimeNanos() - start_time_ns_) / 1000000;
+    auto timestamp_ms =
+        (time_controller_.GetClock()->CurrentTime() - start_time_).ms();
     RTC_LOG(LS_INFO) << "time=" << timestamp_ms << " : " << name
                      << ": ReceivePacket packet len=" << packet.size()
                      << ", data[0]: " << static_cast<uint8_t>(packet.data()[0]);
@@ -689,7 +696,8 @@ class DtlsTransportInternalImplTestBase {
                bool drop,
                const char* data,
                size_t len) {
-    auto timestamp_ms = (fake_clock_.TimeNanos() - start_time_ns_) / 1000000;
+    auto timestamp_ms =
+        (time_controller_.GetClock()->CurrentTime() - start_time_).ms();
     if (drop) {
       RTC_LOG(LS_INFO) << "time=" << timestamp_ms << " : " << name
                        << ": dropping packet len=" << len
@@ -706,7 +714,8 @@ class DtlsTransportInternalImplTestBase {
                 bool block,
                 const char* data,
                 size_t len) {
-    auto timestamp_ms = (fake_clock_.TimeNanos() - start_time_ns_) / 1000000;
+    auto timestamp_ms =
+        (time_controller_.GetClock()->CurrentTime() - start_time_).ms();
     if (block) {
       RTC_LOG(LS_INFO) << "time=" << timestamp_ms << " : " << name
                        << ": blocking packet len=" << len
@@ -721,20 +730,20 @@ class DtlsTransportInternalImplTestBase {
 
   template <typename Fn>
   bool WaitUntil(Fn func) {
-    return webrtc::WaitUntil(
-               func, IsTrue(),
-               {.timeout = TimeDelta::Millis(kTimeout), .clock = &fake_clock_})
+    return webrtc::WaitUntil(func, IsTrue(),
+                             {.timeout = TimeDelta::Millis(kTimeout),
+                              .clock = &time_controller_})
         .ok();
   }
 
  protected:
-  test::RunLoop main_thread_;
-  ScopedFakeClock fake_clock_;
+  GlobalSimulatedTimeController time_controller_;
+  const Environment env_;
   DtlsTestClient client1_;
   DtlsTestClient client2_;
   bool use_dtls_;
   bool pqc_ = false;
-  uint64_t start_time_ns_;
+  Timestamp start_time_;
   SSLProtocolVersion ssl_expected_version_;
 };
 
@@ -783,7 +792,7 @@ TEST_F(DtlsTransportInternalImplTest, TestSendPacketWithOptions) {
   EXPECT_THAT(
       webrtc::WaitUntil(
           [&] { return client2_.NumPacketsReceived(); }, Eq(1u),
-          {.timeout = TimeDelta::Millis(kTimeout), .clock = &fake_clock_}),
+          {.timeout = TimeDelta::Millis(kTimeout), .clock = &time_controller_}),
       IsRtcOk());
 
   // Now check the sent packet info on client1.
@@ -815,7 +824,7 @@ TEST_F(DtlsTransportInternalImplTest, TestSendSrtpBypassPacketWithOptions) {
   EXPECT_THAT(
       webrtc::WaitUntil(
           [&] { return client2_.NumPacketsReceived(); }, Eq(1u),
-          {.timeout = TimeDelta::Millis(kTimeout), .clock = &fake_clock_}),
+          {.timeout = TimeDelta::Millis(kTimeout), .clock = &time_controller_}),
       IsRtcOk());
 
   // Now check the sent packet info on client1.
@@ -1078,10 +1087,10 @@ class DtlsTransportInternalImplVersionTest
     client1_.SetPqc(config1.pqc);
     client2_.SetPqc(config2.pqc);
 
-    client1_.SetupTransports(config1.ice_role.value_or(ICEROLE_CONTROLLING),
-                             rtt_estimate);
-    client2_.SetupTransports(config2.ice_role.value_or(ICEROLE_CONTROLLED),
-                             rtt_estimate);
+    client1_.SetupTransports(
+        env_, config1.ice_role.value_or(ICEROLE_CONTROLLING), rtt_estimate);
+    client2_.SetupTransports(
+        env_, config2.ice_role.value_or(ICEROLE_CONTROLLED), rtt_estimate);
     client1_.dtls_transport()->SetDtlsRole(
         config1.ssl_role.value_or(SSL_CLIENT));
     client2_.dtls_transport()->SetDtlsRole(
@@ -1609,9 +1618,9 @@ TEST_F(DtlsTransportInternalImplTest, TestRetransmissionSchedule) {
     // millisecond before the expected time and verify that no unexpected
     // retransmissions were sent. Then advance it the final millisecond and
     // verify that the expected retransmission was sent.
-    fake_clock_.AdvanceTime(TimeDelta::Millis(timeout_schedule_ms[i] - 1));
+    time_controller_.AdvanceTime(TimeDelta::Millis(timeout_schedule_ms[i] - 1));
     EXPECT_EQ(expected_hellos, client1_.received_dtls_client_hellos());
-    fake_clock_.AdvanceTime(TimeDelta::Millis(1));
+    time_controller_.AdvanceTime(TimeDelta::Millis(1));
     EXPECT_EQ(++expected_hellos, client1_.received_dtls_client_hellos());
   }
 }
@@ -1696,8 +1705,8 @@ class DtlsEventOrderingTest
     // remote fingerprint on callee, but neither is writable and the caller
     // doesn't have the callee's fingerprint.
     PrepareDtls(KT_DEFAULT);
-    client1_.SetupTransports(ICEROLE_CONTROLLING);
-    client2_.SetupTransports(ICEROLE_CONTROLLED);
+    client1_.SetupTransports(env_, ICEROLE_CONTROLLING);
+    client2_.SetupTransports(env_, ICEROLE_CONTROLLED);
     // Similar to how NegotiateOrdering works.
     client1_.dtls_transport()->SetDtlsRole(SSL_SERVER);
     client2_.dtls_transport()->SetDtlsRole(SSL_CLIENT);

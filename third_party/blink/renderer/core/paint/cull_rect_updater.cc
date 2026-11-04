@@ -102,11 +102,19 @@ bool ShouldUseInfiniteCullRect(
     return true;
   }
 
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+          object.GetDocument().GetExecutionContext())) {
     auto* element = DynamicTo<Element>(object.GetNode());
     if (element && element->IsInCanvasSubtree()) {
       return true;
     }
+  }
+
+  // TODO(crbug.com/501066634): This can likely be tighter bounded than
+  // infinite, but the expectation is that the elements in the overscroll areas
+  // are fairly small.
+  if (object.IsOverscrollAreaParent()) {
+    return true;
   }
 
   if (const auto* properties = object.FirstFragment().PaintProperties()) {

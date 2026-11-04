@@ -579,30 +579,16 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
                             InstructionSelector* selector,
                             MemoryRepresentation rep, OpIndex node,
                             OpIndex index, InstructionOperand* index_op,
-                            InstructionOperand* shift_immediate_op,
-                            AddressingMode* mode) {
+                            InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
-  if (const ChangeOp* change =
-          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
-      change && selector->CanCover(index, change->input())) {
-    const ShiftOp* shift =
-        selector->Get(change->input()).TryCast<Opmask::kShiftLeft>();
-    if (shift && shift->rep == RegisterRepresentation::Word32() &&
-        g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) {
-      *index_op = g->UseRegister(shift->left());
-      *shift_immediate_op = g->UseImmediate(shift->right());
-      *mode = kMode_Operand2_R_UXTW_LSL_I;
-      return true;
-    }
-  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
   if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
     return false;
   }
+
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
-  *mode = kMode_Operand2_R_LSL_I;
   return true;
 }
 
@@ -1078,11 +1064,10 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
       opcode |= AddressingModeField::encode(kMode_MRR);
     }
   } else {
-    AddressingMode mode;
     if (TryMatchLoadStoreShift(&g, selector, rep, node, index, &inputs[1],
-                               &inputs[2], &mode)) {
+                               &inputs[2])) {
       input_count = 3;
-      opcode |= AddressingModeField::encode(mode);
+      opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
     } else {
       input_count = 2;
       inputs[1] = g.UseRegister(index);
@@ -1490,17 +1475,14 @@ void InstructionSelector::VisitStore(OpIndex node) {
   if (g.CanBeImmediate(index, immediate_mode)) {
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_MRI);
+  } else if (TryMatchLoadStoreShift(&g, this, store_rep, node, index,
+                                    &inputs[input_count],
+                                    &inputs[input_count + 1])) {
+    input_count += 2;
+    opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
   } else {
-    AddressingMode mode;
-    if (TryMatchLoadStoreShift(&g, this, store_rep, node, index,
-                               &inputs[input_count], &inputs[input_count + 1],
-                               &mode)) {
-      input_count += 2;
-      opcode |= AddressingModeField::encode(mode);
-    } else {
-      inputs[input_count++] = g.UseRegister(index);
-      opcode |= AddressingModeField::encode(kMode_MRR);
-    }
+    inputs[input_count++] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_MRR);
   }
 
   if (store_view.is_store_trap_on_null()) {
@@ -2086,6 +2068,121 @@ static void VisitLogical(InstructionSelector* selector, Zone* zone,
   }
 }
 
+namespace {
+
+// Try to fold a left shift and a mask into a single bitfield-insert
+// instruction.
+template <int bit_length>
+  requires(bit_length == 32 || bit_length == 64)
+bool TryEmitUbfiz(InstructionSelector* selector, Arm64OperandGenerator& g,
+                  OpIndex node, const WordBinopOp& bitwise_and,
+                  ArchOpcode lsl_opcode, ArchOpcode ubfiz_opcode) {
+  using Int = std::conditional_t<bit_length == 32, uint32_t, uint64_t>;
+
+  constexpr turboshaft::RegisterRepresentation kRep =
+      bit_length == 32 ? turboshaft::RegisterRepresentation::Word32()
+                       : turboshaft::RegisterRepresentation::Word64();
+  constexpr Int kBitLengthMask = bit_length - 1;
+
+  DCHECK_EQ(node, selector->Index(bitwise_and));
+  const Operation& lhs = selector->Get(bitwise_and.left());
+
+  Int mask;
+  if (lhs.Is<Opmask::kShiftLeft>() && lhs.Cast<ShiftOp>().rep == kRep &&
+      selector->CanCover(node, bitwise_and.left()) &&
+      selector->MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+    Int mask_width = base::bits::CountPopulation(mask);
+    Int mask_trailing_zeros = base::bits::CountTrailingZeros(mask);
+    Int mask_msb = base::bits::CountLeadingZeros(mask);
+
+    // The mask must be contiguous.
+    if (mask_width == 0 || mask_width == bit_length ||
+        (mask_msb + mask_width + mask_trailing_zeros != bit_length)) {
+      return false;
+    }
+
+    // Select Ubfiz or Lsl for And(Shl(x, imm), mask) where the shift amount
+    // exactly aligns with the trailing zeros of the contiguous mask.
+    const ShiftOp& shift = lhs.Cast<ShiftOp>();
+    int32_t shift_by;
+
+    if (selector->MatchIntegralWord32Constant(shift.right(), &shift_by) &&
+        static_cast<Int>(shift_by & kBitLengthMask) == mask_trailing_zeros) {
+      // If the mask width covers all bits left over after the shift, the
+      // AND operation is redundant. We can just emit a standard left shift.
+      if (mask_width + mask_trailing_zeros >= bit_length) {
+        selector->Emit(
+            lsl_opcode, g.DefineAsRegister(node), g.UseRegister(shift.left()),
+            g.UseImmediate(static_cast<int32_t>(mask_trailing_zeros)));
+      } else {
+        // Otherwise, emit a bitfield-insert instruction to perform the shift
+        // and apply the mask width, leaving the remaining upper bits as zeros.
+        selector->Emit(
+            ubfiz_opcode, g.DefineAsRegister(node), g.UseRegister(shift.left()),
+            g.UseImmediate(static_cast<int32_t>(mask_trailing_zeros)),
+            g.UseImmediate(static_cast<int32_t>(mask_width)));
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+// Try to fold a mask and a left shift into a single bitfield-insert
+// instruction.
+template <int bit_length>
+  requires(bit_length == 32 || bit_length == 64)
+bool TryEmitUbfiz(InstructionSelector* selector, Arm64OperandGenerator& g,
+                  OpIndex node, const ShiftOp& shift_op, ArchOpcode lsl_opcode,
+                  ArchOpcode ubfiz_opcode) {
+  using Int = std::conditional_t<bit_length == 32, uint32_t, uint64_t>;
+
+  constexpr turboshaft::RegisterRepresentation kRep =
+      bit_length == 32 ? turboshaft::RegisterRepresentation::Word32()
+                       : turboshaft::RegisterRepresentation::Word64();
+
+  DCHECK_EQ(node, selector->Index(shift_op));
+  const Operation& lhs = selector->Get(shift_op.left());
+
+  Int shift_by;
+  if (lhs.Is<Opmask::kBitwiseAnd>() && lhs.Cast<WordBinopOp>().rep == kRep &&
+      selector->CanCover(node, shift_op.left()) &&
+      selector->MatchUnsignedIntegralConstant(shift_op.right(), &shift_by) &&
+      base::IsInRange(shift_by, static_cast<Int>(1),
+                      static_cast<Int>(bit_length - 1))) {
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    Int mask;
+    if (selector->MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+      Int mask_width = base::bits::CountPopulation(mask);
+      Int mask_msb = base::bits::CountLeadingZeros(mask);
+
+      if (mask_width != 0 && (mask_msb + mask_width == bit_length)) {
+        // The mask must be contiguous and starting from the least-significant
+        // bit.
+        DCHECK_EQ(0u, base::bits::CountTrailingZeros(mask));
+        if (shift_by + mask_width >= bit_length) {
+          // If the mask is contiguous and reaches or extends beyond the top
+          // bit, only the shift is needed.
+          selector->Emit(lsl_opcode, g.DefineAsRegister(node),
+                         g.UseRegister(bitwise_and.left()),
+                         g.UseImmediate(static_cast<int32_t>(shift_by)));
+        } else {
+          // Select Ubfiz for Shl(And(x, mask), imm) where the mask is
+          // contiguous, and the shift immediate non-zero.
+          selector->Emit(ubfiz_opcode, g.DefineAsRegister(node),
+                         g.UseRegister(bitwise_and.left()),
+                         g.UseImmediate(static_cast<int32_t>(shift_by)),
+                         g.UseImmediate(static_cast<int32_t>(mask_width)));
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 void InstructionSelector::VisitWord32And(OpIndex node) {
   Arm64OperandGenerator g(this);
   const WordBinopOp& bitwise_and =
@@ -2128,6 +2225,12 @@ void InstructionSelector::VisitWord32And(OpIndex node) {
       // Other cases fall through to the normal And operation.
     }
   }
+
+  if (TryEmitUbfiz<32>(this, g, node, bitwise_and, kArm64Lsl32,
+                       kArm64Ubfiz32)) {
+    return;
+  }
+
   VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And32,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical32Imm);
@@ -2172,6 +2275,11 @@ void InstructionSelector::VisitWord64And(OpIndex node) {
       // Other cases fall through to the normal And operation.
     }
   }
+
+  if (TryEmitUbfiz<64>(this, g, node, bitwise_and, kArm64Lsl, kArm64Ubfiz)) {
+    return;
+  }
+
   VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical64Imm);
@@ -2204,41 +2312,10 @@ void InstructionSelector::VisitWord64Xor(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord32Shl(OpIndex node) {
+  Arm64OperandGenerator g(this);
   const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
-  const Operation& lhs = Get(shift_op.left());
-  if (uint64_t constant_left;
-      lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
-      MatchUnsignedIntegralConstant(shift_op.right(), &constant_left)) {
-    uint32_t shift_by = static_cast<uint32_t>(constant_left);
-    if (base::IsInRange(shift_by, 1, 31)) {
-      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-      if (uint64_t constant_right;
-          MatchUnsignedIntegralConstant(bitwise_and.right(), &constant_right)) {
-        uint32_t mask = static_cast<uint32_t>(constant_right);
-
-        uint32_t mask_width = base::bits::CountPopulation(mask);
-        uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
-        if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
-          DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
-          DCHECK_NE(0u, shift_by);
-          Arm64OperandGenerator g(this);
-          if ((shift_by + mask_width) >= 32) {
-            // If the mask is contiguous and reaches or extends beyond the top
-            // bit, only the shift is needed.
-            Emit(kArm64Lsl32, g.DefineAsRegister(node),
-                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by));
-            return;
-          } else {
-            // Select Ubfiz for Shl(And(x, mask), imm) where the mask is
-            // contiguous, and the shift immediate non-zero.
-            Emit(kArm64Ubfiz32, g.DefineAsRegister(node),
-                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by),
-                 g.TempImmediate(mask_width));
-            return;
-          }
-        }
-      }
-    }
+  if (TryEmitUbfiz<32>(this, g, node, shift_op, kArm64Lsl32, kArm64Ubfiz32)) {
+    return;
   }
   VisitRRO(this, kArm64Lsl32, node, kShift32Imm);
 }
@@ -2248,6 +2325,11 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
   const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shift_op.left());
   const Operation& rhs = this->Get(shift_op.right());
+
+  if (TryEmitUbfiz<64>(this, g, node, shift_op, kArm64Lsl, kArm64Ubfiz)) {
+    return;
+  }
+
   if ((lhs.Is<Opmask::kChangeInt32ToInt64>() ||
        lhs.Is<Opmask::kChangeUint32ToUint64>()) &&
       rhs.Is<Opmask::kWord32Constant>()) {
@@ -3513,6 +3595,98 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
   }
 }
 
+// Try to emit TST for some comparisons with powers of 2 and similar cases.
+//
+// An unsigned number being greater than or equal to 2^i implies that at least
+// one of its most significant bits, starting from bit i, is non-zero. This is
+// equivalent to applying the mask ~(2^i - 1) to the input number and checking
+// if the result is non-zero, which can be expressed using the TST instruction
+// and the kNotEqual condition. The advantage is that the mask can be encoded as
+// an immediate operand.
+//
+// Similarly, we can perform the opposite comparison, i.e. an unsigned number
+// being less than 2^i, by negating the condition to kEqual. Furthermore, it is
+// evident from the mask value that we can apply the same transformation to
+// equivalent comparisons with 2^i - 1 by slightly adjusting the conditions that
+// we are matching.
+bool TryEmitTst(InstructionSelector* selector, OpIndex left, OpIndex right,
+                FlagsContinuation* cont) {
+  const ConstantOp* constant_op = selector->Get(right).TryCast<ConstantOp>();
+  FlagsCondition cond = cont->condition();
+
+  if (constant_op == nullptr) {
+    cond = CommuteFlagsCondition(cond);
+    constant_op = selector->Get(left).TryCast<ConstantOp>();
+    left = right;
+  }
+
+  if (constant_op == nullptr || !constant_op->IsIntegral() ||
+      cont->IsSelect()) {
+    return false;
+  }
+
+  DCHECK(constant_op->rep == RegisterRepresentation::Word32() ||
+         constant_op->rep == RegisterRepresentation::Word64());
+
+  uint64_t value = constant_op->integral();
+
+  Arm64OperandGenerator g(selector);
+
+  // These cases can also be encoded as immediate operands to the CMN and CMP
+  // instructions, so handling them in the fallback code paths simplifies the
+  // rest of the function.
+  if (g.CanBeImmediate(value, kArithmeticImm) ||
+      (constant_op->rep == RegisterRepresentation::Word32() &&
+       value == std::numeric_limits<uint32_t>::max())) {
+    return false;
+  }
+
+  if (base::bits::IsPowerOfTwo(value)) {
+    if (cond == kUnsignedGreaterThanOrEqual) {
+      cond = kNotEqual;
+    } else if (cond == kUnsignedLessThan) {
+      cond = kEqual;
+    } else {
+      return false;
+    }
+
+    value--;
+  } else if (base::bits::IsPowerOfTwo(value + 1)) {
+    if (cond == kUnsignedGreaterThan) {
+      cond = kNotEqual;
+    } else if (cond == kUnsignedLessThanOrEqual) {
+      cond = kEqual;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+
+  value = ~value;
+
+  InstructionCode opcode = kArchNop;
+  InstructionOperand r;
+
+  if (constant_op->rep == WordRepresentation::Word32()) {
+    opcode = kArm64Tst32;
+    DCHECK(g.CanBeImmediate(value, kLogical32Imm));
+    r = g.UseImmediate(static_cast<uint32_t>(value));
+  } else {
+    opcode = kArm64Tst;
+    DCHECK(g.CanBeImmediate(value, kLogical64Imm));
+    r = g.UseImmediate64(value);
+  }
+
+  if (cont->IsBranch() && cont->hint() != BranchHint::kNone) {
+    opcode |= BranchHintField::encode(true);
+  }
+
+  cont->Overwrite(cond);
+  selector->EmitWithContinuation(opcode, g.UseRegister(left), r, cont);
+  return true;
+}
+
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuation* cont,
@@ -3522,6 +3696,10 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
   DCHECK_EQ(op.input_count, 2);
   auto left = op.input(0);
   auto right = op.input(1);
+
+  if (opcode == kArm64Cmp && TryEmitTst(selector, left, right, cont)) {
+    return;
+  }
 
   // If one of the two inputs is an immediate, make sure it's on the right.
   if (!g.CanBeImmediate(right, immediate_mode) &&
@@ -3685,6 +3863,8 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
     }
   } else if (TryEmitMaxMin(selector, cont, RegisterRepresentation::Word32(),
                            lhs, rhs)) {
+    return;
+  } else if (TryEmitTst(selector, lhs, rhs, cont)) {
     return;
   }
 

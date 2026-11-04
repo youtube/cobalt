@@ -2115,12 +2115,13 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan,
     }
   };
 
-  auto encoder_selector = std::make_unique<MockEncoderSelector>();
+  scoped_refptr<MockEncoderSelector> encoder_selector =
+      make_ref_counted<MockEncoderSelector>();
   auto format_to_switch_to =
       *encoder_selector->OnAvailableBitrate(DataRate::Zero());
 
   // Change encoder selector
-  sender->SetEncoderSelector(std::move(encoder_selector));
+  sender->SetEncoderSelector(encoder_selector);
 
   auto transceivers =
       caller->GetInternalPeerConnection()->GetTransceiversInternal();

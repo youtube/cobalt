@@ -109,6 +109,10 @@ class MockRtpSenderInternal : public RtpSenderInternal {
               SetEncoderSelector,
               (std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>),
               (override));
+  MOCK_METHOD(void,
+              SetEncoderSelector,
+              (scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>),
+              (override));
   MOCK_METHOD(void, SetObserver, (RtpSenderObserverInterface*), (override));
 
   // RtpSenderInternal methods.

@@ -717,6 +717,7 @@ void HTMLIFrameElement::CheckPotentialPermissionsPolicyViolation() {
 }
 
 void HTMLIFrameElement::NaturalSizingInfoChanged() {
+  HTMLFrameOwnerElement::NaturalSizingInfoChanged();
   if (!RuntimeEnabledFeatures::ResponsiveIframesEnabled()) {
     return;
   }

@@ -111,6 +111,9 @@ message IosAttestationData {
 
   // Device ID for quota checking.
   string device_id = 3;
+
+  // Nonce returned from the server and added to the content bindings.
+  bytes nonce = 4;
 }
 
 message AttestationData {

@@ -871,8 +871,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
-    const CFunctionWithSignature c_function =
-        api_func_data->GetCFunction(isolate, 0);
+    // !!! Warning !!! This relies on the preceding logic to validate that this
+    // overload matches the expected signature, which is generally unsafe in the
+    // sandbox attacker model.
+    const CFunctionWithSignature c_function = api_func_data->GetCFunction(0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     Address c_functions[] = {c_function.address};
@@ -1030,11 +1032,8 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    bool receiver_is_first_param) {
-  wasm::WrapperCompilationInfo info{
-      .code_kind = CodeKind::JS_TO_WASM_FUNCTION,
-      .receiver_is_first_param = receiver_is_first_param};
+    Isolate* isolate, const wasm::CanonicalSig* sig) {
+  wasm::WrapperCompilationInfo info{.code_kind = CodeKind::JS_TO_WASM_FUNCTION};
   return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
       isolate, sig, info, WasmExportedFunction::GetDebugName(sig),
       WasmAssemblerOptions());

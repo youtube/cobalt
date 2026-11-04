@@ -139,7 +139,7 @@ sk_sp<TextureProxy> ClipAtlasManager::findOrCreateEntry(uint32_t stackRecordID,
                 auto [bm, helper] =
                         RasterMaskHelper::Allocate(cdc->fMaskDeviceBounds.size(),
                                                    translate,
-                                                   0,
+                                                   kEntryPadding,
                                                    initial_alpha_for_elements(*cdc->fElementList));
 
                 render_elements(&helper, *cdc->fElementList);

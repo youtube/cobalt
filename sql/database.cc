@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "sql/database.h"
 
 #include <limits.h>
@@ -350,6 +345,7 @@ int Database::WalCommitHook(void* db_ptr,
                             const char* db_name,
                             int pages) {
   Database* self = reinterpret_cast<Database*>(db_ptr);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(self->sequence_checker_);
   CHECK_EQ(db_handle, self->db_.get());
 
   // SAFETY: `db_name` is the terminated name of the database as provided by
@@ -363,8 +359,6 @@ int Database::WalCommitHook(void* db_ptr,
 }
 
 void Database::OnWalDataCommit(base::cstring_view db_name, int pages) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
   // The default number of frames to accumulate in the log file before
   // checkpointing the database in WAL mode.
   static constexpr int kDefaultWalAutoCheckpoint = 1000;
@@ -571,10 +565,11 @@ Database::~Database() {
 }
 
 bool Database::Open(const base::FilePath& path) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   std::string path_string = AsUTF8ForSQL(path);
   TRACE_EVENT1("sql", "Database::Open", "path", path_string);
 
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!path.empty());
   DCHECK_NE(path_string, kSqliteOpenInMemoryPath)
       << "Path conflicts with SQLite magic identifier";
@@ -613,9 +608,9 @@ bool Database::Open(const base::FilePath& path) {
 }
 
 bool Database::OpenInMemory() {
-  TRACE_EVENT0("sql", "Database::OpenInMemory");
-
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  TRACE_EVENT0("sql", "Database::OpenInMemory");
 
   in_memory_ = true;
   return OpenInternal(kSqliteOpenInMemoryPath);
@@ -629,8 +624,6 @@ void Database::DetachFromSequence() {
 
 void Database::CloseInternal(bool forced) {
   TRACE_EVENT0("sql", "Database::CloseInternal");
-
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CHECK_EQ(outstanding_blob_count_, 0U)
       << "All StreamingBlobHandles should be destroyed before closing "
@@ -703,10 +696,13 @@ void Database::CloseInternal(bool forced) {
 }
 
 bool Database::is_open() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return static_cast<bool>(db_) && !poisoned_;
 }
 
 void Database::Close() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::Close");
   // If the database was already closed by RazeAndPoison(), then no
   // need to close again.  Clear the |poisoned_| bit so that incorrect
@@ -758,6 +754,7 @@ void Database::Close() {
 // false.  The downside then is that it allows open-ended use of memory for
 // large transactions.
 void Database::ReleaseCacheMemoryIfNeeded(bool implicit_change_performed) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (base::FeatureList::IsEnabled(kInhibitSQLReleaseCacheMemoryIfNeeded)) {
     return;
   }
@@ -807,6 +804,7 @@ void Database::ReleaseCacheMemoryIfNeeded(bool implicit_change_performed) {
 }
 
 base::FilePath Database::DbPath() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!is_open()) {
     return base::FilePath();
   }
@@ -828,8 +826,9 @@ base::FilePath Database::DbPath() const {
 std::string Database::CollectErrorInfo(int sqlite_error_code,
                                        Statement* stmt,
                                        DatabaseDiagnostics* diagnostics) const {
-  TRACE_EVENT0("sql", "Database::CollectErrorInfo");
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  TRACE_EVENT0("sql", "Database::CollectErrorInfo");
   DCHECK_NE(sqlite_error_code, SQLITE_OK)
       << __func__ << " received non-error result code";
   DCHECK_NE(sqlite_error_code, SQLITE_DONE)
@@ -978,6 +977,8 @@ std::string Database::CollectErrorInfo(int sqlite_error_code,
 // TODO(shess): Since this is only called in an error situation, it might be
 // prudent to rewrite in terms of SQLite API calls, and mark the function const.
 std::string Database::CollectCorruptionInfo() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::CollectCorruptionInfo");
   // If the file cannot be accessed it is unlikely that an integrity check will
   // turn up actionable information.
@@ -1058,19 +1059,21 @@ sqlite3_file* Database::GetSqliteVfsFile() {
 
 void Database::RecordTimingHistogram(std::string_view name_prefix,
                                      base::TimeDelta timing) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::UmaHistogramCustomMicrosecondsTimes(
       base::StrCat({name_prefix, histogram_tag()}), timing,
       base::Microseconds(0), base::Minutes(1), 100);
 }
 
 perfetto::NamedTrack Database::GetTracingNamedTrack() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return perfetto::NamedTrack(perfetto::DynamicString(tracing_track_name_),
                               reinterpret_cast<uint64_t>(this),
                               perfetto::ThreadTrack::Current());
 }
 
 void Database::TrimMemory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::TrimMemory");
 
   if (!db_) {
@@ -1096,8 +1099,6 @@ void Database::TrimMemory() {
 // Create an in-memory database with the existing database's page
 // size, then backup that database over the existing database.
 bool Database::RazeInternal() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
   std::optional<base::ScopedBlockingCall> scoped_blocking_call;
   InitScopedBlockingCall(FROM_HERE, &scoped_blocking_call);
 
@@ -1174,7 +1175,8 @@ bool Database::RazeInternal() {
   std::ignore = Execute("PRAGMA mmap_size = 0");
 #endif
 
-  SqliteResultCode sqlite_result_code = BackupDatabaseForRaze(null_db.db_, db_);
+  SqliteResultCode sqlite_result_code =
+      BackupDatabaseForRaze(null_db.db(InternalApiToken()), db_);
 
   // The destination database was locked.
   if (sqlite_result_code == SqliteResultCode::kBusy) {
@@ -1199,7 +1201,8 @@ bool Database::RazeInternal() {
       return false;
     }
 
-    sqlite_result_code = BackupDatabaseForRaze(null_db.db_, db_);
+    sqlite_result_code =
+        BackupDatabaseForRaze(null_db.db(InternalApiToken()), db_);
     if (sqlite_result_code != SqliteResultCode::kDone) {
       RecordRazeDatabaseFailureReason(histogram_tag_,
                                       RazeDatabaseFailedReason::kBackupFailed);
@@ -1227,7 +1230,8 @@ bool Database::RazeInternal() {
       std::ignore = Execute("PRAGMA journal_mode=WAL;");
     }
 
-    sqlite_result_code = BackupDatabaseForRaze(null_db.db_, db_);
+    sqlite_result_code =
+        BackupDatabaseForRaze(null_db.db(InternalApiToken()), db_);
     if (sqlite_result_code != SqliteResultCode::kDone) {
       RecordRazeDatabaseFailureReason(histogram_tag_,
                                       RazeDatabaseFailedReason::kBackupFailed);
@@ -1262,6 +1266,8 @@ bool Database::RazeInternal() {
 }
 
 bool Database::Raze() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::Raze");
 
   base::ElapsedTimer raze_timer;
@@ -1272,6 +1278,8 @@ bool Database::Raze() {
 }
 
 bool Database::RazeAndPoison() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::RazeAndPoison");
 
   if (!db_) {
@@ -1295,6 +1303,8 @@ bool Database::RazeAndPoison() {
 }
 
 void Database::Poison() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::Poison");
 
   if (!db_) {
@@ -1358,6 +1368,7 @@ bool Database::Delete(const base::FilePath& path) {
 }
 
 bool Database::CloseAndDelete() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(is_open());
   if (UseWALMode()) {
     sqlite3_db_config(db_, SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, 1, nullptr);
@@ -1368,6 +1379,8 @@ bool Database::CloseAndDelete() {
 }
 
 bool Database::BeginTransaction(InternalApiToken) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::BeginTransaction");
 
   if (needs_rollback_) {
@@ -1393,6 +1406,8 @@ bool Database::BeginTransaction(InternalApiToken) {
 }
 
 void Database::RollbackTransaction(InternalApiToken) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::RollbackTransaction");
 
   DCHECK_GE(transaction_nesting_, 0);
@@ -1414,6 +1429,8 @@ void Database::RollbackTransaction(InternalApiToken) {
 }
 
 bool Database::CommitTransaction(InternalApiToken) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::CommitTransaction");
 
   DCHECK_GE(transaction_nesting_, 0);
@@ -1463,18 +1480,23 @@ bool Database::CommitTransaction(InternalApiToken) {
 }
 
 bool Database::BeginTransactionDeprecated() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return BeginTransaction(InternalApiToken());
 }
 
 bool Database::CommitTransactionDeprecated() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return CommitTransaction(InternalApiToken());
 }
 
 void Database::RollbackTransactionDeprecated() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   RollbackTransaction(InternalApiToken());
 }
 
 void Database::RollbackAllTransactions() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::RollbackAllTransactions");
 
   DCHECK_GE(transaction_nesting_, 0);
@@ -1486,9 +1508,10 @@ void Database::RollbackAllTransactions() {
 
 bool Database::AttachDatabase(const base::FilePath& other_db_path,
                               std::string_view attachment_point) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::AttachDatabase");
 
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(ValidAttachmentPoint(attachment_point));
 
   Statement statement(GetUniqueStatement("ATTACH ? AS ?"));
@@ -1502,9 +1525,10 @@ bool Database::AttachDatabase(const base::FilePath& other_db_path,
 }
 
 bool Database::DetachDatabase(std::string_view attachment_point) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT0("sql", "Database::DetachDatabase");
 
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(ValidAttachmentPoint(attachment_point));
 
   Statement statement(GetUniqueStatement("DETACH ?"));
@@ -1591,7 +1615,7 @@ SqliteResultCode Database::ExecuteAndReturnResultCode(
     // trailing whitespace.
     // TODO(shess): Audit to see if this can become a DCHECK.
     while (base::IsAsciiWhitespace(*sql)) {
-      sql++;
+      UNSAFE_TODO(sql++);
     }
   }
 
@@ -1608,6 +1632,7 @@ SqliteResultCode Database::ExecuteAndReturnResultCode(
 }
 
 bool Database::Execute(base::cstring_view sql) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("sql", "Database::Execute");
 
   return ExecuteWithTimeout(sql, base::TimeDelta());
@@ -1617,7 +1642,6 @@ bool Database::ExecuteWithTimeout(base::cstring_view sql,
                                   base::TimeDelta timeout) {
   TRACE_EVENT1("sql", "Database::ExecuteWithTimeout", "query", sql);
 
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     DCHECK(poisoned_) << "Illegal use of Database without a db";
     return false;
@@ -1641,6 +1665,7 @@ bool Database::ExecuteWithTimeout(base::cstring_view sql,
 }
 
 bool Database::ExecuteScriptForTesting(base::cstring_view sql_script) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     DCHECK(poisoned_) << "Illegal use of Database without a db";
     return false;
@@ -1683,6 +1708,7 @@ bool Database::ExecuteScriptForTesting(base::cstring_view sql_script) {
 scoped_refptr<Database::StatementRef> Database::GetCachedStatement(
     StatementID id,
     base::cstring_view sql) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto it = statement_cache_.find(id);
   if (it != statement_cache_.end()) {
     StatementRef& statement = *it->second;
@@ -1690,7 +1716,8 @@ scoped_refptr<Database::StatementRef> Database::GetCachedStatement(
     // entity invalidating cached statements, and we remove them from the cache
     // when we do that.
     DCHECK(statement.is_valid());
-    DCHECK_EQ(base::cstring_view(sqlite3_sql(statement.stmt())), sql)
+    DCHECK_EQ(UNSAFE_TODO(base::cstring_view(sqlite3_sql(statement.stmt()))),
+              sql)
         << "GetCachedStatement used with same ID but different SQL";
 
     // Reset the statement so it can be reused.
@@ -1709,11 +1736,13 @@ scoped_refptr<Database::StatementRef> Database::GetCachedStatement(
 
 scoped_refptr<Database::StatementRef> Database::GetUniqueStatement(
     base::cstring_view sql) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetStatementImpl(sql, /*is_readonly=*/false);
 }
 
 scoped_refptr<Database::StatementRef> Database::GetReadonlyStatement(
     base::cstring_view sql) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetStatementImpl(sql, /*is_readonly=*/true);
 }
 
@@ -1776,7 +1805,7 @@ scoped_refptr<Database::StatementRef> Database::GetStatementImpl(
   }
 
 #if DCHECK_IS_ON()
-  DCHECK_EQ(unused_sql, sql.c_str() + sql.size())
+  DCHECK_EQ(unused_sql, UNSAFE_TODO(sql.c_str() + sql.size()))
       << "Unused text: " << std::string(unused_sql) << "\n"
       << "in prepared SQL statement: " << std::string(sql);
 #endif  // DCHECK_IS_ON()
@@ -1824,6 +1853,7 @@ void Database::OnStreamingBlobClosed(SqliteResultCode result,
 }
 
 std::string Database::GetSchema() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // The ORDER BY should not be necessary, but relying on organic
   // order for something like this is questionable.
   static constexpr char kSql[] =
@@ -1872,7 +1902,7 @@ bool Database::IsSQLValid(base::cstring_view sql) {
   }
 
 #if DCHECK_IS_ON()
-  DCHECK_EQ(unused_sql, sql.c_str() + sql.size())
+  DCHECK_EQ(unused_sql, UNSAFE_TODO(sql.c_str() + sql.size()))
       << "Unused text: " << std::string(unused_sql) << "\n"
       << "in SQL statement: " << std::string(sql);
 #endif  // DCHECK_IS_ON()
@@ -1902,8 +1932,6 @@ bool Database::DoesViewExist(std::string_view view_name) {
 
 bool Database::DoesSchemaItemExist(std::string_view name,
                                    std::string_view type) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
   static constexpr char kSql[] =
       "SELECT 1 FROM sqlite_schema WHERE type=? AND name=?";
   Statement statement(GetUniqueStatement(kSql));
@@ -1941,6 +1969,7 @@ bool Database::DoesColumnExist(base::cstring_view table_name,
 }
 
 int64_t Database::GetLastInsertRowId() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     DCHECK(poisoned_) << "Illegal use of Database without a db";
     return 0;
@@ -1951,6 +1980,7 @@ int64_t Database::GetLastInsertRowId() const {
 }
 
 int64_t Database::GetLastChangeCount() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     DCHECK(poisoned_) << "Illegal use of Database without a db";
     return 0;
@@ -1959,6 +1989,7 @@ int64_t Database::GetLastChangeCount() {
 }
 
 int Database::GetMemoryUsage() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     DCHECK(poisoned_) << "Illegal use of Database without a db";
     return 0;
@@ -2003,6 +2034,7 @@ int Database::GetMemoryUsage() {
 }
 
 int Database::GetErrorCode() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     return SQLITE_ERROR;
   }
@@ -2010,6 +2042,7 @@ int Database::GetErrorCode() const {
 }
 
 int Database::GetLastErrno() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     return -1;
   }
@@ -2024,6 +2057,7 @@ int Database::GetLastErrno() const {
 }
 
 const char* Database::GetErrorMessage() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     return "sql::Database is not opened.";
   }
@@ -2065,7 +2099,6 @@ void Database::MaybeReportErrorDuringOpen(SqliteResultCode code) {
 }
 
 bool Database::OpenInternal(const std::string& db_file_path) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT1("sql", "Database::OpenInternal", "path", db_file_path);
   base::ElapsedTimer timer;
 
@@ -2401,6 +2434,9 @@ bool Database::OpenInternal(const std::string& db_file_path) {
   }
 
   DCHECK(!memory_dump_provider_);
+  // TODO(crbug.com/477762546): A raw pointer to the `sqlite3*` is given to
+  // the dump provider, which will use it off of this instance's sequence.
+  // SQLite must be in its "serialized" threading mode for this to be safe.
   memory_dump_provider_ =
       std::make_unique<DatabaseMemoryDumpProvider>(db_, histogram_tag_);
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
@@ -2494,6 +2530,8 @@ void Database::StatementRefDeleted(StatementRef* ref) {
 void Database::OnSqliteError(SqliteErrorCode sqlite_error_code,
                              sql::Statement* statement,
                              const char* sql_statement) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   TRACE_EVENT1("sql", "Database::OnSqliteError", "sqlite_error_code",
                sqlite_error_code);
 
@@ -2568,6 +2606,8 @@ void Database::OnSqliteError(SqliteErrorCode sqlite_error_code,
 std::string Database::GetDiagnosticInfo(int sqlite_error_code,
                                         Statement* statement,
                                         DatabaseDiagnostics* diagnostics) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   DCHECK_NE(sqlite_error_code, SQLITE_OK)
       << __func__ << " received non-error result code";
   DCHECK_NE(sqlite_error_code, SQLITE_DONE)
@@ -2684,12 +2724,6 @@ bool Database::FullIntegrityCheck(std::vector<std::string>* messages) {
   std::ignore = Execute("PRAGMA writable_schema=OFF");
 
   return success;
-}
-
-bool Database::ReportMemoryUsage(base::trace_event::ProcessMemoryDump* pmd,
-                                 const std::string& dump_name) {
-  return memory_dump_provider_ &&
-         memory_dump_provider_->ReportMemoryUsage(pmd, dump_name);
 }
 
 bool Database::UseWALMode() const {

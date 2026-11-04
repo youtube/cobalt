@@ -35,6 +35,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
+#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
@@ -884,6 +885,49 @@ TEST_P(QuicDispatcherTestOneVersion, StatelessVersionNegotiation) {
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
                      TestConnectionId(1));
+}
+
+TEST_P(QuicDispatcherTestOneVersion, NoVersionNegotiationOnScone) {
+  config_.set_parse_scone_packets(true);
+  TestDispatcher dispatcher(&config_, &crypto_config_, &version_manager_,
+                            mock_helper_.GetRandomGenerator(),
+                            connection_id_generator_);
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  // Build SCONE packet.
+  char buffer[1200];
+  QuicDataWriter writer(sizeof(buffer), buffer);
+  QuicPacketHeader header;  // The header after scone.
+  header.version_flag = false;
+  header.destination_connection_id = TestConnectionId(1);
+  QuicFramer::AppendSconeHeader(header, &writer);
+  auto packet = std::make_unique<QuicReceivedPacket>(buffer, sizeof(buffer),
+                                                     QuicTime::Zero());
+
+  // Send the packet. There should be no version negotiation packet.
+  EXPECT_CALL(dispatcher, CreateQuicSession).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, SendVersionNegotiationPacket).Times(0);
+  dispatcher_->ProcessPacket(server_address_, client_address, *packet);
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
+       SconePacketCausesVersionNegotiationWhenNotSupported) {
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  // Build SCONE packet.
+  char buffer[1200];
+  QuicDataWriter writer(sizeof(buffer), buffer);
+  QuicPacketHeader header;  // The header after scone.
+  header.version_flag = false;
+  header.destination_connection_id = TestConnectionId(1);
+  QuicFramer::AppendSconeHeader(header, &writer);
+  auto packet = std::make_unique<QuicReceivedPacket>(buffer, sizeof(buffer),
+                                                     QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, SendVersionNegotiationPacket).Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, *packet);
 }
 
 TEST_P(QuicDispatcherTestOneVersion,

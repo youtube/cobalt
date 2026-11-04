@@ -75,6 +75,13 @@ def main():
   build_targets = ["webgpu_headers_gen", "dawn_proc", "dawn_native"]
   depfile_path = args.depfile_path
 
+  # On Windows, Debug build has CRT compatibility issues with Skia (MTd vs MT).
+  # Use RelWithDebInfo instead to keep MT, with optimization flags overridden below.
+  if args.build_type == "Debug" and target_os == "Windows":
+    cmake_build_type = "RelWithDebInfo"
+  else:
+    cmake_build_type = args.build_type
+
   script_dir = os.path.dirname(os.path.realpath(__file__))
 
   dawn_dir = os.path.join(script_dir, "..", "externals", "dawn")
@@ -93,7 +100,7 @@ def main():
       f"-DCMAKE_SYSTEM_NAME={target_os}",
       f"-DCMAKE_SYSTEM_PROCESSOR={target_cpu}",
       "-DDAWN_BUILD_MONOLITHIC_LIBRARY=OFF",
-      f"-DCMAKE_BUILD_TYPE={args.build_type}",
+      f"-DCMAKE_BUILD_TYPE={cmake_build_type}",
       # Explicitly set the C++ standard to avoid issues with CMake's feature
       # detection for Clang on Windows.
       "-DCMAKE_CXX_STANDARD=20",
@@ -127,6 +134,14 @@ def main():
 
     # The D3D backend requires the HLSL writer.
     configure_cmd.append("-DTINT_BUILD_HLSL_WRITER=ON")
+
+    if args.build_type == "Debug":
+      # Override RelWithDebInfo defaults to be unoptimized and debuggable.
+      # /DNDEBUG is intentionally omitted so Dawn's debug assertions stay active.
+      # CRT stays MT (no MTd/MT mismatch) because the build type is RelWithDebInfo.
+      configure_cmd.append("-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/Od /Ob0 /Zi")
+      configure_cmd.append("-DCMAKE_C_FLAGS_RELWITHDEBINFO=/Od /Ob0 /Zi")
+      configure_cmd.append("-DDAWN_ALWAYS_ASSERT=ON")
   else:
     configure_cmd.append("-DTINT_BUILD_HLSL_WRITER=OFF")
     cxx_flags.append("-w") # Silence warnings

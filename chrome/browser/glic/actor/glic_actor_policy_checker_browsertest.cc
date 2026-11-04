@@ -13,11 +13,9 @@
 #include "base/test/test_future.h"
 #include "base/version.h"
 #include "base/version_info/version_info.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_test_util.h"
-#include "chrome/browser/actor/actor_util.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_request.h"
@@ -38,10 +36,11 @@
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/actor/core/actor_features.h"
+#include "components/actor/core/actor_util.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
@@ -52,6 +51,7 @@
 #include "components/signin/public/base/gaia_id_hash.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/account_managed_status_finder.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/test/browser_test.h"
@@ -782,11 +782,13 @@ IN_PROC_BROWSER_TEST_F(
     GlicActorPolicyCheckerBrowserTestManagedWithBulkDataSupport,
     ValidateContentAllowedWhenPolicyDisabled) {
   // Disabled by default since no enterprise connector policy is set.
-  base::test::TestFuture<GlicActorPolicyChecker::ValidationReason> future;
+  base::test::TestFuture<GlicActorPolicyChecker::ContentValidationReason>
+      future;
   GetPolicyChecker().ValidateContentSentToRenderer(
       web_contents()->GetPrimaryMainFrame(), "test content",
       future.GetCallback());
-  EXPECT_EQ(future.Get(), GlicActorPolicyChecker::ValidationReason::kAllowed);
+  EXPECT_EQ(future.Get(),
+            GlicActorPolicyChecker::ContentValidationReason::kAllowed);
 }
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
@@ -828,7 +830,8 @@ IN_PROC_BROWSER_TEST_F(
           &enterprise_connectors::test::FakeContentAnalysisDelegate::Create,
           base::DoNothing(), status_callback, "fake_dm_token"));
 
-  base::test::TestFuture<GlicActorPolicyChecker::ValidationReason> future;
+  base::test::TestFuture<GlicActorPolicyChecker::ContentValidationReason>
+      future;
 
   // Content size set to be above minimum scan data size threshold.
   GetPolicyChecker().ValidateContentSentToRenderer(
@@ -836,7 +839,8 @@ IN_PROC_BROWSER_TEST_F(
       future.GetCallback());
 
   // Block rule on all urls triggered.
-  EXPECT_EQ(future.Get(), GlicActorPolicyChecker::ValidationReason::kBlocked);
+  EXPECT_EQ(future.Get(),
+            GlicActorPolicyChecker::ContentValidationReason::kBlocked);
 }
 #endif
 

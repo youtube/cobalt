@@ -184,7 +184,7 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaProvider);
 // Optimizes event firing by only emitting events when at least one listener is
 // subscribed. Killswitch to turn it off in case this work has negative
 // side-effects on assistive technologies.
-// TODO(https://crbug.com/402375302): Remove in M139.
+// TODO(https://crbug.com/402375302): Remove in M155.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaEventOptimization);
 
 // Enables MathML support in Windows UI Automation (UIA) implementation by
@@ -346,11 +346,6 @@ AX_BASE_EXPORT bool IsReadAnythingDocsLoadMoreButtonEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingWithReadability);
 AX_BASE_EXPORT bool IsReadAnythingWithReadabilityEnabled();
 
-// Enable links when the Readability distillation source for Reading Mode.
-// Intended for safer rolling out of the Readability flag.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingWithReadabilityAllowLinks);
-AX_BASE_EXPORT bool IsReadAnythingWithReadabilityAllowLinksEnabled();
-
 // Write some ScreenAI library debug data in /tmp.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kScreenAIDebugMode);
 AX_BASE_EXPORT bool IsScreenAIDebugModeEnabled();
@@ -389,8 +384,13 @@ AX_BASE_EXPORT bool IsMacAccessibilityOptimizeChildrenChangedEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityRemoteUIApp);
 AX_BASE_EXPORT bool IsAccessibilityRemoteUIAppEnabled();
 
+// TODO (crbug.com/380927771). Remove this flag once VoiceOver has incorporated
+// the name change event.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kBlockRootWindowAccessibleNameChangeEvent);
 AX_BASE_EXPORT bool IsBlockRootWindowAccessibleNameChangeEventEnabled();
+
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kMacAccessibilityTextOperation);
+AX_BASE_EXPORT bool IsMacAccessibilityTextOperationEnabled();
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

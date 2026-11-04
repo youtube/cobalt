@@ -293,6 +293,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2251809247798634662">새 시크릿 창</translation>
 <translation id="2253927598983295051"><ph name="APP_NAME" />님과 공유할 항목을 선택하세요</translation>
 <translation id="2261570557291037252">앱 정보 더보기</translation>
+<translation id="2270544918551255912">돌아가려면 끝에서 스와이프하세요</translation>
 <translation id="2276696007612801991">비밀번호를 확인하려면 Google 계정에 로그인하세요.</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, 선택된 시크릿 탭</translation>
 <translation id="2286841657746966508">청구서 수신 주소</translation>
@@ -480,6 +481,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2989523299700148168">최근 방문</translation>
 <translation id="2992473221983447149">이미지 설명</translation>
 <translation id="2996291259634659425">암호 만들기</translation>
+<translation id="2996682533106928201">닫으려면 탭하세요</translation>
 <translation id="2996809686854298943">URL이 필요합니다.</translation>
 <translation id="3024215143424744261">읽기 모드 환경설정 닫힘</translation>
 <translation id="3026955690410463085">링크 포함</translation>
@@ -640,6 +642,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3739455665973395693">Google 계정에 유출된 비밀번호 없음</translation>
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> 북마크에 추가됨</translation>
 <translation id="3740525748616366977">이 기기에서는 음성 검색을 사용할 수 없습니다.</translation>
+<translation id="3763110477555836428">이 카드로 결제하면 실제 정보를 보호하기 위해 가상 카드 번호가 입력됩니다. Google 월렛에서 관리하세요. <ph name="BEGIN_LINK1" />가상 카드에 대해 자세히 알아보기<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">일부 데이터가 아직 저장되지 않음</translation>
 <translation id="3770620323585347665">창 이름 지정</translation>
 <translation id="3771033907050503522">시크릿 탭</translation>
@@ -683,6 +686,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">지난 4주</translation>
 <translation id="393697183122708255">사용 가능한 음성 검색이 없습니다.</translation>
+<translation id="3941718885865495207">Chrome Finds 선택 하단 시트</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, 고정된 PIP 모드 탭</translation>
 <translation id="3950820424414687140">로그인</translation>
 <translation id="395377504920307820">계정 없이 사용</translation>
@@ -784,7 +788,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4326079409704643112">Google 계정에서 Chrome 데이터를 사용하고 저장하려면 본인 인증 절차를 거치세요</translation>
 <translation id="433213510553688132">팔로우 중...</translation>
 <translation id="4335835283689002019">세이프 브라우징 사용 안함</translation>
-<translation id="4343250402091037179">특정 사이트 또는 Chrome의 일부를 검색하려면 주소 표시줄에 바로가기를 입력한 다음 원하는 단축키를 누르세요.</translation>
+<translation id="4343250402091037179">특정 사이트 또는 Chrome의 일부를 검색하려면 주소 표시줄에 바로가기를 입력한 다음 원하는 키보드 단축키를 누르세요.</translation>
 <translation id="4351244548802238354">대화상자 닫기</translation>
 <translation id="4352287748243729941"><ph name="PROVIDER" /> 비밀번호를 사용하시겠습니까?</translation>
 <translation id="4355272626458588338">중요한 페이지를 북마크에 추가하여 다시 돌아갈 수 있습니다.</translation>
@@ -829,6 +833,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4521489764227272523">선택한 데이터가 Chrome 및 동기화된 기기에서 삭제되었습니다.
 
 <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />에서 검색이나 기타 Google 서비스에서의 활동 등 내 Google 계정에 있는 다른 형식의 탐색 기록을 확인할 수 있습니다.</translation>
+<translation id="4521637321901000942">툴바에서 확장 프로그램 관리</translation>
 <translation id="4523326818319942067">지난 1시간</translation>
 <translation id="452750746583162491">동기화된 데이터 검토</translation>
 <translation id="4532845899244822526">폴더 선택</translation>
@@ -1188,6 +1193,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6011308810877101166">추천 검색어 개선</translation>
 <translation id="6013305291643746595">오래된 항목순으로 정렬</translation>
 <translation id="6022659036123304283">나만의 Chrome 만들기</translation>
+<translation id="6023820583797130428">메뉴를 열어 뒤로 이동하기</translation>
 <translation id="6026538407078977628">전체 화면으로 확장</translation>
 <translation id="6030719887161080597">사이트에서 광고 실적을 측정하는 데 사용하는 정보 관리</translation>
 <translation id="6039379616847168523">다음 탭으로 이동</translation>
@@ -1240,7 +1246,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6202812185118613467">동기화를 시작하려면 다시 로그인하세요.</translation>
 <translation id="6204781143409202534">Chrome에서 <ph name="DOMAIN" />의 스팸 가능성이 감지되었습니다.</translation>
 <translation id="6205314730813004066">광고 개인 정보 보호</translation>
-<translation id="6210282067670792090">주소 표시줄에 검색엔진 및 사이트 검색의 바로가기를 입력하고 단축키를 누르세요.</translation>
+<translation id="6210282067670792090">주소 표시줄에 검색엔진 및 사이트 검색의 바로가기를 입력하고 키보드 단축키를 누르세요.</translation>
 <translation id="6210748933810148297"><ph name="EMAIL" />이(가) 아닌가요?</translation>
 <translation id="6211386937064921208">페이지 미리보기입니다.</translation>
 <translation id="6212567362666004597">그룹에 탭 추가</translation>
@@ -1533,7 +1539,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7196215469483532480">개인 정보 보호 가이드 설명이 전체 높이로 열림</translation>
 <translation id="7196455519852483601">방문 기록, 쿠키, 사이트 데이터 등을 일부 또는 모두 삭제할 수 있습니다</translation>
 <translation id="7197682514647286393">인터넷 사용 기록을 빠르게 삭제</translation>
-<translation id="719791532916917144">단축키</translation>
+<translation id="719791532916917144">키보드 단축키</translation>
 <translation id="7207760545532569765">탭 <ph name="TAB_COUNT" />개를 새 백그라운드 탭으로 복원합니다.</translation>
 <translation id="7217781228893594884">Chrome을 종료하면 시크릿 탭이 잠깁니다.</translation>
 <translation id="7221869452894271364">페이지 새로고침</translation>
@@ -1577,7 +1583,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7376560087009844242">페이지 텍스트를 더 많이 포함하면 터치하여 검색 기능을 사용할 때 더 나은 검색결과를 확인할 수 있습니다. 이를 변경하려면 언제든지 <ph name="BEGIN_LINK" />설정<ph name="END_LINK" />을 방문하세요.</translation>
 <translation id="7379900596734708416">사이트에 어두운 테마 적용 가능</translation>
 <translation id="7384486627147155832">팁 알림 프로모션이 절반 높이로 열림</translation>
-<translation id="7387951778417998929">기본 검색엔진이 아닌 다른 검색엔진을 사용하려면 주소 표시줄에 사용할 검색엔진의 바로가기를 입력한 다음 원하는 단축키를 누르세요. 여기에서 기본 검색엔진을 변경할 수도 있습니다.</translation>
+<translation id="7387951778417998929">기본 검색엔진이 아닌 다른 검색엔진을 사용하려면 주소 표시줄에 사용할 검색엔진의 바로가기를 입력한 다음 원하는 키보드 단축키를 누르세요. 여기에서 기본 검색엔진을 변경할 수도 있습니다.</translation>
 <translation id="7388615499319468910">사이트 및 광고주가 광고 실적을 파악할 수 있습니다. 설정이 사용 중지되어 있습니다.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{목록에 있는 기타 파일 1개}other{목록에 있는 기타 파일 #개}}</translation>
 <translation id="7400418766976504921">URL</translation>
@@ -1632,6 +1638,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{일반 탭 <ph name="TABS_COUNT_ONE" />개}other{일반 탭 <ph name="TABS_COUNT_MANY" />개}}</translation>
 <translation id="7603168929588204083">날짜가 잘못되었습니다.</translation>
 <translation id="7605594153474022051">동기화가 작동하지 않음</translation>
+<translation id="7608245556672190037">Chrome Finds 선택이 전체 높이로 열림</translation>
 <translation id="7612619742409846846">다음 계정으로 Google에 로그인함:</translation>
 <translation id="7612989789287281429">로그인하는 중…</translation>
 <translation id="7619072057915878432">네트워크에 문제가 발생하여 <ph name="FILE_NAME" />을(를) 다운로드할 수 없습니다.</translation>
@@ -1639,6 +1646,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7628417132421583481">비밀번호 관리자로 이동</translation>
 <translation id="7630202231528827509">제공업체 URL</translation>
 <translation id="7638584964844754484">암호가 잘못되었습니다.</translation>
+<translation id="764047009170754705">Chrome Finds 선택 닫힘</translation>
 <translation id="7646499124171960488">안전하지 않은 공개 사이트에 대해 경고 표시</translation>
 <translation id="7646772052135772216">비밀번호 동기화가 작동하지 않음</translation>
 <translation id="7655240423373329753">지난 7일</translation>
@@ -1863,6 +1871,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8473863474539038330">주소 및 기타</translation>
 <translation id="847433688444405067">여러 기기에서 탐색하기</translation>
 <translation id="8477178913400731244">데이터 삭제</translation>
+<translation id="8481771036036087705">Chrome Finds 선택이 절반 높이로 열림</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">비활성 창 없음</translation>
 <translation id="8493948351860045254">저장 공간 확보하기</translation>

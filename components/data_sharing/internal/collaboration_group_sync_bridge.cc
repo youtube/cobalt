@@ -15,7 +15,6 @@
 #include "base/sequence_checker.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/model/data_type_sync_bridge.h"
-#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
 #include "components/sync/protocol/collaboration_group_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -49,11 +48,6 @@ CollaborationGroupSyncBridge::~CollaborationGroupSyncBridge() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-CollaborationGroupSyncBridge::CreateMetadataChangeList() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return std::make_unique<syncer::InMemoryMetadataChangeList>();
-}
 
 std::optional<syncer::ModelError>
 CollaborationGroupSyncBridge::MergeFullSyncData(
@@ -177,7 +171,8 @@ void CollaborationGroupSyncBridge::ApplyDisableSyncChanges(
 
   const std::vector<GroupId> group_ids_to_delete = GetCollaborationGroupIds();
   ids_to_specifics_.clear();
-  data_type_store_->DeleteAllDataAndMetadata(base::DoNothing());
+  data_type_store_->DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list), base::DoNothing());
   weak_ptr_factory_.InvalidateWeakPtrs();
 
   for (auto& observer : observers_) {

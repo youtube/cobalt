@@ -762,6 +762,13 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ frsp(result, input);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -780,15 +787,20 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ fcmpu(temp, temp2);
     Label done;
     __ JumpIf(ne, &done, Label::kNear);
+    // Copy the sign bit from `out` which carries the sign bit from the original
+    // input.
+    __ fmr(temp, out);
     __ fadd(out, temp2, out);
     __ fadd(out, temp2, out);
     // Add fcpsgn make sure -0.5 rounds to -0.0 instead of 0.0
-    __ fcpsgn(out, in, out);
+    __ fcpsgn(out, temp, out);
     __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ frip(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ frim(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ friz(out, in);
   }
 }
 

@@ -51,6 +51,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -1484,7 +1485,8 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
   visitor_->OnPacket();
 
   QuicPacketHeader header;
-  if (!ProcessIetfPacketHeader(&reader, &header)) {
+  std::optional<uint8_t> scone_value;
+  if (!ProcessIetfPacketHeader(&reader, &header, scone_value)) {
     QUICHE_DCHECK_NE("", detailed_error_);
     QUIC_DVLOG(1) << ENDPOINT << "Unable to process public header. Error: "
                   << detailed_error_;
@@ -1492,7 +1494,6 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
     RecordDroppedPacketReason(DroppedPacketReason::INVALID_PUBLIC_HEADER);
     return RaiseError(QUIC_INVALID_PACKET_HEADER);
   }
-
   if (!visitor_->OnUnauthenticatedPublicHeader(header)) {
     // The visitor suppresses further processing of the packet.
     return true;
@@ -1507,6 +1508,13 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
       set_detailed_error("Server received version negotiation packet.");
       return RaiseError(QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
     }
+  }
+  if (scone_value.has_value()) {
+    QUICHE_DCHECK(parse_scone_packets_);
+    visitor_->OnSconePacket(*scone_value);
+    header.remaining_packet_length = 0;
+    MaybeProcessCoalescedPacket(reader, reader.BytesRemaining(), header);
+    return true;
   }
 
   if (header.version_flag && header.version != version_) {
@@ -1664,7 +1672,9 @@ void QuicFramer::MaybeProcessCoalescedPacket(
   QuicDataReader coalesced_reader(coalesced_data, coalesced_data_length);
 
   QuicPacketHeader coalesced_header;
-  if (!ProcessIetfPacketHeader(&coalesced_reader, &coalesced_header)) {
+  std::optional<uint8_t> scone_value;
+  if (!ProcessIetfPacketHeader(&coalesced_reader, &coalesced_header,
+                               scone_value)) {
     // Some implementations pad their INITIAL packets by sending random invalid
     // data after the INITIAL, and that is allowed by the specification. If we
     // fail to parse a subsequent coalesced packet, simply ignore it.
@@ -1677,7 +1687,6 @@ void QuicFramer::MaybeProcessCoalescedPacket(
                     << " previous header was " << header;
     return;
   }
-
   if (coalesced_header.destination_connection_id !=
       header.destination_connection_id) {
     // Drop coalesced packets with mismatched connection IDs.
@@ -1691,6 +1700,13 @@ void QuicFramer::MaybeProcessCoalescedPacket(
   QuicEncryptedPacket coalesced_packet(coalesced_data, coalesced_data_length,
                                        /*owns_buffer=*/false);
   visitor_->OnCoalescedPacket(coalesced_packet);
+  if (scone_value.has_value()) {
+    QUICHE_DCHECK(parse_scone_packets_);
+    // Keep parsing, but do not report the new value.
+    coalesced_header.remaining_packet_length = 0;
+    MaybeProcessCoalescedPacket(
+        coalesced_reader, coalesced_reader.BytesRemaining(), coalesced_header);
+  }
 }
 
 bool QuicFramer::MaybeProcessIetfLength(QuicDataReader* encrypted_reader,
@@ -1993,6 +2009,38 @@ EncryptionLevel QuicFramer::GetEncryptionLevelToSendApplicationData() const {
   }
   QUICHE_DCHECK(HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT));
   return ENCRYPTION_ZERO_RTT;
+}
+
+// Appends the SCONE header from
+// https://www.ietf.org/archive/id/draft-ietf-scone-protocol-04.html
+// static
+bool QuicFramer::AppendSconeHeader(const QuicPacketHeader& header,
+                                   QuicDataWriter* writer) {
+  // The most significant bit (0x80) of the packet indicates that this is a QUIC
+  // long header packet. The subsequent bits (0x7F) indicate unknown throughput
+  // advice as specified by the "high rate signal" QUIC version.
+  QUICHE_DCHECK_EQ(writer->length(), 0ULL);
+  if (!writer->WriteUInt8(255)) {
+    return false;
+  }
+  if (!writer->WriteUInt32(kSconeVersionHigh)) {
+    return false;
+  }
+  if (!writer->WriteLengthPrefixedConnectionId(
+          header.destination_connection_id)) {
+    return false;
+  }
+  if (header.version_flag) {
+    if (!writer->WriteLengthPrefixedConnectionId(header.source_connection_id)) {
+      return false;
+    }
+  } else {
+    // If a short header follows, don't write the source connection ID.
+    if (!writer->WriteLengthPrefixedConnectionId(EmptyQuicConnectionId())) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
@@ -2394,7 +2442,8 @@ bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
 }
 
 bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
-                                         QuicPacketHeader* header) {
+                                         QuicPacketHeader* header,
+                                         std::optional<uint8_t>& scone_value) {
   if (version_.IsIetfQuic()) {
     uint8_t expected_destination_connection_id_length =
         perspective_ == Perspective::IS_CLIENT
@@ -2415,6 +2464,14 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     if (parse_result != QUIC_NO_ERROR) {
       set_detailed_error(detailed_error);
       return false;
+    }
+    scone_value.reset();
+    if (parse_scone_packets_ && (version_label == kSconeVersionHigh ||
+                                 version_label == kSconeVersionLow)) {
+      scone_value = (header->type_byte & 0x3f) << 1;
+      if (version_label == kSconeVersionHigh) {
+        *scone_value |= 0x01;
+      }
     }
     header->destination_connection_id =
         QuicConnectionId(destination_connection_id);
@@ -6808,6 +6865,8 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
 
   if (!parsed_version->IsKnown()) {
     // Skip parsing of long packet type and retry token for unknown versions.
+    // Scone packets, whether or not they are being processed, also are not
+    // parseable beyond the connection ID.
     return QUIC_NO_ERROR;
   }
 

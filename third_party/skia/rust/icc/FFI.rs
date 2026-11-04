@@ -415,14 +415,21 @@ fn a2b_to_b2a(a2b: ffi::A2B) -> ffi::B2A {
     }
 }
 
-/// Convert LutStore grid data to bytes.
-/// Returns (grid_data, is_16bit_grid).
+/// Converts LutStore grid data to bytes with suffix padding for skcms gather safety.
 fn convert_grid_data(clut: &moxcms::LutStore) -> (Vec<u8>, bool) {
     use moxcms::LutStore;
-    match clut {
+    let (mut grid_data, is_16bit_grid) = match clut {
         LutStore::Store8(data) => (data.clone(), false),
         LutStore::Store16(data) => (u16_vec_to_bytes(data), true),
-    }
+    };
+
+    // Padded to a 4-byte boundary per ICC.1:2022 §7.1.2(c): "all tagged element
+    // data [...] shall be padded by no more than three following pad bytes to
+    // reach a 4-byte boundary".
+    // Spec: https://www.color.org/specification/ICC.1-2022-05.pdf
+    grid_data.resize(grid_data.len().next_multiple_of(4), 0);
+
+    (grid_data, is_16bit_grid)
 }
 
 /// Apply encoding factor to matrix and bias for PCS XYZ conversion.

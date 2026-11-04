@@ -517,6 +517,11 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.immersive_mode_enabled;
   }
 
+  static bool immersive_video_playback_enabled(
+      const blink::web_pref::WebPreferences& r) {
+    return r.immersive_video_playback_enabled;
+  }
+
   static bool double_tap_to_zoom_enabled(
       const blink::web_pref::WebPreferences& r) {
     return r.double_tap_to_zoom_enabled;
@@ -531,8 +536,17 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.text_autosizing_enabled;
   }
 
+  static bool text_size_adjust_enabled(
+      const blink::web_pref::WebPreferences& r) {
+    return r.text_size_adjust_enabled;
+  }
+
   static const GURL& web_app_scope(const ::blink::web_pref::WebPreferences& r) {
     return r.web_app_scope;
+  }
+
+  static bool is_initial_profile(const ::blink::web_pref::WebPreferences& r) {
+    return r.is_initial_profile;
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -850,6 +864,10 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.should_disable_external_popups;
   }
 #endif  // BUILDFLAG(IS_MAC)
+
+  static bool is_indigo_onboarding(const blink::web_pref::WebPreferences& r) {
+    return r.is_indigo_onboarding;
+  }
 
   static bool Read(blink::mojom::WebPreferencesDataView r,
                    blink::web_pref::WebPreferences* out);

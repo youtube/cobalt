@@ -71,7 +71,7 @@ public class RtpCapabilities {
     }
 
     @CalledByNative("CodecCapability")
-    Map getParameters() {
+    Map<String, String> getParameters() {
       return parameters;
     }
   }

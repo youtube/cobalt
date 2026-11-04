@@ -47,6 +47,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/frame_accept_header.h"
+#include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/prefetch_request_status_listener.h"
 #include "content/public/browser/preload_pipeline_info.h"
 #include "content/public/browser/preloading.h"
@@ -401,11 +402,6 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
 
   void SetUp() override {
     PrefetchingMetricsTestBase::SetUp();
-
-    browser_context()
-        ->GetDefaultStoragePartition()
-        ->GetNetworkContext()
-        ->GetCookieManager(cookie_manager_.BindNewPipeAndPassReceiver());
 
     InitScopedFeatureList();
 
@@ -815,34 +811,6 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     CompleteResponseAndWait(net_error, expected_total_body_size, request);
   }
 
-  bool SetCookie(const GURL& url, const std::string& value) {
-    std::unique_ptr<net::CanonicalCookie> cookie(
-        net::CanonicalCookie::CreateForTesting(url, value, base::Time::Now(),
-                                               net::CookieSourceType::kOther));
-
-    EXPECT_TRUE(cookie.get());
-
-    bool result = false;
-    base::RunLoop run_loop;
-
-    net::CookieOptions options;
-    options.set_include_httponly();
-    options.set_same_site_cookie_context(
-        net::CookieOptions::SameSiteCookieContext::MakeInclusive());
-
-    cookie_manager_->SetCanonicalCookie(
-        *cookie.get(), url, options,
-        base::BindOnce(
-            [](bool* result, base::RunLoop* run_loop,
-               net::CookieAccessResult set_cookie_access_result) {
-              *result = set_cookie_access_result.status.IsInclude();
-              run_loop->Quit();
-            },
-            &result, &run_loop));
-    run_loop.Run();
-    return result;
-  }
-
   void Navigate(
       const GURL& url,
       int initiator_process_id,
@@ -1239,7 +1207,6 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
   base::ScopedMockElapsedTimersForTest scoped_test_timer_;
 
   std::unique_ptr<PrefetchFakeServiceWorkerContext> service_worker_context_;
-  mojo::Remote<network::mojom::CookieManager> cookie_manager_;
 
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory>
@@ -1282,7 +1249,10 @@ class PrefetchServicePrePrefetchTest : public PrefetchServiceTest {
  public:
   void SetUp() override {
     PrefetchServiceTest::SetUp();
-    pre_prefetch_service_ = PrePrefetchService::Create(browser_context());
+    pre_prefetch_service_ = PrePrefetchService::Create(
+        browser_context(), url::Origin::Create(GURL("https://example.com")),
+        /*initial_javascript_enabled_hint=*/true,
+        /*initial_should_append_variations_header_hint=*/false);
     PrePrefetchServiceImpl::SetURLLoaderFactoryForTesting(
         test_shared_url_loader_factory_.get());
   }
@@ -1315,7 +1285,7 @@ class PrefetchServicePrePrefetchTest : public PrefetchServiceTest {
                   url, test::kPreloadingEmbedderHistgramSuffixForTesting,
                   /*javascript_enabled=*/true,
                   /*no_vary_search_hint=*/std::nullopt,
-                  /*priority=*/std::nullopt,
+                  /*priority=*/PrefetchPriority::kHighest,
                   /*additional_headers=*/{},
                   /*request_status_listener=*/nullptr, base::TimeDelta(),
                   /*should_append_variations_header=*/false,

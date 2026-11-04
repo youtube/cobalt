@@ -8,11 +8,10 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_DEFAULT_CLIENT_H_
 #define QUICHE_QUIC_TOOLS_QUIC_DEFAULT_CLIENT_H_
 
-#include <cstdint>
 #include <memory>
-#include <string>
 
-#include "absl/container/flat_hash_map.h"
+#include "quiche/quic/core/http/quic_connection_migration_manager.h"
+#include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -23,7 +22,6 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
-#include "quiche/quic/tools/quic_simple_client_session.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 
 namespace quic {
@@ -138,6 +136,13 @@ class QuicDefaultClient : public QuicSpdyClientBase {
  protected:
   // Called during Initialize() to create the migration helper.
   virtual std::unique_ptr<QuicMigrationHelper> CreateQuicMigrationHelper();
+
+  QuicMigrationHelper* migration_helper() const {
+    return migration_helper_.get();
+  }
+  const QuicConnectionMigrationConfig& migration_config() const {
+    return migration_config_;
+  }
 
  private:
   std::unique_ptr<QuicMigrationHelper> migration_helper_;

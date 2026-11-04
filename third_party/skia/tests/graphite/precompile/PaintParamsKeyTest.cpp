@@ -299,6 +299,7 @@ void extract_vs_build_subtest(skiatest::Reporter* reporter,
                                     coverage,
                                     TextureFormat::kRGBA8};
         paramsGatherer.resetForDraw();
+        precompileKeyContext.paintParamsKeyBuilder()->resetForDraw();
         KeyContext keyContext(recorder,
                               drawContext,
                               precompileKeyContext.floatStorageManager(),

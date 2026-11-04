@@ -87,8 +87,7 @@ std::string TimingFrameInfo::ToString() const {
     return "";
   }
 
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
 
   sb << rtp_timestamp << ',' << capture_time_ms << ',' << encode_start_ms << ','
      << encode_finish_ms << ',' << packetization_finish_ms << ','
@@ -98,7 +97,7 @@ std::string TimingFrameInfo::ToString() const {
      << ',' << render_time_ms << ',' << IsOutlier() << ','
      << IsTimerTriggered();
 
-  return sb.str();
+  return sb.Release();
 }
 
 VideoPlayoutDelay::VideoPlayoutDelay(TimeDelta min, TimeDelta max)

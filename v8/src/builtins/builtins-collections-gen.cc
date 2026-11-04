@@ -868,10 +868,10 @@ void CollectionsBuiltinsAssembler::BranchIfMapIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   TNode<PropertyCell> protector_cell = MapIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->map_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 void CollectionsBuiltinsAssembler::
@@ -927,10 +927,10 @@ void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   const TNode<PropertyCell> protector_cell = SetIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->set_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
@@ -2836,7 +2836,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForInsertion(
     TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> capacity) {
   // See HashTable::FindInsertionEntry().
   auto is_not_live = [&](TNode<Object> entry_key, Label* if_found) {
-    // This is the the negative form BaseShape::IsLive().
+    // This is the negative form of BaseShape::IsLive().
     GotoIf(Word32Or(IsTheHole(entry_key), IsUndefined(entry_key)), if_found);
   };
   return FindKeyIndex(table, key_hash, capacity, is_not_live);

@@ -585,8 +585,7 @@ RTCError AssignCodecIdsAndLinkRed(PayloadTypeSuggester* pt_suggester,
       if (codec.type == Codec::Type::kAudio &&
           absl::EqualsIgnoreCase(codec.name, kRedCodecName)) {
         if (codec.params.empty()) {
-          char buffer[100];
-          SimpleStringBuilder param(buffer);
+          StringBuilder param;
           param << codec_payload_type << "/" << codec_payload_type;
           codec.SetParam(kCodecParamNotInNameValueFormat, param.str());
         }

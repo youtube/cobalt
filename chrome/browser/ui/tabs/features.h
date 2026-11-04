@@ -26,7 +26,6 @@ BASE_DECLARE_FEATURE(kVerticalTabs);
 // This will be used for the full launch of Vertical Tabs with an updated min
 // version.
 BASE_DECLARE_FEATURE(kVerticalTabsLaunch);
-
 BASE_DECLARE_FEATURE_PARAM(bool, kVerticalTabsToggleInTabContextMenu);
 
 BASE_DECLARE_FEATURE(kVerticalTabsPreviewBadge);
@@ -34,18 +33,24 @@ BASE_DECLARE_FEATURE(kVerticalTabsPreviewBadge);
 BASE_DECLARE_FEATURE(kVerticalTabsNewBadge);
 
 BASE_DECLARE_FEATURE(kVerticalTabsExpandOnHover);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kVerticalTabsExpandOnHoverDelay);
+// If this value is 0, no click delay is applied.
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kVerticalTabsExpandOnHoverClickDelay);
+BASE_DECLARE_FEATURE_PARAM(bool, kVerticalTabsExpandOnHoverDefaultEnabled);
 
 BASE_DECLARE_FEATURE(kTabSelectionByPointer);
 
 BASE_DECLARE_FEATURE(kBackToOpener);
 
 BASE_DECLARE_FEATURE(kHorizontalTabStripComboButton);
-extern const base::FeatureParam<bool>
-    kHorizontalTabStripComboButtonShowStartOnly;
+BASE_DECLARE_FEATURE_PARAM(bool, kHorizontalTabStripComboButtonShowStartOnly);
 
 bool IsVerticalTabsFeatureEnabled();
 
 bool IsVerticalTabsExpandOnHoverFeatureEnabled();
+
+bool IsExpandOnHoverClickDelayEnabled();
 
 }  // namespace tabs
 

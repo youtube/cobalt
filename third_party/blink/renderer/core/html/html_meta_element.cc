@@ -568,10 +568,6 @@ void HTMLMetaElement::NameRemoved(const AtomicString& name_value) {
   } else if (RuntimeEnabledFeatures::AppTitleEnabled(GetExecutionContext()) &&
              EqualIgnoringAsciiCase(name_value, "application-title")) {
     GetDocument().UpdateApplicationTitle();
-  } else if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
-             EqualIgnoringAsciiCase(name_value,
-                                    keywords::kResponsiveEmbeddedSizing)) {
-    GetDocument().ResponsiveEmbeddedSizingChanged();
   } else if (EqualIgnoringAsciiCase(name_value, "text-scale")) {
     GetDocument().TextScaleMetaChanged();
   }
@@ -615,6 +611,10 @@ void HTMLMetaElement::RemovedFrom(ContainerNode& insertion_point) {
     NameRemoved(name_value);
 }
 
+// True if the `element` is in `<head>`.
+// The `element` should be created by parser.
+// Scripts can create `<head>` elements that are not real document head, and
+// that this function may return incorrect `true`.
 static bool InDocumentHead(HTMLMetaElement* element) {
   if (!element->isConnected())
     return false;
@@ -689,7 +689,8 @@ void HTMLMetaElement::ProcessContent() {
     return;
 
   if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
-      EqualIgnoringAsciiCase(name_value, keywords::kResponsiveEmbeddedSizing)) {
+      EqualIgnoringAsciiCase(name_value, keywords::kResponsiveEmbeddedSizing) &&
+      is_sync_parser_ && InDocumentHead(this)) {
     GetDocument().SetResponsiveEmbeddedSizing();
   }
 

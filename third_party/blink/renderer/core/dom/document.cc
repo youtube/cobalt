@@ -78,7 +78,6 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
-#include "third_party/blink/public/web/web_link_preview_triggerer.h"
 #include "third_party/blink/public/web/web_print_page_description.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/frozen_array.h"
@@ -5690,25 +5689,7 @@ void Document::DynamicViewportUnitsChanged() {
 using InclusiveAncestorsForActiveOrHover =
     TraversalRange<TraversalIterator<UserActionElementTraversal>>;
 
-void EmitDidChangeHoverElement(Document& document, Element* new_hover_element) {
-  LocalFrame* local_frame = document.GetFrame();
-  if (!local_frame) {
-    return;
-  }
-
-  WebLinkPreviewTriggerer* triggerer =
-      local_frame->GetOrCreateLinkPreviewTriggerer();
-  if (!triggerer) {
-    return;
-  }
-
-  WebElement web_element = WebElement(DynamicTo<Element>(new_hover_element));
-  triggerer->DidChangeHoverElement(web_element);
-}
-
 void Document::SetHoverElement(Element* new_hover_element) {
-  EmitDidChangeHoverElement(*this, new_hover_element);
-
   hover_element_ = new_hover_element;
 }
 
@@ -6252,25 +6233,12 @@ Element* Document::SequentialFocusNavigationStartingPoint(
   return nullptr;
 }
 
-void Document::SetSelectorFragmentAnchorCSSTarget(Element* new_target) {
-  SetCSSTarget(new_target);
-  if (css_target_) {
-    css_target_is_selector_fragment_ = true;
-    css_target_->PseudoStateChanged(CSSSelector::kPseudoSelectorFragmentAnchor);
-  }
-}
-
 void Document::SetCSSTarget(Element* new_target) {
   if (css_target_) {
     css_target_->PseudoStateChanged(CSSSelector::kPseudoTarget);
-    if (css_target_is_selector_fragment_) {
-      css_target_->PseudoStateChanged(
-          CSSSelector::kPseudoSelectorFragmentAnchor);
-    }
     css_target_->ClearTargetedSnapAreaIdsForSnapContainers();
   }
   css_target_ = new_target;
-  css_target_is_selector_fragment_ = false;
   if (css_target_) {
     css_target_->PseudoStateChanged(CSSSelector::kPseudoTarget);
     css_target_->SetTargetedSnapAreaIdsForSnapContainers();
@@ -6577,11 +6545,9 @@ void Document::EnqueueOverscrollEvent(const AtomicString& type,
                                       bool overscrolling) {
   OverscrollEventInit* init = OverscrollEventInit::Create();
   init->setOverscrollTarget(overscroll_target);
+  init->setOverscrolling(overscrolling);
   // We bubble if we're on the document.
   init->setBubbles(target->IsDocumentNode());
-  if (type == event_type_names::kOverscrollchanging) {
-    init->setOverscrolling(overscrolling);
-  }
   Event* overscroll_event = OverscrollEvent::Create(type, init);
   overscroll_event->SetTarget(target);
   scripted_animation_controller_->EnqueuePerFrameEvent(overscroll_event);
@@ -7061,11 +7027,10 @@ net::SiteForCookies Document::SiteForCookies() const {
   }
 
   const Frame* current_frame = GetFrame();
-  if (SchemeRegistry::
-          ShouldTreatURLSchemeAsFirstPartyWhenTopLevelEmbeddingSecure(
-              origin->Protocol(), current_frame->GetSecurityContext()
-                                      ->GetSecurityOrigin()
-                                      ->Protocol())) {
+  if (SchemeRegistry::ShouldTreatURLAsFirstPartyWhenTopLevelEmbeddingSecure(
+          origin.get(), current_frame->GetSecurityContext()
+                            ->GetSecurityOrigin()
+                            ->Protocol())) {
     return candidate;
   }
 
@@ -8299,20 +8264,6 @@ void Document::RequestResizeResponsiveIframe(ExceptionState* exception_state) {
   }
 }
 
-void Document::ResponsiveEmbeddedSizingChanged() {
-  DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
-  responsive_embedded_sizing_ = false;
-  if (const auto* root_element = documentElement()) {
-    for (const HTMLMetaElement& meta_element :
-         Traversal<HTMLMetaElement>::DescendantsOf(*root_element)) {
-      if (EqualIgnoringAsciiCase(meta_element.GetName(),
-                                 keywords::kResponsiveEmbeddedSizing)) {
-        responsive_embedded_sizing_ = true;
-        break;
-      }
-    }
-  }
-}
 
 bool Document::TextScaleMetaTagPresent() const {
   return RuntimeEnabledFeatures::TextScaleMetaTagEnabled() &&
@@ -9696,6 +9647,13 @@ bool Document::IsInWebAppScope() const {
 
   DCHECK_EQ(KURL(web_app_scope).GetString(), web_app_scope);
   return Url().GetString().starts_with(web_app_scope);
+}
+
+bool Document::IsInitialProfile() const {
+  if (!GetSettings()) {
+    return false;
+  }
+  return GetSettings()->GetIsInitialProfile();
 }
 
 bool Document::ChildrenCanHaveStyle() const {

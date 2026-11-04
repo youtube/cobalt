@@ -210,8 +210,8 @@ class VideoSendStream {
 
     // An optional encoder selector provided by the user.
     // Overrides VideoEncoderFactory::GetEncoderSelector().
-    // Owned by RtpSenderBase.
-    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector = nullptr;
+    scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+        encoder_selector;
 
     // Per PeerConnection cryptography options.
     CryptoOptions crypto_options;

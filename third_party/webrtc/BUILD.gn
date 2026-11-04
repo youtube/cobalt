@@ -593,7 +593,7 @@ if (!build_with_chromium) {
   }
 }
 
-if (use_libfuzzer || use_afl) {
+if (use_libfuzzer) {
   # This target is only here for gn to discover fuzzer build targets under
   # webrtc/test/fuzzers/.
   group("webrtc_fuzzers_dummy") {

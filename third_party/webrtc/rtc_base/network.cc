@@ -1167,6 +1167,7 @@ std::unique_ptr<Network> Network::Clone() const {
   clone->active_ = active_;
   clone->id_ = id_;
   clone->network_preference_ = network_preference_;
+  clone->network_slice_ = network_slice_;
   return clone;
 }
 

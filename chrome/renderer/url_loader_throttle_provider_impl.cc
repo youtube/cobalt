@@ -41,7 +41,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
-#include "chrome/common/request_header_integrity/request_header_integrity_url_loader_throttle.h"  // nogncheck crbug.com/1125897
+#include "chrome/common/request_header_integrity/request_header_integrity_url_loader_throttle.h"  // nogncheck crbug.com/40147906
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -269,16 +269,17 @@ URLLoaderThrottleProviderImpl::CreateThrottles(
             [](const blink::LocalFrameToken& token,
                const scoped_refptr<base::SequencedTaskRunner>
                    main_thread_task_runner,
-               const url::Origin& origin,
+               const std::optional<url::Origin>& initiator,
+               const url::Origin& idp_origin,
                blink::mojom::IdpSigninStatus status) {
               if (content::RenderThread::IsMainThread()) {
-                blink::SetIdpSigninStatus(token, origin, status);
+                blink::SetIdpSigninStatus(token, idp_origin, status);
                 return;
               }
               if (main_thread_task_runner) {
                 main_thread_task_runner->PostTask(
                     FROM_HERE, base::BindOnce(&blink::SetIdpSigninStatus, token,
-                                              origin, status));
+                                              idp_origin, status));
               }
             },
             local_frame_token.value(), main_thread_task_runner_));

@@ -19,7 +19,7 @@ namespace webrtc {
 namespace {
 
 template <class T>
-void ToStringIfSet(SimpleStringBuilder* result,
+void ToStringIfSet(StringBuilder* result,
                    const char* key,
                    const std::optional<T>& val) {
   if (val) {
@@ -79,8 +79,7 @@ bool AudioOptions::operator==(const AudioOptions& o) const {
 }
 
 std::string AudioOptions::ToString() const {
-  char buffer[1024];
-  SimpleStringBuilder result(buffer);
+  StringBuilder result;
   result << "AudioOptions {";
   ToStringIfSet(&result, "aec", echo_cancellation);
 #if defined(WEBRTC_IOS)
@@ -100,7 +99,7 @@ std::string AudioOptions::ToString() const {
   ToStringIfSet(&result, "audio_network_adaptor", audio_network_adaptor);
   ToStringIfSet(&result, "init_recording_on_send", init_recording_on_send);
   result << "}";
-  return result.str();
+  return result.Release();
 }
 
 }  // namespace webrtc

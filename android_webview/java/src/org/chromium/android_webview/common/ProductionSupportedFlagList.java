@@ -231,9 +231,6 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.HIT_TEST_BORDER_RADIUS_FOR_STACKING_CONTEXT,
                 "Hit testing should respect border-radius clips when creating a stacking context."),
         Flag.baseFeature(
-                BlinkFeatures.WIDTH_AND_HEIGHT_AS_PRESENTATION_ATTRIBUTES_ON_NESTED_SVG,
-                "Enables width and height as presentation attributes on nested svg."),
-        Flag.baseFeature(
                 BlinkFeatures.PAINT_OFFSET_TRANSLATION_FOR_COMPOSITED,
                 "Creates a paint offset translation for composited objects."),
         Flag.baseFeature(
@@ -267,10 +264,6 @@ public final class ProductionSupportedFlagList {
                 "Allows autofill to offer filling again on fields that were autofilled and now hold"
                         + " autocomplete=unrecognized value."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ENABLE_SUPPORT_FOR_PARSING_WITH_SHARED_LABELS,
-                "Splits Autofill labels among consecutive fields for better heuristic"
-                        + " predictions."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_FIX_FORM_EQUALITY,
                 "Fixes the semantics of Form[Field]Data::DeepEqual()"),
         Flag.baseFeature(
@@ -296,10 +289,6 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_DISALLOW_MORE_HYPHEN_LIKE_LABELS,
                 "Disallows labels that only contain em dashes, minuses, fullwidth hyphens and other"
                         + " special characters."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_DO_NOT_FIRE_FORM_FIELD_CHANGED_ON_WEBVIEW_SCROLL_EVENTS,
-                "When enabled, AndroidAutofillProvider::OnTextFieldDidScroll() will not fire"
-                        + " FormFieldData::OnFormFieldDidChange()."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_MOVE_SMALL_FORM_LOGIC_TO_CLIENT,
                 "Moves the small form handling from Autofill server to client."),
@@ -341,9 +330,6 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_SERVER_QUERY_PREDICTIONS_EARLY,
                 "When enabled, Autofill enables querying the server for predictions before the form"
                         + " has been parsed locally."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_SUPPORT_LAST_NAME_PREFIX,
-                "When enabled, Autofill uses a custom name hierarchy for parsing last names."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_SPLIT_ZIP_CODE,
                 "When enabled, two-part zip codes are splitted into two fields while filling and"
@@ -647,6 +633,11 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "MemoryCoordinatorLastResortGC",
                 "Clears strong references in the MemoryCache in last resort GC."),
+        Flag.baseFeature(
+                "StatefulMemoryPressure",
+                "When enabled, some caches will change their max size for the duration of memory"
+                    + " pressure. When disabled, those caches will periodically evict all entries"
+                    + " instead."),
         Flag.baseFeature(
                 BlinkFeatures.DISCARD_INPUT_EVENTS_TO_RECENTLY_MOVED_FRAMES,
                 "Enables a browser intervention which silently ignores input events "

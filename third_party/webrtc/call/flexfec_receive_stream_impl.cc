@@ -31,8 +31,7 @@
 namespace webrtc {
 
 std::string FlexfecReceiveStream::Config::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{payload_type: " << payload_type;
   ss << ", remote_ssrc: " << remote_ssrc;
   ss << ", protected_media_ssrcs: [";
@@ -42,7 +41,7 @@ std::string FlexfecReceiveStream::Config::ToString() const {
   if (!protected_media_ssrcs.empty())
     ss << protected_media_ssrcs[i];
   ss << "}";
-  return ss.str();
+  return ss.Release();
 }
 
 bool FlexfecReceiveStream::Config::IsCompleteAndEnabled() const {

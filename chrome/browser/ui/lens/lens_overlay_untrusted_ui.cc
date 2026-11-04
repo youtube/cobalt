@@ -177,30 +177,6 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddLocalizedString(
       "tabToContinue", IDS_LENS_PERMISSION_BUBBLE_DIALOG_TAB_TO_CONTINUE);
 
-  // Add default theme colors.
-  const auto& palette = lens::kPaletteColors.at(lens::PaletteId::kFallback);
-  html_source->AddInteger("colorFallbackPrimary",
-                          palette.at(lens::ColorId::kPrimary));
-  html_source->AddInteger("colorFallbackShaderLayer1",
-                          palette.at(lens::ColorId::kShaderLayer1));
-  html_source->AddInteger("colorFallbackShaderLayer2",
-                          palette.at(lens::ColorId::kShaderLayer2));
-  html_source->AddInteger("colorFallbackShaderLayer3",
-                          palette.at(lens::ColorId::kShaderLayer3));
-  html_source->AddInteger("colorFallbackShaderLayer4",
-                          palette.at(lens::ColorId::kShaderLayer4));
-  html_source->AddInteger("colorFallbackShaderLayer5",
-                          palette.at(lens::ColorId::kShaderLayer5));
-  html_source->AddInteger("colorFallbackScrim",
-                          palette.at(lens::ColorId::kScrim));
-  html_source->AddInteger(
-      "colorFallbackSurfaceContainerHighestLight",
-      palette.at(lens::ColorId::kSurfaceContainerHighestLight));
-  html_source->AddInteger(
-      "colorFallbackSurfaceContainerHighestDark",
-      palette.at(lens::ColorId::kSurfaceContainerHighestDark));
-  html_source->AddInteger("colorFallbackSelectionElement",
-                          palette.at(lens::ColorId::kSelectionElement));
 
   // Add finch flags
   html_source->AddBoolean("enableDebuggingMode",
@@ -388,14 +364,9 @@ void LensOverlayUntrustedUI::BindInterface(
 }
 
 void LensOverlayUntrustedUI::BindInterface(
-    mojo::PendingReceiver<searchbox::mojom::PageHandler> receiver) {
-  LensSearchboxController* controller =
-      GetLensSearchController().lens_searchbox_controller();
-
-  auto handler = std::make_unique<LensSearchboxHandler>(
-      std::move(receiver), Profile::FromWebUI(web_ui()),
-      web_ui()->GetWebContents(), /*lens_searchbox_client=*/controller);
-  controller->SetContextualSearchboxHandler(std::move(handler));
+    mojo::PendingReceiver<searchbox::mojom::PageHandlerFactory> receiver) {
+  searchbox_page_factory_receiver_.reset();
+  searchbox_page_factory_receiver_.Bind(std::move(receiver));
 }
 
 void LensOverlayUntrustedUI::BindInterface(
@@ -419,6 +390,18 @@ LensOverlayController& LensOverlayUntrustedUI::GetLensOverlayController() {
       LensOverlayController::FromWebUIWebContents(web_ui()->GetWebContents());
   CHECK(controller);
   return *controller;
+}
+
+void LensOverlayUntrustedUI::CreatePageHandler(
+    mojo::PendingRemote<searchbox::mojom::Page> page,
+    mojo::PendingReceiver<searchbox::mojom::PageHandler> receiver) {
+  LensSearchboxController* controller =
+      GetLensSearchController().lens_searchbox_controller();
+
+  auto handler = std::make_unique<LensSearchboxHandler>(
+      std::move(receiver), std::move(page), Profile::FromWebUI(web_ui()),
+      web_ui()->GetWebContents(), /*lens_searchbox_client=*/controller);
+  controller->SetContextualSearchboxHandler(std::move(handler));
 }
 
 void LensOverlayUntrustedUI::CreatePageHandler(

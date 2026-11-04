@@ -65,7 +65,15 @@ class ClassLoader {
 
 static ClassLoader* g_class_loader = nullptr;
 
-jclass GetClass(JNIEnv* env, const char* class_name, const char* unused) {
+[[maybe_unused]] jclass GetClass(JNIEnv* env, const char* class_name) {
+  RTC_CHECK(g_class_loader);
+  return static_cast<jclass>(
+      g_class_loader->FindClass(env, class_name).Release());
+}
+
+[[maybe_unused]] jclass GetClass(JNIEnv* env,
+                                 const char* class_name,
+                                 const char* unused) {
   RTC_CHECK(g_class_loader);
   return static_cast<jclass>(
       g_class_loader->FindClass(env, class_name).Release());

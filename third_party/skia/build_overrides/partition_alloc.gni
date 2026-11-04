@@ -9,7 +9,6 @@
 # While waiting for partition_alloc to do the same, they need to be set:
 is_asan = sanitize == "ASAN"
 is_hwasan = sanitize == "HWASAN"
-is_cast_android = false
 is_castos = false
 is_cronet_build = false
 is_nacl = false
@@ -75,3 +74,11 @@ enable_expensive_dchecks = false
 # Prefer speed by default, even in debug mode.
 partition_alloc_is_debug = false
 partition_alloc_dcheck_always_on = false
+
+# On Android, malloc interception is fragile as we use wrapped symbols.
+# the 'GrAHardwareBuffer_ImportAsSurface' test crashes on Pixel 4 (Adreno 640)
+# because Qualcomm's proprietary gralloc module
+# (/vendor/lib64/libgralloccore.so) managed to bypass PartitionAlloc for
+# malloc, but not for free. Enabling this option relax the previously strict
+# behavior of partition_alloc to allow this.
+partition_alloc_enable_system_free_fallback_default = is_android

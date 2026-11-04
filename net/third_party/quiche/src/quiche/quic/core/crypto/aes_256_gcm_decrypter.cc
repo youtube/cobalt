@@ -29,7 +29,7 @@ Aes256GcmDecrypter::Aes256GcmDecrypter()
 Aes256GcmDecrypter::~Aes256GcmDecrypter() {}
 
 uint32_t Aes256GcmDecrypter::cipher_id() const {
-  return TLS1_CK_AES_256_GCM_SHA384;
+  return TLS1_3_CK_AES_256_GCM_SHA384;
 }
 
 }  // namespace quic

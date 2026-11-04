@@ -157,11 +157,12 @@ class ExceptionHandlerInfo;
   V(Float64Exponentiate)                \
   V(Float64Modulus)                     \
   V(Float64Negate)                      \
+  V(Float64Max)                         \
+  V(Float64Min)                         \
+  V(Float64RoundToFloat32)              \
   V(Float64Round)                       \
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
-  V(Float64Min)                         \
-  V(Float64Max)                         \
   V(Float64Ieee754Unary)                \
   V(Float64Ieee754Binary)               \
   V(Float64Sqrt)
@@ -213,12 +214,15 @@ class ExceptionHandlerInfo;
   V(ChangeUint32ToHoleyFloat64)         \
   V(ChangeFloat64ToHoleyFloat64)        \
   V(CheckedFloat64ToInt32)              \
+  V(CheckedFloat64ToUint32)             \
   V(CheckedFloat64ToSmiSizedInt32)      \
   V(CheckedHoleyFloat64ToSmiSizedInt32) \
   V(CheckedHoleyFloat64ToInt32)         \
+  V(CheckedHoleyFloat64ToUint32)        \
   V(CheckedHoleyFloat64ToFloat64)       \
   V(CheckedInt32ToUint32)               \
   V(CheckedIntPtrToInt32)               \
+  V(CheckedIntPtrToUint32)              \
   V(CheckedObjectToIndex)               \
   V(CheckedNumberToInt32)               \
   V(CheckedNumberToFloat64)             \
@@ -677,7 +681,11 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
          opcode == Opcode::kStoreFixedDoubleArrayElement ||
-         opcode == Opcode::kStoreTrustedPointerFieldWithWriteBarrier;
+         opcode == Opcode::kStoreTrustedPointerFieldWithWriteBarrier ||
+         opcode == Opcode::kStoreContextSlotWithWriteBarrier ||
+         opcode == Opcode::kStoreSmiContextCell ||
+         opcode == Opcode::kStoreInt32ContextCell ||
+         opcode == Opcode::kStoreFloat64ContextCell;
 }
 constexpr bool IsElementsArrayWrite(Opcode opcode) {
   return opcode == Opcode::kMaybeGrowFastElements ||
@@ -3979,9 +3987,23 @@ class Float64CountLeadingZeros
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
+class Float64RoundToFloat32
+    : public FixedInputValueNodeT<1, Float64RoundToFloat32> {
+ public:
+  explicit Float64RoundToFloat32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr Opcode kOpcode = Opcode::kFloat64RoundToFloat32;
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+  DECLARE_UNOP(Float64)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
 class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
  public:
-  enum class Kind { kFloor, kCeil, kNearest };
+  enum class Kind { kFloor, kCeil, kNearest, kTrunc };
 
   static Builtin continuation(Kind kind) {
     switch (kind) {
@@ -3991,6 +4013,8 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
         return Builtin::kMathFloorContinuation;
       case Kind::kNearest:
         return Builtin::kMathRoundContinuation;
+      case Kind::kTrunc:
+        return Builtin::kMathTrunc;
     }
   }
 
@@ -4106,13 +4130,16 @@ DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
 DEFINE_PURE_CONV(UnsafeNumberToFloat64, Tagged, Float64, Number)
 
 DEFINE_CHECKED_CONV(CheckedFloat64ToInt32, Float64, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedFloat64ToUint32, Float64, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToUint32, HoleyFloat64, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedFloat64ToSmiSizedInt32, Float64, Int32, Smi)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToSmiSizedInt32, HoleyFloat64, Int32,
                     Smi)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToFloat64, HoleyFloat64, Float64, Number)
 DEFINE_CHECKED_CONV(CheckedInt32ToUint32, Int32, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedIntPtrToInt32, IntPtr, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedIntPtrToUint32, IntPtr, Uint32, Number)
 DEFINE_CHECKED_CONV(CheckedNumberToInt32, Tagged, Int32, Number)
 DEFINE_CHECKED_CONV(CheckedNumberToFloat64, Tagged, Float64, Number)
 DEFINE_CHECKED_CONV(CheckedSmiTagFloat64, Float64, TaggedValue, Smi)

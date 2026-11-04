@@ -132,6 +132,7 @@ class LogLineRef {
 
  private:
   friend class LogMessage;
+  LogLineRef();
   void set_message(std::string message) { message_ = std::move(message); }
   void set_filename(absl::string_view filename) { filename_ = filename; }
   void set_line(int line) { line_ = line; }
@@ -141,9 +142,18 @@ class LogLineRef {
   void set_timestamp(Timestamp timestamp) { timestamp_ = timestamp; }
   void set_tag(absl::string_view tag) { tag_ = tag; }
   void set_severity(LoggingSeverity severity) { severity_ = severity; }
+  void set_queue_name(absl::string_view queue_name) {
+    queue_name_ = queue_name;
+  }
 
   std::string message_;
   absl::string_view filename_;
+  // The name of the task queue or thread that generated the log.
+  // Ownership of the string backing the string_view is assumed to live
+  // reliably for the duration of the logging operation (owned by the active
+  // TaskQueue object).
+  absl::string_view queue_name_;
+
   int line_ = 0;
   std::optional<PlatformThreadId> thread_id_;
   Timestamp timestamp_ = Timestamp::MinusInfinity();
@@ -473,11 +483,27 @@ class LogMessage {
   // which case the logging start time will be the time of the first LogMessage
   // instance is created.
   static int64_t LogStartTime();
+  static absl::string_view LogPrefix();
   // Returns the wall clock equivalent of `LogStartTime`, in seconds from the
   // epoch.
   static uint32_t WallClockStartTime();
   //  LogThreads: Display the thread identifier of the current thread
-  static void LogThreads(bool on = true);
+  // Returns the previously set value.
+  // NOTE: Must be called prior to starting threads and/or starting logging.
+  static bool LogThreads(bool enabled = true);
+  // Prepends a prefix to every log line.
+  // The caller must also ensure that the memory backing the prefix
+  // string remains valid for the entire lifetime of the process (e.g., by using
+  // a literal).
+  // NOTE: Must be called prior to starting threads and/or starting logging.
+  static void SetLogPrefix(absl::string_view prefix);
+
+  // Enables or disables logging the name of the active task queue when
+  // available. This feature is by default disabled. Returns the previously set
+  // value. NOTE: Must be called prior to starting threads and/or starting
+  // logging.
+  static bool SetLogQueueNames(bool enabled);
+
   //  LogTimestamps: Display the elapsed time of the program
   static void LogTimestamps(bool on = true);
   // These are the available logging channels
@@ -535,7 +561,10 @@ class LogMessage {
   inline StringBuilder& stream() { return print_stream_; }
   inline static int64_t LogStartTime() { return 0; }
   inline static uint32_t WallClockStartTime() { return 0; }
-  inline static void LogThreads(bool on = true) {}
+  inline static bool LogThreads(bool enabled = true) { return false; }
+  inline static void SetLogPrefix(absl::string_view prefix) {}
+  inline static bool SetLogQueueNames(bool enabled) { return false; }
+
   inline static void LogTimestamps(bool on = true) {}
   inline static void LogToDebug(LoggingSeverity min_sev) {}
   inline static LoggingSeverity GetLogToDebug() {
@@ -586,6 +615,8 @@ class LogMessage {
   // Flags for formatting options and their potential values.
   static bool log_thread_;
   static bool log_timestamp_;
+  static absl::string_view log_prefix_;
+  static bool log_queue_name_;
 
   // Determines if logs will be directed to stderr in debug mode.
   static bool log_to_stderr_;

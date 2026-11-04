@@ -48,6 +48,7 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/default_browser/model:default_browser_interest_signals",
     "//ios/chrome/browser/drag_and_drop/model",
     "//ios/chrome/browser/feature_engagement/model",
+    "//ios/chrome/browser/fullscreen/model",
     "//ios/chrome/browser/fullscreen/ui_bundled",
     "//ios/chrome/browser/fullscreen/ui_bundled:ui",
     "//ios/chrome/browser/geolocation/model",
@@ -144,6 +145,7 @@ source_set("badges") {
   deps = [
     ":constants",
     ":metrics",
+    ":utils",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/badges/ui_bundled",
     "//ios/chrome/browser/contextual_panel/entrypoint/ui",
@@ -157,6 +159,18 @@ source_set("badges") {
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
+  ]
+}
+
+source_set("utils") {
+  sources = [
+    "highlight_utils.h",
+    "highlight_utils.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/ui/elements/gradient",
+    "//ios/chrome/common/ui/colors",
   ]
 }
 
@@ -233,6 +247,9 @@ source_set("unit_tests") {
     ":ui_bundled",
     "//base",
     "//base/test:test_support",
+    "//components/feature_engagement/public",
+    "//components/feature_engagement/public:feature_constants",
+    "//components/feature_engagement/test:test_support",
     "//components/omnibox/browser:test_support",
     "//components/search_engines",
     "//components/variations",
@@ -241,8 +258,11 @@ source_set("unit_tests") {
     "//ios/chrome/browser/autocomplete/model",
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/favicon/model:test_support",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/fullscreen/ui_bundled",
     "//ios/chrome/browser/history/model",
+    "//ios/chrome/browser/intelligence/bwg/model:gemini_service_factory",
+    "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/location_bar/badge/coordinator",
     "//ios/chrome/browser/location_bar/ui_bundled/test",
     "//ios/chrome/browser/omnibox/model/placeholder_service",

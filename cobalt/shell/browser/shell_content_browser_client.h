@@ -84,8 +84,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   std::string GetDefaultDownloadName() override;
   std::unique_ptr<WebContentsViewDelegate> GetWebContentsViewDelegate(
       WebContents* web_contents) override;
-  bool IsIsolatedContextAllowedForUrl(BrowserContext* browser_context,
-                                      const GURL& lock_url) override;
+  bool ShouldUrlUseApplicationIsolationLevel(BrowserContext* browser_context,
+                                             const GURL& url) override;
   bool IsSharedStorageAllowed(
       content::BrowserContext* browser_context,
       content::RenderFrameHost* rfh,
@@ -183,6 +183,7 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       FrameTreeNodeId frame_tree_node_id) override;
   void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
       BrowserContext* browser_context,
+      const std::optional<url::Origin>& request_initiator,
       NonNetworkURLLoaderFactoryMap* factories) override;
   void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
       BrowserContext* browser_context,

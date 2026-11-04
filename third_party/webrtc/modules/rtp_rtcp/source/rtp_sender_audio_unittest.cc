@@ -25,11 +25,11 @@
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -89,7 +89,7 @@ class RtpSenderAudioTest : public ::testing::Test {
     rtp_module_->SetSequenceNumber(kSeqNum);
   }
 
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   SimulatedClock fake_clock_;
   const Environment env_;
   LoopbackTransportTest transport_;

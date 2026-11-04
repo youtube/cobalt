@@ -97,12 +97,15 @@ import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
+import org.chromium.chrome.browser.ui.extensions.ExtensionUiBackend;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
@@ -398,23 +401,21 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testRevertChanges_focused() {
-        mMediator.onUrlFocusChange(true);
-        UrlBarData urlBarData = mock(UrlBarData.class);
-        doReturn(urlBarData).when(mLocationBarDataProvider).getUrlBarData();
-        mMediator.revertChanges();
-        verify(mUrlCoordinator)
-                .setUrlBarData(urlBarData, UrlBar.ScrollType.NO_SCROLL, UrlBarData.SELECT_ALL);
-    }
+        var state = getSession();
+        var input = state.getAutocompleteInput();
+        input.setUserText("modified text").setInitialUserText("initial text");
+        mMediator.beginInput(input);
 
-    @Test
-    public void testRevertChanges_focusedNativePage() {
-        doReturn(JUnitTestGURLs.NTP_URL).when(mLocationBarDataProvider).getCurrentGurl();
         mMediator.onUrlFocusChange(true);
         clearInvocations(mUrlCoordinator);
+
+        ArgumentCaptor<UrlBarData> captor = ArgumentCaptor.forClass(UrlBarData.class);
         mMediator.revertChanges();
-        verify(mUrlCoordinator)
-                .setUrlBarData(
-                        UrlBarData.EMPTY, UrlBar.ScrollType.NO_SCROLL, UrlBarData.SELECT_END);
+
+        verify(mUrlCoordinator).setUrlBarData(captor.capture(), anyInt(), any());
+
+        assertEquals(input.getUserText(), input.getInitialUserText());
+        assertEquals(captor.getValue().displayText, input.getInitialUserText());
     }
 
     @Test
@@ -939,9 +940,41 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testOnKey_escape() {
-        assertTrue(mMediator.handleEscPress());
-        verify(mUrlCoordinator)
-                .setUrlBarData(mUrlBarData, UrlBar.ScrollType.SCROLL_TO_TLD, UrlBarData.SELECT_ALL);
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+        mMediator.onUrlFocusChange(true);
+
+        var input = getSession().getAutocompleteInput();
+        input.setUserText("some text");
+        input.setInitialUserText("initial text");
+
+        {
+            // Step 1: expect suggestions to be cleared if user presses <esc>.
+            doReturn(true).when(mAutocompleteCoordinator).isServingSuggestions();
+            assertTrue(mMediator.handleEscPress());
+            verify(mAutocompleteCoordinator).stopAutocomplete();
+            verify(mAutocompleteCoordinator, never()).endInput();
+        }
+
+        {
+            // Step 2: expect content to be reverted if suggestions are already cleared.
+            doReturn(false).when(mAutocompleteCoordinator).isServingSuggestions();
+            assertTrue(mMediator.handleEscPress());
+            assertEquals(input.getUserText(), input.getInitialUserText());
+            verify(mAutocompleteCoordinator, never()).endInput();
+        }
+
+        {
+            // Step 3: if both user text and initial user text are same, expect the input to be
+            // canceled.
+            assertTrue(mMediator.handleEscPress());
+            verify(mAutocompleteCoordinator).endInput();
+        }
+
+        {
+            // Step 4: no other actions can be taken: bail
+            assertFalse(mMediator.handleEscPress());
+        }
     }
 
     @Test
@@ -1757,11 +1790,13 @@ public class LocationBarMediatorTest {
 
         verify(mAutocompleteCoordinator, times(2)).beginInput(captor.capture());
         assertEquals("test query", captor.getValue().getAutocompleteInput().getUserText());
-        clearInvocations(mAutocompleteCoordinator);
+        clearInvocations(mAutocompleteCoordinator, mUrlCoordinator);
 
         mMediator.deleteButtonClicked(null);
-        verify(mAutocompleteCoordinator).beginInput(captor.capture());
         assertEquals("", captor.getValue().getAutocompleteInput().getUserText());
+        ArgumentCaptor<UrlBarData> urlBarDataCaptor = ArgumentCaptor.forClass(UrlBarData.class);
+        verify(mUrlCoordinator).setUrlBarData(urlBarDataCaptor.capture(), anyInt(), any());
+        assertTrue(urlBarDataCaptor.getValue().displayText.isEmpty());
         verify(mUrlCoordinator).requestAccessibilityFocus();
     }
 
@@ -2203,6 +2238,11 @@ public class LocationBarMediatorTest {
         mMediator.onSearchBoxHintTextChanged();
 
         verify(mUrlCoordinator).setUrlBarHintText(eq("search engine hint text"));
+
+        mMediator.onUrlFocusChange(false);
+        doReturn("search engine hint text unfocused")
+                .when(mSearchEngineUtils)
+                .getOmniboxHintText(anyInt(), any());
     }
 
     @Test
@@ -2216,6 +2256,32 @@ public class LocationBarMediatorTest {
         mMediator.onSearchBoxHintTextChanged();
 
         verify(mUrlCoordinator, never()).setUrlBarHintText(any());
+    }
+
+    @Test
+    public void testLoadUrl_chromeExtensionScheme() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        ExtensionUiBackend mockExtensionUiBackend = mock(ExtensionUiBackend.class);
+        ExtensionUi.setBackendForTesting(mockExtensionUiBackend);
+
+        doReturn(mTab).when(mLocationBarDataProvider).getTab();
+
+        String url = UrlConstants.CHROME_EXTENSION_SCHEME + "://id/?q=test";
+        mMediator.loadUrl(
+                new OmniboxLoadUrlParams.Builder(url, PageTransition.TYPED)
+                        .setOpenInNewTab(true)
+                        .build());
+
+        verify(mockExtensionUiBackend)
+                .onOmniboxExtensionInputEntered(mWebContents, url, true, false);
+        verify(mTab, never()).loadUrl(any());
+        verify(mTabModelSelector, never()).openNewTab(any(), anyInt(), any(), anyBoolean());
+        verify(mMultiInstanceOrchestrator, never())
+                .openUrlInOtherWindow(any(), any(), anyInt(), anyBoolean(), anyBoolean());
+
+        ExtensionUi.setBackendForTesting(null);
     }
 
     private FuseboxSessionState getSession() {

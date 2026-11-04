@@ -10,6 +10,7 @@
 
 #include "include/private/base/SkTArray.h"
 #include "src/gpu/graphite/Caps.h"
+#include "src/gpu/graphite/TextureFormat.h"
 #include "src/gpu/vk/VulkanInterface.h"
 #include "src/gpu/vk/VulkanUtilsPriv.h"
 
@@ -174,102 +175,40 @@ private:
                          const VkPhysicalDeviceProperties&,
                          const EnabledFeatures&);
 
-    void initDepthStencilFormatTable(const skgpu::VulkanInterface*,
-                                     VkPhysicalDevice,
-                                     const VkPhysicalDeviceProperties&);
-
     TextureInfo onGetDefaultTextureInfo(SkEnumBitMask<TextureUsage> usage,
                                         TextureFormat,
                                         SampleCount,
                                         Mipmapped,
                                         Protected,
                                         Discardable) const override;
-    std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> getTextureSupport(
-            TextureFormat format, Tiling) const override;
     std::pair<SkEnumBitMask<TextureUsage>, Tiling> getTextureUsage(
             const TextureInfo&) const override;
 
-    // Struct that determines and stores which sample count quantities a VkFormat supports.
-    struct SupportedSampleCounts {
-        void initSampleCounts(const skgpu::VulkanInterface*,
-                              const VulkanCaps&,
-                              VkPhysicalDevice,
-                              VkFormat,
-                              VkImageUsageFlags);
+    std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> getTextureSupport(
+            TextureFormat format, Tiling tiling) const override {
+        return fFormatSupport[static_cast<int>(tiling)][static_cast<int>(format)];
+    }
 
-        bool isSampleCountSupported(SampleCount requestedCount) const;
+    // Helper functions to compute supported texture usage and sample counts, only called during
+    // initialization of VulkanCaps and then cached in `fFormatSupport`.
+    SkEnumBitMask<SampleCount> getSupportedSampleCounts(const skgpu::VulkanInterface* interface,
+                                                        VkPhysicalDevice physDev,
+                                                        VkFormat format,
+                                                        VkImageUsageFlags usage) const;
+    bool isEfficientWithHostCopy(const skgpu::VulkanInterface* interface,
+                                 VkPhysicalDevice physDev,
+                                 VkFormat format) const;
+    std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> getTextureSupport(
+            const skgpu::VulkanInterface* interface,
+            VkPhysicalDevice physDev,
+            TextureFormat format,
+            Tiling tiling,
+            const VkFormatProperties& props) const;
 
-        VkSampleCountFlags fSampleCounts = 0;
-    };
-
-    // Struct that determines and stores useful information about VkFormats.
-    struct FormatInfo {
-        uint32_t colorTypeFlags(SkColorType colorType) const {
-            for (int i = 0; i < fColorTypeInfoCount; ++i) {
-                if (fColorTypeInfos[i].fColorType == colorType) {
-                    return fColorTypeInfos[i].fFlags;
-                }
-            }
-            return 0;
-        }
-
-        void init(const skgpu::VulkanInterface*, const VulkanCaps&, VkPhysicalDevice, VkFormat);
-
-        bool isTexturable(VkImageTiling) const;
-        bool isRenderable(VkImageTiling, SampleCount sampleCount) const;
-        bool isStorage(VkImageTiling) const;
-        bool isEfficientWithHostImageCopy(VkImageTiling, Protected) const;
-
-        std::unique_ptr<ColorTypeInfo[]> fColorTypeInfos;
-        int fColorTypeInfoCount = 0;
-
-        VkFormatProperties fFormatProperties = {};
-        SupportedSampleCounts fSupportedSampleCounts;
-        /*
-         * The VK_IMAGE_USAGE_HOST_TRANSFER_BIT flag may cause the image to be put in a suboptimal
-         * physical layout.  In practice, images that could have had framebuffer compression end up
-         * with framebuffer compression disabled.  Using `VkHostImageCopyDevicePerformanceQuery`, we
-         * can determine if the layout is going to be suboptimal and avoid this flag.
-         *
-         * `fIsEfficientWithHostImageCopy` indicates whether the VK_IMAGE_USAGE_HOST_TRANSFER_BIT is
-         * efficient for this format with the following assumptions:
-         *
-         * - Image tiling is VK_IMAGE_TILING_OPTIMAL (note that VK_IMAGE_TILING_LINEAR is always
-         *   efficient for host image copy).
-         * - Image type is 2D.
-         * - Image create flags is 0.
-         * - Image usage flags is a subset of VK_IMAGE_USAGE_SAMPLED_BIT |
-         *                                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-         *                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT
-         */
-        bool fIsEfficientWithHostImageCopy = false;
-
-        // Indicates that a format is only supported if we are wrapping a texture with it.
-        SkDEBUGCODE(bool fIsWrappedOnly = false;)
-    };
-
-    // Map VkFormat to FormatInfo.
-    static const int kNumVkFormats = 24;
-    FormatInfo fFormatTable[kNumVkFormats];
-
-    FormatInfo& getFormatInfoForInit(VkFormat);
-    const FormatInfo& getFormatInfo(VkFormat) const;
-
-    // A more lightweight equivalent to FormatInfo for depth/stencil VkFormats.
-    struct DepthStencilFormatInfo {
-        void init(const skgpu::VulkanInterface*, const VulkanCaps&, VkPhysicalDevice, VkFormat);
-        bool isDepthStencilSupported() const;
-
-        VkFormatProperties fFormatProperties = {};
-        SupportedSampleCounts fSupportedSampleCounts;
-    };
-
-    // Map depth/stencil VkFormats to DepthStencilFormatInfo.
-    static const size_t kNumDepthStencilVkFormats = 5;
-    DepthStencilFormatInfo fDepthStencilFormatTable[kNumDepthStencilVkFormats];
-
-    DepthStencilFormatInfo& getDepthStencilFormatInfoForInit(VkFormat);
-    const DepthStencilFormatInfo& getDepthStencilFormatInfo(VkFormat) const;
+    // Indexed by Tiling then TextureFormat
+    std::array<std::array<std::pair<SkEnumBitMask<TextureUsage>,
+                                    SkEnumBitMask<SampleCount>>,
+                          kTextureFormatCount>, 2> fFormatSupport;
 
     uint32_t fMaxVertexAttributes;
     uint64_t fMaxUniformBufferRange;

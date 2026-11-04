@@ -56,6 +56,7 @@
 #include "api/video/video_codec_constants.h"
 #include "media/base/codec.h"
 #include "media/base/codec_comparators.h"
+#include "media/base/media_channel.h"
 #include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
 #include "media/base/rid_description.h"
@@ -139,6 +140,9 @@ const char kSdpWithoutIceUfragPwd[] =
 const char kSdpWithoutDtlsFingerprint[] =
     "Called with SDP without DTLS fingerprint.";
 const char kSdpWithoutCrypto[] = "Called with SDP without crypto setup.";
+const char kSframeNotInOffer[] =
+    "Remote answer has a=sframe for a media section but the corresponding "
+    "offer did not include a=sframe.";
 
 const char kSessionError[] = "Session error code: ";
 const char kSessionErrorDesc[] = "Session error description: ";
@@ -378,6 +382,33 @@ RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
         RtpTransceiverDirectionHasRecv(remote_direction)) {
       return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
                        << "Incompatible send direction");
+    }
+  }
+  return RTCError::OK();
+}
+
+// Checks that no answer m-section introduces a=sframe that was not present in
+// the corresponding offer m-section.
+RTCError VerifySframeInAnswer(const SessionDescription* local_offer,
+                              const SessionDescription* remote_answer) {
+  RTC_DCHECK(local_offer);
+  RTC_DCHECK(remote_answer);
+
+  const ContentInfos& offer_contents = local_offer->contents();
+  const ContentInfos& answer_contents = remote_answer->contents();
+
+  for (size_t i = 0; i < answer_contents.size() && i < offer_contents.size();
+       ++i) {
+    if (answer_contents[i].rejected) {
+      continue;
+    }
+    const MediaContentDescription* answer_media =
+        answer_contents[i].media_description();
+    const MediaContentDescription* offer_media =
+        offer_contents[i].media_description();
+    if (answer_media->sframe_enabled() && !offer_media->sframe_enabled()) {
+      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                       << kSframeNotInOffer);
     }
   }
   return RTCError::OK();
@@ -860,6 +891,8 @@ MediaDescriptionOptions GetMediaDescriptionOptionsForTransceiver(
       transceiver->filtered_codec_preferences();
   media_description_options.header_extensions =
       transceiver->GetHeaderExtensionsToNegotiate();
+  media_description_options.sframe_enabled =
+      transceiver->SframeEnabled().value_or(false);
   // This behavior is specified in JSEP. The gist is that:
   // 1. The MSID is included if the RtpTransceiver's direction is sendonly or
   //    sendrecv.
@@ -1958,6 +1991,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         }
         transceiver->set_receptive(
             RtpTransceiverDirectionHasRecv(media_desc->direction()));
+        transceiver->ApplySframeEnabled(media_desc->sframe_enabled());
       }
       pc_->RunWithObserver([&](auto observer) {
         for (const auto& transceiver : remove_list) {
@@ -2416,6 +2450,20 @@ void SdpOfferAnswerHandler::ApplyRemoteDescriptionUpdateTransceiverState(
       RTC_LOG(LS_INFO) << "Stopping transceiver for MID=" << content->mid()
                        << " since the media section was rejected.";
       worker_tasks.Add(transceiver->GetStopTransceiverProcedure());
+    }
+    // If the local offer included Sframe but the remote answer does not,
+    // stop the transceiver since Sframe cannot be downgraded.
+    if (sdp_type == SdpType::kPrAnswer || sdp_type == SdpType::kAnswer) {
+      const ContentInfo* local_content =
+          FindMediaSectionForTransceiver(transceiver, local_description());
+      if (local_content && !content->rejected &&
+          local_content->media_description()->sframe_enabled() &&
+          !media_desc->sframe_enabled() && !transceiver->stopped()) {
+        RTC_LOG(LS_INFO) << "Stopping transceiver for MID=" << content->mid()
+                         << " since the remote answer does not include Sframe.";
+        transceiver->ClearChannel();
+        worker_tasks.Add(transceiver->GetStopTransceiverProcedure());
+      }
     }
     if (!content->rejected && RtpTransceiverDirectionHasRecv(local_direction)) {
       if (!media_desc->streams().empty() &&
@@ -3772,6 +3820,14 @@ bool SdpOfferAnswerHandler::CheckIfNegotiationIsNeeded() {
     // 5.3 If transceiver isn't stopped and is associated with an m= section
     // in description then perform the following checks:
 
+    // If the transceiver's Sframe state differs from the negotiated state
+    // in the current local description, negotiation is needed.
+    if (transceiver->SframeEnabled().has_value() &&
+        transceiver->SframeEnabled().value() !=
+            current_local_media_description->sframe_enabled()) {
+      return true;
+    }
+
     // 5.3.1 If transceiver.[[Direction]] is "sendrecv" or "sendonly", and the
     // associated m= section in description either doesn't contain a single
     // "a=msid" line, or the number of MSIDs from the "a=msid" lines in this
@@ -4005,6 +4061,18 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     }
   }
 
+  // Validate Sframe consistency: reject remote answers that introduce
+  // a=sframe for media sections where the local offer did not include it.
+  if (source == CS_REMOTE &&
+      (type == SdpType::kPrAnswer || type == SdpType::kAnswer)) {
+    RTC_DCHECK(local_description());
+    error = VerifySframeInAnswer(local_description()->description(),
+                                 sdesc->description());
+    if (!error.ok()) {
+      return error;
+    }
+  }
+
   return RTCError::OK();
 }
 
@@ -4202,6 +4270,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
           /*header_extensions_to_negotiate=*/{}, sender_id, receiver_id);
       transceiver->internal()->set_direction(
           RtpTransceiverDirection::kRecvOnly);
+      transceiver->internal()->ApplySframeEnabled(media_desc->sframe_enabled());
       if (type == SdpType::kOffer) {
         transceivers()->StableState(transceiver)->set_newly_created();
       }
@@ -5166,9 +5235,12 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
   RTC_DCHECK(sdesc);
 
   if (ConfiguredForMedia()) {
+    // Batch up operations for the worker thread.
+    ScopedOperationsBatcher batcher(context_->worker_thread());
+
     // Note: This may perform a BlockingCall over to the network thread, which
     // we'll also do in a loop below.
-    UpdatePayloadTypeDemuxingState(source, bundle_groups_by_mid);
+    UpdatePayloadTypeDemuxingState(source, bundle_groups_by_mid, batcher);
 
     // Push down the new SDP media section for each audio/video transceiver.
     auto rtp_transceivers = transceivers()->ListInternal();
@@ -5214,9 +5286,6 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
       RTC_LOG(LS_ERROR) << "Warning: Inconsistent congestion control feedback "
                            "types, ignoring all.";
     }
-
-    // Batch up the calls to set the local/remote channel content.
-    ScopedOperationsBatcher batcher(context_->worker_thread());
 
     for (const auto& [transceiver, content] : channels) {
       if (source == CS_LOCAL) {
@@ -5660,8 +5729,8 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
 }
 
 void SdpOfferAnswerHandler::GetMediaChannelTeardownTasks(
-    std::vector<absl::AnyInvocable<void() &&>>& network_tasks,
-    std::vector<absl::AnyInvocable<void() &&>>& worker_tasks) {
+    ScopedOperationsBatcher& network_tasks,
+    ScopedOperationsBatcher& worker_tasks) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   if (!transceivers()) {
@@ -5670,21 +5739,16 @@ void SdpOfferAnswerHandler::GetMediaChannelTeardownTasks(
   auto list = transceivers()->List();
   for (const auto& transceiver : list) {
     if (transceiver->media_type() == MediaType::VIDEO) {
-      if (auto task = transceiver->internal()->GetClearChannelNetworkTask())
-        network_tasks.push_back(std::move(task));
-      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask(
-              /*stop_senders=*/true)) {
-        worker_tasks.push_back(std::move(task));
-      }
+      network_tasks.Add(transceiver->internal()->GetClearChannelNetworkTask());
+      worker_tasks.Add(transceiver->internal()->GetDeleteChannelWorkerTask(
+          /*stop_senders=*/true));
     }
   }
   for (const auto& transceiver : list) {
     if (transceiver->media_type() == MediaType::AUDIO) {
-      if (auto task = transceiver->internal()->GetClearChannelNetworkTask())
-        network_tasks.push_back(std::move(task));
-      if (auto task = transceiver->internal()->GetDeleteChannelWorkerTask(
-              /*stop_senders=*/true))
-        worker_tasks.push_back(std::move(task));
+      network_tasks.Add(transceiver->internal()->GetClearChannelNetworkTask());
+      worker_tasks.Add(transceiver->internal()->GetDeleteChannelWorkerTask(
+          /*stop_senders=*/true));
     }
   }
 }
@@ -5775,7 +5839,8 @@ SdpOfferAnswerHandler::GetMediaDescriptionOptionsForRejectedData(
 
 void SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
     ContentSource source,
-    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid,
+    ScopedOperationsBatcher& worker_tasks) {
   TRACE_EVENT0("webrtc",
                "SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState");
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -5944,10 +6009,6 @@ void SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
   // unsignaled streams that might have been created previously based on
   // payload type matches. This prevents SSRC collisions if those SSRCs
   // are later reused.
-  // TODO(tommi): Could/should we rather issue the calls to the transceivers
-  // on the network thread? This will post tasks per transceiver to the worker
-  // thread. A common configuration will have joined worker and network threads,
-  // so bundling with the network thread may be more efficient.
   for (RtpTransceiver* transceiver : transceivers()->ListInternal()) {
     const ContentInfo* content =
         FindMediaSectionForTransceiver(transceiver, sdesc);
@@ -5956,13 +6017,16 @@ void SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
     }
     auto it = transports_to_update.find(content->mid());
     if (it != transports_to_update.end() && !it->second) {
-      // TODO: bugs.webrtc.org/42221580 - This will remove *all* unsignaled
-      // streams (those without an explicitly signaled SSRC), which may include
-      // streams that were matched to this channel by MID or RID. Ideally we'd
-      // remove only the streams that were matched based on payload type alone,
-      // but currently there is no straightforward way to identify those
-      // streams.
-      transceiver->ResetUnsignaledRecvStream();
+      if (MediaReceiveChannelInterface* receive_channel =
+              transceiver->media_receive_channel()) {
+        // TODO: bugs.webrtc.org/42221580 - This will remove *all* unsignaled
+        // streams (those without an explicitly signaled SSRC), which may
+        // include streams that were matched to this channel by MID or RID.
+        // Ideally we'd remove only the streams that were matched based on
+        // payload type alone, but currently there is no straightforward way to
+        // identify those streams.
+        worker_tasks.Add(receive_channel->GetResetUnsignaledRecvStreamTask());
+      }
     }
   }
 }

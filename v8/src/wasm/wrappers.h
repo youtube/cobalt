@@ -189,18 +189,18 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                                 compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
-                             base::Vector<OpIndex> args, bool do_conversion,
+                             base::Vector<OpIndex> args,
                              OptionalV<FrameState> frame_state,
                              compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   V<Any> BuildJSToWasmWrapperImpl(
-      bool receiver_is_first_param, V<JSFunction> js_closure,
-      V<Context> js_context, base::Vector<const OpIndex> arguments,
+      V<JSFunction> js_closure, V<Context> js_context,
+      base::Vector<const OpIndex> arguments,
       OptionalV<FrameState> lazy_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-      OptionalV<FrameState> eager_frame_state = {});
+      OptionalV<FrameState> eager_frame_state);
 
-  void BuildJSToWasmWrapper(bool receiver_is_first_param);
+  void BuildJSToWasmWrapper();
 
   void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
                             Suspend suspend);
@@ -682,8 +682,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
  private:
   V<Object> InlineWasmFunctionInsideWrapper(
       V<Context> js_context, V<WasmFunctionData> function_data,
-      base::Vector<OpIndex> inlined_args, bool do_conversion,
-      OptionalV<FrameState> frame_state,
+      base::Vector<OpIndex> inlined_args, OptionalV<FrameState> frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   bool is_inlining_into_js_;

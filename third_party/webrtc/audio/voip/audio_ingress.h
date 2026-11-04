@@ -147,6 +147,8 @@ class AudioIngress : public AudioMixer::Source {
   acm2::ResamplerHelper resampler_helper_;
 };
 
+NetEq::Config CreateNetEqConfigForTesting(const Environment& env);
+
 }  // namespace webrtc
 
 #endif  // AUDIO_VOIP_AUDIO_INGRESS_H_

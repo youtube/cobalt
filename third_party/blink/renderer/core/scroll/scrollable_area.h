@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/loader/history_item.h"
+#include "third_party/blink/renderer/core/scroll/scroll_promise_resolver.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
@@ -77,7 +78,6 @@ class MacScrollbarAnimator;
 class Node;
 class PaintLayer;
 class ProgrammaticScrollAnimator;
-class ScopedScrollPromiseResolver;
 class ScrollAnchor;
 class ScrollAnimatorBase;
 struct SerializedAnchor;
@@ -143,7 +143,7 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
       const ScrollOffset&,
       cc::ScrollSourceType,
       mojom::blink::ScrollBehavior,
-      std::unique_ptr<ScopedScrollPromiseResolver>);
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>);
 
   void ScrollBy(
       const ScrollOffset&,
@@ -164,7 +164,8 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
   virtual PhysicalRect ScrollIntoView(
       const PhysicalRect&,
       const PhysicalBoxStrut& scroll_margin,
-      const mojom::blink::ScrollIntoViewParamsPtr&);
+      const mojom::blink::ScrollIntoViewParamsPtr&,
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>);
 
   virtual PhysicalOffset LocalToScrollOriginOffset() const = 0;
 
@@ -387,10 +388,13 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
     return ScrollOffset(MaximumScrollOffsetInt());
   }
 
-  virtual gfx::Rect VisibleContentRect(
-      IncludeScrollbarsInRect = kExcludeScrollbars) const = 0;
-  virtual int VisibleHeight() const { return VisibleContentRect().height(); }
-  virtual int VisibleWidth() const { return VisibleContentRect().width(); }
+  virtual gfx::Rect VisibleContentRect(IncludeScrollbarsInRect) const = 0;
+  virtual int VisibleHeight() const {
+    return VisibleContentRect(kExcludeScrollbars).height();
+  }
+  virtual int VisibleWidth() const {
+    return VisibleContentRect(kExcludeScrollbars).width();
+  }
   virtual gfx::Size ContentsSize() const = 0;
 
   // scroll snapport is the area of the scrollport that is used as the alignment
@@ -398,7 +402,7 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
   // the box's scrollport contracted by its scroll-padding.
   // https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding
   virtual PhysicalRect VisibleScrollSnapportRect(
-      IncludeScrollbarsInRect scrollbar_inclusion = kExcludeScrollbars) const {
+      IncludeScrollbarsInRect scrollbar_inclusion) const {
     return PhysicalRect(VisibleContentRect(scrollbar_inclusion));
   }
 
@@ -642,7 +646,7 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
       cc::ScrollSourceType,
       mojom::blink::ScrollBehavior,
       bool targeted_scroll,
-      std::unique_ptr<ScopedScrollPromiseResolver>);
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>);
 
   // Deduces the mojom::blink::ScrollBehavior based on the
   // element style and the parameter set by programmatic scroll into either
@@ -712,12 +716,13 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
 
   void SetScrollbarsHiddenIfOverlayInternal(bool);
 
-  bool InitiateScrollAnimation(const ScrollOffset&,
-                               mojom::blink::ScrollType,
-                               mojom::blink::ScrollBehavior,
-                               gfx::Vector2d animation_adjustment,
-                               cc::ScrollSourceType,
-                               std::unique_ptr<ScopedScrollPromiseResolver>);
+  bool InitiateScrollAnimation(
+      const ScrollOffset&,
+      mojom::blink::ScrollType,
+      mojom::blink::ScrollBehavior,
+      gfx::Vector2d animation_adjustment,
+      cc::ScrollSourceType,
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>);
   void UserScrollHelper(const ScrollOffset&,
                         mojom::blink::ScrollBehavior,
                         cc::ScrollSourceType);

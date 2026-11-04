@@ -111,8 +111,7 @@ namespace {
 }
 
 std::string ToString(const EncodedImage& encoded_image) {
-  char buffer[1024];
-  SimpleStringBuilder ss(buffer);
+  StringBuilder ss;
 
   ss << VideoFrameTypeToString(encoded_image.frame_type())
      << ", size=" << encoded_image.size() << ", qp=" << encoded_image.qp_
@@ -130,13 +129,12 @@ std::string ToString(const EncodedImage& encoded_image) {
     ss << ", TemporalIndex=" << *encoded_image.TemporalIndex();
   }
 
-  return ss.str();
+  return ss.Release();
 }
 
 [[maybe_unused]] std::string ToString(
     const CodecSpecificInfo& codec_specific_info) {
-  char buffer[1024];
-  SimpleStringBuilder ss(buffer);
+  StringBuilder ss;
 
   ss << CodecTypeToPayloadString(codec_specific_info.codecType);
 
@@ -160,7 +158,7 @@ std::string ToString(const EncodedImage& encoded_image) {
        << ", num_chains=" << template_structure->num_chains;
   }
 
-  return ss.str();
+  return ss.Release();
 }
 
 // This follows

@@ -19,6 +19,11 @@
 struct SkFontArguments {
     struct VariationPosition {
         struct Coordinate {
+            static constexpr SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
+            static constexpr SkFourByteTag wdth = SkSetFourByteTag('w', 'd', 't', 'h');
+            static constexpr SkFourByteTag slnt = SkSetFourByteTag('s', 'l', 'n', 't');
+            static constexpr SkFourByteTag ital = SkSetFourByteTag('i', 't', 'a', 'l');
+            static constexpr SkFourByteTag opsz = SkSetFourByteTag('o', 'p', 's', 'z');
             SkFourByteTag axis;
             float value;
         };

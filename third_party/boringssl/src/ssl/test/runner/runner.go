@@ -281,6 +281,45 @@ func initCertificates() {
 	}).ToCredential()
 }
 
+var (
+	p256DC          *Credential
+	p256DCFromECDSA *Credential
+)
+
+func initDelegatedCredentials() {
+	p256DC = createDelegatedCredential(&rsaCertificate, delegatedCredentialConfig{
+		dcAlgo: signatureECDSAWithP256AndSHA256,
+		algo:   signatureRSAPSSWithSHA256,
+	})
+	p256DCFromECDSA = createDelegatedCredential(&ecdsaP256Certificate, delegatedCredentialConfig{
+		dcAlgo: signatureECDSAWithP256AndSHA256,
+		algo:   signatureECDSAWithP256AndSHA256,
+	})
+}
+
+var (
+	rpkEcdsaP256 Credential
+	rpkEcdsaP384 Credential
+	rpkRsa       Credential
+)
+
+func initRawPublicKeyCredentials() {
+	for _, def := range []struct {
+		key crypto.Signer
+		out *Credential
+	}{
+		{&ecdsaP256Key, &rpkEcdsaP256},
+		{&ecdsaP384Key, &rpkEcdsaP384},
+		{&rsa2048Key, &rpkRsa},
+	} {
+		*def.out = Credential{
+			Type:       CredentialTypeRawPublicKey,
+			PrivateKey: def.key,
+			KeyPath:    writeTempKeyFile(def.key),
+		}
+	}
+}
+
 func flagInts(flagName string, vals []int) []string {
 	ret := make([]string, 0, 2*len(vals))
 	for _, val := range vals {
@@ -923,6 +962,30 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 		} else if connState.PeerDelegatedCredential != nil {
 			return fmt.Errorf("peer unexpectedly used delegated credentials")
 		}
+		if expected.Type == CredentialTypeRawPublicKey {
+			if len(connState.PeerRawPublicKey) == 0 {
+				return fmt.Errorf("peer unexpectedly did not send a raw public key")
+			}
+			var expectedPublic crypto.PublicKey
+			switch expected.PrivateKey.(type) {
+			case *rsa.PrivateKey:
+				expectedPublic = expected.PrivateKey.(*rsa.PrivateKey).Public()
+			case *ecdsa.PrivateKey:
+				expectedPublic = expected.PrivateKey.(*ecdsa.PrivateKey).Public()
+			default:
+				panic("expected credential has unsupported key type")
+			}
+			expectedSpki, err := x509.MarshalPKIXPublicKey(expectedPublic)
+			if err != nil {
+				panic(fmt.Sprintf("error serializing public key of expected credential: %s", err))
+			}
+			if !slices.Equal(expectedSpki, connState.PeerRawPublicKey) {
+				return fmt.Errorf("peer raw public key did not match expected credential")
+			}
+		}
+		if expected.Type != CredentialTypeRawPublicKey && len(connState.PeerRawPublicKey) > 0 {
+			return fmt.Errorf("peer unexpectedly sent a raw public key")
+		}
 	}
 
 	if len(expectations.quicTransportParams) > 0 {
@@ -1452,6 +1515,8 @@ func appendCredentialFlags(flags []string, cred *Credential, prefix string, newC
 			flags = append(flags, prefix+"-new-spake2plusv1-credential")
 		case CredentialTypePreSharedKey:
 			flags = append(flags, prefix+"-new-psk-credential")
+		case CredentialTypeRawPublicKey:
+			flags = append(flags, prefix+"-new-rpk-credential")
 		default:
 			panic(fmt.Errorf("unknown credential type %d", cred.Type))
 		}
@@ -2109,6 +2174,7 @@ func statusPrinter(doneChan chan *testresult.Results, statusChan chan statusMsg,
 					if *allowUnimplemented {
 						testOutput.AddSkip(msg.test.name)
 					} else {
+						fmt.Printf("UNIMPLEMENTED (%s)\n%s\n", msg.test.name, msg.err)
 						testOutput.AddResult(msg.test.name, "SKIP", nil)
 					}
 				} else {
@@ -2217,6 +2283,8 @@ func main() {
 	}
 	initKeys()
 	initCertificates()
+	initDelegatedCredentials()
+	initRawPublicKeyCredentials()
 
 	if *shimConfigFile != "" {
 		encoded, err := os.ReadFile(*shimConfigFile)

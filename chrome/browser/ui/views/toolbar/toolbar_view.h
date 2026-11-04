@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+#include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
 #include "chrome/browser/ui/views/toolbar/overflow_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
@@ -47,6 +48,7 @@
 
 class AppMenuButton;
 class AvatarToolbarButton;
+class AvatarToolbarButtonInterface;
 class BatterySaverButton;
 class BrowserAppMenuButton;
 class Browser;
@@ -183,9 +185,6 @@ class ToolbarView : public views::AccessiblePaneView,
     return performance_intervention_button_;
   }
   ToolbarButton* GetCastButton() const;
-  PinnedToolbarActions* pinned_toolbar_actions() const {
-    return pinned_toolbar_actions_;
-  }
   MediaToolbarButtonView* media_button() const { return media_button_; }
   BrowserAppMenuButton* app_menu_button() const { return app_menu_button_; }
   HomeButton* home_button() const { return home_; }
@@ -296,6 +295,7 @@ class ToolbarView : public views::AccessiblePaneView,
       std::optional<actions::ActionId> action_id) override;
   void ZoomChangedForActiveTab(bool can_show_bubble) override;
   AvatarToolbarButton* GetAvatarToolbarButton() override;
+  AvatarToolbarButtonInterface* GetAvatarToolbarButtonInterface() override;
   ToolbarButton* GetBackButton() override;
   ReloadControl* GetReloadButton() override;
   IntentChipButton* GetIntentChipButton() override;

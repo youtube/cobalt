@@ -232,6 +232,10 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
       std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
           encoder_selector) override;
 
+  void SetEncoderSelector(
+      scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+          encoder_selector) override;
+
   void SetEncoderSelectorOnChannel();
 
   void SetSendCodecs(std::vector<Codec> send_codecs) override {
@@ -334,8 +338,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   bool sent_first_packet_ = false;
 
   scoped_refptr<FrameTransformerInterface> frame_transformer_;
-  // Guard with RTC_GUARDED_BY(worker_thread_) after refactoring.
-  std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
+  scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
       encoder_selector_;
 
   scoped_refptr<PendingTaskSafetyFlag> worker_safety_;

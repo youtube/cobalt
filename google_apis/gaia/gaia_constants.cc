@@ -26,13 +26,6 @@ const char kAnyApiOAuth2Scope[] = "https://www.googleapis.com/auth/any-api";
 // OAuth2 scope for access to Chrome sync APIs
 const char kChromeSyncOAuth2Scope[] =
     "https://www.googleapis.com/auth/chromesync";
-// OAuth2 scope for access to the Chrome Sync APIs for managed profiles.
-const char kChromeSyncSupervisedOAuth2Scope[] =
-    "https://www.googleapis.com/auth/chromesync_playpen";
-
-// OAuth2 scope for access to Google Talk APIs (XMPP).
-const char kGoogleTalkOAuth2Scope[] =
-    "https://www.googleapis.com/auth/googletalk";
 
 // OAuth2 scope for access to Google account information.
 const char kGoogleUserInfoEmail[] =
@@ -47,9 +40,6 @@ const char kContactsOAuth2Scope[] = "https://www.googleapis.com/auth/contacts";
 const char kFCMOAuthScope[] =
     "https://www.googleapis.com/auth/firebase.messaging";
 
-// OAuth2 scope for access to Tachyon api.
-const char kTachyonOAuthScope[] = "https://www.googleapis.com/auth/tachyon";
-
 // OAuth2 scope for access to the SecureConnect API.
 extern const char kSecureConnectOAuth2Scope[] =
     "https://www.googleapis.com/auth/bce.secureconnect";
@@ -61,14 +51,6 @@ const char kDriveOAuth2Scope[] = "https://www.googleapis.com/auth/drive";
 const char kDriveReadOnlyOAuth2Scope[] =
     "https://www.googleapis.com/auth/drive.readonly";
 
-// OAuth2 scope for access to Assistant SDK.
-const char kAssistantOAuth2Scope[] =
-    "https://www.googleapis.com/auth/assistant-sdk-prototype";
-
-// OAuth2 scope for access to readonly Chrome web store.
-const char kChromeWebstoreOAuth2Scope[] =
-    "https://www.googleapis.com/auth/chromewebstore.readonly";
-
 // OAuth2 scope for access to Account Capabilities API.
 const char kAccountCapabilitiesOAuth2Scope[] =
     "https://www.googleapis.com/auth/account.capabilities";
@@ -76,9 +58,6 @@ const char kAccountCapabilitiesOAuth2Scope[] =
 // OAuth2 scope for support content API.
 const char kSupportContentOAuth2Scope[] =
     "https://www.googleapis.com/auth/supportcontent";
-
-// OAuth2 scope for Gemini app.
-const char kGeminiOAuth2Scope[] = "https://www.googleapis.com/auth/gemini";
 
 // OAuth2 scopes for Lens.
 const char kLensOAuth2Scope[] = "https://www.googleapis.com/auth/lens";

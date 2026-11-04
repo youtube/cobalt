@@ -164,11 +164,9 @@ EmulatedTURNServer::EmulatedTURNServer(const Environment& env,
     turn_server_->AddInternalSocket(std::move(client_socket), PROTO_UDP);
     turn_server_->SetExternalSocketFactory(new PacketSocketFactoryWrapper(this),
                                            SocketAddress());
-    char buf[256];
-    SimpleStringBuilder str(buf);
-    str.AppendFormat("turn:%s?transport=udp",
-                     client_address_.ToString().c_str());
-    ice_config_.url = str.str();
+    StringBuilder sb;
+    sb << "turn:" << client_address_.ToString() << "?transport=udp";
+    ice_config_.url = sb.Release();
   });
 }
 

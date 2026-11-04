@@ -27,7 +27,7 @@ namespace webrtc {
 // anything except logging). It uses a fixed-size buffer provided by the caller
 // and concatenates strings and numbers into it, allowing the results to be
 // read via `str()`.
-class SimpleStringBuilder {
+class [[deprecated("Use webrtc::StringBuilder instead")]] SimpleStringBuilder {
  public:
   explicit SimpleStringBuilder(std::span<char> buffer);
   SimpleStringBuilder(const SimpleStringBuilder&) = delete;
@@ -72,22 +72,13 @@ class SimpleStringBuilder {
     return size_ <= buffer_.size() - 1 && buffer_[size_] == '\0';
   }
 
-  // An always-zero-terminated fixed-size buffer that we write to. The fixed
-  // size allows the buffer to be stack allocated, which helps performance.
-  // Having a fixed size is furthermore useful to avoid unnecessary resizing
-  // while building it.
   const std::span<char> buffer_;
-
-  // Represents the number of characters written to the buffer.
-  // This does not include the terminating '\0'.
   size_t size_ = 0;
 };
 
 // A string builder that supports dynamic resizing while building a string.
 // The class is based around an instance of std::string and allows moving
 // ownership out of the class once the string has been built.
-// Note that this class uses the heap for allocations, so SimpleStringBuilder
-// might be more efficient for some use cases.
 class StringBuilder {
  public:
   StringBuilder() = default;
@@ -100,7 +91,10 @@ class StringBuilder {
     return *this;
   }
 
-  StringBuilder& operator<<(char c) = delete;
+  StringBuilder& operator<<(char c) {
+    str_ += c;
+    return *this;
+  }
 
   StringBuilder& operator<<(int i) {
     str_ += absl::StrCat(i);

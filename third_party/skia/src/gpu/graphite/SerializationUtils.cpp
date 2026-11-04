@@ -73,7 +73,7 @@ constexpr bool is_valid_samplecount(uint32_t sampleCount) {
         return true;
     }
 
-    const SkSpan<const uint32_t> keySpan = key.data();
+    const SkSpan<const int32_t> keySpan = key.data();
 
     if (!key.isSerializable(shaderCodeDictionary)) {
         return false;
@@ -112,7 +112,7 @@ constexpr bool is_valid_samplecount(uint32_t sampleCount) {
             return false;
         }
 
-        PaintParamsKey ppk = PaintParamsKey(SkSpan<uint32_t>((uint32_t*) storage.get(), tmp));
+        PaintParamsKey ppk = PaintParamsKey(SkSpan((int32_t*) storage.get(), tmp));
 
         if (!ppk.isSerializable(shaderCodeDictionary)) {
             return false;

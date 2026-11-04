@@ -102,7 +102,9 @@ private:
     DawnSharedContext* dawnSharedContext() const;
 
     void onFreeGpuResources() override;
-    void onPurgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime) override;
+    void onPurgeResourcesNotUsedSince(
+            StdSteadyClock::time_point purgeTime,
+            std::optional<StdSteadyClock::time_point> quitPurgingTime) override;
 
     skia_private::THashMap<uint32_t, wgpu::RenderPipeline> fBlitWithDrawPipelines;
 

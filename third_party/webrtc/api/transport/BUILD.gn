@@ -49,10 +49,9 @@ rtc_library("network_control") {
 
   deps = [
     ":ecn_marking",
-    "../../api:field_trials_view",
+    "..:field_trials_view",
     "../../rtc_base/system:rtc_export",
     "../environment",
-    "../rtc_event_log",
     "../units:data_rate",
     "../units:data_size",
     "../units:time_delta",
@@ -82,23 +81,20 @@ rtc_library("goog_cc") {
     ":network_control",
     "..:field_trials_view",
     "..:network_state_predictor_api",
-    "../../api/units:time_delta",
     "../../modules/congestion_controller/goog_cc",
     "../../modules/congestion_controller/goog_cc_scream_network_controller",
     "../../modules/congestion_controller/scream:scream_network_controller",
     "../../rtc_base:logging",
     "../../rtc_base/experiments:field_trial_parser",
     "../../rtc_base/system:rtc_export",
+    "../units:time_delta",
   ]
 }
 
 rtc_source_set("sctp_transport_factory_interface") {
   visibility = [ "*" ]
   sources = [ "sctp_transport_factory_interface.h" ]
-  deps = [
-    "..:field_trials_view",
-    "../../api/environment",
-  ]
+  deps = [ "../environment" ]
 }
 
 rtc_library("stun_types") {
@@ -131,9 +127,9 @@ if (rtc_include_tests) {
     visibility = [ "*" ]
     deps = [
       ":network_control",
+      "..:network_emulation_manager_api",
       "..:simulated_network_api",
-      "../../api:network_emulation_manager_api",
-      "../../api/rtc_event_log",
+      "../rtc_event_log",
       "../units:data_rate",
       "../units:data_size",
       "../units:time_delta",
@@ -148,10 +144,8 @@ if (rtc_include_tests) {
     ]
     visibility = [ "*" ]
     deps = [
-      ":network_control",
       ":test_feedback_generator_interface",
-      "../../api:network_emulation_manager_api",
-      "../../api/rtc_event_log",
+      "..:network_emulation_manager_api",
       "../../test/network:feedback_generator",
     ]
   }

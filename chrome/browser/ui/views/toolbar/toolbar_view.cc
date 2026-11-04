@@ -1036,8 +1036,7 @@ void ToolbarView::ExecuteHideToolbarNudge(glic::GlicButtonInterface* button) {
 
   // Since the glic button is still visible in it's hidden state we need to have
   // a special case to query if it's in its Hide state.
-  if (button == glic_button_ && button->GetWidthFactor() == 0.0 &&
-      base::FeatureList::IsEnabled(features::kGlicEntrypointVariations)) {
+  if (button == glic_button_ && button->GetWidthFactor() == 0.0) {
     return;
   }
 
@@ -1259,9 +1258,7 @@ bool ToolbarView::IsPositionInWindowCaption(
 }
 
 views::Button* ToolbarView::GetChromeLabsButton() const {
-  return browser_->GetFeatures()
-      .chrome_labs_coordinator()
-      ->GetChromeLabsButton();
+  return ChromeLabsCoordinator::From(browser_)->GetChromeLabsButton();
 }
 
 ExtensionsToolbarButton* ToolbarView::GetExtensionsButton() const {
@@ -1754,6 +1751,10 @@ void ToolbarView::ZoomChangedForActiveTab(bool can_show_bubble) {
 }
 
 AvatarToolbarButton* ToolbarView::GetAvatarToolbarButton() {
+  return avatar_;
+}
+
+AvatarToolbarButtonInterface* ToolbarView::GetAvatarToolbarButtonInterface() {
   return avatar_;
 }
 

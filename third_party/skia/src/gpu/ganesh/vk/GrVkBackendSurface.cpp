@@ -192,6 +192,7 @@ private:
 
     bool isProtected() const override { return fVkInfo.fProtected == skgpu::Protected::kYes; }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendTextureData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kVulkan);
         if (auto otherVk = static_cast<const GrVkBackendTextureData*>(that)) {
@@ -205,6 +206,7 @@ private:
         }
         return false;
     }
+#endif
 
     bool isSameTexture(const GrBackendTextureData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kVulkan);
@@ -364,6 +366,7 @@ private:
 
     bool isProtected() const override { return fVkInfo.fProtected == skgpu::Protected::kYes; }
 
+#if defined(GPU_TEST_UTILS)
     bool equal(const GrBackendRenderTargetData* that) const override {
         SkASSERT(!that || that->type() == GrBackendApi::kVulkan);
         if (auto otherVk = static_cast<const GrVkBackendRenderTargetData*>(that)) {
@@ -377,6 +380,7 @@ private:
         }
         return false;
     }
+#endif
 
     void copyTo(AnyRenderTargetData& rtData) const override {
         rtData.emplace<GrVkBackendRenderTargetData>(fVkInfo, fMutableState);

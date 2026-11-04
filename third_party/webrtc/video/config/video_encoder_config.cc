@@ -36,8 +36,7 @@ VideoStream::VideoStream(const VideoStream& other) = default;
 VideoStream::~VideoStream() = default;
 
 std::string VideoStream::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{width: " << width;
   ss << ", height: " << height;
   ss << ", max_framerate: " << max_framerate;
@@ -54,7 +53,7 @@ std::string VideoStream::ToString() const {
        << scale_resolution_down_to->height;
   }
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 VideoEncoderConfig::VideoEncoderConfig()
@@ -76,8 +75,7 @@ VideoEncoderConfig::VideoEncoderConfig(VideoEncoderConfig&&) = default;
 VideoEncoderConfig::~VideoEncoderConfig() = default;
 
 std::string VideoEncoderConfig::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{codec_type: " << CodecTypeToPayloadString(codec_type);
   ss << ", content_type: ";
   switch (content_type) {
@@ -100,7 +98,7 @@ std::string VideoEncoderConfig::ToString() const {
     ss << ", simulcast_layers[" << n << "]: " << simulcast_layers[n].ToString();
   }
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 bool VideoEncoderConfig::HasScaleResolutionDownTo() const {

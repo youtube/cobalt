@@ -68,6 +68,7 @@ class DeviceBoundSessionBrowserTest : public InProcessBrowserTest {
   DeviceBoundSessionBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
         {net::features::kDeviceBoundSessions,
+         net::features::kDeviceBoundSessionsBypassDeferralsForRefreshRequests,
          unexportable_keys::
              kEnableBoundSessionCredentialsSoftwareKeysForManualTesting},
         {});
@@ -482,6 +483,67 @@ IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
       "quota_exceeded;session_identifier=\"session_id\"", /*use_plus=*/false);
   ASSERT_FALSE(NavigateToUrl(GetURL("/ensure_authenticated?debug_header=" +
                                     signing_quota_query_param)));
+}
+
+IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+                       RefreshRequestPassesChallenge) {
+  content::WebContents* web_contents =
+      chrome_test_utils::GetActiveWebContents(this);
+
+  // Register session.
+  // We use a query param that will trigger a challenge on refresh.
+  {
+    base::test::TestFuture<SessionAccess> future;
+    DeviceBoundSessionAccessObserver observer(
+        web_contents, future.GetRepeatingCallback<const SessionAccess&>());
+    ASSERT_TRUE(
+        NavigateToUrl(GetURL("/resource_triggered_dbsc_registration?trigger_"
+                             "challenge=test_challenge")));
+    ASSERT_TRUE(future.Wait());
+  }
+
+  // Force a refresh that will require signing a challenge.
+  ASSERT_TRUE(
+      content::ExecJs(web_contents, "cookieStore.delete('auth_cookie')"));
+  ASSERT_TRUE(NavigateToUrl(GetURL("/ensure_authenticated")));
+}
+
+IN_PROC_BROWSER_TEST_F(DeviceBoundSessionBrowserTest,
+                       InterlockedDeviceBoundSessions) {
+  content::WebContents* web_contents =
+      chrome_test_utils::GetActiveWebContents(this);
+
+  // Register session 1.
+  {
+    base::test::TestFuture<SessionAccess> future;
+    DeviceBoundSessionAccessObserver observer(
+        web_contents, future.GetRepeatingCallback<const SessionAccess&>());
+    ASSERT_TRUE(NavigateToUrl(GetURL(
+        "/resource_triggered_dbsc_registration?trigger_challenge=challenge1")));
+    ASSERT_TRUE(future.Wait());
+  }
+
+  // Register session 2.
+  {
+    base::test::TestFuture<SessionAccess> future;
+    DeviceBoundSessionAccessObserver observer(
+        web_contents, future.GetRepeatingCallback<const SessionAccess&>());
+    // It's important to pass a different refresh path for the second session
+    // for it to be in scope of the first session.
+    ASSERT_TRUE(NavigateToUrl(
+        GetURL("/resource_triggered_dbsc_registration?session_id="
+               "session2&cookie_name=cookie2&refresh_path=/"
+               "dbsc_refresh_session_2&trigger_challenge=challenge2")));
+    ASSERT_TRUE(future.Wait());
+  }
+
+  // Delete both cookies to require refresh on next access.
+  ASSERT_TRUE(
+      content::ExecJs(web_contents, "cookieStore.delete('auth_cookie')"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "cookieStore.delete('cookie2')"));
+
+  // Trigger refresh for both sessions.
+  ASSERT_TRUE(NavigateToUrl(GetURL("/ensure_authenticated")));
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)

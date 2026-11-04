@@ -1746,7 +1746,8 @@ bool VulkanCommandBuffer::onCopyTextureToBuffer(const Texture* texture,
     auto dstBuffer = static_cast<const VulkanBuffer*>(buffer);
     SkASSERT(dstBuffer->bufferUsageFlags() & VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-    size_t bytesPerBlock = VkFormatBytesPerBlock(srcTexture->vulkanTextureInfo().fFormat);
+    const size_t bytesPerBlock = TextureFormatBytesPerBlock(
+            TextureInfoPriv::ViewFormat(srcTexture->textureInfo()));
 
     // Set up copy region
     VkBufferImageCopy region = {};

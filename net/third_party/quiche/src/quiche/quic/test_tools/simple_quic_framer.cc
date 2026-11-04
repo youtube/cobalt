@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -267,6 +268,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
+  void OnSconePacket(uint8_t /*signal*/) override {}
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {
     return nullptr;

@@ -274,9 +274,7 @@ bool Codec::ValidateCodecFormat() const {
 }
 
 std::string Codec::ToString() const {
-  char buf[256];
-
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   switch (type) {
     case Type::kAudio: {
       sb << "AudioCodec[" << id << ":" << name << ":" << clockrate << ":"
@@ -292,7 +290,7 @@ std::string Codec::ToString() const {
       break;
     }
   }
-  return sb.str();
+  return sb.Release();
 }
 
 Codec CreateAudioRtxCodec(PayloadType rtx_payload_type,

@@ -356,6 +356,30 @@ NSUInteger GetMaxSampleRate(
   std::vector<uint8_t> _frameScaleBuffer;
 }
 
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
+  NSDictionary<NSString *, NSString *> *constrainedHighParams = @{
+    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedHigh,
+    @"level-asymmetry-allowed" : @"1",
+    @"packetization-mode" : @"1",
+  };
+  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedHighInfo =
+      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithName:kRTCVideoCodecH264Name
+            parameters:constrainedHighParams];
+
+  NSDictionary<NSString *, NSString *> *constrainedBaselineParams = @{
+    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedBaseline,
+    @"level-asymmetry-allowed" : @"1",
+    @"packetization-mode" : @"1",
+  };
+  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedBaselineInfo =
+      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithName:kRTCVideoCodecH264Name
+            parameters:constrainedBaselineParams];
+
+  return @[ constrainedHighInfo, constrainedBaselineInfo ];
+}
+
 // .5 is set as a mininum to prevent overcompensating for large temporary
 // overshoots. We don't want to degrade video quality too badly.
 // .95 is set to prevent oscillations. When a lower bitrate is set on the

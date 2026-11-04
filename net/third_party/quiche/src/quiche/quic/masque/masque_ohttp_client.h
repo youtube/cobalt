@@ -46,6 +46,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       PerRequestConfig& operator=(PerRequestConfig&& other) = default;
 
       void SetPostData(const std::string& post_data) { post_data_ = post_data; }
+      void SetMethod(const std::string& method) { method_ = method; }
       absl::Status AddHeaders(const std::vector<std::string>& headers);
       absl::Status AddOuterHeaders(
           const std::vector<std::string>& outer_headers);
@@ -74,6 +75,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
       std::string url() const { return url_; }
       std::string post_data() const { return post_data_; }
+      std::string method() const;
       const std::vector<std::pair<std::string, std::string>>& headers() const {
         return headers_;
       }
@@ -101,6 +103,7 @@ class QUICHE_EXPORT MasqueOhttpClient
      private:
       std::string url_;
       std::string post_data_;
+      std::optional<std::string> method_;
       std::vector<std::pair<std::string, std::string>> headers_;
       std::vector<std::pair<std::string, std::string>> outer_headers_;
       bool use_chunked_ohttp_ = false;
@@ -177,17 +180,20 @@ class QUICHE_EXPORT MasqueOhttpClient
   // requests are complete or aborted.
   static absl::Status Run(Config config);
 
- protected:
   // From quic::MasqueConnectionPool::Visitor.
   void OnPoolResponse(quic::MasqueConnectionPool* /*pool*/,
                       RequestId request_id,
                       absl::StatusOr<Message>&& response) override;
 
+ private:
   // Fetch key from the key URL.
   absl::Status StartKeyFetch(const std::string& url_string);
 
-  // Handles the key response and starts the OHTTP request.
+  // Handles the key response.
   absl::Status HandleKeyResponse(const absl::StatusOr<Message>& response);
+
+  // Handles the key data and starts the OHTTP request.
+  absl::Status HandleKeyData(const std::string& key_data);
 
   // Sends the OHTTP request for the given URL.
   absl::Status SendOhttpRequest(
@@ -196,7 +202,6 @@ class QUICHE_EXPORT MasqueOhttpClient
   // Signals the client to abort.
   void Abort(absl::Status status);
 
- private:
   class QUICHE_NO_EXPORT ChunkHandler
       : public quiche::ObliviousHttpChunkHandler,
         public quiche::BinaryHttpResponse::IndeterminateLengthDecoder::

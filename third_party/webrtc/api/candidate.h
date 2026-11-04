@@ -202,6 +202,11 @@ class RTC_EXPORT Candidate {
   const std::string& url() const { return url_; }
   void set_url(absl::string_view url) { Assign(url_, url); }
 
+  NetworkSlice network_slice() const { return network_slice_; }
+  void set_network_slice(NetworkSlice network_slice) {
+    network_slice_ = network_slice;
+  }
+
   // Determines whether this candidate is equivalent to the given one.
   bool IsEquivalent(const Candidate& c) const;
 
@@ -290,6 +295,7 @@ class RTC_EXPORT Candidate {
   uint16_t network_id_;
   uint16_t network_cost_;
   std::string url_;
+  NetworkSlice network_slice_;
 };
 
 }  //  namespace webrtc

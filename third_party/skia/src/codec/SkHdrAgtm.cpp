@@ -314,7 +314,7 @@ MakeGainCurveXYMImage(const AdaptiveGlobalToneMap::HeadroomAdaptiveToneMap& hatm
     // Write the X, Y, and M values of the control points into the colors of the rows.
     SkBitmap bm32;
     bm32.allocPixels(SkImageInfo::Make(
-            AdaptiveGlobalToneMap::GainCurve::kMaxNumControlPoints, hatm.fAlternateImages.size(),
+            maxNumControlPoints, hatm.fAlternateImages.size(),
             kRGBA_F32_SkColorType, kPremul_SkAlphaType));
     for (size_t a = 0; a < hatm.fAlternateImages.size(); ++a) {
         const auto& alt = hatm.fAlternateImages[a];
@@ -823,6 +823,10 @@ SkString AdaptiveGlobalToneMap::toString() const {
     }
     result += "]}";
     return result;
+}
+
+bool AdaptiveGlobalToneMap::isValid() const {
+    return AgtmHelpers::Validate(*this);
 }
 
 }  // namespace skhdr

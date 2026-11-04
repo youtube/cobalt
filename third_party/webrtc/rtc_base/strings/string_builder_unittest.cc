@@ -33,6 +33,9 @@ class StructWithAbslStringify {
   std::string value_;
 };
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 TEST(SimpleStringBuilder, Limit) {
   char sb_buf[10];
   SimpleStringBuilder sb(sb_buf);
@@ -78,8 +81,6 @@ TEST(SimpleStringBuilder, CanUseAbslStringForCustomTypes) {
   EXPECT_STREQ(sb.str(), "absl-stringify");
 }
 
-// These tests are safe to run if we have death test support or if DCHECKs are
-// off.
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 TEST(SimpleStringBuilderDeathTest, BufferOverrunConstCharP) {
@@ -128,6 +129,8 @@ TEST(SimpleStringBuilderDeathTest, BufferOverrunIntAlreadyFull) {
 }
 
 #endif
+
+#pragma clang diagnostic pop
 
 ////////////////////////////////////////////////////////////////////////////////
 // StringBuilder.

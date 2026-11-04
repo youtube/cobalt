@@ -983,9 +983,10 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
     kind = kPointerWriteBarrier;
   }
   MachineType r = MachineType::TypeForRepresentation(representation);
-  FieldAccess access = {
-      kTaggedBase, PropertyCell::kValueOffset, name.object(), map, type, r,
-      kind, "PropertyCellValue"};
+  FieldAccess access = {kTaggedBase,   offsetof(PropertyCell, value_),
+                        name.object(), map,
+                        type,          r,
+                        kind,          "PropertyCellValue"};
   return access;
 }
 
@@ -2622,7 +2623,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
   // uninitialized state. So If the graph is as below, we can firstly do a map
   // check on {object} and then turn the {JSLoadProperty} into the
   // {LoadFieldByIndex}. This is also safe when the bytecode has never been
-  // profiled. When it happens to pass the the map check, we can use the fast
+  // profiled. When it happens to pass the map check, we can use the fast
   // path. Otherwise it will trigger a deoptimization.
 
   // object     receiver
@@ -3355,13 +3356,6 @@ JSNativeContextSpecialization::BuildPrototypeProxyElementAccess(
   Node* proxy_target =
       jsgraph()->ConstantNoHole(access_info.target().value(), broker());
   Node* feedback = jsgraph()->UndefinedConstant();
-  // We can use a dummy receiver so long as we only support Wasm functions
-  // that disregard the call's receiver anyway.
-  DCHECK(!TrustedCast<WasmExportedFunctionData>(
-              Cast<JSFunction>(access_info.accessor().value().object())
-                  ->shared()
-                  ->GetTrustedData(isolate()))
-              ->receiver_is_first_param());
   Node* call_receiver = jsgraph()->UndefinedConstant();
   ConvertReceiverMode receiver_mode = ConvertReceiverMode::kNullOrUndefined;
   // If the Wasm function takes the index as an {externref}, it can observe

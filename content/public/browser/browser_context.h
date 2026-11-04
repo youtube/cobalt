@@ -18,8 +18,10 @@
 #include "base/memory/advanced_memory_safety_checks.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
+#include "base/unguessable_token.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/k_anonymity_service_delegate.h"
+#include "content/public/browser/pre_prefetch_handle.h"
 #include "content/public/browser/prefetch_handle.h"
 #include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/prefetch_request_status_listener.h"
@@ -228,6 +230,11 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
       bool should_disable_block_until_head_timeout,
       bool should_bypass_http_cache);
 
+  // Adds a `PrefetchContainer` from a `PrePrefetchHandle` and starts prefetch.
+  [[nodiscard]] std::unique_ptr<content::PrefetchHandle>
+  StartPrefetchFromPrePrefetch(
+      std::unique_ptr<content::PrePrefetchHandle> pre_prefetch_handle);
+
   // Updates the "Accept Language" header that the prefetch service delegate
   // will use.
   void UpdatePrefetchServiceDelegateAcceptLanguageHeader(
@@ -329,7 +336,11 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   bool ShutdownStarted();
 
   // Returns a unique string associated with this browser context.
+  // DEPRECATED: Use UniqueToken() instead. See crbug.com/466132514.
   virtual const std::string& UniqueId() const;
+
+  // Returns a unique unguessable token associated with this browser context.
+  const base::UnguessableToken& UniqueToken() const;
 
   // Gets media service for storing/retrieving video decoding performance stats.
   // Exposed here rather than StoragePartition because all SiteInstances should

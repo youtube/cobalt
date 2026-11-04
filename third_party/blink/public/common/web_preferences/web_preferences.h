@@ -241,6 +241,7 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   float text_track_margin_percentage = 0.0f;
 
   bool immersive_mode_enabled = false;
+  bool immersive_video_playback_enabled = false;
 
   bool double_tap_to_zoom_enabled =
       BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_APPLE);
@@ -248,9 +249,14 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool fullscreen_supported = true;
 
   bool text_autosizing_enabled = BUILDFLAG(IS_ANDROID);
+  bool text_size_adjust_enabled = BUILDFLAG(IS_ANDROID);
 
   // Representation of the Web App Manifest scope if any.
   GURL web_app_scope;
+
+  // Whether this renderer is associated with the browser's initial ("Default")
+  // profile.
+  bool is_initial_profile = false;
 
 #if BUILDFLAG(IS_ANDROID)
   float font_scale_factor = 1.0f;
@@ -480,6 +486,10 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   // thread as a side-effect.
   bool should_screenshot_on_mainframe_same_doc_navigation = true;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  // Set if this is in a WebView for chrome/browser/indigo/onboarding/.
+  // Consumed only in chrome/renderer/ (not by Blink).
+  bool is_indigo_onboarding = false;
 
   // We try to keep the default values the same as the default values in
   // chrome, except for the cases where it would require lots of extra work for

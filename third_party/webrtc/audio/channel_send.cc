@@ -391,8 +391,7 @@ int32_t ChannelSend::SendData(AudioFrameType frameType,
   if (frame_transformer_delegate_) {
     // Asynchronously transform the payload before sending it. After the payload
     // is transformed, the delegate will call SendRtpAudio to send it.
-    char buf[1024];
-    SimpleStringBuilder mime_type(buf);
+    StringBuilder mime_type;
     mime_type << MediaTypeToString(MediaType::AUDIO) << "/"
               << encoder_format_.name;
     frame_transformer_delegate_->Transform(

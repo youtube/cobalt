@@ -25,11 +25,20 @@ std::unique_ptr<GrD3DDescriptorHeap> GrD3DDescriptorHeap::Make(GrD3DGpu* gpu,
                                     gpu->device()->GetDescriptorHandleIncrementSize(type)));
 }
 
+static uint32_t GrD3DDescriptorHeapGenID() {
+    static std::atomic<uint32_t> nextID{1};
+    uint32_t id;
+    do {
+        id = nextID++;
+    } while (id == SK_InvalidUniqueID);
+    return id;
+}
+
 GrD3DDescriptorHeap::GrD3DDescriptorHeap(const gr_cp<ID3D12DescriptorHeap>& heap,
                                          unsigned int handleIncrementSize)
     : fHeap(heap)
     , fHandleIncrementSize(handleIncrementSize)
-    , fUniqueID(GenID()) {
+    , fUniqueID(GrD3DDescriptorHeapGenID()) {
     fCPUHeapStart = fHeap->GetCPUDescriptorHandleForHeapStart();
     fGPUHeapStart = fHeap->GetGPUDescriptorHandleForHeapStart();
 }
@@ -47,6 +56,4 @@ GrD3DDescriptorHeap::GPUHandle GrD3DDescriptorHeap::getGPUHandle(unsigned int in
     handle.ptr += index * fHandleIncrementSize;
     return {handle, fUniqueID};
 }
-
-
 

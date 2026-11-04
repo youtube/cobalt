@@ -106,7 +106,7 @@ scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
   }
 
   return static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider)
-      ->DoExternalDrawAndSnapshot(draw_callback, orientation);
+      ->DoExternalOverdrawAndSnapshot(draw_callback, orientation);
 }
 
 }  // namespace

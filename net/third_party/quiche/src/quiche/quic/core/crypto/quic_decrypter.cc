@@ -49,11 +49,11 @@ std::unique_ptr<QuicDecrypter> QuicDecrypter::Create(
 std::unique_ptr<QuicDecrypter> QuicDecrypter::CreateFromCipherSuite(
     uint32_t cipher_suite) {
   switch (cipher_suite) {
-    case TLS1_CK_AES_128_GCM_SHA256:
+    case TLS1_3_CK_AES_128_GCM_SHA256:
       return std::make_unique<Aes128GcmDecrypter>();
-    case TLS1_CK_AES_256_GCM_SHA384:
+    case TLS1_3_CK_AES_256_GCM_SHA384:
       return std::make_unique<Aes256GcmDecrypter>();
-    case TLS1_CK_CHACHA20_POLY1305_SHA256:
+    case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
       return std::make_unique<ChaCha20Poly1305TlsDecrypter>();
     default:
       QUIC_BUG(quic_bug_10660_1) << "TLS cipher suite is unknown to QUIC";

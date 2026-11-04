@@ -1678,6 +1678,22 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
+void CheckedIntPtrToUint32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+
+void CheckedIntPtrToUint32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ Move(scratch, std::numeric_limits<uint32_t>::max());
+  __ CompareIntPtrAndJumpIf(
+      ToRegister(ValueInput()), scratch, kUnsignedGreaterThan,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
+}
+
 void UnsafeInt32ToUint32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineSameAsFirst(this);
@@ -2361,6 +2377,7 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
   uint16_t storage_offset =
       LoadHandler::StorageOffsetInWordsBits::decode(handler_value_);
   bool is_inobject = LoadHandler::IsInobjectBits::decode(handler_value_);
+  bool is_double = LoadHandler::IsDoubleBits::decode(handler_value_);
   uint32_t expected_details_mask = PropertyDetails::KindField::kMask |
                                    PropertyDetails::LocationField::kMask |
                                    PropertyDetails::OffsetInWordsField::kMask |
@@ -2370,22 +2387,31 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
       PropertyDetails::LocationField::encode(PropertyLocation::kField) |
       PropertyDetails::OffsetInWordsField::encode(storage_offset) |
       PropertyDetails::InObjectField::encode(is_inobject);
+  if (is_double) {
+    // 4b. Check Representation is exactly double, if needed.
+    expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+    expected_details |= PropertyDetails::RepresentationField::encode(
+        PropertyDetails::EncodeRepresentation(Representation::Double()));
+  }
 
   __ AndInt32(scratch, descriptor_entry, expected_details_mask);
   __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_details),
                            kNotEqual,
                            __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
 
-  // 4b. Check Representation.
-  bool is_double = LoadHandler::IsDoubleBits::decode(handler_value_);
-  uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
-  uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
-      PropertyDetails::EncodeRepresentation(Representation::Double()));
+  if (!is_double) {
+    // 4b. Check Representation is NOT double. If we wanted a double
+    // representation, we would have checked it already as part of the expected
+    // details check.
+    uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+    uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+        PropertyDetails::EncodeRepresentation(Representation::Double()));
 
-  __ AndInt32(scratch, descriptor_entry, repr_mask);
-  __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_repr),
-                           is_double ? kNotEqual : kEqual,
-                           __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+    __ AndInt32(scratch, descriptor_entry, repr_mask);
+    __ CompareInt32AndJumpIf(
+        scratch, static_cast<int32_t>(expected_repr), kEqual,
+        __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+  }
 
   // 5. Update cache.
   {
@@ -5397,12 +5423,17 @@ void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Float64Round::SetValueLocationConstraints() {
+void Float64RoundToFloat32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
+}
+
+void Float64Round::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
   if (kind_ == Kind::kNearest) {
     set_double_temporaries_needed(1);
   }
+  DefineSameAsFirst(this);
 }
 
 void Int32AbsWithOverflow::SetValueLocationConstraints() {
@@ -6333,6 +6364,17 @@ void CheckedFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
 
+void CheckedFloat64ToUint32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedFloat64ToUint32::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  __ TryTruncateDoubleToUint32(
+      ToRegister(result()), ToDoubleRegister(ValueInput()),
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
+}
+
 void CheckedHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
@@ -6342,6 +6384,17 @@ void CheckedHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
   __ TryTruncateDoubleToInt32(
       ToRegister(result()), ToDoubleRegister(ValueInput()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+}
+
+void CheckedHoleyFloat64ToUint32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedHoleyFloat64ToUint32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  __ TryTruncateDoubleToUint32(
+      ToRegister(result()), ToDoubleRegister(ValueInput()),
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
 void CheckedFloat64ToSmiSizedInt32::SetValueLocationConstraints() {
@@ -8755,6 +8808,9 @@ void Float64Round::PrintParams(std::ostream& os) const {
       return;
     case Kind::kNearest:
       os << "(nearest)";
+      return;
+    case Kind::kTrunc:
+      os << "(trunc)";
       return;
   }
 }

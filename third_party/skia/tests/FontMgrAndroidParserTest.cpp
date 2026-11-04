@@ -327,6 +327,29 @@ DEF_TEST_SCANNERS(FontMgrAndroidParserFontsModification, reporter) {
     }
 }
 
+DEF_TEST_SCANNERS(FontMgrAndroidParserAliasBugfix, reporter) {
+    bool resourcesMissing = false;
+    std::vector<std::unique_ptr<FontFamily>> families;
+    SkFontMgr_Android_Parser::GetCustomFontFamilies(
+            families,
+            SkString("/custom/font/path/"),
+            GetResourcePath("android_fonts/alias/fonts_alias_caps.xml").c_str(),
+            nullptr);
+
+    if (families.size() > 0) {
+        REPORTER_ASSERT(reporter, families.size() == 1);
+        REPORTER_ASSERT(reporter, families[0]->fNames.size() == 2);
+        REPORTER_ASSERT(reporter, families[0]->fNames[0].equals("sans-serif-black"));
+        REPORTER_ASSERT(reporter, families[0]->fNames[1].equals("test-alias"));
+    } else {
+        resourcesMissing = true;
+    }
+
+    if (resourcesMissing) {
+        SkDebugf("---- Resource files missing for FontConfigParser alias bugfix test\n");
+    }
+}
+
 DEF_TEST_SCANNERS(FontMgrAndroidLegacyMakeTypeface, reporter) {
     constexpr char fontsXmlFilename[] = "fonts/fonts.xml";
     SkString basePath = GetResourcePath("fonts/");

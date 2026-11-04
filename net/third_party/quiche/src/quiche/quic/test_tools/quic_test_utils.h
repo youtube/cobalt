@@ -7,6 +7,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_UTILS_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_UTILS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -248,6 +249,13 @@ bool ClearControlFrame(const QuicFrame& frame);
 bool ClearControlFrameWithTransmissionType(const QuicFrame& frame,
                                            TransmissionType type);
 
+// Checks the packet in |old_buffer| for the presence of a SCONE packet. If
+// found, the SCONE packet is copied into |new_buffer| with the value in
+// |scone_value|. Returns true if a SCONE packet was found and updated. Both
+// |old_buffer| and |new_buffer| must be at least as large as |length| bytes.
+bool MaybeUpdateSconePacket(const char* old_buffer, char* new_buffer,
+                            size_t length, uint8_t scone_value);
+
 // Simple random number generator used to compute random numbers suitable
 // for pseudo-randomly dropping packets in tests.
 class SimpleRandom : public QuicRandom {
@@ -371,6 +379,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               (const QuicIetfStatelessResetPacket&), (override));
   MOCK_METHOD(void, OnKeyUpdate, (KeyUpdateReason), (override));
   MOCK_METHOD(void, OnDecryptedFirstPacketInKeyPhase, (), (override));
+  MOCK_METHOD(void, OnSconePacket, (uint8_t), (override));
   MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
               AdvanceKeysAndCreateCurrentOneRttDecrypter, (), (override));
   MOCK_METHOD(std::unique_ptr<QuicEncrypter>, CreateCurrentOneRttEncrypter, (),
@@ -440,6 +449,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
+  void OnSconePacket(uint8_t /*signal*/) override {}
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {
     return nullptr;
@@ -528,6 +538,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(QuicByteCount, GetFlowControlSendWindowSize, (QuicStreamId),
               (override));
   MOCK_METHOD(bool, MaybeMitigateWriteError, (const WriteResult&), (override));
+  MOCK_METHOD(void, OnSconePacket, (QuicBandwidth), (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {

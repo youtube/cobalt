@@ -264,6 +264,19 @@ class RTC_EXPORT Network {
     network_preference_changed_callbacks_.Send(network);
   }
 
+  // This signal is fired whenever network slice changes.
+  void SubscribeNetworkSliceChanged(
+      void* tag,
+      absl::AnyInvocable<void(const Network*)> callback) {
+    network_slice_changed_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeNetworkSliceChanged(void* tag) {
+    network_slice_changed_callbacks_.RemoveReceivers(tag);
+  }
+  void NotifyNetworkSliceChanged(const Network* network) {
+    network_slice_changed_callbacks_.Send(network);
+  }
+
   const DefaultLocalAddressProvider* default_local_address_provider() const {
     return default_local_address_provider_;
   }
@@ -425,7 +438,13 @@ class RTC_EXPORT Network {
   }
 
   NetworkSlice network_slice() const { return network_slice_; }
-  void set_network_slice(NetworkSlice slice) { network_slice_ = slice; }
+  void set_network_slice(NetworkSlice slice) {
+    if (network_slice_ == slice) {
+      return;
+    }
+    network_slice_ = slice;
+    NotifyNetworkSliceChanged(this);
+  }
 
   static std::tuple<AdapterType, bool /* vpn */, NetworkSlice>
   GuessAdapterFromNetworkCost(int network_cost);
@@ -453,6 +472,7 @@ class RTC_EXPORT Network {
   NetworkSlice network_slice_ = NetworkSlice::NO_SLICE;
   CallbackList<const Network*> type_changed_callbacks_;
   CallbackList<const Network*> network_preference_changed_callbacks_;
+  CallbackList<const Network*> network_slice_changed_callbacks_;
   friend class NetworkManager;
 };
 

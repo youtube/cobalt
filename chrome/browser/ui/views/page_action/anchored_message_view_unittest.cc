@@ -64,8 +64,8 @@ class AnchoredMessageBubbleViewTest
 
   std::unique_ptr<AnchoredMessageBubbleView> CreateView() {
     auto view = std::make_unique<AnchoredMessageBubbleView>(
-        anchor_widget_->GetContentsView(), model_, base::DoNothing(),
-        base::DoNothing());
+        views::BubbleAnchor(anchor_widget_->GetContentsView()), model_,
+        base::DoNothing(), base::DoNothing());
     view->set_parent_window(anchor_widget_->GetNativeView());
     return view;
   }
@@ -197,28 +197,6 @@ TEST_F(AnchoredMessageBubbleViewTest, UpdateContentChangesVisibility_ChipOnly) {
       EnsurePresent(AnchoredMessageBubbleView::kAnchoredMessageChipId),
       EnsurePresent(AnchoredMessageBubbleView::kAnchoredMessageChipIconId),
       EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageChipLabelId),
-      EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageCloseIconId),
-      EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageMenuIconId));
-
-  widget->CloseNow();
-}
-
-TEST_F(AnchoredMessageBubbleViewTest, UpdateContentChangesVisibility_NoChip) {
-  ON_CALL(model_, GetAnchoredMessageText())
-      .WillByDefault(ReturnRef(test_text_));
-  ON_CALL(model_, GetAnchoredMessageIcon())
-      .WillByDefault(ReturnRef(test_icon_opt_));
-  ON_CALL(model_, GetImage()).WillByDefault(ReturnRef(test_image_));
-  ON_CALL(model_, GetText()).WillByDefault(ReturnRef(empty_text_));
-
-  auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
-  widget->Show();
-
-  RunTestSequence(
-      EnsurePresent(AnchoredMessageBubbleView::kAnchoredMessageIconId),
-      EnsurePresent(AnchoredMessageBubbleView::kAnchoredMessageLabelId),
-      EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageChipId),
       EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageCloseIconId),
       EnsureNotPresent(AnchoredMessageBubbleView::kAnchoredMessageMenuIconId));
 

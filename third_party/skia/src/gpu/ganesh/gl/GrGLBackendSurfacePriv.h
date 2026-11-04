@@ -40,11 +40,13 @@ public:
 private:
     void copyTo(AnyTextureData&) const override;
     bool isProtected() const override;
-    bool equal(const GrBackendTextureData* that) const override;
     bool isSameTexture(const GrBackendTextureData* that) const override;
     GrBackendFormat getBackendFormat() const override;
 #if defined(SK_DEBUG)
     GrBackendApi type() const override { return GrBackendApi::kOpenGL; }
+#endif
+#if defined(GPU_TEST_UTILS)
+    bool equal(const GrBackendTextureData* that) const override;
 #endif
 
     GrGLBackendTextureInfo fGLInfo;

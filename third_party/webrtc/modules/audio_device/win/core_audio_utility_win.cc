@@ -1476,8 +1476,7 @@ bool FillRenderEndpointBufferWithSilence(IAudioClient* client,
 }
 
 std::string WaveFormatToString(const WaveFormatWrapper format) {
-  char ss_buf[1024];
-  webrtc::SimpleStringBuilder ss(ss_buf);
+  StringBuilder ss;
   // Start with the WAVEFORMATEX part (which always exists).
   ss.AppendFormat("wFormatTag: %s (0x%X)",
                   WaveFormatTagToString(format->wFormatTag),
@@ -1489,7 +1488,7 @@ std::string WaveFormatToString(const WaveFormatWrapper format) {
   ss.AppendFormat(", wBitsPerSample: %d", format->wBitsPerSample);
   ss.AppendFormat(", cbSize: %d", format->cbSize);
   if (!format.IsExtensible())
-    return ss.str();
+    return ss.Release();
 
   // Append the WAVEFORMATEXTENSIBLE part (which we know exists).
   ss.AppendFormat(
@@ -1503,7 +1502,7 @@ std::string WaveFormatToString(const WaveFormatWrapper format) {
   } else {
     ss.AppendFormat("%s", ", SubFormat: NOT_SUPPORTED");
   }
-  return ss.str();
+  return ss.Release();
 }
 
 webrtc::TimeDelta ReferenceTimeToTimeDelta(REFERENCE_TIME time) {
@@ -1517,10 +1516,9 @@ double FramesToMilliseconds(uint32_t num_frames, uint16_t sample_rate) {
 }
 
 std::string ErrorToString(const _com_error& error) {
-  char ss_buf[1024];
-  webrtc::SimpleStringBuilder ss(ss_buf);
+  StringBuilder ss;
   ss.AppendFormat("(HRESULT: 0x%08X)", error.Error());
-  return ss.str();
+  return ss.Release();
 }
 
 }  // namespace core_audio_utility

@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
@@ -190,13 +191,11 @@ void ChooserBubbleUiViewDelegate::UpdateAnchor(Browser* browser) {
   SetAnchor(configuration.anchor);
   // In fullscreen, `anchor` may be nullptr therefore anchor to the browser
   // window instead.
-  if (std::holds_alternative<View*>(configuration.anchor)) {
-    set_parent_window(
-        std::get<View*>(configuration.anchor)->GetWidget()->GetNativeView());
-  } else if (std::holds_alternative<ui::TrackedElement*>(
-                 configuration.anchor)) {
-    set_parent_window(
-        std::get<ui::TrackedElement*>(configuration.anchor)->GetNativeView());
+  if (View* view = configuration.anchor.GetIfView()) {
+    set_parent_window(view->GetWidget()->GetNativeView());
+  } else if (ui::TrackedElement* element =
+                 configuration.anchor.GetIfElement()) {
+    set_parent_window(element->GetNativeView());
   } else {
     set_parent_window(
         platform_util::GetViewForWindow(browser->window()->GetNativeWindow()));
@@ -204,7 +203,7 @@ void ChooserBubbleUiViewDelegate::UpdateAnchor(Browser* browser) {
   if (configuration.highlighted_element) {
     SetHighlightedElement(*configuration.highlighted_element);
   }
-  if (std::holds_alternative<std::nullptr_t>(configuration.anchor)) {
+  if (configuration.anchor.IsNull()) {
     SetAnchorRect(GetChooserAnchorRect(browser));
   }
   SetArrow(configuration.bubble_arrow);
@@ -243,7 +242,7 @@ base::OnceClosure ShowDeviceChooserDialogForExtension(
     return base::DoNothing();
   }
 
-  if (browser->tab_strip_model()->GetActiveWebContents() != contents) {
+  if (browser->GetTabStripModel()->GetActiveWebContents() != contents) {
     return base::DoNothing();
   }
 
@@ -257,7 +256,7 @@ base::OnceClosure ShowDeviceChooserDialogForExtension(
   }
 
   auto bubble = std::make_unique<ChooserBubbleUiViewDelegate>(
-      browser, contents, std::move(controller));
+      browser->GetBrowserForMigrationOnly(), contents, std::move(controller));
   base::OnceClosure close_closure = bubble->MakeCloseClosure();
   extensions_toolbar->ShowWidgetForExtension(
       views::BubbleDialogDelegateView::CreateBubble(std::move(bubble)),
@@ -301,14 +300,14 @@ base::OnceClosure ShowDeviceChooserDialog(
     return base::DoNothing();
   }
 
-  if (browser->tab_strip_model()->GetActiveWebContents() != contents) {
+  if (browser->GetTabStripModel()->GetActiveWebContents() != contents) {
     return base::DoNothing();
   }
 
   auto bubble = std::make_unique<ChooserBubbleUiViewDelegate>(
-      browser, contents, std::move(controller));
+      browser->GetBrowserForMigrationOnly(), contents, std::move(controller));
 
-  bubble->UpdateAnchor(browser);
+  bubble->UpdateAnchor(browser->GetBrowserForMigrationOnly());
 
   base::OnceClosure close_closure = bubble->MakeCloseClosure();
   views::Widget* widget =
@@ -320,7 +319,8 @@ base::OnceClosure ShowDeviceChooserDialog(
   // then our widget is also always-on-top and needs to be tracked by the
   // PictureInPictureOcclusionTracker so it can handle our widget occluding
   // other widgets.
-  if (browser->is_type_picture_in_picture()) {
+  if (browser->GetType() ==
+      BrowserWindowInterface::Type::TYPE_PICTURE_IN_PICTURE) {
     PictureInPictureOcclusionTracker* tracker =
         PictureInPictureWindowManager::GetInstance()->GetOcclusionTracker();
     if (tracker) {

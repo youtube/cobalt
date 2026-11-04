@@ -735,6 +735,10 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
   void UpdateDelayStats(std::string tag, int desc_size);
 
+  bool AudioDelayStatsPercentageChecked() const {
+    return audio_delay_stats_percentage_checked_;
+  }
+
   // Sets number of candidates expected
   void ExpectCandidates(int candidate_count) {
     candidates_expected_ = candidate_count;
@@ -1272,6 +1276,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   uint64_t audio_samples_stat_ = 0;
   uint64_t audio_concealed_stat_ = 0;
   std::string rtp_stats_id_;
+  bool audio_delay_stats_percentage_checked_ = false;
 
   std::function<void(PeerConnectionInterface::PeerConnectionState)>
       connection_change_callback_ = nullptr;

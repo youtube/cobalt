@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.1] - 2026-04-07
+
+### Fixed
+ - Performance issues with PathBuilder [have been addressed](https://review.skia.org/1189676)
+ - Updated libpng to 1.6.56
+
 ## [0.41.0] - 2026-03-18
 
 ### Breaking

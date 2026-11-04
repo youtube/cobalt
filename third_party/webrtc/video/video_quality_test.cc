@@ -371,8 +371,7 @@ std::unique_ptr<VideoEncoder> VideoQualityTest::CreateVideoEncoder(
 
   std::vector<std::string> encoded_frame_dump_files;
   if (!params_.logging.encoded_frame_base_path.empty()) {
-    char ss_buf[100];
-    SimpleStringBuilder sb(ss_buf);
+    StringBuilder sb;
     sb << send_logs_++;
     std::string prefix =
         params_.logging.encoded_frame_base_path + "." + sb.str() + ".send.";

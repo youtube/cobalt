@@ -23,15 +23,6 @@ absl::string_view NetworkPreferenceToString(NetworkPreference preference) {
   }
 }
 
-absl::string_view NetworkSliceToString(NetworkSlice network_slice) {
-  switch (network_slice) {
-    case NetworkSlice::NO_SLICE:
-      return "NO_SLICE";
-    case NetworkSlice::UNIFIED_COMMUNICATIONS:
-      return "UNIFIED_COMMUNICATIONS";
-  }
-}
-
 NetworkMonitorInterface::NetworkMonitorInterface() {}
 NetworkMonitorInterface::~NetworkMonitorInterface() {}
 

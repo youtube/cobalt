@@ -266,11 +266,6 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   // MTU configured for dtls.
   int dtls_mtu_ = 1200;
 
-  // 0 == Disabled
-  // 1 == Max
-  // 2 == Enabled (both min and max)
-  const int force_dtls_13_ = 0;
-
   int retransmission_count_ = 0;
 
   // Kill switch (from field-trial) flag to disable the use of

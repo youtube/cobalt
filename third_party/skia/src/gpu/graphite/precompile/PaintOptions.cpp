@@ -157,7 +157,6 @@ void PaintOptions::createKey(const KeyContext& keyContext,
                              bool addPrimitiveBlender,
                              bool addAnalyticClip,
                              Coverage coverage) const {
-    SkDEBUGCODE(keyContext.paintParamsKeyBuilder()->checkReset();)
     SkASSERT(desiredCombination < this->numCombinations());
 
     const int numClipShaderCombos = this->numClipShaderCombinations();
@@ -303,13 +302,14 @@ void PaintOptions::buildCombinations(
             // the exact layout doesn't matter
 
             keyContext.pipelineDataGatherer()->resetForDraw();
+            keyContext.paintParamsKeyBuilder()->resetForDraw();
 
             this->createKey(keyContext, renderPassDesc.fColorAttachment.fFormat,
                             i, withPrimitiveBlender,
                             SkToBool(drawTypes & DrawTypeFlags::kAnalyticClip), coverage);
 
-            // The 'findOrCreate' calls lockAsKey on builder and then destroys the returned
-            // PaintParamsKey. This serves to reset the builder.
+            // Reset the builder after we get the paintID, we don't need the key anymore
+            // for precompilation.
             UniquePaintParamsID paintID = keyContext.dict()->findOrCreate(
                     keyContext.paintParamsKeyBuilder());
 

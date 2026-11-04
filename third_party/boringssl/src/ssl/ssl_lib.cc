@@ -528,7 +528,9 @@ SSL *SSL_new(SSL_CTX *ctx) {
           ctx->alpn_client_proto_list) ||
       !ssl->config->verify_sigalgs.CopyFrom(ctx->verify_sigalgs) ||
       !ssl->config->accepted_peer_cert_types.TryCopyFrom(
-          ctx->accepted_peer_cert_types)) {
+          ctx->accepted_peer_cert_types) ||
+      !ssl->config->available_client_cert_types.TryCopyFrom(
+          ctx->available_client_cert_types)) {
     return nullptr;
   }
 
@@ -3494,6 +3496,87 @@ static int Configure(SSL *ssl) {
 
 }  // namespace cnsa202407
 
+namespace cnsa1_202603 {
+
+// Approximates CNSA 1.0 (RFC 9151).
+
+static const uint16_t kGroups[] = {SSL_GROUP_MLKEM1024, SSL_GROUP_SECP384R1};
+
+// Prefer ML-KEM-1024 if the client supports it.
+static const uint32_t kOptions = SSL_OP_CIPHER_SERVER_PREFERENCE;
+
+static const uint16_t kSigAlgs[] = {
+    SSL_SIGN_ECDSA_SECP384R1_SHA384,
+    SSL_SIGN_RSA_PSS_RSAE_SHA384,
+    SSL_SIGN_RSA_PKCS1_SHA384,
+};
+
+static const char kTLS12Ciphers[] =
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:"
+    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+
+static int Configure(SSL_CTX *ctx) {
+  ctx->compliance_policy = ssl_compliance_policy_cnsa1_202603;
+
+  return SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) &&
+         SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) &&
+         SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
+         SSL_CTX_set1_group_ids(ctx, kGroups, std::size(kGroups)) &&
+         SSL_CTX_set_options(ctx, kOptions) &&
+         SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
+                                             std::size(kSigAlgs)) &&
+         SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs, std::size(kSigAlgs));
+}
+
+static int Configure(SSL *ssl) {
+  ssl->config->compliance_policy = ssl_compliance_policy_cnsa1_202603;
+
+  return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
+         SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
+         SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
+         SSL_set1_group_ids(ssl, kGroups, std::size(kGroups)) &&
+         SSL_set_options(ssl, kOptions) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs));
+}
+
+}  // namespace cnsa1_202603
+
+namespace cnsa2_202603 {
+
+// Approximates CNSA 2.0 (draft-becker-cnsa2-tls-profile).
+
+static const uint16_t kGroups[] = {SSL_GROUP_MLKEM1024};
+
+static const uint16_t kSigAlgs[] = {
+    SSL_SIGN_ECDSA_SECP384R1_SHA384,
+    SSL_SIGN_RSA_PSS_RSAE_SHA384,
+    SSL_SIGN_RSA_PKCS1_SHA384,
+};
+
+static int Configure(SSL_CTX *ctx) {
+  ctx->compliance_policy = ssl_compliance_policy_cnsa2_202603;
+
+  return SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) &&
+         SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) &&
+         SSL_CTX_set1_group_ids(ctx, kGroups, std::size(kGroups)) &&
+         SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
+                                             std::size(kSigAlgs)) &&
+         SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs, std::size(kSigAlgs));
+}
+
+static int Configure(SSL *ssl) {
+  ssl->config->compliance_policy = ssl_compliance_policy_cnsa2_202603;
+
+  return SSL_set_min_proto_version(ssl, TLS1_3_VERSION) &&
+         SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
+         SSL_set1_group_ids(ssl, kGroups, std::size(kGroups)) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs));
+}
+
+}  // namespace cnsa2_202603
+
 int SSL_CTX_set_compliance_policy(SSL_CTX *ctx,
                                   enum ssl_compliance_policy_t policy) {
   switch (policy) {
@@ -3503,6 +3586,10 @@ int SSL_CTX_set_compliance_policy(SSL_CTX *ctx,
       return wpa202304::Configure(ctx);
     case ssl_compliance_policy_cnsa_202407:
       return cnsa202407::Configure(ctx);
+    case ssl_compliance_policy_cnsa1_202603:
+      return cnsa1_202603::Configure(ctx);
+    case ssl_compliance_policy_cnsa2_202603:
+      return cnsa2_202603::Configure(ctx);
     default:
       return 0;
   }
@@ -3520,6 +3607,10 @@ int SSL_set_compliance_policy(SSL *ssl, enum ssl_compliance_policy_t policy) {
       return wpa202304::Configure(ssl);
     case ssl_compliance_policy_cnsa_202407:
       return cnsa202407::Configure(ssl);
+    case ssl_compliance_policy_cnsa1_202603:
+      return cnsa1_202603::Configure(ssl);
+    case ssl_compliance_policy_cnsa2_202603:
+      return cnsa2_202603::Configure(ssl);
     default:
       return 0;
   }
@@ -3584,8 +3675,8 @@ static bool is_valid_cert_types_list(Span<const uint8_t> list) {
   }
   for (size_t i = 0u; i < list.size(); ++i) {
     // Check that each value is a recognized cert type.
-    if (std::find(std::begin(kCertTypes), std::end(kCertTypes), list[i]) ==
-        std::end(kCertTypes)) {
+    if (std::find(std::begin(kAllCertTypes), std::end(kAllCertTypes),
+                  list[i]) == std::end(kAllCertTypes)) {
       return false;
     }
     // Reject duplicates.
@@ -3623,6 +3714,26 @@ int SSL_set1_accepted_peer_cert_types(SSL *ssl, const uint8_t *values,
                          Span(values, num_values));
 }
 
+int SSL_CTX_set1_available_client_cert_types(SSL_CTX *ctx,
+                                             const uint8_t *values,
+                                             size_t num_values) {
+  return set1_cert_types(&ctx->available_client_cert_types,
+                         Span(values, num_values));
+}
+
+int SSL_set1_available_client_cert_types(SSL *ssl, const uint8_t *values,
+                                         size_t num_values) {
+  if (!ssl->config) {
+    return 0;
+  }
+  return set1_cert_types(&ssl->config->available_client_cert_types,
+                         Span(values, num_values));
+}
+
 int SSL_get_negotiated_client_cert_type(const SSL *ssl) {
   return ssl->s3->client_cert_type.value_or(kDefaultCertType);
+}
+
+int SSL_get_negotiated_server_cert_type(const SSL *ssl) {
+  return ssl->s3->server_cert_type.value_or(kDefaultCertType);
 }

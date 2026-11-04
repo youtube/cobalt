@@ -48,6 +48,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
 #include "pc/peer_connection_wrapper.h"
+#include "pc/rtp_transceiver.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/integration_test_helpers.h"
@@ -71,6 +72,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::NotNull;
+using ::testing::Optional;
 using ::testing::Pair;
 using ::testing::SizeIs;
 
@@ -82,6 +84,19 @@ std::unique_ptr<Thread> CreateAndStartThread() {
   auto thread = Thread::Create();
   thread->Start();
   return thread;
+}
+
+// Helper to enable SFrame directly on a transceiver's internal state.
+// Must be called with the signaling thread to ensure thread safety.
+void EnableSframeOnTransceiver(
+    Thread* signaling_thread,
+    const scoped_refptr<RtpTransceiverInterface>& transceiver) {
+  signaling_thread->BlockingCall([&]() {
+    static_cast<RtpTransceiverProxyWithInternal<RtpTransceiver>*>(
+        transceiver.get())
+        ->internal()
+        ->TryToEnableSframe();
+  });
 }
 
 }  // namespace
@@ -2580,6 +2595,363 @@ TEST_F(SdpOfferAnswerTest, NegotiatesTransportCcWhenCcfbMissingInBothSections) {
     }
   }
   EXPECT_TRUE(found_transport_cc);
+}
+
+TEST_F(SdpOfferAnswerTest, StopsTransceiverWhenAnswerLacksSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  // Simulate a remote peer that strips sframe from the answer.
+  answer->description()->contents()[0].media_description()->set_sframe_enabled(
+      false);
+
+  // SetRemoteDescription should succeed, but the transceiver should be stopped.
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+  EXPECT_TRUE(transceiver->stopped());
+}
+
+TEST_F(SdpOfferAnswerTest, AcceptsAnswerWithSframeWhenOfferedWithSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+  EXPECT_FALSE(transceiver->stopped());
+}
+
+TEST_F(SdpOfferAnswerTest, AcceptsAnswerWithoutSframeWhenOfferedWithoutSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  caller->AddTransceiver(MediaType::AUDIO);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(offer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(answer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+}
+
+TEST_F(SdpOfferAnswerTest,
+       SetLocalOfferSyncsTransceiverSframeFromNulloptToFalse) {
+  auto caller = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EXPECT_EQ(transceiver->SframeEnabled(), std::nullopt);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(offer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(false));
+}
+
+TEST_F(SdpOfferAnswerTest, SetLocalOfferPreservesSframeTrueOnTransceiver) {
+  auto caller = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+}
+
+TEST_F(SdpOfferAnswerTest,
+       RemoteOfferWithoutSframeCreatesTransceiverWithSframeFalse) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  caller->AddTransceiver(MediaType::AUDIO);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(offer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  // Callee's transceiver was created by the remote offer. Since the offer
+  // did not contain the sframe attribute, SframeEnabled should be false.
+  auto callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+  EXPECT_THAT(callee_transceivers[0]->SframeEnabled(), Optional(false));
+}
+
+TEST_F(SdpOfferAnswerTest,
+       RemoteOfferWithSframeCreatesTransceiverWithSframeTrue) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  // Callee's transceiver was created by the remote offer. Since the offer
+  // contained the sframe attribute, SframeEnabled should be true.
+  auto callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+  EXPECT_THAT(callee_transceivers[0]->SframeEnabled(), Optional(true));
+}
+
+// Verify that enabling SFrame before first negotiation produces
+// an offer with a=sframe, and that the SFrame state is reflected
+// in the local description after SetLocalDescription.
+TEST_F(SdpOfferAnswerTest,
+       EnableSframeBeforeNegotiationProducesOfferWithSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EXPECT_EQ(transceiver->SframeEnabled(), std::nullopt);
+
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+}
+
+// Verify that after a full negotiation with SFrame enabled, the state
+// is consistent on the caller side.
+TEST_F(SdpOfferAnswerTest, SframeTrueConsistentAfterFullNegotiation) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), transceiver);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+}
+
+TEST_F(SdpOfferAnswerTest,
+       RejectsAnswerWithSframeWhenOfferDidNotIncludeSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  caller->AddTransceiver(MediaType::AUDIO);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(offer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(answer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  // Simulate a malicious/buggy answerer adding a=sframe to the answer.
+  answer->description()->contents()[0].media_description()->set_sframe_enabled(
+      true);
+
+  RTCError error;
+  EXPECT_FALSE(caller->SetRemoteDescription(std::move(answer), &error));
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
+  EXPECT_THAT(error.message(),
+              ::testing::HasSubstr("offer did not include a=sframe"));
+}
+
+// Verify that a rejected m-section with spurious a=sframe in
+// the answer is tolerated (rejected sections are skipped).
+TEST_F(SdpOfferAnswerTest, ToleratesRejectedAnswerSectionWithSpuriousSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  caller->AddTransceiver(MediaType::AUDIO);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+
+  // Mark the section as rejected (port 0) AND add spurious a=sframe.
+  answer->description()->contents()[0].rejected = true;
+  answer->description()->contents()[0].media_description()->set_sframe_enabled(
+      true);
+
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+}
+
+// Sframe state is locked to false after negotiation without Sframe.
+TEST_F(SdpOfferAnswerTest, SframeLockedToFalseAfterNegotiationWithoutSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EXPECT_EQ(transceiver->SframeEnabled(), std::nullopt);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(false));
+}
+
+// Full end-to-end: Both sides enable Sframe, complete negotiation, verify
+// Sframe is active on both transceivers.
+TEST_F(SdpOfferAnswerTest, BothSidesEnableSframeFullNegotiation) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto caller_transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), caller_transceiver);
+
+  // Callee adds a track via addTrack (so it's matched per JSEP §5.10)
+  // and also explicitly enables Sframe.
+  callee->AddAudioTrack("audio", {});
+  auto callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+  EnableSframeOnTransceiver(signaling_thread_.get(), callee_transceivers[0]);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+
+  EXPECT_THAT(caller_transceiver->SframeEnabled(), Optional(true));
+  EXPECT_FALSE(caller_transceiver->stopped());
+
+  callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+  EXPECT_THAT(callee_transceivers[0]->SframeEnabled(), Optional(true));
+  EXPECT_FALSE(callee_transceivers[0]->stopped());
+}
+
+// Callee has a transceiver created via addTrack (without Sframe).
+// Caller offers with a=sframe. The offer should be accepted (standard O/A
+// model), the answer should lack a=sframe, and the caller should stop the
+// transceiver via downgrade protection.
+TEST_F(SdpOfferAnswerTest,
+       AddTrackTransceiverWithoutSframeAcceptsOfferWithSframe) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto caller_transceiver = caller->AddTransceiver(MediaType::AUDIO);
+  EnableSframeOnTransceiver(signaling_thread_.get(), caller_transceiver);
+
+  // Callee uses addTrack (creates a transceiver via FindAvailableToReceive
+  // path) but does NOT enable Sframe.
+  callee->AddAudioTrack("audio", {});
+  auto callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+  EXPECT_EQ(callee_transceivers[0]->SframeEnabled(), std::nullopt);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  EXPECT_TRUE(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->sframe_enabled());
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+
+  callee_transceivers = callee->pc()->GetTransceivers();
+  ASSERT_THAT(callee_transceivers, SizeIs(1));
+
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer->description()->contents(), SizeIs(1));
+  EXPECT_FALSE(answer->description()
+                   ->contents()[0]
+                   .media_description()
+                   ->sframe_enabled());
+
+  // Caller receives answer without a=sframe → downgrade protection kicks in.
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+  EXPECT_TRUE(caller_transceiver->stopped());
 }
 
 }  // namespace webrtc

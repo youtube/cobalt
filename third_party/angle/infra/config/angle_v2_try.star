@@ -101,6 +101,17 @@ def angle_win_functional_cq_tester(**kwargs):
 ## Functional testers
 
 angle_linux_functional_cq_tester(
+    name = "angle-cq-android-arm64-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on multiple hardware configs. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-google-pixel4-rel",
+        "ci/angle-android-arm64-google-pixel6-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_functional_cq_tester(
     name = "angle-cq-linux-x64-rel",
     description_html = "Tests release ANGLE on Linux/x64 on multiple hardware configs. Blocks CL submission.",
     mirrors = [
@@ -143,6 +154,16 @@ angle_win_functional_cq_tester(
         "ci/angle-win-x64-nvidia-gtx1660-rel",
     ],
     gn_args = "ci/angle-win-x64-builder-rel",
+)
+
+angle_win_functional_cq_tester(
+    name = "angle-cq-win-x86-rel",
+    description_html = "Tests release ANGLE on Win/x86 on multiple hardware configs. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x86-builder-rel",
+        "ci/angle-win-x86-sws-rel",
+    ],
+    gn_args = "ci/angle-win-x86-builder-rel",
 )
 
 ################################################################################
@@ -221,6 +242,56 @@ def angle_win_manual_builder(*, name, **kwargs):
     )
 
 ## Functional testers
+
+angle_linux_manual_builder(
+    name = "angle-try-android-arm64-google-pixel4-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on Pixel 4 devices. Manual only.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-google-pixel4-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_manual_builder(
+    name = "angle-try-android-arm64-google-pixel6-exp-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on experimental Pixel 6 devices. Manual only.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-google-pixel6-exp-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_manual_builder(
+    name = "angle-try-android-arm64-google-pixel6-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on Pixel 6 devices. Manual only.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-google-pixel6-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_manual_builder(
+    name = "angle-try-android-arm64-google-pixel10-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on Pixel 10 devices. Manual only.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-google-pixel10-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_manual_builder(
+    name = "angle-try-android-arm64-samsung-s24-rel",
+    description_html = "Tests release ANGLE on Android/arm64 on Samsung S24 devices. Manual only.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-rel",
+        "ci/angle-android-arm64-samsung-s24-rel",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-rel",
+)
 
 angle_linux_manual_builder(
     name = "angle-try-linux-x64-amd-rx5500xt-rel",
@@ -390,4 +461,14 @@ angle_win_manual_builder(
         "ci/angle-win-x64-nvidia-gtx1660-rel",
     ],
     gn_args = "ci/angle-win-x64-builder-rel",
+)
+
+angle_win_manual_builder(
+    name = "angle-try-win-x86-sws-rel",
+    description_html = "Tests release ANGLE on Win/x86 with SwiftShader. Manual only.",
+    mirrors = [
+        "ci/angle-win-x86-builder-rel",
+        "ci/angle-win-x86-sws-rel",
+    ],
+    gn_args = "ci/angle-win-x86-builder-rel",
 )

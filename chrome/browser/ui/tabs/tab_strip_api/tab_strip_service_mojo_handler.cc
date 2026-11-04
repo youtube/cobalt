@@ -5,7 +5,6 @@
 
 #include "base/strings/string_number_conversions.h"
 #include "base/types/expected.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/platform_adapters_provider.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/event_broadcaster.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service.h"
@@ -85,14 +84,6 @@ void TabStripServiceMojoHandler::MoveNode(const tabs_api::NodeId& id,
 void TabStripServiceMojoHandler::Update(tabs_api::mojom::DataPtr data,
                                         UpdateCallback callback) {
   std::move(callback).Run(tab_strip_service_->Update(std::move(data)));
-}
-
-void TabStripServiceMojoHandler::UpdateTabGroupVisual(
-    const tabs_api::NodeId& id,
-    const tab_groups::TabGroupVisualData& visual_data,
-    UpdateTabGroupVisualCallback callback) {
-  std::move(callback).Run(
-      tab_strip_service_->UpdateTabGroupVisual(id, visual_data));
 }
 
 void TabStripServiceMojoHandler::ShowTabContextMenu(

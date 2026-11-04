@@ -17,6 +17,7 @@
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/client_hints.h"
 #include "content/public/browser/frame_accept_header.h"
 #include "content/public/browser/web_contents.h"
@@ -123,7 +124,6 @@ void AddSecPurposeHeader(net::HttpRequestHeaders& request_headers,
       case PreloadingType::kUnspecified:
       case PreloadingType::kPreconnect:
       case PreloadingType::kNoStatePrefetch:
-      case PreloadingType::kLinkPreview:
         NOTREACHED();
     }
   }();
@@ -391,6 +391,8 @@ PrefetchUpdateHeadersParams PrepareInitialHeadersForPrefetch(
     const GURL& request_url,
     const PrefetchRequest& prefetch_request,
     bool is_first_party_context_for_variations_header) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
   PrefetchUpdateHeadersParams params;
 
   url::Origin request_url_origin = url::Origin::Create(request_url);
@@ -610,6 +612,9 @@ MaybeMakeSelfOwnedNetworkServiceDevToolsObserverForPrefetch(
 }
 
 // ------------------------------------------------------------------------
+// Constructs a `ResourceRequest` without headers.
+// Headers should be added using `PrepareInitialHeadersForPrefetch*()`, in
+// `MakeInitialResourceRequestForPrefetch()` or separately for OMT prefetch.
 std::unique_ptr<network::ResourceRequest>
 MakeInitialResourceRequestWithoutHeadersForPrefetch(
     const PrefetchRequest& prefetch_request,
@@ -725,6 +730,8 @@ MakeInitialResourceRequestWithoutHeadersForPrefetch(
 std::unique_ptr<network::ResourceRequest> MakeInitialResourceRequestForPrefetch(
     const PrefetchRequest& prefetch_request,
     bool is_decoy) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
   auto resource_request = MakeInitialResourceRequestWithoutHeadersForPrefetch(
       prefetch_request, is_decoy);
 
@@ -736,6 +743,28 @@ std::unique_ptr<network::ResourceRequest> MakeInitialResourceRequestForPrefetch(
   resource_request->headers.MergeFrom(headers_params.modified_headers);
   resource_request->cors_exempt_headers.MergeFrom(
       headers_params.modified_cors_exempt_headers);
+  return resource_request;
+}
+
+std::unique_ptr<network::ResourceRequest>
+MakeInitialResourceRequestForPrePrefetch(
+    const PrefetchRequest& prefetch_request,
+    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers) {
+  auto resource_request = MakeInitialResourceRequestWithoutHeadersForPrefetch(
+      prefetch_request, /*is_decoy=*/false);
+
+  // Additional headers are provided at the actual resource timing, not in the
+  // pre-calculated `ui_thread_pre_calculated_headers`. Therefore, we add this
+  // via `prefetch_request`.
+  AddAdditionalHeaders(resource_request->headers, prefetch_request);
+
+  CHECK(ui_thread_pre_calculated_headers.removed_headers.empty());
+
+  resource_request->headers.MergeFrom(
+      ui_thread_pre_calculated_headers.modified_headers);
+  resource_request->cors_exempt_headers.MergeFrom(
+      ui_thread_pre_calculated_headers.modified_cors_exempt_headers);
+
   return resource_request;
 }
 

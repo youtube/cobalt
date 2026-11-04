@@ -4503,6 +4503,182 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   EXPECT_EQ(vcd1->codecs()[0].id, vcd2->codecs()[0].id);
 }
 
+// Parameterized Sframe tests over MediaType::AUDIO and MediaType::VIDEO.
+// The offer/answer Sframe logic is identical for both media types.
+class SframeMediaTypeTest : public MediaSessionDescriptionFactoryTest,
+                            public ::testing::WithParamInterface<MediaType> {
+ protected:
+  static constexpr auto kTestMid = "sframe_test";
+
+  // Creates MediaSessionOptions with a single recv-only media section
+  // for the parameterized media type.
+  MediaSessionOptions CreateMediaSession() {
+    MediaSessionOptions opts;
+    AddMediaDescriptionOptions(GetParam(), kTestMid,
+                               RtpTransceiverDirection::kRecvOnly, kActive,
+                               &opts);
+    return opts;
+  }
+};
+
+TEST_P(SframeMediaTypeTest, OfferWithoutSframeHasSframeEnabledFalse) {
+  MediaSessionOptions opts = CreateMediaSession();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 1u);
+  EXPECT_FALSE(offer->contents()[0].media_description()->sframe_enabled());
+}
+
+TEST_P(SframeMediaTypeTest, OfferWithSframeHasSframeEnabledTrue) {
+  MediaSessionOptions opts = CreateMediaSession();
+  opts.media_description_options[0].sframe_enabled = true;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 1u);
+  EXPECT_TRUE(offer->contents()[0].media_description()->sframe_enabled());
+}
+
+TEST_P(SframeMediaTypeTest, AnswerWithoutSframeHasSframeEnabledFalse) {
+  MediaSessionOptions opts = CreateMediaSession();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  std::unique_ptr<SessionDescription> answer =
+      f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
+  ASSERT_THAT(answer, NotNull());
+  ASSERT_EQ(answer->contents().size(), 1u);
+  EXPECT_FALSE(answer->contents()[0].media_description()->sframe_enabled());
+}
+
+TEST_P(SframeMediaTypeTest, AnswerWithSframeHasSframeEnabledTrue) {
+  MediaSessionOptions offer_opts = CreateMediaSession();
+  offer_opts.media_description_options[0].sframe_enabled = true;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  MediaSessionOptions answer_opts = CreateMediaSession();
+  answer_opts.media_description_options[0].sframe_enabled = true;
+  std::unique_ptr<SessionDescription> answer =
+      f2_.CreateAnswerOrError(offer.get(), answer_opts, nullptr).MoveValue();
+  ASSERT_THAT(answer, NotNull());
+  ASSERT_EQ(answer->contents().size(), 1u);
+  EXPECT_TRUE(answer->contents()[0].media_description()->sframe_enabled());
+}
+
+INSTANTIATE_TEST_SUITE_P(Sframe,
+                         SframeMediaTypeTest,
+                         ::testing::Values(MediaType::AUDIO, MediaType::VIDEO),
+                         [](const ::testing::TestParamInfo<MediaType>& info) {
+                           return MediaTypeToString(info.param);
+                         });
+
+TEST_F(MediaSessionDescriptionFactoryTest,
+       AudioVideoOfferWithoutSframeHasSframeEnabledFalse) {
+  MediaSessionOptions opts;
+  AddAudioVideoSections(RtpTransceiverDirection::kRecvOnly, &opts);
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 2u);
+  EXPECT_FALSE(offer->contents()[0].media_description()->sframe_enabled());
+  EXPECT_FALSE(offer->contents()[1].media_description()->sframe_enabled());
+}
+
+// Verify that in an audio+video offer, Sframe on video does not affect audio.
+TEST_F(MediaSessionDescriptionFactoryTest,
+       AudioVideoOfferWithSframeHasSframeEnabledTrue) {
+  MediaSessionOptions opts;
+  AddAudioVideoSections(RtpTransceiverDirection::kRecvOnly, &opts);
+  opts.media_description_options[1].sframe_enabled = true;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 2u);
+  // Audio should not have Sframe since we only set it on the video section.
+  EXPECT_FALSE(offer->contents()[0].media_description()->sframe_enabled());
+  EXPECT_TRUE(offer->contents()[1].media_description()->sframe_enabled());
+}
+
+// Verify that when the offer has Sframe but the answerer does not,
+// answer creation succeeds and the answer has sframe_enabled=false.
+// The offerer is responsible for handling the mismatch (per
+// draft-ietf-avtcore-rtp-sframe-02 §6).
+TEST_F(MediaSessionDescriptionFactoryTest,
+       AnswerWithoutSframeSucceedsWhenOfferHasSframe) {
+  MediaSessionOptions offer_opts = CreateAudioMediaSession();
+  offer_opts.media_description_options[0].sframe_enabled = true;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 1u);
+  EXPECT_TRUE(offer->contents()[0].media_description()->sframe_enabled());
+  // Answerer does NOT set sframe_enabled — answer creation should succeed.
+  MediaSessionOptions answer_opts = CreateAudioMediaSession();
+  auto result = f2_.CreateAnswerOrError(offer.get(), answer_opts, nullptr);
+  ASSERT_TRUE(result.ok());
+  ASSERT_EQ(result.value()->contents().size(), 1u);
+  EXPECT_FALSE(
+      result.value()->contents()[0].media_description()->sframe_enabled());
+}
+
+// Verify that when the answerer wants Sframe but the offer does not have it,
+// the answer must NOT include a=sframe (RFC 3264: answer is constrained by
+// the offer).
+TEST_F(MediaSessionDescriptionFactoryTest,
+       AnswerDoesNotInjectSframeWhenOfferLacksIt) {
+  MediaSessionOptions offer_opts = CreateAudioMediaSession();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 1u);
+  EXPECT_FALSE(offer->contents()[0].media_description()->sframe_enabled());
+  MediaSessionOptions answer_opts = CreateAudioMediaSession();
+  answer_opts.media_description_options[0].sframe_enabled = true;
+  auto result = f2_.CreateAnswerOrError(offer.get(), answer_opts, nullptr);
+  ASSERT_TRUE(result.ok());
+  ASSERT_EQ(result.value()->contents().size(), 1u);
+  EXPECT_FALSE(
+      result.value()->contents()[0].media_description()->sframe_enabled());
+}
+
+TEST_F(MediaSessionDescriptionFactoryTest, OfferSframeIsPerMediaSection) {
+  MediaSessionOptions opts;
+  AddAudioVideoSections(RtpTransceiverDirection::kRecvOnly, &opts);
+  // Enable Sframe on audio only.
+  opts.media_description_options[0].sframe_enabled = true;
+  opts.media_description_options[1].sframe_enabled = false;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_EQ(offer->contents().size(), 2u);
+  EXPECT_TRUE(offer->contents()[0].media_description()->sframe_enabled());
+  EXPECT_FALSE(offer->contents()[1].media_description()->sframe_enabled());
+}
+
+TEST_F(MediaSessionDescriptionFactoryTest, AnswerSframeIsPerMediaSection) {
+  MediaSessionOptions opts;
+  AddAudioVideoSections(RtpTransceiverDirection::kRecvOnly, &opts);
+  // Only audio has Sframe in the offer.
+  opts.media_description_options[0].sframe_enabled = true;
+  opts.media_description_options[1].sframe_enabled = false;
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  ASSERT_THAT(offer, NotNull());
+  // The answerer's options must agree with the offer per section.
+  MediaSessionOptions answer_opts;
+  AddAudioVideoSections(RtpTransceiverDirection::kRecvOnly, &answer_opts);
+  answer_opts.media_description_options[0].sframe_enabled = true;
+  answer_opts.media_description_options[1].sframe_enabled = false;
+  std::unique_ptr<SessionDescription> answer =
+      f2_.CreateAnswerOrError(offer.get(), answer_opts, nullptr).MoveValue();
+  ASSERT_THAT(answer, NotNull());
+  ASSERT_EQ(answer->contents().size(), 2u);
+  EXPECT_TRUE(answer->contents()[0].media_description()->sframe_enabled());
+  EXPECT_FALSE(answer->contents()[1].media_description()->sframe_enabled());
+}
+
 #ifdef RTC_ENABLE_H265
 // Test verifying that negotiating codecs with the same tx-mode retains the
 // tx-mode value.

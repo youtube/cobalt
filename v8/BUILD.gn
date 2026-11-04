@@ -74,7 +74,7 @@ declare_args() {
   v8_enable_disassembler = ""
 
   # Sets -DV8_ENABLE_REGEXP_DIAGNOSTICS.
-  v8_enable_regexp_diagnostics = !build_with_chromium
+  v8_enable_regexp_diagnostics = ""
 
   # Sets the number of internal fields on promise objects.
   v8_promise_internal_field_count = 0
@@ -556,6 +556,9 @@ if (v8_enable_disassembler == "") {
 }
 if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = v8_enable_debugging_features
+}
+if (v8_enable_regexp_diagnostics == "") {
+  v8_enable_regexp_diagnostics = v8_enable_debugging_features
 }
 if (v8_enable_test_features == "") {
   v8_enable_test_features =
@@ -4559,10 +4562,8 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/bytecode-verifier.h",
     "src/sandbox/check.h",
     "src/sandbox/code-entrypoint-tag.h",
-    "src/sandbox/code-pointer-inl.h",
     "src/sandbox/code-pointer-table-inl.h",
     "src/sandbox/code-pointer-table.h",
-    "src/sandbox/code-pointer.h",
     "src/sandbox/code-sandboxing-mode.h",
     "src/sandbox/compactible-external-entity-table-inl.h",
     "src/sandbox/compactible-external-entity-table.h",

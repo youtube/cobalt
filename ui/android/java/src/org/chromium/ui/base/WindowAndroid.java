@@ -214,13 +214,15 @@ public class WindowAndroid
 
     private @Nullable ModalDialogManager mModalDialogManagerForTesting;
 
-    private @Nullable Consumer<Boolean> mOcclusionObserver;
+    private @Nullable Consumer<Boolean> mTrustedPresentationOcclusionObserver;
 
-    private final boolean mTrackOcclusion;
+    private final boolean mOcclusionTrackingAllowed;
 
     /** True when this window is occluded. */
     private final SettableNonNullObservableSupplier<Boolean> mOcclusionSupplier =
             ObservableSuppliers.createNonNull(false);
+
+    private long mOcclusionStartTimeMs;
 
     private boolean mIsTopResumedActivity;
     private final boolean mActivityTopResumedSupported;
@@ -230,14 +232,14 @@ public class WindowAndroid
 
     /**
      * @param context The application {@link Context}.
-     * @param trackOcclusion Whether to track occlusion of the window.
+     * @param occlusionTrackingAllowed Whether occlusion tracking is allowed.
      */
-    public WindowAndroid(Context context, boolean trackOcclusion) {
+    public WindowAndroid(Context context, boolean occlusionTrackingAllowed) {
         this(
                 context,
                 DisplayAndroid.getNonMultiDisplay(context),
                 /* activityTopResumedSupported= */ false,
-                trackOcclusion);
+                occlusionTrackingAllowed);
     }
 
     protected WindowAndroid(
@@ -245,12 +247,12 @@ public class WindowAndroid
             boolean activityTopResumedSupported,
             IntentRequestTracker tracker,
             @Nullable InsetObserver insetObserver,
-            boolean trackOcclusion) {
+            boolean occlusionTrackingAllowed) {
         this(
                 context,
                 DisplayAndroid.getNonMultiDisplay(context),
                 activityTopResumedSupported,
-                trackOcclusion);
+                occlusionTrackingAllowed);
         mIntentRequestTracker = (IntentRequestTrackerImpl) tracker;
         mInsetObserver = insetObserver;
         mApplicationBottomInsetSupplier.setInsetObserver(mInsetObserver);
@@ -272,14 +274,14 @@ public class WindowAndroid
      *     onTopResumedActivityChanged() on the Activity owning the WindowAndroid. If this is not
      *     enabled, WindowAndroid assumes the activity is in the top when it is resumed.
      * @param display The application {@link DisplayAndroid}.
-     * @param trackOcclusion Whether to track occlusion of the window.
+     * @param occlusionTrackingAllowed Whether occlusion tracking is allowed.
      */
     @SuppressLint("UseSparseArrays")
     protected WindowAndroid(
             Context context,
             DisplayAndroid display,
             boolean activityTopResumedSupported,
-            boolean trackOcclusion) {
+            boolean occlusionTrackingAllowed) {
         mLifetimeAssert = LifetimeAssert.create(this);
         // context does not have the same lifetime guarantees as an application context so we can't
         // hold a strong reference to it.
@@ -307,32 +309,32 @@ public class WindowAndroid
             mOverlayTransformApiHelper = OverlayTransformApiHelper.create(this);
         }
 
-        mTrackOcclusion = trackOcclusion;
-        maybeTrackOcclusion();
+        mOcclusionTrackingAllowed = occlusionTrackingAllowed;
+        maybeTrackOcclusionWithTrustedPresentationApi();
 
         mActivityTopResumedSupported = activityTopResumedSupported;
     }
 
     @Override
     public void onViewAttachedToWindow(View v) {
-        maybeRegisterOcclusionObserver(v.getWindowToken());
+        maybeRegisterTrustedPresentationObserver(v.getWindowToken());
     }
 
     @Override
     public void onViewDetachedFromWindow(View v) {
-        maybeUnregisterOcclusionObserver();
+        maybeUnregisterTrustedPresentationObserver();
     }
 
-    private boolean shouldTrackOcclusion() {
+    private boolean shouldTrackOcclusionWithTrustedPresentationApi() {
         // On rotate Android seems to send a spurious occlusion signal. See crbug.com/380209799 for
         // details.
-        return mTrackOcclusion
+        return mOcclusionTrackingAllowed
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                 && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled();
     }
 
-    private void maybeTrackOcclusion() {
-        if (!shouldTrackOcclusion()) {
+    private void maybeTrackOcclusionWithTrustedPresentationApi() {
+        if (!shouldTrackOcclusionWithTrustedPresentationApi()) {
             return;
         }
 
@@ -342,24 +344,24 @@ public class WindowAndroid
         // If the decor view is already attached to the window the listener won't be called.
         // In this case, the window token exists so we can register the occlusion observer.
         if (decorView.isAttachedToWindow()) {
-            maybeRegisterOcclusionObserver(getWindowToken());
+            maybeRegisterTrustedPresentationObserver(getWindowToken());
         }
         decorView.addOnAttachStateChangeListener(this);
     }
 
     @SuppressWarnings("NewApi")
-    private void maybeRegisterOcclusionObserver(@Nullable IBinder windowToken) {
-        assert mOcclusionObserver == null;
+    private void maybeRegisterTrustedPresentationObserver(@Nullable IBinder windowToken) {
+        assert mTrustedPresentationOcclusionObserver == null;
 
         Context context = assumeNonNull(getContext().get());
         WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 
         var thresholds = new TrustedPresentationThresholds(Float.MIN_VALUE, Float.MIN_VALUE, 1);
-        mOcclusionObserver =
+        mTrustedPresentationOcclusionObserver =
                 new Consumer<>() {
                     @Override
                     public void accept(Boolean visible) {
-                        mOcclusionSupplier.set(!visible);
+                        updateOcclusionState(!visible);
                     }
                 };
 
@@ -370,18 +372,18 @@ public class WindowAndroid
                 (r) -> {
                     PostTask.postTask(TaskTraits.UI_DEFAULT, r);
                 },
-                mOcclusionObserver);
+                mTrustedPresentationOcclusionObserver);
     }
 
     @SuppressWarnings("NewApi")
-    private void maybeUnregisterOcclusionObserver() {
-        assert mOcclusionObserver != null;
+    private void maybeUnregisterTrustedPresentationObserver() {
+        assert mTrustedPresentationOcclusionObserver != null;
 
         Context context = assumeNonNull(getContext().get());
         WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        wm.unregisterTrustedPresentationListener(mOcclusionObserver);
+        wm.unregisterTrustedPresentationListener(mTrustedPresentationOcclusionObserver);
 
-        mOcclusionObserver = null;
+        mTrustedPresentationOcclusionObserver = null;
     }
 
     /** A supplier that returns whether the window is occluded or not. */
@@ -396,10 +398,33 @@ public class WindowAndroid
      */
     public void setOccluded(boolean isOccluded) {
         // If the Trusted Presentation API is already tracking occlusion, it takes precedence.
-        if (shouldTrackOcclusion()) {
+        if (!mOcclusionTrackingAllowed || shouldTrackOcclusionWithTrustedPresentationApi()) {
             return;
         }
+        updateOcclusionState(isOccluded);
+    }
+
+    private void recordOcclusionDuration() {
+        if (mOcclusionStartTimeMs == 0) return;
+
+        long durationMs = SystemClock.uptimeMillis() - mOcclusionStartTimeMs;
+        // TODO(488882847): Rename to non-experimental once occlusion experiments are
+        // complete.
+        RecordHistogram.recordLongTimesHistogram(
+                "Android.Window.OcclusionExperimental.Duration", durationMs);
+        mOcclusionStartTimeMs = 0;
+    }
+
+    private void updateOcclusionState(boolean isOccluded) {
+        if (mOcclusionSupplier.get() == isOccluded) return;
+
         mOcclusionSupplier.set(isOccluded);
+
+        if (isOccluded) {
+            mOcclusionStartTimeMs = SystemClock.uptimeMillis();
+        } else {
+            recordOcclusionDuration();
+        }
     }
 
     private static boolean isTv(Context context) {
@@ -413,7 +438,8 @@ public class WindowAndroid
     private static long createForTesting() {
         WindowAndroid windowAndroid =
                 new WindowAndroid(
-                        ContextUtils.getApplicationContext(), /* trackOcclusion= */ false);
+                        ContextUtils.getApplicationContext(),
+                        /* occlusionTrackingAllowed= */ false);
         // |windowAndroid.getNativePointer()| creates native WindowAndroid object
         // which stores a global ref to |windowAndroid|. Therefore |windowAndroid|
         // is not immediately eligible for gc.
@@ -955,6 +981,8 @@ public class WindowAndroid
     @CalledByNative
     @Override
     public void destroy() {
+        recordOcclusionDuration();
+
         LifetimeAssert.destroy(mLifetimeAssert);
         if (mDestroyStack == null) {
             mDestroyStack = new RuntimeException("WindowAndroid.destroy");
@@ -975,7 +1003,7 @@ public class WindowAndroid
             }
         }
 
-        if (mTrackOcclusion) {
+        if (mOcclusionTrackingAllowed) {
             View decorView = getDecorView();
             if (decorView != null) {
                 decorView.removeOnAttachStateChangeListener(this);

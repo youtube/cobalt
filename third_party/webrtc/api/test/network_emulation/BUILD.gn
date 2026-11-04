@@ -93,7 +93,6 @@ rtc_library("network_queue") {
     "../..:simulated_network_api",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-    "../../../rtc_base:macromagic",
     "../../../rtc_base:random",
     "../../transport:ecn_marking",
     "../../units:data_rate",

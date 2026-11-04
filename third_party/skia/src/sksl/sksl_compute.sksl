@@ -10,7 +10,6 @@ struct IndirectDispatchArgs {
     int x, y, z;
 };
 
-$pure half4 textureRead($readableTexture2D t, uint2 pos);
 void textureWrite($writableTexture2D t, uint2 pos, half4 color);
 
 $pure uint textureWidth($genTexture2D t);

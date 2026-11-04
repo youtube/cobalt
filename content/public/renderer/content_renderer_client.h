@@ -31,7 +31,6 @@
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "third_party/blink/public/platform/websocket_handshake_throttle_provider.h"
-#include "third_party/blink/public/web/web_link_preview_triggerer.h"
 #include "third_party/blink/public/web/web_navigation_policy.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "ui/base/page_transition_types.h"
@@ -479,13 +478,6 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<cast_streaming::ResourceProvider>
   CreateCastStreamingResourceProvider();
 #endif
-
-  // Creates a WebLinkPreviewTriggerer if an embedder wants to observe events
-  // and trigger preview. It is allowed to return nullptr.
-  //
-  // See blink::WebLinkPreviewTriggerer for more details.
-  virtual std::unique_ptr<blink::WebLinkPreviewTriggerer>
-  CreateLinkPreviewTriggerer();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // This is used for StarboardRenderer to acquire customizations

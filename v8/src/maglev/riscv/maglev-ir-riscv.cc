@@ -830,6 +830,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs_d(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ fcvt_s_d(result, input);
+  __ fcvt_d_s(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -842,16 +850,20 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     // expects it to round towards +Infinity (see ECMA-262, 20.2.2.28).
     // The best seems to be to add 0.5 then round with RDN mode.
 
-    DoubleRegister half_one = temps.AcquireDouble();  // available in this mode
+    DoubleRegister half_one = temps.AcquireDouble();
+    DoubleRegister sign_temp = temps.AcquireScratchDouble();
     __ LoadFPRImmediate(half_one, 0.5);
     DoubleRegister tmp = half_one;
+    __ fmv_d(sign_temp, in);
     __ fadd_d(tmp, in, half_one);
     __ Floor_d_d(out, tmp, fscratch1);
-    __ fsgnj_d(out, out, in);
+    __ fsgnj_d(out, out, sign_temp);
   } else if (kind_ == Kind::kCeil) {
     __ Ceil_d_d(out, in, fscratch1);
   } else if (kind_ == Kind::kFloor) {
     __ Floor_d_d(out, in, fscratch1);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Trunc_d_d(out, in, fscratch1);
   } else {
     UNREACHABLE();
   }
@@ -1009,7 +1021,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
 
   __ bind(&index_no_oob);
 }
-
 
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(ValueInput());

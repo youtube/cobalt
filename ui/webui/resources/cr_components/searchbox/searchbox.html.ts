@@ -13,11 +13,7 @@ export function getHtml(this: SearchboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="inputWrapper" @focusout="${this.onInputWrapperFocusout}"
-    @keydown="${this.onInputWrapperKeydown}"
-    @dragenter="${this.dragAndDropHandler?.handleDragEnter}"
-    @dragover="${this.dragAndDropHandler?.handleDragOver}"
-    @dragleave="${this.dragAndDropHandler?.handleDragLeave}"
-    @drop="${this.dragAndDropHandler?.handleDrop}">
+    @keydown="${this.onInputWrapperKeydown}">
   <cr-searchbox-input id="input"
       exportparts="searchbox-input"
       ?dropdown-is-visible="${this.dropdownIsVisible}"
@@ -28,21 +24,10 @@ export function getHtml(this: SearchboxElement) {
       searchbox-icon="${this.searchboxIcon_}"
       .selectedMatch="${this.selectedMatch}"
       ?input-has-matches="${this.hasMatches()}"
-      @focusin="${this.onInputFocus_}"
+      @focusin="${this.onInputFocusin_}"
       @searchbox-input-files-pasted="${this.onSearchboxInputFilesPasted_}"
       @searchbox-input-text-updated="${this.onSearchboxInputTextUpdated_}"
       @input-focus-changed="${this.onInputFocusChanged}">
-    ${this.showThumbnail ? html`
-      <div id="thumbnailContainer" slot="thumbnail">
-        <cr-searchbox-thumbnail id="thumbnail"
-            thumbnail-url="${this.thumbnailUrl_}"
-            ?is-deletable="${this.isThumbnailDeletable_}"
-            @remove-thumbnail-click="${this.onRemoveThumbnailClick_}"
-            role="button" aria-label="${this.i18n('searchboxThumbnailLabel')}"
-            tabindex="${this.getThumbnailTabindex_()}">
-        </cr-searchbox-thumbnail>
-      </div>
-    ` : ''}
     ${this.shouldShowVoiceLens_(this.searchboxVoiceSearchEnabled_) ? html`
       <div slot="action-buttons" class="searchbox-icon-button-container voice">
         <button id="voiceSearchButton" class="searchbox-icon-button"

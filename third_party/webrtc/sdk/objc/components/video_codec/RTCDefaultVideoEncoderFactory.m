@@ -26,43 +26,20 @@
 @synthesize preferredCodec;
 
 + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
-  NSDictionary<NSString *, NSString *> *constrainedHighParams = @{
-    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedHigh,
-    @"level-asymmetry-allowed" : @"1",
-    @"packetization-mode" : @"1",
-  };
-  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedHighInfo =
-      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
-          initWithName:kRTCVideoCodecH264Name
-            parameters:constrainedHighParams];
+  NSMutableArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *result =
+      [NSMutableArray array];
 
-  NSDictionary<NSString *, NSString *> *constrainedBaselineParams = @{
-    @"profile-level-id" : kRTCMaxSupportedH264ProfileLevelConstrainedBaseline,
-    @"level-asymmetry-allowed" : @"1",
-    @"packetization-mode" : @"1",
-  };
-  RTC_OBJC_TYPE(RTCVideoCodecInfo) *constrainedBaselineInfo =
-      [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
-          initWithName:kRTCVideoCodecH264Name
-            parameters:constrainedBaselineParams];
+  [result
+      addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoEncoderH264) supportedCodecs]];
+  [result
+      addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoEncoderVP8) supportedCodecs]];
 
-  RTC_OBJC_TYPE(RTCVideoCodecInfo) *vp8Info = [[RTC_OBJC_TYPE(RTCVideoCodecInfo)
-      alloc] initWithName:kRTCVideoCodecVp8Name];
-
-  NSMutableArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *result = [@[
-    constrainedHighInfo,
-    constrainedBaselineInfo,
-    vp8Info,
-  ] mutableCopy];
-
-  if ([RTC_OBJC_TYPE(RTCVideoEncoderVP9) isSupported]) {
-    [result addObject:[[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
-                          initWithName:kRTCVideoCodecVp9Name]];
-  }
+  [result
+      addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoEncoderVP9) supportedCodecs]];
 
 #if defined(RTC_USE_LIBAOM_AV1_ENCODER)
-  [result addObject:[[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
-                        initWithName:kRTCVideoCodecAv1Name]];
+  [result
+      addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoEncoderAV1) supportedCodecs]];
 #endif
 
   return result;

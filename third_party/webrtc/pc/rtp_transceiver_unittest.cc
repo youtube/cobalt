@@ -126,13 +126,14 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   auto channel1 = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel1, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*channel1, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel1, SetFirstPacketReceivedCallback_n(_));
   EXPECT_CALL(*channel1, SetRtpTransport(_)).WillRepeatedly(Return(true));
-  auto channel1_ptr = channel1.get();
-  transceiver->SetChannel(std::move(channel1), [&](const std::string& mid) {
-    EXPECT_EQ(mid, content_name);
-    return nullptr;
-  });
+
+
+  transceiver->SetChannelForTest(std::move(channel1),
+                                 [&](const std::string& mid) {
+                                   EXPECT_EQ(mid, content_name);
+                                   return nullptr;
+                                 });
   EXPECT_TRUE(transceiver->HasChannel());
 
   // Stop the transceiver.
@@ -142,13 +143,14 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   auto channel2 = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel2, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
 
-  // Clear the current channel - required to allow SetChannel()
-  EXPECT_CALL(*channel1_ptr, SetFirstPacketReceivedCallback_n(_));
+  // Clear the current channel - required to allow SetChannelForTest()
   transceiver->ClearChannel();
+
   ASSERT_FALSE(transceiver->HasChannel());
+
   // Channel can no longer be set, so this call should be a no-op.
-  transceiver->SetChannel(std::move(channel2),
-                          [](const std::string&) { return nullptr; });
+  transceiver->SetChannelForTest(std::move(channel2),
+                                 [](const std::string&) { return nullptr; });
   EXPECT_FALSE(transceiver->HasChannel());
 }
 
@@ -161,14 +163,13 @@ TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::VIDEO));
   EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback_n(_))
-      .WillRepeatedly(testing::Return());
   EXPECT_CALL(*channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
 
-  transceiver->SetChannel(std::move(channel), [&](const std::string& mid) {
-    EXPECT_EQ(mid, content_name);
-    return nullptr;
-  });
+  transceiver->SetChannelForTest(std::move(channel),
+                                 [&](const std::string& mid) {
+                                   EXPECT_EQ(mid, content_name);
+                                   return nullptr;
+                                 });
   EXPECT_TRUE(transceiver->HasChannel());
 
   // Stop the transceiver.
@@ -195,11 +196,9 @@ TEST_F(RtpTransceiverTest, TransportNameIsUpdated) {
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback_n(_))
-      .WillRepeatedly(Return());
   EXPECT_CALL(*channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
 
-  auto result = transceiver->SetChannel(
+  auto result = transceiver->SetChannelForTest(
       std::move(channel), [&](const std::string& mid) -> RtpTransportInternal* {
         return rtp_transport.get();
       });
@@ -753,12 +752,15 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   const std::string content_name("my_mid");
   transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
+  // Raw ptr for updating expectations later since `mock_channel` will be moved
+  // to `SetChannel`.
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*mock_channel, mid()).WillRepeatedly(ReturnRef(content_name));
   EXPECT_CALL(*mock_channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
-  transceiver_->SetChannel(std::move(mock_channel),
-                           [](const std::string&) { return nullptr; });
+
+  transceiver_->SetChannelForTest(std::move(mock_channel),
+                                  [](const std::string&) { return nullptr; });
   EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
               ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped),
@@ -789,8 +791,8 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
   description.set_rtp_header_extensions(extensions);
   transceiver_->OnNegotiationUpdate(SdpType::kAnswer, &description);
 
-  transceiver_->SetChannel(std::move(mock_channel),
-                           [](const std::string&) { return nullptr; });
+  transceiver_->SetChannelForTest(std::move(mock_channel),
+                                  [](const std::string&) { return nullptr; });
 
   EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
               ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
@@ -801,6 +803,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions, ReturnsNegotiatedHdrExts) {
                                 RtpTransceiverDirection::kStopped),
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped)));
+
   ClearChannel();
 }
 
@@ -822,8 +825,8 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   description.set_rtp_header_extensions(extensions);
   transceiver_->OnNegotiationUpdate(SdpType::kPrAnswer, &description);
 
-  transceiver_->SetChannel(std::move(mock_channel),
-                           [](const std::string&) { return nullptr; });
+  transceiver_->SetChannelForTest(std::move(mock_channel),
+                                  [](const std::string&) { return nullptr; });
 
   EXPECT_THAT(transceiver_->GetNegotiatedHeaderExtensions(),
               ElementsAre(Field(&RtpHeaderExtensionCapability::direction,
@@ -834,6 +837,7 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
                                 RtpTransceiverDirection::kStopped),
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped)));
+
   ClearChannel();
 }
 
@@ -842,14 +846,16 @@ TEST_F(RtpTransceiverTestForHeaderExtensions,
   const std::string content_name("my_mid");
   transceiver_->set_mid(content_name);
   auto mock_channel = std::make_unique<NiceMock<MockChannelInterface>>();
+
   EXPECT_CALL(*mock_channel, media_type())
       .WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*mock_channel, voice_media_send_channel())
       .WillRepeatedly(Return(nullptr));
   EXPECT_CALL(*mock_channel, mid()).WillRepeatedly(ReturnRef(content_name));
   EXPECT_CALL(*mock_channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
-  transceiver_->SetChannel(std::move(mock_channel),
-                           [](const std::string&) { return nullptr; });
+
+  transceiver_->SetChannelForTest(std::move(mock_channel),
+                                  [](const std::string&) { return nullptr; });
 
   AudioContentDescription description_pr_answer;
   description_pr_answer.set_rtp_header_extensions({RtpExtension("uri1", 1)});
@@ -1039,6 +1045,65 @@ TEST_F(RtpTransceiverTestWithFakeCall,
 
   transceiver->ClearChannel();
   transceiver->StopStandard();
+}
+
+// Sframe tests
+
+TEST_F(RtpTransceiverUnifiedPlanTest, SframeEnabledIsNulloptByDefault) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  EXPECT_EQ(transceiver->SframeEnabled(), std::nullopt);
+}
+
+TEST_F(RtpTransceiverUnifiedPlanTest, TryToEnableSframeSetsValueToTrue) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  EXPECT_TRUE(transceiver->TryToEnableSframe().ok());
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+}
+
+TEST_F(RtpTransceiverUnifiedPlanTest,
+       TryToEnableSframeCanBeCalledMultipleTimes) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  EXPECT_TRUE(transceiver->TryToEnableSframe().ok());
+  EXPECT_TRUE(transceiver->TryToEnableSframe().ok());
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+}
+
+TEST_F(RtpTransceiverUnifiedPlanTest,
+       TryToEnableSframeFailsAfterExplicitlySetToFalse) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  // Simulate the transceiver having been explicitly set to false (e.g. via
+  // ApplySframeEnabled during SDP application).
+  transceiver->ApplySframeEnabled(false);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(false));
+
+  RTCError error = transceiver->TryToEnableSframe();
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_MODIFICATION);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(false));
+}
+
+TEST_F(RtpTransceiverUnifiedPlanTest, ApplySframeEnabledTrueSetsState) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  transceiver->ApplySframeEnabled(true);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(true));
+}
+
+TEST_F(RtpTransceiverUnifiedPlanTest, ApplySframeEnabledFalseSetsState) {
+  scoped_refptr<RtpTransceiver> transceiver = CreateTransceiver(
+      MockSender(MediaType::AUDIO), MockReceiver(MediaType::AUDIO));
+
+  transceiver->ApplySframeEnabled(false);
+  EXPECT_THAT(transceiver->SframeEnabled(), Optional(false));
 }
 
 }  // namespace

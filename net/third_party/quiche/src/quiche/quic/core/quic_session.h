@@ -9,7 +9,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,7 +17,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_stop_sending_frame.h"
@@ -26,13 +24,13 @@
 #include "quiche/quic/core/handshaker_delegate_interface.h"
 #include "quiche/quic/core/legacy_quic_stream_id_manager.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_control_frame_manager.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
-#include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_stream.h"
@@ -43,9 +41,9 @@
 #include "quiche/quic/core/session_notifier_interface.h"
 #include "quiche/quic/core/stream_delegate_interface.h"
 #include "quiche/quic/core/uber_quic_stream_id_manager.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -353,6 +351,14 @@ class QUICHE_EXPORT QuicSession
   void MaybeBundleOpportunistically() override {}
   QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) override;
   bool MaybeMitigateWriteError(const WriteResult& write_result) override;
+  // By default, SCONE packets are ignored. If the application is capable of
+  // sending bandwidth probe information back to the peer, it should override
+  // this method.
+  void OnSconePacket(QuicBandwidth) override {
+    QUIC_BUG(scone_without_application)
+        << "SCONE configured by an application that does not have a feedback "
+           "mechanism.";
+  }
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

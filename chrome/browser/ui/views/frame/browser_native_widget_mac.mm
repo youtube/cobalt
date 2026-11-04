@@ -13,6 +13,7 @@
 #include "chrome/browser/app_controller_mac.h"
 #include "chrome/browser/apps/app_shim/app_shim_host_mac.h"
 #include "chrome/browser/apps/app_shim/app_shim_manager_mac.h"
+#include "chrome/browser/browsing_data/browsing_data_important_sites_util.h"
 #include "chrome/browser/global_keyboard_shortcuts_mac.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/ui/browser_command_controller.h"
@@ -53,6 +54,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
+#include "ui/views/interaction/element_tracker_views.h"
 
 namespace {
 
@@ -334,10 +336,9 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       result->new_toggle_state =
           prefs->GetBoolean(omnibox::kShowGoogleLensShortcut);
       // Disable this menu option if the LensOverlay feature is not enabled.
-      result->enable = lens::features::IsOmniboxEntryPointEnabled() &&
-                       browser->GetFeatures()
-                           .lens_overlay_entry_point_controller()
-                           ->IsEnabled();
+      result->enable =
+          lens::features::IsOmniboxEntryPointEnabled() &&
+          lens::LensOverlayEntryPointController::From(browser)->IsEnabled();
       break;
     }
     case IDC_SHOW_AI_MODE_OMNIBOX_BUTTON: {
@@ -458,6 +459,11 @@ bool BrowserNativeWidgetMac::ExecuteCommand(
       tabs::RecordVerticalTabStripModeChanged(
           is_vertical, tabs::VerticalTabStripEntryPoint::kMacViewMenu);
     }
+  } else if (command == IDC_CLEAR_BROWSING_DATA) {
+    views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
+        browsing_data_important_sites_util::
+            kOpenClearBrowsingDataDialogViaAcceleratorEventId,
+        browser_view_);
   }
 
   chrome::ExecuteCommandWithDisposition(browser, command,

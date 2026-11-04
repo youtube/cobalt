@@ -142,10 +142,6 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // Contains a Smi; boxed so that generated code can update the value.
   wrapper_budget: Cell;
 
-  // Experimental: set this to non-zero to let the JS-side receiver be passed
-  // as Wasm-side first parameter.
-  receiver_is_first_param: Smi;
-
   // {packed_args_size} and {c_wrapper_code} are for fast calling from C++.
   // The contract is that they are lazily populated, and either both will be
   // present or neither.
@@ -226,7 +222,7 @@ extern class WasmTableObject extends JSObject {
   // of this table. Used for spec-level type checks and debugging.
   // For sandbox-related checks, use WasmDispatchTable::table_type instead!
   raw_type: Smi;
-  // This field is not set if the table is not a function table.
+  // This is the empty wasm dispatch table if the table is not a function table.
   trusted_dispatch_table: TrustedPointer<WasmDispatchTable>;
   // The instance in which this WasmTableObject is defined.
   // This field is not set if the table is defined outside any Wasm module,

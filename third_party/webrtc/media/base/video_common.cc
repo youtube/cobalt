@@ -70,11 +70,10 @@ std::string VideoFormat::ToString() const {
     }
   }
 
-  char buf[256];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << fourcc_name << width << "x" << height << "x"
      << IntervalToFpsFloat(interval);
-  return sb.str();
+  return sb.Release();
 }
 
 }  // namespace webrtc

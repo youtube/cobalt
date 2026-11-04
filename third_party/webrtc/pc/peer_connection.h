@@ -82,6 +82,7 @@
 #include "pc/rtp_transceiver.h"
 #include "pc/rtp_transmission_manager.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sdp_offer_answer.h"
 #include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
@@ -99,6 +100,8 @@
 #include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
+
+class ScopedOperationsBatcher;
 
 // PeerConnection is the implementation of the PeerConnection object as defined
 // by the PeerConnectionInterface API surface.
@@ -490,8 +493,8 @@ class PeerConnection : public PeerConnectionInternal,
   JsepTransportController* InitializeNetworkThread(
       const ServerAddresses& stun_servers,
       const std::vector<RelayServerConfig>& turn_servers);
-  void CloseOnNetworkThread(
-      std::vector<absl::AnyInvocable<void() &&>>& network_tasks);
+  ScopedOperationsBatcher::BatchTaskWithFinalizer
+  MakeCloseOnNetworkThreadTask();
   JsepTransportController* InitializeTransportController_n(
       std::unique_ptr<JsepTransportController> controller,
       const RTCConfiguration& configuration) RTC_RUN_ON(network_thread());

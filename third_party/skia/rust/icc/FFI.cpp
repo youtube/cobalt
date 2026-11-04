@@ -270,9 +270,11 @@ bool ToSkcmsIccProfile(const IccProfile& rust_profile, skcms_ICCProfile* out_skc
         }
     }
 
-    // A profile needs either a matrix, transfer curves, or A2B/B2A to be useful
-    if (!out_skcms->has_toXYZD50 && !out_skcms->has_trc &&
-        !out_skcms->has_A2B && !out_skcms->has_B2A) {
+    // To be usable as a source profile in skcms_Transform, a profile needs
+    // either an A2B transform or both TRC curves and a toXYZD50 matrix.
+    // This mirrors skcms_Parse's usable_as_src() validation.
+    if (!out_skcms->has_A2B &&
+        !(out_skcms->has_trc && out_skcms->has_toXYZD50)) {
         return false;
     }
 

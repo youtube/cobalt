@@ -40,8 +40,8 @@ class SharedEngineIsolate {
     zone_.reset(new Zone(isolate()->allocator(), ZONE_NAME));
   }
   ~SharedEngineIsolate() {
-    v8_isolate()->Exit();
     zone_.reset();
+    v8_isolate()->Exit();
     isolate_->Dispose();
   }
 
@@ -59,7 +59,9 @@ class SharedEngineIsolate {
 
   DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     DirectHandle<WasmModuleObject> module_object =
-        GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
+        GetWasmEngine()
+            ->ImportNativeModule(isolate(), shared_module, {})
+            .ToHandleChecked();
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeDirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()->SyncInstantiate(isolate(), &thrower, module_object, {},

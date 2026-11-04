@@ -241,6 +241,7 @@ private:
         kTextureLod_SpecialIntrinsic,
         kTextureRead_SpecialIntrinsic,
         kTextureWrite_SpecialIntrinsic,
+        kTextureSize_SpecialIntrinsic,
         kTextureWidth_SpecialIntrinsic,
         kTextureHeight_SpecialIntrinsic,
         kAtomicAdd_SpecialIntrinsic,
@@ -310,6 +311,8 @@ private:
                                     Analysis::SpecializationIndex specializationIndex,
                                     const Analysis::SpecializedParameters* specializedParams,
                                     SPIRVBlob& out);
+
+    SpvId writeExtractImage(SpvId image, const Type& type, SkSL::SPIRVBlob& out);
 
     bool writeGlobalVarDeclaration(ProgramKind kind, const VarDeclaration& v);
 
@@ -928,10 +931,11 @@ SPIRVCodeGenerator::Intrinsic SPIRVCodeGenerator::getIntrinsic(IntrinsicKind ik)
         case k_sampleLod_IntrinsicKind:   return SPECIAL(TextureLod);
         case k_subpassLoad_IntrinsicKind: return SPECIAL(SubpassLoad);
 
-        case k_textureRead_IntrinsicKind:  return SPECIAL(TextureRead);
-        case k_textureWrite_IntrinsicKind:  return SPECIAL(TextureWrite);
-        case k_textureWidth_IntrinsicKind:  return SPECIAL(TextureWidth);
-        case k_textureHeight_IntrinsicKind:  return SPECIAL(TextureHeight);
+        case k_textureRead_IntrinsicKind:        return SPECIAL(TextureRead);
+        case k_textureWrite_IntrinsicKind:       return SPECIAL(TextureWrite);
+        case k_textureSize_IntrinsicKind:        return SPECIAL(TextureSize);
+        case k_textureWidth_IntrinsicKind:       return SPECIAL(TextureWidth);
+        case k_textureHeight_IntrinsicKind:      return SPECIAL(TextureHeight);
 
         case k_floatBitsToInt_IntrinsicKind:  return ALL_SPIRV(Bitcast);
         case k_floatBitsToUint_IntrinsicKind: return ALL_SPIRV(Bitcast);
@@ -2318,7 +2322,7 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             SpvId coord = this->writeExpression(*arguments[1], out);
 
             const Type& arg0Type = arguments[0]->type();
-            SkASSERT(arg0Type.typeKind() == Type::TypeKind::kTexture);
+            image = this->writeExtractImage(image, arg0Type, out);
 
             switch (arg0Type.textureAccess()) {
                 case Type::TextureAccess::kSample:
@@ -2350,6 +2354,27 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             SpvId texel = this->writeExpression(*arguments[2], out);
 
             this->writeInstruction(SpvOpImageWrite, image, coord, texel, out);
+            break;
+        }
+        case kTextureSize_SpecialIntrinsic: {
+            result = this->nextId(&callType);
+            SkASSERT(arguments[0]->type().dimensions() == SpvDim2D);
+
+            fCapabilities |= 1ULL << SpvCapabilityImageQuery;
+
+            SpvId dimsType = this->getType(callType);
+            SpvId image = this->writeExpression(*arguments[0], out);
+
+            const Type& arg0Type = arguments[0]->type();
+            image = this->writeExtractImage(image, arg0Type, out);
+
+            if (arg0Type.typeKind() == Type::TypeKind::kSampler) {
+                SpvId lodZero = this->writeOpConstant(*fContext.fTypes.fInt, 0);
+                this->writeInstruction(SpvOpImageQuerySizeLod, dimsType, result, image, lodZero,
+                                       out);
+            } else {
+                this->writeInstruction(SpvOpImageQuerySize, dimsType, result, image, out);
+            }
             break;
         }
         case kTextureWidth_SpecialIntrinsic:
@@ -4589,6 +4614,18 @@ void SPIRVCodeGenerator::writeFunctionInstantiation(
     }
     this->writeInstruction(SpvOpFunctionEnd, out);
     this->pruneConditionalOps(conditionalOps);
+}
+
+SpvId SPIRVCodeGenerator::writeExtractImage(SpvId image, const Type& type, SPIRVBlob& out) {
+    SkASSERT(type.typeKind() == Type::TypeKind::kTexture ||
+             type.typeKind() == Type::TypeKind::kSampler);
+    if (type.typeKind() == Type::TypeKind::kSampler) {
+        SpvId extractedImage = this->nextId(nullptr);
+        SpvId imageType = this->getType(type.textureType());
+        this->writeInstruction(SpvOpImage, imageType, extractedImage, image, out);
+        return extractedImage;
+    }
+    return image;
 }
 
 void SPIRVCodeGenerator::writeLayout(const Layout& layout, SpvId target, Position pos) {

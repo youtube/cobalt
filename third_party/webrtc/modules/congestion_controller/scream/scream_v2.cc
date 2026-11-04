@@ -96,16 +96,21 @@ void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
 
   delay_based_congestion_control_.OnTransportPacketsFeedback(msg);
 
+  UpdateFeedbackHoldTime(msg);
+
   if (!first_feedback_processed_) {
-    RTC_LOG(LS_INFO) << "Initial RTT: "
-                     << delay_based_congestion_control_.rtt().ms()
-                     << "ms, Start Bitrate: " << target_rate_.kbps() << "kbps";
     ref_window_ =
         std::max(params_.min_ref_window.Get(),
-                 target_rate_ * delay_based_congestion_control_.rtt());
+                 target_rate_ * (delay_based_congestion_control_.rtt() +
+                                 feedback_hold_time_));
+    RTC_LOG(LS_INFO) << "Initial RTT: "
+                     << delay_based_congestion_control_.rtt().ms()
+                     << " feedback_hold_time: " << feedback_hold_time_.ms()
+                     << "ms, Start Bitrate: " << target_rate_.kbps() << "kbps"
+                     << " ref_window_=" << ref_window_.bytes();
     first_feedback_processed_ = true;
   }
-  UpdateFeedbackHoldTime(msg);
+
   UpdateL4SAlpha(msg);
   UpdateRefWindow(msg);
   UpdateTargetRate(msg);

@@ -170,6 +170,11 @@ BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
 // Sessions.
 BASE_FEATURE(kDeviceBoundSessionsDevTools, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// This feature enables the fix for double releases of
+// WorkerOrWorkletDevToolsAgentHost to prevent UAF.
+BASE_FEATURE(kWorkerOrWorkletAgentDoubleReleaseFix,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // Disables the auto_resize_output_surface feature in the Viz process.
 // This prevents visual artifacts (blue gutters) during window resizing on
@@ -629,6 +634,13 @@ BASE_FEATURE(kRendererCancellationThrottleImprovements,
 BASE_FEATURE(kResumeNavigationWithSpeculativeRFHProcessGone,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the browser will try to swap to a new SiteInstance if there is
+// an existing warm (pending, committed, or delayed shutdown) renderer process
+// locked to the destination site and when the current process is an empty
+// one (like the NTP) and would normally be reused for same-site navigations
+// under partial site isolation.
+BASE_FEATURE(kPreferWarmRendererProcess, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.
 BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
@@ -684,11 +696,20 @@ BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enforce CORP check for Service Worker Static Router's cache source.
+BASE_FEATURE(kServiceWorkerStaticRouterCORPCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // crbug.com/495999481: When this is enabled, the navigation request should be
 // blocked when it receives an opaque response from the service worker static
 // router.
 BASE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// (crbug.com/497302265): When enabled, the main script response fetching is
+// consolidated into ServiceWorkerVersion.
+BASE_FEATURE(kServiceWorkerStaticRouterConsolidateMainScriptResponse,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network
@@ -707,6 +728,10 @@ BASE_FEATURE(kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen,
 // When disabled the ServiceWorker Client.url property will be the document URL
 // including changes to history.pushState().
 BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Kill switch for crbug.com/499449324.
+BASE_FEATURE(kServiceWorkerOptionalTimeoutIterator,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kServiceWorkerWindowClientInitiator,

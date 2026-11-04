@@ -15738,108 +15738,8 @@ void main()
 })";
 
     ANGLE_GL_PROGRAM_WITH_GS(program, kVS, kGS, kFS);
+    EXPECT_NE(0u, program);
     EXPECT_GL_NO_ERROR();
-}
-
-// Negative test using builtins that can only be used when redefining gl_PerVertex
-TEST_P(GLSLTest_ES31, PerVertexNegativeTest)
-{
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_geometry_shader"));
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_clip_cull_distance"));
-
-    constexpr char kVS[] = R"(#version 310 es
-void main()
-{
-    gl_Position = vec4(1.0, 0.0, 0.0, 1.0);
-})";
-
-    constexpr char kGS[] = R"(#version 310 es
-#extension GL_EXT_geometry_shader : require
-#extension GL_EXT_clip_cull_distance : require
-
-layout(lines_adjacency, invocations = 3) in;
-layout(points, max_vertices = 16) out;
-
-vec4 gl_Position;
-float gl_ClipDistance[4];
-float gl_CullDistance[4];
-
-void main()
-{
-    for (int n = 0; n < 16; ++n)
-    {
-        gl_Position = vec4(n, 0.0, 0.0, 1.0);
-        EmitVertex();
-    }
-
-    EndPrimitive();
-})";
-
-    constexpr char kFS[] = R"(#version 310 es
-precision highp float;
-
-out vec4 result;
-
-void main()
-{
-    result = vec4(1.0);
-})";
-
-    GLuint program = CompileProgramWithGS(kVS, kGS, kFS);
-    EXPECT_EQ(0u, program);
-    glDeleteProgram(program);
-}
-
-// Negative test using builtins that can only be used when redefining gl_PerVertex
-// but have the builtins in a differently named struct
-TEST_P(GLSLTest_ES31, PerVertexRenamedNegativeTest)
-{
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_geometry_shader"));
-    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_clip_cull_distance"));
-
-    constexpr char kVS[] = R"(#version 310 es
-void main()
-{
-    gl_Position = vec4(1.0, 0.0, 0.0, 1.0);
-})";
-
-    constexpr char kGS[] = R"(#version 310 es
-#extension GL_EXT_geometry_shader : require
-#extension GL_EXT_clip_cull_distance : require
-
-layout(lines_adjacency, invocations = 3) in;
-layout(points, max_vertices = 16) out;
-
-out Block {
-    vec4 gl_Position;
-    float gl_ClipDistance[4];
-    float gl_CullDistance[4];
-};
-
-void main()
-{
-    for (int n = 0; n < 16; ++n)
-    {
-        gl_Position = vec4(n, 0.0, 0.0, 1.0);
-        EmitVertex();
-    }
-
-    EndPrimitive();
-})";
-
-    constexpr char kFS[] = R"(#version 310 es
-precision highp float;
-
-out vec4 result;
-
-void main()
-{
-    result = vec4(1.0);
-})";
-
-    GLuint program = CompileProgramWithGS(kVS, kGS, kFS);
-    EXPECT_EQ(0u, program);
-    glDeleteProgram(program);
 }
 
 // Test pragma STDGL invariant all with I/O blocks
@@ -18668,6 +18568,25 @@ vec3 a = vec3(0.0);
 out vec4 color;
 void main()
 {
+    cross(max(vec3(0.0), reflect(dot(a, vec3(0.0)), 0.0)), vec3(0.0));
+})";
+
+    ANGLE_GL_PROGRAM(testProgram, essl3_shaders::vs::Simple(), kFS);
+    drawQuad(testProgram, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that unused local variable is dead code eliminated in IR
+TEST_P(GLSLTest_ES3, UnusedLocalVariableEliminatedInIR)
+{
+    ANGLE_SKIP_TEST_IF(!getEGLWindow()->isFeatureEnabled(Feature::UseIr));
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+vec3 a = vec3(0.0);
+out vec4 color;
+void main()
+{
+    vec3 unusedVariable;
     cross(max(vec3(0.0), reflect(dot(a, vec3(0.0)), 0.0)), vec3(0.0));
 })";
 
@@ -22433,12 +22352,12 @@ void main()
 }
 
 // Test that an unused gl_LastFragDepthARM does not lead to errors
-TEST_P(GLSLTest_ES31, UnsedLastFragDepth)
+TEST_P(GLSLTest_ES31, UnusedLastFragDepth)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_ARM_shader_framebuffer_fetch_depth_stencil"));
 
     const char kFS[] = R"(#extension GL_ARM_shader_framebuffer_fetch_depth_stencil:require
-int gl_LastFragDepthARM;
+mediump float gl_LastFragDepthARM;
 void main()
 {
     gl_FragColor = vec4(0, 1, 0, 1);
@@ -23175,6 +23094,33 @@ void main()
     ASSERT_GL_NO_ERROR();
 }
 
+// Test that complex expressions are evaluated correctly.  With the IR, these are broken up to be
+// less complex.  With AST, the shader fails compilation instead.
+TEST_P(WebGLGLSLTest, ComplexExpression)
+{
+    ANGLE_SKIP_TEST_IF(!getEGLWindow()->isFeatureEnabled(Feature::UseIr));
+
+    std::ostringstream fs;
+    fs << R"(precision highp float;
+            uniform vec4 u_color;
+            void main()
+            {
+                float f = u_color.x)";
+    for (uint32_t i = 0; i < 1000; ++i)
+    {
+        fs << "+ " << i << ".0";
+    }
+    fs << R"(;
+                // sum(0, 999) is 499500.  Divide by twice this amount and expect gray.
+                f /= 499500. * 2.;
+                gl_FragColor = vec4(f);
+})";
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), fs.str().c_str());
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(127, 127, 127, 127), 1);
+    ASSERT_GL_NO_ERROR();
+}
 }  // anonymous namespace
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND_ES31_AND_ES32(

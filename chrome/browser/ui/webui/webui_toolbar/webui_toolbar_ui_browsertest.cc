@@ -22,6 +22,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_web_ui.h"
@@ -118,11 +119,35 @@ class MockToolbarUIDelegate
                const gfx::RectF& bounds,
                ui::mojom::MenuSourceType source),
               (override));
+  MOCK_METHOD(void,
+              ShowContentSettingsBubble,
+              (::toolbar_ui_api::mojom::ContentSettingImageType type,
+               ::toolbar_ui_api::mojom::ToolbarUIService::
+                   ShowContentSettingsBubbleCallback callback),
+              (override));
   MOCK_METHOD(void, OnPageInitialized, (), (override));
   MOCK_METHOD(void,
               InvokePinnedToolbarAction,
-              (toolbar_ui_api::mojom::PinnedToolbarAction action_id),
+              (toolbar_ui_api::mojom::PinnedToolbarAction),
               (override));
+  MOCK_METHOD(void,
+              OnLhsChipMousePressed,
+              (toolbar_ui_api::mojom::LhsChipIdentifier),
+              (override));
+  MOCK_METHOD(void,
+              OnLhsChipClicked,
+              (toolbar_ui_api::mojom::LhsChipIdentifier),
+              (override));
+  MOCK_METHOD(void,
+              OnLhsChipExpandAnimationEnded,
+              (toolbar_ui_api::mojom::LhsChipIdentifier),
+              (override));
+  MOCK_METHOD(void,
+              OnLhsChipCollapseAnimationEnded,
+              (toolbar_ui_api::mojom::LhsChipIdentifier),
+              (override));
+  MOCK_METHOD(void, OnHomeButtonDropUrl, (const GURL&), (override));
+  MOCK_METHOD(void, OnHomeButtonDropFile, (const gfx::PointF&), (override));
 };
 
 // Test fixture for WebUIToolbarUI. These tests test the connectivity between

@@ -469,8 +469,7 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
 namespace {
 void ReplaceJSToWasmWrapper(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
-    int function_index, Tagged<Code> wrapper_code,
-    bool receiver_is_first_param) {
+    int function_index, Tagged<Code> wrapper_code) {
   Tagged<WasmFuncRef> func_ref;
   // Always expect a func_ref. If this fails, we are maybe compiling a wrapper
   // for the start function. This function is only called once, so this should
@@ -482,11 +481,6 @@ void ReplaceJSToWasmWrapper(
   CHECK(external_function->shared()->HasWasmExportedFunctionData(isolate));
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
-  if ((function_data->receiver_is_first_param() != 0) !=
-      receiver_is_first_param) {
-    // Different "receiver is first parameter" settings, do nothing.
-    return;
-  }
   external_function->UpdateCode(isolate, wrapper_code);
   function_data->set_wrapper_code(wrapper_code);
 }
@@ -502,15 +496,14 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
-  bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::CanonicalTypeIndex sig_id =
       module->canonical_sig_id(function.sig_index);
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
 
-  Tagged<CodeWrapper> maybe_cached_wrapper = wasm::WasmExportWrapperCache::Get(
-      isolate, sig_id, receiver_is_first_param);
+  Tagged<CodeWrapper> maybe_cached_wrapper =
+      wasm::WasmExportWrapperCache::Get(isolate, sig_id);
   Tagged<Code> wrapper_code;
   if (!maybe_cached_wrapper.is_null()) {
     wrapper_code = maybe_cached_wrapper->code(isolate);
@@ -523,13 +516,12 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     DirectHandle<WasmTrustedInstanceData> trusted_data_handle{trusted_data,
                                                               isolate};
     DirectHandle<Code> new_wrapper_code =
-        wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, sig, receiver_is_first_param);
+        wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(isolate,
+                                                                     sig);
 
     // Compilation must have installed the wrapper into the cache.
     DCHECK_EQ(new_wrapper_code->wrapper(),
-              wasm::WasmExportWrapperCache::Get(isolate, sig_id,
-                                                receiver_is_first_param));
+              wasm::WasmExportWrapperCache::Get(isolate, sig_id));
 
     // Reset raw pointers still needed outside the slow path.
     wrapper_code = *new_wrapper_code;
@@ -540,8 +532,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to ensure that the wrapper is replaced, even if the function
   // is implicitly exported and is not part of the export_table.
-  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code,
-                         receiver_is_first_param);
+  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code);
 
   // Iterate over all exports to replace eagerly the wrapper for all functions
   // that share the signature of the function that tiered up.
@@ -553,8 +544,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     if (module->canonical_sig_id(exp_function.sig_index) != sig_id) {
       continue;  // Different signature.
     }
-    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code,
-                           receiver_is_first_param);
+    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -880,7 +870,9 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
-  WasmTableObject::Set(isolate, table, entry_index, element);
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      trusted_instance_data->dispatch_table(table_index), isolate);
+  WasmTableObject::Set(isolate, table, dispatch_table, entry_index, element);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -953,7 +945,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   DirectHandle<WasmTableObject> table(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
-  int result = WasmTableObject::Grow(isolate, table, delta, value);
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      trusted_instance_data->dispatch_table(table_index), isolate);
+  int result =
+      WasmTableObject::Grow(isolate, table, dispatch_table, delta, value);
 
   return Smi::FromInt(result);
 }
@@ -984,7 +979,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   if (fill_count < count) {
     return ThrowTableOutOfBounds(isolate, trusted_instance_data);
   }
-  WasmTableObject::Fill(isolate, table, start, value, fill_count);
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      trusted_instance_data->dispatch_table(table_index), isolate);
+  WasmTableObject::Fill(isolate, table, dispatch_table, start, value,
+                        fill_count);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1684,15 +1682,15 @@ class PrototypesSetup : public wasm::Decoder {
     }
     if (IsHeapObject(*maybe_proto)) {
       DirectHandle<HeapObject> heap_proto = Cast<HeapObject>(maybe_proto);
-      if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
-        DCHECK(v8_flags.harmony_struct);
-        // Shared JS structs are not supported as prototypes, and probably
-        // never will be: we cannot change their maps to add new properties,
-        // and we cannot add pointers to non-shared methods to them.
-        ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
-        return {};
-      }
       if (IsJSObject(*heap_proto)) {
+        if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
+          DCHECK(v8_flags.harmony_struct);
+          // Shared JS structs are not supported as prototypes, and probably
+          // never will be: we cannot change their maps to add new properties,
+          // and we cannot add pointers to non-shared methods to them.
+          ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+          return {};
+        }
         DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
         if (!proto->map()->is_prototype_map()) {
           // Important for correctness: switch to a non-shared map.
@@ -2327,11 +2325,21 @@ RUNTIME_FUNCTION(Runtime_WasmSubstring) {
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
-  int start = args.positive_smi_value_at(1);
-  int length = args.positive_smi_value_at(2);
+  uint32_t start = args.positive_smi_value_at(1);
+  uint32_t length = args.positive_smi_value_at(2);
 
   string = String::Flatten(isolate, string);
   return *isolate->factory()->NewCopiedSubstring(string, start, length);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmSubstringShared) {
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
+  uint32_t start = args.positive_smi_value_at(1);
+  uint32_t length = args.positive_smi_value_at(2);
+
+  return *isolate->factory()->NewCopiedSubstringShared(string, start, length);
 }
 
 // Returns the new string if the operation succeeds.  Otherwise traps.
@@ -2796,7 +2804,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
   uint32_t code_point = NumberToUint32(args[0]);
   int shared = args.smi_value_at(1);
 
-  if (code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+  // `LookupSingleCharacterStringFromCode` might return an internalized string
+  // if `code_point` is not one-byte, which is not shared.
+  if ((!shared && code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) ||
+      (shared && code_point <= String::kMaxOneByteCharCode)) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code_point);
   }
   if (code_point > 0x10FFFF) {
@@ -2804,6 +2815,14 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
     // args[0] == -1, we want the error message to report 4294967295).
     return ThrowWasmError(isolate, MessageTemplate::kInvalidCodePoint,
                           {isolate->factory()->NewNumberFromUint(code_point)});
+  }
+
+  if (shared && code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    DirectHandle<SeqTwoByteString> result =
+        isolate->factory()->NewRawSharedTwoByteString(1).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    CopyChars(result->GetChars(no_gc), &code_point, 1);
+    return *result;
   }
 
   base::uc16 char_buffer[] = {
@@ -2826,6 +2845,22 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   Tagged<String> string(Cast<String>(args[0]));
   uint32_t hash = string->EnsureHash();
   return Smi::FromInt(static_cast<int>(hash));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringAdd_CheckNone_Shared) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+
+  DirectHandle<String> left(Cast<String>(args[0]), isolate);
+  DirectHandle<String> right(Cast<String>(args[1]), isolate);
+
+  DirectHandle<String> result;
+  if (isolate->factory()->WasmStringAddShared(left, right).ToHandle(&result)) {
+    return *result;
+  } else {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
 }
 
 // For cont.new: this initializes the continuation with a new stack and with the

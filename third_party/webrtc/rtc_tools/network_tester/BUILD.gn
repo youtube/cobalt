@@ -95,6 +95,7 @@ if (rtc_enable_protobuf) {
       "../../rtc_base:timeutils",
       "../../test:create_test_environment",
       "../../test:fileutils",
+      "../../test:run_loop",
       "../../test:test_support",
       "../../test:wait_until",
       "//testing/gtest",
@@ -178,12 +179,14 @@ if (is_android) {
   }
 
   rtc_shared_library("network_tester_so") {
+    testonly = true
     sources = [ "jni.cc" ]
 
     deps = [
       ":network_tester",
       "../../rtc_base:logging",
       "../../rtc_base:threading",
+      "../../test:create_test_environment",
     ]
 
     suppressed_configs += [ "//build/config/android:hide_all_but_jni_onload" ]

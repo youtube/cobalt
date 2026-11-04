@@ -971,62 +971,54 @@ MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
                                                 AllocationType::kSharedOld,
                                                 MessageTemplate::kNone);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
-MaybeHandle<String> Factory::NewStringFromUtf8SubString(
-    Handle<SeqOneByteString> str, int begin, int length,
-    AllocationType allocation) {
-  base::Vector<const uint8_t> utf8_data;
-  {
+MaybeDirectHandle<String> Factory::WasmStringAddShared(
+    DirectHandle<String> left, DirectHandle<String> right) {
+  DCHECK(left->IsFlat());
+  DCHECK(HeapLayout::InAnySharedSpace(*left));
+  DCHECK(right->IsFlat());
+  DCHECK(HeapLayout::InAnySharedSpace(*right));
+  uint32_t left_length = left->length();
+  uint32_t right_length = right->length();
+  if (left_length == 0) return right;
+  if (right_length == 0) return left;
+  uint32_t length = left_length + right_length;
+  if (length > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  bool one_byte_repr =
+      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
+  if (one_byte_repr) {
+    DirectHandle<SeqOneByteString> result =
+        NewRawSharedOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
-    utf8_data =
-        base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-  }
-  Utf8Decoder decoder(utf8_data);
-
-  if (length == 1) {
-    uint16_t t;
-    // Decode even in the case of length 1 since it can be a bad character.
-    decoder.Decode(&t, utf8_data);
-    return LookupSingleCharacterStringFromCode(t);
-  }
-
-  if (decoder.is_ascii()) {
-    // If the string is ASCII, we can just make a substring.
-    // TODO(v8): the allocation flag is ignored in this case.
-    return NewSubString(str, begin, begin + length);
-  }
-
-  DCHECK_GT(decoder.utf16_length(), 0);
-
-  if (decoder.is_one_byte()) {
-    // Allocate string.
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        NewRawOneByteString(decoder.utf16_length(), allocation));
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    uint8_t* dest = result->GetChars(no_gc, access_guard);
+    {
+      const uint8_t* src =
+          left->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
+      CopyChars(dest, src, left_length);
+    }
+    {
+      const uint8_t* src =
+          right->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
+      CopyChars(dest + left_length, src, right_length);
+    }
+    return result;
+  } else {
+    DirectHandle<SeqTwoByteString> result =
+        NewRawSharedTwoByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
-    // Update pointer references, since the original string may have moved after
-    // allocation.
-    utf8_data =
-        base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-    decoder.Decode(result->GetChars(no_gc), utf8_data);
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    base::uc16* dest = result->GetChars(no_gc, access_guard);
+    String::WriteToFlat(*left, dest, 0, left_length, access_guard);
+    String::WriteToFlat(*right, dest + left_length, 0, right_length,
+                        access_guard);
     return result;
   }
-
-  // Allocate string.
-  Handle<SeqTwoByteString> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), result,
-      NewRawTwoByteString(decoder.utf16_length(), allocation));
-
-  DisallowGarbageCollection no_gc;
-  // Update pointer references, since the original string may have moved after
-  // allocation.
-  utf8_data = base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-  decoder.Decode(result->GetChars(no_gc), utf8_data);
-  return result;
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
                                                   int length,
@@ -1234,6 +1226,38 @@ Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str,
   } else {
     Handle<SeqTwoByteString> result =
         NewRawTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    base::uc16* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  }
+}
+
+Handle<String> Factory::NewCopiedSubstringShared(DirectHandle<String> str,
+                                                 uint32_t begin,
+                                                 uint32_t length) {
+  DCHECK(str->IsFlat());  // Callers must flatten.
+  DCHECK_GT(length, 0);   // Callers must handle empty string.
+  bool one_byte;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent flat = str->GetFlatContent(no_gc);
+    if (flat.IsOneByte()) {
+      one_byte = true;
+    } else {
+      one_byte = String::IsOneByte(flat.ToUC16Vector().data() + begin, length);
+    }
+  }
+  if (one_byte) {
+    Handle<SeqOneByteString> result =
+        NewRawSharedOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    uint8_t* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  } else {
+    Handle<SeqTwoByteString> result =
+        NewRawSharedTwoByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
     base::uc16* dest = result->GetChars(no_gc);
     String::WriteToFlat(*str, dest, begin, length);
@@ -1859,12 +1883,14 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
     int length, wasm::CanonicalValueType table_type, SharedFlag shared) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
 
-  // TODO(jkummerow): Any chance to get a better estimate?
-  size_t estimated_offheap_size = 0;
-  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
-      TrustedManaged<WasmDispatchTableData>::From(
-          isolate(), estimated_offheap_size,
-          std::make_shared<WasmDispatchTableData>(), shared);
+  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data;
+  if (length > 0) {
+    // TODO(jkummerow): Any chance to get a better estimate?
+    size_t estimated_offheap_size = 0;
+    offheap_data = TrustedManaged<WasmDispatchTableData>::From(
+        isolate(), estimated_offheap_size,
+        std::make_shared<WasmDispatchTableData>(), shared);
+  }
 
   int bytes = WasmDispatchTable::SizeFor(length);
   Tagged<WasmDispatchTable> result =
@@ -1877,7 +1903,11 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   result->InitAndPublish(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
-  result->set_protected_offheap_data(*offheap_data);
+  if (length > 0) {
+    result->set_protected_offheap_data(*offheap_data);
+  } else {
+    result->clear_protected_offheap_data();
+  }
   result->set_protected_uses(*empty_protected_weak_fixed_array());
   result->set_table_type(table_type);
   for (int i = 0; i < length; ++i) {
@@ -2183,7 +2213,6 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_wrapper_code(*export_wrapper);
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
-  result->set_receiver_is_first_param(0);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
   result->set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
@@ -2471,9 +2500,9 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
                                               DirectHandle<Object> value,
                                               AllocationType allocation) {
   DCHECK(IsUniqueName(*name));
-  static_assert(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(PropertyCell) <= kMaxRegularHeapObjectSize);
   Tagged<PropertyCell> cell = Cast<PropertyCell>(AllocateRawWithImmortalMap(
-      PropertyCell::kSize, allocation, *global_property_cell_map()));
+      sizeof(PropertyCell), allocation, *global_property_cell_map()));
   DisallowGarbageCollection no_gc;
   cell->set_dependent_code(
       DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
@@ -4507,7 +4536,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
     JSRegExp::Flags flags, DirectHandle<String> pattern) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = AtomRegExpData::kSize;
+  int size = sizeof(AtomRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
   DisallowGarbageCollection no_gc;
@@ -4529,7 +4558,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
     JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
     uint32_t bit_field) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = IrRegExpData::kSize;
+  int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
@@ -4562,7 +4591,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
     JSRegExp::Flags flags, int capture_count) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = IrRegExpData::kSize;
+  int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;

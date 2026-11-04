@@ -14,10 +14,12 @@
 #import "RTCNativeVideoEncoder.h"
 #import "RTCNativeVideoEncoderBuilder+Native.h"
 #import "RTCVideoEncoderVP8.h"
+#import "api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "helpers/NSString+StdString.h"
 #import "sdk/objc/base/RTCMacros.h"
 
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp8/vp8_scalability.h"
 
@@ -29,6 +31,12 @@
 
     - (std::unique_ptr<webrtc::VideoEncoder>)build:
         (const webrtc::Environment&)env {
+      return webrtc::CreateVp8Encoder(env);
+    }
+
+    - (std::unique_ptr<webrtc::VideoEncoder>)
+        buildWithEnvironment:(const webrtc::Environment&)env
+                      format:(const webrtc::SdpVideoFormat&)format {
       return webrtc::CreateVp8Encoder(env);
     }
 
@@ -49,6 +57,15 @@
                                         webrtc::ScalabilityModeToString(mode)]];
       }
       return result;
+    }
+
+    + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *>*)supportedCodecs {
+      webrtc::SdpVideoFormat format = webrtc::SdpVideoFormat::VP8();
+      for (const auto& mode : webrtc::kVP8SupportedScalabilityModes) {
+        format.scalability_modes.push_back(mode);
+      }
+      return @[ [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithNativeSdpVideoFormat:format] ];
     }
 
     @end

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "api/environment/environment.h"
+#include "api/ref_counted_base.h"
 #include "api/units/data_rate.h"
 #include "api/video/render_resolution.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -38,9 +39,13 @@ class VideoEncoderFactory {
   // typically stateful to avoid toggling between different encoders, which is
   // costly due to recreation of objects, a new codec will always start with a
   // key-frame.
-  class EncoderSelectorInterface {
+  // A note about threading: This interface is used on a dedicated encoder
+  // queue. But creation and deletion may happen on another thread.
+  class EncoderSelectorInterface : public RefCountedBase {
    public:
-    virtual ~EncoderSelectorInterface() {}
+    // TODO: bugs.webrtc.org/42224373 - make destructor protected once all
+    // implementations use reference counting.
+    virtual ~EncoderSelectorInterface() = default;
 
     // Informs the encoder selector about which encoder that is currently being
     // used.
@@ -115,7 +120,7 @@ class VideoEncoderFactory {
   // recommended.
   //
   // TODO(bugs.webrtc.org:14122): Deprecate and remove in favor of
-  // `RtpSenderInterface::SetEncoderSelector`.
+  // `RtpSenderInterface::SetEncoderSelector` using ref count.
   virtual std::unique_ptr<EncoderSelectorInterface> GetEncoderSelector() const {
     return nullptr;
   }

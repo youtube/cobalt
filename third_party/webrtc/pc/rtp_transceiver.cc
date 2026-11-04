@@ -258,13 +258,15 @@ std::unique_ptr<ChannelInterface> CreateMediaChannel(
     std::unique_ptr<MediaReceiveChannelInterface>& receive,
     absl::string_view mid,
     bool srtp_required,
-    CryptoOptions crypto_options) {
+    CryptoOptions crypto_options,
+    ChannelCallbacks callbacks) {
   return std::make_unique<Channel>(
       context->worker_thread(), context->network_thread(),
       context->signaling_thread(),
       std::unique_ptr<Send>(static_cast<Send*>(send.release())),
       std::unique_ptr<Receive>(static_cast<Receive*>(receive.release())), mid,
-      srtp_required, crypto_options, context->ssrc_generator());
+      srtp_required, crypto_options, context->ssrc_generator(),
+      std::move(callbacks));
 }
 
 std::vector<absl::AnyInvocable<void() &&>> DetachAndGetStopTasksForSenders(
@@ -467,6 +469,25 @@ RTCError RtpTransceiver::CreateChannel(
     signaling_thread_safety_->SetAlive();
   }
 
+  ChannelCallbacks callbacks;
+  callbacks.on_first_packet_received =
+      [thread = thread_, flag = signaling_thread_safety_,
+       this](const RtpPacketReceived& packet) mutable {
+        thread->PostTask(SafeTask(
+            std::move(flag),
+            [this, ssrc = packet.Ssrc()]() { OnFirstPacketReceived(ssrc); }));
+      };
+  callbacks.on_first_packet_sent =
+      [thread = thread_, flag = signaling_thread_safety_, this]() mutable {
+        thread->PostTask(
+            SafeTask(std::move(flag), [this]() { OnFirstPacketSent(); }));
+      };
+  callbacks.on_packet_received =
+      [this, flag = signaling_thread_safety_](const RtpPacketReceived& packet) {
+        RTC_DCHECK_RUN_ON(context()->network_thread());
+        OnPacketReceived(packet.Ssrc(), flag);
+      };
+
   std::unique_ptr<ChannelInterface> new_channel;
   // TODO(bugs.webrtc.org/11992): CreateVideoChannel internally switches to
   // the worker thread. We shouldn't be using the `call_ptr_` hack here but
@@ -505,24 +526,45 @@ RTCError RtpTransceiver::CreateChannel(
           CreateMediaChannel<VoiceChannel, VoiceMediaSendChannelInterface,
                              VoiceMediaReceiveChannelInterface>(
               context(), media_send_channel, media_receive_channel, mid,
-              srtp_required, crypto_options);
+              srtp_required, crypto_options, std::move(callbacks));
     } else {
       new_channel =
           CreateMediaChannel<VideoChannel, VideoMediaSendChannelInterface,
                              VideoMediaReceiveChannelInterface>(
               context(), media_send_channel, media_receive_channel, mid,
-              srtp_required, crypto_options);
+              srtp_required, crypto_options, std::move(callbacks));
     }
   });
-  return SetChannel(std::move(new_channel), std::move(transport_lookup),
-                    /*set_media_channels=*/false);
+
+  channel_ = std::move(new_channel);
+  transport_name_ = std::nullopt;
+
+  std::optional<std::string> transport_name;
+  RTCError err = context()->network_thread()->BlockingCall(
+      [&, flag = signaling_thread_safety_, channel = channel_.get()]() {
+        RtpTransportInternal* transport =
+            std::move(transport_lookup)(channel->mid());
+        if (!channel->SetRtpTransport(transport)) {
+          return RTCError::InvalidParameter()
+                 << "Invalid transport for mid=" << channel->mid();
+        }
+        if (transport) {
+          transport_name = transport->transport_name();
+        }
+        return RTCError::OK();
+      });
+
+  if (err.ok()) {
+    transport_name_ = std::move(transport_name);
+  }
+
+  return err;
 }
 
-RTCError RtpTransceiver::SetChannel(
+RTCError RtpTransceiver::SetChannelForTest(
     std::unique_ptr<ChannelInterface> channel,
     absl::AnyInvocable<RtpTransportInternal*(const std::string&) &&>
-        transport_lookup,
-    bool set_media_channels) {
+        transport_lookup) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(channel);
   RTC_DCHECK(transport_lookup);
@@ -560,32 +602,11 @@ RTCError RtpTransceiver::SetChannel(
         if (transport) {
           transport_name = transport->transport_name();
         }
-        channel->SetFirstPacketReceivedCallback_n(
-            [thread = thread_, flag = flag,
-             this](const RtpPacketReceived& packet) mutable {
-              thread->PostTask(
-                  SafeTask(std::move(flag), [this, ssrc = packet.Ssrc()]() {
-                    OnFirstPacketReceived(ssrc);
-                  }));
-            });
-        channel->SetFirstPacketSentCallback_n(
-            [thread = thread_, flag = flag, this]() mutable {
-              thread->PostTask(
-                  SafeTask(std::move(flag), [this]() { OnFirstPacketSent(); }));
-            });
-        channel->SetPacketReceivedCallback_n(
-            [this, flag = flag](const RtpPacketReceived& packet) {
-              RTC_DCHECK_RUN_ON(context()->network_thread());
-              OnPacketReceived(packet.Ssrc(), flag);
-            });
         return RTCError::OK();
       });
 
   if (err.ok()) {
     transport_name_ = std::move(transport_name);
-    if (set_media_channels) {
-      PushNewMediaChannel();
-    }
   }
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
@@ -610,9 +631,6 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
   ChannelInterface* channel = channel_.get();
   return [channel, flag = network_thread_safety_] {
     flag->SetNotAlive();
-    channel->SetFirstPacketReceivedCallback_n(nullptr);
-    channel->SetFirstPacketSentCallback_n(nullptr);
-    channel->SetPacketReceivedCallback_n(nullptr);
     channel->SetRtpTransport(nullptr);
   };
 }
@@ -665,19 +683,6 @@ void RtpTransceiver::ClearChannel() {
   if (worker_task) {
     context()->worker_thread()->BlockingCall([&] { std::move(worker_task)(); });
   }
-}
-
-void RtpTransceiver::PushNewMediaChannel() {
-  RTC_DCHECK_RUN_ON(thread_);
-  RTC_DCHECK(channel_);
-  if (senders_.empty() && receivers_.empty()) {
-    return;
-  }
-  context()->worker_thread()->BlockingCall([&, channel = channel_.get()]() {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
-    SetMediaChannels(channel->media_send_channel(),
-                     channel->media_receive_channel());
-  });
 }
 
 // RTC_RUN_ON(context()->worker_thread());
@@ -945,6 +950,40 @@ std::optional<RtpTransceiverDirection> RtpTransceiver::current_direction()
 
 std::optional<RtpTransceiverDirection> RtpTransceiver::fired_direction() const {
   return fired_direction_;
+}
+
+RTCError RtpTransceiver::TryToEnableSframe() {
+  RTC_DCHECK_RUN_ON(thread_);
+
+  if (sframe_enabled_.has_value() && sframe_enabled_.value() == false) {
+    return LOG_ERROR(RTCError::InvalidModification()
+                     << "Cannot enable Sframe after it has been "
+                        "disabled by a completed negotiation.");
+  }
+
+  sframe_enabled_ = true;
+
+  on_negotiation_needed_();
+
+  return RTCError::OK();
+}
+
+void RtpTransceiver::ApplySframeEnabled(bool sframe_enabled) {
+  RTC_DCHECK_RUN_ON(thread_);
+  // Cannot re-enable Sframe after it has been negotiated to disabled.
+  RTC_DCHECK(!(sframe_enabled_ == false && sframe_enabled == true));
+
+  sframe_enabled_ = sframe_enabled;
+
+  if (sframe_enabled && channel_) {
+    // TODO(bugs.webrtc.org/479862368): Enable Sframe on the media send and
+    // receive channels when the encryption pipeline is implemented.
+  }
+}
+
+std::optional<bool> RtpTransceiver::SframeEnabled() const {
+  RTC_DCHECK_RUN_ON(thread_);
+  return sframe_enabled_;
 }
 
 bool RtpTransceiver::receptive() const {
@@ -1376,13 +1415,6 @@ void RtpTransceiver::EnableChannel(bool enable) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(channel_);
   channel_->Enable(enable);
-}
-
-void RtpTransceiver::ResetUnsignaledRecvStream() {
-  RTC_DCHECK_RUN_ON(thread_);
-  if (MediaReceiveChannelInterface* receive_channel = media_receive_channel()) {
-    receive_channel->ResetUnsignaledRecvStream();
-  }
 }
 
 const std::vector<StreamParams>& RtpTransceiver::channel_local_streams() const {

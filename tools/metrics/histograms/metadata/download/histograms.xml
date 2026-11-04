@@ -608,6 +608,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Download.IOSDownloadOpenInHasFilePath" enum="Boolean"
+    expires_after="2026-08-21">
+  <owner>qpubert@google.com</owner>
+  <owner>olivierrobin@chromium.org</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    Whether the download file path was ready when the user tapped &quot;Open
+    in...&quot; from the download manager.
+  </summary>
+</histogram>
+
 <histogram name="Download.IOSDownloadPassKitResult"
     enum="DownloadPassKitResult" expires_after="2026-08-21">
   <owner>qpubert@google.com</owner>
@@ -705,7 +716,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Memory.UrlChainLength.{Location}" units="count"
-    expires_after="2026-07-30">
+    expires_after="2026-10-04">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -716,7 +727,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Memory.UrlChainSizeKb.{Location}" units="KB"
-    expires_after="2026-07-30">
+    expires_after="2026-10-04">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>

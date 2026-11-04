@@ -35,6 +35,7 @@ def print_landmines():  # pylint: disable=invalid-name
     # landmine.
     # See the Chromium version in src/build/get_landmines.py for usage examples.
     print('Clobber to remove out/{Debug,Release}/args.gn (webrtc:5070)')
+    print('Clobber due to the rtc_test_suite migration (crbug.com/498394143)')
     if host_os() == 'win':
         print(
             'Clobber to resolve some issues with corrupt .pdb files on bots.')
@@ -71,8 +72,6 @@ def print_landmines():  # pylint: disable=invalid-name
         print('Lets clobber iOS due to signing issue b/396118151 (2nd try)')
         print('Lets clobber iOS due to rtc_executable -> rtc_test')
         print('Lets clobber iOS due to rtc_executable -> rtc_test')
-    if host_os() == 'android':
-        print('Clobber due to Android "compile confirm no-op" errors.')
 
 
 def main():

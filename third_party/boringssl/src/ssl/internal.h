@@ -1399,6 +1399,7 @@ enum class SSLCredentialType {
   kSPAKE2PlusV1Client,
   kSPAKE2PlusV1Server,
   kPreSharedKey,
+  kRawPublicKey,
 };
 
 BSSL_NAMESPACE_END
@@ -1421,7 +1422,7 @@ struct ssl_credential_st : public bssl::RefCounted<ssl_credential_st> {
   bool UsesX509() const;
 
   // UsesPrivateKey returns true if the credential type uses an asymmetric
-  // private key.
+  // private and public keypair.
   bool UsesPrivateKey() const;
 
   // IsComplete returns whether all required fields in the credential have been
@@ -1564,21 +1565,34 @@ bool ssl_credential_matches_requested_issuers(SSL_HANDSHAKE *hs,
 
 // ssl_check_tls13_credential_ignoring_issuer returns true if |cred| is usable
 // as the certificate in a TLS 1.3 handshake, ignoring the issuer check.
+// |allowed_cert_types| is a nonempty set of cert types (|TLSEXT_cert_type_*|
+// values) that are usable; |cred| must match one of these types.
 // |out_sigalg| will be set to a matching signature algorithm if true is
 // returned.
-bool ssl_check_tls13_credential_ignoring_issuer(SSL_HANDSHAKE *hs,
-                                                const SSL_CREDENTIAL *cred,
-                                                uint16_t *out_sigalg);
+bool ssl_check_tls13_credential_ignoring_issuer(
+    SSL_HANDSHAKE *hs, Span<const uint8_t> allowed_cert_types,
+    const SSL_CREDENTIAL *cred, uint16_t *out_sigalg);
 
 
 // Client certificate type & Server certificate type.
 
-inline constexpr uint8_t kCertTypes[] = {
+inline constexpr uint8_t kAllCertTypes[] = {
     TLSEXT_cert_type_x509,
     TLSEXT_cert_type_rpk,
 };
-inline constexpr size_t kNumCertTypes = std::size(kCertTypes);
+inline constexpr size_t kNumCertTypes = std::size(kAllCertTypes);
 inline constexpr uint8_t kDefaultCertType = TLSEXT_cert_type_x509;
+
+// ssl_credential_type_to_cert_type returns the certificate type value
+// (`TLSEXT_cert_type_*` value) corresponding to `cred_type`, or else
+// std::nullopt.
+std::optional<uint8_t> ssl_credential_type_to_cert_type(
+    SSLCredentialType cred_type);
+
+// ssl_setup_client_certificate_type computes the client cert types to offer, as
+// a client, and saves them in |hs|. The values are used later when checking
+// that the server responded with a valid value.
+void ssl_setup_client_certificate_type(SSL_HANDSHAKE *hs);
 
 // ssl_negotiate_client_certificate_type negotiates the client_certificate_type
 // extension, if applicable. It sets `hs->ssl->s3->client_cert_type` iff a value
@@ -1588,6 +1602,16 @@ inline constexpr uint8_t kDefaultCertType = TLSEXT_cert_type_x509;
 bool ssl_negotiate_client_certificate_type(
     const SSL_HANDSHAKE *hs, uint8_t *out_alert,
     const SSL_CLIENT_HELLO *client_hello);
+
+// ssl_get_allowed_server_cert_types, for a server, returns the cert types that
+// may be used based on the server_certificate_type extension in the
+// ClientHello. It returns a nonempty list of allowable certificate types. By
+// default, if the client did not send the extension, X.509 certificates are
+// allowed. The returned cert types may include unrecognized values. Returns
+// nullopt and sets `out_alert` on failure.
+std::optional<Span<const uint8_t>> ssl_get_allowed_server_cert_types(
+    const SSL_HANDSHAKE *hs, const SSL_CLIENT_HELLO *client_hello,
+    uint8_t *out_alert);
 
 
 // Handshake functions.
@@ -2089,6 +2113,11 @@ struct SSL_HANDSHAKE {
 
   // pake_verifier is the PAKE context for a server.
   UniquePtr<spake2plus::Verifier> pake_verifier;
+
+  // offered_client_cert_types, for a client, is a list of client certificate
+  // types (`TLSEXT_cert_type_*` values) that were sent in the
+  // client_certificate_type extension in the ClientHello.
+  InplaceVector<uint8_t, kNumCertTypes> offered_client_cert_types;
 };
 
 // kMaxTickets is the maximum number of tickets to send immediately after the
@@ -2947,6 +2976,11 @@ struct SSL3_STATE {
   // the connection. If this is nullopt, the peer did not send the
   // client_certificate_type extension, or no suitable value was negotiated.
   std::optional<uint8_t> client_cert_type;
+
+  // server_cert_type, if non-nullopt, is the negotiated server cert type for
+  // the connection. If this is nullopt, the peer did not send the
+  // server_certificate_type extension, or no suitable value was negotiated.
+  std::optional<uint8_t> server_cert_type;
 };
 
 // lengths of messages
@@ -3402,6 +3436,13 @@ struct SSL_CONFIG {
   // peer. This list should always be non-empty. If the caller did not configure
   // a valid list, only X.509 certificates are accepted by default.
   InplaceVector<uint8_t, kNumCertTypes> accepted_peer_cert_types;
+
+  // available_client_cert_types, if not empty, contains a list of
+  // |TLSEXT_cert_type_*| values in preference order indicating the types of
+  // client certificates that the caller, as a client, explicitly configured and
+  // wishes to advertise, instead of the automatically inferred client cert
+  // types from the configured credential list.
+  InplaceVector<uint8_t, kNumCertTypes> available_client_cert_types;
 
   // ech_grease_enabled controls whether ECH GREASE may be sent in the
   // ClientHello.
@@ -4048,6 +4089,9 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // accepted_peer_cert_types inherited by SSL struct.
   bssl::InplaceVector<uint8_t, bssl::kNumCertTypes> accepted_peer_cert_types;
+
+  // available_client_cert_types inherited by SSL struct.
+  bssl::InplaceVector<uint8_t, bssl::kNumCertTypes> available_client_cert_types;
 
   // retain_only_sha256_of_client_certs is true if we should compute the SHA256
   // hash of the peer's certificate and then discard it to save memory and

@@ -85,6 +85,8 @@ extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
 extern runtime WasmStringFromCodePoint(Context, Number, Smi): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
+extern runtime WasmSubstringShared(Context, String, Smi, Smi): String;
+extern runtime WasmStringAdd_CheckNone_Shared(Context, String, String): String;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -1351,6 +1353,10 @@ builtin WasmStringConcat(a: String, b: String): String {
   tail WasmStringAdd_CheckNone(a, b);
 }
 
+builtin WasmStringAdd_CheckNone_Shared(a: String, b: String): String {
+  tail runtime::WasmStringAdd_CheckNone_Shared(LoadContextFromFrame(), a, b);
+}
+
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;
 
 builtin WasmStringEqual(a: String, b: String): int32 {
@@ -1518,6 +1524,16 @@ transitioning builtin WasmStringViewWtf16Slice(
   }
   return string::SubString(
       string, Convert<uintptr>(start), Convert<uintptr>(clampedEnd));
+}
+builtin WasmStringSliceShared(string: String, start: uint32, end: uint32):
+    String {
+  const length = Unsigned(string.length);
+  if (start >= length) return kEmptyString;
+  if (end <= start) return kEmptyString;
+  const clampedEnd: uint32 = end <= length ? end : length;
+  tail runtime::WasmSubstringShared(
+      LoadContextFromFrame(), string, SmiFromUint32(start),
+      SmiFromUint32(clampedEnd - start));
 }
 builtin WasmStringAsIter(string: String): WasmStringViewIter {
   return new WasmStringViewIter{string: string, offset: 0, optional_padding: 0};

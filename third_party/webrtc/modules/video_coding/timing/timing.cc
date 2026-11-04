@@ -62,6 +62,17 @@ void VCMTiming::VideoDelayTimings::Reset() {
   current_delay = TimeDelta::Zero();
 }
 
+TimeDelta VCMTiming::VideoDelayTimings::TargetDelay() const {
+  return std::max(min_playout_delay,
+                  minimum_delay + estimated_max_decode_time + render_delay);
+}
+
+TimeDelta VCMTiming::VideoDelayTimings::StatsTargetDelay() const {
+  TimeDelta stats_target_delay =
+      TargetDelay() - (estimated_max_decode_time + render_delay);
+  return std::max(TimeDelta::Zero(), stats_target_delay);
+}
+
 bool VCMTiming::VideoDelayTimings::UseLowLatencyRendering() const {
   return min_playout_delay.IsZero() &&
          max_playout_delay <= kLowLatencyStreamMaxPlayoutDelayThreshold;
@@ -127,9 +138,10 @@ void VCMTiming::SetJitterDelay(TimeDelta minimum_delay) {
 void VCMTiming::UpdateCurrentDelay(Timestamp render_time,
                                    Timestamp actual_decode_time) {
   MutexLock lock(&mutex_);
-  TimeDelta target_delay = TargetDelayInternal();
+  TimeDelta target_delay = timings_.TargetDelay();
   TimeDelta delayed = (actual_decode_time - render_time) +
-                      EstimatedMaxDecodeTime() + timings_.render_delay;
+                      timings_.estimated_max_decode_time +
+                      timings_.render_delay;
 
   // Only consider `delayed` as negative by more than a few microseconds.
   if (delayed.ms() < 0) {
@@ -144,9 +156,11 @@ void VCMTiming::UpdateCurrentDelay(Timestamp render_time,
 
 void VCMTiming::StopDecodeTimer(TimeDelta decode_time, Timestamp now) {
   MutexLock lock(&mutex_);
-  decode_time_filter_->AddTiming(decode_time.ms(), now.ms());
   RTC_DCHECK_GE(decode_time, TimeDelta::Zero());
+  decode_time_filter_->AddSample(decode_time.ms(), now.ms());
   ++timings_.num_decoded_frames;
+  timings_.estimated_max_decode_time =
+      TimeDelta::Millis(decode_time_filter_->GetPercentileMs());
 }
 
 void VCMTiming::IncomingTimestamp(uint32_t rtp_timestamp, Timestamp now) {
@@ -156,17 +170,6 @@ void VCMTiming::IncomingTimestamp(uint32_t rtp_timestamp, Timestamp now) {
 
 Timestamp VCMTiming::RenderTime(uint32_t frame_timestamp, Timestamp now) const {
   MutexLock lock(&mutex_);
-  return RenderTimeInternal(frame_timestamp, now);
-}
-
-void VCMTiming::SetLastDecodeScheduledTimestamp(
-    Timestamp last_decode_scheduled) {
-  MutexLock lock(&mutex_);
-  last_decode_scheduled_ = last_decode_scheduled;
-}
-
-Timestamp VCMTiming::RenderTimeInternal(uint32_t frame_timestamp,
-                                        Timestamp now) const {
   if (timings_.UseLowLatencyRendering()) {
     // Render as soon as possible or with low-latency renderer algorithm.
     return Timestamp::Zero();
@@ -188,10 +191,10 @@ Timestamp VCMTiming::RenderTimeInternal(uint32_t frame_timestamp,
   return estimated_complete_time + actual_delay;
 }
 
-TimeDelta VCMTiming::EstimatedMaxDecodeTime() const {
-  const int decode_time_ms = decode_time_filter_->RequiredDecodeTimeMs();
-  RTC_DCHECK_GE(decode_time_ms, 0);
-  return TimeDelta::Millis(decode_time_ms);
+void VCMTiming::SetLastDecodeScheduledTimestamp(
+    Timestamp last_decode_scheduled) {
+  MutexLock lock(&mutex_);
+  last_decode_scheduled_ = last_decode_scheduled;
 }
 
 TimeDelta VCMTiming::MaxWaitingTime(Timestamp render_time,
@@ -205,7 +208,7 @@ TimeDelta VCMTiming::MaxWaitingTime(Timestamp render_time,
     // `render_time` == 0 indicates that the frame should be decoded and
     // rendered as soon as possible. However, the decoder can be choked if too
     // many frames are sent at once. Therefore, limit the interframe delay to
-    // |zero_playout_delay_min_pacing_| unless too many frames are queued in
+    // `zero_playout_delay_min_pacing_` unless too many frames are queued in
     // which case the frames are sent to the decoder at once.
     if (too_many_frames_queued) {
       return TimeDelta::Zero();
@@ -217,41 +220,26 @@ TimeDelta VCMTiming::MaxWaitingTime(Timestamp render_time,
                                   : earliest_next_decode_start_time - now;
     return max_wait_time;
   }
-  return render_time - now - EstimatedMaxDecodeTime() - timings_.render_delay;
+  return render_time - now - timings_.estimated_max_decode_time -
+         timings_.render_delay;
 }
 
 TimeDelta VCMTiming::TargetVideoDelay() const {
   MutexLock lock(&mutex_);
-  return TargetDelayInternal();
+  return timings_.TargetDelay();
 }
 
-TimeDelta VCMTiming::TargetDelayInternal() const {
-  return std::max(timings_.min_playout_delay, timings_.minimum_delay +
-                                                  EstimatedMaxDecodeTime() +
-                                                  timings_.render_delay);
-}
-
-// TODO(crbug.com/webrtc/15197): Centralize delay arithmetic.
-TimeDelta VCMTiming::StatsTargetDelayInternal() const {
-  TimeDelta stats_target_delay =
-      TargetDelayInternal() -
-      (EstimatedMaxDecodeTime() + timings_.render_delay);
-  return std::max(TimeDelta::Zero(), stats_target_delay);
+VCMTiming::VideoDelayTimings VCMTiming::GetTimings() const {
+  MutexLock lock(&mutex_);
+  VideoDelayTimings timings = timings_;
+  timings.target_delay = timings_.StatsTargetDelay();
+  return timings;
 }
 
 VideoFrame::RenderParameters VCMTiming::RenderParameters() const {
   MutexLock lock(&mutex_);
   return {.use_low_latency_rendering = timings_.UseLowLatencyRendering(),
           .max_composition_delay_in_frames = max_composition_delay_in_frames_};
-}
-
-VCMTiming::VideoDelayTimings VCMTiming::GetTimings() const {
-  MutexLock lock(&mutex_);
-  VideoDelayTimings timings = timings_;
-  // TODO(b/493549134): Update in StopDecodeTimer.
-  timings.estimated_max_decode_time = EstimatedMaxDecodeTime();
-  timings.target_delay = StatsTargetDelayInternal();
-  return timings;
 }
 
 void VCMTiming::SetMaxCompositionDelayInFrames(

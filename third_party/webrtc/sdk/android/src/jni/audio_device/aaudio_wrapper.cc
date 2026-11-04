@@ -411,8 +411,7 @@ void AAudioWrapper::CloseStream() {
 
 void AAudioWrapper::LogStreamConfiguration() {
   RTC_DCHECK(stream_);
-  char ss_buf[1024];
-  webrtc::SimpleStringBuilder ss(ss_buf);
+  StringBuilder ss;
   ss << "Stream Configuration: ";
   ss << "sample rate=" << sample_rate() << ", channels=" << channel_count();
   ss << ", samples per frame=" << samples_per_frame();

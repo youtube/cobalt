@@ -6,17 +6,12 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_QUIC_ENDPOINT_H_
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/crypto/null_decrypter.h"
-#include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer.h"
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
-#include "quiche/quic/core/quic_trace_visitor.h"
 #include "quiche/quic/test_tools/simple_session_notifier.h"
-#include "quiche/quic/test_tools/simulator/link.h"
-#include "quiche/quic/test_tools/simulator/queue.h"
 #include "quiche/quic/test_tools/simulator/quic_endpoint_base.h"
 
 namespace quic {
@@ -118,6 +113,7 @@ class QuicEndpoint : public QuicEndpointBase,
   bool MaybeMitigateWriteError(const WriteResult& /*write_result*/) override {
     return false;
   }
+  void OnSconePacket(QuicBandwidth) override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

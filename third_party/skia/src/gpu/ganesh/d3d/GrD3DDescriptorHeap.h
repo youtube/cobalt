@@ -58,15 +58,6 @@ public:
 protected:
     GrD3DDescriptorHeap(const gr_cp<ID3D12DescriptorHeap>&, unsigned int handleIncrementSize);
 
-    static uint32_t GenID() {
-        static std::atomic<uint32_t> nextID{1};
-        uint32_t id;
-        do {
-            id = nextID++;
-        } while (id == SK_InvalidUniqueID);
-        return id;
-    }
-
     gr_cp<ID3D12DescriptorHeap> fHeap;
     size_t fHandleIncrementSize;
     D3D12_CPU_DESCRIPTOR_HANDLE fCPUHeapStart;

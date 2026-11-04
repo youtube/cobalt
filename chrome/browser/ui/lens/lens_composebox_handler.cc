@@ -120,9 +120,11 @@ LensComposeboxHandler::LensComposeboxHandler(
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
     mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
-        pending_searchbox_handler)
+        pending_searchbox_handler,
+    mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page)
     : SearchboxHandler(
           std::move(pending_searchbox_handler),
+          std::move(pending_searchbox_page),
           profile,
           web_contents,
           std::make_unique<OmniboxController>(
@@ -172,6 +174,16 @@ void LensComposeboxHandler::CloseLensOverlayFromWebUI(
     composebox::mojom::LensOverlayDismissalSource dismissal_source) {
   mojo::ReportBadMessage(
       "CloseLensOverlayFromWebUI is not implemented in Lens");
+}
+
+void LensComposeboxHandler::SetSmartTabSharingActive(bool active) {
+  // No-op for Lens composebox.
+}
+
+void LensComposeboxHandler::GetSmartTabSharingActive(
+    GetSmartTabSharingActiveCallback callback) {
+  // No-op for Lens composebox.
+  std::move(callback).Run(false);
 }
 
 void LensComposeboxHandler::DeleteAutocompleteMatch(uint8_t line,

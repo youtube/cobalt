@@ -822,6 +822,11 @@ if (rtc_include_tests) {
     ]
   }
 
+  if (rtc_libvpx_build_vp9) {
+    video_coding_modules_tests_resources +=
+        [ "../../resources/photo_1850_1110.yuv" ]
+  }
+
   num_video_coding_modules_tests_resources = 0
   foreach(i, video_coding_modules_tests_resources) {
     num_video_coding_modules_tests_resources += 1
@@ -966,10 +971,6 @@ if (rtc_include_tests) {
       "codecs/vp8/test/vp8_impl_unittest.cc",
     ]
 
-    if (rtc_libvpx_build_vp9) {
-      sources += [ "codecs/vp9/test/vp9_impl_unittest.cc" ]
-    }
-
     if (rtc_use_h264) {
       sources += [ "codecs/test/videocodec_test_openh264.cc" ]
     }
@@ -1030,6 +1031,12 @@ if (rtc_include_tests) {
     ]
 
     data = video_coding_modules_tests_resources
+
+    if (rtc_libvpx_build_vp9) {
+      sources += [ "codecs/vp9/test/vp9_impl_unittest.cc" ]
+
+      deps += [ "../../test:video_test_support" ]
+    }
 
     if (is_android) {
       sources += [ "codecs/test/videocodec_test_mediacodec.cc" ]

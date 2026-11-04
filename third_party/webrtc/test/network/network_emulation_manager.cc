@@ -384,12 +384,11 @@ EmulatedTURNServerInterface* NetworkEmulationManagerImpl::CreateTURNServer(
     EmulatedTURNServerConfig config) {
   auto* client = CreateEndpoint(config.client_config);
   auto* peer = CreateEndpoint(config.client_config);
-  char buf[128];
-  SimpleStringBuilder str(buf);
-  str.AppendFormat("turn_server_%u",
-                   static_cast<unsigned>(turn_servers_.size()));
+  StringBuilder thread_name;
+  thread_name << "turn_server_" << turn_servers_.size();
   auto turn = std::make_unique<EmulatedTURNServer>(
-      env_, config, time_controller_->CreateThread(str.str()), client, peer);
+      env_, config, time_controller_->CreateThread(thread_name.Release()),
+      client, peer);
   auto out = turn.get();
   turn_servers_.push_back(std::move(turn));
   return out;

@@ -91,7 +91,8 @@ class BaseChannel : public ChannelInterface,
       absl::string_view mid,
       bool srtp_required,
       CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator);
+      UniqueRandomIdGenerator* ssrc_generator,
+      ChannelCallbacks callbacks = {});
   ~BaseChannel() override;
 
   TaskQueueBase* worker_thread() const { return worker_thread_; }
@@ -136,16 +137,6 @@ class BaseChannel : public ChannelInterface,
   const std::vector<StreamParams>& remote_streams() const override {
     return remote_streams_;
   }
-
-  // Used for latency measurements.
-  void SetFirstPacketReceivedCallback_n(
-      absl::AnyInvocable<void(const RtpPacketReceived&) &&> callback) override;
-  void SetFirstPacketSentCallback_n(
-      absl::AnyInvocable<void() &&> callback) override;
-
-  void SetPacketReceivedCallback_n(
-      absl::AnyInvocable<void(const RtpPacketReceived&)> callback) override
-      RTC_RUN_ON(network_thread());
 
   // From RtpTransport - public for testing only
   void OnTransportReadyToSend(bool ready);
@@ -366,7 +357,8 @@ class VoiceChannel : public BaseChannel {
       absl::string_view mid,
       bool srtp_required,
       CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator);
+      UniqueRandomIdGenerator* ssrc_generator,
+      ChannelCallbacks callbacks = {});
 
   ~VoiceChannel() override;
 
@@ -431,7 +423,8 @@ class VideoChannel : public BaseChannel {
       absl::string_view mid,
       bool srtp_required,
       CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator);
+      UniqueRandomIdGenerator* ssrc_generator,
+      ChannelCallbacks callbacks = {});
   ~VideoChannel() override;
 
   VideoChannel* AsVideoChannel() override { return this; }

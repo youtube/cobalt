@@ -252,6 +252,16 @@ void DataChannelController::OnBufferedAmountLow(int channel_id) {
     (*it)->OnBufferedAmountLow();
 }
 
+void DataChannelController::OnMaxMessageSize(int max_message_size) {
+  RTC_DCHECK_RUN_ON(network_thread());
+
+  max_message_size_ = max_message_size;
+  // Tell all the channels about their new max-message-size.
+  for (auto& channel : sctp_data_channels_n_) {
+    channel->OnMaxMessageSize(max_message_size);
+  }
+}
+
 void DataChannelController::SetupDataChannelTransport_n(
     DataChannelTransportInterface* transport) {
   RTC_DCHECK_RUN_ON(network_thread());
@@ -406,6 +416,9 @@ DataChannelController::CreateDataChannel(absl::string_view label,
     }
   }
   sctp_data_channels_n_.push_back(channel);
+  if (max_message_size_.has_value()) {
+    channel->OnMaxMessageSize(*max_message_size_);
+  }
   return channel;
 }
 

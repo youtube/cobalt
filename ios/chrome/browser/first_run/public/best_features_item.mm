@@ -25,6 +25,53 @@ NSDictionary<NSString*, UIColor*>* LensColorProvider(
   };
 }
 
+// Returns the color provider for the Price Tracking animation.
+NSDictionary<NSString*, UIColor*>* PriceTrackingColorProvider(
+    int gradient_grouped_primary_background_color) {
+  return @{
+    @"grouped_primary_background_color" :
+        [UIColor colorNamed:kGroupedPrimaryBackgroundColor],
+    @"grouped_secondary_background_color" :
+        [UIColor colorNamed:kGroupedSecondaryBackgroundColor],
+    @"blue_color" : [UIColor colorNamed:kBlueColor],
+    @"separator_color" : [UIColor colorNamed:kSeparatorColor],
+    @"tertiary_background_color" :
+        [UIColor colorNamed:kTertiaryBackgroundColor],
+    @"gradient_grouped_primary_background_color" :
+        UIColorFromRGB(gradient_grouped_primary_background_color),
+    @"Smart Watch" : [UIColor colorNamed:kTextPrimaryColor],
+    @"Price $100-$180" : [UIColor colorNamed:kTextSecondaryColor],
+    @"Track Price" : [UIColor colorNamed:kInvertedTextPrimaryColor],
+  };
+}
+
+// Returns the color provider for the Tab Groups animation.
+NSDictionary<NSString*, UIColor*>* TabGroupsColorProvider(
+    int grouped_quaternary_background_color,
+    int grouped_tertiary_background_color) {
+  return @{
+    @"text_primary_color" : [UIColor colorNamed:kTextPrimaryColor],
+    @"background_color" : [UIColor colorNamed:kBackgroundColor],
+    @"tertiary_background_color" :
+        [UIColor colorNamed:kTertiaryBackgroundColor],
+    @"grouped_tertiary_background_color" :
+        UIColorFromRGB(grouped_tertiary_background_color),
+    @"grouped_quaternary_background_color" :
+        UIColorFromRGB(grouped_quaternary_background_color),
+  };
+}
+
+NSDictionary<NSString*, UIColor*>* SharePasswordsColorProvider() {
+  return @{
+    @"secondary_background_color" :
+        [UIColor colorNamed:kSecondaryBackgroundColor],
+    @"primary_background_color" : [UIColor colorNamed:kPrimaryBackgroundColor],
+    @"blue_color" : [UIColor colorNamed:kBlueColor],
+    @"Share Your Passwords" : [UIColor colorNamed:kTextPrimaryColor],
+    @"Share your passwords" : [UIColor colorNamed:kInvertedTextPrimaryColor],
+  };
+}
+
 }  // namespace
 
 @implementation BestFeaturesItem
@@ -135,14 +182,14 @@ NSDictionary<NSString*, UIColor*>* LensColorProvider(
       };
     case BestFeaturesItemType::kTabGroups:
       return @{
-        @"Tab Groups" : l10n_util ::GetNSString(
+        @"Trip to Tokyo" : l10n_util ::GetNSString(
             IDS_IOS_BEST_FEATURES_TAB_GROUPS_ANIMATION_TEXT_1),
       };
     case BestFeaturesItemType::kPriceTrackingAndInsights:
       return @{
         @"Smart Watch" : l10n_util::GetNSString(
             IDS_IOS_BEST_FEATURES_PRICE_TRACKING_ANIMATION_TEXT_1),
-        @"Price $100 - $180" : l10n_util::GetNSString(
+        @"Price $100-$180" : l10n_util::GetNSString(
             IDS_IOS_BEST_FEATURES_PRICE_TRACKING_ANIMATION_TEXT_2),
         @"Track Price" : l10n_util::GetNSString(
             IDS_IOS_BEST_FEATURES_PRICE_TRACKING_ANIMATION_TEXT_3),
@@ -271,9 +318,12 @@ NSDictionary<NSString*, UIColor*>* LensColorProvider(
     case BestFeaturesItemType::kLockedIncognitoTabs:
     case BestFeaturesItemType::kSaveAndAutofillPasswords:
     case BestFeaturesItemType::kTabGroups:
+      return TabGroupsColorProvider(0xFFFFFF, 0xE8EAED);
     case BestFeaturesItemType::kPriceTrackingAndInsights:
-    case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
+      return PriceTrackingColorProvider(0xF1F3F480);
     case BestFeaturesItemType::kSharePasswordsWithFamily:
+      return SharePasswordsColorProvider();
+    case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
       return nil;
   }
 }
@@ -286,9 +336,12 @@ NSDictionary<NSString*, UIColor*>* LensColorProvider(
     case BestFeaturesItemType::kLockedIncognitoTabs:
     case BestFeaturesItemType::kSaveAndAutofillPasswords:
     case BestFeaturesItemType::kTabGroups:
+      return TabGroupsColorProvider(0x5F6368, 0x5F6368);
     case BestFeaturesItemType::kPriceTrackingAndInsights:
-    case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
+      return PriceTrackingColorProvider(0x20212480);
     case BestFeaturesItemType::kSharePasswordsWithFamily:
+      return SharePasswordsColorProvider();
+    case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
       return nil;
   }
 }

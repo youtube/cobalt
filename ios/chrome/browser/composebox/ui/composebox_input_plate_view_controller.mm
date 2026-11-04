@@ -18,6 +18,7 @@
 #import "base/time/time.h"
 #import "base/unguessable_token.h"
 #import "build/branding_buildflags.h"
+#import "components/lens/lens_features.h"
 #import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
@@ -252,6 +253,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   ComposeboxInputPlateControls _visibleControls;
   /// The current model choice.
   ComposeboxModelOption _modelOption;
+  /// Whether the AIM button is hidden.
+  BOOL _aimHidden;
   /// Attach current tab action state.
   BOOL _attachCurrentTabActionHidden;
   /// Attach tabs actions state.
@@ -442,6 +445,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                             LayoutSides::kTop | LayoutSides::kBottom);
 
   [self.mutator requestUIRefresh];
+  [self updatePlaceholderText];
 }
 
 #pragma mark - ComposeboxInputItemCellDelegate
@@ -619,6 +623,14 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   }
 
   [self updateInputPlateStackViewAnimated:YES];
+}
+
+- (void)hideAIMActions:(BOOL)hidden {
+  if (_aimHidden == hidden) {
+    return;
+  }
+  _aimHidden = hidden;
+  [self updatePlusButtonItems];
 }
 
 - (void)setAIModeEnabled:(BOOL)enabled {
@@ -1573,6 +1585,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   if (self.AIModeEnabled) {
     [aimAction setState:UIMenuElementStateOn];
   }
+  if (_aimHidden) {
+    aimAction.attributes |= UIMenuElementAttributesHidden;
+  }
 
   UIAction* createImageAction = [UIAction
       actionWithTitle:[self titleFor:InputPlateString::kImageGeneration
@@ -1816,11 +1831,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [sections addObject:modelPickerMenu];
   }
 
-  _plusButton.menu = [UIMenu
-      menuWithTitle:IsComposeboxMenuTitleEnabled()
-                        ? l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_MENU_TITLE)
-                        : @""
-           children:sections];
+  _plusButton.menu = [UIMenu menuWithTitle:@"" children:sections];
   _plusButton.preferredMenuElementOrder =
       UIContextMenuConfigurationElementOrderFixed;
 }
@@ -2375,12 +2386,12 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     return [self willAllowTextDrop:session];
   }
 
-  BOOL willAllowPDFDrop = [self willAllowPDFDrop:session];
+  BOOL willAllowFileDrop = [self willAllowFileDrop:session];
   BOOL willAllowImageDrop = [self willAllowImageDrop:session];
   BOOL willAllowTabDrop = [self willAllowTabDrop:session];
   BOOL willAllowTextDrop = [self willAllowTextDrop:session];
 
-  return willAllowPDFDrop || willAllowImageDrop || willAllowTabDrop ||
+  return willAllowFileDrop || willAllowImageDrop || willAllowTabDrop ||
          willAllowTextDrop;
 }
 
@@ -2427,20 +2438,53 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   return NO;
 }
 
-/// Returns whether a PDF drop will be allowed based on the Composebox mode,
-/// whether a drag and drop action is allowed, and whether there is a PDF in the
-/// drop session.
-- (BOOL)willAllowPDFDrop:(id<UIDropSession>)session {
+/// Returns whether a file drop will be allowed based on the Composebox mode,
+/// whether a drag and drop action is allowed, and whether there is a file in
+/// the drop session.
+- (BOOL)willAllowFileDrop:(id<UIDropSession>)session {
   if (_attachFileActionsDisabled || _attachFileActionsHidden) {
     return NO;
   }
 
-  if (![session
-          hasItemsConformingToTypeIdentifiers:@[ UTTypePDF.identifier ]]) {
-    return NO;
+  if (lens::features::IsLensSendRawFileMediaTypesEnabled()) {
+    return [session hasItemsConformingToTypeIdentifiers:@[
+      UTTypePDF.identifier, UTTypeData.identifier
+    ]];
   }
+  return
+      [session hasItemsConformingToTypeIdentifiers:@[ UTTypePDF.identifier ]];
+}
 
-  return YES;
+// Returns the `ComposeboxDragAndDropType` for the given item.
+- (ComposeboxDragAndDropType)resolveDragAndDropTypeForItem:(UIDragItem*)item
+                                                 inSession:(id<UIDropSession>)
+                                                               session {
+  BOOL allowsFilesDrop = [self willAllowFileDrop:session];
+  BOOL allowsRawFiles = lens::features::IsLensSendRawFileMediaTypesEnabled();
+  if (allowsFilesDrop &&
+      [item.itemProvider
+          hasItemConformingToTypeIdentifier:UTTypePDF.identifier]) {
+    return ComposeboxDragAndDropType::kPDF;
+  } else if ([self willAllowImageDrop:session] &&
+             [item.itemProvider
+                 hasItemConformingToTypeIdentifier:UTTypeImage.identifier]) {
+    return ComposeboxDragAndDropType::kImage;
+  } else if ([self willAllowTabDrop:session] &&
+             [item.localObject isKindOfClass:[TabInfo class]]) {
+    return ComposeboxDragAndDropType::kTab;
+  } else if ([self willAllowTextDrop:session] &&
+             [item.itemProvider
+                 hasItemConformingToTypeIdentifier:UTTypeText.identifier]) {
+    return ComposeboxDragAndDropType::kText;
+  } else if (allowsFilesDrop && allowsRawFiles &&
+             [item.itemProvider
+                 hasItemConformingToTypeIdentifier:UTTypeData.identifier]) {
+    // Note: Images, tabs and text could also be matched by `UTTypeData`.
+    // Make sure the other checks take precedence.
+    return ComposeboxDragAndDropType::kRawFile;
+  } else {
+    return ComposeboxDragAndDropType::kUnknown;
+  }
 }
 
 /// Performs a drop action for a given drop session.
@@ -2449,34 +2493,30 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       base::UserMetricsAction("IOS.Omnibox.MobileFusebox.Action.DragAndDrop"));
   // Drop each eligible dragged item into the Composebox.
   for (UIDragItem* item in session.items) {
-    if ([self willAllowPDFDrop:session] &&
-        [item.itemProvider
-            hasItemConformingToTypeIdentifier:UTTypePDF.identifier]) {
-      [self.delegate composeboxViewController:self
-                    didAttemptDragAndDropType:ComposeboxDragAndDropType::kPDF];
-      [self performDropForPDF:item.itemProvider];
-    } else if ([self willAllowImageDrop:session] &&
-               [item.itemProvider
-                   hasItemConformingToTypeIdentifier:UTTypeImage.identifier]) {
-      [self.delegate
-           composeboxViewController:self
-          didAttemptDragAndDropType:ComposeboxDragAndDropType::kImage];
-      [self performDropForImage:item.itemProvider];
-    } else if ([self willAllowTabDrop:session] &&
-               [item.localObject isKindOfClass:[TabInfo class]]) {
-      [self.delegate composeboxViewController:self
-                    didAttemptDragAndDropType:ComposeboxDragAndDropType::kTab];
-      [self performDropForTab:item.localObject];
-    } else if ([self willAllowTextDrop:session] &&
-               [item.itemProvider
-                   hasItemConformingToTypeIdentifier:UTTypeText.identifier]) {
-      [self.delegate composeboxViewController:self
-                    didAttemptDragAndDropType:ComposeboxDragAndDropType::kText];
-      [self performDropForText:item.itemProvider];
-    } else {
-      [self.delegate
-           composeboxViewController:self
-          didAttemptDragAndDropType:ComposeboxDragAndDropType::kUnknown];
+    ComposeboxDragAndDropType dragAndDropType =
+        [self resolveDragAndDropTypeForItem:item inSession:session];
+
+    [self.delegate composeboxViewController:self
+                  didAttemptDragAndDropType:dragAndDropType];
+
+    switch (dragAndDropType) {
+      case ComposeboxDragAndDropType::kPDF:
+        [self performDropForFile:item.itemProvider isPDF:YES];
+        break;
+      case ComposeboxDragAndDropType::kRawFile:
+        [self performDropForFile:item.itemProvider isPDF:NO];
+        break;
+      case ComposeboxDragAndDropType::kTab:
+        [self performDropForTab:item.localObject];
+        break;
+      case ComposeboxDragAndDropType::kImage:
+        [self performDropForImage:item.itemProvider];
+        break;
+      case ComposeboxDragAndDropType::kText:
+        [self performDropForText:item.itemProvider];
+        break;
+      case ComposeboxDragAndDropType::kUnknown:
+        break;
     }
   }
   // Drop complete.
@@ -2520,15 +2560,19 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                                  assetID:[NSUUID UUID].UUIDString];
 }
 
-/// Performs a drop for a dragged PDF file from a given `itemProvider`.
-- (void)performDropForPDF:(NSItemProvider*)itemProvider {
-  CHECK([itemProvider hasItemConformingToTypeIdentifier:UTTypePDF.identifier]);
+/// Performs a drop for a dragged file from a given `itemProvider`.
+- (void)performDropForFile:(NSItemProvider*)itemProvider isPDF:(BOOL)isPDF {
+  UTType* requiredType = isPDF ? UTTypePDF : UTTypeData;
+  CHECK(
+      [itemProvider hasItemConformingToTypeIdentifier:requiredType.identifier]);
 
   __weak __typeof(self) weakSelf = self;
   [itemProvider
-      loadFileRepresentationForTypeIdentifier:UTTypePDF.identifier
+      loadFileRepresentationForTypeIdentifier:requiredType.identifier
                             completionHandler:^(NSURL* url, NSError* error) {
-                              [weakSelf handlePDFDrop:url error:error];
+                              [weakSelf handleFileDrop:url
+                                                 isPDF:isPDF
+                                                 error:error];
                             }];
 }
 
@@ -2546,8 +2590,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   });
 }
 
-/// Helper for `-performDropForPDF`. Handles a drop action for a PDF file.
-- (void)handlePDFDrop:(NSURL*)url error:(NSError*)error {
+/// Helper for `-performDropForFile:isPDF:`. Handles a drop action for a file.
+- (void)handleFileDrop:(NSURL*)url isPDF:(BOOL)isPDF error:(NSError*)error {
   CHECK(self.mutator);
 
   if (error || !url) {
@@ -2569,15 +2613,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     return;
   }
 
-  GURL pdfURL = net::GURLWithNSURL(destinationURL);
+  GURL fileURL = net::GURLWithNSURL(destinationURL);
 
-  if (!pdfURL.is_valid()) {
+  if (!fileURL.is_valid()) {
     return;
   }
 
   __weak __typeof(self) weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
-    [weakSelf.mutator processFileURL:pdfURL isPDF:YES];
+    [weakSelf.mutator processFileURL:fileURL isPDF:isPDF];
   });
 }
 

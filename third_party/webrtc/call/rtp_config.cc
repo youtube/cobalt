@@ -46,21 +46,19 @@ std::string LntfConfig::ToString() const {
 }
 
 std::string NackConfig::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{rtp_history_ms: " << rtp_history_ms;
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 std::string UlpfecConfig::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{ulpfec_payload_type: " << ulpfec_payload_type;
   ss << ", red_payload_type: " << red_payload_type;
   ss << ", red_rtx_payload_type: " << red_rtx_payload_type;
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 bool UlpfecConfig::operator==(const UlpfecConfig& other) const {
@@ -70,8 +68,7 @@ bool UlpfecConfig::operator==(const UlpfecConfig& other) const {
 }
 
 std::string RtpStreamConfig::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{ssrc: " << ssrc;
   ss << ", rid: " << rid;
   ss << ", payload_name: " << payload_name;
@@ -81,16 +78,15 @@ std::string RtpStreamConfig::ToString() const {
     ss << ", rtx: " << rtx->ToString();
   }
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 std::string RtpStreamConfig::Rtx::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{ssrc: " << ssrc;
   ss << ", payload_type: " << payload_type;
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 RtpConfig::RtpConfig() = default;
@@ -102,8 +98,7 @@ RtpConfig::Flexfec::Flexfec(const Flexfec&) = default;
 RtpConfig::Flexfec::~Flexfec() = default;
 
 std::string RtpConfig::ToString() const {
-  char buf[2 * 1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{ssrcs: [";
   for (size_t i = 0; i < ssrcs.size(); ++i) {
     ss << ssrcs[i];
@@ -158,7 +153,7 @@ std::string RtpConfig::ToString() const {
   ss << ", rtx: " << rtx.ToString();
   ss << ", c_name: " << c_name;
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 RtpConfig::Rtx::Rtx() = default;
@@ -166,8 +161,7 @@ RtpConfig::Rtx::Rtx(const Rtx&) = default;
 RtpConfig::Rtx::~Rtx() = default;
 
 std::string RtpConfig::Rtx::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder ss(buf);
+  StringBuilder ss;
   ss << "{ssrcs: [";
   for (size_t i = 0; i < ssrcs.size(); ++i) {
     ss << ssrcs[i];
@@ -178,7 +172,7 @@ std::string RtpConfig::Rtx::ToString() const {
 
   ss << ", payload_type: " << payload_type;
   ss << '}';
-  return ss.str();
+  return ss.Release();
 }
 
 bool RtpConfig::IsMediaSsrc(uint32_t ssrc) const {

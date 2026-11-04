@@ -1514,6 +1514,9 @@
         <message name="IDS_DIAGNOSTICS_INTERNET_CONNECTIVITY_GROUP_LABEL" desc="The label for the group of tests related to internet connectivity.">
           Internet Connectivity
         </message>
+        <message name="IDS_DIAGNOSTICS_GOOGLE_SERVICES_CONNECTIVITY_FAILED_TEXT" desc="The text that displays when the Google Services Connectivity test fails.">
+          Can't reach Google services
+        </message>
         <message name="IDS_DIAGNOSTICS_LAN_CONNECTIVITY_FAILED_TEXT" desc="The text that displays when the `Lan Connectivity` test fails.">
           Can't contact gateway
         </message>
@@ -7208,6 +7211,9 @@
       </message>
        <message name="IDS_BOCA_SHARE_SCREEN_NOTIFICATION_MESSAGE" desc="Message of a notification that tells the user that the Class Tools app is sharing their screen to a display">
         Class Tools is sharing your screen to <ph name="RECEIVER_NAME">$1<ex>Classroom 101</ex></ph>
+      </message>
+      <message name="IDS_BOCA_UNKNOWN_RECEIVER" desc="Text to display when the receiver name is unknown.">
+        an unknown receiver
       </message>
 
       <!-- Strings for Spotlight notifications -->

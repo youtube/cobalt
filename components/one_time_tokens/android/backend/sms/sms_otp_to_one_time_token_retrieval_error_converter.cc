@@ -5,29 +5,28 @@
 #include "components/one_time_tokens/android/backend/sms/sms_otp_to_one_time_token_retrieval_error_converter.h"
 
 #include "base/notreached.h"
-#include "components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_error_codes.h"
+#include "components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_errors.h"
 #include "components/one_time_tokens/core/browser/one_time_token_retrieval_error.h"
 
 namespace one_time_tokens {
 
-OneTimeTokenRetrievalError ConvertSmsOtpRetrievalApiErrorCode(
-    SmsOtpRetrievalApiErrorCode error_code) {
+OneTimeTokenRetrievalError ConvertSmsOtpRetrievalApiError(
+    SmsOtpRetrievalApiError error) {
   // LINT.IfChange
-  switch (error_code) {
-    case SmsOtpRetrievalApiErrorCode::kGmscoreVersionNotSupported:
+  switch (error) {
+    case SmsOtpRetrievalApiError::kGmscoreVersionNotSupported:
       return OneTimeTokenRetrievalError::kSmsOtpGmscoreVersionNotSupported;
-    case SmsOtpRetrievalApiErrorCode::kError:
+    case SmsOtpRetrievalApiError::kError:
       return OneTimeTokenRetrievalError::kSmsOtpBackendError;
-    case SmsOtpRetrievalApiErrorCode::kTimeout:
+    case SmsOtpRetrievalApiError::kTimeout:
       return OneTimeTokenRetrievalError::kSmsOtpBackendTimeout;
-    case SmsOtpRetrievalApiErrorCode::kPlatformNotSupported:
+    case SmsOtpRetrievalApiError::kPlatformNotSupported:
       return OneTimeTokenRetrievalError::kSmsOtpBackendPlatformNotSupported;
-    case SmsOtpRetrievalApiErrorCode::kApiNotAvailable:
+    case SmsOtpRetrievalApiError::kApiNotAvailable:
       return OneTimeTokenRetrievalError::kSmsOtpBackendApiNotAvailable;
-    case SmsOtpRetrievalApiErrorCode::kUserPermissionRequired:
+    case SmsOtpRetrievalApiError::kUserPermissionRequired:
       return OneTimeTokenRetrievalError::kSmsOtpBackendUserPermissionRequired;
-    default:
-      // TODO(crbug.com/493648142) REMOVE THIS ONCE FIXED.
+    case SmsOtpRetrievalApiError::kUnknown:
       return OneTimeTokenRetrievalError::kUnknown;
   }
   // LINT.ThenChange(//components/one_time_tokens/core/browser/one_time_token_retrieval_error.h)

@@ -165,6 +165,14 @@ bool ImageBitmapRenderingContext::PushFrame() {
     return false;
   }
 
+  // If the size of the cached provider doesn't match that of the current image
+  // (e.g. because it was created for a previous image of a different size),
+  // drop it to ensure that it is recreated with the correct size below.
+  if (resource_provider_for_offscreen_canvas_ &&
+      resource_provider_for_offscreen_canvas_->Size() != image->Size()) {
+    resource_provider_for_offscreen_canvas_.reset();
+  }
+
   if (resource_provider_for_offscreen_canvas_) {
     if (!resource_provider_for_offscreen_canvas_->IsValid()) {
       // The canvas context is not lost but the provider is invalid. This
@@ -225,8 +233,8 @@ bool ImageBitmapRenderingContext::PushFrame() {
   cc::PaintFlags paint_flags;
   paint_flags.setBlendMode(SkBlendMode::kSrc);
   scoped_refptr<CanvasResource> resource =
-      resource_provider_for_offscreen_canvas_->DoExternalDrawAndProduceResource(
-          [&](cc::PaintCanvas& canvas) {
+      resource_provider_for_offscreen_canvas_
+          ->DoExternalOverdrawAndProduceResource([&](cc::PaintCanvas& canvas) {
             canvas.drawImage(image->PaintImageForCurrentFrame(), 0, 0,
                              SkSamplingOptions(), &paint_flags);
           });

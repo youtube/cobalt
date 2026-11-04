@@ -9,7 +9,6 @@
 #include "base/uuid.h"
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_batch.h"
-#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
 #include "components/sync/protocol/gemini_thread_specifics.pb.h"
 
@@ -47,11 +46,6 @@ GeminiThreadSyncBridge::GeminiThreadSyncBridge(
 }
 
 GeminiThreadSyncBridge::~GeminiThreadSyncBridge() = default;
-
-std::unique_ptr<syncer::MetadataChangeList>
-GeminiThreadSyncBridge::CreateMetadataChangeList() {
-  return std::make_unique<syncer::InMemoryMetadataChangeList>();
-}
 
 std::optional<syncer::ModelError> GeminiThreadSyncBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -141,7 +135,8 @@ std::string GeminiThreadSyncBridge::GetStorageKey(
 void GeminiThreadSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   gemini_thread_specifics_.clear();
-  data_type_store_->DeleteAllDataAndMetadata(base::DoNothing());
+  data_type_store_->DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list), base::DoNothing());
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 

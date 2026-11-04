@@ -3028,6 +3028,7 @@ void Shell::WasmSerializeModule(
   // only serialized bytes are accepted when deserializing.
   {
     size_t hash = base::Hasher{}
+                      .Add(native_module->wire_bytes().size())
                       .AddRange(native_module->wire_bytes())
                       .AddRange(byte_buffer)
                       .hash();
@@ -3099,6 +3100,7 @@ void Shell::WasmDeserializeModule(
   // bytes) in regular fuzzing.
   {
     size_t hash = base::Hasher{}
+                      .Add(wire_bytes_vec.size())
                       .AddRange(wire_bytes_vec.as_vector())
                       .AddRange(serialized_bytes_vec.as_vector())
                       .hash();
@@ -6159,7 +6161,8 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Local<Value> message = info[0];
-  Local<Value> transfer = Undefined(isolate);
+  Local<Value> transfer =
+      info.Length() >= 2 ? info[1] : Undefined(isolate).As<Value>();
   std::unique_ptr<SerializationData> data =
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {

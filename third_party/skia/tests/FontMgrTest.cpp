@@ -19,6 +19,7 @@
 #include "include/private/base/SkDebug.h"
 #include "include/private/base/SkMalloc.h"
 #include "src/core/SkAdvancedTypefaceMetrics.h" // IWYU pragma: keep
+#include "src/core/SkFontDescriptor.h"
 #include "src/core/SkFontPriv.h"
 #include "src/core/SkScalerContext.h"
 #include "tests/Test.h"
@@ -153,17 +154,53 @@ DEF_TEST(FontMgr_Iter, reporter) {
                     continue;
                 }
                 REPORTER_ASSERT(reporter, face2.get(), "Could not find %s", name1.c_str());
-                continue;
+            } else {
+                SkString name2;
+                face2->getFamilyName(&name2);
+
+                REPORTER_ASSERT(reporter, name1 == name2, "%s == %s", name1.c_str(), name2.c_str());
+
+                SkFontStyle s2 = face2->fontStyle();
+                REPORTER_ASSERT(reporter, s1 == s2, "%s [%3d %d %d] != %s [%3d %d %d]",
+                                name1.c_str(), s1.weight(), s1.width(), s1.slant(),
+                                name2.c_str(), s2.weight(), s2.width(), s2.slant());
             }
-            SkString name2;
-            face2->getFamilyName(&name2);
 
-            REPORTER_ASSERT(reporter, name1 == name2, "%s == %s", name1.c_str(), name2.c_str());
+            SkFontMgr::Request request;
+            request.familyName = name1.c_str();
+            SkFontArguments::VariationPosition::Coordinate model[4];
+            SkFontMgr::Request::SetModel(s1, model);
+            request.model = SkSpan(model);
+            sk_sp<SkTypeface> face3(fm->match(request));
+            if (!face3) {
+                // Some fonts cannot be looked up by name on our test machines
+                if (name1.equals("Noto Emoji") || name1.equals("Noto Sans Phags Pa")) {
+                    continue;
+                }
+                REPORTER_ASSERT(reporter, face3.get(), "Could not find %s", name1.c_str());
+            } else {
+                SkString name3;
+                face3->getFamilyName(&name3);
+                REPORTER_ASSERT(reporter, name1 == name3, "%s == %s", name1.c_str(), name3.c_str());
 
-            SkFontStyle s2 = face2->fontStyle();
-            REPORTER_ASSERT(reporter, s1 == s2, "%s [%3d %d %d] != %s [%3d %d %d]",
-                            name1.c_str(), s1.weight(), s1.width(), s1.slant(),
-                            name2.c_str(), s2.weight(), s2.width(), s2.slant());
+                SkFontStyle s3 = face3->fontStyle();
+                // With DirectWrite it is possible to have a synthetic-oblique in the collection
+                // but looking up by oblique will just give the actual oblique font.
+                if (face1->isSyntheticOblique() &&
+                    s1.slant() == SkFontStyle::kOblique_Slant &&
+                    s3.slant() == SkFontStyle::kUpright_Slant)
+                {
+                    s3 = SkFontStyle(s3.weight(), s3.width(), s1.slant());
+                }
+
+                REPORTER_ASSERT(reporter, s1 == s3, "%s [%3d %d %d]%s%s != %s [%3d %d %d]%s%s",
+                                name1.c_str(), s1.weight(), s1.width(), s1.slant(),
+                                face1->isSyntheticBold() ? "(B)" : "",
+                                face1->isSyntheticOblique() ? "(O)" : "",
+                                name3.c_str(), s3.weight(), s3.width(), s3.slant(),
+                                face3->isSyntheticBold() ? "(B)" : "",
+                                face3->isSyntheticOblique() ? "(O)" : "");
+            }
         }
     }
 }

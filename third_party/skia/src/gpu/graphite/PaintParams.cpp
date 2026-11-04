@@ -48,14 +48,18 @@ bool should_dither(const PaintParams& p, SkColorType dstCT) {
 }
 
 bool blendmode_depends_on_dst(SkBlendMode blendMode, bool srcIsOpaque) {
-    if (blendMode == SkBlendMode::kSrc || blendMode == SkBlendMode::kClear) {
-        // src and clear blending never depends on dst
+    // kClear doesn't depend on dst, but it should have been converted to kSrc already.
+    SkASSERT(blendMode != SkBlendMode::kClear);
+    if (blendMode == SkBlendMode::kSrc) {
+        // src blending never depends on dst
         return false;
     }
 
-    if (blendMode == SkBlendMode::kSrcOver || blendMode == SkBlendMode::kDstOut) {
+    // kDstOut can simplify to kClear when srcIsOpaque, but we assume that kDstOut is only really
+    // used in scenarios where it's meant to be transparent. If it is transiently opaque, we keep it
+    // as the original pipeline.
+    if (blendMode == SkBlendMode::kSrcOver) {
         // src-over depends on dst if src is transparent (a != 1)
-        // dst-out simplifies to kClear if a == 1
         return !srcIsOpaque;
     }
 
@@ -131,7 +135,18 @@ PaintParams::PaintParams(const SkPaint& paint,
         , fPrimitiveBlender(primitiveBlender)
         , fSkipColorXform(skipColorXform)
         , fDither(paint.isDither()) {
-    if (!fPrimitiveBlender) {
+    if (fFinalBlend.second == SkBlendMode::kClear) {
+        // None of the other effects are relevant, the final src color for blending is transparent
+        // and we can consolidate its blend mode to kSrc. This is helpful to restrict the number of
+        // pipelines that will actually have DstUsage::kNone.
+        fFinalBlend.second = SkBlendMode::kSrc;
+        fColor = SkColors::kTransparent;
+        fShader = nullptr;
+        fImageShader = nullptr;
+        fColorFilter = nullptr;
+        fPrimitiveBlender = nullptr;
+        fDither = false;
+    } else if (!fPrimitiveBlender) {
         // NOTE: We can still have an alpha-only fImageShader and still want to try simplifying the
         // paint's shader to a solid color for the alpha image's colorization.
         SkColor4f constantColor;
@@ -178,8 +193,9 @@ PaintParams::PaintParams(const SkPaint& paint, const SimpleImage& imageOverride,
 }
 
 PaintParams::PaintParams(const SkColor4f& color, SkBlendMode finalBlendMode)
-        : fColor(color)
-        , fFinalBlend({nullptr, finalBlendMode})
+        : fColor(finalBlendMode == SkBlendMode::kClear ? SkColors::kTransparent : color)
+        , fFinalBlend({nullptr, finalBlendMode == SkBlendMode::kClear ? SkBlendMode::kSrc
+                                                                      : finalBlendMode})
         , fShader(nullptr)
         , fImageShader(nullptr)
         , fColorFilter(nullptr)
@@ -422,6 +438,9 @@ void ShadingParams::handleClipping(const KeyContext& keyContext) const {
 }
 
 std::optional<ShadingParams::Result> ShadingParams::toKey(const KeyContext& keyContext) const {
+    SkDEBUGCODE(keyContext.pipelineDataGatherer()->checkReset());
+    SkDEBUGCODE(keyContext.paintParamsKeyBuilder()->checkReset());
+
     // Root Node 0 is the source color, which is the output of all effects post dithering
     bool isOpaque = this->handleDithering(keyContext);
 
@@ -432,18 +451,23 @@ std::optional<ShadingParams::Result> ShadingParams::toKey(const KeyContext& keyC
         // Cannot inspect runtime blenders to pessimistically assume they will always use the dst.
         paintDependsOnDst = true;
     } else {
+        // We converted kClear blends to kSrc; the PaintParams constructor already set every other
+        // paint effect to match a transparent solid color.
+        SkBlendMode finalBlendMode = fPaint.finalBlendMode();
+        SkASSERT(finalBlendMode != SkBlendMode::kClear);
+
         if (!(fDstUsage & DstUsage::kDstReadRequired)) {
             // With no shader blending, be as explicit as possible about the final blend
-            AddFixedBlendMode(keyContext, fPaint.finalBlendMode());
+            AddFixedBlendMode(keyContext, finalBlendMode);
             // Blend modes can be analyzed to determine if specific src colors depend on the dst.
-            paintDependsOnDst = blendmode_depends_on_dst(fPaint.finalBlendMode(), isOpaque);
+            paintDependsOnDst = blendmode_depends_on_dst(finalBlendMode, isOpaque);
         } else {
             // With shader blending, use AddBlendMode() to select the more universal blend functions
             // when possible. Technically we could always use a fixed blend mode but would then
             // over-generate when encountering certain classes of blends. This is most problematic
             // on devices that wouldn't support dual-source blending, so help them out by at least
             // not requiring lots of pipelines.
-            AddBlendMode(keyContext, fPaint.finalBlendMode());
+            AddBlendMode(keyContext, finalBlendMode);
             // TODO(b/478239991): With shader-based blending, always treat the paint as depending
             // on the dst. Almost all blend modes that trigger a dst read wouldn't have returned
             // true from `blendmode_depends_on_dst`, but the exception is kSrc triggering a dst

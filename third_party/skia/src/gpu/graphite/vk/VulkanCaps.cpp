@@ -311,7 +311,6 @@ void VulkanCaps::init(const ContextOptions& contextOptions,
     // Note that format table initialization should be performed at the end of this method to ensure
     // all capability determinations are completed prior to populating the format tables.
     this->initFormatTable(vkInterface, physDev, deviceProperties.fBase.properties, enabledFeatures);
-    this->initDepthStencilFormatTable(vkInterface, physDev, deviceProperties.fBase.properties);
 
     this->finishInitialization(contextOptions);
 }
@@ -655,92 +654,111 @@ void VulkanCaps::applyDriverCorrectnessWorkarounds(const PhysicalDevicePropertie
     }
 }
 
-// These are all the valid VkFormats that we support in Skia. They are roughly ordered from most
-// frequently used to least to improve look up times in arrays.
-static constexpr VkFormat kVkFormats[] = {
-    VK_FORMAT_R8G8B8A8_UNORM,
-    VK_FORMAT_R8_UNORM,
-    VK_FORMAT_B8G8R8A8_UNORM,
-    VK_FORMAT_R5G6B5_UNORM_PACK16,
-    VK_FORMAT_R16G16B16A16_SFLOAT,
-    VK_FORMAT_R16_SFLOAT,
-    VK_FORMAT_R8G8B8_UNORM,
-    VK_FORMAT_R8G8_UNORM,
-    VK_FORMAT_A2B10G10R10_UNORM_PACK32,
-    VK_FORMAT_A2R10G10B10_UNORM_PACK32,
-    VK_FORMAT_B4G4R4A4_UNORM_PACK16,
-    VK_FORMAT_R4G4B4A4_UNORM_PACK16,
-    VK_FORMAT_R8G8B8A8_SRGB,
-    VK_FORMAT_B8G8R8A8_SRGB,
-    VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK,
-    VK_FORMAT_BC1_RGB_UNORM_BLOCK,
-    VK_FORMAT_BC1_RGBA_UNORM_BLOCK,
-    VK_FORMAT_R16_UNORM,
-    VK_FORMAT_R16G16_UNORM,
-    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM,
-    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
-    VK_FORMAT_R16G16B16A16_UNORM,
-    VK_FORMAT_R16G16_SFLOAT,
-    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16
-};
-// These are all the valid depth/stencil formats that we support in Skia.
-static constexpr VkFormat kDepthStencilVkFormats[] = {
-    VK_FORMAT_S8_UINT,
-    VK_FORMAT_D16_UNORM,
-    VK_FORMAT_D32_SFLOAT,
-    VK_FORMAT_D24_UNORM_S8_UINT,
-    VK_FORMAT_D32_SFLOAT_S8_UINT,
-};
+void VulkanCaps::initShaderCaps(const EnabledFeatures enabledFeatures, const uint32_t vendorID) {
+    // TODO(skbug.com/40045541): We must force std430 array stride when using SSBOs since SPIR-V
+    // generation cannot handle mixed array strides being passed into functions.
+    fShaderCaps->fForceStd430ArrayLayout =
+            fStorageBufferSupport && fResourceBindingReqs.fStorageBufferLayout == Layout::kStd430;
+
+    // Avoid RelaxedPrecision with OpImageSampleImplicitLod due to driver bug with YCbCr sampling.
+    // (skbug.com/421927604)
+    fShaderCaps->fCannotUseRelaxedPrecisionOnImageSample = vendorID == kNvidia_VkVendor;
+
+    fShaderCaps->fDualSourceBlendingSupport = enabledFeatures.fDualSrcBlend;
+}
+
+void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
+                                 VkPhysicalDevice physDev,
+                                 const VkPhysicalDeviceProperties& properties,
+                                 const EnabledFeatures& enabledFeatures) {
+    // Technically without this extension and enabled feature we could still use this format to
+    // sample with a ycbcr sampler. But for simplicity until we have clients requesting that, we
+    // limit the use of this format to cases where we have the extension supported.
+    const bool disableRGBA10x6 = !enabledFeatures.fFormatRGBA10x6WithoutYCbCrSampler;
+
+    // Qualcomm drivers will report OUT_OF_HOST_MEMORY when binding memory to a VkImage with
+    // D16_UNORM in a protected context. Using D32_SFLOAT succeeds, so clearly it's not actually
+    // out of memory. D16_UNORM appears to function correctly in unprotected contexts.
+    const bool disableD16InProtected =
+            this->protectedSupport() && skgpu::kQualcomm_VkVendor == properties.vendorID;
+
+    for (int i = 0; i < kTextureFormatCount; ++i) {
+        SkASSERT(!SkToBool(fFormatSupport[0][i].first) && !SkToBool(fFormatSupport[0][i].second));
+        SkASSERT(!SkToBool(fFormatSupport[1][i].first) && !SkToBool(fFormatSupport[1][i].second));
+
+        TextureFormat format = static_cast<TextureFormat>(i);
+
+        // Driver workarounds and extensions checks to keep treat a format as disabled
+        if (format == TextureFormat::kD16 && disableD16InProtected) {
+            continue;
+        }
+        if (format == TextureFormat::kRGBA10x6 && disableRGBA10x6) {
+            continue;
+        }
+
+        VkFormatProperties formatProperties;
+        if (format == TextureFormat::kExternal) {
+            // kExternal maps to VK_FORMAT_UNDEFINED and then a specific external format is held
+            // in another field of the VulkanTextureInfo. This means vkFormat can't be used to query
+            // format properties, but we can also assume all external foramts are the same.
+            formatProperties = { /*linearTilingFeatures=*/0,
+                                 /*optimalTilingFeatures=*/VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+                                 /*bufferFeatures=*/0};
+        } else {
+            VULKAN_CALL(interface, GetPhysicalDeviceFormatProperties(
+                    physDev, TextureFormatToVkFormat(format), &formatProperties));
+        }
+
+        for (Tiling tiling : {Tiling::kOptimal, Tiling::kLinear}) {
+            fFormatSupport[(int) tiling][i] = this->getTextureSupport(
+                    interface, physDev, format, tiling, formatProperties);
+        }
+    }
+}
 
 std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> VulkanCaps::getTextureSupport(
-        TextureFormat format, Tiling tiling) const {
-    SkEnumBitMask<TextureUsage> supports;
-    SkEnumBitMask<SampleCount> sampleCounts;
-
+        const skgpu::VulkanInterface* interface,
+        VkPhysicalDevice physDev,
+        TextureFormat format,
+        Tiling tiling,
+        const VkFormatProperties& props) const {
     const VkFormat vkFormat = TextureFormatToVkFormat(format);
 
-    // TODO(b/390473370): When Caps stores the format tables, the color format and depth stencil
-    // format infos will be combined and this will be simplified.
-    const VkFormatProperties* props = nullptr;
-    bool isEfficientWithHostImageCopy = false;
-
+    bool isEfficientWithHostImageCopy;
+    VkImageUsageFlags renderUsageFlags;
     VkFormatFeatureFlags renderBits;
-    if (format == TextureFormat::kExternal) {
-        // kExternal maps to VK_FORMAT_UNDEFINED and then a specific external format is held
-        // in another field of the VulkanTextureInfo. This means vkFormat can't be used to query
-        // format properties, but we can also assume all external foramts are the same.
-        static const VkFormatProperties kExternalProps = {
-                /*linearTilingFeatures=*/0,
-                /*optimalTilingFeatures=*/VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
-                /*bufferFeatures=*/0};
-        props = &kExternalProps;
-        renderBits = 0; // Not renderable
-        sampleCounts = SampleCount::k1;
-    } else if (TextureFormatIsDepthOrStencil(format)) {
-        const DepthStencilFormatInfo& formatInfo = this->getDepthStencilFormatInfo(vkFormat);
-        props = &formatInfo.fFormatProperties;
-
+    if (TextureFormatIsDepthOrStencil(format)) {
+        isEfficientWithHostImageCopy = false;
         renderBits = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        // VkSampleCount is bit equal to SampleCount, so VkSampleCountFlags will be bit-equal to
-        // SkEnumBitMask<SampleCount>, but given the type wrapping we have to cast to SampleCount.
-        sampleCounts = static_cast<SampleCount>(formatInfo.fSupportedSampleCounts.fSampleCounts);
+        renderUsageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     } else {
-        const FormatInfo& formatInfo = this->getFormatInfo(vkFormat);
-        props = &formatInfo.fFormatProperties;
         // Assume linear tiling is always efficient for copying directly.
         isEfficientWithHostImageCopy = tiling == Tiling::kLinear ||
-                                       formatInfo.fIsEfficientWithHostImageCopy;
+                                       this->isEfficientWithHostCopy(interface, physDev, vkFormat);
 
         renderBits = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
                      VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT;
-        sampleCounts = static_cast<SampleCount>(formatInfo.fSupportedSampleCounts.fSampleCounts);
+        // We make all renderable images support being used as input attachment
+        renderUsageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                           VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT |
+                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     }
 
-    VkFormatFeatureFlags featureFlags = tiling == Tiling::kOptimal ? props->optimalTilingFeatures
-                                                                   : props->linearTilingFeatures;
+    SkEnumBitMask<TextureUsage> supports;
+    SkEnumBitMask<SampleCount> sampleCounts;
+    VkFormatFeatureFlags featureFlags = tiling == Tiling::kOptimal ? props.optimalTilingFeatures
+                                                                   : props.linearTilingFeatures;
 
-    if (renderBits != 0 && (featureFlags & renderBits) == renderBits) {
+    if ((featureFlags & renderBits) == renderBits) {
         supports |= TextureUsage::kRender;
+
+        // At least 1x sample count should be supported (the limit for linear tiling).
+        sampleCounts = tiling == Tiling::kOptimal
+                ? this->getSupportedSampleCounts(interface, physDev, vkFormat, renderUsageFlags)
+                : SampleCount::k1;
+
         if (this->msaaRenderToSingleSampledSupport() &&
             SkToBool(sampleCounts) &&
             sampleCounts != SampleCount::k1) {
@@ -925,758 +943,11 @@ TextureInfo VulkanCaps::onGetDefaultTextureInfo(SkEnumBitMask<TextureUsage> usag
     return TextureInfos::MakeVulkan(info);
 }
 
-void VulkanCaps::initShaderCaps(const EnabledFeatures enabledFeatures, const uint32_t vendorID) {
-    // TODO(skbug.com/40045541): We must force std430 array stride when using SSBOs since SPIR-V
-    // generation cannot handle mixed array strides being passed into functions.
-    fShaderCaps->fForceStd430ArrayLayout =
-            fStorageBufferSupport && fResourceBindingReqs.fStorageBufferLayout == Layout::kStd430;
-
-    // Avoid RelaxedPrecision with OpImageSampleImplicitLod due to driver bug with YCbCr sampling.
-    // (skbug.com/421927604)
-    fShaderCaps->fCannotUseRelaxedPrecisionOnImageSample = vendorID == kNvidia_VkVendor;
-
-    fShaderCaps->fDualSourceBlendingSupport = enabledFeatures.fDualSrcBlend;
-}
-
-void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
-                                 VkPhysicalDevice physDev,
-                                 const VkPhysicalDeviceProperties& properties,
-                                 const EnabledFeatures& enabledFeatures) {
-    static_assert(std::size(kVkFormats) == VulkanCaps::kNumVkFormats,
-                  "Size of VkFormats array must match static value in header");
-
-    // NOTE: VkFormat's naming convention orders channels from low address to high address when
-    // interpreting unpacked formats. For packed formats, the channels are ordered most significant
-    // to least significant (making them opposite of the unpacked).
-
-    // Go through all the formats and init their support surface and data ColorTypes.
-    // Format: VK_FORMAT_R8G8B8A8_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 3;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGBA_8888
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kBGRA_8888
-            {
-                constexpr SkColorType ct = SkColorType::kBGRA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = kRGBA_8888_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_R8_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R8_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 3;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R8_UNORM, Surface: kAlpha_8
-            {
-                constexpr SkColorType ct = SkColorType::kAlpha_8_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
-                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
-            }
-            // Format: VK_FORMAT_R8_UNORM, Surface: kR_8
-            {
-                constexpr SkColorType ct = SkColorType::kR8_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_R8_UNORM, Surface: kGray_8
-            {
-                constexpr SkColorType ct = SkColorType::kGray_8_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle("rrr1");
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_B8G8R8A8_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 3;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_B8G8R8A8_UNORM, Surface: kBGRA_8888
-            {
-                constexpr SkColorType ct = SkColorType::kBGRA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // TODO: This is currently brittle, but add kExternalFormatColorType as a valid color
-            // type for VK_FORMAT_B8G8R8A8_UNORM in order to pass texture format + color type
-            // compatibility checks.
-            //
-            // b/431290055 exposed an issue where we could end up using an SkColorType that is not
-            // compatible with the BackendTexture's VkFormat. In this case, the driver reported that
-            // an AHardwareBuffer with the format AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM (only
-            // present in Android framework builds) could be treated as VK_FORMAT_B8G8R8A8_UNORM.
-            // This is not an officially supported equivalency per the spec (
-            // https://docs.vulkan.org/spec/latest/chapters/memory.html#memory-external-android-hardware-buffer-formats),
-            // but clients would benefit from having the driver's suggested VkFormat be used rather
-            // than falling back to importing the AHwBuf using its external format (which is less
-            // performant).
-            //
-            // Using the driver-recommended VkFormat led to failing Skia checks which rely upon
-            // surfaces + images having an SkColorType that is compatible with a texture's native
-            // format. When *creating* a Surface or Image from an AHwBuf-based BackendTexture, its
-            // color type is determined by the *AHwBuf format* (using
-            // `AHardwareBufferUtils::GetSkColorTypeFromBufferFormat`). However, when
-            // *validating* the surface/image, Skia checks whether the color type is compatible with
-            // the texture's *VkFormat* (which is distinct from an AndroidHardwareBuffer format).
-            //
-            // Ideally, we would simply add the AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM -->
-            // VK_FORMAT_B8G8R8A8_UNORM mapping to `GetSkColorTypeFromBufferFormat`. However, this
-            // utility is public and shared b/w both ganesh and graphite. Adding this introduced
-            // nontrivial complexity in ganesh (e.g., its SkImages::DeferredFromAHardwareBuffer API
-            // does not know the AHwBuf format at creation). This could be worked around, but the
-            // change would be more invasive and no clients have requested that we allow the use of
-            // a driver's non-spec reported VkFormat equivalency in ganesh. Therefore, we simply
-            // default to assigning kExternalFormatColorType for
-            // AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM and add it as a supported color type for
-            // VK_FORMAT_B8G8R8A8_UNORM here in the Caps table. This should allow BackendTextures
-            // based on AHwBufs with this format to pass validity checks and theoretically still be
-            // used normally (see below for explanation as to why this works).
-            //
-            // Format: VK_FORMAT_B8G8R8A8_UNORM, Surface: kRGBA_8888
-            {
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                // `Caps::areColorTypeAndTextureInfoCompatible` consults the fColorType field, so
-                // make sure it aligns with the color type we expect to see for AHardwareBuffers
-                // that use AHARDWAREBUFFER_FORMAT_B8G8R8A8_UNORM (kExternalFormatColorType).
-                // This *MUST* match AHardwareBufferUtils::kExternalFormatColorType, which is
-                // only conditionally compiled so not included here. If it becomes out sync,
-                // wrapping BGRA textures from AHB's may fail unexpected.
-                static constexpr SkColorType kExternalFormatColorType = kRGBA_8888_SkColorType;
-                ctInfo.fColorType = kExternalFormatColorType;
-                // fTransferColorType is currently not referenced, but the actual color type
-                // (e.g. for readbacks) should be kBGRA_8888_SkColorType so use that here. Simply
-                // omit assigning any read/write swizzles because we actually already know the
-                // texture format is compatible with kBGRA_8888_SkColorType.
-                constexpr SkColorType transferColorType = SkColorType::kBGRA_8888_SkColorType;
-                ctInfo.fTransferColorType = transferColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_B8G8R8A8_UNORM, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = SkColorType::kBGRA_8888_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-        }
-    }
-    // Format: VK_FORMAT_R5G6B5_UNORM_PACK16
-    {
-        constexpr VkFormat format = VK_FORMAT_R5G6B5_UNORM_PACK16;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R5G6B5_UNORM_PACK16, Surface: kRGB_565_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_565_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16G16B16A16_SFLOAT
-    {
-        constexpr VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 3;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16G16B16A16_SFLOAT, Surface: kRGBA_F16_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_F16_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_R16G16B16A16_SFLOAT, Surface: kRGBA_F16Norm_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_F16Norm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_R16G16B16A16_SFLOAT, Surface: kRGB_F16F16F16x_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_F16F16F16x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16_SFLOAT
-    {
-        constexpr VkFormat format = VK_FORMAT_R16_SFLOAT;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16_SFLOAT, Surface: kAlpha_F16
-            {
-                constexpr SkColorType ct = SkColorType::kA16_float_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
-                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
-            }
-            // Format: VK_FORMAT_R16_SFLOAT, Surface: kR_F16
-            {
-                constexpr SkColorType ct = SkColorType::kR16_float_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R8G8B8_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R8G8B8_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R8G8B8_UNORM, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                // This SkColorType is a lie, but we don't have a kRGB_888_SkColorType. The Vulkan
-                // format is 3 bpp so we must manualy convert to/from this and kRGB_888x when doing
-                // transfers. We signal this need for manual conversions in the
-                // supportedRead/WriteColorType calls.
-                ctInfo.fTransferColorType = SkColorType::kRGB_888x_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R8G8_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R8G8_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R8G8_UNORM, Surface: kR8G8_unorm
-            {
-                constexpr SkColorType ct = SkColorType::kR8G8_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32
-    {
-        constexpr VkFormat format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 4;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kRGBA_1010102
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_1010102_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kBGRA_1010102
-            {
-                constexpr SkColorType ct = SkColorType::kBGRA_1010102_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = SkColorType::kRGBA_1010102_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kRGB_101010x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_101010x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kBGR_101010x
-            {
-                constexpr SkColorType ct = SkColorType::kBGR_101010x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = SkColorType::kRGB_101010x_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-        }
-    }
-    // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32
-    {
-        constexpr VkFormat format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 4;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kBGRA_1010102
-            {
-                constexpr SkColorType ct = SkColorType::kBGRA_1010102_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kRGBA_1010102
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_1010102_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = SkColorType::kBGRA_1010102_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kBGR_101010x
-            {
-                constexpr SkColorType ct = SkColorType::kBGR_101010x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kRGB_101010x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_101010x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = kBGR_101010x_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
-            }
-        }
-    }
-    // Format: VK_FORMAT_B4G4R4A4_UNORM_PACK16
-    {
-        constexpr VkFormat format = VK_FORMAT_B4G4R4A4_UNORM_PACK16;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_B4G4R4A4_UNORM_PACK16, Surface: kARGB_4444_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kARGB_4444_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                // The color type is misnamed and really stores ABGR data, but there is no
-                // SkColorType that matches this actual ARGB VkFormat data. Swapping R and B when
-                // rendering into it has it match the reported transfer color type, but we have to
-                // swap R and B when sampling as well. This only works so long as we don't present
-                // textures of this format to a screen that would not know about this swap.
-                // TODO(b/b/390473370): When data transfers can apply an RG swizzle outside of the
-                // SkColorType representation, we should instead apply the swizzle on upload and
-                // preserve the expected order for any GPU use.
-                ctInfo.fReadSwizzle = skgpu::Swizzle::BGRA();
-                ctInfo.fWriteSwizzle = skgpu::Swizzle::BGRA();
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_R4G4B4A4_UNORM_PACK16
-    {
-        constexpr VkFormat format = VK_FORMAT_R4G4B4A4_UNORM_PACK16;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R4G4B4A4_UNORM_PACK16, Surface: kARGB_4444_SkColorType
-            {
-                constexpr SkColorType ct = SkColorType::kARGB_4444_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R8G8B8A8_SRGB
-    {
-        constexpr VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R8G8B8A8_SRGB, Surface: kRGBA_8888_SRGB
-            {
-                constexpr SkColorType ct = SkColorType::kSRGBA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = SkColorType::kSRGBA_8888_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_B8G8R8A8_SRGB
-    {
-        constexpr VkFormat format = VK_FORMAT_B8G8R8A8_SRGB;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_B8G8R8A8_SRGB, Surface: kRGBA_8888_SRGB
-            {
-                constexpr SkColorType ct = SkColorType::kSRGBA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                // Since the B and R channels are swapped and there's no BGRA sRGB color type,
-                // just disable read/writes back to the CPU.
-                ctInfo.fTransferColorType = SkColorType::kUnknown_SkColorType;
-                ctInfo.fFlags = ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R16_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16_UNORM, Surface: kAlpha_16
-            {
-                constexpr SkColorType ct = SkColorType::kA16_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
-                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
-            }
-            // Format: VK_FORMAT_R16_UNORM, Surface: kR16_unorm
-            {
-                constexpr SkColorType ct = SkColorType::kR16_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16G16_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R16G16_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16G16_UNORM, Surface: kRG_1616
-            {
-                constexpr SkColorType ct = SkColorType::kR16G16_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16G16B16A16_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_R16G16B16A16_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16G16B16A16_UNORM, Surface: kRGBA_16161616
-            {
-                constexpr SkColorType ct = SkColorType::kR16G16B16A16_unorm_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_R16G16_SFLOAT
-    {
-        constexpr VkFormat format = VK_FORMAT_R16G16_SFLOAT;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R16G16_SFLOAT, Surface: kRG_F16
-            {
-                constexpr SkColorType ct = SkColorType::kR16G16_float_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-    // Format: VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        if (fSupportsYcbcrConversion) {
-            info.init(interface, *this, physDev, format);
-        }
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            }
-            SkDEBUGCODE(info.fIsWrappedOnly = true;)
-        }
-    }
-    // Format: VK_FORMAT_G8_B8R8_2PLANE_420_UNORM
-    {
-        constexpr VkFormat format = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
-        auto& info = this->getFormatInfoForInit(format);
-        if (fSupportsYcbcrConversion) {
-            info.init(interface, *this, physDev, format);
-        }
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            }
-            SkDEBUGCODE(info.fIsWrappedOnly = true;)
-        }
-    }
-    // Format: VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK
-    {
-        constexpr VkFormat format = VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_BC1_RGB_UNORM_BLOCK
-    {
-        constexpr VkFormat format = VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_BC1_RGB_UNORM_BLOCK, Surface: kRGB_888x
-            {
-                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_BC1_RGBA_UNORM_BLOCK
-    {
-        constexpr VkFormat format = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_BC1_RGBA_UNORM_BLOCK, Surface: kRGBA_8888
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_8888_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            }
-        }
-    }
-
-    // Format: VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16
-    // Technically without this extension and enabled feature we could still use this format to
-    // sample with a ycbcr sampler. But for simplicity until we have clients requesting that, we
-    // limit the use of this format to cases where we have the extension supported.
-    if (enabledFeatures.fFormatRGBA10x6WithoutYCbCrSampler) {
-        constexpr VkFormat format = VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16;
-        auto& info = this->getFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-        if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
-            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
-            int ctIdx = 0;
-            // Format: VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16, Surface: kRGBA_10x6
-            {
-                constexpr SkColorType ct = SkColorType::kRGBA_10x6_SkColorType;
-                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
-                ctInfo.fColorType = ct;
-                ctInfo.fTransferColorType = ct;
-                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            }
-        }
-    }
-}
-
-void VulkanCaps::initDepthStencilFormatTable(const skgpu::VulkanInterface* interface,
-                                             VkPhysicalDevice physDev,
-                                             const VkPhysicalDeviceProperties& properties) {
-    static_assert(std::size(kDepthStencilVkFormats) == VulkanCaps::kNumDepthStencilVkFormats,
-                  "Size of DepthStencilVkFormats array must match static value in header");
-
-    // Format: VK_FORMAT_S8_UINT
-    {
-        constexpr VkFormat format = VK_FORMAT_S8_UINT;
-        auto& info = this->getDepthStencilFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-    }
-    // Format: VK_FORMAT_D16_UNORM
-    {
-        // Qualcomm drivers will report OUT_OF_HOST_MEMORY when binding memory to a VkImage with
-        // D16_UNORM in a protected context. Using D32_SFLOAT succeeds, so clearly it's not actually
-        // out of memory. D16_UNORM appears to function correctly in unprotected contexts.
-        const bool disableD16InProtected =
-                this->protectedSupport() && skgpu::kQualcomm_VkVendor == properties.vendorID;
-        if (!disableD16InProtected) {
-            constexpr VkFormat format = VK_FORMAT_D16_UNORM;
-            auto& info = this->getDepthStencilFormatInfoForInit(format);
-            info.init(interface, *this, physDev, format);
-        }
-    }
-    // Format: VK_FORMAT_D32_SFLOAT
-    {
-        constexpr VkFormat format = VK_FORMAT_D32_SFLOAT;
-        auto& info = this->getDepthStencilFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-    }
-    // Format: VK_FORMAT_D24_UNORM_S8_UINT
-    {
-        constexpr VkFormat format = VK_FORMAT_D24_UNORM_S8_UINT;
-        auto& info = this->getDepthStencilFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-    }
-    // Format: VK_FORMAT_D32_SFLOAT_S8_UINT
-    {
-        constexpr VkFormat format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-        auto& info = this->getDepthStencilFormatInfoForInit(format);
-        info.init(interface, *this, physDev, format);
-    }
-}
-
-void VulkanCaps::SupportedSampleCounts::initSampleCounts(const skgpu::VulkanInterface* interface,
-                                                         const VulkanCaps& caps,
-                                                         VkPhysicalDevice physDev,
-                                                         VkFormat format,
-                                                         VkImageUsageFlags usage) {
+SkEnumBitMask<SampleCount> VulkanCaps::getSupportedSampleCounts(
+        const skgpu::VulkanInterface* interface,
+        VkPhysicalDevice physDev,
+        VkFormat format,
+        VkImageUsageFlags usage) const {
     VkImageFormatProperties properties;
 
     VkResult result;
@@ -1694,19 +965,19 @@ void VulkanCaps::SupportedSampleCounts::initSampleCounts(const skgpu::VulkanInte
                                                                       &properties));
     if (result != VK_SUCCESS) {
         SKGPU_LOG_W("Vulkan call GetPhysicalDeviceImageFormatProperties failed: %d", result);
-        return;
+        return {};
     }
 
     // Standard sample locations are not defined for more than 16 samples, and we don't need more
     // than 16. Omit 32 and 64.
-    fSampleCounts = properties.sampleCounts &
+    VkSampleCountFlags sampleCounts = properties.sampleCounts &
                     (VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT |
                      VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT);
 
     // Disable MSAA if driver workaround requires it, by pretending the format does not support any
     // sample count other than 1.
-    if (caps.avoidMSAA()) {
-        fSampleCounts &= VK_SAMPLE_COUNT_1_BIT;
+    if (this->avoidMSAA()) {
+        sampleCounts &= VK_SAMPLE_COUNT_1_BIT;
     }
 
     // If VK_EXT_multisampled_render_to_single_sampled is used, verify that the
@@ -1715,7 +986,7 @@ void VulkanCaps::SupportedSampleCounts::initSampleCounts(const skgpu::VulkanInte
     // practical sense (the extension is all about load (unresolve) and store (resolve) ops, it
     // shouldn't affect multisampled rendering itself). In that case, issue a warning and mask out
     // unsupported bits.
-    if (caps.msaaRenderToSingleSampledSupport() && fSampleCounts > VK_SAMPLE_COUNT_1_BIT) {
+    if (this->msaaRenderToSingleSampledSupport() && sampleCounts > VK_SAMPLE_COUNT_1_BIT) {
         properties.sampleCounts = VK_SAMPLE_COUNT_1_BIT;
         VULKAN_CALL_RESULT_NOCHECK(
                 interface,
@@ -1730,233 +1001,89 @@ void VulkanCaps::SupportedSampleCounts::initSampleCounts(const skgpu::VulkanInte
                         &properties));
         if (result != VK_SUCCESS && result != VK_ERROR_FORMAT_NOT_SUPPORTED) {
             SKGPU_LOG_W("Vulkan call GetPhysicalDeviceImageFormatProperties failed: %d", result);
-            return;
+            return {};
         }
         if (result == VK_ERROR_FORMAT_NOT_SUPPORTED ||
             properties.sampleCounts <= VK_SAMPLE_COUNT_1_BIT ||
-            (fSampleCounts & properties.sampleCounts) != fSampleCounts) {
-            SKGPU_LOG_W(
-                    "Inconsistent MSAA rendering support in the presence of "
-                    "VK_EXT_multisampled_render_to_single_sampled (Supported MSAA bits: %#X vs "
-                    "with MSRTSS: %#X)",
-                    fSampleCounts,
-                    result == VK_ERROR_FORMAT_NOT_SUPPORTED ? 0 : properties.sampleCounts);
+            (sampleCounts & properties.sampleCounts) != sampleCounts) {
+            SKGPU_LOG_W("Inconsistent MSAA rendering support in the presence of "
+                        "VK_EXT_multisampled_render_to_single_sampled (Supported MSAA bits: %#X vs "
+                        "with MSRTSS: %#X)",
+                        sampleCounts,
+                        result == VK_ERROR_FORMAT_NOT_SUPPORTED ? 0 : properties.sampleCounts);
 
             // Mask out the unsupported bits
             if (result == VK_SUCCESS) {
-                fSampleCounts &= (properties.sampleCounts | VK_SAMPLE_COUNT_1_BIT);
+                sampleCounts &= (properties.sampleCounts | VK_SAMPLE_COUNT_1_BIT);
             } else {
-                fSampleCounts &= VK_SAMPLE_COUNT_1_BIT;
+                sampleCounts &= VK_SAMPLE_COUNT_1_BIT;
             }
         }
     }
+
+    // VkSampleCount is bit equal to SampleCount, so VkSampleCountFlags will be bit-equal to
+    // SkEnumBitMask<SampleCount>, but given the type wrapping we have to cast to SampleCount.
+    return static_cast<SampleCount>(sampleCounts);
 }
 
-bool VulkanCaps::SupportedSampleCounts::isSampleCountSupported(SampleCount requestedCount) const {
-    VkSampleCountFlagBits vkCount = SampleCountToVkSampleCount(requestedCount);
-    return (fSampleCounts & vkCount) != 0;
-}
-
-
-namespace {
-
-bool is_texturable(VkFormatFeatureFlags flags) {
-    return SkToBool(VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT & flags) &&
-           SkToBool(VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT & flags);
-}
-
-bool is_renderable(VkFormatFeatureFlags flags) {
-    return SkToBool(VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT & flags);
-}
-
-bool is_storage(VkFormatFeatureFlags flags) {
-    return SkToBool(VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT & flags);
-}
-
-}
-
-void VulkanCaps::FormatInfo::init(const skgpu::VulkanInterface* interface,
-                                  const VulkanCaps& caps,
-                                  VkPhysicalDevice physDev,
-                                  VkFormat format) {
-    VULKAN_CALL(interface, GetPhysicalDeviceFormatProperties(physDev, format, &fFormatProperties));
-
-    if (is_renderable(fFormatProperties.optimalTilingFeatures)) {
-        // We make all renderable images support being used as input attachment
-        VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                                       VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                       VK_IMAGE_USAGE_SAMPLED_BIT |
-                                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                       VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-        this->fSupportedSampleCounts.initSampleCounts(interface, caps, physDev, format, usageFlags);
-    }
-
-    if (caps.supportsHostImageCopy()) {
-        VkHostImageCopyDevicePerformanceQuery perfQuery = {};
-        perfQuery.sType = VK_STRUCTURE_TYPE_HOST_IMAGE_COPY_DEVICE_PERFORMANCE_QUERY_EXT;
-
-        VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {};
-        imageFormatInfo.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2;
-        imageFormatInfo.format = format;
-        imageFormatInfo.type = VK_IMAGE_TYPE_2D;
-        imageFormatInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageFormatInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_HOST_TRANSFER_BIT;
-        imageFormatInfo.flags = 0;
-
-        VkImageFormatProperties2 imageFormatProperties2 = {};
-        imageFormatProperties2.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2;
-        imageFormatProperties2.pNext = &perfQuery;
-
-        if (VULKAN_CALL(interface,
-                        GetPhysicalDeviceImageFormatProperties2(
-                                physDev, &imageFormatInfo, &imageFormatProperties2)) ==
-            VK_SUCCESS) {
-            // There are two results returned in `perfQuery`:
-            //
-            // * `identicalMemoryLayout` indicates that the added flag does not affect the physical
-            //   layout of the image. We can definitely add the flag in this case.
-            // * `optimalDeviceAccess` indicates that the added flag _does_ change the physical
-            //   layout of the image, but that according to the driver authors the fallback layout
-            //   is still "pretty good, you won't know the difference".
-            //
-            // For now, host image copy is only used if `identicalMemoryLayout` is true, but we
-            // could consider enabling it when only `optimalDeviceAccess` is true based on
-            // experimenting on different vendors.
-            fIsEfficientWithHostImageCopy = perfQuery.identicalMemoryLayout;
-        }
-    }
-}
-
-bool VulkanCaps::FormatInfo::isTexturable(VkImageTiling imageTiling) const {
-    switch (imageTiling) {
-        case VK_IMAGE_TILING_OPTIMAL:
-            return is_texturable(fFormatProperties.optimalTilingFeatures);
-        case VK_IMAGE_TILING_LINEAR:
-            return is_texturable(fFormatProperties.linearTilingFeatures);
-        default:
-            return false;
-    }
-    SkUNREACHABLE;
-}
-
-bool VulkanCaps::FormatInfo::isRenderable(VkImageTiling imageTiling,
-                                          SampleCount sampleCount) const {
-    if (!fSupportedSampleCounts.isSampleCountSupported(sampleCount)) {
-        return false;
-    }
-    switch (imageTiling) {
-        case VK_IMAGE_TILING_OPTIMAL:
-            return is_renderable(fFormatProperties.optimalTilingFeatures);
-        case VK_IMAGE_TILING_LINEAR:
-            return is_renderable(fFormatProperties.linearTilingFeatures);
-        default:
-            return false;
-    }
-    SkUNREACHABLE;
-}
-
-bool VulkanCaps::FormatInfo::isStorage(VkImageTiling imageTiling) const {
-    switch (imageTiling) {
-        case VK_IMAGE_TILING_OPTIMAL:
-            return is_storage(fFormatProperties.optimalTilingFeatures);
-        case VK_IMAGE_TILING_LINEAR:
-            return is_storage(fFormatProperties.linearTilingFeatures);
-        default:
-            return false;
-    }
-    SkUNREACHABLE;
-}
-
-bool VulkanCaps::FormatInfo::isEfficientWithHostImageCopy(VkImageTiling imageTiling,
-                                                          Protected isProtected) const {
-    if (isProtected == Protected::kYes) {
-        // Currently, we don't query whether protected textures can be used with host image copy;
-        // that is unlikely to be the case.
+/*
+ * The VK_IMAGE_USAGE_HOST_TRANSFER_BIT flag may cause the image to be put in a suboptimal physical
+ * layout.  In practice, images that could have had framebuffer compression end up with framebuffer
+ * compression disabled.  Using `VkHostImageCopyDevicePerformanceQuery`, we can determine if the
+ * layout is going to be suboptimal and avoid this flag.
+ *
+ * `fIsEfficientWithHostImageCopy` indicates whether the VK_IMAGE_USAGE_HOST_TRANSFER_BIT is
+ * efficient for this format with the following assumptions:
+ *
+ * - Image tiling is VK_IMAGE_TILING_OPTIMAL (note that VK_IMAGE_TILING_LINEAR is always
+ *   efficient for host image copy).
+ * - Image type is 2D.
+ * - Image create flags is 0.
+ * - Image usage flags is a subset of VK_IMAGE_USAGE_SAMPLED_BIT |
+ *                                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+ *                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT
+ */
+bool VulkanCaps::isEfficientWithHostCopy(const skgpu::VulkanInterface* interface,
+                                         VkPhysicalDevice physDev,
+                                         VkFormat format) const {
+    if (!this->supportsHostImageCopy() || format == VK_FORMAT_UNDEFINED) {
         return false;
     }
 
-    switch (imageTiling) {
-        case VK_IMAGE_TILING_OPTIMAL:
-            return fIsEfficientWithHostImageCopy;
-        case VK_IMAGE_TILING_LINEAR:
-            // Host-image-copy is always efficient with linear tiling, as it's just a series of
-            // `memcpy`s.
-            return true;
-        default:
-            break;
+    VkHostImageCopyDevicePerformanceQuery perfQuery = {};
+    perfQuery.sType = VK_STRUCTURE_TYPE_HOST_IMAGE_COPY_DEVICE_PERFORMANCE_QUERY_EXT;
+
+    VkPhysicalDeviceImageFormatInfo2 imageFormatInfo = {};
+    imageFormatInfo.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2;
+    imageFormatInfo.format = format;
+    imageFormatInfo.type = VK_IMAGE_TYPE_2D;
+    imageFormatInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageFormatInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_HOST_TRANSFER_BIT;
+    imageFormatInfo.flags = 0;
+
+    VkImageFormatProperties2 imageFormatProperties2 = {};
+    imageFormatProperties2.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2;
+    imageFormatProperties2.pNext = &perfQuery;
+
+    bool isEfficient = false;
+    if (VULKAN_CALL(interface,
+                    GetPhysicalDeviceImageFormatProperties2(
+                            physDev, &imageFormatInfo, &imageFormatProperties2)) == VK_SUCCESS) {
+        // There are two results returned in `perfQuery`:
+        //
+        // * `identicalMemoryLayout` indicates that the added flag does not affect the physical
+        //   layout of the image. We can definitely add the flag in this case.
+        // * `optimalDeviceAccess` indicates that the added flag _does_ change the physical layout
+        //   of the image, but that according to the driver authors the fallback layout is still
+        //   "pretty good, you won't know the difference".
+        //
+        // For now, host image copy is only used if `identicalMemoryLayout` is true, but we could
+        // consider enabling it when only `optimalDeviceAccess` is true based on experimenting on
+        // different vendors.
+        isEfficient = perfQuery.identicalMemoryLayout;
     }
-
-    return false;
-}
-
-VulkanCaps::FormatInfo& VulkanCaps::getFormatInfoForInit(VkFormat format) {
-    static_assert(std::size(kVkFormats) == VulkanCaps::kNumVkFormats,
-                  "Size of VkFormats array must match static value in header");
-    for (size_t i = 0; i < std::size(kVkFormats); ++i) {
-        if (kVkFormats[i] == format) {
-            return fFormatTable[i];
-        }
-    }
-    SkUNREACHABLE;
-}
-
-const VulkanCaps::FormatInfo& VulkanCaps::getFormatInfo(VkFormat format) const {
-    static_assert(std::size(kVkFormats) == VulkanCaps::kNumVkFormats,
-                  "Size of VkFormats array must match static value in header");
-
-    static const FormatInfo kInvalidFormat;
-    if (format == VK_FORMAT_UNDEFINED) {
-        return kInvalidFormat;
-    }
-
-    for (size_t i = 0; i < std::size(kVkFormats); ++i) {
-        if (kVkFormats[i] == format) {
-            return fFormatTable[i];
-        }
-    }
-
-   return kInvalidFormat;
-}
-
-void VulkanCaps::DepthStencilFormatInfo::init(const skgpu::VulkanInterface* interface,
-                                              const VulkanCaps& caps,
-                                              VkPhysicalDevice physDev,
-                                              VkFormat format) {
-    VULKAN_CALL(interface, GetPhysicalDeviceFormatProperties(physDev, format, &fFormatProperties));
-    if (this->isDepthStencilSupported()) {
-        VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        fSupportedSampleCounts.initSampleCounts(interface, caps, physDev, format, usageFlags);
-    }
-}
-
-bool VulkanCaps::DepthStencilFormatInfo::isDepthStencilSupported() const {
-    return SkToBool(VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT &
-                    fFormatProperties.optimalTilingFeatures);
-}
-
-VulkanCaps::DepthStencilFormatInfo& VulkanCaps::getDepthStencilFormatInfoForInit(VkFormat format) {
-    static_assert(std::size(kDepthStencilVkFormats) == VulkanCaps::kNumDepthStencilVkFormats,
-                  "Size of VkFormats array must match static value in header");
-    for (size_t i = 0; i < std::size(kDepthStencilVkFormats); ++i) {
-        if (kDepthStencilVkFormats[i] == format) {
-            return fDepthStencilFormatTable[i];
-        }
-    }
-    SkUNREACHABLE;
-}
-
-const VulkanCaps::DepthStencilFormatInfo& VulkanCaps::getDepthStencilFormatInfo(VkFormat format)
-        const {
-    static_assert(std::size(kDepthStencilVkFormats) == VulkanCaps::kNumDepthStencilVkFormats,
-                  "Size of VkFormats array must match static value in header");
-    for (size_t i = 0; i < std::size(kDepthStencilVkFormats); ++i) {
-        if (kDepthStencilVkFormats[i] == format) {
-            return fDepthStencilFormatTable[i];
-        }
-    }
-    static const DepthStencilFormatInfo kInvalidFormat;
-    return kInvalidFormat;
+    return isEfficient;
 }
 
 // 4 uint32s for the render step id, paint id, compatible render pass description, and write

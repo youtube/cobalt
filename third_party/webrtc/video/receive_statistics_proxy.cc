@@ -121,8 +121,7 @@ void ReceiveStatisticsProxy::UpdateHistograms(
     const StreamDataCounters* rtx_stats) {
   RTC_DCHECK_RUN_ON(&main_thread_);
 
-  char log_stream_buf[8 * 1024];
-  SimpleStringBuilder log_stream(log_stream_buf);
+  StringBuilder log_stream;
 
   Timestamp now = clock_->CurrentTime();
   TimeDelta stream_duration = now - start_;

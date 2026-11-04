@@ -3001,6 +3001,9 @@ if (skia_enable_tools) {
         ]
         defines = [ "SK_USE_PPROF" ]
       }
+      if (skia_use_partition_alloc) {
+        deps += [ "tools/partition_alloc:test_support" ]
+      }
     }
   }
 

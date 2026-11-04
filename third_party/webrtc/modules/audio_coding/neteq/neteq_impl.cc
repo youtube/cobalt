@@ -288,7 +288,6 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
   }
 
   PacketList parsed_packet_list;
-  bool is_dtx = false;
   while (!packet_list.empty()) {
     Packet& packet = packet_list.front();
     const DecoderDatabase::DecoderInfo* info =
@@ -331,7 +330,6 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
         for (auto& result : results) {
           RTC_DCHECK(result.frame);
           RTC_DCHECK_GE(result.priority, 0);
-          is_dtx = is_dtx || result.frame->IsDtxPacket();
           if (first) {
             // Re-use the node and move it to parsed_packet_list.
             packet_list.front() = packet_from_result(result);

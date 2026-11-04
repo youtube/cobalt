@@ -132,11 +132,6 @@ Lưu ý: Hãy đọc thêm về chính sách giảm thiểu quy trình (https://
 <translation id="1077675271127011209">Tắt tính năng báo cáo về hoạt động sử dụng và dữ liệu liên quan đến sự cố</translation>
 <translation id="1079498696402787191">Sử dụng giá trị mặc định cho các hàm băm được phép trong quá trình giao tiếp qua TLS.</translation>
 <translation id="1079801999187584280">Không cho phép sử dụng Công cụ dành cho nhà phát triển</translation>
-<translation id="1081263326166769685">Nếu bạn đặt chính sách này thành Bật, <ph name="PRODUCT_OS_NAME" /> sẽ báo cáo lại cho Google chỉ số sử dụng và dữ liệu chẩn đoán, bao gồm cả báo cáo sự cố. Nếu bạn đặt chính sách này thành Tắt, tính năng báo cáo chỉ số và dữ liệu chẩn đoán sẽ tắt.
-
-Đối với các thiết bị được quản lý, chính sách này sẽ bật theo mặc định và gửi các chỉ số cho Google.
-
-Đối với các thiết bị không được quản lý, việc có gửi chỉ số hay không là quyền của người dùng khi bạn không đặt chính sách này.</translation>
 <translation id="1081470306474387129">Controlled Frame API, dành cho một số ngữ cảnh tách biệt nhất định như Ứng dụng web tách biệt (IWA), cho phép một ứng dụng nhúng và thao tác trên nội dung tuỳ ý.
 Vui lòng truy cập vào https://github.com/WICG/controlled-frame để biết thông tin chi tiết.
 
@@ -369,6 +364,18 @@ Tuy nhiên, các mẫu so khớp nguồn của chính sách này không được
 <translation id="1262993197422487260">Không hiện nút hiển thị mật khẩu trên màn hình đăng nhập và màn hình khoá</translation>
 <translation id="1265053460044691532">Hạn chế thời gian người dùng được xác thực qua SAML có thể đăng nhập ngoại tuyến</translation>
 <translation id="1265076559723566171">Chế độ kiểm soát cho người dùng EDU</translation>
+<translation id="1268782248484174352">Chỉ định cấp độ báo cáo chỉ số về <ph name="PRODUCT_OS_NAME" />.
+
+Khi được đặt, chính sách này sẽ xác định số lượng dữ liệu về sự cố và mức sử dụng được báo cáo cho Google:
+* 0 = Tắt tính năng báo cáo: Không có dữ liệu về sự cố hoặc mức sử dụng nào được gửi cho Google.
+* 1 = Báo cáo cơ bản: Một tập hợp dữ liệu giới hạn về sự cố và mức sử dụng sẽ được gửi đến Google.
+* 2 = Báo cáo nâng cao: Một tập hợp dữ liệu toàn diện về sự cố và mức sử dụng sẽ được gửi đến Google.
+
+Nếu bạn không đặt chính sách này, người dùng có thể chọn hành vi báo cáo chỉ số khi cài đặt hoặc khi chạy lần đầu, cũng như có thể thay đổi chế độ cài đặt này sau đó.
+
+Chính sách này chỉ được đánh giá nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị.
+
+Nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị và cả chính sách này lẫn chính sách <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" /> đều được đặt, chính sách này sẽ được ưu tiên áp dụng.</translation>
 <translation id="1271811620059192171">Bật nhóm chính sách không thể phân chia</translation>
 <translation id="127264587838521316">Bật yêu cầu cài đặt tiện ích của <ph name="PRODUCT_NAME" /></translation>
 <translation id="1272798957154751008">Cho phép di chuyển các thiết bị Chromad sang chế độ quản lý qua đám mây</translation>
@@ -1660,6 +1667,7 @@ Tính năng này đã bị loại bỏ trong Chrome 145. Bạn nên sử dụng 
 <translation id="2149957154942061013">Chỉ dành cho nội bộ</translation>
 <translation id="2151831603578119302">Bật phím tắt của tính năng hỗ trợ tiếp cận</translation>
 <translation id="2156132677421487971">Định cấu hình các chính sách cho <ph name="PRODUCT_NAME" />, một tính năng cho phép người dùng gửi nội dung của các thẻ, trang web hoặc màn hình từ trình duyệt đến màn hình và hệ thống âm thanh từ xa.</translation>
+<translation id="2156359411909638496">Các chế độ cài đặt cho tính năng Chrome Finds</translation>
 <translation id="2156755242840687300">Máy chủ máy in bên ngoài được bật</translation>
 <translation id="2157842368188031417">Chính sách này chỉ áp dụng cho các phiên khách được quản lý. Cần phải bật chính sách này thì chế độ máy trạm chia sẻ của Imprivata mới được phép chuyển đổi người dùng trong phiên.
       Nếu bạn bật chính sách này thì hệ thống sẽ bắt buộc ghi đè một số chính sách nhất định của các tính năng. Điều này sẽ dẫn đến việc dữ liệu nhạy cảm của người dùng vẫn tồn tại và không được xử lý bởi cơ chế dọn dẹp được dùng cho các chuyển đổi người dùng trong phiên với chế độ máy trạm chia sẻ của Imprivata.
@@ -1808,6 +1816,18 @@ Nếu bạn đặt chính sách này thành Tắt, người dùng sẽ không c�
 
       Nếu bạn đặt chính sách này, người dùng sẽ không thay đổi được trong <ph name="PRODUCT_NAME" />. Nếu bạn không đặt chính sách này, hệ thống sẽ cho phép kiểm tra xem thông tin đăng nhập có bị rò rỉ hay không. Tuy nhiên, người dùng có thể tắt tính năng này.</translation>
 <translation id="2208976000652006649">Tham số cho URL tìm kiếm sử dụng POST</translation>
+<translation id="2211167090584042804">Chỉ định cấp độ báo cáo chỉ số về <ph name="PRODUCT_NAME" />.
+
+Khi được đặt, chính sách này sẽ xác định số lượng dữ liệu về sự cố và mức sử dụng được báo cáo cho Google:
+* 0 = Tắt tính năng báo cáo: Không có dữ liệu về sự cố hoặc mức sử dụng nào được gửi cho Google.
+* 1 = Báo cáo cơ bản: Một tập hợp dữ liệu giới hạn về sự cố và mức sử dụng sẽ được gửi đến Google.
+* 2 = Báo cáo nâng cao: Một tập hợp dữ liệu toàn diện về sự cố và mức sử dụng sẽ được gửi đến Google.
+
+Nếu bạn không đặt chính sách này, người dùng có thể chọn hành vi báo cáo chỉ số khi cài đặt hoặc khi chạy lần đầu, cũng như có thể thay đổi chế độ cài đặt này sau đó.
+
+Chính sách này chỉ được đánh giá nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị.
+
+Nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị và cả chính sách này lẫn chính sách <ph name="METRICS_REPORTING_ENABLED_POLICY_NAME" /> đều được đặt, chính sách này sẽ được ưu tiên áp dụng.</translation>
 <translation id="2212011154693551439">Trang Nhật ký duyệt web trên Chrome được sắp xếp theo nhóm sẽ hiển thị tại chrome://history/grouped theo mặc định.</translation>
 <translation id="2212207215880394506">Không cho phép dùng tính năng Chỉnh sửa ảnh bằng AI tạo sinh.</translation>
 <translation id="221287948061571053">Ẩn huy hiệu doanh nghiệp mở rộng trên thanh công cụ</translation>
@@ -2812,10 +2832,6 @@ Bạn chỉ có thể đặt chính sách này thành chính sách người 
 <translation id="288923520817177650">Cho phép tạo các phiên <ph name="WEBXR_AR_SESSION_ENUM_VALUE" /> trong <ph name="WEBXR_API_NAME_SHORT" /></translation>
 <translation id="2889842394011108075">window.webkitStorageInfo sẽ được cung cấp.</translation>
 <translation id="2890645751406497668">Tự động cấp quyền cho những trang web này để kết nối với các thiết bị USB bằng ID sản phẩm và nhà cung cấp cụ thể.</translation>
-<translation id="2891049933730408118">Đặt chính sách chỉ định nguồn gốc nào được cho phép mọi lược đồ xác thực HTTP mà <ph name="PRODUCT_NAME" /> hỗ trợ, bất kể chính sách <ph name="AUTH_SCHEMES_POLICY_NAME" /> như thế nào.
-
-      Hãy định dạng mẫu nguồn gốc theo định dạng này (<ph name="URL_SCHEME_FORMAT_LINK" />). Có thể xác định lên đến 1.000 trường hợp ngoại lệ trong <ph name="ALL_HTTP_AUTH_ALLOWED_FOR_ORIGINS_POLICY_NAME" />.
-      Chấp nhận ký tự đại diện cho toàn bộ hoặc một phần nguồn gốc, kể cả lược đồ, máy chủ hay cổng.</translation>
 <translation id="2893546967669465276">Gửi nhật ký hệ thống đến máy chủ quản lý</translation>
 <translation id="2893660462311365527">Chu kỳ thu thập từ xa của mạng tính bằng mili giây.</translation>
 <translation id="2894914342151915910">Chặn cảnh báo khi Chrome chạy trên một hệ thống không được hỗ trợ</translation>
@@ -4096,6 +4112,7 @@ Chính sách thiết bị này tương đương với chính sách người dùn
 <translation id="3749511622128647337">Tắt đầu ra âm thanh</translation>
 <translation id="3750220015372671395">Chặn tạo khóa trên các trang web này</translation>
 <translation id="3753267109888284695">Danh sách HTTP được cho phép</translation>
+<translation id="3753514818525019935">Không cho phép sử dụng tính năng Chrome Finds.</translation>
 <translation id="3753959315989102457">Tắt tính năng báo cáo vị trí của thiết bị</translation>
 <translation id="3755237588083934849">Việc đặt chính sách này sẽ xác định tần suất tải trạng thái thiết bị lên, tính bằng mili giây. Thời gian tối thiểu cho phép là 60 giây.
 
@@ -6082,6 +6099,13 @@ Khi bạn tắt chính sách này, tính năng này sẽ tắt.</translation>
 <translation id="4997074784107449343">Khi lựa chọn in dưới dạng hình ảnh có sẵn thì hệ thống sẽ không đặt lựa chọn này thành chế độ mặc định cho phần xem trước bản in của tài liệu PDF.</translation>
 <translation id="500149597848135831">Cho phép tất cả các biến</translation>
 <translation id="5006222080181284191">Kiểm soát việc bật tính năng "Giúp tôi viết" của ChromeOS</translation>
+<translation id="501542798290854504">Định cấu hình tính năng tự động đăng nhập cho người dùng đăng nhập bằng tài khoản do nhà cung cấp dịch vụ danh tính trên đám mây của Microsoft® hỗ trợ trên <ph name="ANDROID_NAME" />.
+
+Khi bạn đặt chính sách này thành 1 (<ph name="POLICY_VALUE_ENABLED" />), những người dùng đã đăng nhập vào ứng dụng tăng năng suất của Microsoft® trên thiết bị của họ có thể tự động được đăng nhập vào các tài sản web của Microsoft® trong <ph name="PRODUCT_NAME" />. Để sử dụng chức năng này, bạn phải cài đặt ứng dụng xác thực trung gian của Microsoft®, như <ph name="MS_AUTH_APP_NAME" />, <ph name="MS_ICP_NAME" /> hoặc <ph name="MS_LTW_NAME" />. Để quy trình đăng nhập một lần diễn ra suôn sẻ, dữ liệu xác thực cần thiết sẽ được chia sẻ với nhà cung cấp dịch vụ danh tính trên đám mây của Microsoft®.
+
+Nếu bạn đặt chính sách này thành 0 (<ph name="POLICY_VALUE_DISABLED" />) hoặc không đặt chính sách này, tính năng tự động đăng nhập nói trên sẽ bị tắt và người dùng phải nhập thủ công thông tin đăng nhập để truy cập các tài sản web của Microsoft®.
+
+Lưu ý: Chính sách này không áp dụng cho chế độ ẩn danh hoặc chế độ khách.</translation>
 <translation id="5017157692744444035">Chính sách này kiểm soát việc có báo cáo thông tin có thể dùng để nhận dạng máy hay không, chẳng hạn như tên máy và địa chỉ mạng.
 
 Khi bạn không đặt chính sách <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> hoặc đặt thành tắt, thì chính sách này sẽ bị bỏ qua.
@@ -7349,6 +7373,7 @@ Khi bạn tắt hoặc không đặt chính sách này, Tiện ích xem nhanh s�
 <translation id="5776485039795852974">Hỏi mỗi lần trang web muốn hiển thị thông báo trên màn hình</translation>
 <translation id="5776508475264864949">Không cho phép ứng dụng Gemini thực hiện hành động trên các trang web.</translation>
 <translation id="5783009211970309878">In đầu trang và chân trang</translation>
+<translation id="5786913136266632175">Cho phép sử dụng tính năng Chrome Finds và tham gia cải tiến các mô hình AI.</translation>
 <translation id="5789288985554424301">Cho phép bạn thiết lập việc các trang web có được sử dụng Idle Detection API hay không.
 
 Khi bạn đặt chính sách này thành 1 – <ph name="ALLOW_IDLE_DETECTION_VALUE_NAME" />, các trang web có thể sử dụng API này mà không cần xin phép người dùng.
@@ -7530,6 +7555,7 @@ Nếu bạn đặt chính sách này thành EnabledFocusSoundsOnly, tính năng 
 
 Nếu bạn đặt chính sách này thành Disabled (Tắt), âm thanh sẽ bị tắt ở Chế độ tập trung.</translation>
 <translation id="5890063326284543943">Kiểm soát việc sử dụng API nối tiếp</translation>
+<translation id="5893086678951790439">Cấp độ báo cáo chỉ số</translation>
 <translation id="5893303508158298667">Nếu bạn bật <ph name="REMOTE_ACCESS_HOST_FIREWALL_TRAVERSAL_POLICY_NAME" /> và không đặt hoặc bật <ph name="REMOTE_ACCESS_HOST_ALLOW_RELAYED_CONNECTION_POLICY_NAME" />, thì hệ thống sẽ cho phép việc sử dụng máy chủ chuyển tiếp thông qua máy khách từ xa để kết nối với máy này khi không có đường kết nối trực tiếp (chẳng hạn như do bị tường lửa hạn chế).
 
       Nếu bạn tắt chính sách này thì hệ thống sẽ không tắt quyền truy cập từ xa, nhưng chỉ cho phép các kết nối từ cùng một mạng (chứ không phải mạng truyền tải NAT hoặc mạng chuyển tiếp).</translation>
@@ -7654,6 +7680,7 @@ Kể từ <ph name="PRODUCT_NAME" /> 147, chính sách này sẽ không được
 
       Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đổi được. Nếu bạn không đặt chính sách này, người dùng sẽ quyết định có để đầu trang và chân trang xuất hiện hay không.</translation>
 <translation id="5951418260805607969">Hiện thông báo khi dung lượng ổ đĩa sắp hết</translation>
+<translation id="5952917461013988610">Báo cáo cơ bản</translation>
 <translation id="5958746038080720143">Bật tính năng tối ưu hóa Web Proxy Auto-Discovery (WPAD) (Tự động phát hiện proxy web)</translation>
 <translation id="5961137303188584693">Địa chỉ MAC trên NIC tích hợp của thiết bị</translation>
 <translation id="5962271004971310788">Để điều hướng ở Chế độ ẩn danh, người dùng phải cho phép các tiện ích chạy ở Chế độ ẩn danh</translation>
@@ -8907,6 +8934,17 @@ Nếu bạn đặt chính sách này thành Sai hoặc không đặt chính sác
 
       Nếu bạn không đặt giá trị này, thì sẽ không có dữ liệu đo từ xa bổ sung nào được báo cáo khi xảy ra sự kiện thay đổi cường độ tín hiệu.</translation>
 <translation id="6751612743847158732">Luôn khôi phục phiên trước đó.</translation>
+<translation id="6751882390104737961">Là tính năng dựa trên AI, Chrome Finds giúp người dùng tìm kiếm và hiểu nội dung trên trang web hiện tại.
+
+0 = Cho phép sử dụng tính năng này và cho phép Google sử dụng dữ liệu liên quan để cải tiến các mô hình AI. Tuỳ thuộc vào tính năng, dữ liệu liên quan có thể bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản. Dữ liệu này cũng có thể được nhân viên xem xét để cải tiến các mô hình AI. 0 là giá trị mặc định, trừ phi có ghi chú bên dưới.
+
+1 = Cho phép sử dụng tính năng nhưng không cho phép Google sử dụng nội dung của người dùng (bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản) để cải tiến các mô hình. 1 là giá trị mặc định cho Người dùng doanh nghiệp do <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> quản lý và Tài khoản thuộc tổ chức giáo dục do <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> quản lý.
+
+2 = Không cho phép sử dụng tính năng này.
+
+Nếu bạn không đặt chính sách này thì hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.
+
+Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6752711782954612641">Nếu bạn bật <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />, thì thao tác đặt <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POST_PARAMS_POLICY_NAME" /> sẽ chỉ định thông số khi tìm kiếm URL bằng yêu cầu POST. Thông số này bao gồm các cặp tên/giá trị phân tách bằng dấu phẩy. Nếu một giá trị là thông số mẫu, chẳng hạn như<ph name="SEARCH_TERM_MARKER" />, thì dữ liệu cụm từ tìm kiếm thực sẽ thay thế thông số này.
 
       Nếu bạn không đặt <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POST_PARAMS_POLICY_NAME" />, thì yêu cầu tìm kiếm sẽ được gửi bằng phương thức GET.</translation>
@@ -8966,17 +9004,6 @@ Chính sách này sẽ thay thế chính sách <ph name="WINDOW_PLACEMENT_BLOCKE
 <translation id="6813263547126514821">Bật và tắt nguồn</translation>
 <translation id="681446116407619279">Các giao thức xác thực được hỗ trợ</translation>
 <translation id="6815628711329903153">Cho phép phân bổ vùng đệm hiện đại cho trình bổ trợ PPAPI của API Graphics3D.</translation>
-<translation id="6819031008957510729">Khi Bật chính sách này, bạn nên bật tính năng báo cáo ẩn danh về dữ liệu liên quan đến sự cố và mức sử dụng <ph name="PRODUCT_NAME" /> cho Google theo mặc định. Người dùng vẫn có thể thay đổi chế độ cài đặt này.
-
-Khi bạn Tắt chính sách này, tính năng báo cáo ẩn danh sẽ bị tắt nên dữ liệu về sự cố và mức sử dụng sẽ không được gửi cho Google. Người dùng sẽ không thể thay đổi chế độ cài đặt này.
-
-Khi bạn không đặt chính sách này, người dùng có thể chọn hành vi báo cáo ẩn danh khi cài đặt hoặc khi chạy lần đầu, cũng như có thể thay đổi chế độ cài đặt này sau đó.
-
-(Đối với <ph name="PRODUCT_OS_NAME" />, hãy xem <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" />.)
-
-Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên bản đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên bản được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="6819838337315703072">Nếu dịch vụ hỗ trợ ứng dụng <ph name="LINUX_OS_NAME" /> đang bật thì việc đặt chính sách này thành Bật sẽ gửi thông tin liên quan đến hoạt động sử dụng các ứng dụng <ph name="LINUX_OS_NAME" /> trở lại cho máy chủ.
 
       Nếu bạn đặt thành Tắt hoặc không đặt chính sách này thì sẽ không có thông tin nào về hoạt động sử dụng được báo cáo.</translation>
@@ -9055,6 +9082,7 @@ Nếu bạn đặt chính sách này thành sai hoặc không đặt thì bố c
 <translation id="686079137349561371">Microsoft Windows 7 trở lên</translation>
 <translation id="6863927303509860338">Thiết lập các lối tắt trên trang Thẻ mới</translation>
 <translation id="6866755486434471318">Cho phép <ph name="PEPPER_NAME" /> sử dụng hình ảnh được chia sẻ để giải mã video.</translation>
+<translation id="6874461444739276423">Cấp độ báo cáo chỉ số về thiết bị</translation>
 <translation id="6878757724611298427">Cho phép người dùng sử dụng ứng dụng Android trên thiết bị chưa liên kết</translation>
 <translation id="6881447940489194100">Hàm băm SHA-256 được mã hoá thập lục phân của dữ liệu.</translation>
 <translation id="68818134518270542">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định những ứng dụng mà người dùng có thể bật làm ứng dụng ghi chú trên màn hình khóa của <ph name="PRODUCT_OS_NAME" />.
@@ -10085,6 +10113,7 @@ thì hệ thống sẽ bật tính năng đọc to.</translation>
 <translation id="7481702249684965639">Thùng rác được bật cho người dùng.</translation>
 <translation id="7482768039644066614">Tắt tính năng tìm nạp siêu dữ liệu tải trang và mô hình máy học giúp nâng cao trải nghiệm duyệt web</translation>
 <translation id="748292668225669178">Định cấu hình việc gắn kết <ph name="MICROSOFT_ONE_DRIVE_NAME" /></translation>
+<translation id="7483786326602801858">Cho phép tự động đăng nhập vào các nhà cung cấp dịch vụ danh tính trên đám mây của Microsoft® trên <ph name="ANDROID_NAME" /></translation>
 <translation id="7485481791539008776">Quy tắc chọn máy in mặc định</translation>
 <translation id="7486205887492534734">Lời nhắc khi có nhiều chứng chỉ khớp trên màn hình đăng nhập</translation>
 <translation id="748873163367340515">Chỉ sử dụng dữ liệu và cookie thiết yếu trong công cụ tìm kiếm.</translation>
@@ -10357,6 +10386,10 @@ Bạn cũng phải đặt các chính sách cần hợp nhất trong <ph name="P
       Nếu bạn đặt thành Tắt hoặc không đặt chính sách này, thì tùy chọn báo cáo nói trên sẽ bị tắt.
       Những quy tắc đã xác định bằng các hạn chế ở cấp ALLOW trong DataLeakPreventionRulesList sẽ không báo cáo các sự kiện trong cả hai trường hợp.</translation>
 <translation id="7648907905084499629">Dùng hành vi <ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" /> cho các cookie trên tất cả các trang web</translation>
+<translation id="7649831723389657756">Đặt chính sách chỉ định nguồn gốc nào được cho phép mọi lược đồ xác thực HTTP mà <ph name="PRODUCT_NAME" /> hỗ trợ, bất kể chính sách <ph name="AUTH_SCHEMES_POLICY_NAME" /> như thế nào.
+
+      Hãy định dạng mẫu nguồn gốc theo định dạng này (<ph name="URL_SCHEME_FORMAT_LINK" />). Có thể xác định lên đến 1.000 trường hợp ngoại lệ trong <ph name="ALL_HTTP_AUTH_ALLOWED_FOR_ORIGINS_POLICY_NAME" />.
+      Cho phép sử dụng ký tự đại diện cho thành phần máy chủ lưu trữ (ví dụ: "*:8000" khớp với tất cả máy chủ lưu trữ trên cổng 8000). Để khớp với tất cả lược đồ hoặc tất cả cổng, hãy hoàn toàn bỏ qua thành phần này (ví dụ: "example.com" khớp với mọi lược đồ và mọi cổng). Tên máy chủ (ví dụ: "example.com") cũng khớp với các miền con của tên máy chủ đó. Để so khớp chính xác một máy chủ và loại trừ các miền con của máy chủ đó, hãy thêm một dấu chấm vào trước máy chủ đó (ví dụ: ".example.com"). Để khớp với tất cả nguồn gốc, hãy sử dụng một dấu hoa thị ("*").</translation>
 <translation id="7657261947024629645">Tối ưu hóa cho hiệu suất.</translation>
 <translation id="76580522298425324">Cho phép chụp ảnh màn hình mà không cần cử chỉ trước đó của người dùng</translation>
 <translation id="7661379728107156839">Độ phức tạp thấp</translation>
@@ -11133,6 +11166,13 @@ Nếu bạn không đặt chính sách này, thì màn hình bảo vệ quyền 
 <translation id="8171262216089271568">Bật tính năng con trỏ lớn trên màn hình đăng nhập</translation>
 <translation id="8171924760436219650">Chuyển nút chuột chính thành nút phải trên màn hình đăng nhập</translation>
 <translation id="81724933026241365">Cho phép người dùng tắt thiết bị bằng biểu tượng tắt hoặc nút nguồn vật lý</translation>
+<translation id="8173338752620395043">Nếu bạn đặt chính sách này thành Enabled (Bật), <ph name="PRODUCT_OS_NAME" /> sẽ báo cáo lại cho Google chỉ số về mức sử dụng và dữ liệu chẩn đoán, bao gồm cả báo cáo sự cố. Nếu bạn đặt chính sách này thành Disabled (Tắt), tính năng báo cáo chỉ số và dữ liệu chẩn đoán sẽ tắt.
+
+Đối với các thiết bị được quản lý, chính sách này sẽ bật theo mặc định và gửi các chỉ số cho Google.
+
+Đối với các thiết bị không được quản lý, việc có gửi chỉ số hay không là quyền của người dùng khi bạn không đặt chính sách này.
+
+Nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị và cả chính sách này lẫn chính sách <ph name="DEVICE_METRICS_REPORTING_LEVEL_POLICY_NAME" /> đều được đặt, chính sách <ph name="DEVICE_METRICS_REPORTING_LEVEL_POLICY_NAME" /> sẽ được ưu tiên áp dụng.</translation>
 <translation id="8173864651667424191">Khi lựa chọn in dưới dạng hình ảnh có sẵn thì hệ thống sẽ đặt lựa chọn này thành chế độ mặc định cho phần xem trước bản in của tài liệu PDF.</translation>
 <translation id="8175922758834816585">Bật tính năng phản hồi bằng giọng nói trên màn hình đăng nhập và cho phép người dùng tạm thời tắt tính năng này</translation>
 <translation id="8176035528522326671">Cho phép người dùng doanh nghiệp trở thành người dùng chính duy nhất có nhiều hồ sơ (Hành vi mặc định cho người dùng do doanh nghiệp quản lý)</translation>
@@ -11738,6 +11778,7 @@ Nếu bạn không đặt chính sách này thì hành vi của chính sách s�
 Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8566842294717252664">Ẩn cửa hàng trực tuyến khỏi trang thẻ mới và trình chạy ứng dụng</translation>
 <translation id="8567697114274003779">Đặt nhãn doanh nghiệp tuỳ chỉnh cho một hồ sơ được quản lý</translation>
+<translation id="8570976102224880079">Báo cáo nâng cao</translation>
 <translation id="8571069584826006598">Cho phép các nguồn gốc của Ứng dụng web tách biệt yêu cầu người dùng cấp quyền truy cập vào máy in cục bộ qua API WebPrinting</translation>
 <translation id="8571119890730528225">Vô hiệu hoá tính năng phân vùng bộ nhớ của bên thứ ba.</translation>
 <translation id="8571314270766672278">Hạ cấp hệ điều hành và đặt lại thiết bị khi hạ cấp kênh, cố gắng duy trì việc đăng ký</translation>
@@ -11934,6 +11975,7 @@ Nếu đặt chính sách này, thì bạn cần đặt chính sách <ph name="P
 Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Topics API không còn được dùng nữa.</translation>
 <translation id="8672321184841719703">Phiên bản cập nhật tự động đích</translation>
 <translation id="867410340948518937">U2F (Hai yếu tố chung)</translation>
+<translation id="8675599659717867329">Tắt tính năng báo cáo</translation>
 <translation id="8676959842615154675">Nếu bạn đặt chính sách này thành Bật, máy chủ truy cập từ xa sẽ so sánh tên của người dùng trên máy được liên kết với máy chủ và tên của Tài khoản Google được đăng ký làm chủ sở hữu máy chủ ("johndoe", nếu máy chủ thuộc sở hữu của "johndoe@example.com"). Máy chủ này sẽ không bắt đầu nếu tên của chủ sở hữu máy chủ khác với tên của người dùng trên máy được liên kết với máy chủ. Để đảm bảo rằng Tài khoản Google của chủ sở hữu được liên kết với một miền cụ thể, hãy sử dụng chính sách này với <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />.
 
       Nếu bạn đặt thành Tắt hoặc không đặt chính sách này, thì máy chủ truy cập từ xa có thể được liên kết với bất kỳ người dùng nào trên máy.</translation>
@@ -11986,6 +12028,7 @@ Nếu bạn đặt <ph name="LIVE_CAPTION_ENABLED_POLICY_NAME" /> thành Tắt, 
 trình cài đặt sẽ không có URL "tìm hiểu thêm". Nếu bạn đặt thì URL phải sử dụng
 giao thức https.</translation>
 <translation id="8715885991031124968">Cho phép các hộp thoại JavaScript được kích hoạt từ một khung phụ có nguồn gốc khác.</translation>
+<translation id="8720288018555457355">Cho phép sử dụng tính năng Chrome Finds nhưng không tham gia cải tiến các mô hình AI.</translation>
 <translation id="8720547069538712402">Cho phép người dùng bật hoặc tắt tùy chọn kiểm tra chính tả</translation>
 <translation id="8721685661759544418">Bật tính năng đọc to (lọc văn bản và tổng hợp nội dung chuyển văn bản sang lời nói) cho trang web</translation>
 <translation id="8726080977639508431">Chính sách này kiểm soát cách <ph name="PRODUCT_NAME" /> diễn giải các chính sách danh sách trang web/danh sách xám cho tính năng Hỗ trợ trình duyệt cũ. Chính sách này sẽ ảnh hưởng đến những chính sách sau: <ph name="URL_LIST_POLICY_NAME" />, <ph name="URL_GREYLIST_POLICY_NAME" />, <ph name="USE_IE_SITELIST_POLICY_NAME" />, <ph name="EXTERNAL_SITELIST_POLICY_NAME" /> và <ph name="EXTERNAL_GREYLIST_POLICY_NAME" />.
@@ -12748,6 +12791,19 @@ Xác định xem người dùng có được phép định cấu hình tên máy
 Khi tắt, các API hạn mức bộ nhớ thường sẽ trả về một giá trị động tỷ lệ với tổng dung lượng trống trên thiết bị, bất kể mức sử dụng.
 Nếu không được đặt, các API hạn mức bộ nhớ sẽ sử dụng chế độ mặc định của Chrome.
 Chế độ cài đặt này không ảnh hưởng đến những trang web có quyền truy cập bộ nhớ không giới hạn. Hạn mức được thực thi cũng không bị ảnh hưởng.</translation>
+<translation id="975621145048605048">Khi đặt chính sách này thành Enabled (Bật), bạn nên bật tính năng báo cáo ẩn danh về dữ liệu liên quan đến sự cố và mức sử dụng <ph name="PRODUCT_NAME" /> cho Google theo mặc định. Người dùng vẫn có thể thay đổi chế độ cài đặt này.
+
+Khi bạn đặt chính sách này thành Disabled (Tắt), tính năng báo cáo ẩn danh sẽ bị tắt nên dữ liệu về sự cố và mức sử dụng sẽ không được gửi cho Google. Người dùng sẽ không thể thay đổi chế độ cài đặt này.
+
+Khi bạn không đặt chính sách này, người dùng có thể chọn hành vi báo cáo ẩn danh khi cài đặt hoặc khi chạy lần đầu, cũng như có thể thay đổi chế độ cài đặt này sau đó.
+
+(Đối với <ph name="PRODUCT_OS_NAME" />, vui lòng xem <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" />.)
+
+Nếu thử nghiệm <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> đang hoạt động trên thiết bị và cả chính sách này lẫn chính sách <ph name="METRICS_REPORTING_LEVEL_POLICY_NAME" /> đều được đặt, chính sách <ph name="METRICS_REPORTING_LEVEL_POLICY_NAME" /> sẽ được ưu tiên áp dụng.
+
+Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên bản đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên bản được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="976415389478739655">Yêu cầu thiết bị của người dùng phải thuộc mạng được quản lý thì mới có thể tham gia lớp <ph name="CLASS_TOOLS_NAME" /></translation>
 <translation id="978619365985286086">Chế độ cài đặt của công cụ quản lý lớp học</translation>
 <translation id="978658824596356870">Định dạng đồng hồ 24 giờ</translation>

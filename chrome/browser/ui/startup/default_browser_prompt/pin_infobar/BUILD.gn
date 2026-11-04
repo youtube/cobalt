@@ -52,6 +52,7 @@ source_set("impl") {
 
   if (is_win) {
     deps += [
+      "//chrome/browser/win",
       "//chrome/install_static:install_static_util",
       "//chrome/installer/util:with_no_strings",
     ]
@@ -59,6 +60,7 @@ source_set("impl") {
 
   if (is_mac) {
     sources += [ "pin_infobar_mac_util.mm" ]
+    deps += [ "//chrome/browser/mac" ]
   }
 }
 

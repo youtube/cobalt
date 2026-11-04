@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/extensions/browsertest_util.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/metrics/critical_user_journeys/critical_user_journey_session.h"
+#include "chrome/browser/metrics/critical_user_journeys/features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -318,7 +321,21 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveUITest,
   //   - reload section is hidden.
   //   - requests section is hidden
   //   - request access button, in the toolbar, does not include extension.
+  //
+  // `WaitForActiveTabPermissionGranted` because `ActiveTabPermissionGranter` is
+  // responsible for granting the requested host permissions - see
+  // https://source.chromium.org/chromium/chromium/src/+/main:extensions/browser/permissions/active_tab_permission_granter.cc;l=148-178;drc=409b77a78792667eb4583c52aa9faf7fa321f4b8
+  extensions::PermissionsManagerWaiter waiter(
+      extensions::PermissionsManager::Get(browser()->profile()));
   ClickButton(menu_entry->action_button_for_testing());
+  waiter.WaitForActiveTabPermissionGranted(extension_id);
+
+  // The menu might have closed after clicking the button. Re-open it.
+  ClickButton(extensions_button());
+  menu_entry = GetOnlyMenuEntry();
+  reload_section = main_page()->reload_section();
+  requests_section = main_page()->requests_section();
+
   EXPECT_TRUE(menu_entry->site_access_toggle_for_testing()->GetVisible());
   EXPECT_TRUE(menu_entry->site_access_toggle_for_testing()->GetIsOn());
   EXPECT_FALSE(reload_section->GetVisible());
@@ -471,8 +488,10 @@ class ExtensionsMenuMainPageViewInteractiveTest
     : public InteractiveBrowserTestMixin<extensions::ExtensionBrowserTest> {
  public:
   ExtensionsMenuMainPageViewInteractiveTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        extensions_features::kExtensionsMenuAccessControl);
+    scoped_feature_list_.InitWithFeatures(
+        {extensions_features::kExtensionsMenuAccessControl,
+         metrics::kCriticalUserJourneyService, metrics::kPinExtensionJourney},
+        {});
   }
   ExtensionsMenuMainPageViewInteractiveTest(
       const ExtensionsMenuMainPageViewInteractiveTest&) = delete;
@@ -1195,6 +1214,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveTest,
   extensions::ScriptingPermissionsModifier(profile(), extension)
       .SetWithholdHostPermissions(true);
 
+  extensions::PermissionsManagerWaiter waiter(
+      PermissionsManager::Get(profile()));
   RunTestSequence(
       InstrumentTab(kTab),
       NavigateWebContents(kTab, embedded_test_server()->GetURL("/simple.html")),
@@ -1211,9 +1232,16 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveTest,
       WaitForShow(extensions::kReloadPageDialogCancelButtonElementId),
       PressButton(extensions::kReloadPageDialogCancelButtonElementId),
 
-      // The extension permission should have been applied at this point, but
-      // the extension's script and blocked actions should not run since a
-      // reload is needed.
+      // Wait until the extension permissions have been applied.
+      //
+      // `WaitForActiveTabPermissionGranted` because
+      // `ActiveTabPermissionGranter` is responsible for granting the requested
+      // host permissions - see
+      // https://source.chromium.org/chromium/chromium/src/+/main:extensions/browser/permissions/active_tab_permission_granter.cc;l=148-178;drc=409b77a78792667eb4583c52aa9faf7fa321f4b8
+      Do([&]() { waiter.WaitForActiveTabPermissionGranted(extension->id()); }),
+
+      // Despite new extension permissions, the extension's script and blocked
+      // actions should not run since a reload is needed.
       CheckResult(
           [&]() {
             return extensions::browsertest_util::DidChangeTitle(
@@ -1401,4 +1429,35 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveTest,
                         &views::ToggleButton::GetIsOn, true),
       WaitForHide(kExtensionsMenuReloadSectionElementId),
       CheckRequestsSectionHidden(), DidInjectScript(true));
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveTest,
+                       PinExtensionViaExtensionsMenuJourneyCompletion) {
+  base::HistogramTester histograms;
+  const std::string step_reached =
+      base::StrCat({"CriticalUserJourney.", metrics::kPinExtensionJourney.name,
+                    ".StepReached"});
+  const std::string result = base::StrCat(
+      {"CriticalUserJourney.", metrics::kPinExtensionJourney.name, ".Result"});
+  const extensions::Extension* const extension =
+      LoadExtension(test_data_dir_.AppendASCII("simple_with_icon"));
+
+  histograms.ExpectBucketCount(step_reached, 1, 0);
+  histograms.ExpectBucketCount(step_reached, 2, 0);
+
+  RunTestSequence(
+      OpenExtensionsMenu(),
+      OpenContextMenu(extension->id(), kExtensionsMenuEntryViewElementId),
+      Do([&]() {
+        histograms.ExpectBucketCount(step_reached, 1, 1);
+        histograms.ExpectBucketCount(step_reached, 2, 0);
+      }),
+      SelectMenuItem(
+          extensions::ExtensionContextMenuModel::kToggleVisibilityMenuItem),
+      WaitForEvent(kBrowserViewElementId, kExtensionsMenuPinExtensionsEventId),
+      Do([&]() { histograms.ExpectBucketCount(step_reached, 2, 1); }));
+
+  histograms.ExpectUniqueSample(
+      result, metrics::CriticalUserJourneySession::JourneyResult::kCompleted,
+      1);
 }

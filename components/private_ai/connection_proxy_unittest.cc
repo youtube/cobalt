@@ -20,7 +20,6 @@
 #include "components/private_ai/testing/fake_connection.h"
 #include "components/private_ai/testing/fake_token_manager.h"
 #include "net/base/proxy_string_util.h"
-#include "services/network/network_service.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,19 +33,11 @@ using ::testing::Invoke;
 
 class ConnectionProxyTest : public testing::Test {
  public:
-  ConnectionProxyTest() {
-    // Initialize the real NetworkService for testing.
-    // This runs on the current thread and doesn't require Mojo pipe binding.
-    network_service_ = network::NetworkService::CreateForTesting();
-  }
   ~ConnectionProxyTest() override = default;
 
   void CreateConnectionProxy() {
-    // Pass the raw pointer of the real service.
-    // network::NetworkService inherits from network::mojom::NetworkService.
     connection_proxy_ = std::make_unique<ConnectionProxy>(
         GURL("https://proxy.example.com"), &logger_, &token_manager_,
-        network_service_.get(),
         base::BindOnce(&ConnectionProxyTest::CreateInnerConnection,
                        base::Unretained(this)),
         base::BindOnce(&ConnectionProxyTest::OnDisconnect,
@@ -63,20 +54,16 @@ class ConnectionProxyTest : public testing::Test {
     return connection;
   }
 
-  void OnDisconnect(ErrorCode error_code) {
+  void OnDisconnect(StatusCode status_code) {
     on_disconnect_called_ = true;
-    connection_proxy_->OnDestroy(error_code);
+    connection_proxy_->OnDestroy(status_code);
   }
 
  protected:
-  // Use MainThreadType::IO to satisfy NetworkService threading
-  // requirements.
-  base::test::TaskEnvironment task_environment_{
-      base::test::TaskEnvironment::MainThreadType::IO};
+  base::test::TaskEnvironment task_environment_;
 
   PrivateAiLogger logger_;
   FakeTokenManager token_manager_;
-  std::unique_ptr<network::NetworkService> network_service_;
   std::unique_ptr<ConnectionProxy> connection_proxy_;
   raw_ptr<FakeConnection> inner_connection_ = nullptr;
   base::OnceClosure on_inner_connection_created_;
@@ -88,7 +75,7 @@ TEST_F(ConnectionProxyTest, Success) {
   CreateConnectionProxy();
 
   // Send a request. It should be buffered.
-  base::test::TestFuture<base::expected<proto::PrivateAiResponse, ErrorCode>>
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future;
   proto::PrivateAiRequest request;
   request.set_request_id(1);
@@ -133,7 +120,7 @@ TEST_F(ConnectionProxyTest, SendAfterInitialization) {
   ASSERT_TRUE(inner_connection_);
 
   // Send a request. It should be sent directly.
-  base::test::TestFuture<base::expected<proto::PrivateAiResponse, ErrorCode>>
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future;
   proto::PrivateAiRequest request;
   request.set_request_id(1);
@@ -179,7 +166,7 @@ TEST_F(ConnectionProxyTest, ProxyRuleFormat) {
 
 TEST_F(ConnectionProxyTest, FailsWithEmptyProxyUrl) {
   EXPECT_CHECK_DEATH((void)std::make_unique<ConnectionProxy>(
-      GURL(), &logger_, &token_manager_, network_service_.get(),
+      GURL(), &logger_, &token_manager_,
       base::BindOnce(&ConnectionProxyTest::CreateInnerConnection,
                      base::Unretained(this)),
       base::BindOnce(&ConnectionProxyTest::OnDisconnect,
@@ -189,7 +176,7 @@ TEST_F(ConnectionProxyTest, FailsWithEmptyProxyUrl) {
 TEST_F(ConnectionProxyTest, ProxyTokenFailure) {
   CreateConnectionProxy();
 
-  base::test::TestFuture<base::expected<proto::PrivateAiResponse, ErrorCode>>
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future;
   connection_proxy_->Send(proto::PrivateAiRequest(), base::Seconds(10),
                           future.GetCallback());
@@ -202,16 +189,60 @@ TEST_F(ConnectionProxyTest, ProxyTokenFailure) {
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), ErrorCode::kError);
+  EXPECT_EQ(result.error(), StatusCode::kError);
 
   // A subsequent request should also fail.
-  base::test::TestFuture<base::expected<proto::PrivateAiResponse, ErrorCode>>
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future2;
   connection_proxy_->Send(proto::PrivateAiRequest(), base::Seconds(10),
                           future2.GetCallback());
   auto result2 = future2.Get();
   EXPECT_FALSE(result2.has_value());
-  EXPECT_EQ(result2.error(), ErrorCode::kError);
+  EXPECT_EQ(result2.error(), StatusCode::kError);
+}
+
+TEST_F(ConnectionProxyTest, ProxyConfigTokenFailure) {
+  CreateConnectionProxy();
+
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
+      future;
+  connection_proxy_->Send(proto::PrivateAiRequest(), base::Seconds(10),
+                          future.GetCallback());
+
+  // Provide an invalid token (not valid base64url if it has invalid chars).
+  // internal::CreateCustomProxyConfig will return nullptr.
+  token_manager_.RespondToGetAuthTokenForProxy(phosphor::BlindSignedAuthToken{
+      .token = "invalid base64!!!",
+      .encoded_extensions = "cHJveHlfZXh0ZW5zaW9ucw=="});
+
+  EXPECT_FALSE(inner_connection_);
+  EXPECT_TRUE(on_disconnect_called_);
+
+  auto result = future.Get();
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), StatusCode::kProxyConfigFailed);
+}
+
+TEST_F(ConnectionProxyTest, ProxyConfigExtensionFailure) {
+  CreateConnectionProxy();
+
+  base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
+      future;
+  connection_proxy_->Send(proto::PrivateAiRequest(), base::Seconds(10),
+                          future.GetCallback());
+
+  // Provide an invalid token (not valid base64url if it has invalid chars).
+  // internal::CreateCustomProxyConfig will return nullptr.
+  token_manager_.RespondToGetAuthTokenForProxy(phosphor::BlindSignedAuthToken{
+      .token = FakeTokenManager::kFakeProxyToken,
+      .encoded_extensions = "invalid base64!!!"});
+
+  EXPECT_FALSE(inner_connection_);
+  EXPECT_TRUE(on_disconnect_called_);
+
+  auto result = future.Get();
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), StatusCode::kProxyConfigFailed);
 }
 
 }  // namespace

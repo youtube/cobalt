@@ -25,7 +25,7 @@
 namespace webrtc {
 namespace {
 
-void AppendSsrcs(std::span<const uint32_t> ssrcs, SimpleStringBuilder* sb) {
+void AppendSsrcs(std::span<const uint32_t> ssrcs, StringBuilder* sb) {
   *sb << "ssrcs:[";
   const char* delimiter = "";
   for (uint32_t ssrc : ssrcs) {
@@ -36,7 +36,7 @@ void AppendSsrcs(std::span<const uint32_t> ssrcs, SimpleStringBuilder* sb) {
 }
 
 void AppendSsrcGroups(std::span<const SsrcGroup> ssrc_groups,
-                      SimpleStringBuilder* sb) {
+                      StringBuilder* sb) {
   *sb << "ssrc_groups:";
   const char* delimiter = "";
   for (const SsrcGroup& ssrc_group : ssrc_groups) {
@@ -46,7 +46,7 @@ void AppendSsrcGroups(std::span<const SsrcGroup> ssrc_groups,
 }
 
 void AppendStreamIds(std::span<const std::string> stream_ids,
-                     SimpleStringBuilder* sb) {
+                     StringBuilder* sb) {
   *sb << "stream_ids:";
   const char* delimiter = "";
   for (const std::string& stream_id : stream_ids) {
@@ -55,7 +55,7 @@ void AppendStreamIds(std::span<const std::string> stream_ids,
   }
 }
 
-void AppendRids(std::span<const RidDescription> rids, SimpleStringBuilder* sb) {
+void AppendRids(std::span<const RidDescription> rids, StringBuilder* sb) {
   *sb << "rids:[";
   const char* delimiter = "";
   for (const RidDescription& rid : rids) {
@@ -96,13 +96,12 @@ bool SsrcGroup::has_semantics(absl::string_view semantics_in) const {
 }
 
 std::string SsrcGroup::ToString() const {
-  char buf[1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "{";
   sb << "semantics:" << semantics << ";";
   AppendSsrcs(ssrcs, &sb);
   sb << "}";
-  return sb.str();
+  return sb.Release();
 }
 
 StreamParams::StreamParams() = default;
@@ -121,8 +120,7 @@ bool StreamParams::operator==(const StreamParams& other) const {
 }
 
 std::string StreamParams::ToString() const {
-  char buf[2 * 1024];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "{";
   if (!id.empty()) {
     sb << "id:" << id << ";";
@@ -141,7 +139,7 @@ std::string StreamParams::ToString() const {
     sb << ";";
   }
   sb << "}";
-  return sb.str();
+  return sb.Release();
 }
 
 void StreamParams::GenerateSsrcs(int num_layers,

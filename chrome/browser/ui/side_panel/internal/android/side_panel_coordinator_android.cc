@@ -10,12 +10,23 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/internal/android/jni_headers/SidePanelCoordinatorAndroidImpl_jni.h"
+#include "chrome/browser/ui/side_panel/internal/android/side_panel_tab_list_observer_android.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_waiter.h"
 
+#define LOG_TAG "SidePanelCoordinatorAndroid"
+#define SPLOG(message)                                     \
+  if (base::FeatureList::IsEnabled(                        \
+          chrome::android::kEnableAndroidSidePanelLogs)) { \
+    LOG(ERROR) << LOG_TAG << ": " << message;              \
+  }
+
+using base::android::AttachCurrentThread;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -27,16 +38,6 @@ SidePanelCoordinatorAndroid* SidePanelCoordinatorAndroid::From(
   return browser ? Get(browser->GetUnownedUserDataHost()) : nullptr;
 }
 
-// Implements Java `SidePanelCoordinatorAndroidImpl.Natives#create`.
-static int64_t JNI_SidePanelCoordinatorAndroidImpl_Create(
-    JNIEnv* env,
-    const JavaRef<jobject>& caller,
-    int64_t nativeBrowserWindowPtr) {
-  return reinterpret_cast<intptr_t>(new SidePanelCoordinatorAndroid(
-      env, caller,
-      reinterpret_cast<BrowserWindowInterface*>(nativeBrowserWindowPtr)));
-}
-
 SidePanelCoordinatorAndroid::SidePanelCoordinatorAndroid(
     JNIEnv* env,
     const JavaRef<jobject>& java_coordinator,
@@ -44,26 +45,37 @@ SidePanelCoordinatorAndroid::SidePanelCoordinatorAndroid(
     : SidePanelUIBase(browser),
       java_coordinator_(env, java_coordinator),
       scoped_unowned_user_data_(browser->GetUnownedUserDataHost(), *this),
-      tab_list_observer_(TabListInterface::From(browser), this) {}
+      tab_list_observer_(TabListInterface::From(browser), this) {
+  SPLOG("SidePanelCoordinatorAndroid Constructor - browser: " << browser);
+}
 
 SidePanelCoordinatorAndroid::~SidePanelCoordinatorAndroid() {
-  Java_SidePanelCoordinatorAndroidImpl_clearNativePtr(
-      base::android::AttachCurrentThread(), java_coordinator());
+  SPLOG("SidePanelCoordinatorAndroid Destructor");
+  Java_SidePanelCoordinatorAndroidImpl_clearNativePtr(AttachCurrentThread(),
+                                                      java_coordinator());
 }
 
 void SidePanelCoordinatorAndroid::Destroy(JNIEnv* env) {
+  SPLOG("Destroy");
   delete this;
 }
 
 void SidePanelCoordinatorAndroid::ShowFrom(
     SidePanelEntryKey entry_key,
     gfx::Rect starting_bounds_in_browser_coordinates) {
+  SPLOG("ShowFrom - entry_key: "
+        << entry_key.ToString() << ", starting_bounds: "
+        << starting_bounds_in_browser_coordinates.ToString());
   // TODO(crbug.com/494001629): Implement this.
 }
 
-void SidePanelCoordinatorAndroid::Close(SidePanelEntry::PanelType panel_type,
+void SidePanelCoordinatorAndroid::Close(SidePanelType panel_type,
                                         SidePanelEntryHideReason hide_reason,
                                         bool suppress_animations) {
+  SPLOG("Close - panel_type: "
+        << static_cast<int>(panel_type)
+        << ", hide_reason: " << static_cast<int>(hide_reason)
+        << ", suppress_animations: " << suppress_animations);
   if (!IsSidePanelShowing(panel_type)) {
     return;
   }
@@ -75,8 +87,8 @@ void SidePanelCoordinatorAndroid::Close(SidePanelEntry::PanelType panel_type,
   CHECK(entry) << "SidePanelEntry should exist when side panel is showing.";
 
   entry->OnEntryWillHide(hide_reason);
-  Java_SidePanelCoordinatorAndroidImpl_removeContent(
-      base::android::AttachCurrentThread(), java_coordinator());
+  Java_SidePanelCoordinatorAndroidImpl_removeContent(AttachCurrentThread(),
+                                                     java_coordinator());
 
   // TODO(crbug.com/493930383): Clear current key and trigger OnEntryHidden()
   // when animation ends.
@@ -87,6 +99,9 @@ void SidePanelCoordinatorAndroid::Close(SidePanelEntry::PanelType panel_type,
 
 void SidePanelCoordinatorAndroid::Toggle(SidePanelEntryKey key,
                                          SidePanelOpenTrigger open_trigger) {
+  SPLOG("Toggle - key: " << key.ToString() << ", open_trigger: "
+                         << static_cast<int>(open_trigger));
+
   // TODO(crbug.com/493931022): Implement this.
 }
 
@@ -103,7 +118,7 @@ void SidePanelCoordinatorAndroid::DisableAnimationsForTesting() {
 
 void SidePanelCoordinatorAndroid::SetNoDelaysForTesting(  // IN-TEST
     bool no_delays_for_testing) {
-  for (auto type : SidePanelEntry::PanelTypes::All()) {
+  for (auto type : SidePanelTypes::All()) {
     waiter(type)->SetNoDelaysForTesting(no_delays_for_testing);  // IN-TEST
   }
 }
@@ -112,6 +127,9 @@ void SidePanelCoordinatorAndroid::Show(
     const UniqueKey& key,
     std::optional<SidePanelOpenTrigger> open_trigger,
     bool suppress_animations) {
+  SPLOG("Show - key: " << key << ", open_trigger: "
+                       << (open_trigger ? static_cast<int>(*open_trigger) : -1)
+                       << ", suppress_animations: " << suppress_animations);
   SidePanelEntry* entry = GetEntryForUniqueKey(key);
   if (!entry) {
     return;
@@ -130,55 +148,106 @@ void SidePanelCoordinatorAndroid::PopulateSidePanel(
     std::optional<SidePanelOpenTrigger> open_trigger,
     SidePanelEntry* entry,
     std::optional<SidePanelNativeView> content_view) {
+  SPLOG("PopulateSidePanel - unique_key: "
+        << unique_key << ", suppress_animations: " << suppress_animations);
   std::unique_ptr<SidePanelNativeViewAndroid> native_view =
-      content_view.has_value() ? std::move(content_view.value())
-                               : entry->GetContent();
+      content_view ? std::move(*content_view) : entry->GetContent();
   if (!native_view) {
     return;
   }
 
+  // If the side panel isn't shown, just show it.
+  if (!IsSidePanelShowing(entry->type())) {
+    Java_SidePanelCoordinatorAndroidImpl_populateSidePanel(
+        AttachCurrentThread(), java_coordinator(), native_view->view());
+    SetCurrentKey(entry->type(), unique_key);
+    entry->OnEntryShown();
+    return;
+  }
+
+  // Otherwise, replace the UI contents.
+  //
+  // Note: when we replace the side panel's UI contents, no animation should be
+  // played. However, we can't CHECK(suppress_animations) as the side panel
+  // feature calling Show() may not be aware of the current side panel state.
+  std::optional<UniqueKey> key = current_key(entry->type());
+  CHECK(key) << "Current key should exist when side panel is showing.";
+
+  SidePanelEntry* previous_entry = GetEntryForUniqueKey(*key);
+  CHECK(previous_entry)
+      << "SidePanelEntry should exist when side panel is showing.";
+
+  auto previous_entry_hide_reason =
+      (open_trigger && *open_trigger == SidePanelOpenTrigger::kTabChanged)
+          ? SidePanelEntryHideReason::kBackgrounded
+          : SidePanelEntryHideReason::kReplaced;
+
+  previous_entry->OnEntryWillHide(previous_entry_hide_reason);
   Java_SidePanelCoordinatorAndroidImpl_populateSidePanel(
-      base::android::AttachCurrentThread(), java_coordinator(),
-      native_view->view());
+      AttachCurrentThread(), java_coordinator(), native_view->view());
   SetCurrentKey(entry->type(), unique_key);
   entry->OnEntryShown();
+  previous_entry->OnEntryHidden();
+  previous_entry->OnEntryHiddenWithReason(previous_entry_hide_reason);
 }
 
 void SidePanelCoordinatorAndroid::MaybeShowEntryOnTabStripModelChanged(
     SidePanelRegistry* old_contextual_registry,
     SidePanelRegistry* new_contextual_registry) {
+  SPLOG("MaybeShowEntryOnTabStripModelChanged - old_contextual_registry: "
+        << old_contextual_registry
+        << ", new_contextual_registry: " << new_contextual_registry);
   // TODO(crbug.com/494002625): Complete the full implementation.
   // The full implementation will need to:
-  // consider all SidePanelEntry::PanelTypes,
+  // consider all SidePanelTypes,
   // consider fallback logic, such as falling back to global entries,
   // etc.
-  auto panel_type = SidePanelEntry::PanelType::kContent;
-  if (old_contextual_registry && IsSidePanelShowing(panel_type)) {
-    std::optional<UniqueKey> key = current_key(panel_type);
-    CHECK(key) << "Current key should exist when side panel is showing.";
+  auto panel_type = SidePanelType::kContent;
 
-    if (key->tab_handle ==
-        old_contextual_registry->GetTabInterface().GetHandle()) {
-      Close(panel_type, SidePanelEntryHideReason::kBackgrounded,
-            /*suppress_animations=*/true);
+  // If the side panel is showing, check if we should:
+  // (1) replace the current UI content by calling `Show()`, or
+  // (2) close the side panel by calling `Close()`.
+  //
+  // For (1), don't call `Close()` then `Show()`, which will cause janky UI.
+  if (IsSidePanelShowing(panel_type)) {
+    std::optional<UniqueKey> new_active_key =
+        GetNewActiveKeyOnTabChanged(panel_type);
+
+    if (new_active_key) {
+      Show(*new_active_key, SidePanelOpenTrigger::kTabChanged,
+           /*suppress_animations=*/true);
+    } else {
+      std::optional<UniqueKey> key = current_key(panel_type);
+      CHECK(key) << "Current key should exist when side panel is showing.";
+
+      if (old_contextual_registry &&
+          old_contextual_registry->GetTabInterface().GetHandle() ==
+              key->tab_handle) {
+        Close(panel_type, SidePanelEntryHideReason::kBackgrounded,
+              /*suppress_animations=*/true);
+      }
     }
+
+    return;
   }
 
-  if (new_contextual_registry) {
-    if (auto active_entry =
-            new_contextual_registry->GetActiveEntryFor(panel_type)) {
-      UniqueKey key{new_contextual_registry->GetTabInterface().GetHandle(),
-                    active_entry.value()->key()};
-      Show(key, SidePanelOpenTrigger::kTabChanged,
-           /*suppress_animations=*/true);
-    }
+  // If the side panel isn't showing, check if we should show it.
+  std::optional<SidePanelEntry*> new_active_entry =
+      new_contextual_registry
+          ? new_contextual_registry->GetActiveEntryFor(panel_type)
+          : nullptr;
+  if (new_active_entry) {
+    UniqueKey key{new_contextual_registry->GetTabInterface().GetHandle(),
+                  (*new_active_entry)->key()};
+    Show(key, SidePanelOpenTrigger::kTabChanged, /*suppress_animations=*/true);
   }
 }
 
 ScopedJavaLocalRef<jobject> SidePanelCoordinatorAndroid::java_coordinator()
     const {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> local_ref = java_coordinator_.get(env);
+  SPLOG("java_coordinator()");
+  ScopedJavaLocalRef<jobject> local_ref =
+      java_coordinator_.get(AttachCurrentThread());
 
   CHECK(local_ref) << "Java SidePanelCoordinatorAndroid is the sole owner of "
                       "C++ SidePanelCoordinatorAndroid, so the Java object "
@@ -186,53 +255,20 @@ ScopedJavaLocalRef<jobject> SidePanelCoordinatorAndroid::java_coordinator()
   return local_ref;
 }
 
-SidePanelCoordinatorAndroid::TabListObserver::TabListObserver(
-    TabListInterface* tab_list,
-    SidePanelCoordinatorAndroid* coordinator)
-    : coordinator_(coordinator) {
-  CHECK(tab_list);
-  if (tabs::TabInterface* active_tab = tab_list->GetActiveTab()) {
-    active_tab_handle_ = active_tab->GetHandle();
-  }
-  observation_.Observe(tab_list);
-}
+// ----------------------------------------------------------------------------
+// Methods called from Java via SidePanelCoordinatorAndroidImpl.Natives:
+// ----------------------------------------------------------------------------
 
-SidePanelCoordinatorAndroid::TabListObserver::~TabListObserver() = default;
-
-void SidePanelCoordinatorAndroid::TabListObserver::OnActiveTabChanged(
-    TabListInterface& tab_list,
-    tabs::TabInterface* tab) {
-  CHECK(tab) << "New active tab should never be null.";
-
-  tabs::TabInterface* old_tab = active_tab_handle_.Get();
-
-  // For some reason onActiveTabChanged() is triggered _twice_ when we call
-  // `TabListInterface::ActivateTab` in tests, so here we check whether
-  // `OnActiveTabChanged` is called for the first time. If not, we should not
-  // invoke OnActiveTabChanged() on the coordinator.
-  //
-  // TODO(crbug.com/497986571): Investigate.
-  if (old_tab == tab) {
-    return;
-  }
-
-  // TODO(crbug.com/498278573): Refine the logic here.
-  // In particular, check if `tab_removed_for_deletion` is correctly set to
-  // cover all tab removal cases.
-  content::WebContents* old_contents =
-      old_tab ? old_tab->GetContents() : nullptr;
-  content::WebContents* new_contents = tab->GetContents();
-  bool tab_removed_for_deletion = (old_tab == nullptr);
-
-  coordinator_->OnActiveTabChanged(old_contents, new_contents,
-                                   tab_removed_for_deletion);
-
-  active_tab_handle_ = tab->GetHandle();
-}
-
-void SidePanelCoordinatorAndroid::TabListObserver::OnTabListDestroyed(
-    TabListInterface& tab_list) {
-  observation_.Reset();
+// static
+static int64_t JNI_SidePanelCoordinatorAndroidImpl_Create(
+    JNIEnv* env,
+    const JavaRef<jobject>& caller,
+    int64_t nativeBrowserWindowPtr) {
+  SPLOG("JNI_SidePanelCoordinatorAndroidImpl_Create - ptr: "
+        << nativeBrowserWindowPtr);
+  return reinterpret_cast<intptr_t>(new SidePanelCoordinatorAndroid(
+      env, caller,
+      reinterpret_cast<BrowserWindowInterface*>(nativeBrowserWindowPtr)));
 }
 
 DEFINE_JNI(SidePanelCoordinatorAndroidImpl)

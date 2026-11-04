@@ -5360,6 +5360,12 @@ Called by update_autofill_enums.py.-->
       label="Suggestions shown on a BNPL-eligible page, regardless of whether
              a pay later tab suggestion was shown (once)"/>
   <int value="1" label="Suggestions shown with Pay Now Pay Later tabs (once)"/>
+  <int value="2" label="Switched from Pay Now to Pay Later (once)"/>
+  <int value="3" label="Switched from Pay Later to Pay Now (once)"/>
+  <int value="4" label="Affirm accepted (once)"/>
+  <int value="5" label="Zip accepted (once)"/>
+  <int value="6" label="Klarna accepted (once)"/>
+  <int value="7" label="Afterpay accepted (once)"/>
   <int value="8" label="Form filled with Affirm VCN (once)"/>
   <int value="9" label="Form filled with Zip VCN (once)"/>
   <int value="10" label="Form filled with Klarna VCN (once)"/>
@@ -5469,12 +5475,6 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillDialogResult) -->
-
-<enum name="SaveAndFillDialogResultLegacy">
-  <int value="0" label="User accepted the dialog and provided a CVC"/>
-  <int value="1" label="User accepted the dialog but did not provide a CVC"/>
-  <int value="2" label="User canceled the dialog"/>
-</enum>
 
 <!-- LINT.IfChange(SaveAndFillDialogShown) -->
 
@@ -5780,6 +5780,7 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="Contact info"/>
   <int value="3" label="Identity docs"/>
   <int value="4" label="Travel"/>
+  <int value="5" label="Shopping"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataCategory) -->
@@ -5800,6 +5801,8 @@ Called by update_autofill_enums.py.-->
   <int value="10" label="Flight reservations"/>
   <int value="11" label="Travel info"/>
   <int value="12" label="Vehicles"/>
+  <int value="13" label="Shipments"/>
+  <int value="14" label="Orders"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataChip) -->

@@ -323,8 +323,7 @@ RTCError JsepTransport::VerifyCertificateFingerprint(
   if (*fp_tmp == *fingerprint) {
     return RTCError::OK();
   }
-  char ss_buf[1024];
-  SimpleStringBuilder desc(ss_buf);
+  StringBuilder desc;
   desc << "Local fingerprint does not match identity. Expected: ";
   desc << fp_tmp->ToString();
   desc << " Got: " << fingerprint->ToString();

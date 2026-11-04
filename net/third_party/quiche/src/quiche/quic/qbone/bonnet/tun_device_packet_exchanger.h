@@ -7,6 +7,9 @@
 
 #include <linux/if_ether.h>
 
+#include <cstddef>
+
+#include "absl/time/time.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
@@ -28,10 +31,10 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
     virtual ~StatsInterface() = default;
 
-    virtual void OnPacketRead(size_t count) = 0;
-    virtual void OnPacketWritten(size_t count) = 0;
-    virtual void OnReadError(std::string* error) = 0;
-    virtual void OnWriteError(std::string* error) = 0;
+    virtual void OnPacketRead(size_t length, absl::Duration latency) = 0;
+    virtual void OnPacketWritten(size_t length, absl::Duration latency) = 0;
+    virtual void OnReadError(absl::string_view error) = 0;
+    virtual void OnWriteError(absl::string_view error) = 0;
 
     ABSL_MUST_USE_RESULT virtual int64_t PacketsRead() const = 0;
     ABSL_MUST_USE_RESULT virtual int64_t PacketsWritten() const = 0;

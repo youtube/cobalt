@@ -408,6 +408,9 @@ void SctpDataChannel::RegisterObserver(DataChannelObserver* observer) {
   auto register_observer = [me = std::move(me), observer = observer] {
     RTC_DCHECK_RUN_ON(me->network_thread_);
     me->observer_ = observer;
+    if (me->max_message_size_) {
+      observer->OnMaxMessageSize(*me->max_message_size_);
+    }
     me->DeliverQueuedReceivedData();
   };
 
@@ -681,6 +684,15 @@ void SctpDataChannel::OnBufferedAmountLow() {
   }
 }
 
+void SctpDataChannel::OnMaxMessageSize(int max_message_size) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+
+  max_message_size_ = max_message_size;
+  if (observer_) {
+    observer_->OnMaxMessageSize(max_message_size);
+  }
+}
+
 DataChannelStats SctpDataChannel::GetStats() const {
   RTC_DCHECK_RUN_ON(network_thread_);
   DataChannelStats stats{.internal_id = internal_id_,
@@ -856,6 +868,7 @@ void SctpDataChannel::SetState(DataState state) {
   }
 
   state_ = state;
+
   if (observer_) {
     observer_->OnStateChange();
   }

@@ -279,11 +279,13 @@ h6 {
 
 table {
     display: table;
-    border-collapse: separate;
-    border-spacing: 2px;
-    border-color: gray;
     box-sizing: border-box;
-    text-indent: initial
+    border-spacing: 2px;
+    border-collapse: separate;
+    text-indent: initial;
+    @supports not blink-feature(TableDefaultBorderColorCurrentColor) {
+        border-color: gray;
+    }
 }
 
 thead {
@@ -484,10 +486,9 @@ input, textarea, select, button {
      * don't need to use -internal-auto-base() on them. */
   }
 
-  input, textarea {
+  input, textarea, button {
     color: -internal-auto-base(FieldText, inherit);
     font: -internal-auto-base(-webkit-small-control, inherit);
-    box-sizing: -internal-auto-base(content-box, border-box);
   }
 }
 
@@ -512,6 +513,7 @@ textarea {
         background-color: -internal-auto-base(Field, transparent);
         resize: -internal-auto-base(-internal-textarea-auto, none);
         padding: -internal-auto-base(2px, unset);
+        box-sizing: -internal-auto-base(content-box, border-box);
     }
 }
 
@@ -523,6 +525,7 @@ input {
         border: -internal-auto-base(2px inset light-dark(#767676, #858585), 1px solid);
         -webkit-rtl-ordering: -internal-auto-base(logical, unset);
         background-color: -internal-auto-base(Field, transparent);
+        box-sizing: -internal-auto-base(content-box, border-box);
     }
     @supports not blink-feature(AppearanceBase) {
         padding: 1px 0;
@@ -827,14 +830,37 @@ input[type="submit" i],
 input[type="reset" i],
 input[type="file" i]::-webkit-file-upload-button,
 button {
-    text-align: center;
     cursor: default;
-    padding-block: 1px;
-    padding-inline: 6px;
-    border: 2px outset ButtonBorder;
     box-sizing: border-box;
-    background-color: ButtonFace;
-    color: ButtonText;
+
+    @supports not blink-feature(AppearanceBase) {
+        text-align: center;
+        cursor: default;
+        padding-block: 1px;
+        padding-inline: 6px;
+        border: 2px outset ButtonBorder;
+        background-color: ButtonFace;
+        color: ButtonText;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        color: -internal-auto-base(ButtonText, inherit);
+        background-color: -internal-auto-base(ButtonFace, transparent);
+        border: -internal-auto-base(2px outset ButtonBorder, 1px solid currentColor);
+
+        padding-block: -internal-auto-base(1px, 0.25em);
+        padding-inline: -internal-auto-base(6px, 0.5em);
+        border-radius: -internal-auto-base(unset, 0.5em);
+        min-block-size: -internal-auto-base(unset, calc-size(auto, max(size, 24px, 1lh)));
+        max-inline-size: -internal-auto-base(unset, calc-size(auto, max(size, 24px)));
+
+        display: -internal-auto-base(revert-rule, inline-flex);
+        gap: -internal-auto-base(unset, 0.5em);
+
+        user-select: -internal-auto-base(revert-rule, none);
+
+        text-align: -internal-auto-base(center, initial);
+    }
 }
 
 input[type="checkbox" i]:disabled,
@@ -900,9 +926,17 @@ input[type="submit" i]:disabled,
 input[type="reset" i]:disabled,
 input[type="file" i]:disabled::-webkit-file-upload-button,
 button:disabled {
-  background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
-  border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
-  color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+    @supports not blink-feature(AppearanceBase) {
+        background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
+        border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
+        color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        background-color: -internal-auto-base(light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3)), revert-rule);
+        border-color: -internal-auto-base(light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3)), revert-rule);
+        color: -internal-auto-base(light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3)), color-mix(currentColor 50%, transparent));
+    }
 }
 
 input[type="color" i]:disabled {
@@ -919,11 +953,21 @@ input[type="color" i]:disabled {
 }
 
 input[type="button" i]:active, input[type="submit" i]:active, input[type="reset" i]:active, input[type="file" i]:active::-webkit-file-upload-button, button:active {
-    border-style: inset
+    @supports not blink-feature(AppearanceBase) {
+        border-style: inset;
+    }
+    @supports blink-feature(AppearanceBase) {
+        border-style: -internal-auto-base(inset, revert-rule);
+    }
 }
 
 input[type="button" i]:active:disabled, input[type="submit" i]:active:disabled, input[type="reset" i]:active:disabled, input[type="file" i]:active:disabled::-webkit-file-upload-button, button:active:disabled {
-    border-style: outset
+    @supports not blink-feature(AppearanceBase) {
+        border-style: outset;
+    }
+    @supports blink-feature(AppearanceBase) {
+        border-style: -internal-auto-base(outset, revert-rule);
+    }
 }
 
 input:disabled, textarea:disabled {
@@ -997,7 +1041,7 @@ input[type="color" i] {
         block-size: -internal-auto-base(27px, auto);
         /* Same as native_theme_base when auto. */
         border: 1px solid -internal-auto-base(ButtonBorder, currentColor);
-        padding: -internal-auto-base(1px 2px, 0.25em 0.5em);
+        padding: -internal-auto-base(1px 2px, 0);
         cursor: -internal-auto-base(default, inherit);
         background-color: -internal-auto-base(ButtonFace, transparent);
         color: -internal-auto-base(ButtonText, inherit);
@@ -1008,16 +1052,27 @@ input[type="color" i] {
         display: -internal-auto-base(inline-block, inline-flex);
         gap: -internal-auto-base(unset, 0.5em);
         border-radius: -internal-auto-base(unset, 0.5em);
+        overflow: -internal-auto-base(revert-rule, clip);
     }
 }
 
 @supports blink-feature(AppearanceBase) {
-    input[type="color" i]:enabled:hover {
-        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 10%, transparent));
+    input[type="button" i]:enabled:hover,
+    input[type="reset" i]:enabled:hover,
+    input[type="submit" i]:enabled:hover,
+    input[type="file" i]:enabled::-webkit-file-upload-button:hover,
+    input[type="color" i]:enabled:hover,
+    button:enabled:hover {
+        background-color: -internal-auto-base(revert-rule, color-mix(currentColor 10%, transparent));
     }
 
-    input[type="color" i]:enabled:active {
-        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 20%, transparent));
+    input[type="button" i]:enabled:active,
+    input[type="reset" i]:enabled:active,
+    input[type="submit" i]:enabled:active,
+    input[type="file" i]:enabled::-webkit-file-upload-button:active,
+    input[type="color" i]:enabled:active,
+    button:enabled:active {
+        background-color: -internal-auto-base(revert-rule, color-mix(currentColor 20%, transparent));
     }
 }
 
@@ -1040,18 +1095,25 @@ input[type="color" i]::-webkit-color-swatch {
     /* The swatch should not be affected by color scheme. */
     color-scheme: only light;
     background-color: #000000;
-    flex: 1;
     -webkit-user-modify: read-only !important;
     @supports not blink-feature(AppearanceBase) {
         border: 1px solid #777777;
         min-width: 0;
+        flex: 1;
     }
 
     @supports blink-feature(AppearanceBase) {
-        border: 1px solid -internal-auto-base(#777777, currentColor);
-        min-width: -internal-auto-base(0, initial);
-        inline-size: -internal-auto-base(unset, 2em);
-        box-sizing: -internal-auto-base(unset, border-box);
+        border: -internal-auto-base(1px solid #777777, revert-rule);
+        min-width: -internal-auto-base(0, revert-rule);
+        flex: -internal-auto-base(1, revert-rule);
+
+        color: -internal-auto-base(revert-rule, inherit);
+        font: -internal-auto-base(revert-rule, inherit);
+        box-sizing: -internal-auto-base(revert-rule, border-box);
+
+        inline-size: -internal-auto-base(revert-rule, stretch);
+        block-size: -internal-auto-base(revert-rule, stretch);
+        forced-color-adjust: -internal-auto-base(revert-rule, none);
     }
 }
 
@@ -1507,10 +1569,6 @@ nobr {
 
 /* states */
 
-:-internal-selector-fragment-anchor {
-    outline: Highlight 3px solid;
-}
-
 :focus-visible {
     outline: auto 1px -webkit-focus-ring-color
 }
@@ -1854,80 +1912,78 @@ slot {
 
 /* Pagination */
 
-@media print {
-  @page {
-    /* https://drafts.csswg.org/css-page-3/#margin-text-alignment */
-    @top-left-corner {
-      text-align: right;
-      vertical-align: middle;
-    }
-    @top-left {
-      text-align: left;
-      vertical-align: middle;
-    }
-    @top-center {
-      text-align: center;
-      vertical-align: middle;
-    }
-    @top-right {
-      text-align: right;
-      vertical-align: middle;
-    }
-    @top-right-corner {
-      text-align: left;
-      vertical-align: middle;
-    }
-    @right-top {
-      text-align: center;
-      vertical-align: top;
-    }
-    @right-middle {
-      text-align: center;
-      vertical-align: middle;
-    }
-    @right-bottom {
-      text-align: center;
-      vertical-align: bottom;
-    }
-    @bottom-right-corner {
-      text-align: left;
-      vertical-align: middle;
-    }
-    @bottom-right {
-      text-align: right;
-      vertical-align: middle;
-    }
-    @bottom-center {
-      text-align: center;
-      vertical-align: middle;
-    }
-    @bottom-left {
-      text-align: left;
-      vertical-align: middle;
-    }
-    @bottom-left-corner {
-      text-align: right;
-      vertical-align: middle;
-    }
-    @left-bottom {
-      text-align: center;
-      vertical-align: bottom;
-    }
-    @left-middle {
-      text-align: center;
-      vertical-align: middle;
-    }
-    @left-top {
-      text-align: center;
-      vertical-align: top;
-    }
+@page {
+  /* https://drafts.csswg.org/css-page-3/#margin-text-alignment */
+  @top-left-corner {
+    text-align: right;
+    vertical-align: middle;
   }
-
-  /* Allows table headers and footers to print at the top / bottom of each
-     page. */
-  thead { break-inside: avoid; }
-  tfoot { break-inside: avoid; }
+  @top-left {
+    text-align: left;
+    vertical-align: middle;
+  }
+  @top-center {
+    text-align: center;
+    vertical-align: middle;
+  }
+  @top-right {
+    text-align: right;
+    vertical-align: middle;
+  }
+  @top-right-corner {
+    text-align: left;
+    vertical-align: middle;
+  }
+  @right-top {
+    text-align: center;
+    vertical-align: top;
+  }
+  @right-middle {
+    text-align: center;
+    vertical-align: middle;
+  }
+  @right-bottom {
+    text-align: center;
+    vertical-align: bottom;
+  }
+  @bottom-right-corner {
+    text-align: left;
+    vertical-align: middle;
+  }
+  @bottom-right {
+    text-align: right;
+    vertical-align: middle;
+  }
+  @bottom-center {
+    text-align: center;
+    vertical-align: middle;
+  }
+  @bottom-left {
+    text-align: left;
+    vertical-align: middle;
+  }
+  @bottom-left-corner {
+    text-align: right;
+    vertical-align: middle;
+  }
+  @left-bottom {
+    text-align: center;
+    vertical-align: bottom;
+  }
+  @left-middle {
+    text-align: center;
+    vertical-align: middle;
+  }
+  @left-top {
+    text-align: center;
+    vertical-align: top;
+  }
 }
+
+/* Allows table headers and footers to print at the top / bottom of each
+   page. Querying overflow-block since media() does not support media types. */
+thead { break-inside: if(media(overflow-block: paged): avoid;) }
+tfoot { break-inside: if(media(overflow-block: paged): avoid;) }
 
 /* spelling/grammar error pseudos */
 
@@ -2113,12 +2169,12 @@ select:not(:-internal-list-box)::picker(select) {
   max-block-size: stretch;
   overflow: auto;
   /* Below and span-right, by default. */
-  position-area: block-end span-inline-end;
+  position-area: self-block-end span-self-inline-end;
   position-try-order: most-block-size;
   position-try-fallbacks:
-    block-start span-inline-end,
-    block-end span-inline-start,
-    block-start span-inline-start;
+    self-block-start span-self-inline-end,
+    self-block-end span-self-inline-start,
+    self-block-start span-self-inline-start;
 }
 
 select:not(:-internal-list-box) option {
@@ -2485,12 +2541,12 @@ input:tool-submit-active {
     max-block-size: stretch;
     overflow: auto;
     /* Below and span-right, by default. */
-    position-area: block-end span-inline-end;
+    position-area: self-block-end span-self-inline-end;
     position-try-order: most-block-size;
     position-try-fallbacks:
-        block-start span-inline-end,   /* First try above and span-right. */
-        block-end span-inline-start,   /* Then below but span-left. */
-        block-start span-inline-start; /* Then above and span-left. */
+        self-block-start span-self-inline-end,   /* First try above and span-right. */
+        self-block-end span-self-inline-start,   /* Then below but span-left. */
+        self-block-start span-self-inline-start; /* Then above and span-left. */
   }
 
   datalist option {

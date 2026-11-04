@@ -22,6 +22,7 @@
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
@@ -35,7 +36,6 @@ namespace autofill {
 using ::accessibility_annotator::EntryMetadata;
 using ::accessibility_annotator::EntryType;
 using ::accessibility_annotator::MemorySearchResult;
-using ::accessibility_annotator::QueryIntentType;
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Contains;
@@ -47,8 +47,7 @@ using ::testing::UnorderedElementsAre;
 
 namespace {
 
-Matcher<EntryMetadata> IsMetadata(QueryIntentType type,
-                                  const std::u16string& value) {
+Matcher<EntryMetadata> IsMetadata(EntryType type, const std::u16string& value) {
   return AllOf(
       Field(&EntryMetadata::type, Eq(type)),
       Field(&EntryMetadata::type_name, Eq(GetEntryTypeNameForI18n(type))),
@@ -58,15 +57,17 @@ Matcher<EntryMetadata> IsMetadata(QueryIntentType type,
 Matcher<MemorySearchResult> IsMemorySearchResult(
     const std::u16string& value,
     const std::u16string& type_name,
-    Matcher<std::vector<EntryMetadata>> metadata_matcher) {
+    Matcher<std::vector<EntryMetadata>> metadata_matcher,
+    bool is_obfuscated = false) {
   return AllOf(Field(&MemorySearchResult::value, Eq(value)),
                Field(&MemorySearchResult::type_name, Eq(type_name)),
+               Field(&MemorySearchResult::is_obfuscated, Eq(is_obfuscated)),
                Field(&MemorySearchResult::metadata_list, metadata_matcher));
 }
 
 std::vector<MemorySearchResult> RetrieveAllHelper(
     AutofillDataProviderImpl& retriever,
-    accessibility_annotator::QueryIntentType type) {
+    accessibility_annotator::EntryType type) {
   base::test::TestFuture<std::vector<MemorySearchResult>> future;
   retriever.RetrieveAll(type, future.GetCallback());
   return future.Take();
@@ -116,7 +117,7 @@ class AutofillDataProviderImplTest : public testing::Test {
 TEST_F(AutofillDataProviderImplTest, RetrieveAll_Empty) {
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kAddressCity),
+                        accessibility_annotator::EntryType::kAddressCity),
       IsEmpty());
 }
 
@@ -128,104 +129,112 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_AddressData) {
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kAddressCity),
+                        accessibility_annotator::EntryType::kAddressCity),
       UnorderedElementsAre(IsMemorySearchResult(
           u"Elysium", u"City",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kAddressZip),
+                        accessibility_annotator::EntryType::kAddressZip),
       UnorderedElementsAre(IsMemorySearchResult(
           u"91111", u"Zip",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   EXPECT_THAT(
-      RetrieveAllHelper(
-          retriever(), accessibility_annotator::QueryIntentType::kAddressState),
+      RetrieveAllHelper(retriever(),
+                        accessibility_annotator::EntryType::kAddressState),
       UnorderedElementsAre(IsMemorySearchResult(
           u"CA", u"State",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
-
-  EXPECT_THAT(RetrieveAllHelper(
-                  retriever(),
-                  accessibility_annotator::QueryIntentType::kAddressCountry),
-              UnorderedElementsAre(IsMemorySearchResult(
-                  u"United States", u"Country",
-                  UnorderedElementsAre(
-                      IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-                      IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-                      IsMetadata(QueryIntentType::kAddressState, u"CA"),
-                      IsMetadata(QueryIntentType::kAddressZip, u"91111")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kNameFull),
+                        accessibility_annotator::EntryType::kAddressCountry),
+      UnorderedElementsAre(IsMemorySearchResult(
+          u"United States", u"Country",
+          UnorderedElementsAre(IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+                               IsMetadata(EntryType::kAddressStreetAddress,
+                                          u"666 Erebus St.\nApt 8"),
+                               IsMetadata(EntryType::kAddressCity, u"Elysium"),
+                               IsMetadata(EntryType::kAddressState, u"CA"),
+                               IsMetadata(EntryType::kAddressZip, u"91111")))));
+
+  EXPECT_THAT(
+      RetrieveAllHelper(retriever(),
+                        accessibility_annotator::EntryType::kNameFull),
       UnorderedElementsAre(IsMemorySearchResult(
           u"John H. Doe", u"Name",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kEmail),
+                        accessibility_annotator::EntryType::kEmail),
       UnorderedElementsAre(IsMemorySearchResult(
           u"johndoe@hades.com", u"Email",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kPhone),
+                        accessibility_annotator::EntryType::kPhone),
       UnorderedElementsAre(IsMemorySearchResult(
           u"16502111111", u"Phone",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 
   // Requesting for address should return only the full address.
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kAddressFull),
+                        accessibility_annotator::EntryType::kAddressFull),
       UnorderedElementsAre(IsMemorySearchResult(
           u"Underworld, 666 Erebus St., Apt 8, Elysium, CA 91111, "
           u"United States",
           u"Address",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"John H. Doe"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Elysium"),
-              IsMetadata(QueryIntentType::kAddressZip, u"91111"),
-              IsMetadata(QueryIntentType::kAddressState, u"CA"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"John H. Doe"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"666 Erebus St.\nApt 8"),
+              IsMetadata(EntryType::kAddressCity, u"Elysium"),
+              IsMetadata(EntryType::kAddressZip, u"91111"),
+              IsMetadata(EntryType::kAddressState, u"CA"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 }
 
 // Tests that RetrieveAll correctly fetches and formats IBAN data.
@@ -235,12 +244,78 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_IbanData) {
   client().GetPersonalDataManager().test_payments_data_manager().AddIbanForTest(
       std::make_unique<Iban>(iban));
 
-  std::vector<MemorySearchResult> results = RetrieveAllHelper(
-      retriever(), accessibility_annotator::QueryIntentType::kIban);
+  std::vector<MemorySearchResult> results =
+      RetrieveAllHelper(retriever(), accessibility_annotator::EntryType::kIban);
   EXPECT_THAT(results, UnorderedElementsAre(IsMemorySearchResult(
-                           iban.value(), u"IBAN",
+                           GetObfuscatedIban(iban.value()), u"IBAN",
                            UnorderedElementsAre(IsMetadata(
-                               QueryIntentType::kIbanNickname, u"My IBAN")))));
+                               EntryType::kIbanNickname, u"My IBAN")),
+                           /*is_obfuscated=*/true)));
+  ASSERT_FALSE(results[0].reveal_callback.is_null());
+  EXPECT_EQ(results[0].reveal_callback.Run(), iban.value());
+}
+
+// Tests that RetrieveAll correctly fetches and formats credit card data.
+TEST_F(AutofillDataProviderImplTest, RetrieveAll_CreditCardData) {
+  CreditCard credit_card = test::WithCvc(test::GetCreditCard(), u"123");
+  credit_card.SetExpirationYear(2030);
+  credit_card.SetExpirationMonth(10);
+  client().GetPersonalDataManager().test_payments_data_manager().AddCreditCard(
+      credit_card);
+
+  std::vector<MemorySearchResult> number_results = RetrieveAllHelper(
+      retriever(), accessibility_annotator::EntryType::kCreditCardNumber);
+  EXPECT_THAT(
+      number_results,
+      UnorderedElementsAre(IsMemorySearchResult(
+          credit_card.ObfuscatedNumberWithVisibleLastFourDigits(),
+          GetEntryTypeNameForI18n(EntryType::kCreditCardNumber),
+          UnorderedElementsAre(
+              IsMetadata(EntryType::kCreditCardNameOnCard,
+                         credit_card.GetRawInfo(CREDIT_CARD_NAME_FULL)),
+              IsMetadata(
+                  EntryType::kCreditCardExpirationDate,
+                  credit_card.GetRawInfo(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR))))));
+
+  std::vector<MemorySearchResult> cvc_results = RetrieveAllHelper(
+      retriever(),
+      accessibility_annotator::EntryType::kCreditCardSecurityCode);
+  EXPECT_THAT(
+      cvc_results,
+      UnorderedElementsAre(IsMemorySearchResult(
+          std::u16string(3, kMidlineEllipsisPlainDot),
+          GetEntryTypeNameForI18n(EntryType::kCreditCardSecurityCode),
+          UnorderedElementsAre(
+              IsMetadata(EntryType::kCreditCardNameOnCard,
+                         credit_card.GetRawInfo(CREDIT_CARD_NAME_FULL)),
+              IsMetadata(
+                  EntryType::kCreditCardExpirationDate,
+                  credit_card.GetRawInfo(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR))))));
+
+  std::vector<MemorySearchResult> name_results = RetrieveAllHelper(
+      retriever(),
+      accessibility_annotator::EntryType::kCreditCardNameOnCard);
+  EXPECT_THAT(
+      name_results,
+      UnorderedElementsAre(IsMemorySearchResult(
+          credit_card.GetRawInfo(CREDIT_CARD_NAME_FULL),
+          GetEntryTypeNameForI18n(EntryType::kCreditCardNameOnCard),
+          UnorderedElementsAre(
+              IsMetadata(
+                  EntryType::kCreditCardExpirationDate,
+                  credit_card.GetRawInfo(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR))))));
+
+  std::vector<MemorySearchResult> exp_results = RetrieveAllHelper(
+      retriever(),
+      accessibility_annotator::EntryType::kCreditCardExpirationDate);
+  EXPECT_THAT(
+      exp_results,
+      UnorderedElementsAre(IsMemorySearchResult(
+          credit_card.GetRawInfo(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR),
+          GetEntryTypeNameForI18n(EntryType::kCreditCardExpirationDate),
+          UnorderedElementsAre(
+              IsMetadata(EntryType::kCreditCardNameOnCard,
+                         credit_card.GetRawInfo(CREDIT_CARD_NAME_FULL))))));
 }
 
 // Tests that RetrieveAll correctly fetches and formats data from
@@ -252,7 +327,7 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_AutofillAiEntityData) {
 
   // Asking for Vehicle should return combined result and individual attributes.
   std::vector<MemorySearchResult> results = RetrieveAllHelper(
-      retriever(), accessibility_annotator::QueryIntentType::kVehicle);
+      retriever(), accessibility_annotator::EntryType::kVehicle);
   EXPECT_THAT(
       results,
       ElementsAre(
@@ -260,105 +335,89 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_AutofillAiEntityData) {
               u"BMW Series 2 2025 Knecht Ruprecht 123456 California 12312345",
               u"Vehicle",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"BMW", u"Make",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"Series 2", u"Model",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"2025", u"Year",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"Knecht Ruprecht", u"Owner",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"123456", u"License plate",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"California", u"Plate state",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehicleVin, u"12312345"))),
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehicleVin, u"12312345"))),
           IsMemorySearchResult(
               u"12312345", u"VIN (Vehicle Identification Number)",
               ElementsAre(
-                  IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-                  IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-                  IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-                  IsMetadata(QueryIntentType::kVehicleOwner,
-                             u"Knecht Ruprecht"),
-                  IsMetadata(QueryIntentType::kVehiclePlateNumber, u"123456"),
-                  IsMetadata(QueryIntentType::kVehiclePlateState,
-                             u"California")))));
+                  IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                  IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                  IsMetadata(EntryType::kVehicleYear, u"2025"),
+                  IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                  IsMetadata(EntryType::kVehiclePlateNumber, u"123456"),
+                  IsMetadata(EntryType::kVehiclePlateState, u"California")))));
 
   // Asking specifically for Entity Attribute
   EXPECT_THAT(
       RetrieveAllHelper(
-          retriever(),
-          accessibility_annotator::QueryIntentType::kVehiclePlateNumber),
+          retriever(), accessibility_annotator::EntryType::kVehiclePlateNumber),
       UnorderedElementsAre(IsMemorySearchResult(
           u"123456", u"License plate",
-          ElementsAre(
-              IsMetadata(QueryIntentType::kVehicleMake, u"BMW"),
-              IsMetadata(QueryIntentType::kVehicleModel, u"Series 2"),
-              IsMetadata(QueryIntentType::kVehicleYear, u"2025"),
-              IsMetadata(QueryIntentType::kVehicleOwner, u"Knecht Ruprecht"),
-              IsMetadata(QueryIntentType::kVehiclePlateState, u"California"),
-              IsMetadata(QueryIntentType::kVehicleVin, u"12312345")))));
+          ElementsAre(IsMetadata(EntryType::kVehicleMake, u"BMW"),
+                      IsMetadata(EntryType::kVehicleModel, u"Series 2"),
+                      IsMetadata(EntryType::kVehicleYear, u"2025"),
+                      IsMetadata(EntryType::kVehicleOwner, u"Knecht Ruprecht"),
+                      IsMetadata(EntryType::kVehiclePlateState, u"California"),
+                      IsMetadata(EntryType::kVehicleVin, u"12312345")))));
 }
 
 // Tests that RetrieveAll omits address suggestions for profiles that only have
@@ -370,7 +429,7 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_AddressFull_EmptyProfile) {
 
   EXPECT_THAT(
       RetrieveAllHelper(retriever(),
-                        accessibility_annotator::QueryIntentType::kAddressFull),
+                        accessibility_annotator::EntryType::kAddressFull),
       IsEmpty());
 }
 
@@ -385,17 +444,18 @@ TEST_F(AutofillDataProviderImplTest, RetrieveAll_AddressFull_PartialAddress) {
   client().GetPersonalDataManager().address_data_manager().AddProfile(profile);
 
   std::vector<MemorySearchResult> results = RetrieveAllHelper(
-      retriever(), accessibility_annotator::QueryIntentType::kAddressFull);
+      retriever(), accessibility_annotator::EntryType::kAddressFull);
 
   EXPECT_THAT(
       results,
       UnorderedElementsAre(IsMemorySearchResult(
           u"742 Evergreen Terrace, Springfield, United States", u"Address",
           UnorderedElementsAre(
-              IsMetadata(QueryIntentType::kNameFull, u"Homer Simpson"),
-              IsMetadata(QueryIntentType::kAddressCity, u"Springfield"),
-              IsMetadata(QueryIntentType::kAddressCountry,
-                         u"United States")))));
+              IsMetadata(EntryType::kNameFull, u"Homer Simpson"),
+              IsMetadata(EntryType::kAddressStreetAddress,
+                         u"742 Evergreen Terrace"),
+              IsMetadata(EntryType::kAddressCity, u"Springfield"),
+              IsMetadata(EntryType::kAddressCountry, u"United States")))));
 }
 
 }  // namespace

@@ -155,6 +155,7 @@ class ScopedAccessibilityMode;
 class ScreenChangeMonitor;
 class ScreenOrientationProvider;
 class SiteInstanceGroup;
+class SurfaceEmbedConnectorImpl;
 // For web_contents_impl_browsertest.cc
 class TestWCDelegateForDialogsAndFullscreen;
 class TestWebContents;
@@ -175,10 +176,6 @@ class CreateNewWindowParams;
 class WebContentsAndroid;
 class SelectionPopupDelegate;
 #endif
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-class SurfaceEmbedConnectorImpl;
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 // CreatedWindow holds the WebContentsImpl and target url between IPC calls to
 // CreateNewWindow and ShowCreatedWindow.
@@ -391,9 +388,7 @@ class CONTENT_EXPORT WebContentsImpl
   // WebContents ------------------------------------------------------
   WebContentsDelegate* GetDelegate() final;
   void SetDelegate(WebContentsDelegate* delegate) override;
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
   SurfaceEmbedConnector* GetSurfaceEmbedConnector() const override;
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
   NavigationControllerImpl& GetController() override;
   const NavigationControllerImpl& GetController() const override;
   BrowserContext* GetBrowserContext() override;
@@ -670,9 +665,7 @@ class CONTENT_EXPORT WebContentsImpl
   void SetV8CompileHints(base::ReadOnlySharedMemoryRegion data) override;
   void SetTabSwitchStartTime(base::TimeTicks start_time,
                              bool destination_is_loaded) override;
-  bool IsInPreviewMode() const override;
-  void WillActivatePreviewPage() override;
-  void ActivatePreviewPage() override;
+
   WindowOpenDisposition GetOriginalWindowOpenDisposition() const override;
 
   // Implementation of PageNavigator.
@@ -1242,6 +1235,9 @@ class CONTENT_EXPORT WebContentsImpl
       RenderFrameHostImpl* new_frame) override;
   bool FocusLocationBarByDefault() override;
   void OnFrameTreeNodeDestroyed(FrameTreeNode* node) override;
+  void NotifySwappedRWHVChildFrameFromRenderManager(
+      RenderWidgetHostViewChildFrame* new_view,
+      bool allow_paint_holding) override;
 
   // PageDelegate -------------------------------------------------------------
 
@@ -1254,10 +1250,6 @@ class CONTENT_EXPORT WebContentsImpl
   void DidInferColorScheme(PageImpl& page) override;
   void OnVirtualKeyboardModeChanged(PageImpl& page) override;
   void NotifyPageBecamePrimary(PageImpl& page) override;
-
-  bool IsPageInPreviewMode() const override;
-  void CancelPreviewByMojoBinderPolicy(
-      const std::string& interface_name) override;
 
   // blink::mojom::ColorChooserFactory ---------------------------------------
   void OnColorChooserFactoryReceiver(
@@ -1525,7 +1517,6 @@ class CONTENT_EXPORT WebContentsImpl
   // Notifies observers that this WebContents completed preview activation
   // steps.
   // `activation_time` is the time the activation happened, in wall time.
-  void DidActivatePreviewedPage(base::TimeTicks activation_time);
 
   void OnServiceWorkerAccessed(RenderFrameHost* render_frame_host,
                                const GURL& scope,
@@ -1623,7 +1614,6 @@ class CONTENT_EXPORT WebContentsImpl
 
   WebContents* GetDocumentPictureInPictureOpener();
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
   // SetSurfaceEmbedConnector and ClearSurfaceEmbedConnector are used in WebUI
   // browser to embed a WebContents into a SurfaceEmbed plugin. The
   // SurfaceEmbedConnector is used to connect the WebContents to the plugin and
@@ -1636,7 +1626,6 @@ class CONTENT_EXPORT WebContentsImpl
   // Clears the SurfaceEmbedConnector for this WebContents. Called when the
   // WebContents is being detached from a SurfaceEmbed plugin.
   void ClearSurfaceEmbedConnector();
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
  private:
   using FrameTreeIterationCallback = base::FunctionRef<void(FrameTree&)>;
@@ -2315,11 +2304,9 @@ class CONTENT_EXPORT WebContentsImpl
   // NULL otherwise.
   std::unique_ptr<BrowserPluginGuest> browser_plugin_guest_;
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
   // Helps connect to embedder when embedded in a SurfaceEmbed plugin.
   // nullptr if not embedded.
   std::unique_ptr<SurfaceEmbedConnectorImpl> surface_embed_connector_;
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
   // Helper classes ------------------------------------------------------------
 
@@ -2761,10 +2748,6 @@ class CONTENT_EXPORT WebContentsImpl
   // WebContents(concept in browser) to allow grouping CompositorFrameSinks for
   // input event routing with InputVizard.
   const base::UnguessableToken compositor_frame_sink_grouping_id_;
-
-  // Indicates if the instance is hosted in a preview window.
-  // This will be set in Init() and will be reset in WillActivatePreviewPage().
-  bool is_in_preview_mode_ = false;
 
   // Indicates accessibility had an unrecoverable error.
   bool unrecoverable_accessibility_error_ = false;

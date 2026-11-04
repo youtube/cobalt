@@ -325,10 +325,6 @@ ContentRendererClient::CreateCastStreamingResourceProvider() {
 }
 #endif
 
-std::unique_ptr<blink::WebLinkPreviewTriggerer>
-ContentRendererClient::CreateLinkPreviewTriggerer() {
-  return nullptr;
-}
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void ContentRendererClient::GetStarboardRendererFactoryTraits(

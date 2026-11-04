@@ -33,6 +33,7 @@
 #include "components/services/storage/public/cpp/quota_error_or.h"
 #include "components/services/storage/public/mojom/blob_storage_context.mojom.h"
 #include "components/services/storage/public/mojom/file_system_access_context.mojom.h"
+#include "content/browser/indexed_db/inactivity_timer.h"
 #include "content/browser/indexed_db/indexed_db_data_loss_info.h"
 #include "content/browser/indexed_db/indexed_db_database_error.h"
 #include "content/browser/indexed_db/indexed_db_external_object.h"
@@ -328,7 +329,7 @@ class CONTENT_EXPORT BucketContext
   friend class DatabaseTest;
   friend class IndexedDBTest;
   friend class IndexedDBTestBase;
-  friend class IndexedDBTestForSqliteMigration;
+  friend class SqliteBackingStoreRolloutStageTest;
   friend class TransactionTestBase;
 
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, CompactionKillSwitchWorks);
@@ -390,7 +391,7 @@ class CONTENT_EXPORT BucketContext
   // Called when there is any activity that should reset the idle timer.
   void OnActivity();
   // Called after a period of inactivity.
-  void RunIdleTasks();
+  void RunIdleTasks(bool long_idle);
 
   void OnGotBucketSpaceRemaining(storage::QuotaErrorOr<int64_t> space_left);
 
@@ -443,7 +444,8 @@ class CONTENT_EXPORT BucketContext
   bool running_tasks_ = false;
 
   ClosingState closing_stage_ = ClosingState::kNotClosing;
-  base::RetainingOneShotTimer idle_timer_;
+  InactivityTimer idle_timer_;
+  InactivityTimer long_idle_timer_;
   std::optional<base::TimeTicks> last_idle_tasks_completion_time_;
   base::OneShotTimer close_timer_;
   std::unique_ptr<PartitionedLockManager> lock_manager_;

@@ -493,16 +493,12 @@ SI U32 gather_32(const uint8_t* p, I32 ix) {
 }
 
 SI U32 gather_24(const uint8_t* p, I32 ix) {
-    // First, back up a byte.  Any place we're gathering from has a safe junk byte to read
-    // in front of it, either a previous table value, or some tag metadata.
-    p -= 1;
-
     // Load the i'th 24-bit value from p, and 1 extra byte.
     auto load_24_32 = [p](int i) {
         return load<uint32_t>(p + 3*i);
     };
 
-    // Now load multiples of 4 bytes (a junk byte, then r,g,b).
+    // Now load multiples of 4 bytes (r,g,b, then a junk byte).
 #if N == 1
     U32 v = load_24_32(ix);
 #elif N == 4
@@ -530,15 +526,12 @@ SI U32 gather_24(const uint8_t* p, I32 ix) {
     U32 v = (U32)_mm512_i32gather_epi32((__m512i)(3*ix), p4, 1);
 #endif
 
-    // Shift off the junk byte, leaving r,g,b in low 24 bits (and zero in the top 8).
-    return v >> 8;
+    // Mask off the junk byte, leaving r,g,b in low 24 bits.
+    return v & 0x00FFFFFF;
 }
 
 #if !defined(__arm__)
     SI void gather_48(const uint8_t* p, I32 ix, U64* v) {
-        // As in gather_24(), with everything doubled.
-        p -= 2;
-
         // Load the i'th 48-bit value from p, and 2 extra bytes.
         auto load_48_64 = [p](int i) {
             return load<uint64_t>(p + 6*i);
@@ -589,7 +582,7 @@ SI U32 gather_24(const uint8_t* p, I32 ix) {
         store((char*)v + 64, hi);
     #endif
 
-        *v >>= 16;
+        *v &= 0x0000FFFFFFFFFFFFULL;
     }
 #endif
 

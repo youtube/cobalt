@@ -537,10 +537,10 @@ void AlignmentOffsetForOutOfFlow(AxisEdge inline_axis_edge,
 LayoutUnit CalculateIntrinsicMinimumContribution(
     bool is_parallel_with_track_direction,
     bool special_spanning_criteria,
-    const LayoutUnit min_content_contribution,
-    const LayoutUnit max_content_contribution,
+    base::FunctionRef<LayoutUnit()> min_content_contribution,
+    base::FunctionRef<LayoutUnit()> max_content_contribution,
+    base::FunctionRef<MinMaxSizesResult()> subgrid_minmax_sizes,
     const ConstraintSpace& space,
-    const MinMaxSizesResult& subgrid_minmax_sizes,
     const GridItemData* grid_item,
     bool& maybe_clamp) {
   CHECK(grid_item);
@@ -593,7 +593,7 @@ LayoutUnit CalculateIntrinsicMinimumContribution(
         if (is_parallel_with_track_direction) {
           auto MinMaxSizesFunc = [&](SizeType type) -> MinMaxSizesResult {
             if (grid_item->IsSubgrid()) {
-              return subgrid_minmax_sizes;
+              return subgrid_minmax_sizes();
             }
             return node.ComputeMinMaxSizes(item_style.GetWritingMode(), type,
                                            space);
@@ -607,7 +607,7 @@ LayoutUnit CalculateIntrinsicMinimumContribution(
       }
 
       maybe_clamp = true;
-      return min_content_contribution;
+      return min_content_contribution();
     }
     case Length::kMinContent:
     case Length::kMaxContent:
@@ -615,8 +615,8 @@ LayoutUnit CalculateIntrinsicMinimumContribution(
       // All of the above lengths are "definite" (non-auto), and don't need
       // the special min-size treatment above. (They will all end up being
       // the specified size).
-      return main_length.IsMaxContent() ? max_content_contribution
-                                        : min_content_contribution;
+      return main_length.IsMaxContent() ? max_content_contribution()
+                                        : min_content_contribution();
     }
     case Length::kMinIntrinsic:
     case Length::kFlex:
@@ -1064,6 +1064,37 @@ bool ValidateMinMaxSizesCache(const BlockNode& grid_node,
     }
   }
   return should_invalidate_min_max_sizes_cache;
+}
+
+bool NeedsAdditionalLayoutPass(
+    const ComputedStyle& style,
+    const ConstraintSpace& constraint_space,
+    const BlockNode& node,
+    const BoxStrut& border_padding,
+    const GridSizingTrackCollection& track_collection,
+    LayoutUnit grid_inline_size) {
+  bool needs_additional_pass = false;
+
+  // If we have any rows, gaps which will resolve differently if we have a
+  // definite available size, re-compute the grid using the resolved block size.
+  needs_additional_pass |= (style.RowGap() && style.RowGap()->HasPercent()) ||
+                           track_collection.IsDependentOnAvailableSize();
+
+  // If we are a flex-item, we may have our initial block-size forced to be
+  // indefinite, however grid layout always re-computes the grid using the
+  // final "used" block-size. We can detect this case by checking if computing
+  // our block-size (with an indefinite intrinsic size) is definite.
+  //
+  // TODO(layout-dev): A small optimization here would be to do this only if
+  // we have 'auto' tracks which fill the remaining available space.
+  if (constraint_space.IsInitialBlockSizeIndefinite()) {
+    needs_additional_pass |=
+        ComputeBlockSizeForFragment(constraint_space, node, border_padding,
+                                    /*intrinsic_size=*/kIndefiniteSize,
+                                    grid_inline_size) != kIndefiniteSize;
+  }
+
+  return needs_additional_pass;
 }
 
 LayoutUnit GetSynthesizedLogicalBaseline(

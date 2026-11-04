@@ -53,7 +53,10 @@ void ThreadSafeResourceProvider::freeGpuResources() {
 
 void ThreadSafeResourceProvider::purgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime) {
     SkAutoSpinlock lock{fSpinLock};
-    fWrappedProvider->purgeResourcesNotUsedSince(purgeTime);
+    // We do not ever limit the time required to purge resources from the threadsafe resource cache
+    // because it holds objects which should be basically trivial to delete. Eventually, these
+    // resources will be moved into a global threadsafe resource cache anyhow.
+    fWrappedProvider->purgeResourcesNotUsedSince(purgeTime, /*microsMaxPurgingDur=*/std::nullopt);
 }
 
 void ThreadSafeResourceProvider::forceProcessReturnedResources() {

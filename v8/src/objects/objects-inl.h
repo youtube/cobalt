@@ -60,7 +60,6 @@
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
-#include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
@@ -869,19 +868,28 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
 }
 
 // static
-Representation Object::OptimalRepresentation(Tagged<Object> obj,
-                                             PtrComprCageBase cage_base) {
+std::pair<Representation, PropertyConstness> Object::OptimalRepresentation(
+    Tagged<Object> obj, PropertyConstness constness,
+    PtrComprCageBase cage_base) {
   if (IsSmi(obj)) {
-    return Representation::Smi();
+    return {Representation::Smi(), constness};
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsUninitializedHole(heap_object)) {
-    return Representation::None();
+    return {Representation::None(), constness};
   }
   if (IsHeapNumber(heap_object, cage_base)) {
-    return Representation::Double();
+    if (constness == PropertyConstness::kConst &&
+        Cast<HeapNumber>(heap_object)->is_the_hole()) {
+      // Make sure that even an initializing store of a double value with
+      // the hole NaN pattern removes constness, otherwise it wouldn't be
+      // possible to distinguish whether subsequent stores to a double field
+      // is initializing or not.
+      constness = PropertyConstness::kMutable;
+    }
+    return {Representation::Double(), constness};
   }
-  return Representation::HeapObject();
+  return {Representation::HeapObject(), constness};
 }
 
 // static
@@ -1320,17 +1328,6 @@ bool HeapObject::IsCodePointerFieldEmpty(size_t offset) const {
 
 void HeapObject::ClearCodePointerField(size_t offset) {
   ClearTrustedPointerField(offset);
-}
-
-Address HeapObject::ReadCodeEntrypointViaCodePointerField(
-    size_t offset, CodeEntrypointTag tag) const {
-  return i::ReadCodeEntrypointViaCodePointerField(field_address(offset), tag);
-}
-
-void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
-                                                        Address value,
-                                                        CodeEntrypointTag tag) {
-  i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
 }
 
 // static

@@ -1677,20 +1677,19 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   }
 
   // Fast path for a separator that does not occur in the subject string.
-  {
-    Label next(this);
-    const TNode<Smi> index =
-        CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
-                         separator_string, smi_zero));
-    Branch(SmiEqual(index, SmiConstant(-1)), &return_subject_as_array, &next);
+  const TNode<Smi> first_index =
+      CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
+                       separator_string, smi_zero));
+  Label next_split(this);
+  Branch(SmiEqual(first_index, SmiConstant(-1)), &return_subject_as_array,
+         &next_split);
 
-    BIND(&next);
-  }
+  BIND(&next_split);
 
   {
     const TNode<JSAny> result =
         CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
-                           separator_string, limit_number);
+                           separator_string, limit_number, first_index);
     args.PopAndReturn(result);
   }
 
@@ -1864,10 +1863,10 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   // affect iteration.
   TNode<PropertyCell> protector_cell = StringIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->string_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 // Instantiate template due to shared library requirements.

@@ -469,7 +469,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(RegExpSplit, 3, 1)                              \
   F(RegExpStringFromFlags, 1, 1)                    \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
-  F(StringSplit, 3, 1)                              \
+  F(StringSplit, 4, 1)                              \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExperimentalOneshotExec, 4, 1)
 
@@ -755,6 +755,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmAllocateBoundContinuation, 2, 1)                         \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
+  F(WasmStringAdd_CheckNone_Shared, 2, 1)                        \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
   F(WasmStringNewWtf8, 5, 1)                                     \
   F(WasmStringNewWtf8Array, 5, 1)                                \
@@ -773,6 +774,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringFromCodePoint, 2, 1)                               \
   F(WasmStringHash, 1, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(WasmSubstring, 3, 1)                                         \
+  F(WasmSubstringShared, 3, 1)                                   \
   F(WasmConfigureAllPrototypes, 4, 1)                            \
   F(WasmConfigureAllPrototypesOpt, 3, 1)                         \
   F(DebugCollectWasmCoverage, 0, 1)                              \

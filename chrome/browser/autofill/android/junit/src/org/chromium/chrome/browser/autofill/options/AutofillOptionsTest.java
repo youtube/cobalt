@@ -28,6 +28,8 @@ import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProper
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.text.SpannableString;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -56,6 +58,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowApplication;
@@ -65,6 +68,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
@@ -932,6 +936,38 @@ public class AutofillOptionsTest {
                 .initializeNow();
 
         assertFalse(mFragment.getAutofillAiAccessibilityAnnotator().isVisible());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testAccessibilityAnnotatorSettingsLinkRowClick() {
+        AutofillOptionsFragment.setAutofillAiAccessibilityAnnotatorEnabledForTesting(true);
+
+        new AutofillOptionsCoordinator(mFragment, this::assertModalNotUsed, Assert::fail)
+                .initializeNow();
+
+        var userActionTester = new UserActionTester();
+        mFragment
+                .getAutofillAiAccessibilityAnnotator()
+                .getOnPreferenceClickListener()
+                .onPreferenceClick(mFragment.getAutofillAiAccessibilityAnnotator());
+
+        Intent intent =
+                Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedActivity();
+        assertNotNull(intent);
+        assertEquals(Intent.ACTION_VIEW, intent.getAction());
+        assertEquals(
+                Uri.parse(AutofillOptionsMediator.ACCESSIBILITY_ANNOTATOR_SETTINGS_URL),
+                intent.getData());
+
+        assertTrue(
+                userActionTester
+                        .getActions()
+                        .contains(
+                                AutofillOptionsMediator
+                                        .HISTOGRAM_ACCESSIBILITY_ANNOTATOR_SETTINGS_LINK_ROW_CLICK));
+        userActionTester.tearDown();
     }
 
     @Test

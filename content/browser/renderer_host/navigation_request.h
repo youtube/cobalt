@@ -22,6 +22,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/numerics/clamped_math.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -130,6 +131,7 @@ class CONTENT_EXPORT NavigationRequest
       public FencedFrameURLMapping::MappingResultObserver,
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       public mojom::NavigationRendererCancellationListener,
+      public mojom::NavigationRendererIgnoreDuplicateNavigationListener,
       private RenderProcessHostObserver,
       private network::mojom::TrustTokenAccessObserver,
       private network::mojom::SharedDictionaryAccessObserver,
@@ -302,8 +304,6 @@ class CONTENT_EXPORT NavigationRequest
       bool is_embedder_initiated_fenced_frame_navigation = false,
       bool is_container_initiated = false,
       bool has_rel_opener = false,
-      net::StorageAccessApiStatus storage_access_api_status =
-          net::StorageAccessApiStatus::kNone,
       std::optional<std::u16string> embedder_shared_storage_context =
           std::nullopt);
 
@@ -322,6 +322,9 @@ class CONTENT_EXPORT NavigationRequest
           prefetched_signed_exchange_cache,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
           renderer_cancellation_listener,
+      mojo::PendingReceiver<
+          mojom::NavigationRendererIgnoreDuplicateNavigationListener>
+          renderer_ignore_duplicate_navigation_listener,
       mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>
           deferred_commit_resume_listener);
@@ -383,6 +386,7 @@ class CONTENT_EXPORT NavigationRequest
   const GURL& GetURL() override;
   SiteInstanceImpl* GetStartingSiteInstance() override;
   SiteInstanceImpl* GetSourceSiteInstance() override;
+  size_t GetIgnoredDuplicateNavigationCount() const override;
   bool IsInMainFrame() const override;
   bool IsInPrimaryMainFrame() const override;
   bool IsInOutermostMainFrame() const override;
@@ -519,6 +523,14 @@ class CONTENT_EXPORT NavigationRequest
   // mojom::NavigationRendererCancellationListener implementation:
   void RendererCancellationWindowEnded() override;
   // End of mojom::NavigationRendererCancellationListener implementation.
+
+  // mojom::NavigationRendererIgnoreDuplicateNavigationListener implementation:
+  // Notifies this NavigationRequest that a subsequent duplicate navigation was
+  // ignored in favor of this one. This can be called either via Mojo from the
+  // renderer or directly by the browser's navigation.
+  void DidIgnoreDuplicateNavigation() override;
+  // End of mojom::NavigationRendererIgnoreDuplicateNavigationListener
+  // implementation.
 
   void RegisterCommitDeferringConditionForTesting(
       std::unique_ptr<CommitDeferringCondition> condition);
@@ -1693,6 +1705,11 @@ class CONTENT_EXPORT NavigationRequest
     // DidFinishNavigation() to observers, and destroy the NavigationRequest.
     // `MarkFinish()` is used to record this timestamp at the end of navigation.
     base::TimeTicks finish;
+
+    // The time when the renderer process was created.
+    base::TimeTicks renderer_process_created;
+    // The time when the renderer process was launched.
+    base::TimeTicks renderer_process_launched;
   };
 
   // Fill in the timestamps needed to generate a trace of the navigation
@@ -1803,6 +1820,8 @@ class CONTENT_EXPORT NavigationRequest
  private:
   friend class NavigationRequestTest;
   FRIEND_TEST_ALL_PREFIXES(NavigationRequestTest, SanitizeRedirectsForCommit);
+  FRIEND_TEST_ALL_PREFIXES(NavigationRequestTest,
+                           ShouldRecordNavigationTimelineUkmForChromeUI);
 
   struct ConsoleMessage {
     blink::mojom::ConsoleMessageLevel level;
@@ -1832,6 +1851,9 @@ class CONTENT_EXPORT NavigationRequest
       bool is_embedder_initiated_fenced_frame_navigation = false,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
           renderer_cancellation_listener = mojo::NullReceiver(),
+      mojo::PendingReceiver<
+          mojom::NavigationRendererIgnoreDuplicateNavigationListener>
+          renderer_ignore_duplicate_navigation_listener = mojo::NullReceiver(),
       mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>
           deferred_commit_resume_listener = mojo::NullReceiver(),
@@ -3348,6 +3370,11 @@ class CONTENT_EXPORT NavigationRequest
   bool renderer_cancellation_window_ended_ = false;
   base::OnceClosure renderer_cancellation_window_ended_callback_;
 
+  // Mojo receiver to receive notifications from the renderer when a subsequent
+  // duplicate navigation is ignored in favor of this navigation.
+  mojo::Receiver<mojom::NavigationRendererIgnoreDuplicateNavigationListener>
+      renderer_ignore_duplicate_navigation_listener_{this};
+
   // Whether a Cookie header added to this request should not be overwritten by
   // the network service.
   bool allow_cookies_from_browser_ = false;
@@ -3542,6 +3569,10 @@ class CONTENT_EXPORT NavigationRequest
   // For NavigationRequests not in a prerendered page, the value will be the
   // default-constructed null value.
   const PrerenderHostId prerender_host_id_;
+
+  // The number of subsequent duplicate navigations that were ignored in favor
+  // of this navigation. This will be used for metrics.
+  base::ClampedNumeric<size_t> ignored_duplicate_navigation_count_ = 0;
 
   // This field is only populated between DidCommit and the deletion of the
   // NavigationRequest, with a token that's generated in the renderer at commit

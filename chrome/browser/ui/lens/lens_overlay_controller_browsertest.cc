@@ -172,7 +172,6 @@ constexpr char kDocumentWithNamedElement[] = "/select.html";
 constexpr char kDocumentWithNamedElementWithFragment[] =
     "/select.html#fragment";
 constexpr char kDocumentWithImage[] = "/test_visual.html";
-constexpr char kDocumentWithDynamicColor[] = "/lens/dynamic_color.html";
 constexpr char kPdfDocument[] = "/pdf/test.pdf";
 constexpr char kMultiPagePdf[] = "/pdf/test-bookmarks.pdf";
 constexpr char kPdfDocumentWithForm[] = "/pdf/submit_form.pdf";
@@ -415,9 +414,6 @@ class LensOverlayPageFake : public lens::mojom::LensPage {
     last_received_text_ = std::move(text);
   }
 
-  void ThemeReceived(lens::mojom::OverlayThemePtr theme) override {
-    last_received_theme_ = std::move(theme);
-  }
 
   void ShouldShowContextualSearchBox(bool should_show) override {
     last_received_should_show_contextual_searchbox_ = should_show;
@@ -471,7 +467,6 @@ class LensOverlayPageFake : public lens::mojom::LensPage {
 
   void Reset() {
     last_received_screenshot_.reset();
-    last_received_theme_->reset();
     last_received_objects_ = std::vector<lens::mojom::OverlayObjectPtr>();
     last_received_text_.reset();
     post_region_selection_.reset();
@@ -492,7 +487,6 @@ class LensOverlayPageFake : public lens::mojom::LensPage {
 
   SkBitmap last_received_screenshot_;
   std::optional<bool> last_received_is_side_panel_open_;
-  std::optional<lens::mojom::OverlayThemePtr> last_received_theme_;
   std::vector<lens::mojom::OverlayObjectPtr> last_received_objects_;
   bool last_received_should_show_contextual_searchbox_ = false;
   std::string source_language_;
@@ -715,10 +709,7 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
   virtual void SetupFeatureList() {
     feature_list_.InitWithFeaturesAndParameters(
         {{lens::features::kLensOverlay,
-          {{"results-search-url", kResultsSearchBaseUrl},
-           {"use-dynamic-theme", "true"},
-           {"use-dynamic-theme-min-population-pct", "0.002"},
-           {"use-dynamic-theme-min-chroma", "3.0"}}},
+          {{"results-search-url", kResultsSearchBaseUrl}}},
          {lens::features::kLensOverlayContextualSearchbox,
           {
               {"send-page-url-for-contextualization", "true"},
@@ -4576,10 +4567,8 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, EnterprisePolicy) {
   // The default policy is to allow the feature to be enabled.
-  EXPECT_TRUE(browser()
-                  ->GetFeatures()
-                  .lens_overlay_entry_point_controller()
-                  ->IsEnabled());
+  EXPECT_TRUE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   // If GenAiDefaultSettings is set, the feature enablement should
   // fallback to GenAiDefaultSettings setting.
@@ -4588,28 +4577,22 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, EnterprisePolicy) {
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(2), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_FALSE(browser()
-                   ->GetFeatures()
-                   .lens_overlay_entry_point_controller()
-                   ->IsEnabled());
+  EXPECT_FALSE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   policies.Set("LensOverlaySettings", policy::POLICY_LEVEL_MANDATORY,
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(1), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_FALSE(browser()
-                   ->GetFeatures()
-                   .lens_overlay_entry_point_controller()
-                   ->IsEnabled());
+  EXPECT_FALSE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   policies.Set("LensOverlaySettings", policy::POLICY_LEVEL_MANDATORY,
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(0), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_TRUE(browser()
-                  ->GetFeatures()
-                  .lens_overlay_entry_point_controller()
-                  ->IsEnabled());
+  EXPECT_TRUE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 }
 
 class LensOverlayControllerEntrypointsBrowserTest
@@ -6328,96 +6311,7 @@ class LensOverlayControllerBrowserWithPixelsTest
   }
 };
 
-IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserWithPixelsTest,
-                       DynamicTheme_Fallback) {
-  WaitForPaint();
-  // State should start in off.
-  auto* controller = GetLensOverlayController();
-  ASSERT_EQ(controller->state(), State::kOff);
 
-  // Showing UI should change the state to screenshot and eventually to overlay.
-  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
-  ASSERT_EQ(controller->state(), State::kScreenshot);
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return controller->state() == State::kOverlay; }));
-
-  // Verify screenshot was captured and stored.
-  auto screenshot_bitmap = controller->initial_screenshot();
-  EXPECT_TRUE(IsNotEmptyAndNotTransparentBlack(screenshot_bitmap));
-  screenshot_bitmap = controller->updated_screenshot();
-  EXPECT_TRUE(IsNotEmptyAndNotTransparentBlack(screenshot_bitmap));
-
-  // Verify screenshot was encoded and passed to WebUI.
-  auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
-  ASSERT_TRUE(fake_controller);
-  EXPECT_FALSE(
-      fake_controller->fake_overlay_page_.last_received_screenshot_.empty());
-
-  // Verify expected color palette was identified, fallback expected
-  // with the page being mostly colorless.
-  ASSERT_EQ(lens::PaletteId::kFallback, controller->color_palette());
-  // Verify expected theme color were passed to WebUI.
-  auto expected_theme = lens::mojom::OverlayTheme::New();
-  expected_theme->primary = lens::kColorFallbackPrimary;
-  expected_theme->shader_layer_1 = lens::kColorFallbackShaderLayer1;
-  expected_theme->shader_layer_2 = lens::kColorFallbackShaderLayer2;
-  expected_theme->shader_layer_3 = lens::kColorFallbackShaderLayer3;
-  expected_theme->shader_layer_4 = lens::kColorFallbackShaderLayer4;
-  expected_theme->shader_layer_5 = lens::kColorFallbackShaderLayer5;
-  expected_theme->scrim = lens::kColorFallbackScrim;
-  expected_theme->surface_container_highest_light =
-      lens::kColorFallbackSurfaceContainerHighestLight;
-  expected_theme->surface_container_highest_dark =
-      lens::kColorFallbackSurfaceContainerHighestDark;
-  expected_theme->selection_element = lens::kColorFallbackSelectionElement;
-  EXPECT_TRUE(
-      fake_controller->fake_overlay_page_.last_received_theme_.has_value());
-  const auto& received_theme =
-      fake_controller->fake_overlay_page_.last_received_theme_.value();
-  EXPECT_EQ(received_theme->primary, expected_theme->primary);
-}
-
-IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserWithPixelsTest,
-                       DynamicTheme_DynamicColorTangerine) {
-  WaitForPaint(kDocumentWithDynamicColor);
-
-  // State should start in off.
-  auto* controller = GetLensOverlayController();
-  ASSERT_EQ(controller->state(), State::kOff);
-
-  auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
-  ASSERT_TRUE(fake_controller);
-  EXPECT_TRUE(
-      fake_controller->fake_overlay_page_.last_received_screenshot_.empty());
-  EXPECT_FALSE(
-      fake_controller->fake_overlay_page_.last_received_theme_.has_value());
-
-  // Showing UI should change the state to screenshot and eventually to overlay.
-  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
-  ASSERT_EQ(controller->state(), State::kScreenshot);
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return controller->state() == State::kOverlay; }));
-
-  // Verify screenshot was captured and stored.
-  auto screenshot_bitmap = controller->initial_screenshot();
-  EXPECT_TRUE(IsNotEmptyAndNotTransparentBlack(screenshot_bitmap));
-  screenshot_bitmap = controller->updated_screenshot();
-  EXPECT_TRUE(IsNotEmptyAndNotTransparentBlack(screenshot_bitmap));
-
-  // Verify screenshot was encoded and passed to WebUI.
-  EXPECT_FALSE(
-      fake_controller->fake_overlay_page_.last_received_screenshot_.empty());
-
-  // Verify expected color palette was identified.
-  ASSERT_EQ(lens::PaletteId::kTangerine, controller->color_palette());
-  // Verify expected theme color were passed to WebUI.
-  auto expected_theme = controller->CreateTheme(lens::PaletteId::kTangerine);
-  EXPECT_TRUE(
-      fake_controller->fake_overlay_page_.last_received_theme_.has_value());
-  const auto& received_theme =
-      fake_controller->fake_overlay_page_.last_received_theme_.value();
-  EXPECT_EQ(received_theme->primary, expected_theme->primary);
-}
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserWithPixelsTest,
                        ViewportImageBoundingBoxes) {
@@ -9845,10 +9739,8 @@ class LensOverlayControllerContextualTasksBrowserTest
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerContextualTasksBrowserTest,
                        EnterprisePolicy) {
   // The default policy is to allow the feature to be enabled.
-  EXPECT_TRUE(browser()
-                  ->GetFeatures()
-                  .lens_overlay_entry_point_controller()
-                  ->IsEnabled());
+  EXPECT_TRUE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   // Even if the LensOverlaySettings policy is set to disabled, the feature
   // should still be enabled since the enterprise policy for contextual tasks is
@@ -9858,26 +9750,20 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerContextualTasksBrowserTest,
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(1), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_TRUE(browser()
-                  ->GetFeatures()
-                  .lens_overlay_entry_point_controller()
-                  ->IsEnabled());
+  EXPECT_TRUE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   policies.Set("SearchContentSharingSettings", policy::POLICY_LEVEL_MANDATORY,
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(1), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_FALSE(browser()
-                   ->GetFeatures()
-                   .lens_overlay_entry_point_controller()
-                   ->IsEnabled());
+  EXPECT_FALSE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 
   policies.Set("SearchContentSharingSettings", policy::POLICY_LEVEL_MANDATORY,
                policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
                base::Value(0), nullptr);
   policy_provider()->UpdateChromePolicy(policies);
-  EXPECT_TRUE(browser()
-                  ->GetFeatures()
-                  .lens_overlay_entry_point_controller()
-                  ->IsEnabled());
+  EXPECT_TRUE(
+      lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
 }

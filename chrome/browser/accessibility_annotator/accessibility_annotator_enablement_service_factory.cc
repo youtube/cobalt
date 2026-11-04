@@ -4,20 +4,39 @@
 
 #include "chrome/browser/accessibility_annotator/accessibility_annotator_enablement_service_factory.h"
 
+#include "base/strings/string_util.h"
 #include "chrome/browser/account_settings/account_setting_service_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_enablement_service_impl.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/country_type.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
+#include "components/variations/service/variations_service.h"
+#include "components/variations/service/variations_service_utils.h"
 
-namespace accessibility_annotator {
+namespace {
+// Return the latest country code from the chrome variation service.
+// If the variation service is not available, an empty string is returned.
+accessibility_annotator::GeoIpCountryCode GetCountryCodeFromVariations() {
+  variations::VariationsService* variation_service =
+      g_browser_process->variations_service();
+  return accessibility_annotator::GeoIpCountryCode(
+      variation_service
+          ? base::ToUpperASCII(variation_service->GetLatestCountry())
+          : std::string());
+}
+}  // namespace
 
 // static
-AccessibilityAnnotatorEnablementService*
+accessibility_annotator::AccessibilityAnnotatorEnablementService*
 AccessibilityAnnotatorEnablementServiceFactory::GetForProfile(
     Profile* profile) {
-  return static_cast<AccessibilityAnnotatorEnablementService*>(
+  return static_cast<
+      accessibility_annotator::AccessibilityAnnotatorEnablementService*>(
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }
 
@@ -38,6 +57,8 @@ AccessibilityAnnotatorEnablementServiceFactory::
               .Build()) {
   DependsOn(AccountSettingServiceFactory::GetInstance());
   DependsOn(IdentityManagerFactory::GetInstance());
+  DependsOn(subscription_eligibility::SubscriptionEligibilityServiceFactory::
+                GetInstance());
 }
 
 AccessibilityAnnotatorEnablementServiceFactory::
@@ -58,8 +79,13 @@ std::unique_ptr<KeyedService> AccessibilityAnnotatorEnablementServiceFactory::
           profile->GetOriginalProfile());
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile());
-  return std::make_unique<AccessibilityAnnotatorEnablementServiceImpl>(
-      account_settings_service, identity_manager);
+  subscription_eligibility::SubscriptionEligibilityService*
+      subscription_eligibility_service =
+          subscription_eligibility::SubscriptionEligibilityServiceFactory::
+              GetForProfile(profile->GetOriginalProfile());
+  return std::make_unique<
+      accessibility_annotator::AccessibilityAnnotatorEnablementServiceImpl>(
+      account_settings_service, identity_manager,
+      subscription_eligibility_service, profile->GetPrefs(),
+      GetCountryCodeFromVariations());
 }
-
-}  // namespace accessibility_annotator

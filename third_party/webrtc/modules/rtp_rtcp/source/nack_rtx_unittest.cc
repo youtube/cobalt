@@ -37,9 +37,9 @@
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "modules/rtp_rtcp/source/rtp_sender_video.h"
 #include "rtc_base/rate_limiter.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 
@@ -240,7 +240,7 @@ class RtpRtcpRtxNackTest : public ::testing::Test {
     media_stream_.sequence_numbers_.sort();
   }
 
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   SimulatedClock fake_clock_;
   const Environment env_;
   std::unique_ptr<ReceiveStatistics> receive_statistics_;

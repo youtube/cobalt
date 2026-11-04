@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
@@ -55,7 +56,63 @@ concept IsJobject =
 template <typename T, typename U>
 concept IsConvertableJObject =
     std::is_convertible_v<U, T> || std::same_as<U, jobject>;
+#else
+template <typename T>
+constexpr bool IsJobject =
+    std::is_base_of_v<std::remove_pointer_t<jobject>, std::remove_pointer_t<T>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
+template <typename T>
+struct _JArrayElementType;
+
+template <>
+struct _JArrayElementType<jbooleanArray> {
+  using type = bool;
+};
+
+template <>
+struct _JArrayElementType<jbyteArray> {
+  using type = int8_t;
+};
+
+template <>
+struct _JArrayElementType<jcharArray> {
+  using type = uint16_t;
+};
+
+template <>
+struct _JArrayElementType<jshortArray> {
+  using type = int16_t;
+};
+
+template <>
+struct _JArrayElementType<jintArray> {
+  using type = int32_t;
+};
+
+template <>
+struct _JArrayElementType<jlongArray> {
+  using type = int64_t;
+};
+
+template <>
+struct _JArrayElementType<jfloatArray> {
+  using type = float;
+};
+
+template <>
+struct _JArrayElementType<jdoubleArray> {
+  using type = double;
+};
+
+template <>
+struct _JArrayElementType<jobjectArray> {
+  using type = jobject;
+};
+
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
   requires internal::IsJobject<T>
 class _JObjectArray : public _jobjectArray {};
@@ -69,10 +126,6 @@ struct _JArrayHelper<T> {
   using type = _JObjectArray<T>;
 };
 #else
-template <typename T>
-constexpr bool IsJobject =
-    std::is_base_of_v<std::remove_pointer_t<jobject>, std::remove_pointer_t<T>>;
-
 template <typename T, std::enable_if_t<IsJobject<T>, int> = 0>
 class _JObjectArray : public _jobjectArray {};
 
@@ -173,6 +226,15 @@ template <typename T = jobject>
         // >= 201907L)
 class JavaRef;
 
+#if BUILDFLAG(IS_COBALT) && \
+    !(defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+// Before C++20, FromJniType<To>(...) in ConvertTo() is only parsed as a
+// template call if FromJniType is already declared. It is defined in
+// type_conversions.h.
+template <typename T>
+inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj);
+#endif  // BUILDFLAG(IS_COBALT) && !(concepts)
+
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
@@ -184,6 +246,10 @@ inline constexpr bool IsJavaRef =
     std::is_base_of_v<jni_zero::JavaRef<jobject>, std::decay_t<T>>;
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
+
+// Forward declaration of the JArrayView class.
+template <typename T>
+class JArrayView;
 
 namespace internal {
 
@@ -245,6 +311,13 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
     return *reinterpret_cast<const JavaRef<To>*>(this);
   }
 
+  // Convert this JavaRef<jobject> to the corresponding C++ type by
+  // calling FromJniType.
+  template <typename To>
+  To ConvertTo(JNIEnv* env) const {
+    return FromJniType<To>(env, *this);
+  }
+
 #if !JNI_ZERO_ENABLE_COMPAT_API
  protected:
 #endif
@@ -287,6 +360,9 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
 // Forward declare the object array reader for the convenience function.
 template <typename T = jobject>
 class JavaObjectArrayReader;
+
+template <typename T = jobject>
+class ScopedJavaLocalRef;
 
 // Generic base class for ScopedJavaLocalRef and ScopedJavaGlobalRef. Useful
 // for allowing functions to accept a reference without having to mandate
@@ -344,6 +420,44 @@ class JavaRef : public JavaRef<jobject> {
     return JavaRef<T>(env, obj);
   }
 
+  int32_t GetLength(JNIEnv* env) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_convertible_v<T, jarray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  {
+    return env->GetArrayLength(this->obj());
+  }
+
+  ScopedJavaLocalRef<jobject> Get(JNIEnv* env, int32_t index) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+    ;
+
+  template <typename U>
+  void CopyTo(JNIEnv* env, std::vector<ScopedJavaLocalRef<U>>* buf) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_convertible_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+    ;
+
+  // The auto return type makes this a template function.
+  // The [[clang::lifetimebound]] is required because the lifetime of the
+  // JArrayView cannot safely outlast the lifetime of |this|.
+  auto CreateView(JNIEnv* env) const [[clang::lifetimebound]]
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_convertible_v<T, jarray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  {
+    using ElementType = typename internal::_JArrayElementType<T>::type;
+    return JArrayView<ElementType>(
+        env, static_cast<JArray<ElementType>>(this->obj()));
+  }
+
 #if !JNI_ZERO_ENABLE_COMPAT_API
  protected:
 #endif
@@ -366,12 +480,23 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
     return static_cast<JArray<T>>(JavaRef<jobject>::obj());
   }
 
-  static JavaRef<JArray<T>> CreateLeaky(JNIEnv* env, JArray<T> obj) {
+  template <typename U>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::IsConvertableJObject<JArray<T>, U>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  static JavaRef<JArray<T>> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<internal::_JObjectArray<T>*>(env, obj);
   }
 
+  ScopedJavaLocalRef<T> Get(JNIEnv* env, int32_t index) const;
+
+  JArrayView<T> CreateView(JNIEnv* env) const [[clang::lifetimebound]] {
+    return JArrayView<T>(env, obj());
+  }
+
  protected:
-  JavaRef(JNIEnv* env, JArray<T> obj) : JavaRef<jobjectArray>(env, obj) {}
+  JavaRef(JNIEnv* env, jobject obj) : JavaRef<jobjectArray>(env, obj) {}
 };
 
 // Holds a local reference to a Java object. The local reference is scoped
@@ -384,7 +509,7 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
 // single thread. If you wish to have the reference outlive the current
 // callstack (e.g. as a class member) or you wish to pass it across threads,
 // use a ScopedJavaGlobalRef instead.
-template <typename T = jobject>
+template <typename T>
 class ScopedJavaLocalRef : public JavaRef<T> {
  public:
   // Take ownership of a bare jobject. This does not create a new reference.
@@ -534,6 +659,8 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Alias for Release(). For use in templates when global refs are invalid.
   T ReleaseLocal() { return static_cast<T>(JavaRef<T>::ReleaseInternal()); }
+
+  using JavaRef<T>::As;
 
   // Enables casting while assigning. E.g.:
   // ScopedJavaLocalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
@@ -719,6 +846,8 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
         env, static_cast<T>(env->NewLocalRef(j_obj)));
   }
 
+  using JavaRef<T>::As;
+
   // Enables casting while assigning. E.g.:
   // ScopedJavaGlobalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
   template <typename To>
@@ -794,6 +923,54 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef : public JavaRef<T> {
         env, static_cast<T>(env->NewLocalRef(j_obj)));
   }
 };
+
+template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+inline ScopedJavaLocalRef<jobject> JavaRef<T>::Get(JNIEnv* env,
+                                                   int32_t index) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+{
+  jobject obj = env->GetObjectArrayElement(this->obj(), index);
+  return ScopedJavaLocalRef<jobject>::Adopt(env, obj);
+}
+
+template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+template <typename U>
+inline void JavaRef<T>::CopyTo(JNIEnv* env,
+                               std::vector<ScopedJavaLocalRef<U>>* buf) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  requires std::is_convertible_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+{
+  jobjectArray arr = this->obj();
+  for (int32_t i = 0; i < this->GetLength(); i++) {
+    jobject obj = env->GetObjectArrayElement(arr, i);
+    buf->push_back(ScopedJavaLocalRef<U>::Adopt(env, static_cast<U>(obj)));
+  }
+}
+
+template <typename T>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  requires internal::IsJobject<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+inline ScopedJavaLocalRef<T> JavaRef<internal::_JObjectArray<T>*>::Get(
+    JNIEnv* env,
+    int32_t index) const {
+  jobject obj = env->GetObjectArrayElement(this->obj(), index);
+  return ScopedJavaLocalRef<T>::Adopt(env, static_cast<T>(obj));
+}
 
 #if JNI_ZERO_ENABLE_COMPAT_API
 template <typename T>

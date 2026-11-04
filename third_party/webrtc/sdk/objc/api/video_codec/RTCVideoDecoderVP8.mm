@@ -16,6 +16,9 @@
 #import "RTCVideoDecoderVP8.h"
 #import "sdk/objc/base/RTCMacros.h"
 
+#import "api/peerconnection/RTCVideoCodecInfo+Private.h"
+
+#include "api/video_codecs/sdp_video_format.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 
 @interface RTC_OBJC_TYPE (RTCVideoDecoderVP8Builder)
@@ -25,7 +28,13 @@
     @implementation RTC_OBJC_TYPE (RTCVideoDecoderVP8Builder)
 
     - (std::unique_ptr<webrtc::VideoDecoder>)build:
-        (const webrtc::Environment&)env {
+        (const webrtc::Environment &)env {
+      return webrtc::CreateVp8Decoder(env);
+    }
+
+    - (std::unique_ptr<webrtc::VideoDecoder>)
+        buildWithEnvironment:(const webrtc::Environment &)env
+                      format:(const webrtc::SdpVideoFormat &)format {
       return webrtc::CreateVp8Decoder(env);
     }
 
@@ -35,6 +44,11 @@
 
     + (id<RTC_OBJC_TYPE(RTCVideoDecoder)>)vp8Decoder {
       return [[RTC_OBJC_TYPE(RTCVideoDecoderVP8Builder) alloc] init];
+    }
+
+    + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
+      return @[ [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+          initWithNativeSdpVideoFormat:webrtc::SdpVideoFormat::VP8()] ];
     }
 
     @end

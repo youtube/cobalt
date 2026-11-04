@@ -1836,6 +1836,7 @@ if (rtc_include_tests) {
       "scoped_refptr_unittest.cc",
       "sequence_checker_unittest.cc",
       "test/peerconnection_quality_test_fixture_unittest.cc",
+      "webrtc_sdp_encoding_options_unittest.cc",
       "webrtc_sdp_unittest.cc",
     ]
 
@@ -1872,6 +1873,7 @@ if (rtc_include_tests) {
       "../rtc_base:digest",
       "../rtc_base:logging",
       "../rtc_base:macromagic",
+      "../rtc_base:network_constants",
       "../rtc_base:platform_thread",
       "../rtc_base:rtc_event",
       "../rtc_base:socket_address",

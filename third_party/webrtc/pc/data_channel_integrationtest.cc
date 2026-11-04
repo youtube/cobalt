@@ -42,7 +42,6 @@
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/crypto_random.h"
-#include "rtc_base/fake_clock.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/socket_address.h"
@@ -102,25 +101,6 @@ class DataChannelIntegrationTest
  private:
   // True if media is allowed to be added
   const bool allow_media_;
-};
-
-// Fake clock must be set before threads are started to prevent race on
-// Set/GetClockForTesting().
-// To achieve that, multiple inheritance is used as a mixin pattern
-// where order of construction is finely controlled.
-// This also ensures peerconnection is closed before switching back to non-fake
-// clock, avoiding other races and DCHECK failures such as in rtp_sender.cc.
-class FakeClockForTest : public ScopedFakeClock {
- protected:
-  FakeClockForTest() {
-    // Some things use a time of "0" as a special value, so we need to start out
-    // the fake clock at a nonzero time.
-    // TODO(deadbeef): Fix this.
-    AdvanceTime(TimeDelta::Seconds(1));
-  }
-
-  // Explicit handle.
-  ScopedFakeClock& FakeClock() { return *this; }
 };
 
 class DataChannelIntegrationTestPlanB

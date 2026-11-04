@@ -27,6 +27,7 @@ public:
     ~SkCaptureCanvas() override;
 
     sk_sp<SkPicture> snapPicture();
+    SkSurface* getBaseCanvasSurface() const;
 
 protected:
     void willSave() override;

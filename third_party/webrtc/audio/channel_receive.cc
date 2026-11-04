@@ -759,8 +759,7 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
   if (frame_transformer_delegate_) {
     // Asynchronously transform the received payload. After the payload is
     // transformed, the delegate will call OnReceivedPayloadData to handle it.
-    char buf[1024];
-    SimpleStringBuilder mime_type(buf);
+    StringBuilder mime_type;
     auto it = payload_type_map_.find(header.payloadType);
     mime_type << MediaTypeToString(MediaType::AUDIO) << "/"
               << (it != payload_type_map_.end() ? it->second.name

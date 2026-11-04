@@ -86,6 +86,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/core/session_notifier_interface.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
@@ -654,6 +655,24 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
+  bool indicate_scone_support = false;
+  if (!config.scone_packet_interval().IsZero()) {
+    if (config.negotiated()) {
+      scone_packet_interval_ = config.scone_packet_interval();
+      next_scone_packet_time_ = clock_->ApproximateNow();
+    } else {
+      indicate_scone_support = true;
+    }
+  }
+  parse_scone_packets_ = config.parse_scone_packets();
+  framer_.set_parse_scone_packets(parse_scone_packets_);
+  if (parse_scone_packets_ && !config.negotiated()) {
+    indicate_scone_support = true;
+  }
+  if (indicate_scone_support) {
+    packet_creator_.IndicateSconeSupport();
+    coalesced_packet_.AllowMaxPacketLengthToIncrease();
+  }
 
   if (config.peer_reordering_threshold() != 1 &&
       perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
@@ -708,7 +727,7 @@ bool QuicConnection::MaybeTestLiveness() {
     QUIC_DLOG(WARNING) << "Idle network deadline has passed";
     if (quic_close_on_idle_timeout_) {
       QUIC_RELOADABLE_FLAG_COUNT(quic_close_on_idle_timeout);
-      CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT,
+      CloseConnection(QUIC_CLIENT_REQUEST_IDLE_TIMEOUT,
                       "Idle network deadline has already passed",
                       ConnectionCloseBehavior::SILENT_CLOSE);
     }
@@ -1139,6 +1158,10 @@ void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
     // Reset alternative path state even if it is still under validation.
     alternative_path_.Clear();
   }
+  if (!is_port_change) {
+    MaybeSendSconePacketAfterMigration();
+  }
+
   // TODO(b/159074035): notify SentPacketManger with RTT sample from probing.
   if (version().IsIetfQuic() && !is_port_change) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
@@ -1222,7 +1245,11 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
   }
   idle_network_detector_.OnPacketReceived(
       last_received_packet_info_.receipt_time);
-
+  if (pending_scone_report_.has_value()) {
+    QUICHE_DCHECK(parse_scone_packets_);
+    visitor_->OnSconePacket(*pending_scone_report_);
+    pending_scone_report_.reset();
+  }
   visitor_->OnPacketDecrypted(level);
 }
 
@@ -2427,6 +2454,28 @@ void QuicConnection::OnDecryptedFirstPacketInKeyPhase() {
       clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay() * 3);
 }
 
+void QuicConnection::OnSconePacket(uint8_t signal) {
+  if (parse_scone_packets_) {
+    // 127 (kNumSconeBandwidths) is a legal value, meaning the value is unknown.
+    // Anything larger than 127 cannot be encoded in the fields of a SCONE
+    // packet.
+    QUIC_BUG_IF(quic_bug_invalid_scone_signal, signal > kNumSconeBandwidths)
+        << "Invalid SCONE signal: " << static_cast<int>(signal);
+    if (pending_scone_report_.has_value()) {
+      // Two SCONE packets are in the datagram, but the framer should not call
+      // this twice.
+      QUIC_BUG(quic_bug_two_scone_values)
+          << "Two SCONE reports from same datagram";
+      // Two SCONE packets in the datagram! Ignore the second one.
+      return;
+    }
+    if (signal < kNumSconeBandwidths) {
+      // Store the report pending the authentication of the next packet.
+      pending_scone_report_ = GetSconeBandwidths()[signal];
+    }
+  }
+}
+
 std::unique_ptr<QuicDecrypter>
 QuicConnection::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   QUIC_DLOG(INFO) << ENDPOINT << "AdvanceKeysAndCreateCurrentOneRttDecrypter";
@@ -2783,6 +2832,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (!connected_) {
     return;
   }
+  // If the last packet had SCONE, but pending_scone_report_ is still set,
+  // there was no successful decryption in that datagram. Discard the report.
+  pending_scone_report_.reset();
   QUIC_DVLOG(2) << ENDPOINT << "Received encrypted " << packet.length()
                 << " bytes:" << std::endl
                 << quiche::QuicheTextUtils::HexDump(
@@ -3072,6 +3124,14 @@ void QuicConnection::GenerateNewOutgoingFlowLabel() {
   uint32_t flow_label;
   random_generator_->RandBytes(&flow_label, sizeof(flow_label));
   set_outgoing_flow_label(flow_label);
+}
+
+void QuicConnection::MaybeSendSconePacketAfterMigration() {
+  if (!next_scone_packet_time_.has_value()) {
+    return;
+  }
+  next_scone_packet_time_ = clock_->ApproximateNow();
+  MaybeSendSconePacket();
 }
 
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
@@ -4745,6 +4805,8 @@ void QuicConnection::CloseConnection(
   }
 
   in_close_connection_ = true;
+  next_scone_packet_time_.reset();
+  scone_packet_interval_ = QuicTime::Delta::Zero();
   absl::Cleanup cleanup = [this]() { in_close_connection_ = false; };
 
   if (ietf_error != NO_IETF_QUIC_ERROR) {
@@ -5012,6 +5074,7 @@ QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
     active_ = true;
     connection->packet_creator_.AttachPacketFlusher();
     connection_->alarms_.DeferUnderlyingAlarmScheduling();
+    connection_->MaybeSendSconePacket();
   }
 }
 
@@ -5634,6 +5697,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 }
 
 void QuicConnection::OnConnectionMigration() {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
@@ -5642,6 +5706,7 @@ void QuicConnection::OnConnectionMigration() {
           now - stats_.handshake_completion_time);
     }
   }
+  MaybeSendSconePacketAfterMigration();
   visitor_->OnConnectionMigration(active_effective_peer_migration_type_);
   if (active_effective_peer_migration_type_ != PORT_CHANGE &&
       active_effective_peer_migration_type_ != IPV4_SUBNET_CHANGE &&
@@ -7665,6 +7730,23 @@ QuicConnection::SerializeLargePacketNumberConnectionClosePacket(
   }
   return packet_creator_.SerializeLargePacketNumberConnectionClosePacket(
       GetLargestAckedPacket(), error, error_details);
+}
+
+void QuicConnection::MaybeSendSconePacket() {
+  if (!next_scone_packet_time_.has_value()) {
+    return;
+  }
+  if (packet_creator_.HasPendingFrames() || coalesced_packet_.length() > 0) {
+    QUIC_BUG(queueing_scone_packet_with_pending_frames)
+        << "Tried to send SCONE packet with pending frames";
+    return;
+  }
+  const QuicTime now = clock_->ApproximateNow();
+  if (now < *next_scone_packet_time_) {
+    return;
+  }
+  packet_creator_.PrependSconePacket();
+  next_scone_packet_time_ = now + scone_packet_interval_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

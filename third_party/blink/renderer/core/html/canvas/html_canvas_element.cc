@@ -366,6 +366,8 @@ bool HTMLCanvasElement::PrepareTransferableResource(
     reason = FlushReason::kCanvasPushFrameWhilePrinting;
   }
 
+  DoDeferredPaintInvalidation();
+
   scoped_refptr<CanvasResource> frame =
       RenderingContext()->PaintRenderingResultsToResource(kBackBuffer, reason);
   if (!frame || !frame->IsValid()) {
@@ -444,12 +446,13 @@ void HTMLCanvasElement::ParseAttribute(
 void HTMLCanvasElement::AttributeChanged(
     const AttributeModificationParams& params) {
   HTMLElement::AttributeChanged(params);
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
       params.name == html_names::kLayoutsubtreeAttr) {
     bool had_layoutsubtree = !params.old_value.IsNull();
     bool has_layoutsubtree = !params.new_value.IsNull();
     if (had_layoutsubtree != has_layoutsubtree) {
       setLayoutSubtree(has_layoutsubtree);
+      UseCounter::Count(GetDocument(), WebFeature::kHTMLInCanvas);
     }
   }
 }
@@ -802,20 +805,23 @@ void HTMLCanvasElement::SetNeedsCompositingUpdate() {
   Element::SetNeedsCompositingUpdate();
 }
 
-void HTMLCanvasElement::DoDeferredPaintInvalidation() {
-  DCHECK(!dirty_rect_.IsEmpty());
+bool HTMLCanvasElement::DoDeferredPaintInvalidation() {
+  if (dirty_rect_.IsEmpty()) {
+    return false;
+  }
   if (LowLatencyEnabled()) {
     // Low latency canvas handles dirty propagation in FinalizeFrame();
-    return;
+    return false;
   }
-  LayoutBox* layout_box = GetLayoutBox();
+  const LayoutBox* layout_box = GetLayoutBox();
 
   gfx::RectF content_rect;
   if (layout_box) {
-    if (auto* replaced = DynamicTo<LayoutReplaced>(layout_box))
+    if (const auto* replaced = DynamicTo<LayoutReplaced>(layout_box)) {
       content_rect = gfx::RectF(replaced->ReplacedContentRect());
-    else
+    } else {
       content_rect = gfx::RectF(layout_box->PhysicalContentBoxRect());
+    }
   }
 
   if (IsRenderingContext2D()) {
@@ -837,7 +843,7 @@ void HTMLCanvasElement::DoDeferredPaintInvalidation() {
     }
 
     if (dirty_rect_.IsEmpty())
-      return;
+      return false;
 
     if (cc_layer_ && context_->IsComposited()) {
       cc_layer_->SetNeedsDisplayRect(gfx::ToEnclosingRect(invalidation_rect));
@@ -851,13 +857,8 @@ void HTMLCanvasElement::DoDeferredPaintInvalidation() {
   NotifyListenersCanvasChanged();
   did_notify_listeners_for_current_frame_ = true;
 
-  if (layout_box && !ShouldBeDirectComposited()) {
-    // If the canvas is not composited, propagate the paint invalidation to
-    // |layout_box| as the painted result will change.
-    layout_box->SetShouldDoFullPaintInvalidation();
-  }
-
   dirty_rect_ = gfx::Rect();
+  return true;
 }
 
 void HTMLCanvasElement::OnWidthOrHeightAssigned() {
@@ -918,7 +919,9 @@ void HTMLCanvasElement::OnWidthOrHeightAssigned() {
       layout_object->SetShouldDoFullPaintInvalidation();
     }
 
-    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() && layoutSubtree()) {
+    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+            GetExecutionContext()) &&
+        layoutSubtree()) {
       // Invalidate the child's paint properties so that its cached
       // CanvasChildPaintState is updated with the new canvas size.
       for (LayoutObject* child = layout_object->SlowFirstChild(); child;
@@ -973,6 +976,11 @@ bool HTMLCanvasElement::VerifyDrawElementImageEligibility(
     Element* element,
     const String& func_name,
     ExceptionState& exception_state) const {
+  if (IsInCanvasSubtree()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
+                                      "Nested canvases are not supported.");
+    return false;
+  }
   if (element->parentElement() != this) {
     exception_state.ThrowTypeError(
         "Only immediate children of the <canvas> element can be passed to " +
@@ -1632,7 +1640,11 @@ cc::TextureLayer* HTMLCanvasElement::GetOrCreateCcLayerForCanvas2DIfNeeded() {
   CHECK(context_->IsComposited());
 
   if (!cc_layer_) [[unlikely]] {
-    cc_layer_ = cc::TextureLayer::Create(this);
+    cc_layer_ = cc::TextureLayer::Create(
+        this,
+        RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext())
+            ? cc::TextureLayer::PrepareResourceBehavior::kAfterPaintEvent
+            : cc::TextureLayer::PrepareResourceBehavior::kDuringLayerUpdate);
     InitializeLayerWithCSSProperties(cc_layer_.get());
     cc_layer_->SetIsDrawable(true);
     cc_layer_->SetHitTestable(true);
@@ -1806,7 +1818,8 @@ void HTMLCanvasElement::RemovedFrom(ContainerNode& insertion_point) {
 }
 
 bool HTMLCanvasElement::ChildrenChangedAllChildrenRemovedNeedsList() const {
-  return RuntimeEnabledFeatures::CanvasDrawElementEnabled();
+  return RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+      GetExecutionContext());
 }
 
 void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
@@ -1819,7 +1832,7 @@ void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
     }
   }
 
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext())) {
     if (change.type == ChildrenChangeType::kElementRemoved) {
       if (auto* element = DynamicTo<Element>(change.sibling_changed)) {
         ChildElementRemoved(*element);

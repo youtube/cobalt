@@ -1693,8 +1693,12 @@ int32_t AudioDeviceMac::GetDeviceName(const AudioObjectPropertyScope scope,
     WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(
         usedID, &propertyAddress, 0, NULL, &len, devName.data()));
 
-    SimpleStringBuilder ss(name);
+    StringBuilder ss;
     ss.AppendFormat("default (%s)", devName.data());
+    const std::string& s = ss.str();
+    size_t chars_to_copy = std::min(s.size(), name.size() - 1);
+    std::copy_n(s.data(), chars_to_copy, name.data());
+    name[chars_to_copy] = '\0';
   } else {
     if (index < numberDevices) {
       usedID = deviceIds[index];

@@ -677,7 +677,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       set_invalid_prototype_validity_cell(Cast<Cell>(obj));
     }
 
-    ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
+    ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
@@ -760,10 +760,10 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
     ALLOCATE_VARSIZE_MAP(REG_EXP_MATCH_INFO_TYPE, regexp_match_info);
 
-    ALLOCATE_MAP(REG_EXP_DATA_TYPE, RegExpData::kSize, regexp_data);
-    ALLOCATE_MAP(ATOM_REG_EXP_DATA_TYPE, AtomRegExpData::kSize,
+    ALLOCATE_MAP(REG_EXP_DATA_TYPE, sizeof(RegExpData), regexp_data);
+    ALLOCATE_MAP(ATOM_REG_EXP_DATA_TYPE, sizeof(AtomRegExpData),
                  atom_regexp_data);
-    ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, IrRegExpData::kSize, ir_regexp_data);
+    ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, sizeof(IrRegExpData), ir_regexp_data);
 
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, sizeof(SourceTextModule),
                  source_text_module)
@@ -1734,6 +1734,10 @@ void Heap::CreateInitialMutableObjects() {
     set_empty_protected_fixed_array(*ProtectedFixedArray::New(isolate_, 0));
     set_empty_protected_weak_fixed_array(
         *ProtectedWeakFixedArray::New(isolate_, 0));
+#ifdef V8_ENABLE_WEBASSEMBLY
+    set_empty_wasm_dispatch_table(*isolate_->factory()->NewWasmDispatchTable(
+        0, wasm::kWasmFuncRef, SharedFlag::kNo));
+#endif
   }
 }
 

@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "absl/base/casts.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/hash/hash.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
@@ -31,6 +33,7 @@
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
+#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
@@ -42,6 +45,7 @@
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_connection_migration_manager.h"
+#include "quiche/quic/core/http/quic_server_session_base.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -78,6 +82,7 @@
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -117,12 +122,14 @@
 #include "quiche/quic/tools/quic_server.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/quic/tools/quic_simple_server_session.h"
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -4744,6 +4751,216 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
   QuicPacketWriter* server_writer_;  // Unowned.
   ServerThread* server_thread_;      // Unowned.
 };
+
+// SconePacketWriter will look for SCONE packets from the client and write
+// bandwidth values into them as a SCONE network element would. It only does
+// so for flows where it has observed the SCONE indicator.
+static constexpr size_t kMaxSconeReports = 5;
+class SconePacketWriter : public PacketDroppingTestWriter {
+ public:
+  ~SconePacketWriter() override = default;
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          quic::PerPacketOptions* options,
+                          const quic::QuicPacketWriterParams& params) override {
+    if (buf_len < kSconeIndicatorLength) {
+      return WriteResult(WRITE_STATUS_ERROR, 0);
+    }
+    if (!FlowIsScone(self_address, peer_address, buffer + buf_len)) {
+      // Nothing to do, forward.
+      return PacketDroppingTestWriter::WritePacket(
+          buffer, buf_len, self_address, peer_address, options, params);
+    }
+    // Look for SCONE header.
+    char new_buffer[kMaxOutgoingPacketSize];
+    int next_scone_index =
+        (last_report_index_.value_or(-1) + 1) % kMaxSconeReports;
+    if (!MaybeUpdateSconePacket(buffer, new_buffer, buf_len,
+                                kReportedValues[next_scone_index].first)) {
+      return PacketDroppingTestWriter::WritePacket(
+          buffer, buf_len, self_address, peer_address, options, params);
+    }
+    last_report_index_ = next_scone_index;
+    // We have observed the SCONE indicator for this flow, so we can write
+    // bandwidth values into it.
+    return PacketDroppingTestWriter::WritePacket(
+        new_buffer, buf_len, self_address, peer_address, options, params);
+  }
+
+  std::optional<QuicBandwidth> last_bandwidth_report() const {
+    if (!last_report_index_.has_value()) {
+      return std::nullopt;
+    }
+    return kReportedValues[*last_report_index_].second;
+  }
+
+ private:
+  bool FlowIsScone(const QuicIpAddress& self_address,
+                   const QuicSocketAddress& peer_address, const char* buffer) {
+    if (observed_scone_endpoints_.contains(self_address) ||
+        observed_scone_endpoints_.contains(peer_address.host())) {
+      return true;
+    }
+    const uint8_t* ubuffer = reinterpret_cast<const uint8_t*>(buffer);
+    if (*(ubuffer - 2) == 0xc8 && *(ubuffer - 1) == 0x13) {
+      // Indicator is present, record the flow.
+      observed_scone_endpoints_.insert(peer_address.host());
+      return true;
+    }
+    return false;
+  }
+
+  const std::pair<uint8_t, std::optional<QuicBandwidth>>
+      kReportedValues[kMaxSconeReports] = {
+          {0, GetSconeBandwidths()[0]},
+          {10, GetSconeBandwidths()[10]},
+          {97, GetSconeBandwidths()[97]},
+          {25, GetSconeBandwidths()[25]},
+          {127, std::nullopt},
+      };
+
+  std::optional<int> last_report_index_;
+  // Record the destination IP of any Client Hello with a SCONE indicator, so
+  // that any packet to or from that IP can be checked for SCONE packets.
+  // It would be nice to have the whole 4-tuple, but unfortunately the call
+  // to WritePacket() for client hellos doesn't have a self_address, and when
+  // the server is sending it's more effort to get the port.
+  struct QuicIpHash {
+    size_t operator()(const QuicIpAddress& ip) const {
+      // Use the internal string representation for a stable hash
+      return absl::HashOf(ip.ToString());
+    }
+  };
+  absl::flat_hash_set<QuicIpAddress, QuicIpHash> observed_scone_endpoints_;
+};
+
+class SconeServerTrackingSession : public QuicSimpleServerSession {
+ public:
+  SconeServerTrackingSession(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      QuicCryptoServerStreamBase::Helper* helper,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QuicSimpleServerBackend* quic_simple_server_backend)
+      : QuicSimpleServerSession(config, supported_versions, connection, visitor,
+                                helper, crypto_config, compressed_certs_cache,
+                                quic_simple_server_backend) {}
+
+  void OnSconePacket(QuicBandwidth bandwidth) override {
+    received_bandwidth_ = bandwidth;
+  }
+
+  QuicBandwidth received_bandwidth() const { return received_bandwidth_; }
+
+ private:
+  QuicBandwidth received_bandwidth_ = QuicBandwidth::Zero();
+};
+
+class SconeSessionFactory : public QuicTestServer::SessionFactory {
+ public:
+  std::unique_ptr<QuicServerSessionBase> CreateSession(
+      const QuicConfig& config, QuicConnection* connection,
+      QuicSession::Visitor* visitor, QuicCryptoServerStreamBase::Helper* helper,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QuicSimpleServerBackend* quic_simple_server_backend,
+      absl::string_view) override {
+    return std::make_unique<SconeServerTrackingSession>(
+        config, quic::CurrentSupportedVersions(), connection, visitor, helper,
+        crypto_config, compressed_certs_cache, quic_simple_server_backend);
+  }
+};
+
+TEST_P(EndToEndTest, SconeProtocolClientToServer) {
+  if (!version_.IsIetfQuic()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(1));
+  server_config_.set_parse_scone_packets(true);
+
+  connect_to_server_on_initialize_ = false;
+  ResetClientWriterForVersionNegotiationTest();
+  ASSERT_TRUE(Initialize());
+  SconeSessionFactory scone_session_factory;
+  absl::down_cast<QuicTestServer*>(server_thread_->server())
+      ->SetSessionFactory(&scone_session_factory);
+  client_writer_ = new SconePacketWriter();
+  SconePacketWriter* scone_writer =
+      absl::down_cast<SconePacketWriter*>(client_writer_);
+  CreateClientWithWriter();
+  QuicConnection* client_connection = GetClientConnection();
+  if (client_connection == nullptr) {
+    ADD_FAILURE() << "Missing client connection";
+    return;
+  }
+  client_writer_->Initialize(
+      QuicConnectionPeer::GetHelper(client_connection),
+      QuicConnectionPeer::GetAlarmFactory(client_connection),
+      std::make_unique<ClientDelegate>(client_->client()));
+  ;
+  // Wait for the client to be connected and the handshake to complete. Then
+  // grab a pointer to the server session.
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  server_thread_->Pause();
+  auto server_session =
+      absl::down_cast<SconeServerTrackingSession*>(GetServerSession());
+  server_thread_->Resume();
+
+  // Send requests and progress time to ensure SCONE packets are sent.
+  // The send interval is 1 second, so we wait slightly more than 1 second
+  // between requests.
+  QuicBandwidth previous_report = QuicBandwidth::Zero();
+  for (size_t i = 0; i < kMaxSconeReports; ++i) {
+    client_->SendSynchronousRequest("/bar");
+    client_->WaitUntil(1005, []() { return false; });
+    ASSERT_NE(server_session, nullptr);
+    if (!scone_writer->last_bandwidth_report().has_value()) {
+      // The report was "Unknown", so the session has the previous value.
+      EXPECT_EQ(server_session->received_bandwidth(), previous_report);
+      continue;
+    }
+    EXPECT_EQ(server_session->received_bandwidth(),
+              scone_writer->last_bandwidth_report());
+    previous_report = server_session->received_bandwidth();
+  }
+}
+
+TEST_P(EndToEndTest, SconeProtocolServerToClient) {
+  if (!version_.IsIetfQuic()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_config_.set_parse_scone_packets(true);
+  server_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(1));
+
+  delete server_writer_;
+  server_writer_ = new SconePacketWriter();
+  SconePacketWriter* scone_writer =
+      absl::down_cast<SconePacketWriter*>(server_writer_);
+  ASSERT_TRUE(Initialize());
+  // Wait for the client to be connected and the handshake to complete. Then
+  // grab a pointer to the server session.
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+
+  QuicTestClientSession* client_session =
+      absl::down_cast<QuicTestClientSession*>(client_->client()->session());
+  ASSERT_NE(client_session, nullptr);
+  // Send requests and progress time to ensure SCONE packets are sent.
+  // The send interval is 1 second, so we wait slightly more than 1 second
+  // between requests.
+  QuicBandwidth previous_report = QuicBandwidth::Zero();
+  for (size_t i = 0; i < kMaxSconeReports; ++i) {
+    client_->SendSynchronousRequest("/bar");
+    client_->WaitUntil(1005, []() { return false; });
+    EXPECT_EQ(client_session->received_bandwidth(),
+              scone_writer->last_bandwidth_report().value_or(previous_report));
+    previous_report = client_session->received_bandwidth();
+  }
+}
 
 TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
   ResetClientWriterForVersionNegotiationTest();

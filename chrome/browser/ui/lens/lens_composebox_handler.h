@@ -34,7 +34,8 @@ class LensComposeboxHandler : public composebox::mojom::PageHandler,
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
-          pending_searchbox_handler);
+          pending_searchbox_handler,
+      mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page);
   ~LensComposeboxHandler() override;
 
   // composebox::mojom::PageHandler:
@@ -50,6 +51,9 @@ class LensComposeboxHandler : public composebox::mojom::PageHandler,
   void NavigateUrl(const GURL& url) override;
   void CloseLensOverlayFromWebUI(
       composebox::mojom::LensOverlayDismissalSource dismissal_source) override;
+  void SetSmartTabSharingActive(bool active) override;
+  void GetSmartTabSharingActive(
+      GetSmartTabSharingActiveCallback callback) override;
   // searchbox::mojom::PageHandler:
   void DeleteAutocompleteMatch(uint8_t line, const GURL& url) override;
   void ExecuteAction(uint8_t line,

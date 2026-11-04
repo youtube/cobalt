@@ -14,6 +14,7 @@
 namespace contextual_tasks {
 
 BASE_DECLARE_FEATURE(kContextualTasks);
+BASE_DECLARE_FEATURE(kEnableContextualTasksPinButtonInToolbar);
 // When enabled, it should instead request the kSearchResultsOAuth2Scope instead
 // of the kChromeSyncOAuth2Scope
 BASE_DECLARE_FEATURE(kContextualTasksScopeChange);
@@ -103,10 +104,6 @@ extern const base::FeatureParam<EntryPointOption, true> kShowEntryPoint;
 
 // UI Options to expand the contextual tasks side panel to tab.
 extern const base::FeatureParam<ExpandButtonOption, true> kExpandButtonOptions;
-
-// Whether to open side panel when an external link is clicked on the contextual
-// task page.
-extern const base::FeatureParam<bool> kOpenSidePanelOnLinkClicked;
 
 // Whether the context menu is enabled for Nextbox.
 extern bool GetIsContextualTasksNextboxContextMenuEnabled();
@@ -271,6 +268,9 @@ extern ExpandButtonOption GetExpandButtonOption();
 
 // Returns whether the rounded clip-path is enabled.
 extern bool IsRoundedClipPathEnabled();
+
+// Returns whether the pin button in toolbar is enabled.
+extern bool IsContextualTasksPinButtonInToolbarEnabled();
 
 namespace flag_descriptions {
 

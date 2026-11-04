@@ -51,6 +51,11 @@ RTC_OBJC_EXPORT
  */
 @property(nonatomic, copy, nullable) NSNumber *numTemporalLayers;
 
+/** The scalability mode for the encoding, or nil if unset.
+ *  https://w3c.github.io/webrtc-svc/#rtcrtpencodingparameters
+ */
+@property(nonatomic, copy, nullable) NSString *scalabilityMode;
+
 /** Scale the width and height down by this factor for video. If nil,
  * implementation default scaling factor will be used.
  */

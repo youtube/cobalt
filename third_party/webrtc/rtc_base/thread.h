@@ -64,15 +64,27 @@
         }                                                                 \
       })
 
+// For situations where an implementation decides that logging information about
+// blocking calls is actually not useful, such as when a test is fundamentally
+// single threaded and that may affect the behavior of blocking calls, or if a
+// test purposely changes this behavior, this macro can disable an already
+// initialized block-count logger object on the stack.
+#define RTC_IGNORE_THREAD_BLOCK_COUNT()   \
+  do {                                    \
+    blocked_call_count_printer.Disable(); \
+  } while (0)
+
 // Adds an RTC_DCHECK_LE that checks that the number of blocking calls are
 // less than or equal to a specific value. Use to avoid regressing in the
 // number of blocking thread calls.
 // Note: Use of this macro, requires RTC_LOG_THREAD_BLOCK_COUNT() to be called
 // first.
-#define RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(x)                               \
-  do {                                                                       \
-    blocked_call_count_printer.set_minimum_call_count_for_callback(x + 1);   \
-    RTC_DCHECK_LE(blocked_call_count_printer.GetTotalBlockedCallCount(), x); \
+#define RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(x)                                 \
+  do {                                                                         \
+    if (blocked_call_count_printer.is_enabled()) {                             \
+      blocked_call_count_printer.set_minimum_call_count_for_callback(x + 1);   \
+      RTC_DCHECK_LE(blocked_call_count_printer.GetTotalBlockedCallCount(), x); \
+    }                                                                          \
   } while (0)
 
 // Use to disallow calls to Thread::BlockingCall() within a scope/function.
@@ -81,6 +93,7 @@
 
 #else
 #define RTC_LOG_THREAD_BLOCK_COUNT()
+#define RTC_IGNORE_THREAD_BLOCK_COUNT()
 #define RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(x)
 #define RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS()
 #endif
@@ -239,10 +252,13 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     uint32_t GetBlockingCallCount() const;
     uint32_t GetCouldBeBlockingCallCount() const;
     uint32_t GetTotalBlockedCallCount() const;
+    void Disable();
 
     void set_minimum_call_count_for_callback(uint32_t minimum) {
       min_blocking_calls_for_callback_ = minimum;
     }
+
+    bool is_enabled() const { return result_callback_ != nullptr; }
 
    private:
     Thread* const thread_;
@@ -286,6 +302,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
     return messages_.size() + delayed_messages_.size();
   }
 
+  absl::string_view queue_name() const override { return name_; }
   bool IsCurrent() const;
 
   // Sleeps the calling thread for the specified number of milliseconds, during
@@ -553,16 +570,6 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   friend class ThreadManager;
 
   int dispatch_warning_ms_ RTC_GUARDED_BY(this) = kSlowDispatchLoggingThreshold;
-
-#if RTC_DCHECK_IS_ON
-  // This is used to catch if a cooperative task ends up being called from
-  // within another task. If that happens, the risk is that a full yield won't
-  // actually happen, so this is to help with ensuring we catch when things
-  // don't run as expected since webrtc can be configured in many ways and
-  // sometimes virtual thread concepts such as worker and network threads, can
-  // map to the same thread object.
-  int running_synchronous_blocking_call_count_ RTC_GUARDED_BY(this) = 0;
-#endif
 };
 
 // AutoThread automatically installs itself at construction

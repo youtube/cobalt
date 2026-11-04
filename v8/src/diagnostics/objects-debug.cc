@@ -530,15 +530,25 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     FieldStorageLocation offset = map()->NextFreeFieldStorageLocation();
     const uint32_t property_array_len = property_array()->length().value();
     if (map()->HasOutOfObjectProperties()) {
-      CHECK_GT(property_array_len, 0);
       CHECK(!offset.is_in_object);
       int actual_first_unused_property_index =
           offset.offset_in_words -
           OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
       int expected_first_unused_property_index =
           property_array_len - map()->UnusedPropertyFields();
-      CHECK_EQ(actual_first_unused_property_index,
-               expected_first_unused_property_index);
+      // We expect actual_first_unused_property_index and
+      // expected_first_unused_property_index to be equal, but we might be in
+      // the middle of extending a property array, in which case either we have:
+      //   1. New property array and old map --> UnusedPropertyFields is stale
+      //      and we need to subtract the extension, or
+      //   2. Old property array and new map --> property_array_len is stale
+      //      and we need to add in the extension.
+      CHECK(actual_first_unused_property_index ==
+                expected_first_unused_property_index ||
+            actual_first_unused_property_index ==
+                expected_first_unused_property_index - JSObject::kFieldsAdded ||
+            actual_first_unused_property_index ==
+                expected_first_unused_property_index + JSObject::kFieldsAdded);
     } else {
       // We should have a 0 length property array, but we might be in the middle
       // of adding the first property array entry so we might have a fresh
@@ -574,6 +584,13 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         FieldIndex index = FieldIndex::ForDetails(map(), details);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
+        }
+        if (!index.is_inobject() &&
+            static_cast<uint32_t>(index.outobject_array_index()) >=
+                property_array()->length().value()) {
+          // We might be in the middle of property array extension with an old
+          // property array, ignore OOB reads of the property array.
+          continue;
         }
         Tagged<Object> value = RawFastPropertyAt(index);
         CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
@@ -1702,7 +1719,11 @@ void Cell::CellVerify(Isolate* isolate) {
 }
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
+  CHECK(IsPropertyCell(this));
+  Object::VerifyPointer(isolate, name_.load());
+  Object::VerifyPointer(isolate, property_details_raw_.load());
+  Object::VerifyPointer(isolate, value_.load());
+  Object::VerifyPointer(isolate, dependent_code_.load());
   CHECK(IsUniqueName(name()));
   CheckDataIsCompatible(property_details(), value());
 }
@@ -2375,25 +2396,24 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 }
 
 void RegExpData::RegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
-  CHECK(IsString(original_source()));
-  CHECK(IsString(escaped_source()));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+  CHECK(IsRegExpData(this));
+  Object::VerifyPointer(isolate, original_source());
+  Object::VerifyPointer(isolate, escaped_source());
+  Object::VerifyPointer(isolate, wrapper());
 }
 
 void AtomRegExpData::AtomRegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsAtomRegExpData(this));
   RegExpDataVerify(isolate);
-  CHECK(IsString(pattern()));
+  Object::VerifyPointer(isolate, pattern());
 }
 
 void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsIrRegExpData(this));
   RegExpDataVerify(isolate);
 
-  VerifyProtectedPointerField(isolate, kLatin1BytecodeOffset);
-  VerifyProtectedPointerField(isolate, kUc16BytecodeOffset);
+  Object::VerifyPointer(isolate, latin1_bytecode());
+  Object::VerifyPointer(isolate, uc16_bytecode());
 
   CHECK_IMPLIES(!has_latin1_code(), !has_latin1_bytecode());
   CHECK_IMPLIES(!has_uc16_code(), !has_uc16_bytecode());
@@ -2403,15 +2423,11 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
   CHECK_IMPLIES(has_latin1_bytecode(), Is<TrustedByteArray>(latin1_bytecode()));
   CHECK_IMPLIES(has_uc16_bytecode(), Is<TrustedByteArray>(uc16_bytecode()));
 
-  CHECK_IMPLIES(
-      IsSmi(capture_name_map()),
-      Smi::ToInt(capture_name_map()) == JSRegExp::kUninitializedValue ||
-          capture_name_map() == Smi::zero());
+  CHECK_IMPLIES(IsSmi(capture_name_map()),
+                Smi::ToInt(Cast<Smi>(capture_name_map())) ==
+                        JSRegExp::kUninitializedValue ||
+                    capture_name_map() == Smi::zero());
   CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kMaxRegisterCountOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kCaptureCountOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kTicksUntilTierUpOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kBacktrackLimitOffset)));
 
   switch (type_tag()) {
     case RegExpData::Type::EXPERIMENTAL: {
@@ -2461,10 +2477,11 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
 }
 
 void RegExpDataWrapper::RegExpDataWrapperVerify(Isolate* isolate) {
+  CHECK(IsRegExpDataWrapper(this));
   if (!this->has_data()) return;
   auto data = this->data(isolate);
   Object::VerifyPointer(isolate, data);
-  CHECK_EQ(data->wrapper(), *this);
+  CHECK_EQ(data->wrapper(), this);
 }
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {
@@ -2877,8 +2894,12 @@ void WasmDispatchTableForImports::WasmDispatchTableForImportsVerify(
 
 void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
-  if (has_trusted_dispatch_table() &&
-      !has_trusted_dispatch_table_unpublished(isolate)) {
+  bool is_function_table =
+      unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction;
+  bool has_dispatch_table = trusted_dispatch_table(isolate) !=
+                            *isolate->factory()->empty_wasm_dispatch_table();
+  CHECK_EQ(is_function_table, has_dispatch_table);
+  if (is_function_table) {
     CHECK_EQ(trusted_dispatch_table(isolate)->length(), current_length());
   }
 }
@@ -2967,6 +2988,32 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
   CHECK(IsSmi(Tagged<Object>(end_.load())));
 }
 
+void DebugInfo::DebugInfoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsDebugInfo(this));
+  Object::VerifyPointer(isolate, shared());
+  Object::VerifyPointer(isolate, break_points());
+  Object::VerifyPointer(isolate, coverage_info());
+  CHECK_IMPLIES(has_original_bytecode_array(),
+                IsBytecodeArray(original_bytecode_array(isolate)));
+  CHECK_IMPLIES(has_debug_bytecode_array(),
+                IsBytecodeArray(debug_bytecode_array(isolate)));
+}
+
+void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsBreakPointInfo(this));
+  CHECK(IsSmi(Tagged<Object>(source_position_.load())));
+  Object::VerifyPointer(isolate, break_points_.load());
+}
+
+void BreakPoint::BreakPointVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsBreakPoint(this));
+  CHECK(IsSmi(Tagged<Object>(id_.load())));
+  Object::VerifyPointer(isolate, condition_.load());
+}
+
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   StructVerify(isolate);
   CHECK(IsDataHandler(this));
@@ -3008,7 +3055,25 @@ void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
 }
 
 void Script::ScriptVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
+  CHECK(IsScript(this));
+  Object::VerifyPointer(isolate, source());
+  Object::VerifyPointer(isolate, name());
+  Object::VerifyPointer(isolate, context_data());
+  Object::VerifyPointer(isolate, line_ends());
+  Object::VerifyPointer(isolate, eval_from_shared_or_wrapped_arguments());
+  Object::VerifyPointer(isolate, eval_from_position_.load());
+  Object::VerifyPointer(isolate, eval_from_scope_info());
+  Object::VerifyPointer(isolate, infos_.load());
+  Object::VerifyPointer(isolate, compiled_lazy_function_positions());
+  Object::VerifyPointer(isolate, source_url());
+  Object::VerifyPointer(isolate, source_mapping_url());
+  Object::VerifyPointer(isolate, debug_id());
+  Object::VerifyPointer(isolate, host_defined_options());
+#if V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  Object::VerifyPointer(isolate, script_or_modules());
+#endif
+  Object::VerifyPointer(isolate, source_hash());
+
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Script::Type::kWasm) {
     CHECK_EQ(line_ends(), ReadOnlyRoots(isolate).empty_fixed_array());
@@ -3115,15 +3180,26 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
 }
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsStackFrameInfo(this));
+  Object::VerifyPointer(isolate, shared_or_script_.load());
+  Object::VerifyPointer(isolate, function_name_.load());
+  CHECK(IsSmi(Tagged<Object>(flags_.load())));
 }
 
 void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StackTraceInfoVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsStackTraceInfo(this));
+  CHECK(IsSmi(Tagged<Object>(id_.load())));
+  Object::VerifyPointer(isolate, frames_.load());
 }
 
 void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsErrorStackData(this));
+  Object::VerifyPointer(
+      isolate, raw_data_for_call_site_infos_or_formatted_stack_.load());
+  Object::VerifyPointer(isolate, stack_trace_.load());
 }
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {

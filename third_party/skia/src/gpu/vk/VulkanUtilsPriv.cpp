@@ -9,7 +9,7 @@
 
 #include "include/gpu/vk/VulkanBackendContext.h"
 #include "include/private/base/SkAssert.h"
-#include "include/private/base/SkDebug.h"
+#include "include/private/base/SkLog.h"
 #include "include/private/base/SkTFitsIn.h"
 #include "include/private/base/SkTo.h"
 #include "src/gpu/vk/VulkanInterface.h"
@@ -118,11 +118,11 @@ bool GetAHardwareBufferProperties(
         // The spec suggests VK_ERROR_OUT_OF_HOST_MEMORY and VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR
         // are the only failure codes, but some platforms may report others, such as
         // VK_ERROR_FORMAT_NOT_SUPPORTED (-11).
-        SkDebugf("Failed to get AndroidHardwareBufferProperties (result:%d)", result);
+        SKIA_LOG_E("Failed to get AndroidHardwareBufferProperties (result:%d)", result);
 #if __ANDROID_API__ >= 26
         AHardwareBuffer_Desc hwbDesc;
         AHardwareBuffer_describe(hwBuffer, &hwbDesc);
-        SkDebugf("^ %" PRIu32 "x%" PRIu32 " AHB -- format:%" PRIu32 ", usage:%" PRIu64
+        SKIA_LOG_E("^ %" PRIu32 "x%" PRIu32 " AHB -- format:%" PRIu32 ", usage:%" PRIu64
                  ", layers:%" PRIu32,
                  hwbDesc.width,
                  hwbDesc.height,
@@ -171,6 +171,8 @@ bool AllocateAndBindImageMemory(skgpu::VulkanAlloc* outVulkanAlloc,
         foundHeap = true;
     }
     if (!foundHeap) {
+        SKIA_LOG_E("Failed to find compatible memory type for AHB. memoryTypeBits: 0x%x",
+                   hwbProps.memoryTypeBits);
         return false;
     }
 
@@ -196,6 +198,7 @@ bool AllocateAndBindImageMemory(skgpu::VulkanAlloc* outVulkanAlloc,
     result = SHARED_GR_VULKAN_CALL(interface,
                                    AllocateMemory(device, &allocInfo, nullptr, &memory));
     if (result != VK_SUCCESS) {
+        SKIA_LOG_E("Failed to allocate device memory for AHB (result:%d)", result);
         return false;
     }
 
@@ -208,6 +211,7 @@ bool AllocateAndBindImageMemory(skgpu::VulkanAlloc* outVulkanAlloc,
 
     result = SHARED_GR_VULKAN_CALL(interface, BindImageMemory2(device, 1, &bindImageInfo));
     if (result != VK_SUCCESS) {
+        SKIA_LOG_E("Failed to bind image memory for AHB (result:%d)", result);
         SHARED_GR_VULKAN_CALL(interface, FreeMemory(device, memory, nullptr));
         return false;
     }

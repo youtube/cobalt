@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <memory>
 
 #include "base/auto_reset.h"
@@ -91,6 +92,7 @@
 #include "components/viz/common/quads/tile_draw_quad.h"
 #include "components/viz/service/display/output_surface.h"
 #include "components/viz/service/display/skia_output_surface.h"
+#include "components/viz/service/layers/layer_context_impl.h"
 #include "components/viz/test/begin_frame_args_test.h"
 #include "components/viz/test/fake_output_surface.h"
 #include "components/viz/test/test_raster_interface.h"
@@ -849,8 +851,8 @@ class LayerTreeHostTestSetNeedsCommit1 : public LayerTreeHostTest {
   }
 
  private:
-  int num_commits_;
-  int num_draws_;
+  std::atomic<int> num_commits_;
+  std::atomic<int> num_draws_;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestSetNeedsCommit1);
@@ -885,13 +887,11 @@ class LayerTreeHostTestSetNeedsCommit2 : public LayerTreeHostTest {
   }
 
  private:
-  int num_commits_;
-  int num_draws_;
+  std::atomic<int> num_commits_;
+  std::atomic<int> num_draws_;
 };
 
-// TODO(crbug.com/485089667): Flaky. Reenable it.
-TEST_F(LayerTreeHostTestSetNeedsCommit2,
-       DISABLED_RunMultiThread_DelegatingRenderer) {
+TEST_F(LayerTreeHostTestSetNeedsCommit2, RunMultiThread_DelegatingRenderer) {
   RunTest(CompositorMode::THREADED);
 }
 
@@ -1087,7 +1087,7 @@ class LayerTreeHostTestNumLayersInCommitState : public LayerTreeHostTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  void WillCommit(const CommitState&) override {
+  void DidUpdateLayers() override {
     EXPECT_EQ(2u, layer_tree_host()->GetUnsafeStateForCommit().num_layers());
   }
 
@@ -2543,8 +2543,8 @@ class LayerTreeHostTestSetNeedsRedraw : public LayerTreeHostTest {
   }
 
  private:
-  int num_commits_;
-  int num_draws_;
+  std::atomic<int> num_commits_;
+  std::atomic<int> num_draws_;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostTestSetNeedsRedraw);
@@ -2599,7 +2599,7 @@ class LayerTreeHostTestSetNeedsRedrawRect : public LayerTreeHostTest {
   void AfterTest() override { EXPECT_EQ(2, num_draws_); }
 
  private:
-  int num_draws_;
+  std::atomic<int> num_draws_;
   const gfx::Size bounds_;
   const gfx::Rect invalid_rect_;
   FakeContentLayerClient client_;
@@ -10564,17 +10564,6 @@ class LayerTreeHostTestOccludedTileReleased
 
 SINGLE_THREAD_TEST_F(LayerTreeHostTestOccludedTileReleased);
 
-class LayerTreeHostTestNoCommitDeadlock : public LayerTreeHostTest {
-  void BeginTest() override { PostSetNeedsCommitToMainThread(); }
-  void WillCommit(const CommitState& commit_state) override {
-    // Test passes if this doesn't deadlock.
-    layer_tree_host()->root_layer()->update_rect();
-  }
-  void DidCommit() override { EndTest(); }
-};
-
-SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestNoCommitDeadlock);
-
 // In real site, problem happened like this
 // 1. commit
 // 2. tiling is delayed, so NotifyReadyToActivate is not triggered
@@ -11441,7 +11430,7 @@ class LayerTreeHostTestFarAwayQuadsDontNeedAA : public LayerTreeHostTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  void WillCommit(const CommitState& commit_state) override {
+  void DidUpdateLayers() override {
     scroll_layer_->SetScrollOffset(gfx::PointF(100000, 0));
   }
 
@@ -12102,7 +12091,103 @@ class LayerTreeHostTestTrackedElementRects
   void DidEndScroll() override {}
 #endif
 };
+
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestTrackedElementRects);
+
+class LayerTreeHostTestTreesInVizSyncViewportDeltas : public LayerTreeHostTest {
+ public:
+  LayerTreeHostTestTreesInVizSyncViewportDeltas() {
+    SetUseLayerLists();
+    feature_list_.InitAndEnableFeature(features::kTreesInViz);
+  }
+
+  void SetupTree() override {
+    SetInitialRootBounds(gfx::Size(100, 100));
+    LayerTreeHostTest::SetupTree();
+    Layer* root_layer = layer_tree_host()->root_layer();
+
+    SetupViewport(root_layer, gfx::Size(100, 100), gfx::Size(100, 100));
+  }
+
+  void BeginTest() override { PostSetNeedsCommitToMainThread(); }
+
+  void DidCommit() override {
+    if (layer_tree_host()->SourceFrameNumber() == 1) {
+      // Trigger a second frame without changing browser controls.
+      PostSetNeedsCommitWithForcedRedrawToMainThread();
+    }
+  }
+
+  void DidActivateTreeOnThread(LayerTreeHostImpl* host_impl) override {
+    client_host_impl_ = host_impl;
+    if (host_impl->active_tree()->source_frame_number() == 1) {
+      // Modify the deltas on the active tree. We do this after
+      // UpdateViewportContainerSizes() has run (which happened during
+      // activation).
+      host_impl->active_tree()
+          ->property_trees()
+          ->SetInnerViewportContainerBoundsDelta(gfx::Vector2dF(0.f, 25.f));
+      host_impl->active_tree()
+          ->property_trees()
+          ->SetOuterViewportContainerBoundsDelta(gfx::Vector2dF(0.f, 25.f));
+      host_impl->active_tree()->property_trees()->set_changed(true);
+
+      // Ensure that these changes are sent to the service.
+      host_impl->SetNeedsRedraw(false, false);
+    }
+  }
+
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    if (!client_host_impl_) {
+      return;
+    }
+
+    // Verify service-side deltas.
+    auto* frame_sink = static_cast<TestLayerTreeFrameSink*>(
+        client_host_impl_->layer_tree_frame_sink());
+    viz::LayerContextImpl* layer_context =
+        frame_sink->support()->layer_context_for_testing();
+    ASSERT_TRUE(layer_context);
+    auto* service_host_impl = layer_context->host_impl();
+    ASSERT_TRUE(service_host_impl);
+
+    // We only care about the frame that corresponds to our manual delta change.
+    if (service_host_impl->active_tree()->source_frame_number() != 1) {
+      return;
+    }
+
+    float inner_delta_y = service_host_impl->active_tree()
+                              ->property_trees()
+                              ->inner_viewport_container_bounds_delta()
+                              .y();
+    float outer_delta_y = service_host_impl->active_tree()
+                              ->property_trees()
+                              ->outer_viewport_container_bounds_delta()
+                              .y();
+
+    // It is possible that we receive a frame for source_frame_number 1 before
+    // the manual delta change was applied on the client impl thread and sent
+    // to the service. If so, just wait for the next frame.
+    if (inner_delta_y == 0.f) {
+      return;
+    }
+
+    // The deltas should be synced to the service-side active tree.
+    EXPECT_EQ(inner_delta_y, 25.f);
+    EXPECT_EQ(outer_delta_y, 25.f);
+
+    EndTest();
+  }
+
+  void AfterTest() override { client_host_impl_ = nullptr; }
+
+ private:
+  raw_ptr<LayerTreeHostImpl> client_host_impl_ = nullptr;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestTreesInVizSyncViewportDeltas);
 
 }  // namespace
 }  // namespace cc

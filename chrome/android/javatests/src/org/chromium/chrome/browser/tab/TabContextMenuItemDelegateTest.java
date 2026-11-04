@@ -26,7 +26,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
@@ -102,15 +101,14 @@ public class TabContextMenuItemDelegateTest {
 
     @Test
     @SmallTest
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // crbug.com/497724495
     public void testOpenInNewTabInGroup_ExistingGroup_ParityEnabled() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     ChromeTabbedActivity cta = mActivityTestRule.getActivity();
                     var tabModelSelector = cta.getTabModelSelectorSupplier().get();
-                    var filter = tabModelSelector.getTabGroupModelFilter(false);
+                    var tabModel = tabModelSelector.getModel(false);
                     var tab = cta.getActivityTab();
-                    filter.createSingleTabGroup(tab);
+                    tabModel.createSingleTabGroup(tab);
                 });
 
         openNewTabUsingContextMenu();

@@ -245,6 +245,15 @@ void RtpSenderBase::SetEncoderSelector(
     std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
         encoder_selector) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  SetEncoderSelector(
+      scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>(
+          encoder_selector.release()));
+}
+
+void RtpSenderBase::SetEncoderSelector(
+    scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+        encoder_selector) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   encoder_selector_ = std::move(encoder_selector);
   SetEncoderSelectorOnChannel();
 }
@@ -258,7 +267,7 @@ void RtpSenderBase::SetEncoderSelectorOnChannel() {
   worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     if (media_channel_)
-      media_channel_->SetEncoderSelector(ssrc, encoder_selector_.get());
+      media_channel_->SetEncoderSelector(ssrc, encoder_selector_);
   });
 }
 
@@ -778,7 +787,7 @@ void RtpSenderBase::SetSsrc(uint32_t ssrc) {
           ssrc, frame_transformer_);
     }
     if (encoder_selector_) {
-      media_channel_->SetEncoderSelector(ssrc, encoder_selector_.get());
+      media_channel_->SetEncoderSelector(ssrc, encoder_selector_);
     }
   });
   if (params_modified) {

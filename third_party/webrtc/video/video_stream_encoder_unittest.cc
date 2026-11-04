@@ -10393,6 +10393,8 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
     SuperLazyTaskQueue() = default;
     ~SuperLazyTaskQueue() override = default;
 
+    absl::string_view queue_name() const override { return "Lazy"; }
+
    private:
     void Delete() override { delete this; }
     void PostTaskImpl(absl::AnyInvocable<void() &&> task,

@@ -726,7 +726,7 @@ mod test {
             SHIFTED_NAMED_INSTANCE_INDEX,
             &mut too_small,
         );
-        assert_eq!(num_coords, -1);
+        assert_eq!(num_coords, 0);
 
         let mut received_coords: [SkiaDesignCoordinate; 2] = Default::default();
         let num_coords = coordinates_for_shifted_named_instance_index(
@@ -764,6 +764,6 @@ mod test {
             OUT_OF_BOUNDS_NAMED_INSTANCE_INDEX,
             &mut [],
         );
-        assert_eq!(num_coords, -1);
+        assert_eq!(num_coords, 0);
     }
 }

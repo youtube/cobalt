@@ -88,6 +88,7 @@
 #include "video/decode_synchronizer.h"
 #include "video/frame_decode_scheduler.h"
 #include "video/frame_dumping_decoder.h"
+#include "video/null_video_decoder.h"
 #include "video/receive_statistics_proxy.h"
 #include "video/render/incoming_video_stream.h"
 #include "video/task_queue_frame_decode_scheduler.h"
@@ -169,33 +170,6 @@ RenderResolution InitialDecoderResolution(const FieldTrialsView& field_trials) {
 
   return RenderResolution(320, 180);
 }
-
-// Video decoder class to be used for unknown codecs. Doesn't support decoding
-// but logs messages to LS_ERROR.
-class NullVideoDecoder : public VideoDecoder {
- public:
-  bool Configure(const Settings& settings) override {
-    RTC_LOG(LS_ERROR) << "Can't initialize NullVideoDecoder.";
-    return true;
-  }
-
-  int32_t Decode(const EncodedImage& input_image,
-                 int64_t render_time_ms) override {
-    RTC_LOG(LS_ERROR) << "The NullVideoDecoder doesn't support decoding.";
-    return WEBRTC_VIDEO_CODEC_OK;
-  }
-
-  int32_t RegisterDecodeCompleteCallback(
-      DecodedImageCallback* callback) override {
-    RTC_LOG(LS_ERROR)
-        << "Can't register decode complete callback on NullVideoDecoder.";
-    return WEBRTC_VIDEO_CODEC_OK;
-  }
-
-  int32_t Release() override { return WEBRTC_VIDEO_CODEC_OK; }
-
-  const char* ImplementationName() const override { return "NullVideoDecoder"; }
-};
 
 bool IsKeyFrameAndUnspecifiedResolution(const EncodedFrame& frame) {
   return frame.IsKey() && frame.EncodedImage()._encodedWidth == 0 &&
@@ -555,10 +529,8 @@ void VideoReceiveStream2::CreateAndRegisterExternalDecoder(
                "VideoReceiveStream2::CreateAndRegisterExternalDecoder");
   std::unique_ptr<VideoDecoder> video_decoder =
       config_.decoder_factory->Create(env_, decoder.video_format);
-  // If we still have no valid decoder, we have to create a "Null" decoder
-  // that ignores all calls. The reason we can get into this state is that the
-  // old decoder factory interface doesn't have a way to query supported
-  // codecs.
+  // The factory can end up in this state either if the format is not supported
+  // or because a creation step failed, e.g. HW is unavailable.
   if (!video_decoder) {
     video_decoder = std::make_unique<NullVideoDecoder>();
   }

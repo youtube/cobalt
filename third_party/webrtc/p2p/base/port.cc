@@ -125,6 +125,10 @@ Port::Port(const PortParametersRef& args,
       this, [this](const ::webrtc::Network* network) {
         OnNetworkTypeChanged(network);
       });
+  const_cast<::webrtc::Network*>(network_)->SubscribeNetworkSliceChanged(
+      this, [this](const ::webrtc::Network* network) {
+        OnNetworkSliceChanged(network);
+      });
 
   PostDestroyIfDead(/*delayed=*/true);
   RTC_LOG(LS_INFO) << ToString() << ": Port created with network cost "
@@ -136,6 +140,8 @@ Port::~Port() {
   DestroyAllConnections();
   CancelPendingTasks();
   const_cast<::webrtc::Network*>(network_)->UnsubscribeTypeChanged(this);
+  const_cast<::webrtc::Network*>(network_)->UnsubscribeNetworkSliceChanged(
+      this);
 }
 
 IceCandidateType Port::Type() const {
@@ -241,6 +247,7 @@ void Port::AddAddress(const SocketAddress& address,
   c.set_underlying_type_for_vpn(network_->underlying_type_for_vpn());
   c.set_url(url);
   c.set_related_address(related_address);
+  c.set_network_slice(network_->network_slice());
 
   bool pending = MaybeObfuscateAddress(c, is_final);
 
@@ -907,6 +914,19 @@ void Port::SendPortDestroyed(Port* port) {
 void Port::OnNetworkTypeChanged(const ::webrtc::Network* network) {
   RTC_DCHECK(network == network_);
 
+  UpdateNetworkCost();
+}
+
+void Port::OnNetworkSliceChanged(const ::webrtc::Network* network) {
+  RTC_DCHECK_RUN_ON(thread_);
+  RTC_DCHECK(network == network_);
+
+  for (Candidate& candidate : candidates_) {
+    candidate.set_network_slice(network_->network_slice());
+  }
+
+  // The network slice affects the network cost as well, so also update the cost
+  // when the slice changes.
   UpdateNetworkCost();
 }
 

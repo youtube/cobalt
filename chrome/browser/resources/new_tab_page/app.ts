@@ -265,6 +265,7 @@ export class AppElement extends AppElementBase {
       browserPromoLimit_: {type: Number},
       browserPromoCompletedLimit_: {type: Number},
       showBrowserPromo_: {type: Boolean},
+      caretAnimationsEnabled_: {type: Boolean},
 
       modulesShownToUser: {
         type: Boolean,
@@ -307,7 +308,10 @@ export class AppElement extends AppElementBase {
       },
 
       ntpNextFeaturesEnabled_: {type: Boolean},
-      maxTilesBeforeShowMore_: {type: Number},
+      maxTilesInCollapsedState_: {type: Number},
+      maxShortcutsInExpandedState_: {type: Number},
+      maxMostVisitedTilesInExpandedState_: {type: Number},
+      maxEnterpriseShortcuts_: {type: Number},
       containerFocused_: {type: Boolean},
 
       /**
@@ -368,7 +372,7 @@ export class AppElement extends AppElementBase {
   protected accessor wasComposeboxOpened_: boolean = false;
   protected accessor showLensUploadDialog_: boolean = false;
   protected accessor showComposebox_: boolean = false;
-  protected caretAnimationsEnabled_: boolean =
+  protected accessor caretAnimationsEnabled_: boolean =
       loadTimeData.getBoolean('caretAnimationEnabled');
   protected accessor logoEnabled_: boolean =
       loadTimeData.getBoolean('logoEnabled');
@@ -411,8 +415,14 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('searchboxCyclingPlaceholders');
   protected accessor ntpNextFeaturesEnabled_: boolean =
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
-  protected accessor maxTilesBeforeShowMore_: number =
-      loadTimeData.getInteger('maxTilesBeforeShowMore');
+  protected accessor maxTilesInCollapsedState_: number =
+      loadTimeData.getInteger('maxTilesInCollapsedState');
+  protected accessor maxShortcutsInExpandedState_: number =
+      loadTimeData.getInteger('maxShortcutsInExpandedState');
+  protected accessor maxMostVisitedTilesInExpandedState_: number =
+      loadTimeData.getInteger('maxMostVisitedTilesInExpandedState');
+  protected accessor maxEnterpriseShortcuts_: number =
+      loadTimeData.getInteger('maxEnterpriseShortcuts');
   protected accessor containerFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =

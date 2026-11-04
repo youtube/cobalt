@@ -227,7 +227,8 @@ class NetworkHandler : public DevToolsDomainHandler,
       std::optional<int> packet_queue_length,
       std::optional<bool> packet_reordering) override;
   Response EmulateNetworkConditionsByRule(
-      bool offline,
+      std::optional<bool> offline,
+      std::optional<bool> emulate_offline_service_worker,
       std::unique_ptr<protocol::Array<protocol::Network::NetworkConditions>>
           matched_network_conditions,
       std::unique_ptr<protocol::Array<String>>* rule_ids_result) override;
@@ -388,9 +389,7 @@ class NetworkHandler : public DevToolsDomainHandler,
       std::unique_ptr<LoadNetworkResourceCallback> callback) override;
 
   DispatchResponse SetCookieControls(
-      bool enable_third_party_cookie_restriction,
-      bool disable_third_party_cookie_metadata,
-      bool disable_third_party_cookie_heuristics) override;
+      bool enable_third_party_cookie_restriction) override;
 
   // Protocol builders.
   static String BuildLocalNetworkAccessRequestPolicy(
@@ -455,8 +454,6 @@ class NetworkHandler : public DevToolsDomainHandler,
   raw_ptr<RenderFrameHostImpl> host_;
   bool enabled_ = false;
   bool enable_third_party_cookie_restriction_ = false;
-  bool disable_third_party_cookie_metadata_ = false;
-  bool disable_third_party_cookie_heuristics_ = false;
   bool enable_durable_messages_ = false;
   int durable_message_max_total_size_ = 0;
 

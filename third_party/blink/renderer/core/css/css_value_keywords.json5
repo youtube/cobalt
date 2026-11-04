@@ -1720,6 +1720,7 @@
     // auto,
     // contain
     // none
+    "chain",
 
     //scroll-customization
     // auto
@@ -2105,5 +2106,30 @@
     // https://drafts.csswg.org/css-conditional-5/#typedef-supports-named-feature-fn
     "named-feature",
     "align-content-on-display-block",
+
+    // hanging-punctuation
+    // "first",
+    // "last",
+    // not for the initial version
+    // "force-end"
+    "allow-end",
+
+    // https://drafts.csswg.org/css-values-5/#request-url-modifiers
+    // URL modifier function names
+    "cross-origin",
+    "integrity",
+    "referrer-policy",
+    // cross-origin() values
+    "anonymous",
+    "use-credentials",
+    // referrer-policy() values
+    "no-referrer",
+    "no-referrer-when-downgrade",
+    "same-origin",
+    // "origin" already exists above
+    "strict-origin",
+    "origin-when-cross-origin",
+    "strict-origin-when-cross-origin",
+    "unsafe-url",
   ],
 }

@@ -27,7 +27,7 @@ enum {
     kPostscriptName = 0x06, // int length, data[length]
     kWeight         = 0x10, // scalar (1 - 1000)
     kWidth          = 0x11, // scalar (percentage, 100 is 'normal')
-    kSlant          = 0x12, // scalar (cw angle, 14 is a normal right leaning oblique)
+    kSlant          = 0x12, // scalar (ccw angle, -10 is a normal right leaning oblique)
     kItalic         = 0x13, // scalar (0 is Roman, 1 is fully Italic)
 
     // Related to font data. Can also be used with a requested font.
@@ -121,7 +121,7 @@ bool SkFontDescriptor::Deserialize(SkStream* stream, SkFontDescriptor* result) {
     if (!stream->readPackedUInt(&styleBits)) { return false; }
     weight = ((styleBits >> 16) & 0xFFFF);
     width  = ((styleBits >>  8) & 0x000F)[width_for_usWidth];
-    slant  = ((styleBits >>  0) & 0x000F) != SkFontStyle::kUpright_Slant ? 14 : 0;
+    slant  = ((styleBits >>  0) & 0x000F) != SkFontStyle::kUpright_Slant ? -20 : 0;
     italic = ((styleBits >>  0) & 0x000F) == SkFontStyle::kItalic_Slant ? 1 : 0;
 
     for (size_t id; (id = read_id(stream)) != kSentinel;) {
@@ -244,7 +244,7 @@ bool SkFontDescriptor::serialize(SkWStream* stream) const {
 
     if (!write_scalar(stream, fStyle.weight(), kWeight)) { return false; }
     if (!write_scalar(stream, fStyle.width()[width_for_usWidth], kWidth)) { return false; }
-    SkScalar slant = fStyle.slant() == SkFontStyle::kUpright_Slant ? 0 : 14;
+    SkScalar slant = fStyle.slant() == SkFontStyle::kUpright_Slant ? 0 : -20;
     if (!write_scalar(stream, slant, kSlant)) { return false; }
     SkScalar italic = fStyle.slant() == SkFontStyle::kItalic_Slant ? 1 : 0;
     if (!write_scalar(stream, italic, kItalic)) { return false; }

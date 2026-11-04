@@ -130,13 +130,12 @@ class RealboxHandlerTest : public SearchboxHandlerTest {
     web_contents_ =
         content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
     handler_ = std::make_unique<RealboxHandler>(
-        mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
-        web_contents_.get(),
+        mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+        page_.BindAndGetRemote(), profile(), web_contents_.get(),
         base::BindLambdaForTesting(
             []() -> contextual_search::ContextualSearchSessionHandle* {
               return nullptr;
             }));
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 
   void TearDown() override {
@@ -269,13 +268,12 @@ class SearchboxHandlerPecApiTest : public RealboxHandlerTest {
     web_contents_ =
         content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
     handler_ = std::make_unique<RealboxHandler>(
-        mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
-        web_contents_.get(),
+        mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+        page_.BindAndGetRemote(), profile(), web_contents_.get(),
         base::BindLambdaForTesting(
             []() -> contextual_search::ContextualSearchSessionHandle* {
               return nullptr;
             }));
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 
   void TearDown() override {
@@ -307,7 +305,7 @@ TEST_F(SearchboxHandlerPecApiTest, GetPlaceholderConfig_WithToolConfigs) {
 }
 
 TEST_F(SearchboxHandlerPecApiTest,
-       GetPlaceholderConfig_EmptySearchboxConfigReturnsAskGoogleOnly) {
+       GetPlaceholderConfig_NoToolConfigsReturnsEmpty) {
   omnibox::SearchboxConfig& config = mock_aim_eligibility_service_->config();
 
   ON_CALL(*mock_aim_eligibility_service_, GetSearchboxConfig())
@@ -317,8 +315,8 @@ TEST_F(SearchboxHandlerPecApiTest,
   handler_->GetPlaceholderConfig(future.GetCallback());
   auto result = future.Take();
 
-  ASSERT_EQ(result->texts.size(), 1u);
-  EXPECT_EQ(result->texts[0], u"Ask Google");
+  // Not eligible tools -> cycling disabled -> empty placeholder list.
+  ASSERT_EQ(result->texts.size(), 0u);
 }
 
 TEST_F(SearchboxHandlerPecApiTest,
@@ -386,10 +384,9 @@ class LensSearchboxHandlerTest : public SearchboxHandlerTest {
         std::make_unique<testing::NiceMock<MockLensSearchboxClient>>();
 
     handler_ = std::make_unique<LensSearchboxHandler>(
-        mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
+        mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+        page_.BindAndGetRemote(), profile(),
         /*web_contents=*/nullptr, lens_searchbox_client_.get());
-
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 };
 
@@ -549,12 +546,12 @@ class WebuiOmniboxHandlerTest : public SearchboxHandlerTest {
 
     handler_ = std::make_unique<WebuiOmniboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+        page_.BindAndGetRemote(),
         /*metrics_reporter=*/nullptr, omnibox_controller_.get(), &web_ui_,
         base::BindLambdaForTesting(
             []() -> contextual_search::ContextualSearchSessionHandle* {
               return nullptr;
             }));
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 
   void TearDown() override {

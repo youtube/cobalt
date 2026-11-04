@@ -154,6 +154,8 @@ protected:
 
             UniformDataCache::Entry& uniformData = uniformCache.lookup(index);
             const size_t uniformDataSize = uniformData.fCpuData.size();
+            size_t uniformBindingSize =
+                    fUseStorageBuffers ? uniformDataSize : SkNextSizePow2(uniformDataSize);
 
             // Upload the uniform data if we haven't already.
             // Alternatively, re-upload the uniform data to avoid a rebind if we're using storage
@@ -163,13 +165,15 @@ protected:
                  uniformData.fBufferBinding.fBuffer != fLastBinding.fBuffer)) {
                 BufferWriter writer;
                 std::tie(writer, uniformData.fBufferBinding) =
-                        fCurrentBuffer.getMappedSubrange(1, uniformDataSize);
+                        fCurrentBuffer.getMappedSubrangeWithHeadroom(uniformDataSize,
+                                                                     uniformBindingSize);
                 if (!writer) {
                     // Allocate a new buffer
                     std::tie(writer, uniformData.fBufferBinding, fCurrentBuffer) =
                             fUseStorageBuffers
                                     ? bufferMgr->getMappedStorageBuffer(1, uniformDataSize)
-                                    : bufferMgr->getMappedUniformBuffer(1, uniformDataSize);
+                                    : bufferMgr->getMappedUniformBuffer(uniformDataSize,
+                                                                        uniformBindingSize);
                     if (!writer) {
                         return {};  // Allocation failed so early out
                     }
@@ -186,6 +190,7 @@ protected:
                 } else {
                     // Every new set of uniform data has to be bound, this ensures its aligned
                     // correctly
+                    uniformData.fBufferBinding.fSize = SkTo<uint32_t>(uniformBindingSize);
                     fCurrentBuffer.resetForNewBinding();
                 }
             }

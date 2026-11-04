@@ -1684,6 +1684,12 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToInt32(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToUint32(
+    CheckedIntPtrToUint32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitChangeInt32ToFloat64(
     ChangeInt32ToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1720,8 +1726,20 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToUint32(
+    CheckedFloat64ToUint32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
     CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32(
+    CheckedHoleyFloat64ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1897,27 +1915,37 @@ UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
-  MaybeReduceResult maybe_input = GetUntaggedValueWithRepresentation(
-      node->input_node(0), UseRepresentation::kInt32, {});
-  if (maybe_input.IsDoneWithValue()) {
-    ValueNode* input = maybe_input.value();
-    if (SmiValuesAre31Bits()) {
-      // When the graph builder introduced the CheckedSmiUntag, it also recorded
-      // in the alternatives that its input was a known Smi from this point on.
-      // This information could have been later used to avoid Smi checks when
-      // using this input in contexts that require Smis (like storing the length
-      // of an array for instance). We can thus bypass the CheckedSmiUntag, but
-      // still need to keep a CheckSmi.
-      // TODO(dmercadier): during graph building, record whether the "CheckSmi"
-      // part of CheckSmiUntag is useful or not.
-      ReduceResult result = reducer_.BuildCheckedSmiSizedInt32(input);
-      CHECK(result.IsDone());
-    }
-    return ReplaceWith(input);
-  } else if (maybe_input.IsDoneWithAbort()) {
-    return ProcessResult::kTruncateBlock;
-  }
-  DCHECK(maybe_input.IsFail());
+  // TODO(b/496266449): The current optimization is unsound, since the input of
+  // this node could flow to a StoreTaggedFieldNoWriteBarrier, which expects a
+  // Smi, not a Smi-sized number, which could be a HeapNumber.
+  // Re-enable this optimization once we add a Smi value representation.
+
+  // MaybeReduceResult maybe_input = GetUntaggedValueWithRepresentation(
+  //     node->input_node(0), UseRepresentation::kInt32, {});
+  // if (maybe_input.IsDoneWithValue()) {
+  //   ValueNode* input = maybe_input.value();
+  //   if (SmiValuesAre31Bits()) {
+  //     // When the graph builder introduced the CheckedSmiUntag, it also
+  //     recorded
+  //     // in the alternatives that its input was a known Smi from this point
+  //     on.
+  //     // This information could have been later used to avoid Smi checks when
+  //     // using this input in contexts that require Smis (like storing the
+  //     length
+  //     // of an array for instance). We can thus bypass the CheckedSmiUntag,
+  //     but
+  //     // still need to keep a CheckSmi.
+  //     // TODO(dmercadier): during graph building, record whether the
+  //     "CheckSmi"
+  //     // part of CheckSmiUntag is useful or not.
+  //     ReduceResult result = reducer_.BuildCheckedSmiSizedInt32(input);
+  //     CHECK(result.IsDone());
+  //   }
+  //   return ReplaceWith(input);
+  // } else if (maybe_input.IsDoneWithAbort()) {
+  //   return ProcessResult::kTruncateBlock;
+  // }
+  // DCHECK(maybe_input.IsFail());
   return ProcessResult::kContinue;
 }
 
@@ -2474,6 +2502,17 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Negate(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFloat64RoundToFloat32(
+    Float64RoundToFloat32* node, const ProcessingState& state) {
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->ValueInput().node(),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    float value = static_cast<float>(cst.value().get_scalar());
+    return ReplaceWith(reducer_.GetFloat64Constant(static_cast<double>(value)));
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
     Float64Round* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
@@ -2486,6 +2525,9 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
         break;
       case Float64Round::Kind::kCeil:
         value = std::ceil(value);
+        break;
+      case Float64Round::Kind::kTrunc:
+        value = std::trunc(value);
         break;
       case Float64Round::Kind::kNearest:
         return ProcessResult::kContinue;

@@ -1737,7 +1737,7 @@ void WebRtcVideoSendChannel::FillSendCodecStats(
 }
 
 absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
-WebRtcVideoSendChannel::GetStatsCallback() {
+WebRtcVideoSendChannel::GetStatsTask() {
   return [this, safety = task_safety_.flag()]() mutable
              -> std::optional<VideoMediaSendInfo> {
     if (!safety->alive()) {
@@ -1822,11 +1822,12 @@ void WebRtcVideoSendChannel::SetFrameEncryptor(
 
 void WebRtcVideoSendChannel::SetEncoderSelector(
     uint32_t ssrc,
-    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) {
+    scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+        encoder_selector) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   auto matching_stream = send_streams_.find(ssrc);
   if (matching_stream != send_streams_.end()) {
-    matching_stream->second->SetEncoderSelector(encoder_selector);
+    matching_stream->second->SetEncoderSelector(std::move(encoder_selector));
   } else {
     RTC_LOG(LS_ERROR) << "No stream found to attach encoder selector";
   }
@@ -2284,9 +2285,10 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::SetFrameEncryptor(
 }
 
 void WebRtcVideoSendChannel::WebRtcVideoSendStream::SetEncoderSelector(
-    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) {
+    scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+        encoder_selector) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  parameters_.config.encoder_selector = encoder_selector;
+  parameters_.config.encoder_selector = std::move(encoder_selector);
   if (stream_) {
     RTC_LOG(LS_INFO)
         << "RecreateWebRtcStream (send) because of SetEncoderSelector, ssrc="
@@ -3143,11 +3145,6 @@ bool WebRtcVideoReceiveChannel::RemoveRecvStream(uint32_t ssrc) {
 }
 
 void WebRtcVideoReceiveChannel::ResetUnsignaledRecvStream() {
-  if (!worker_thread_->IsCurrent()) {
-    worker_thread_->PostTask(SafeTask(
-        task_safety_.flag(), [this]() { ResetUnsignaledRecvStream(); }));
-    return;
-  }
   RTC_DCHECK_RUN_ON(&thread_checker_);
   RTC_LOG(LS_INFO) << "ResetUnsignaledRecvStream.";
   unsignaled_stream_params_ = StreamParams();
@@ -3166,6 +3163,12 @@ void WebRtcVideoReceiveChannel::ResetUnsignaledRecvStream() {
       ++it;
     }
   }
+}
+
+absl::AnyInvocable<void() &&>
+WebRtcVideoReceiveChannel::GetResetUnsignaledRecvStreamTask() {
+  return SafeTask(task_safety_.flag(),
+                  [this]() { ResetUnsignaledRecvStream(); });
 }
 
 std::optional<uint32_t> WebRtcVideoReceiveChannel::GetUnsignaledSsrc() const {
@@ -3261,7 +3264,7 @@ void WebRtcVideoReceiveChannel::FillReceiveCodecStats(
 }
 
 absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
-WebRtcVideoReceiveChannel::GetStatsCallback() {
+WebRtcVideoReceiveChannel::GetStatsTask() {
   return [this, safety = task_safety_.flag()]() mutable
              -> std::optional<VideoMediaReceiveInfo> {
     if (!safety->alive()) {

@@ -22,6 +22,7 @@
 #include <numeric>
 #include <optional>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -131,8 +132,7 @@ std::unique_ptr<ScalableVideoController> CreateVp9ScalabilityStructure(
     return std::make_unique<ScalableVideoControllerNoLayering>();
   }
 
-  char name[20];
-  SimpleStringBuilder ss(name);
+  StringBuilder ss;
   if (codec.mode == VideoCodecMode::kScreensharing) {
     // TODO(bugs.webrtc.org/11999): Compose names of the structures when they
     // are implemented.
@@ -186,6 +186,7 @@ std::unique_ptr<ScalableVideoController> CreateVp9ScalabilityStructure(
     }
   }
 
+  std::string name = ss.Release();
   std::optional<ScalabilityMode> scalability_mode =
       ScalabilityModeFromString(name);
   if (!scalability_mode.has_value()) {
@@ -293,7 +294,9 @@ LibvpxVp9Encoder::LibvpxVp9Encoder(const Environment& env,
       config_changed_(true),
       encoder_info_override_(env.field_trials()),
       psnr_experiment_(env.field_trials()),
-      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()) {
+      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()),
+      post_encode_frame_drop_(!env.field_trials().IsDisabled(
+          "WebRTC-LibvpxVp9Encoder-PostEncodeFrameDrop")) {
   codec_ = {};
   memset(&svc_params_, 0, sizeof(vpx_svc_extra_cfg_t));
 }
@@ -965,6 +968,10 @@ int LibvpxVp9Encoder::InitAndSetControlSettings() {
   }
   // Enable encoder skip of static/low content blocks.
   libvpx_->codec_control(encoder_, VP8E_SET_STATIC_THRESHOLD, 1);
+
+  if (post_encode_frame_drop_) {
+    libvpx_->codec_control(encoder_, VP9E_SET_POSTENCODE_DROP, 1);
+  }
 
   // This has to be done after the initial setup is completed.
   AdjustScalingFactorsForTopActiveLayer();
@@ -1814,7 +1821,7 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
   vpx_codec_iter_t iter = nullptr;
   const vpx_codec_cx_pkt_t* cx_data = nullptr;
   encoded_image_.set_psnr(std::nullopt);
-  while ((cx_data = vpx_codec_get_cx_data(encoder_, &iter)) != nullptr) {
+  while ((cx_data = libvpx_->codec_get_cx_data(encoder_, &iter)) != nullptr) {
     if (cx_data->kind == VPX_CODEC_PSNR_PKT) {
       // PSNR index: 0: total, 1: Y, 2: U, 3: V
       encoded_image_.set_psnr(

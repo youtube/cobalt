@@ -695,6 +695,11 @@ void RtpVideoSender::OnVideoLayersAllocationUpdated(
     transport_queue_.PostTask(
         SafeTask(safety_.flag(), [this, sending = std::move(sending)] {
           RTC_DCHECK_RUN_ON(&transport_checker_);
+          // It's possible for another task to be scheduled on the transport
+          // checker ahead of this call that makes the sender not active.
+          if (!IsActive()) {
+            return;
+          }
           RTC_CHECK_EQ(sending.size(), rtp_streams_.size());
           for (size_t i = 0; i < sending.size(); ++i) {
             SetModuleIsActive(sending[i], *rtp_streams_[i].rtp_rtcp);

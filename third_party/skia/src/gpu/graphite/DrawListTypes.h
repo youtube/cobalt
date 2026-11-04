@@ -32,11 +32,6 @@ enum class BoundsTest {
     kIncompatibleOverlap,
 };
 
-enum class BindingListType {
-    kSingle,
-    kStencil,
-};
-
 struct LayerKey {
     GraphicsPipelineCache::Index fPipelineIndex;
     TextureDataCache::Index fTextureIndex;
@@ -56,50 +51,45 @@ struct LayerKey {
     bool operator!=(const LayerKey& other) const { return !(*this == other); }
 };
 
-struct SingleDraw {
-    SingleDraw(const DrawParams* params, const UniformDataCache::Index uniformIndex)
+struct Draw {
+    Draw(const DrawParams* params, const UniformDataCache::Index uniformIndex)
             : fDrawParams(params), fUniformIndex(uniformIndex) {}
-    static constexpr BindingListType kListType = BindingListType::kSingle;
 
     const DrawParams* fDrawParams;
     const UniformDataCache::Index fUniformIndex;
 
-    SK_DECLARE_INTERNAL_LLIST_INTERFACE(SingleDraw);
+    SK_DECLARE_INTERNAL_LLIST_INTERFACE(Draw);
 };
 
-struct StencilDraws {
-    StencilDraws(const LayerKey& key, const RenderStep* step) : fKey(key), fStep(step) {}
+struct BindingList {
+    BindingList(const CompressedPaintersOrder& order, bool isDepthOnly)
+            : fOrder(order), fIsDepthOnly(isDepthOnly) {}
+    static constexpr uint32_t kCoarseBoundsThreshold = 32;
 
-    SkTInternalLList<SingleDraw> fDraws;
-    const LayerKey fKey;
-    const RenderStep* fStep;
-    SK_DECLARE_INTERNAL_LLIST_INTERFACE(StencilDraws);
-};
-
-struct BindingWrapper {
-    BindingWrapper(BindingListType type, const CompressedPaintersOrder& order, bool isDepthOnly)
-            : fType(type), fOrder(order), fIsDepthOnly(isDepthOnly) {}
-
-    const BindingListType fType;
     CompressedPaintersOrder fOrder;
     const bool fIsDepthOnly;
-    Rect fBounds = Rect::InfiniteInverted();
-
-    SK_DECLARE_INTERNAL_LLIST_INTERFACE(BindingWrapper);
-};
-
-struct SingleDrawList : public BindingWrapper {
-    SingleDrawList(BindingListType type, const CompressedPaintersOrder& order, bool isDepthOnly)
-            : BindingWrapper(type, order, isDepthOnly) {}
     LayerKey fKey;
     RenderStep* fStep;
-    SkTInternalLList<SingleDraw> fDraws;
-};
+    uint32_t fDrawCount = 0;
+    Rect fBounds = Rect::InfiniteInverted();
+    SkTInternalLList<Draw> fDraws;
 
-struct StencilDrawList : public BindingWrapper {
-    StencilDrawList(BindingListType type, const CompressedPaintersOrder& order, bool isDepthOnly)
-            : BindingWrapper(type, order, isDepthOnly) {}
-    SkTInternalLList<StencilDraws> fStencilDraws;
+    SK_DECLARE_INTERNAL_LLIST_INTERFACE(BindingList);
+
+    bool intersects(const Rect& drawBounds) const {
+        if (!fBounds.intersects(drawBounds)) {
+            return false;
+        }
+        if (fDrawCount > kCoarseBoundsThreshold) {
+            return true;
+        }
+        for (const Draw* d = fDraws.head(); d; d = d->fNext) {
+            if (d->fDrawParams->drawBounds().intersects(drawBounds)) {
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 struct Layer {
@@ -107,19 +97,16 @@ struct Layer {
 
     const CompressedPaintersOrder fOrder;
     CompressedPaintersOrder fListOrder = CompressedPaintersOrder::First();
-    SkTInternalLList<BindingWrapper> fBindings;
+    SkTInternalLList<BindingList> fBindings;
     SK_DECLARE_INTERNAL_LLIST_INTERFACE(Layer);
 
     // Search backwards and towards the start, inclusive. Matching on the startList is valid, as
     // the insertion is guaranteed to be appendTail
-    BindingWrapper* searchBinding(const LayerKey& key, BindingWrapper* startList) {
-        BindingWrapper* end = startList ? startList->fPrev : nullptr;
-        for (BindingWrapper* list = fBindings.tail(); list != end; list = list->fPrev) {
-            if (list->fType == BindingListType::kSingle) {
-                SingleDrawList* single = static_cast<SingleDrawList*>(list);
-                if (single->fKey == key) {
-                    return list;
-                }
+    BindingList* searchBinding(const LayerKey& key, BindingList* startList) {
+        BindingList* end = startList ? startList->fPrev : nullptr;
+        for (BindingList* list = fBindings.tail(); list != end; list = list->fPrev) {
+            if (list->fKey == key) {
+                return list;
             }
         }
         return nullptr;
@@ -135,13 +122,13 @@ struct Layer {
     // This was implemented in https://review.skia.org/1171836 and slightly regresses performance
     // due to the overhead it introduces.
     template <bool kIsStencil, bool kIsDepthOnly = false, bool kForwards>
-    SK_ALWAYS_INLINE std::pair<BoundsTest, BindingWrapper*> test(const Rect& drawBounds,
-                                                                 const LayerKey& key,
-                                                                 bool requiresBarrier,
-                                                                 BindingWrapper* startList) {
-        BindingWrapper* foundMatch = nullptr;
-        BindingWrapper* list;
-        BindingWrapper* end;
+    SK_ALWAYS_INLINE std::pair<BoundsTest, BindingList*> test(const Rect& drawBounds,
+                                                              const LayerKey& key,
+                                                              bool requiresBarrier,
+                                                              BindingList* startList) {
+        BindingList* foundMatch = nullptr;
+        BindingList* list;
+        BindingList* end;
         if constexpr (kForwards) {
             list = startList ? startList : fBindings.head();
             end = nullptr;
@@ -151,25 +138,40 @@ struct Layer {
         }
         // Advancement is also constexpr
         for (; list != end; list = kForwards ? list->fNext : list->fPrev) {
-            if constexpr (kIsStencil) {
-                if (list->fType == BindingListType::kStencil) {
-                    StencilDrawList* stencil = static_cast<StencilDrawList*>(list);
-                    for (StencilDraws* s = stencil->fStencilDraws.head(); s; s = s->fNext) {
-                        if (s->fKey == key) {
-                            foundMatch = list;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                if (list->fType == BindingListType::kSingle) {
-                    SingleDrawList* single = static_cast<SingleDrawList*>(list);
-                    if (single->fKey == key) {
+            if (list->fKey == key) {
+                // Depth-only and stencil draws check for intersection under the rules listed below.
+                if constexpr (!kIsDepthOnly && !kIsStencil) {
+                    foundMatch = list;
+                    if (!requiresBarrier) continue;
+                } else {
+                    // A side effect of the layer key system is that a non-shading stencil step and
+                    // a depth-only draw can generate a valid match. While this allows the two
+                    // render steps to share the same binding list, it technically still produces a
+                    // visually correct image due to the multi-step nature of stencil renderers:
+                    //
+                    // 1. Depth-Only matching a Stencil List: While depth-only draws allow self-
+                    //    intersection (see below), they cannot bypass shading draws. During a
+                    //    backwards traversal, a depth draw might match the stencil's non-shading
+                    //    step, but it will always be blocked by the stencil's subsequent shading
+                    //    step (which shares identical bounds and is encountered first in reverse).
+                    //
+                    // 2. Stencil Step matching a Depth-Only List: A spatially disjoint non-shading
+                    //    stencil step can match an existing depth-only list. This is a theoretical
+                    //    hazard because shading draws are permitted to bypass depth-only lists.
+                    //    However, the stencil's corresponding shading step acts as a shield; any
+                    //    succeeding draw that would have incorrectly bypassed the stencil step will
+                    //    collide with the shading step earlier in its traversal and halt.
+                    //
+                    // However, we must strictly prevent these disjoint draws from merging because
+                    // mixing them corrupts the list's fIsDepthOnly state, breaking batching:
+                    //
+                    // Poisoned Depth Batches: If a Depth draw merges into a Stencil list
+                    // (fIsDepthOnly == false), subsequent depth draws evaluating this list will
+                    // process !list->fIsDepthOnly as true. Even though the overlapping geometry
+                    // is purely depth, the traversal sees a shading intersection and prematurely
+                    // halts, and potentially breaking batching with earlier extant depth draws.
+                    if (list->fIsDepthOnly == kIsDepthOnly) {
                         foundMatch = list;
-                        // A depth only draw should not require a barrier.
-                        if constexpr (!kIsDepthOnly) {
-                            if (!requiresBarrier) continue;
-                        }
                     }
                 }
             }
@@ -192,11 +194,11 @@ struct Layer {
             // However, an incoming depth-only draw may NOT bypass an extant shading draws. This is
             // because writing a closer Z-value would cause the shading draw to fail the depth test.
             if constexpr (!kIsStencil) {
-                if (!list->fIsDepthOnly && list->fBounds.intersects(drawBounds)) {
+                if (!list->fIsDepthOnly && list->intersects(drawBounds)) {
                     return {BoundsTest::kIncompatibleOverlap, foundMatch};
                 }
             } else {
-                if (list->fBounds.intersects(drawBounds)) {
+                if (list->intersects(drawBounds)) {
                     return {BoundsTest::kIncompatibleOverlap, foundMatch};
                 }
             }
@@ -207,92 +209,45 @@ struct Layer {
     }
 
     template <bool kIsDepthOnly = false>
-    SK_ALWAYS_INLINE BindingWrapper* add(SkArenaAllocWithReset* alloc,
-                                         BindingWrapper* match,
-                                         const LayerKey& key,
-                                         SingleDraw* draw,
-                                         const RenderStep* step,
-                                         bool insertBefore) {
-        SingleDrawList* single;
-        if (match) {
-            single = static_cast<SingleDrawList*>(match);
-            single->fBounds.join(draw->fDrawParams->drawBounds());
+    SK_ALWAYS_INLINE BindingList* add(SkArenaAllocWithReset* alloc,
+                                      BindingList* list,
+                                      const LayerKey& key,
+                                      Draw* draw,
+                                      const RenderStep* step,
+                                      bool insertBefore) {
+        if (list) {
+            list->fBounds.join(draw->fDrawParams->drawBounds());
         } else {
             fListOrder = fListOrder.next();
-            single =
-                    alloc->make<SingleDrawList>(BindingListType::kSingle, fListOrder, kIsDepthOnly);
-            single->fKey = key;
-            single->fStep = const_cast<RenderStep*>(step);
-            single->fBounds = draw->fDrawParams->drawBounds();
+            list = alloc->make<BindingList>(fListOrder, kIsDepthOnly);
+            list->fKey = key;
+            list->fStep = const_cast<RenderStep*>(step);
+            list->fBounds = draw->fDrawParams->drawBounds();
             if constexpr (kIsDepthOnly) {
-                fBindings.addToHead(single);
+                fBindings.addToHead(list);
             } else {
-                fBindings.addToTail(single);
+                fBindings.addToTail(list);
             }
         }
-        SkASSERT(kIsDepthOnly == single->fIsDepthOnly);
+        SkASSERT(kIsDepthOnly == list->fIsDepthOnly);
 
         if (insertBefore) {
-            single->fDraws.addToHead(draw);
+            list->fDraws.addToHead(draw);
         } else {
-            single->fDraws.addToTail(draw);
+            list->fDraws.addToTail(draw);
         }
 
-        return single;
-    }
+        list->fDrawCount++;
 
-    template <bool kIsDepthOnly = false>
-    BindingWrapper* addStencil(SkArenaAllocWithReset* alloc,
-                               BindingWrapper*& match,
-                               const LayerKey& key,
-                               SingleDraw* draw,
-                               const RenderStep* step,
-                               StencilDraws** startList) {
-        StencilDrawList* stencil;
-        StencilDraws* searchStart = nullptr;
-
-        if (match) {
-            stencil = static_cast<StencilDrawList*>(match);
-            stencil->fBounds.join(draw->fDrawParams->drawBounds());
-            searchStart = (*startList) ? (*startList)->fNext : stencil->fStencilDraws.head();
-        } else {
-            fListOrder = fListOrder.next();
-            stencil = alloc->make<StencilDrawList>(
-                    BindingListType::kStencil, fListOrder, kIsDepthOnly);
-            stencil->fBounds = draw->fDrawParams->drawBounds();
-            if constexpr (kIsDepthOnly) {
-                fBindings.addToHead(stencil);
-            } else {
-                fBindings.addToTail(stencil);
-            }
-            match = stencil;
-        }
-        SkASSERT(kIsDepthOnly == stencil->fIsDepthOnly);
-
-        StencilDraws* sd = nullptr;
-        for (StencilDraws* curr = searchStart; curr; curr = curr->fNext) {
-            if (curr->fKey == key) {
-                sd = curr;
-                break;
-            }
-        }
-
-        if (!sd) {
-            sd = alloc->make<StencilDraws>(key, step);
-            stencil->fStencilDraws.addToTail(sd);
-        }
-
-        sd->fDraws.addToTail(draw);
-        *startList = sd;
-        return stencil;
+        return list;
     }
 };
 
 struct Insertion {
     Layer* fLayer = nullptr;
-    BindingWrapper* fWrapper = nullptr;
+    BindingList* fList = nullptr;
 
-    explicit operator bool() const { return (fLayer != nullptr) && (fWrapper != nullptr); }
+    explicit operator bool() const { return (fLayer != nullptr) && (fList != nullptr); }
     bool operator>(const Insertion& other) const {
         if (!other.fLayer) {
             return true;

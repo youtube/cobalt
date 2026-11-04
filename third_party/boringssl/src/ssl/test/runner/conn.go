@@ -152,6 +152,15 @@ type Conn struct {
 	// simulating retransmits.
 	skipRecordVersionCheck bool
 
+	// clientCertificateType and serverCertificateType indicate the negotiated
+	// certificate types.
+	clientCertificateType *CertificateType
+	serverCertificateType *CertificateType
+
+	// peerRawPublicKey, if not nil, is the SubjectPublicKeyInfo of the peer's raw
+	// public key from the Certificate message.
+	peerRawPublicKey []byte
+
 	// echAccepted indicates whether ECH was accepted for this connection.
 	echAccepted bool
 
@@ -1463,8 +1472,16 @@ func (c *Conn) readHandshake() (any, error) {
 		if !c.haveVers {
 			return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 		}
+		var receivedCertificateType CertificateType
+		if c.isClient && c.serverCertificateType != nil {
+			receivedCertificateType = *c.serverCertificateType
+		}
+		if !c.isClient && c.clientCertificateType != nil {
+			receivedCertificateType = *c.clientCertificateType
+		}
 		m = &certificateMsg{
 			hasRequestContext: c.vers.protocolVersion() >= VersionTLS13,
+			certificateType:   receivedCertificateType,
 		}
 	case typeCompressedCertificate:
 		m = new(compressedCertificateMsg)
@@ -1928,6 +1945,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.PeerApplicationSettingsOld = c.peerApplicationSettingsOld
 		state.ECHAccepted = c.echAccepted
 		state.SelectedPSK = c.selectedPSK
+		state.PeerRawPublicKey = c.peerRawPublicKey
 	}
 
 	return state

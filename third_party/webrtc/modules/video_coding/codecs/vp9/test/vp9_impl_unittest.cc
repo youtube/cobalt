@@ -64,6 +64,8 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mappable_native_buffer.h"
+#include "test/testsupport/file_utils.h"
+#include "test/testsupport/frame_reader.h"
 #include "test/video_codec_settings.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_codec.h"
@@ -339,6 +341,52 @@ TEST_F(TestVp9Impl, SwitchInputPixelFormatsWithoutReconfigure) {
       std::optional<int>());
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Encode(NextInputFrame(), nullptr));
   ASSERT_TRUE(WaitForEncodedFrame(&encoded_frame, &codec_specific_info));
+}
+
+TEST_F(TestVp9Impl, PostEncodeFrameDrop) {
+  // To trigger post-encode frame drop, encode a frame of a high complexity
+  // using a medium bitrate, then reduce the bitrate and encode the same frame
+  // again.
+  // Using a medium bitrate for the first frame prevents quality and QP
+  // saturation. Encoding the same content twice prevents scene change
+  // detection. The second frame overshoots RC buffer and provokes post-encode
+  // drop.
+  VideoFrame input_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(
+              test::CreateYuvFrameReader(
+                  test::ResourcePath("photo_1850_1110", "yuv"),
+                  {.width = 1850, .height = 1110})
+                  ->PullFrame())
+          .build();
+
+  VideoBitrateAllocation allocation;
+  allocation.SetBitrate(0, 0, 10000000);
+
+  codec_settings_.width = input_frame.width();
+  codec_settings_.height = input_frame.height();
+  codec_settings_.startBitrate = allocation.get_sum_kbps();
+  codec_settings_.SetFrameDropEnabled(true);
+  ConfigureSvc(codec_settings_, 1, 1);
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            encoder_->InitEncode(&codec_settings_, kSettings));
+
+  encoder_->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings_.maxFramerate));
+
+  input_frame.set_rtp_timestamp(1 * kVideoPayloadTypeFrequency /
+                                codec_settings_.maxFramerate);
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Encode(input_frame, nullptr));
+  EXPECT_EQ(GetNumEncodedFrames(), 1u);
+
+  allocation.SetBitrate(0, 0, 1000);
+  encoder_->SetRates(VideoEncoder::RateControlParameters(
+      allocation, codec_settings_.maxFramerate));
+
+  input_frame.set_rtp_timestamp(2 * kVideoPayloadTypeFrequency /
+                                codec_settings_.maxFramerate);
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, encoder_->Encode(input_frame, nullptr));
+  EXPECT_EQ(GetNumEncodedFrames(), 1u);
 }
 
 TEST(Vp9ImplTest, ParserQpEqualsEncodedQp) {

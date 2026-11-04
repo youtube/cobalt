@@ -6090,38 +6090,15 @@ SI void store(T* ptr, V v) {
 
 SI void from_8888(U32 rgba, U16* r, U16* g, U16* b, U16* a) {
 #if defined(SKRP_CPU_ML4)
-    rgba = (U32)_mm512_permutexvar_epi64(_mm512_setr_epi64(0,1,4,5,2,3,6,7), (__m512i)rgba);
-    auto cast_U16 = [](U32 v) -> U16 {
-        return (U16)_mm256_packus_epi32(_mm512_castsi512_si256((__m512i)v),
-                    _mm512_extracti64x4_epi64((__m512i)v, 1));
-    };
-#elif defined(SKRP_CPU_AVX2)
-    // Swap the middle 128-bit lanes to make _mm256_packus_epi32() in cast_U16() work out nicely.
-    __m256i _01,_23;
-    split(rgba, &_01, &_23);
-    __m256i _02 = _mm256_permute2x128_si256(_01,_23, 0x20),
-            _13 = _mm256_permute2x128_si256(_01,_23, 0x31);
-    rgba = join<U32>(_02, _13);
-
-    auto cast_U16 = [](U32 v) -> U16 {
-        __m256i _02,_13;
-        split(v, &_02,&_13);
-        return (U16)_mm256_packus_epi32(_02,_13);
-    };
-#elif defined(SKRP_CPU_LASX)
-    __m256i _01, _23;
-    split(rgba, &_01, &_23);
-    __m256i _02 = __lasx_xvpermi_q(_01, _23, 0x02),
-            _13 = __lasx_xvpermi_q(_01, _23, 0x13);
-    rgba = join<U32>(_02, _13);
-
-    auto cast_U16 = [](U32 v) -> U16 {
-        __m256i _02,_13;
-        split(v, &_02,&_13);
-        __m256i tmp0 = __lasx_xvsat_wu(_02, 15);
-        __m256i tmp1 = __lasx_xvsat_wu(_13, 15);
-        return __lasx_xvpickev_h(tmp1, tmp0);
-    };
+    // Turns [0xAABBGGRR, 0xAABBGGRR, 0xAABBGGRR, ... 13 more times] to
+    //       [0xGGRR, 0xGGRR, 0xGGRR, ...]
+    U16 rg = (U16)_mm512_cvtepi32_epi16((__m512i)rgba);
+    // and   [0xAABB, 0xAABB, 0xAABB, ...]
+    U16 ba = (U16)_mm512_cvtepi32_epi16(_mm512_srli_epi32((__m512i)rgba, 16));
+    *r = rg & 255;
+    *g = rg >> 8;
+    *b = ba & 255;
+    *a = ba >> 8;
 #elif defined(SKRP_CPU_LSX)
     __m128i _01, _23, rg, ba;
     split(rgba, &_01, &_23);
@@ -6135,11 +6112,39 @@ SI void from_8888(U32 rgba, U16* r, U16* g, U16* b, U16* a) {
     *b = __lsx_vand_v(ba, mask_00ff);
     *a = __lsx_vsrli_h(ba, 8);
 #else
-    auto cast_U16 = [](U32 v) -> U16 {
-        return cast<U16>(v);
-    };
-#endif
-#if !defined(SKRP_CPU_LSX)
+    #if defined(SKRP_CPU_AVX2)
+        // Swap the middle 128-bit lanes to make _mm256_packus_epi32() in cast_U16() work out nicely.
+        __m256i _01,_23;
+        split(rgba, &_01, &_23);
+        __m256i _02 = _mm256_permute2x128_si256(_01,_23, 0x20),
+                _13 = _mm256_permute2x128_si256(_01,_23, 0x31);
+        rgba = join<U32>(_02, _13);
+
+        auto cast_U16 = [](U32 v) -> U16 {
+            __m256i _02,_13;
+            split(v, &_02,&_13);
+            return (U16)_mm256_packus_epi32(_02,_13);
+        };
+    #elif defined(SKRP_CPU_LASX)
+        __m256i _01, _23;
+        split(rgba, &_01, &_23);
+        __m256i _02 = __lasx_xvpermi_q(_01, _23, 0x02),
+                _13 = __lasx_xvpermi_q(_01, _23, 0x13);
+        rgba = join<U32>(_02, _13);
+
+        auto cast_U16 = [](U32 v) -> U16 {
+            __m256i _02, _13;
+            split(v, &_02, &_13);
+            __m256i tmp0 = __lasx_xvsat_wu(_02, 15);
+            __m256i tmp1 = __lasx_xvsat_wu(_13, 15);
+            return __lasx_xvpickev_h(tmp1, tmp0);
+        };
+    #else
+        auto cast_U16 = [](U32 v) -> U16 {
+            return cast<U16>(v);
+        };
+    #endif
+
     *r = cast_U16(rgba & 65535) & 255;
     *g = cast_U16(rgba & 65535) >>  8;
     *b = cast_U16(rgba >>   16) & 255;

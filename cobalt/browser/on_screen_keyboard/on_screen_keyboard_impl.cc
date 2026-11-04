@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/on_screen_keyboard/on_screen_keyboard_impl.h"
 
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "content/public/browser/web_contents_user_data.h"
 

@@ -20,6 +20,7 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/network_fetcher.h"

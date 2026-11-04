@@ -11,6 +11,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -691,7 +692,6 @@ class DnsTransactionTestBase : public testing::Test {
                            size_t num_doh_servers = 1,
                            bool make_available = true,
                            bool use_doh_fallback_upgrade = false) {
-    GURL url;
     if (use_doh_fallback_upgrade) {
       CHECK_EQ(config_.secure_dns_mode, SecureDnsMode::kAutomatic);
       config_.should_perform_doh_fallback_upgrade = true;
@@ -705,8 +705,6 @@ class DnsTransactionTestBase : public testing::Test {
       // but we can at least ensure the parameter value provided matches what
       // will actually be used.
       CHECK_EQ(use_post, config_.doh_config.servers()[0].use_post());
-      url = GURL(GetURLFromTemplateWithoutParameters(
-          config_.doh_config.servers()[0].server_template()));
     } else {
       CHECK_LE(num_doh_servers, 255u);
       std::vector<string> templates;
@@ -718,12 +716,19 @@ class DnsTransactionTestBase : public testing::Test {
       }
       config_.doh_config =
           *DnsOverHttpsConfig::FromTemplatesForTesting(std::move(templates));
-      url = GURL(URLRequestMockDohJob::GetMockHttpsUrl("doh_test"));
     }
 
-    URLRequestFilter* filter = URLRequestFilter::GetInstance();
-    filter->AddHostnameInterceptor(url.GetScheme(), url.GetHost(),
-                                   std::make_unique<DohJobInterceptor>(this));
+    std::set<std::pair<std::string, std::string>> registered_hosts;
+    for (const auto& server : config_.doh_config.servers()) {
+      GURL url(GetURLFromTemplateWithoutParameters(server.server_template()));
+      std::pair<std::string, std::string> host_key(std::string(url.scheme()),
+                                                   std::string(url.host()));
+      if (registered_hosts.insert(host_key).second) {
+        URLRequestFilter::GetInstance()->AddHostnameInterceptor(
+            host_key.first, host_key.second,
+            std::make_unique<DohJobInterceptor>(this));
+      }
+    }
 
     ConfigureFactory();
 
@@ -2492,7 +2497,8 @@ TEST_F(DnsTransactionTest, HttpsPostTestNoCookies) {
   request_context_->cookie_store()->SetCanonicalCookieAsync(
       std::move(cookie), cookie_url, CookieOptions(),
       base::BindOnce(&CookieCallback::SetCookieCallback,
-                     base::Unretained(&callback)));
+                     base::Unretained(&callback)),
+      /*cookie_access_result=*/std::nullopt);
   helper1.StartTransaction(transaction_factory_.get(), kT0HostName, kT0Qtype,
                            DnsTransactionFactory::AttemptMode::kHttp, resolve_context_.get());
   helper1.RunUntilComplete();
@@ -4472,7 +4478,10 @@ TEST_F(DnsTransactionTestWithMockTime, HttpsConnectionRefusedAfterFallback) {
 
 #if BUILDFLAG(IS_ANDROID)
 
-const std::vector<uint8_t> successful_dns_response = {
+namespace {
+
+// A successful DNS response for www.google.com -> 192.168.1.1
+const std::vector<uint8_t> kSuccessfulDnsResponse = {
     // Header
     0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
     // Question section
@@ -4481,6 +4490,16 @@ const std::vector<uint8_t> successful_dns_response = {
     // Answer section
     0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x3c, 0x00, 0x04,
     0xc0, 0xa8, 0x01, 0x01};
+
+// A failed DNS response for www.google.com that indicates NXDOMAIN.
+const std::vector<uint8_t> kNxdomainDnsResponse = {
+    // Header
+    0xab, 0xcd, 0x81, 0x83, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // Question section
+    0x03, 0x77, 0x77, 0x77, 0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03,
+    0x63, 0x6f, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x01};
+
+}  // namespace
 
 TEST_F(DnsTransactionTest, PlatformAttemptSuccess) {
   if (__builtin_available(android 29, *)) {
@@ -4495,9 +4514,8 @@ TEST_F(DnsTransactionTest, PlatformAttemptSuccess) {
     EXPECT_CALL(mock_dns_platform_android_attempt_delegate_,
                 Result(fd.get(), _, _))
         .WillOnce([&](int, int* rcode, base::span<uint8_t> answer) {
-          *rcode = dns_protocol::kRcodeNOERROR;
-          std::ranges::copy(successful_dns_response, answer.begin());
-          return successful_dns_response.size();
+          std::ranges::copy(kSuccessfulDnsResponse, answer.begin());
+          return kSuccessfulDnsResponse.size();
         });
 
     TransactionHelper helper(/*expected_answer_count=*/1);
@@ -4550,8 +4568,8 @@ TEST_F(DnsTransactionTest, PlatformAttemptUsesSuffixSearchList) {
     EXPECT_CALL(mock_dns_platform_android_attempt_delegate_,
                 Result(first_query_fd.get(), _, _))
         .WillOnce([&](int, int* rcode, base::span<uint8_t> answer) {
-          *rcode = dns_protocol::kRcodeNXDOMAIN;
-          return 0;
+          std::ranges::copy(kNxdomainDnsResponse, answer.begin());
+          return kNxdomainDnsResponse.size();
         });
 
     base::ScopedFD second_query_fd =
@@ -4563,9 +4581,8 @@ TEST_F(DnsTransactionTest, PlatformAttemptUsesSuffixSearchList) {
     EXPECT_CALL(mock_dns_platform_android_attempt_delegate_,
                 Result(second_query_fd.get(), _, _))
         .WillOnce([&](int, int* rcode, base::span<uint8_t> answer) {
-          *rcode = dns_protocol::kRcodeNOERROR;
-          std::ranges::copy(successful_dns_response, answer.begin());
-          return successful_dns_response.size();
+          std::ranges::copy(kSuccessfulDnsResponse, answer.begin());
+          return kSuccessfulDnsResponse.size();
         });
 
     TransactionHelper helper(/*expected_answer_count=*/1);

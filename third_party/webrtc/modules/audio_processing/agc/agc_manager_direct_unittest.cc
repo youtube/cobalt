@@ -161,8 +161,7 @@ constexpr char kMinMicLevelFieldTrial[] =
     "WebRTC-Audio-2ndAgcMinMicLevelExperiment";
 
 std::string GetAgcMinMicLevelExperimentFieldTrial(const std::string& value) {
-  char field_trial_buffer[64];
-  SimpleStringBuilder builder(field_trial_buffer);
+  StringBuilder builder;
   builder << kMinMicLevelFieldTrial << "/" << value << "/";
   return builder.str();
 }
@@ -172,8 +171,7 @@ std::string GetAgcMinMicLevelExperimentFieldTrialEnabled(
     const std::string& suffix = "") {
   RTC_DCHECK_GE(enabled_value, 0);
   RTC_DCHECK_LE(enabled_value, 255);
-  char field_trial_buffer[64];
-  SimpleStringBuilder builder(field_trial_buffer);
+  StringBuilder builder;
   builder << kMinMicLevelFieldTrial << "/Enabled-" << enabled_value << suffix
           << "/";
   return builder.str();

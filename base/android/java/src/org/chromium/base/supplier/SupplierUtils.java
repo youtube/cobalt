@@ -29,6 +29,7 @@ public class SupplierUtils {
         private int mWaitingCount;
         private @Nullable Runnable mCallback;
 
+        @SuppressWarnings("unchecked")
         void waitForAll(Runnable callback, Supplier<?>... suppliers) {
             ThreadUtils.assertOnUiThread();
             assert mCallback == null;
@@ -130,5 +131,26 @@ public class SupplierUtils {
     @SuppressWarnings("unchecked")
     public static <T extends @Nullable Object> Supplier<T> ofNull() {
         return (Supplier<T>) NULL_SUPPLIER;
+    }
+
+    /** Casts a NullableObservableSupplier of a derived type to one of a base type. */
+    @SuppressWarnings("unchecked")
+    public static <BaseT, ChildT extends BaseT> NullableObservableSupplier<BaseT> upcast(
+            NullableObservableSupplier<ChildT> s, Class<BaseT> baseClass) {
+        return (NullableObservableSupplier<BaseT>) s;
+    }
+
+    /** Casts a MonotonicObservableSupplier of a derived type to one of a base type. */
+    @SuppressWarnings("unchecked")
+    public static <BaseT, ChildT extends BaseT> MonotonicObservableSupplier<BaseT> upcast(
+            MonotonicObservableSupplier<ChildT> s, Class<BaseT> baseClass) {
+        return (MonotonicObservableSupplier<BaseT>) s;
+    }
+
+    /** Casts a NonNullObservableSupplier of a derived type to one of a base type. */
+    @SuppressWarnings("unchecked")
+    public static <BaseT, ChildT extends BaseT> NonNullObservableSupplier<BaseT> upcast(
+            NonNullObservableSupplier<ChildT> s, Class<BaseT> baseClass) {
+        return (NonNullObservableSupplier<BaseT>) s;
     }
 }

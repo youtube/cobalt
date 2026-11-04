@@ -218,9 +218,6 @@ class LibaomAv1Encoder final : public VideoEncoder {
   int64_t timestamp_;
   const Environment& env_;
   const LibaomAv1EncoderInfoSettings encoder_info_override_;
-  // TODO(webrtc:351644568): Remove this kill-switch after the feature is fully
-  // deployed.
-  const bool post_encode_frame_drop_;
 
   // Determine whether the frame should be sampled for PSNR.
   // TODO(webrtc:388070060): Remove after rollout.
@@ -276,8 +273,6 @@ LibaomAv1Encoder::LibaomAv1Encoder(const Environment& env,
       timestamp_(0),
       env_(env),
       encoder_info_override_(env_.field_trials()),
-      post_encode_frame_drop_(!env_.field_trials().IsDisabled(
-          "WebRTC-LibaomAv1Encoder-PostEncodeFrameDrop")),
       psnr_experiment_(env.field_trials()),
       psnr_frame_sampler_(psnr_experiment_.SamplingInterval()),
       drop_repeat_frames_on_enhancement_layers_(env.field_trials().IsEnabled(
@@ -438,10 +433,7 @@ int LibaomAv1Encoder::InitEncode(const VideoCodec* codec_settings,
   SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_ENABLE_TX64, 0);
   SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_MAX_REFERENCE_FRAMES, 3);
   SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR, 250);
-
-  if (post_encode_frame_drop_) {
-    SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_POSTENCODE_DROP_RTC, 1);
-  }
+  SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_POSTENCODE_DROP_RTC, 1);
 
   if (encoder_speed_experiment_.IsDynamicSpeedEnabled()) {
     LibaomSpeedConfigFactory speed_config_factory(

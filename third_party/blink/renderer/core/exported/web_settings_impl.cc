@@ -622,6 +622,10 @@ void WebSettingsImpl::SetWebAppScope(const WebString& scope) {
   settings_->SetWebAppScope(scope);
 }
 
+void WebSettingsImpl::SetIsInitialProfile(bool is_initial_profile) {
+  settings_->SetIsInitialProfile(is_initial_profile);
+}
+
 void WebSettingsImpl::SetPresentationRequiresUserGesture(bool required) {
   settings_->SetPresentationRequiresUserGesture(required);
 }
@@ -632,6 +636,10 @@ void WebSettingsImpl::SetEmbeddedMediaExperienceEnabled(bool enabled) {
 
 void WebSettingsImpl::SetImmersiveModeEnabled(bool enabled) {
   settings_->SetImmersiveModeEnabled(enabled);
+}
+
+void WebSettingsImpl::SetImmersiveVideoPlaybackEnabled(bool enabled) {
+  settings_->SetImmersiveVideoPlaybackEnabled(enabled);
 }
 
 void WebSettingsImpl::SetViewportEnabled(bool enabled) {

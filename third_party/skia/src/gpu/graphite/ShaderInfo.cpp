@@ -1112,13 +1112,13 @@ void ShaderInfo::generateFragmentSkSL(const Caps* caps,
                               RenderStep::ssboIndexVarying());
     }
 
-    if (step->emitsPrimitiveColor()) {
+    if (sharedData.fRootNodes[0]->requiredFlags() & SnippetRequirementFlags::kPrimitiveColor) {
+        SkASSERT(step->emitsPrimitiveColor());
         mainBody += "half4 primitiveColor;";
         mainBody += step->fragmentColorSkSL();
-    } else {
-        SkASSERT(!(sharedData.fRootNodes[0]->requiredFlags() &
-                 SnippetRequirementFlags::kPrimitiveColor));
     }
+    // else the RenderStep may be producing a primitive color but the paint is not consuming it
+    // so just skip injecting that SkSL entirely.
 
     // Using kDefaultArgs as the initial value means it will refer to undefined variables, but the
     // root nodes should--at most--be depending on the coordinate when "needsLocalCoords" is true.

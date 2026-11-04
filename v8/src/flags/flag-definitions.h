@@ -347,9 +347,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES(V) \
-  JAVASCRIPT_STAGED_FEATURES_BASE(V)  \
-  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
+#define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
@@ -380,7 +378,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
-#define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES(V) \
+  JAVASCRIPT_SHIPPING_FEATURES_BASE(V)  \
+  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
@@ -769,6 +769,9 @@ DEFINE_BOOL(turbolev_untagged_phis, false,
             "enable phi untagging in the Turbolev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
 
+// https://crbug.com/496266449
+DEFINE_NEG_IMPLICATION(maglev_untagged_phis, maglev_assert_types)
+
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -1093,7 +1096,7 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
-DEFINE_BOOL(new_old_generation_heap_size, false,
+DEFINE_BOOL(new_old_generation_heap_size, true,
             "Enables new old generation max heap size.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
@@ -1864,9 +1867,6 @@ DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
 DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
                      "trace Turboshaft's if-else to switch reducer")
-DEFINE_BOOL_READONLY(turboshaft_verify_load_store_taggedness, false,
-                     "insert runtime checks to verify the representation of "
-                     "loaded/stored values")
 DEFINE_BOOL_READONLY(verify_turboshaft, false,
                      "enable various verifications on Turboshaft")
 #endif  // DEBUG
@@ -2043,7 +2043,7 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_fast_api,
     "Enable direct calls from wasm to fast API functions with bound "
-    "call function to pass the the receiver as first parameter")
+    "call function to pass the receiver as first parameter")
 
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_assert_types,
@@ -2384,6 +2384,11 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
 // section.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
+// Compilation hints generation is incompatible with eager tier-up.
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(wasm_generate_compilation_hints,
+                                      wasm_eager_tier_up_function)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
+                                      wasm_eager_tier_up_function)
 // Compilation hints generation is not compatible with
 // --no-wasm-dynamic-tiering or --no-wasm-lazy-compilation.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_dynamic_tiering)
@@ -2859,6 +2864,9 @@ DEFINE_BOOL(enable_popcnt, true,
             "enable use of POPCNT instruction if available")
 #ifdef V8_ENABLE_APX_F
 DEFINE_BOOL(enable_apx_f, false, "enable use of APX_F instruction if available")
+DEFINE_BOOL(enable_apx_f_setzucc, false,
+            "enable use of APX setzucc for x64 zero-extending setcc patterns")
+DEFINE_IMPLICATION(enable_apx_f_setzucc, enable_apx_f)
 #endif
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
@@ -2993,6 +3001,7 @@ DEFINE_INT(switch_table_spread_threshold, 3,
 DEFINE_INT(switch_table_min_cases, 6,
            "the number of Smi integer cases present in the switch statement "
            "before using the jump table optimization")
+DEFINE_REQUIREMENT(v8_flags.switch_table_min_cases > 0)
 // Note that enabling this stress mode might result in a failure to compile
 // even a top-level code.
 DEFINE_INT(stress_lazy_compilation, 0,
@@ -3374,6 +3383,14 @@ DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_INT(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
+DEFINE_BOOL(
+    regexp_jit_all, false,
+    "compile all regexp patterns directly to native code, skipping the "
+    "interpreter (equivalent to --regexp-tier-up --regexp-tier-up-ticks=0)")
+DEFINE_IMPLICATION(regexp_jit_all, regexp_tier_up)
+// clang-format off
+DEFINE_VALUE_IMPLICATION(regexp_jit_all, regexp_tier_up_ticks, 0)
+// clang-format on
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
@@ -3393,6 +3410,9 @@ DEFINE_BOOL_READONLY(
     "trace regexp bytecode execution (requires v8_enable_disassembler = true)")
 #endif
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+DEFINE_BOOL(trace_regexp_exec, false, "trace regexp execution")
+DEFINE_BOOL(trace_regexp_exec_ool_subjects, false,
+            "trace regexp execution out-of-line subject strings")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_compiler, false, "trace regexp compilation")
@@ -3403,6 +3423,12 @@ DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
 DEFINE_BOOL(print_regexp_graph, false, "print the regexp graph")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 #else
+DEFINE_BOOL_READONLY(trace_regexp_exec, false,
+                     "trace regexp execution (requires "
+                     "v8_enable_regexp_diagnostics = true).")
+DEFINE_BOOL_READONLY(trace_regexp_exec_ool_subjects, false,
+                     "trace regexp execution out-of-line subject strings "
+                     "(requires v8_enable_regexp_diagnostics = true).")
 DEFINE_BOOL_READONLY(trace_regexp_assembler, false,
                      "trace regexp macro assembler calls (requires "
                      "v8_enable_regexp_diagnostics = true).")
@@ -3793,7 +3819,6 @@ DEFINE_BOOL(print_scopes, false, "print scopes")
 DEFINE_BOOL(trace_contexts, false, "trace contexts operations")
 
 // heap.cc
-DEFINE_BOOL(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_BOOL(code_stats, false, "report code statistics after GC")
 DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(check_handle_count, false,
@@ -4189,7 +4214,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
 // Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, gc_verbose)
 DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
@@ -4236,6 +4260,29 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
                                           !sandbox_testing && !sandbox_fuzzing,
                                       expose_memory_corruption_api)
+
+// Runs a program as security POC. This mode is used to determine whether a bug
+// in a program is a security problem. V8 supports many different configurations
+// and modes that are sometimes incomplete or incompatible. The flag aims at
+// providing guidance on what is actually considered a security issue.
+//
+// Note: The mode may be insufficient and/or incomplete. Passing this flag does
+// not guarantee a bug will be classified as a valid vulnerability. The V8 team
+// reserves the right to make the final determination on security impact during
+// triage. See docs/security_triaging.md.
+DEFINE_BOOL(run_as_security_poc, false,
+            "Run programs as security proof of concept (POC).")
+// Unsafe flags generally lead to unsupported configurations.
+DEFINE_IMPLICATION(run_as_security_poc, disallow_unsafe_flags)
+// Developer-only flags are not used in production. These flags should be robust
+// but breakage is not generally a security issue.
+DEFINE_IMPLICATION(run_as_security_poc, disallow_developer_only_features)
+// TODO(495388612): Possibly split fuzzing flag to avoid auto-enabling some
+// stress modes.
+DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
+// Experimental features are not ready for broad usage yet. Bugs in these areas
+// are not considered security issues.
+DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
 
 #undef FLAG
 

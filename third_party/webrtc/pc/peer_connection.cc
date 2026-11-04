@@ -97,6 +97,7 @@
 #include "pc/rtp_transceiver.h"
 #include "pc/rtp_transmission_manager.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_transport.h"
 #include "pc/sdp_offer_answer.h"
@@ -677,7 +678,6 @@ PeerConnection::PeerConnection(
 PeerConnection::~PeerConnection() {
   TRACE_EVENT0("webrtc", "PeerConnection::~PeerConnection");
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_LOG_THREAD_BLOCK_COUNT();
 
   sdp_handler_->PrepareForShutdown();
 
@@ -685,8 +685,8 @@ PeerConnection::~PeerConnection() {
   // potentially pending operations.
   data_channel_controller_.PrepareForShutdown();
 
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  ScopedOperationsBatcher network_tasks(network_thread());
+  ScopedOperationsBatcher worker_tasks(worker_thread());
 
   // Stop transceivers before destroying the stats collector because
   // AudioRtpSender has a reference to the LegacyStatsCollector that it will
@@ -697,30 +697,24 @@ PeerConnection::~PeerConnection() {
   legacy_stats_.reset(nullptr);
   stats_collector_.CancelPendingRequestAndGetShutdownTasks(network_tasks,
                                                            worker_tasks);
-
-  CloseOnNetworkThread(network_tasks);
+  network_tasks.AddWithFinalizer(MakeCloseOnNetworkThreadTask());
 
   // call_ must be destroyed on the worker thread.
-  worker_thread()->BlockingCall([&] {
+  worker_tasks.Add([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    for (auto& task : worker_tasks) {
-      std::move(task)();
-      task = nullptr;
-    }
     worker_thread_safety_->SetNotAlive();
     call_.reset();
     media_engine_ref_.reset();
   });
+
+  network_tasks.Run();
+  worker_tasks.Run();
 
   if (sdp_handler_) {
     sdp_handler_->ResetSessionDescFactory();
   }
 
   data_channel_controller_.PrepareForShutdown();
-
-  // The expectation is that there will have been 1 blocking call for the worker
-  // thread and optionally 1 task for the network thread.
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(2);
 }
 
 JsepTransportController* PeerConnection::InitializeNetworkThread(
@@ -854,36 +848,38 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
   });
 }
 
-void PeerConnection::CloseOnNetworkThread(
-    std::vector<absl::AnyInvocable<void() &&>>& network_tasks) {
+ScopedOperationsBatcher::BatchTaskWithFinalizer
+PeerConnection::MakeCloseOnNetworkThreadTask() {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (transport_controller_copy_ || !network_tasks.empty()) {
-    network_thread()->BlockingCall([&] {
-      RTC_DCHECK_RUN_ON(network_thread());
-      for (auto& task : network_tasks) {
-        std::move(task)();
-        task = nullptr;
-      }
-      if (network_thread_safety_->alive()) {
-        // port_allocator_ and transport_controller_ live on the network thread
-        // and must be destroyed there.
-        TeardownDataChannelTransport_n(RTCError::OK());
-        port_allocator_->DiscardCandidatePool();
-        transport_controller_.reset();
-        port_allocator_.reset();
-        network_thread_safety_->SetNotAlive();
-      }
-    });
+
+  if (!transport_controller_copy_) {
+    return nullptr;
   }
 
-  if (transport_controller_copy_) {
-    transport_controller_copy_ = nullptr;
-    sctp_mid_s_.reset();
-    SetSctpTransportName("");
-  } else {
-    RTC_DCHECK(!sctp_mid_s_);
-    RTC_DCHECK(sctp_transport_name_s_.empty());
-  }
+  return [this]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+    RTC_DCHECK_RUN_ON(network_thread());
+    if (network_thread_safety_->alive()) {
+      // port_allocator_ and transport_controller_ live on the network thread
+      // and must be destroyed there.
+      TeardownDataChannelTransport_n(RTCError::OK());
+      port_allocator_->DiscardCandidatePool();
+      transport_controller_.reset();
+      port_allocator_.reset();
+      network_thread_safety_->SetNotAlive();
+    }
+
+    return ScopedOperationsBatcher::FinalizerTask([this]() {
+      RTC_DCHECK_RUN_ON(signaling_thread());
+      if (transport_controller_copy_) {
+        transport_controller_copy_ = nullptr;
+        sctp_mid_s_.reset();
+        SetSctpTransportName("");
+      } else {
+        RTC_DCHECK(!sctp_mid_s_);
+        RTC_DCHECK(sctp_transport_name_s_.empty());
+      }
+    });
+  };
 }
 
 JsepTransportController* PeerConnection::InitializeTransportController_n(
@@ -1928,10 +1924,14 @@ void PeerConnection::Close() {
 
   NoteUsageEvent(UsageEvent::CLOSE_CALLED);
 
+  ScopedOperationsBatcher worker_tasks(worker_thread());
+
   if (ConfiguredForMedia()) {
-    for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
-      if (!transceiver->stopped())
-        transceiver->StopInternal();
+    for (RtpTransceiver* transceiver :
+         rtp_manager()->transceivers()->ListInternal()) {
+      if (!transceiver->stopped()) {
+        worker_tasks.Add(transceiver->GetStopTransceiverProcedure());
+      }
     }
   }
 
@@ -1942,10 +1942,11 @@ void PeerConnection::Close() {
   // worker thread (see `PushNewMediaChannelAndDeleteChannel`) and then
   // eventually freed on the signaling thread.
   // It would be good to combine those steps with the teardown steps here.
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
-  sdp_handler_->GetMediaChannelTeardownTasks(network_tasks, worker_tasks);
-  CloseOnNetworkThread(network_tasks);
+  {
+    ScopedOperationsBatcher network_tasks(network_thread());
+    sdp_handler_->GetMediaChannelTeardownTasks(network_tasks, worker_tasks);
+    network_tasks.AddWithFinalizer(MakeCloseOnNetworkThreadTask());
+  }
 
   // The event log is used in the transport controller, which must be outlived
   // by the former. CreateOffer by the peer connection is implemented
@@ -1957,16 +1958,14 @@ void PeerConnection::Close() {
     rtp_manager_->Close();
   }
 
-  worker_thread()->BlockingCall([&] {
+  worker_tasks.Add([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    for (auto& task : worker_tasks) {
-      std::move(task)();
-      task = nullptr;
-    }
     worker_thread_safety_->SetNotAlive();
     call_.reset();
     StopRtcEventLog_w();
   });
+
+  worker_tasks.Run();
   ReportUsagePattern();
   ReportCloseUsageMetrics();
 
@@ -2833,6 +2832,7 @@ void PeerConnection::AddRemoteCandidate(absl::string_view mid,
   new_candidate.set_network_type(ADAPTER_TYPE_UNKNOWN);
   new_candidate.set_relay_protocol("");
   new_candidate.set_underlying_type_for_vpn(ADAPTER_TYPE_UNKNOWN);
+  new_candidate.set_network_slice(NetworkSlice::NO_SLICE);
 
   network_thread()->PostTask(SafeTask(
       network_thread_safety_,

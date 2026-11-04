@@ -65,6 +65,7 @@ rtc_library("audio_ingress") {
   ]
   deps = [
     "..:audio",
+    "../../api:field_trials_view",
     "../../api:scoped_refptr",
     "../../api/audio:audio_mixer_api",
     "../../api/audio_codecs:audio_codecs_api",
@@ -82,6 +83,7 @@ rtc_library("audio_ingress") {
     "../../rtc_base:macromagic",
     "../../rtc_base:rtc_numerics",
     "../../rtc_base:safe_conversions",
+    "../../rtc_base/experiments:field_trial_parser",
     "../../rtc_base/synchronization:mutex",
     "../utility:audio_frame_operations",
   ]

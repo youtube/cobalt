@@ -52,6 +52,8 @@ constexpr char16_t kTestUnescapedHtmlMessage[] = u"<>&\"'";
 constexpr size_t kRuleMessageOffset = 26;
 constexpr char kTestLinkedMessage[] = "Learn More";
 constexpr char16_t kU16TestLinkedMessage[] = u"Learn More";
+constexpr char kProfileDMToken[] = "profile_dm_token";
+constexpr char kMachineDMToken[] = "machine_dm_token";
 
 ContentAnalysisResponse CreateContentAnalysisResponse(
     const std::vector<CustomMessageTestCase>& triggered_rules,
@@ -85,8 +87,8 @@ class BaseTest : public testing::Test {
     // Settings can't be returned if no DM token exists.
     connectors_service_ = std::make_unique<TestConnectorsService>(&prefs_);
     connectors_service_->set_connectors_enabled(true);
-    connectors_service_->set_profile_dm_token();
-    connectors_service_->set_machine_dm_token();
+    connectors_service_->set_profile_dm_token(kProfileDMToken);
+    connectors_service_->set_machine_dm_token(kMachineDMToken);
   }
 
   void TearDown() override { connectors_service_ = nullptr; }
@@ -182,6 +184,27 @@ TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest, BlockUploadFailure) {
   EXPECT_EQ(allowed(),
             ResultShouldAllowDataUse(settings(connectors_service_.get()),
                                      ScanRequestUploadResult::kUploadFailure));
+}
+
+// Tests request result should not be allowed a data use if user cancelled.
+TEST_P(EnterpriseConnectorsResultShouldAllowDataUseTest, BlockUserCancelled) {
+  EXPECT_TRUE(ResultIsFailClosed(ScanRequestUploadResult::kUserCancelled));
+  EXPECT_EQ("UserCancelled",
+            BinaryUploadServiceResultToString(
+                ScanRequestUploadResult::kUserCancelled, false));
+  auto pref = base::StringPrintf(R"(
+    {
+      "service_provider": "google",
+      "enable": [{"url_list": ["*"], "tags": ["dlp"]}],
+      "default_action": "%s"
+    })",
+                                 default_action_setting());
+  test::SetAnalysisConnectorsPrefs(connectors_service_->GetPrefs(),
+                                   FILE_DOWNLOADED, {pref}, true);
+
+  EXPECT_FALSE(
+      ResultShouldAllowDataUse(settings(connectors_service_.get()),
+                               ScanRequestUploadResult::kUserCancelled));
 }
 
 class ContentAnalysisResponseCustomMessageTest
@@ -319,5 +342,32 @@ INSTANTIATE_TEST_SUITE_P(
                 {.action = TriggeredRule::BLOCK,
                  .message = kTestEscapedHtmlMessage}},
             /*expected_message=*/kTestUnescapedHtmlMessage)));
+
+TEST(DeepScanningUtilsTest, BinaryUploadServiceResultToString) {
+  EXPECT_EQ("UserCancelled",
+            enterprise_connectors::BinaryUploadServiceResultToString(
+                enterprise_connectors::ScanRequestUploadResult::kUserCancelled,
+                false));
+}
+
+class CalculateRequestHandlerResultTest : public BaseTest {};
+
+TEST_F(CalculateRequestHandlerResultTest, UserCancelled) {
+  test::SetAnalysisConnectorsPrefs(connectors_service_->GetPrefs(),
+                                   FILE_DOWNLOADED, {kGoogleServiceProvider},
+                                   true);
+
+  ContentAnalysisResponse response;
+  auto* result = response.add_results();
+  result->set_status(ContentAnalysisResponse::Result::SUCCESS);
+
+  RequestHandlerResult handler_result = CalculateRequestHandlerResult(
+      settings(connectors_service_.get()),
+      ScanRequestUploadResult::kUserCancelled, response);
+
+  EXPECT_FALSE(handler_result.complies);
+  EXPECT_EQ(FinalContentAnalysisResult::FAIL_CLOSED,
+            handler_result.final_result);
+}
 
 }  // namespace enterprise_connectors

@@ -20,6 +20,9 @@ using namespace skia_private;
 
 namespace skgpu::graphite {
 
+// We don't want keys to get that large, so this limit is quite strict.
+static constexpr int kEmbeddedDataSizeLimit = 16;
+
 //--------------------------------------------------------------------------------------------------
 // PaintParamsKeyBuilder
 
@@ -33,6 +36,7 @@ void PaintParamsKeyBuilder::checkReset() {
 }
 
 void PaintParamsKeyBuilder::pushStack(int32_t codeSnippetID) {
+    SkASSERT(!fLocked);
     SkASSERT(fDict->isValidID(codeSnippetID));
     // If the kError ID is pushed, fHasError must have been set already.
     SkASSERT(codeSnippetID != (int) BuiltInCodeSnippetID::kError || fHasError);
@@ -47,6 +51,10 @@ void PaintParamsKeyBuilder::pushStack(int32_t codeSnippetID) {
 }
 
 void PaintParamsKeyBuilder::validateData(size_t dataSize) {
+    // Check that the size of the embedded data fits our self-imposed limit.
+    SkASSERT(dataSize <= kEmbeddedDataSizeLimit);
+
+    SkASSERT(!fLocked);
     SkASSERT(!fStack.empty()); // addData() called within code snippet block
     // Check that addData() is only called for snippets that support it and is only called once
     const ShaderSnippet* snippet = fDict->getEntry(fStack.back().fCodeSnippetID);
@@ -57,6 +65,7 @@ void PaintParamsKeyBuilder::validateData(size_t dataSize) {
 }
 
 void PaintParamsKeyBuilder::popStack() {
+    SkASSERT(!fLocked);
     SkASSERT(!fStack.empty());
     SkASSERT(fStack.back().fNumActualChildren == fStack.back().fNumExpectedChildren);
     const bool expectsData = fDict->getEntry(fStack.back().fCodeSnippetID)->storesSamplerDescData();
@@ -71,7 +80,7 @@ void PaintParamsKeyBuilder::popStack() {
 // PaintParamsKey
 
 PaintParamsKey PaintParamsKey::clone(SkArenaAlloc* arena) const {
-    uint32_t* newData = arena->makeArrayDefault<uint32_t>(fData.size());
+    int32_t* newData = arena->makeArrayDefault<int32_t>(fData.size());
     memcpy(newData, fData.data(), fData.size_bytes());
     return PaintParamsKey({newData, fData.size()});
 }
@@ -82,6 +91,7 @@ ShaderNode* PaintParamsKey::createNode(const ShaderCodeDictionary* dict,
     SkASSERT(*currentIndex < SkTo<int>(fData.size()));
     const int32_t index = (*currentIndex)++;
     const int32_t id = fData[index];
+    SkASSERT(id >= 0); // Otherwise we're calling createNode on a data length somehow
 
     const ShaderSnippet* entry = dict->getEntry(id);
     if (!entry) {
@@ -95,12 +105,18 @@ ShaderNode* PaintParamsKey::createNode(const ShaderCodeDictionary* dict,
         // its data. Determine this data length and iterate currentIndex past it.
         const int storedDataLengthIdx = (*currentIndex)++;
         SkASSERT(storedDataLengthIdx < SkTo<int>(fData.size()));
-        const int dataLength = fData[storedDataLengthIdx];
+        const int dataLength = EncodeDataSize(fData[storedDataLengthIdx]);
+        // Building ShaderNodes is assumed to be done for keys built by PaintParamsKeyBuilder or
+        // already validated for deserialization, so we consider them trusted.
+        SkASSERT(dataLength >= 0 && dataLength <= kEmbeddedDataSizeLimit);
         SkASSERT(storedDataLengthIdx + dataLength < SkTo<int>(fData.size()));
 
         // Gather the data contents (length can now be inferred by the consumers of the data) to
         // pass into ShaderNode creation. Iterate the paint key index past the data indices.
-        dataSpan = fData.subspan(storedDataLengthIdx + 1, dataLength);
+        // For the embedded data, we re-interpret the values as uint32_t's since that was what was
+        // written by addData().
+        SkSpan<const int32_t> signedDataSpan = fData.subspan(storedDataLengthIdx + 1, dataLength);
+        dataSpan = {reinterpret_cast<const uint32_t*>(signedDataSpan.data()), dataLength};
         *currentIndex += dataLength;
     }
 
@@ -233,7 +249,7 @@ SkSpan<const ShaderNode*> PaintParamsKey::getRootNodes(const Caps* caps,
     return SkSpan(rootSpan, roots.size());
 }
 
-static void append_as_base64(SkString* str, SkSpan<const uint32_t> data) {
+static void append_as_base64(SkString* str, SkSpan<const int32_t> data) {
     str->append("(");
     str->appendU32(data.size());
     str->append(": ");
@@ -249,7 +265,7 @@ static void append_as_base64(SkString* str, SkSpan<const uint32_t> data) {
 static int key_to_string(const Caps* caps,
                          SkString* str,
                          const ShaderCodeDictionary* dict,
-                         SkSpan<const uint32_t> keyData,
+                         SkSpan<const int32_t> keyData,
                          int currentIndex,
                          int indent) {
     SkASSERT(currentIndex < SkTo<int>(keyData.size()));
@@ -260,7 +276,7 @@ static int key_to_string(const Caps* caps,
         str->appendf("%*c", 2 * indent, ' ');
     }
 
-    uint32_t id = keyData[currentIndex++];
+    int32_t id = keyData[currentIndex++];
     auto entry = dict->getEntry(id);
     if (!entry) {
         str->append("UnknownCodeSnippetID:");
@@ -280,8 +296,11 @@ static int key_to_string(const Caps* caps,
         // snippet ID.
         // For example:
         // [snippetId using 2 indices worth of data] [2] [dataValue0] [dataValue1] [next snippet ID]
-        const size_t dataIndexCount = keyData[currentIndex++];
-        SkASSERT(currentIndex + dataIndexCount < keyData.size());
+        const int dataIndexCount = PaintParamsKey::EncodeDataSize(keyData[currentIndex++]);
+        // Printing keys is assumed to be done for keys that were built by PaintParamsKeyBuilder or
+        // already validated for deserialization, so we consider them trusted.
+        SkASSERT(dataIndexCount >= 0 && dataIndexCount <= kEmbeddedDataSizeLimit);
+        SkASSERT(currentIndex + dataIndexCount < SkTo<int>(keyData.size()));
 
         bool descriptiveFormAppended = false;
         if (dataIndexCount == 0) {
@@ -289,7 +308,7 @@ static int key_to_string(const Caps* caps,
             str->append("(0)");
             descriptiveFormAppended = true;
         } else {
-            SkASSERTF(dataIndexCount == 2 || dataIndexCount == 3, "count %zu", dataIndexCount);
+            SkASSERTF(dataIndexCount == 2 || dataIndexCount == 3, "count %d", dataIndexCount);
 
             // Attempt to append the sampler data as human-readable YCbCr information
             SamplerDesc s(keyData[currentIndex],
@@ -359,9 +378,9 @@ void PaintParamsKey::dump(const Caps* caps,
 
     SkDebugf("--------------------------------------\n");
     SkDebugf("PaintParamsKey %u (keySize: %d): ", id.asUInt(), keySize);
-    const uint32_t* data = fData.data();
+    const int32_t* data = fData.data();
     for (int i = 0; i < keySize; ++i) {
-        SkDebugf("%x ", data[i]);
+        SkDebugf("%x ", (uint32_t) data[i]);
     }
     SkDebugf("\n");
 
@@ -379,7 +398,7 @@ namespace {
 
 // check a single block and, recursively, all its children
 [[nodiscard]] bool is_block_valid(const ShaderCodeDictionary* dict,
-                                  SkSpan<const uint32_t> keyData,
+                                  SkSpan<const int32_t> keyData,
                                   int* currentIndex) {
     if (*currentIndex >= SkTo<int>(keyData.size())) {
         return false;
@@ -402,8 +421,17 @@ namespace {
             return false;
         }
 
-        const int dataLength = keyData[(*currentIndex)++];
-
+        int dataLength = keyData[(*currentIndex)++];
+        // This `dataLength` is untrusted, so check that it doesn't overflow EncodeDataSize
+        // and that matches expectations of a valid length (i.e. it started out negative and is
+        // now positive and less than the key data limit).
+        if (dataLength >= 0 ||
+            dataLength < PaintParamsKey::EncodeDataSize(kEmbeddedDataSizeLimit)) {
+            // Would not produce a valid size after decoding
+            return false;
+        }
+        dataLength = PaintParamsKey::EncodeDataSize(dataLength);
+        SkASSERT(dataLength >= 0 && dataLength <= kEmbeddedDataSizeLimit);
         if (*currentIndex + dataLength > SkTo<int>(keyData.size())) {
             return false;
         }

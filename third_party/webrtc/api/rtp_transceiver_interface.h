@@ -25,6 +25,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -173,6 +174,18 @@ class RTC_EXPORT RtpTransceiverInterface : public RefCountInterface {
   // https://w3c.github.io/webrtc-extensions/#rtcrtptransceiver-interface
   virtual RTCError SetHeaderExtensionsToNegotiate(
       std::span<const RtpHeaderExtensionCapability> header_extensions) = 0;
+
+  // Returns the negotiated SFrame state for this transceiver.
+  // - nullopt: SFrame state has not yet been decided (no negotiation).
+  // - true:    SFrame is enabled.
+  // - false:   SFrame is disabled (locked after negotiation without SFrame).
+  // Default implementation of SframeEnabled.
+  // TODO: bugs.webrtc.org/479862368 - remove when all implementations are
+  // updated
+  virtual std::optional<bool> SframeEnabled() const {
+    RTC_DCHECK_NOTREACHED();
+    return std::nullopt;
+  }
 
  protected:
   ~RtpTransceiverInterface() override = default;

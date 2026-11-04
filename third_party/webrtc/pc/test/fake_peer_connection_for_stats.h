@@ -50,6 +50,7 @@
 #include "p2p/base/transport_info.h"
 #include "p2p/test/fake_ice_transport.h"
 #include "pc/channel.h"
+#include "pc/channel_interface.h"
 #include "pc/connection_context.h"
 #include "pc/data_channel_utils.h"
 #include "pc/dtls_transport.h"
@@ -113,7 +114,7 @@ class FakeVoiceMediaSendChannelForStats : public FakeVoiceMediaSendChannel {
     return false;
   }
 
-  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()> GetStatsTask()
       override {
     return [this, safety = task_safety_.flag()]() mutable
                -> std::optional<VoiceMediaSendInfo> {
@@ -156,8 +157,8 @@ class FakeVoiceMediaReceiveChannelForStats
     return false;
   }
 
-  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsCallback(
-      bool get_and_clear_legacy_stats) override {
+  absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()> GetStatsTask(
+      bool reset_legacy) override {
     return [this, safety = task_safety_.flag()]() mutable
                -> std::optional<VoiceMediaReceiveInfo> {
       if (!safety->alive()) {
@@ -198,7 +199,7 @@ class FakeVideoMediaSendChannelForStats : public FakeVideoMediaSendChannel {
     return false;
   }
 
-  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsTask()
       override {
     return [this, safety = task_safety_.flag()]() mutable
                -> std::optional<VideoMediaSendInfo> {
@@ -239,7 +240,7 @@ class FakeVideoMediaReceiveChannelForStats
     return false;
   }
 
-  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsCallback()
+  absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()> GetStatsTask()
       override {
     return [this, safety = task_safety_.flag()]() mutable
                -> std::optional<VideoMediaReceiveInfo> {
@@ -456,10 +457,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     RTC_DCHECK(!transceiver->HasChannel());
     RTC_DCHECK(transceiver->mid());
     UpdateJsepTransportController(mid, transport_name);
-    transceiver->SetChannel(
-        std::move(voice_channel), [this](const std::string& mid) {
-          return transport_controller_->GetRtpTransport(mid);
-        });
+    SetChannelAndPushMediaChannels(transceiver, std::move(voice_channel),
+                                   voice_media_send_channel_ptr,
+                                   voice_media_receive_channel_ptr);
     auto dtls_transport = transport_controller_->LookupDtlsTransportByMid(mid);
     transceiver->SetTransport(dtls_transport, transport_name);
     voice_media_send_channel_ptr->SetStats(initial_stats);
@@ -495,10 +495,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     RTC_DCHECK(!transceiver->HasChannel());
     RTC_DCHECK(transceiver->mid());
     UpdateJsepTransportController(mid, transport_name);
-    transceiver->SetChannel(
-        std::move(video_channel), [this](const std::string& mid) {
-          return transport_controller_->GetRtpTransport(mid);
-        });
+    SetChannelAndPushMediaChannels(transceiver, std::move(video_channel),
+                                   video_media_send_channel_ptr,
+                                   video_media_receive_channel_ptr);
     auto dtls_transport = transport_controller_->LookupDtlsTransportByMid(mid);
     transceiver->SetTransport(dtls_transport, transport_name);
     video_media_send_channel_ptr->SetStats(initial_stats);
@@ -662,6 +661,24 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   }
 
  private:
+  void SetChannelAndPushMediaChannels(
+      RtpTransceiver* transceiver,
+      std::unique_ptr<ChannelInterface> channel,
+      MediaSendChannelInterface* send_channel,
+      MediaReceiveChannelInterface* receive_channel) {
+    transceiver->SetChannelForTest(
+        std::move(channel), [this](const std::string& mid) {
+          return transport_controller_->GetRtpTransport(mid);
+        });
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
+    for (const auto& sender : transceiver->senders()) {
+      sender->internal()->SetMediaChannel(send_channel);
+    }
+    for (const auto& receiver : transceiver->receivers()) {
+      receiver->internal()->SetMediaChannel(receive_channel);
+    }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
+  }
   TransportStats GetTransportStatsByName(const std::string& transport_name) {
     auto it = transport_stats_by_name_.find(transport_name);
     if (it != transport_stats_by_name_.end()) {

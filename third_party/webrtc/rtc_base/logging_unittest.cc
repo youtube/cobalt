@@ -14,12 +14,20 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 
+#include "absl/cleanup/cleanup.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
+#include "api/location.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
+#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -413,6 +421,103 @@ TEST(LogTest, EnumSupportsAbslStringify) {
   EXPECT_THAT(str, HasSubstr("[kValue1]"));
   LogMessage::RemoveLogToStream(&stream);
 }
+
+TEST(LogTest, LogPrefix) {
+  std::string str;
+  LogSinkImpl stream(&str);
+  LogMessage::AddLogToStream(&stream, LS_INFO);
+
+  LogMessage::SetLogPrefix("PREFIX: ");
+  absl::Cleanup remove_prefix = [&] { LogMessage::SetLogPrefix(""); };
+  RTC_LOG(LS_INFO) << "<-- Do you see the prefix?";
+  EXPECT_THAT(str, HasSubstr("PREFIX: "));
+
+  LogMessage::RemoveLogToStream(&stream);
+}
+
+#if !defined(WEBRTC_CHROMIUM_BUILD)
+TEST(LogTest, LogQueueNameFromThread) {
+  std::string str;
+  LogSinkImpl stream(&str);
+  LogMessage::AddLogToStream(&stream, LS_INFO);
+  LogMessage::SetLogQueueNames(true);
+
+  std::unique_ptr<Thread> thread = Thread::Create();
+  thread->SetName("TName", nullptr);
+  thread->Start();
+  thread->BlockingCall([&]() { RTC_LOG(LS_INFO) << "Hello"; });
+
+  EXPECT_THAT(str, HasSubstr("[TName]"));
+
+  LogMessage::SetLogQueueNames(false);  // Reset
+  LogMessage::RemoveLogToStream(&stream);
+}
+
+class LogTestWithParam : public testing::TestWithParam<bool> {};
+
+TEST_P(LogTestWithParam, LogQueueNameFromTaskQueueOverridingThread) {
+  LogMessage::SetLogPrefix("LogTest: ");
+  bool prev_log_threads = LogMessage::LogThreads(GetParam());
+  bool prev_log_queue_names = LogMessage::SetLogQueueNames(true);
+
+  std::string str;
+  LogSinkImpl stream(&str);
+  LogMessage::AddLogToStream(&stream, LS_INFO);
+  absl::Cleanup cleanup = [&] {
+    LogMessage::RemoveLogToStream(&stream);
+    LogMessage::SetLogPrefix("");
+    LogMessage::LogThreads(prev_log_threads);
+    LogMessage::SetLogQueueNames(prev_log_queue_names);
+  };
+
+  std::unique_ptr<Thread> thread = Thread::Create();
+  thread->SetName("TName", nullptr);
+  thread->Start();
+
+  class CustomTaskQueue : public TaskQueueBase {
+   public:
+    explicit CustomTaskQueue(absl::string_view name) : name_(name) {}
+    void Delete() override {}
+    void PostTaskImpl(absl::AnyInvocable<void() &&> task,
+                      const PostTaskTraits& traits,
+                      const Location& location) override {
+      CurrentTaskQueueSetter set_current(this);
+      std::move(task)();
+    }
+    void PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
+                             TimeDelta delay,
+                             const PostDelayedTaskTraits& traits,
+                             const Location& location) override {
+      RTC_DCHECK_NOTREACHED();
+    }
+    absl::string_view queue_name() const override { return name_; }
+
+   private:
+    std::string name_;
+  };
+
+  thread->BlockingCall([&]() {
+    // 1. Verify thread name is printed first.
+    RTC_LOG(LS_INFO) << "Prints the name of the thread.";
+    EXPECT_THAT(str, HasSubstr("TName]"));
+    str.clear();
+
+    // 2. Set custom task queue.
+    CustomTaskQueue custom_tq("QName");
+    custom_tq.PostTask(
+        [&]() { RTC_LOG(LS_INFO) << "Prints the name of the task queue."; });
+    EXPECT_THAT(str, HasSubstr("QName]"));
+    EXPECT_THAT(str, Not(HasSubstr("TName]")));
+    str.clear();
+
+    // 3. Verify fallback to thread name.
+    RTC_LOG(LS_INFO) << "Prints the name of the thread again.";
+    EXPECT_THAT(str, HasSubstr("TName]"));
+  });
+}
+
+INSTANTIATE_TEST_SUITE_P(All, LogTestWithParam, ::testing::Bool());
+#endif
 
 }  // namespace webrtc
 #endif  // RTC_LOG_ENABLED()

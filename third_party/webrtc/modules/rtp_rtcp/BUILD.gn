@@ -691,6 +691,7 @@ if (rtc_include_tests) {
       "../../test:mock_transport",
       "../../test:near_matcher",
       "../../test:rtp_test_utils",
+      "../../test:run_loop",
       "../../test:test_support",
       "../../test/time_controller",
       "../audio_coding:audio_coding_module_typedefs",

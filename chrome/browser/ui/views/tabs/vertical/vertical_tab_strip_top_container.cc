@@ -12,12 +12,14 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_everything_menu.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -31,9 +33,12 @@
 #include "ui/views/view_class_properties.h"
 
 namespace {
-constexpr int kRegionVerticalPadding = 5;
 constexpr int kComboButtonCollapsedPadding = 2;
 }
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
+    VerticalTabStripTopContainer,
+    kToggleVerticalTabsExpandOnHoverElementId);
 
 VerticalTabStripTopContainer::VerticalTabStripTopContainer(
     tabs::VerticalTabStripStateController* state_controller,
@@ -171,9 +176,13 @@ views::ProposedLayout VerticalTabStripTopContainer::CalculateProposedLayout(
                                           combo_button_->GetVisible(), bounds);
         host_size.SetToMax(gfx::Size(bounds.right(), 0));
 
-        current_y += pref_size.height() + kRegionVerticalPadding;
+        current_y +=
+            pref_size.height() +
+            GetLayoutConstant(
+                LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
       } else if (caption_button_width_ != 0) {
-        current_y += kRegionVerticalPadding;
+        current_y += GetLayoutConstant(
+            LayoutConstant::kVerticalTabStripCollapsedVerticalPadding);
       }
     }
 
@@ -310,6 +319,11 @@ void VerticalTabStripTopContainer::ShowContextMenuForViewImpl(
     ui::mojom::MenuSourceType source_type) {
   if (tabs::IsVerticalTabsExpandOnHoverFeatureEnabled() &&
       source == collapse_button_) {
+    BrowserUserEducationInterface::From(browser_)
+        ->NotifyFeaturePromoFeatureUsed(
+            feature_engagement::kIPHVerticalTabsExpandOnHoverFeature,
+            FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+
     // Reset the menu runner to avoid issues when the collapse button is
     // clicked multiple times.
     context_menu_runner_.reset();
@@ -319,6 +333,9 @@ void VerticalTabStripTopContainer::ShowContextMenuForViewImpl(
         IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
         l10n_util::GetStringUTF16(
             IDS_VERTICAL_TABS_COLLAPSE_BUTTON_TOGGLE_EXPAND_ON_HOVER));
+    context_menu_model_->SetElementIdentifierAt(
+        context_menu_model_->GetItemCount() - 1,
+        kToggleVerticalTabsExpandOnHoverElementId);
 
     int32_t menu_runner_flags =
         views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU;

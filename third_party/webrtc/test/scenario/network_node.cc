@@ -87,7 +87,7 @@ void SimulationNode::PauseTransmissionUntil(Timestamp until) {
 
 ColumnPrinter SimulationNode::ConfigPrinter() const {
   return ColumnPrinter::Lambda(
-      "propagation_delay capacity loss_rate", [this](SimpleStringBuilder& sb) {
+      "propagation_delay capacity loss_rate", [this](StringBuilder& sb) {
         sb.AppendFormat("%.3lf %.0lf %.2lf", config_.delay.seconds<double>(),
                         config_.bandwidth.bps() / 8.0, config_.loss_rate);
       });

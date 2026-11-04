@@ -258,6 +258,11 @@ struct SK_API AdaptiveGlobalToneMap {
      */
     SkString toString() const;
 
+    /**
+     * Return true if this metadata satisfies all normative constraints.
+     */
+    bool isValid() const;
+
     bool operator==(const AdaptiveGlobalToneMap& other) const {
         return fHdrReferenceWhite == other.fHdrReferenceWhite &&
                fHeadroomAdaptiveToneMap == other.fHeadroomAdaptiveToneMap;

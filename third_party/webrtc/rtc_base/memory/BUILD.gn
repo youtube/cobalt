@@ -58,7 +58,6 @@ rtc_library("unittests") {
     ":always_valid_pointer",
     ":fifo_buffer",
     "..:stream",
-    "..:threading",
     "../../test:run_loop",
     "../../test:test_support",
   ]

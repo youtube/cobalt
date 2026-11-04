@@ -56,6 +56,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -1545,6 +1546,12 @@ bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
   }
   if (crypto_config()->validate_chlo_size() &&
       packet_info.packet.length() < kMinPacketSizeForVersionNegotiation) {
+    return false;
+  }
+  if (config_->parse_scone_packets() &&
+      (packet_info.version_label == kSconeVersionHigh ||
+       packet_info.version_label == kSconeVersionLow)) {
+    // Do not send version negotiation if SCONE is being processed.
     return false;
   }
   time_wait_list_manager()->SendVersionNegotiationPacket(

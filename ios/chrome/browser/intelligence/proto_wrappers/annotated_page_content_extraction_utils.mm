@@ -6,6 +6,7 @@
 
 #import "base/check.h"
 #import "base/functional/callback.h"
+#import "base/strings/string_number_conversions.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
 #import "components/autofill/core/common/unique_ids.h"
@@ -102,6 +103,11 @@ constexpr char kCurrentPositionMillisecondsKey[] =
     "currentPositionMilliseconds";
 constexpr char kIsPlayingKey[] = "isPlaying";
 constexpr char kLabelKey[] = "label";
+constexpr char kGeometryKey[] = "geometry";
+constexpr char kOuterBoundingBoxKey[] = "outerBoundingBox";
+constexpr char kVisibleBoundingBoxKey[] = "visibleBoundingBox";
+constexpr char kFragmentVisibleBoundingBoxesKey[] =
+    "fragmentVisibleBoundingBoxes";
 
 // Reads a JS number (double) from a `dict` stored under `key`.
 std::optional<int> ReadJsNumber(const base::DictValue& dict, const char* key) {
@@ -148,11 +154,14 @@ void PopulateTextData(
               static_cast<optimization_guide::proto::TextSize>(*text_size));
     }
 
-    if (std::optional<int> color = ReadJsNumber(*text_style, kColorKey)) {
-      destination_node->mutable_content_attributes()
-          ->mutable_text_data()
-          ->mutable_text_style()
-          ->set_color(static_cast<uint32_t>(*color));
+    if (const std::string* color_str = text_style->FindString(kColorKey)) {
+      uint32_t color_val = 0;
+      if (base::StringToUint(*color_str, &color_val)) {
+        destination_node->mutable_content_attributes()
+            ->mutable_text_data()
+            ->mutable_text_style()
+            ->set_color(color_val);
+      }
     }
   }
 }
@@ -288,6 +297,12 @@ void PopulateFrameData(
   const base::DictValue* interaction_info_dict =
       local_frame_data.FindDict(kFrameInteractionInfoKey);
   if (interaction_info_dict) {
+    if (std::optional<int> focused_dom_node_id =
+            ReadJsNumber(*interaction_info_dict, kFocusedDomNodeIdKey)) {
+      destination_frame_data->mutable_frame_interaction_info()
+          ->set_focused_node_id(*focused_dom_node_id);
+    }
+
     const base::DictValue* selection_dict =
         interaction_info_dict->FindDict(kSelectionKey);
     if (selection_dict) {
@@ -558,6 +573,69 @@ void PopulateNodeInteractionInfo(
     }
   }
 }
+
+// Extracts and returns a BoundingRect proto from the given dictionary.
+// Returns std::nullopt if any required dimension is missing or invalid,
+// ensuring we do not set potentially misleading 0 values.
+std::optional<optimization_guide::proto::BoundingRect> ExtractBoundingRect(
+    const base::DictValue& dict) {
+  std::optional<int> x = ReadJsNumber(dict, kXKey);
+  std::optional<int> y = ReadJsNumber(dict, kYKey);
+  std::optional<int> width = ReadJsNumber(dict, kWidthKey);
+  std::optional<int> height = ReadJsNumber(dict, kHeightKey);
+
+  if (!x || !y || !width || !height) {
+    // Do not create the rectangle if one part is missing.
+    return std::nullopt;
+  }
+
+  optimization_guide::proto::BoundingRect proto;
+  proto.set_x(*x);
+  proto.set_y(*y);
+  proto.set_width(*width);
+  proto.set_height(*height);
+  return proto;
+}
+
+// Populates the geometry data of the `node` from the `geometry_dict` content.
+// Extracts outer bounding box, visible bounding box, and any fragments if
+// applicable.
+void PopulateGeometry(const base::DictValue& geometry_dict,
+                      optimization_guide::proto::ContentNode* node) {
+  auto mutable_geometry = [node]() {
+    return node->mutable_content_attributes()->mutable_geometry();
+  };
+
+  if (const base::DictValue* outer_box =
+          geometry_dict.FindDict(kOuterBoundingBoxKey)) {
+    if (std::optional<optimization_guide::proto::BoundingRect> box =
+            ExtractBoundingRect(*outer_box)) {
+      *mutable_geometry()->mutable_outer_bounding_box() = std::move(*box);
+    }
+  }
+
+  if (const base::DictValue* visible_box =
+          geometry_dict.FindDict(kVisibleBoundingBoxKey)) {
+    if (std::optional<optimization_guide::proto::BoundingRect> box =
+            ExtractBoundingRect(*visible_box)) {
+      *mutable_geometry()->mutable_visible_bounding_box() = std::move(*box);
+    }
+  }
+
+  if (const base::ListValue* fragments =
+          geometry_dict.FindList(kFragmentVisibleBoundingBoxesKey)) {
+    for (const auto& fragment : *fragments) {
+      if (const base::DictValue* fragment_dict = fragment.GetIfDict()) {
+        // Add the fragment to the list of fragments.
+        if (std::optional<optimization_guide::proto::BoundingRect> box =
+                ExtractBoundingRect(*fragment_dict)) {
+          *mutable_geometry()->add_fragment_visible_bounding_boxes() =
+              std::move(*box);
+        }
+      }
+    }
+  }
+}
 }  // namespace
 
 void PopulateAPCNodeFromContentTree(
@@ -718,6 +796,12 @@ void PopulateAPCNodeFromContentTree(
   // Handle ARIA Label.
   if (const std::string* label = content_attributes->FindString(kLabelKey)) {
     destination_node->mutable_content_attributes()->set_label(*label);
+  }
+
+  // Handle Geometry.
+  if (const base::DictValue* geometry =
+          content_attributes->FindDict(kGeometryKey)) {
+    PopulateGeometry(*geometry, destination_node);
   }
 
   // Handle Annotated Role.

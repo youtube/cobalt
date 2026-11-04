@@ -10,13 +10,19 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
-#include "quiche/quic/core/quic_framer.h"
-#include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_default_client.h"
+#include "quiche/quic/tools/quic_simple_client_session.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
@@ -27,6 +33,47 @@ class ProofVerifier;
 class QuicPacketWriterWrapper;
 
 namespace test {
+
+// A version of QuicSimpleClientSession in the test namespace. Can be used to
+// override various QuicSimpleClientSession functions for testing.
+class QuicTestClientSession : public QuicSimpleClientSession {
+ public:
+  QuicTestClientSession(const QuicConfig& config,
+                        const ParsedQuicVersionVector& supported_versions,
+                        QuicConnection* connection,
+                        QuicSession::Visitor* visitor,
+                        QuicClientBase::NetworkHelper* network_helper,
+                        const QuicServerId& server_id,
+                        QuicCryptoClientConfig* crypto_config,
+                        bool drop_response_body, bool enable_web_transport)
+      : QuicSimpleClientSession(config, supported_versions, connection, visitor,
+                                network_helper, server_id, crypto_config,
+                                drop_response_body, enable_web_transport) {}
+  QuicTestClientSession(const QuicConfig& config,
+                        const ParsedQuicVersionVector& supported_versions,
+                        QuicConnection* connection,
+                        QuicSession::Visitor* visitor,
+                        QuicForceBlockablePacketWriter* absl_nullable writer,
+                        QuicMigrationHelper* absl_nullable migration_helper,
+                        const QuicConnectionMigrationConfig& migration_config,
+                        QuicClientBase::NetworkHelper* network_helper,
+                        const QuicServerId& server_id,
+                        QuicCryptoClientConfig* crypto_config,
+                        bool drop_response_body, bool enable_web_transport)
+      : QuicSimpleClientSession(config, supported_versions, connection, visitor,
+                                writer, migration_helper, migration_config,
+                                network_helper, server_id, crypto_config,
+                                drop_response_body, enable_web_transport) {}
+
+  void OnSconePacket(QuicBandwidth bandwidth) override {
+    received_bandwidth_ = bandwidth;
+  }
+
+  QuicBandwidth received_bandwidth() const { return received_bandwidth_; }
+
+ private:
+  QuicBandwidth received_bandwidth_ = QuicBandwidth::Zero();
+};
 
 class MockableQuicClientDefaultNetworkHelper
     : public QuicClientDefaultNetworkHelper {
@@ -118,6 +165,22 @@ class MockableQuicClient : public QuicDefaultClient {
   MockableQuicClient& operator=(const MockableQuicClient&) = delete;
 
   ~MockableQuicClient() override;
+
+  std::unique_ptr<QuicSession> CreateQuicClientSession(
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection) override {
+    if (handle_migration_in_session()) {
+      return std::make_unique<QuicTestClientSession>(
+          *config(), supported_versions, connection, this,
+          static_cast<QuicForceBlockablePacketWriter*>(connection->writer()),
+          migration_helper(), migration_config(), network_helper(), server_id(),
+          crypto_config(), drop_response_body(), enable_web_transport());
+    }
+    return std::make_unique<QuicTestClientSession>(
+        *config(), supported_versions, connection, this, network_helper(),
+        server_id(), crypto_config(), drop_response_body(),
+        enable_web_transport());
+  }
 
   QuicConnectionId GetClientConnectionId() override;
   std::unique_ptr<QuicMigrationHelper> CreateQuicMigrationHelper() override;

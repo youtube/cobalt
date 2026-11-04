@@ -441,7 +441,8 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
     hs->early_data_offered = true;
   }
 
-  if (!ssl_setup_pre_shared_keys(hs) ||
+  ssl_setup_client_certificate_type(hs);
+  if (!ssl_setup_pre_shared_keys(hs) ||  //
       !ssl_setup_key_shares(hs, /*override_group_id=*/0) ||
       !ssl_setup_extension_permutation(hs) ||
       !ssl_encrypt_client_hello(hs, Span(ech_enc, ech_enc_len)) ||
@@ -1252,7 +1253,15 @@ static enum ssl_hs_wait_t do_read_server_hello_done(SSL_HANDSHAKE *hs) {
 
 static bool check_credential(SSL_HANDSHAKE *hs, const SSL_CREDENTIAL *cred,
                              uint16_t *out_sigalg) {
-  if (cred->type != SSLCredentialType::kX509) {
+  const uint8_t allowed_cert_type =
+      SSL_get_negotiated_client_cert_type(hs->ssl);
+  bool cert_type_ok = false;
+  if (allowed_cert_type == TLSEXT_cert_type_x509) {
+    cert_type_ok = cred->type == SSLCredentialType::kX509;
+  } else if (allowed_cert_type == TLSEXT_cert_type_rpk) {
+    cert_type_ok = cred->type == SSLCredentialType::kRawPublicKey;
+  }
+  if (!cert_type_ok) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
     return false;
   }

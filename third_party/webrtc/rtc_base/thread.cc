@@ -311,7 +311,8 @@ Thread::ScopedCountBlockingCalls::ScopedCountBlockingCalls(
       start_time_ns_(TimeNanos()) {}
 
 Thread::ScopedCountBlockingCalls::~ScopedCountBlockingCalls() {
-  if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_) {
+  if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_ &&
+      is_enabled()) {
     int64_t duration_us = (TimeNanos() - start_time_ns_) / 1000;
     std::move(result_callback_)(GetBlockingCallCount(),
                                 GetCouldBeBlockingCallCount(),
@@ -332,6 +333,10 @@ uint32_t Thread::ScopedCountBlockingCalls::GetCouldBeBlockingCallCount() const {
 
 uint32_t Thread::ScopedCountBlockingCalls::GetTotalBlockedCallCount() const {
   return GetBlockingCallCount() + GetCouldBeBlockingCallCount();
+}
+
+void Thread::ScopedCountBlockingCalls::Disable() {
+  result_callback_ = nullptr;
 }
 #else
 Thread::ScopedDisallowBlockingCalls::ScopedDisallowBlockingCalls() = default;
@@ -764,12 +769,8 @@ void Thread::BlockingCallImpl(FunctionView<void()> functor,
     RTC_DCHECK(this->IsInvokeToThreadAllowed(this));
     RTC_DCHECK_RUN_ON(this);
     could_be_blocking_call_count_++;
-    ++running_synchronous_blocking_call_count_;
 #endif
     functor();
-#if RTC_DCHECK_IS_ON
-    --running_synchronous_blocking_call_count_;
-#endif
     return;
   }
 
@@ -971,11 +972,6 @@ AutoSocketServerThread::~AutoSocketServerThread() {
 
 bool Thread::HasPendingTasks() const {
   RTC_DCHECK_RUN_ON(this);
-#if RTC_DCHECK_IS_ON
-  // If you've hit this, then there's a cooperative task running from inside a
-  // blocking call.
-  RTC_DCHECK_EQ(running_synchronous_blocking_call_count_, 0);
-#endif
   MutexLock lock(&mutex_);
   return !messages_.empty();
 }

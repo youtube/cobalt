@@ -69,7 +69,6 @@
 #include "chrome/renderer/trusted_vault_encryption_keys_extension.h"
 #include "chrome/renderer/url_loader_throttle_provider_impl.h"
 #include "chrome/renderer/v8_unwinder.h"
-#include "chrome/renderer/web_link_preview_triggerer_impl.h"
 #include "chrome/renderer/websocket_handshake_throttle_provider_impl.h"
 #include "chrome/renderer/webui_browser/webui_browser_renderer_extension.h"
 #include "chrome/renderer/worker_content_settings_client.h"
@@ -119,7 +118,8 @@
 #include "components/subresource_filter/content/renderer/subresource_filter_agent.h"
 #include "components/subresource_filter/content/renderer/unverified_ruleset_dealer.h"
 #include "components/subresource_filter/core/common/common_features.h"
-#include "components/surface_embed/buildflags/buildflags.h"
+#include "components/surface_embed/common/features.h"
+#include "components/surface_embed/renderer/create_plugin.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "components/variations/variations_switches.h"
 #include "components/version_info/version_info.h"
@@ -137,6 +137,7 @@
 #include "content/public/common/webplugininfo.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_visitor.h"
+#include "content/public/renderer/worker_thread.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/renderer/extensions_renderer_api_provider.h"
 #include "media/base/media_switches.h"
@@ -198,6 +199,7 @@
 #else
 #include "chrome/common/record_replay/record_replay_features.h"
 #include "chrome/renderer/indigo/indigo_agent.h"
+#include "chrome/renderer/indigo/onboarding_agent.h"
 #include "chrome/renderer/record_replay/record_replay_agent.h"
 #include "chrome/renderer/searchbox/searchbox.h"
 #include "chrome/renderer/searchbox/searchbox_extension.h"
@@ -259,11 +261,6 @@
 #include "components/spellcheck/renderer/spellcheck_panel.h"
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-#include "components/surface_embed/common/features.h"
-#include "components/surface_embed/renderer/create_plugin.h"
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/media/chrome_key_systems.h"
@@ -553,7 +550,7 @@ void ChromeContentRendererClient::RenderThreadStarted() {
 
 #if BUILDFLAG(IS_ANDROID)
   WebSecurityPolicy::RegisterURLSchemeAsAllowedForReferrer(
-      WebString::FromUTF8(content::kAndroidAppScheme));
+      WebString::FromUtf8(content::kAndroidAppScheme));
 #endif
 
   // chrome-search: pages should not be accessible by bookmarklets
@@ -707,6 +704,7 @@ void ChromeContentRendererClient::RenderFrameCreated(
     new record_replay::RecordReplayAgent(render_frame, associated_interfaces);
   }
   indigo::IndigoAgent::MaybeCreate(render_frame, associated_interfaces);
+  indigo::OnboardingAgent::MaybeCreate(render_frame, associated_interfaces);
 #endif
 
   if (content_capture::features::IsContentCaptureEnabled()) {
@@ -828,9 +826,7 @@ bool ChromeContentRendererClient::IsPluginHandledExternally(
   // not supported. Here it suffices to return false but there should perhaps be
   // a more unified approach to avoid sending the IPC twice.
   chrome::mojom::PluginInfoPtr plugin_info = chrome::mojom::PluginInfo::New();
-  plugin_info_host->GetPluginInfo(
-      original_url, render_frame->GetWebFrame()->Top()->GetSecurityOrigin(),
-      mime_type, &plugin_info);
+  plugin_info_host->GetPluginInfo(original_url, mime_type, &plugin_info);
   // TODO(ekaramad): Not continuing here due to a disallowed status should take
   // us to CreatePlugin. See if more in depths investigation of |status| is
   // necessary here (see https://crbug.com/41460326). For now, returning false
@@ -896,7 +892,7 @@ bool ChromeContentRendererClient::OverrideCreatePlugin(
     WebPlugin** plugin) {
   std::string orig_mime_type = params.mime_type.Utf8();
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+#if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed)) {
     GURL url = render_frame->GetWebFrame()->GetDocument().Url();
     if (url.SchemeIs(content::kChromeUIScheme) &&
@@ -906,7 +902,7 @@ bool ChromeContentRendererClient::OverrideCreatePlugin(
       }
     }
   }
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Used for plugins.
@@ -923,9 +919,7 @@ bool ChromeContentRendererClient::OverrideCreatePlugin(
       &plugin_info_host);
 
   chrome::mojom::PluginInfoPtr plugin_info = chrome::mojom::PluginInfo::New();
-  plugin_info_host->GetPluginInfo(
-      url, render_frame->GetWebFrame()->Top()->GetSecurityOrigin(),
-      orig_mime_type, &plugin_info);
+  plugin_info_host->GetPluginInfo(url, orig_mime_type, &plugin_info);
   *plugin = CreatePlugin(render_frame, params, *plugin_info);
 #else  // !BUILDFLAG(ENABLE_PLUGINS)
   if (orig_mime_type == pdf::kPDFMimeType) {
@@ -1001,7 +995,7 @@ WebPlugin* ChromeContentRendererClient::CreatePlugin(
       // actual mime type via ChromeViewHostMsg_GetPluginInfo. In that case
       // we should use what we know since WebpluginDelegateProxy does some
       // specific initializations based on this information.
-      params.mime_type = WebString::FromUTF8(actual_mime_type);
+      params.mime_type = WebString::FromUtf8(actual_mime_type);
     }
 
     auto* content_settings_agent =
@@ -1626,18 +1620,15 @@ void ChromeContentRendererClient::AppendContentSecurityPolicy(
 
   // Append a minimum CSP to ensure the extension can't relax the default
   // applied CSP through means like Service Worker.
-  const std::string* default_csp =
-      extensions::CSPInfo::GetMinimumCSPToAppend(*extension, gurl.GetPath());
+  const std::string* default_csp = extensions::CSPInfo::GetMinimumCSPToAppend(
+      *extension, gurl.GetPath(),
+      /*is_service_worker=*/content::WorkerThread::GetCurrentId() != 0);
   if (!default_csp)
     return;
 
-  csp->push_back({blink::WebString::FromUTF8(*default_csp),
+  csp->push_back({blink::WebString::FromUtf8(*default_csp),
                   network::mojom::ContentSecurityPolicyType::kEnforce,
                   network::mojom::ContentSecurityPolicySource::kHTTP});
 #endif
 }
 
-std::unique_ptr<blink::WebLinkPreviewTriggerer>
-ChromeContentRendererClient::CreateLinkPreviewTriggerer() {
-  return ::CreateWebLinkPreviewTriggerer();
-}

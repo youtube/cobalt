@@ -8,14 +8,25 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 
+DEFINE_USER_DATA(TabSearchToolbarButtonController);
+
+// static
+TabSearchToolbarButtonController* TabSearchToolbarButtonController::From(
+    BrowserWindowInterface* bwi) {
+  return Get(bwi->GetUnownedUserDataHost());
+}
+
 TabSearchToolbarButtonController::TabSearchToolbarButtonController(
+    BrowserWindowInterface* bwi,
     BrowserView* browser_view)
-    : browser_view_(browser_view) {}
+    : browser_view_(browser_view),
+      scoped_unowned_user_data_(bwi->GetUnownedUserDataHost(), *this) {}
 
 TabSearchToolbarButtonController::~TabSearchToolbarButtonController() = default;
 
@@ -23,7 +34,7 @@ void TabSearchToolbarButtonController::OnBubbleInitializing() {
   actions::ActionItem* tab_search_action_item = GetTabSearchActionItem();
   tab_search_action_item->SetIsShowingBubble(true);
   PinnedToolbarActions* pinned_toolbar_actions =
-      browser_view_->toolbar()->pinned_toolbar_actions();
+      browser_view_->toolbar_button_provider()->GetPinnedToolbarActions();
 
   if (pinned_toolbar_actions->IsActionPinned(kActionTabSearch)) {
     return;
@@ -37,7 +48,7 @@ void TabSearchToolbarButtonController::OnBubbleDestroying() {
   actions::ActionItem* tab_search_action_item = GetTabSearchActionItem();
   tab_search_action_item->SetIsShowingBubble(false);
   PinnedToolbarActions* pinned_toolbar_actions =
-      browser_view_->toolbar()->pinned_toolbar_actions();
+      browser_view_->toolbar_button_provider()->GetPinnedToolbarActions();
 
   if (pinned_toolbar_actions->IsActionPinned(kActionTabSearch)) {
     return;
@@ -83,7 +94,7 @@ void TabSearchToolbarButtonController::UpdateBubbleHost(
 
 void TabSearchToolbarButtonController::MaybeHideActionEphemerallyInToolbar() {
   PinnedToolbarActions* pinned_toolbar_actions =
-      browser_view_->toolbar()->pinned_toolbar_actions();
+      browser_view_->toolbar_button_provider()->GetPinnedToolbarActions();
 
   if (GetTabSearchActionItem()->GetIsShowingBubble() ||
       pinned_toolbar_actions->IsActionPinned(kActionTabSearch)) {

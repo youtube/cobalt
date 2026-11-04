@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -24,6 +25,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -31,6 +33,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -213,6 +216,48 @@ bool ClearControlFrame(const QuicFrame& frame) {
 bool ClearControlFrameWithTransmissionType(const QuicFrame& frame,
                                            TransmissionType /*type*/) {
   return ClearControlFrame(frame);
+}
+
+bool MaybeUpdateSconePacket(const char* old_buffer, char* new_buffer,
+                            size_t length, uint8_t scone_value) {
+  QuicDataReader reader(old_buffer, length);
+  uint8_t first_byte;
+  ParsedQuicVersion unused_version = ParsedQuicVersion::Unsupported();
+  PacketHeaderFormat format;
+  absl::string_view destination_connection_id, source_connection_id;
+  bool unused_flag1, unused_flag2;
+  QuicLongHeaderType unused_type;
+  quiche::QuicheVariableLengthIntegerLength unused_length;
+  QuicVersionLabel version_label;
+  absl::string_view unused_token;
+  std::string unused_error;
+  if (QuicFramer::ParsePublicHeader(
+          &reader, 8, true, &first_byte, &format, &unused_flag1, &unused_flag2,
+          &version_label, &unused_version, &destination_connection_id,
+          &source_connection_id, &unused_type, &unused_length, &unused_token,
+          &unused_error) != QUIC_NO_ERROR) {
+    /* Malformed packet */
+    return false;
+  }
+  if (format != IETF_QUIC_LONG_HEADER_PACKET ||
+      (version_label != kSconeVersionHigh &&
+       version_label != kSconeVersionLow)) {
+    // Not a SCONE packet. Nothing to do, forward.
+    return false;
+  }
+  // There is a SCONE header, modify it. We have to copy it first because it's
+  // const.
+  memcpy(new_buffer, old_buffer, length);
+  new_buffer[0] &= 0xc0;
+  new_buffer[0] |= (scone_value >> 1);
+  if (scone_value & 0x01) {
+    // SconeVersionHigh
+    reinterpret_cast<uint8_t*>(new_buffer)[1] |= 0x80;
+  } else {
+    // SconeVersionLow
+    reinterpret_cast<uint8_t*>(new_buffer)[1] &= 0x7f;
+  }
+  return true;
 }
 
 uint64_t SimpleRandom::RandUint64() {

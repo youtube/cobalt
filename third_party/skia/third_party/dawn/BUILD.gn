@@ -236,13 +236,17 @@ action("dawn_cmake") {
   if (is_clang) {
     args += [ "--is_clang" ]
   }
-  if (is_debug && !is_win) {
-    args += [
-      "--build_type=Debug",
+  if (is_debug) {
+    if (!is_win) {
+      args += [
+        "--build_type=Debug",
 
-      # For performance, set O1 optimization.
-      "--cxx_flags=-O1",
-    ]
+        # For performance, set O1 optimization.
+        "--cxx_flags=-O1",
+      ]
+    } else {
+      args += [ "--build_type=Debug" ]
+    }
   } else {
     args += [ "--build_type=Release" ]
   }

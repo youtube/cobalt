@@ -49,7 +49,16 @@ PaintOption::PaintOption(bool opaquePaintColor,
         , fTargetFormat(targetFormat)
         , fDither(dither)
         , fAnalyticClip(analyticClip) {
-    if (!fHasPrimitiveBlender) {
+    if (this->finalBlender() && this->finalBlender()->priv().asBlendMode() == SkBlendMode::kClear) {
+        // Convert all kClear final blends to kSrc + SolidColor(transparent), all other paint
+        // effects can be discarded (we have to keep the analytic clip and clip shadow, though).
+        fFinalBlender = {PrecompileBlenders::Mode(SkBlendMode::kSrc), 0};
+        fOpaquePaintColor = false;
+        fShader = { nullptr, 0 };
+        fColorFilter = { nullptr, 0 };
+        fHasPrimitiveBlender = false;
+        fDither = false;
+    } else if (!fHasPrimitiveBlender) {
         if (fShader.first && fShader.first->priv().isConstant(fShader.second)) {
             fShader = { nullptr, 0 };
         }
@@ -60,6 +69,9 @@ PaintOption::PaintOption(bool opaquePaintColor,
 }
 
 void PaintOption::toKey(const KeyContext& keyContext) const {
+    // Don't bother checking the uniform data manager, precompile doesn't depend on those values
+    SkDEBUGCODE(keyContext.paintParamsKeyBuilder()->checkReset();)
+
     // Root Node 0 is the source color, which is the output of all effects post dithering
     this->handleDithering(keyContext);
 
@@ -79,6 +91,8 @@ void PaintOption::toKey(const KeyContext& keyContext) const {
                                               finalCoverage);
 
     if (finalBlendMode) {
+        // Clears are converted to kSrc + SolidColor in the constructor
+        SkASSERT(finalBlendMode != SkBlendMode::kClear);
         if (!dstReadReq) {
             AddFixedBlendMode(keyContext, *finalBlendMode);
         } else {

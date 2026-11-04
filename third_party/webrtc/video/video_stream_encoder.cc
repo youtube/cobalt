@@ -711,7 +711,8 @@ VideoStreamEncoder::VideoStreamEncoder(
     std::unique_ptr<FrameCadenceAdapterInterface> frame_cadence_adapter,
     std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
     BitrateAllocationCallbackType allocation_cb_type,
-    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector,
+    scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+        encoder_selector,
     EncoderSwitchRequestCallback encoder_switch_request_callback)
     : env_(env),
       worker_queue_(TaskQueueBase::Current()),
@@ -721,14 +722,12 @@ VideoStreamEncoder::VideoStreamEncoder(
           std::move(encoder_switch_request_callback)),
       allocation_cb_type_(allocation_cb_type),
       rate_control_settings_(env_.field_trials()),
-      encoder_selector_from_constructor_(encoder_selector),
-      encoder_selector_from_factory_(
-          encoder_selector_from_constructor_
-              ? nullptr
-              : settings_.encoder_factory->GetEncoderSelector()),
-      encoder_selector_(encoder_selector_from_constructor_
-                            ? encoder_selector_from_constructor_
-                            : encoder_selector_from_factory_.get()),
+      encoder_selector_(
+          encoder_selector != nullptr ? std::move(encoder_selector)
+          : settings_.encoder_factory != nullptr
+              ? scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>(
+                    settings_.encoder_factory->GetEncoderSelector().release())
+              : nullptr),
       encoder_stats_observer_(encoder_stats_observer),
       frame_cadence_adapter_(std::move(frame_cadence_adapter)),
       delta_ntp_internal_ms_(env_.clock().CurrentNtpInMilliseconds() -
@@ -1288,8 +1287,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
         encoder_config_, &codec);
   }
 
-  char log_stream_buf[4 * 1024];
-  SimpleStringBuilder log_stream(log_stream_buf);
+  StringBuilder log_stream;
   log_stream << "ReconfigureEncoder: simulcast streams: ";
   for (size_t i = 0; i < codec.numberOfSimulcastStreams; ++i) {
     log_stream << "{" << i << ": " << codec.simulcastStream[i].width << "x"

@@ -410,7 +410,8 @@ class BufferQueueStream : public StreamInterface {
   BufferQueue buffer_;
 };
 
-constexpr int kBufferCapacity = 1;
+// DTLS1.3 can also write ACK message, so we need to have a buffer of 2.
+constexpr int kBufferCapacity = 2;
 constexpr size_t kDefaultBufferSize = 2048;
 
 class SSLStreamAdapterTestBase : public ::testing::Test {

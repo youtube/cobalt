@@ -10030,11 +10030,12 @@ TEST_F(WebRtcVideoChannelBaseTest, EncoderSelectorSwitchCodec) {
   ASSERT_TRUE(codec);
   EXPECT_EQ("VP8", codec->name);
 
-  MockEncoderSelector encoder_selector;
-  EXPECT_CALL(encoder_selector, OnAvailableBitrate)
+  scoped_refptr<MockEncoderSelector> encoder_selector =
+      make_ref_counted<MockEncoderSelector>();
+  EXPECT_CALL(*encoder_selector, OnAvailableBitrate)
       .WillRepeatedly(Return(SdpVideoFormat::VP9Profile0()));
 
-  send_channel_->SetEncoderSelector(kSsrc, &encoder_selector);
+  send_channel_->SetEncoderSelector(kSsrc, encoder_selector);
   time_controller_.AdvanceTime(kFrameDuration);
 
   codec = send_channel_->GetSendCodec();

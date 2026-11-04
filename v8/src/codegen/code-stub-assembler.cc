@@ -2200,26 +2200,6 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
   return offset;
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset,
-    CodeEntrypointTag tag) {
-  TNode<IndirectPointerHandleT> handle =
-      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  return LoadCodeEntryFromIndirectPointerHandle(handle, tag);
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag) {
-  TNode<RawPtrT> table = LoadCodePointerTableBase();
-  TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
-  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
-  TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
-  if (tag != 0) {
-    entry = UncheckedCast<UintPtrT>(WordXor(entry, UintPtrConstant(tag)));
-  }
-  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
-}
-
 TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   // Embed the code pointer table address into the code.
@@ -7999,70 +7979,80 @@ TNode<BoolT> CodeStubAssembler::IsUndetectableMap(TNode<Map> map) {
 TNode<BoolT> CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = NoElementsProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMegaDOMProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = MegaDOMProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArrayIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseResolveProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseResolveProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseThenProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArraySpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArraySpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsIsConcatSpreadableProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = IsConcatSpreadableProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = TypedArraySpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = RegExpSpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseSpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -8071,21 +8061,24 @@ TNode<BoolT>
 CodeStubAssembler::IsNumberStringNotRegexpLikeProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = NumberStringNotRegexpLikeProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSetIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = SetIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMapIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = MapIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -8093,7 +8086,8 @@ TNode<BoolT>
 CodeStubAssembler::IsStringWrapperToPrimitiveProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = StringWrapperToPrimitiveProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -11041,7 +11035,7 @@ template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<GlobalDictionary>(
     TNode<HeapObject> key) {
   TNode<PropertyCell> property_cell = CAST(key);
-  return CAST(LoadObjectField(property_cell, PropertyCell::kNameOffset));
+  return CAST(LoadObjectField(property_cell, offsetof(PropertyCell, name_)));
 }
 
 template <>
@@ -12366,13 +12360,13 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
       CAST(LoadFixedArrayElement(dictionary, name_index));
 
   TNode<Object> value =
-      LoadObjectField(property_cell, PropertyCell::kValueOffset);
+      LoadObjectField(property_cell, offsetof(PropertyCell, value_));
   GotoIf(TaggedEqual(value, PropertyCellHoleConstant()), if_deleted);
 
   *var_value = value;
 
   TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
-      property_cell, PropertyCell::kPropertyDetailsRawOffset));
+      property_cell, offsetof(PropertyCell, property_details_raw_)));
   *var_details = details;
 
   Comment("] LoadPropertyFromGlobalDictionary");
@@ -19235,14 +19229,15 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(
     TNode<Code> code, CodeEntrypointTag tag) {
+  TNode<RawPtrT> raw_start =
+      LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
 #ifdef V8_ENABLE_SANDBOX
-  // In this case, the entrypoint is stored in the code pointer table entry
-  // referenced via the Code object's 'self' indirect pointer.
-  return LoadCodeEntrypointViaCodePointerField(
-      code, Code::kSelfIndirectPointerOffset, tag);
-#else
-  return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
+  if (tag != 0) {
+    raw_start =
+        UncheckedCast<RawPtrT>(WordXor(raw_start, UintPtrConstant(tag)));
+  }
 #endif
+  return raw_start;
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {

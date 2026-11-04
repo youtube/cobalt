@@ -48,7 +48,7 @@ void SkCaptureManager::toggleCapture(bool capturing) {
 void SkCaptureManager::snapPicture(SkSurface* surface) {
     for (auto& canvas : fTrackedCanvases) {
         if (canvas) {
-            if (canvas->getSurface() == surface) {
+            if (canvas->getBaseCanvasSurface() == surface) {
                 auto picture = canvas->snapPicture();
                 if (picture) {
                     // TODO(412351769): for every storing of a picture, we should track a content id

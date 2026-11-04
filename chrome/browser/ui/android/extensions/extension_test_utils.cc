@@ -46,6 +46,13 @@ static void JNI_ExtensionTestUtils_LoadUnpackedExtensionAsync(
           base::android::ScopedJavaGlobalRef<jobject>(callback)));
 }
 
+static void JNI_ExtensionTestUtils_EnableExtension(
+    JNIEnv* env,
+    Profile* profile,
+    const std::string& extension_id) {
+  extensions::ExtensionRegistrar::Get(profile)->EnableExtension(extension_id);
+}
+
 static void JNI_ExtensionTestUtils_DisableExtension(
     JNIEnv* env,
     Profile* profile,
@@ -68,6 +75,11 @@ static void JNI_ExtensionTestUtils_SetExtensionActionVisible(
     const std::string& extension_id,
     bool visible) {
   ToolbarActionsModel::Get(profile)->SetActionVisibility(extension_id, visible);
+}
+
+static std::vector<ToolbarActionsModel::ActionId>
+JNI_ExtensionTestUtils_GetPinnedActionIds(JNIEnv* env, Profile* profile) {
+  return ToolbarActionsModel::Get(profile)->pinned_action_ids();
 }
 
 static jint JNI_ExtensionTestUtils_GetRenderFrameHostCount(

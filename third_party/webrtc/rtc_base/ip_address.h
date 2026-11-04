@@ -15,6 +15,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/net_helpers.h"
@@ -127,6 +128,29 @@ class RTC_EXPORT IPAddress {
 
   // Whether this is an unspecified IP address.
   bool IsNil() const;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const IPAddress& ip) {
+    switch (ip.family_) {
+      case AF_INET:
+        sink.Append("ipv4:");
+        sink.Append(ip.ToString());
+        break;
+      case AF_INET6:
+        sink.Append("ipv6:");
+        sink.Append(ip.ToString());
+        break;
+      case AF_UNSPEC:
+        sink.Append("unspecified");
+        break;
+      default:
+        sink.Append("unknown:");
+        sink.Append(absl::StrCat(ip.family_));
+        sink.Append(":");
+        sink.Append(ip.ToString());
+        break;
+    }
+  }
 
  private:
   int family_;

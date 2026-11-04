@@ -263,8 +263,9 @@ void MultiBufferDataSource::OnRedirected(
   // existing UrlData instance.
   UpdateProgress();
 
-  if (redirect_cb_)
-    redirect_cb_.Run();
+  if (notify_tainted_cb_ && WouldTaintOrigin()) {
+    std::move(notify_tainted_cb_).Run(this);
+  }
 }
 
 void MultiBufferDataSource::SetPreload(media::DataSource::Preload preload) {
@@ -274,15 +275,9 @@ void MultiBufferDataSource::SetPreload(media::DataSource::Preload preload) {
   UpdateBufferSizes();
 }
 
-bool MultiBufferDataSource::HasSingleOrigin() const {
-  DCHECK(render_task_runner_->BelongsToCurrentThread());
-  // Before initialization completes there is no risk of leaking data. Callers
-  // are required to order checks such that this isn't a race.
-  return single_origin_;
-}
-
-void MultiBufferDataSource::OnRedirect(RedirectCB callback) {
-  redirect_cb_ = std::move(callback);
+void MultiBufferDataSource::SetTaintedCallback(
+    media::DataSource::EventCb callback) {
+  notify_tainted_cb_ = std::move(callback);
 }
 
 bool MultiBufferDataSource::PassedTimingAllowOriginCheck() {
@@ -293,8 +288,9 @@ bool MultiBufferDataSource::WouldTaintOrigin() const {
   // When the resource is redirected to another origin we think of it as
   // tainted. This is actually not specified, and is under discussion.
   // See https://github.com/whatwg/fetch/issues/737.
-  if (!HasSingleOrigin() && cors_mode() == UrlData::CORS_UNSPECIFIED)
+  if (!single_origin_ && cors_mode() == UrlData::CORS_UNSPECIFIED) {
     return true;
+  }
   return url_data_->is_cors_cross_origin();
 }
 
@@ -636,6 +632,10 @@ void MultiBufferDataSource::StartCallback() {
         single_origin_);
     media_log_->SetProperty<media::MediaLogProperty::kIsRangeHeaderSupported>(
         url_data_->range_supported());
+
+    if (notify_tainted_cb_ && WouldTaintOrigin()) {
+      std::move(notify_tainted_cb_).Run(this);
+    }
   }
 
   PostCrossThreadTask(*render_task_runner_, FROM_HERE,
@@ -785,11 +785,17 @@ void MultiBufferDataSource::UpdateBufferSizes() {
 MultiBufferDataSource::Factory::~Factory() = default;
 
 MultiBufferDataSource::Factory::Factory(
-    media::MediaLog* media_log,
+    std::unique_ptr<media::MediaLog> media_log,
     UrlDataCb get_url_data,
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-    const base::TickClock* tick_clock)
-    : media_log_(media_log->Clone()),
+    bool is_audio_element,
+    Preload preload,
+    EventCb data_source_tainted_cb,
+    const base::TickClock* tick_clock,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
+    : is_audio_element_(is_audio_element),
+      preload_(preload),
+      media_log_(std::move(media_log)),
+      tainted_source_cb_(std::move(data_source_tainted_cb)),
       get_url_data_(get_url_data),
       main_task_runner_(std::move(main_task_runner)) {
   buffered_data_source_host_ = std::make_unique<BufferedDataSourceHostImpl>(
@@ -822,9 +828,15 @@ void MultiBufferDataSource::Factory::OnUrlData(
     base::RepeatingCallback<void(bool)> download_cb,
     scoped_refptr<UrlData> data) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-  std::move(cb).Run(std::make_unique<MultiBufferDataSource>(
+  CHECK(media_log_);
+  auto data_source = std::make_unique<MultiBufferDataSource>(
       main_task_runner_, std::move(data), media_log_.get(),
-      buffered_data_source_host_.get(), std::move(download_cb)));
+      buffered_data_source_host_.get(), std::move(download_cb));
+  data_source->SetIsClientAudioElement(is_audio_element_);
+  data_source->SetPreload(preload_);
+  data_source->SetTaintedCallback(tainted_source_cb_);
+
+  std::move(cb).Run(std::move(data_source));
 }
 
 }  // namespace blink

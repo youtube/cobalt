@@ -608,28 +608,39 @@ void ResourceCache::purgeAsNeeded() {
     this->validate();
 }
 
-void ResourceCache::purgeResourcesNotUsedSince(StdSteadyClock::time_point purgeTime) {
+void ResourceCache::purgeResourcesNotUsedSince(
+        StdSteadyClock::time_point purgeTime,
+        std::optional<StdSteadyClock::time_point> quitPurgingTime) {
     ASSERT_SINGLE_OWNER
-    this->purgeResources(&purgeTime);
+    this->purgeResources(&purgeTime, quitPurgingTime);
 }
 
 void ResourceCache::purgeResources() {
     ASSERT_SINGLE_OWNER
-    this->purgeResources(nullptr);
+    this->purgeResources(/*purgeTime=*/nullptr, /*quitPurgingTime=*/std::nullopt);
 }
 
-void ResourceCache::purgeResources(const StdSteadyClock::time_point* purgeTime) {
+void ResourceCache::purgeResources(const StdSteadyClock::time_point* purgeTime,
+                                   std::optional<StdSteadyClock::time_point> quitPurgingTime) {
     TRACE_EVENT0("skia.gpu.cache", TRACE_FUNC);
     if (fProxyCache) {
-        fProxyCache->purgeProxiesNotUsedSince(purgeTime);
+        fProxyCache->purgeProxiesNotUsedSince(purgeTime, quitPurgingTime);
     }
     this->processReturnedResources();
 
+    auto time_remains_before_stop_time = [&]() {
+        return !quitPurgingTime.has_value() ||
+               skgpu::StdSteadyClock::now() < quitPurgingTime.value();
+    };
+
     // Early out if the very first item is too new to purge to avoid sorting the queue when
-    // nothing will be deleted.
+    // nothing will be deleted or if we have somehow already exceeded the time limit for purging.
     if (fPurgeableQueue.count() &&
         purgeTime &&
         fPurgeableQueue.peek()->lastAccessTime() >= *purgeTime) {
+        return;
+    }
+    if (!time_remains_before_stop_time()) {
         return;
     }
 
@@ -650,15 +661,19 @@ void ResourceCache::purgeResources(const StdSteadyClock::time_point* purgeTime) 
         *resourcesToPurge.append() = resource;
     }
 
-    // Delete the scratch resources. This must be done as a separate pass
-    // to avoid messing up the sorted order of the queue
+    // Delete the scratch resources. This must be done as a separate pass to avoid messing up the
+    // sorted order of the queue.
     for (int i = 0; i < resourcesToPurge.size(); i++) {
         this->purgeResource(resourcesToPurge[i]);
+        if (!time_remains_before_stop_time()) {
+            break;
+        }
     }
 
     // Since we called process returned resources at the start of this call, we could still end up
     // over budget even after purging resources based on purgeTime. So we call purgeAsNeeded at the
-    // end here.
+    // end here. Not limited by latest purge end time - purging to not go over memory budget takes
+    // precedence.
     this->purgeAsNeeded();
 }
 

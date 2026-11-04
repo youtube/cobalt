@@ -329,11 +329,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf16(
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
-      Handle<SeqOneByteString> str, int begin, int end,
-      AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> WasmStringAddShared(
+      DirectHandle<String> left, DirectHandle<String> right);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
       base::Vector<const base::uc16> str,
@@ -402,7 +401,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {str} must be flat, {length} must be non-zero.
   Handle<String> NewCopiedSubstring(DirectHandle<String> str, uint32_t begin,
                                     uint32_t length);
-
+  // Same, but allocates a shared string in shared space.
+  Handle<String> NewCopiedSubstringShared(DirectHandle<String> str,
+                                          uint32_t begin, uint32_t length);
   // Create a new string object which holds a substring of a string.
   template <typename T, template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<T>, HandleType<String>>)

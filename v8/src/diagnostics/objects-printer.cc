@@ -3266,7 +3266,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - instance_data: " << Brief(instance_data());
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  os << "\n - receiver_is_first_param: " << receiver_is_first_param();
   os << "\n - packed_args_size: " << packed_args_size();
   os << "\n - c_wrapper_code: "
      << c_wrapper_code(GetCurrentIsolateForSandbox());
@@ -3437,7 +3436,62 @@ void ClassPositions::ClassPositionsPrint(std::ostream& os) {
   this->PrintHeader(os, "ClassPositions");
   os << "\n - start: " << this->start();
   os << "\n - end: " << this->end();
-  os << '\n';
+  os << "\n";
+}
+
+void DebugInfo::DebugInfoPrint(std::ostream& os) {
+  PrintHeader(os, "DebugInfo");
+  os << "\n - shared: " << Brief(shared());
+  os << "\n - debugger_hints: " << debugger_hints();
+  os << "\n - break_points: " << Brief(break_points());
+  os << "\n - flags: " << flags(kRelaxedLoad);
+  os << "\n - coverage_info: " << Brief(coverage_info());
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  if (has_original_bytecode_array()) {
+    os << "\n - original_bytecode_array: "
+       << Brief(original_bytecode_array(isolate));
+  }
+  if (has_debug_bytecode_array()) {
+    os << "\n - debug_bytecode_array: " << Brief(debug_bytecode_array(isolate));
+  }
+  os << "\n";
+}
+
+void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "BreakPointInfo");
+  os << "\n - source_position: " << this->source_position();
+  os << "\n - break_points: " << Brief(this->break_points());
+  os << "\n";
+}
+
+void BreakPoint::BreakPointPrint(std::ostream& os) {
+  this->PrintHeader(os, "BreakPoint");
+  os << "\n - id: " << this->id();
+  os << "\n - condition: " << Brief(this->condition());
+  os << "\n";
+}
+
+void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "StackFrameInfo");
+  os << "\n - shared_or_script: " << Brief(this->shared_or_script());
+  os << "\n - function_name: " << Brief(this->function_name());
+  os << "\n - flags: " << this->flags();
+  os << "\n";
+}
+
+void StackTraceInfo::StackTraceInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "StackTraceInfo");
+  os << "\n - id: " << this->id();
+  os << "\n - frames: " << Brief(this->frames());
+  os << "\n";
+}
+
+void ErrorStackData::ErrorStackDataPrint(std::ostream& os) {
+  this->PrintHeader(os, "ErrorStackData");
+  os << "\n - raw_data_for_call_site_infos_or_formatted_stack: "
+     << Brief(this->raw_data_for_call_site_infos_or_formatted_stack());
+  os << "\n - stack_trace: " << Brief(this->stack_trace());
+  os << "\n";
 }
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {
@@ -3446,14 +3500,8 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+  for (int i = 0; i < data_count; ++i) {
+    os << "\n - data" << (i + 1) << ": " << Brief(data()[i].load());
   }
   os << "\n";
 }
@@ -3464,14 +3512,8 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+  for (int i = 0; i < data_count; ++i) {
+    os << "\n - data" << (i + 1) << ": " << Brief(data()[i].load());
   }
   os << "\n";
 }

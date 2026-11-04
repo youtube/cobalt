@@ -369,8 +369,7 @@ void HTMLOptionElement::SetSelectedState(bool selected,
     }
   }
 
-  if (RuntimeEnabledFeatures::OptionMutationObserverImprovementEnabled() &&
-      !skip_mutation_observer_update) {
+  if (!skip_mutation_observer_update) {
     UpdateMutationObserver(/*in_style_recalc=*/false);
   }
 }
@@ -429,13 +428,6 @@ void HTMLOptionElement::UpdateMutationObserver(bool in_style_recalc) {
 bool HTMLOptionElement::NeedsMutationObserver() {
   if (!was_element_inserted_) {
     return false;
-  }
-
-  // This flag check runs after was_element_inserted_ in order to match the
-  // behavior before the flag was added, which was that a MutationObserver is
-  // always registered when an element is inserted.
-  if (!RuntimeEnabledFeatures::OptionMutationObserverImprovementEnabled()) {
-    return true;
   }
 
   HTMLSelectElement* select = OwnerSelectElement();
@@ -600,8 +592,7 @@ void HTMLOptionElement::RemovedFrom(ContainerNode& insertion_point) {
     CHECK(old_ancestor_select);
     const bool should_skip_option_removed =
         !parentNode() && insertion_point == old_ancestor_select;
-    if (!RuntimeEnabledFeatures::SelectChildrenRemovedFixEnabled() ||
-        !should_skip_option_removed) {
+    if (!should_skip_option_removed) {
       // If this option was removed from a select element as a direct child,
       // then let HTMLSelectElement::ChildrenChanged make the call to
       // OptionRemoved in order to avoid
@@ -628,7 +619,17 @@ bool HTMLOptionElement::IsDisplayNone(bool ensure_style) {
 
 void HTMLOptionElement::DefaultEventHandler(Event& event) {
   DefaultEventHandlerInternal(event);
-  HTMLElement::DefaultEventHandler(event);
+
+  // If we unconditionally run the parent class's DefaultEventHandler, it may
+  // cause additional unwanted things to happen like the
+  // Editor::HandleKeyboardEvent scrolling the page when Home/End keys are
+  // pressed even if we set default handled on the event in
+  // HTMLOptionElement::DefaultEventHandlerInternal.
+  // HTMLSelectElement::DefaultEventHandler also does not call the parent
+  // class's DefaultEventHandler in this case.
+  if (!event.DefaultHandled()) {
+    HTMLElement::DefaultEventHandler(event);
+  }
 }
 
 bool HTMLOptionElement::IsVisibleInViewport() {
@@ -646,6 +647,7 @@ bool HTMLOptionElement::IsVisibleInViewport() {
   return option_top >= listbox_top && option_top + option_rect.Height() <=
                                           listbox_top + listbox_rect.Height();
 }
+
 void HTMLOptionElement::DefaultEventHandlerInternal(Event& event) {
   if (nearest_ancestor_datalist_ && event.type() == event_type_names::kClick &&
       RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
@@ -753,16 +755,16 @@ void HTMLOptionElement::DefaultEventHandlerInternal(Event& event) {
         if (auto* first_option = options.FindNextOption(
                 *options.begin(), is_option_focusable, /*inclusive*/ true)) {
           first_option->Focus(focus_params);
-          event.SetDefaultHandled();
-          return;
         }
+        event.SetDefaultHandled();
+        return;
       } else if (key == keywords::kEnd) {
         if (auto* last_option = options.FindPreviousOption(
                 *options.last(), is_option_focusable, /*inclusive*/ true)) {
           last_option->Focus(focus_params);
-          event.SetDefaultHandled();
-          return;
         }
+        event.SetDefaultHandled();
+        return;
       } else if (key == keywords::kPageDown) {
         if (!IsVisibleInViewport()) {
           // If the option isn't visible at all right now, *only* scroll it into

@@ -86,6 +86,7 @@ class MockRtpTransceiver : public RtpTransceiverInterface {
               SetHeaderExtensionsToNegotiate,
               (std::span<const RtpHeaderExtensionCapability> header_extensions),
               (override));
+  MOCK_METHOD(std::optional<bool>, SframeEnabled, (), (const, override));
 };
 
 }  // namespace webrtc

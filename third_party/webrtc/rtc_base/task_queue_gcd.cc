@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include <memory>
+#include <string>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -51,6 +52,7 @@ class TaskQueueGcd final : public TaskQueueBase {
  public:
   TaskQueueGcd(absl::string_view queue_name, int gcd_priority);
 
+  absl::string_view queue_name() const override { return name_; }
   void Delete() override;
 
  protected:
@@ -76,13 +78,15 @@ class TaskQueueGcd final : public TaskQueueBase {
   static void SetNotActive(void* task_queue);
   static void DeleteQueue(void* task_queue);
 
+  const std::string name_;
   dispatch_queue_t queue_;
   bool is_active_;
 };
 
 TaskQueueGcd::TaskQueueGcd(absl::string_view queue_name, int gcd_priority)
-    : queue_(RTCDispatchQueueCreateWithTarget(
-          std::string(queue_name).c_str(),
+    : name_(queue_name),
+      queue_(RTCDispatchQueueCreateWithTarget(
+          name_.c_str(),
           DISPATCH_QUEUE_SERIAL,
           dispatch_get_global_queue(gcd_priority, 0))),
       is_active_(true) {

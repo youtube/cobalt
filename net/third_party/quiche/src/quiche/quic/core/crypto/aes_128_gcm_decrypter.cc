@@ -29,7 +29,7 @@ Aes128GcmDecrypter::Aes128GcmDecrypter()
 Aes128GcmDecrypter::~Aes128GcmDecrypter() {}
 
 uint32_t Aes128GcmDecrypter::cipher_id() const {
-  return TLS1_CK_AES_128_GCM_SHA256;
+  return TLS1_3_CK_AES_128_GCM_SHA256;
 }
 
 }  // namespace quic

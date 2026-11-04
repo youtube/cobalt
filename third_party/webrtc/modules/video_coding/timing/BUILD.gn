@@ -120,6 +120,7 @@ rtc_library("timing_module") {
 rtc_library("timing_unittests") {
   testonly = true
   sources = [
+    "decode_time_percentile_filter_unittest.cc",
     "frame_delay_variation_kalman_filter_unittest.cc",
     "inter_frame_delay_variation_calculator_unittest.cc",
     "jitter_estimator_unittest.cc",
@@ -128,6 +129,7 @@ rtc_library("timing_unittests") {
     "timing_unittest.cc",
   ]
   deps = [
+    ":decode_time_percentile_filter",
     ":frame_delay_variation_kalman_filter",
     ":inter_frame_delay_variation_calculator",
     ":jitter_estimator",

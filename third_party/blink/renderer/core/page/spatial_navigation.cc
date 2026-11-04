@@ -258,7 +258,8 @@ bool IsUnobscured(const FocusCandidate& candidate) {
     return false;
 
   PhysicalRect viewport_rect(
-      local_main_frame->GetPage()->GetVisualViewport().VisibleContentRect());
+      local_main_frame->GetPage()->GetVisualViewport().VisibleContentRect(
+          kExcludeScrollbars));
   PhysicalRect interesting_rect =
       Intersection(candidate.rect_in_root_frame, viewport_rect);
 
@@ -400,8 +401,9 @@ bool CanScrollInDirection(const Node* container,
   if (!container_element)
     return false;
   LayoutBox* box = container_element->GetLayoutBoxForScrolling();
-  if (!box)
+  if (!box || !box->GetScrollableArea()->ScrollableAxes()) {
     return false;
+  }
   auto* scrollable_area = box->GetScrollableArea();
   if (!scrollable_area)
     return false;

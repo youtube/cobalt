@@ -127,8 +127,15 @@ void CcFeedbackGenerator::ProcessNetwork(Timestamp time) {
 
 std::optional<TransportPacketsFeedback>
 CcFeedbackGenerator::MaybeSendFeedback(Timestamp time) {
-  if (last_feedback_time_.IsFinite() &&
-      time - last_feedback_time_ < time_between_feedback_) {
+  if (packets_received_.empty()) {
+    return std::nullopt;
+  }
+  if (last_feedback_time_.IsInfinite()) {
+    last_feedback_time_ =
+        Timestamp::Micros(packets_received_.front().receive_time_us) +
+        one_way_delay_;
+  }
+  if (time - last_feedback_time_ < time_between_feedback_) {
     return std::nullopt;
   }
   // Time to deliver feedback if there are packets to deliver.

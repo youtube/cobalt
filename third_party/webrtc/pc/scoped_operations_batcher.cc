@@ -38,10 +38,23 @@ ScopedOperationsBatcher::~ScopedOperationsBatcher() {
 
 RTCError ScopedOperationsBatcher::Run() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
-  std::vector<FinalizerTask> return_tasks;
+  const bool target_thread_is_current = target_thread_->IsCurrent();
 
+#if RTC_DCHECK_IS_ON
+  RTC_LOG_THREAD_BLOCK_COUNT();
+  int expected_block_count = tasks_.empty() ? 0 : 1;
+  if (target_thread_is_current) {
+    // Many tests in peerconnection_unittests run in single threaded mode where
+    // the operations below will not be accurately measured. Yielding is not
+    // supported for single threaded mode and tasks in those tests may
+    // internally run blocking tasks themselves, which affects the count but is
+    // not useful for the purposes of measuring the multithreaded behavior.
+    RTC_IGNORE_THREAD_BLOCK_COUNT();
+  }
+#endif
+
+  std::vector<FinalizerTask> return_tasks;
   size_t task_idx = 0;
-  bool target_thread_is_current = target_thread_->IsCurrent();
 
   RTCError error = RTCError::OK();
   while (task_idx < tasks_.size()) {
@@ -67,6 +80,9 @@ RTCError ScopedOperationsBatcher::Run() {
           return;
         }
         if (!target_thread_is_current && target_thread_->HasPendingTasks()) {
+#if RTC_DCHECK_IS_ON
+          ++expected_block_count;
+#endif
           return;
         }
       }
@@ -82,6 +98,11 @@ RTCError ScopedOperationsBatcher::Run() {
     std::move(task)();
   }
 
+#if RTC_DCHECK_IS_ON
+  // If this triggers, then likely one of the `return_tasks` has issued a
+  // blocking call.
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(expected_block_count);
+#endif
   return error;
 }
 

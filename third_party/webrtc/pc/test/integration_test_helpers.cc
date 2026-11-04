@@ -208,7 +208,9 @@ void PeerConnectionIntegrationWrapper::UpdateDelayStats(std::string tag,
   // TODO(https://crbug.com/webrtc/15393): Improve audio quality during
   // renegotiation so that we can reduce these thresholds, 99% is not even
   // close to the 20% deemed unacceptable above or the 0% that would be ideal.
-  if (delta_samples > 0) {
+  // Require at least 2000 samples (roughly 2x 20ms packets).
+  if (delta_samples >= 2000) {
+    audio_delay_stats_percentage_checked_ = true;
 #if !defined(NDEBUG)
     EXPECT_LT(1.0 * delta_concealed / delta_samples, 0.99)
         << "Concealed " << delta_concealed << " of " << delta_samples

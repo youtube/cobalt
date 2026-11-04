@@ -12,6 +12,7 @@
 #include "include/core/SkString.h"
 #include "modules/jsonreader/SkJSONReader.h"
 #include "src/base/SkArenaAlloc.h"
+#include "src/base/SkAutoLocaleSetter.h"
 #include "tests/Test.h"
 
 #include <cstring>
@@ -434,7 +435,7 @@ DEF_TEST(JSON_DOM_build, reporter) {
                                             "}");
 }
 
-DEF_TEST(JSON_ParseNumber, reporter) {
+DEF_SERIAL_TEST(JSON_ParseNumber, reporter) {
     static constexpr struct {
         const char* string;
         SkScalar    value,
@@ -459,7 +460,29 @@ DEF_TEST(JSON_ParseNumber, reporter) {
 
         { "20.001111814444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444473",
           20.001f, 0.001f },
+
+        {"1e0",     1.0f,      0},
+        {"1e1",     10.0f,     0},
+        {"1e+1",    10.0f,     0},
+        {"1e-1",    0.1f,      0},
+        {"-1e1",    -10.0f,    0},
+        {"-1e-1",   -0.1f,     0},
+        {"3.14e2",  314.0f,    0},
+        {"3.14e-2", 0.0314f,   0},
+        {"1.23E4",  12300.0f,  0},
+        {"1.23E-4", 0.000123f, 0},
+        {"0e0",     0.0f,      0},
+        {"5E+0",    5.0f,      0},
+        {"1.0e+2",  100.0f,    0},
+        {"2.5e-3",  0.0025f,   0},
+        {"9.99e10", 9.99e10f,  0},
+        {"-7.5E-5", -7.5e-5f,  0},
     };
+
+    // Validation that skjson::DOM correctly parses floating-point numbers
+    // in scientific notation (e.g. "1.5e-3"). It shouldn't fail when system locale
+    // is using a comma as the decimal separator.
+    SkAutoLocaleSetter commaLocale("de_DE.UTF-8");
 
     for (const auto& test : gTests) {
         const auto json = SkStringPrintf("{ \"key\": %s }", test.string);

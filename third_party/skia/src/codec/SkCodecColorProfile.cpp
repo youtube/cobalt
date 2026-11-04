@@ -14,7 +14,7 @@
 #include "src/codec/SkCodecColorProfileRust.h"
 #endif
 
-static bool gForceSkcmsForICCProfiles = false;
+static bool gForceSkcmsForICCProfiles = true;
 
 namespace SkCodecs {
 

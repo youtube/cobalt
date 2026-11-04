@@ -17419,47 +17419,36 @@ TEST(Regress2333) {
   }
 }
 
-static uint32_t* stack_limit;
+static uintptr_t stack_limit;
 
 static void GetStackLimitCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  stack_limit = reinterpret_cast<uint32_t*>(
-      CcTest::i_isolate()->stack_guard()->real_climit());
+  stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 }
 
 
 // Uses the address of a local variable to determine the stack top now.
 // Given a size, returns an address that is that far from the current
 // top of stack.
-static uint32_t* ComputeStackLimit(uint32_t size) {
-  // Disable the gcc error which (very correctly) notes that this is an
-  // out-of-bounds access.
-#if V8_CC_GNU
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif  // V8_CC_GNU
-  uint32_t* answer = &size - (size / sizeof(size));
-#if V8_CC_GNU
-#pragma GCC diagnostic pop
-#endif  // V8_CC_GNU
+static uintptr_t ComputeStackLimit(uint32_t size) {
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&size);
+  if (addr >= size) return addr - size;
   // If the size is very large and the stack is very near the bottom of
-  // memory then the calculation above may wrap around and give an address
+  // memory then the calculation above would wrap around and give an address
   // that is above the (downwards-growing) stack.  In that case we return
   // a very low address.
-  if (answer > &size) return reinterpret_cast<uint32_t*>(sizeof(size));
-  return answer;
+  return sizeof(size);
 }
-
 
 // We need at least 165kB for an x64 debug build with clang and ASAN.
 static const int stack_breathing_room = 256 * i::KB;
 
 
 TEST(SetStackLimit) {
-  uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
+  uintptr_t set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
-  CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
+  CcTest::isolate()->SetStackLimit(set_limit);
 
   // Execute a script.
   LocalContext env;
@@ -17472,18 +17461,18 @@ TEST(SetStackLimit) {
             .FromJust());
   CompileRun("get_stack_limit();");
 
-  CHECK(stack_limit == set_limit);
+  CHECK_EQ(stack_limit, set_limit);
 }
 
 
 TEST(SetStackLimitInThread) {
-  uint32_t* set_limit;
+  uintptr_t set_limit;
   {
     v8::Locker locker(CcTest::isolate());
     set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
-    CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
+    CcTest::isolate()->SetStackLimit(set_limit);
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -17496,11 +17485,11 @@ TEST(SetStackLimitInThread) {
               .FromJust());
     CompileRun("get_stack_limit();");
 
-    CHECK(stack_limit == set_limit);
+    CHECK_EQ(stack_limit, set_limit);
   }
   {
     v8::Locker locker(CcTest::isolate());
-    CHECK(stack_limit == set_limit);
+    CHECK_EQ(stack_limit, set_limit);
   }
 }
 
@@ -22281,6 +22270,85 @@ TEST(RequestInterruptTestWithMethodCallAndInterceptor) {
 
 TEST(RequestInterruptTestWithMathAbs) {
   RequestInterruptTestWithMathAbs().RunTest();
+}
+
+// Test that RequestInterrupt works when iterating over a C++ API-backed
+// iterator, where the .next() method is a pure C++ callback that never
+// enters JS. Without a stack/interrupt check in the iterator loop builtin,
+// the interrupt would never be processed.
+class RequestInterruptTestWithCppIterator
+    : public RequestInterruptTestBaseWithSimpleInterrupt {
+ public:
+  void TestBody() override {
+    // Create the iterator object template with a .next() C++ callback.
+    iterator_template_.Reset(isolate_, v8::ObjectTemplate::New(isolate_));
+    Local<v8::ObjectTemplate> iterator_template =
+        iterator_template_.Get(isolate_);
+    iterator_template->Set(isolate_, "next",
+                           v8::FunctionTemplate::New(
+                               isolate_, IteratorNextCallback,
+                               v8::External::New(isolate_, this, kTestPtrTag)));
+
+    // Create the iterable object template with [Symbol.iterator]() returning
+    // the iterator.
+    Local<v8::ObjectTemplate> iterable_template =
+        v8::ObjectTemplate::New(isolate_);
+    iterable_template->Set(v8::Symbol::GetIterator(isolate_),
+                           v8::FunctionTemplate::New(
+                               isolate_, GetIteratorCallback,
+                               v8::External::New(isolate_, this, kTestPtrTag)));
+
+    // Instantiate the iterable and expose it to JS.
+    Local<v8::Object> iterable =
+        iterable_template->NewInstance(env_.local()).ToLocalChecked();
+    CHECK(env_->Global()
+              ->Set(env_.local(), v8_str("iterable"), iterable)
+              .FromJust());
+
+    // Use Array.from which iterates entirely inside a builtin (not through
+    // the interpreter's bytecode loop, which has its own back-edge interrupt
+    // check). This tests that the builtin-level iterator loop processes
+    // interrupts.
+    CompileRun("Array.from(iterable);");
+  }
+
+ private:
+  static void GetIteratorCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    RequestInterruptTestWithCppIterator* test =
+        reinterpret_cast<RequestInterruptTestWithCppIterator*>(
+            info.Data().As<v8::External>()->Value(kTestPtrTag));
+    v8::Isolate* isolate = info.GetIsolate();
+    Local<v8::ObjectTemplate> tmpl = test->iterator_template_.Get(isolate);
+    Local<v8::Object> iterator =
+        tmpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
+    info.GetReturnValue().Set(iterator);
+  }
+
+  static void IteratorNextCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    RequestInterruptTestWithCppIterator* test =
+        reinterpret_cast<RequestInterruptTestWithCppIterator*>(
+            info.Data().As<v8::External>()->Value(kTestPtrTag));
+    v8::Isolate* isolate = info.GetIsolate();
+    Local<v8::Context> context = isolate->GetCurrentContext();
+
+    bool keep_going = test->ShouldContinue();
+
+    // Return {value: 1, done: !keep_going}.
+    Local<v8::Object> result = v8::Object::New(isolate);
+    result->Set(context, v8_str("value"), v8::Integer::New(isolate, 1))
+        .FromJust();
+    result->Set(context, v8_str("done"), v8::Boolean::New(isolate, !keep_going))
+        .FromJust();
+    info.GetReturnValue().Set(result);
+  }
+
+  v8::Global<v8::ObjectTemplate> iterator_template_;
+};
+
+TEST(RequestInterruptTestWithCppIterator) {
+  RequestInterruptTestWithCppIterator().RunTest();
 }
 
 class RequestMultipleInterrupts : public RequestInterruptTestBase {

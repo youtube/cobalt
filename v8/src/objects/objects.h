@@ -163,8 +163,13 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline Maybe<double> IntegerValue(
       Isolate* isolate, HandleType<T> input);
 
-  static inline Representation OptimalRepresentation(
-      Tagged<Object> obj, PtrComprCageBase cage_base);
+  // Selects optimal representation and constness for a given value.
+  // Usually, the constness stays unmodified unless the value is a HeapNumber
+  // with the hole NaN pattern. This is necessary to distinguish between
+  // initialized and non-initialized double fields.
+  static inline std::pair<Representation, PropertyConstness>
+  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness,
+                        PtrComprCageBase cage_base);
 
   static inline ElementsKind OptimalElementsKind(Tagged<Object> obj,
                                                  PtrComprCageBase cage_base);
@@ -693,11 +698,13 @@ V8_INLINE constexpr bool IsWeak(
 // TODO(leszeks): These exist both as free functions and members of Tagged. They
 // probably want to be cleaned up at some point.
 V8_INLINE bool IsSmi(Tagged<Object> obj) { return obj.IsSmi(); }
-V8_INLINE bool IsSmi(Tagged<HeapObject> obj) { return false; }
+V8_INLINE bool IsSmi(Tagged<HeapObject> obj) { return obj.IsSmi(); }
 V8_INLINE bool IsSmi(Tagged<Smi> obj) { return true; }
 
 V8_INLINE bool IsHeapObject(Tagged<Object> obj) { return obj.IsHeapObject(); }
-V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj) { return true; }
+V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj) {
+  return obj.IsHeapObject();
+}
 V8_INLINE bool IsHeapObject(Tagged<Smi> obj) { return false; }
 
 V8_INLINE bool IsTaggedIndex(Tagged<Object> obj);

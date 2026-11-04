@@ -373,7 +373,8 @@ DEF_CONDITIONAL_GRAPHITE_TEST_FOR_ALL_CONTEXTS(ProxyCacheTest9,
     // released from the ResourceCache since their timestamp gets reset when returned to the
     // ResourceCache. However, the first proxy should be purgeable and the second not since it still
     // has a command buffer ref.
-    resourceCache->purgeResourcesNotUsedSince(timeAfterProxyCreation);
+    resourceCache->purgeResourcesNotUsedSince(timeAfterProxyCreation,
+                                              /*quitPurgingTime=*/std::nullopt);
 
     REPORTER_ASSERT(r, proxyCache->numCached() == 0);
     REPORTER_ASSERT(r, resourceCache->getResourceCount() == baselineResourceCount);

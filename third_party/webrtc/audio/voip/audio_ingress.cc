@@ -22,6 +22,7 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "api/neteq/default_neteq_factory.h"
 #include "api/neteq/neteq.h"
 #include "api/scoped_refptr.h"
@@ -40,6 +41,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/experiments/struct_parameters_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
 
@@ -47,9 +49,21 @@ namespace webrtc {
 
 namespace {
 
-NetEq::Config CreateNetEqConfig() {
+NetEq::Config CreateNetEqConfig(const Environment& env) {
   NetEq::Config config;
   config.enable_muted_state = true;
+
+  int max_packets_in_buffer = static_cast<int>(config.max_packets_in_buffer);
+
+  StructParametersParser::Create(                                //
+      "max_packets_in_buffer", &max_packets_in_buffer,           //
+      "max_delay_ms", &config.max_delay_ms,                      //
+      "min_delay_ms", &config.min_delay_ms,                      //
+      "enable_fast_accelerate", &config.enable_fast_accelerate)  //
+      ->Parse(env.field_trials().Lookup("WebRTC-VoIP-NetEqConfig"));
+
+  config.max_packets_in_buffer = static_cast<size_t>(max_packets_in_buffer);
+
   return config;
 }
 
@@ -66,7 +80,7 @@ AudioIngress::AudioIngress(const Environment& env,
       rtp_receive_statistics_(receive_statistics),
       rtp_rtcp_(rtp_rtcp),
       neteq_(DefaultNetEqFactory().Create(env,
-                                          CreateNetEqConfig(),
+                                          CreateNetEqConfig(env),
                                           decoder_factory)),
       ntp_estimator_(&env_.clock()) {}
 
@@ -365,6 +379,10 @@ ChannelStatistics AudioIngress::GetChannelStatistics() {
   }
 
   return channel_stats;
+}
+
+NetEq::Config CreateNetEqConfigForTesting(const Environment& env) {
+  return CreateNetEqConfig(env);
 }
 
 }  // namespace webrtc

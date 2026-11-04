@@ -185,7 +185,7 @@ void SendAudioStream::SetMuted(bool mute) {
 ColumnPrinter SendAudioStream::StatsPrinter() {
   return ColumnPrinter::Lambda(
       "audio_target_rate",
-      [this](SimpleStringBuilder& sb) {
+      [this](StringBuilder& sb) {
         sender_->SendTask([this, &sb] {
           AudioSendStream::Stats stats = send_stream_->GetStats();
           sb.AppendFormat("%.0lf", stats.target_bitrate_bps / 8.0);

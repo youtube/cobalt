@@ -404,8 +404,7 @@ aom_svc_ref_frame_config_t GetSvcRefFrameConfig(
     refresh_view[*settings.update_buffer] = 1;
   }
 
-  char buf[256];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << " spatial_id=" << settings.spatial_id;
   sb << "  ref_idx=[ ";
   for (auto r : ref_frame_config.ref_idx) {
@@ -514,8 +513,7 @@ aom_svc_params_t GetSvcParams(
         settings.rate_options);
   }
 
-  char buf[512];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "GetSvcParams" << " layer bitrates kbps";
   for (int s = 0; s < svc_params.number_spatial_layers; ++s) {
     sb << " S" << s << "=[ ";

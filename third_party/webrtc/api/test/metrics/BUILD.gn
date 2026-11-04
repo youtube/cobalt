@@ -190,7 +190,6 @@ rtc_library("global_metrics_logger_and_exporter") {
     ":metric",
     ":metrics_exporter",
     ":metrics_logger",
-    "../../../rtc_base:checks",
     "../../../system_wrappers",
   ]
 }

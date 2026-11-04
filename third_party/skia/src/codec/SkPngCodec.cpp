@@ -23,6 +23,7 @@
 #include "include/private/base/SkNoncopyable.h"
 #include "include/private/base/SkTemplates.h"
 #include "modules/skcms/skcms.h"
+#include "src/base/SkSafeMath.h"
 #include "src/codec/SkCodecPriv.h"
 #include "src/codec/SkPngCompositeChunkReader.h"
 #include "src/codec/SkPngPriv.h"
@@ -681,7 +682,11 @@ private:
 
     Result setUpInterlaceBuffer(int height) {
         fPng_rowbytes = png_get_rowbytes(this->png_ptr(), this->info_ptr());
-        size_t interlaceBufferSize = fPng_rowbytes * height;
+        SkSafeMath m;
+        size_t interlaceBufferSize = m.mul(fPng_rowbytes, static_cast<size_t>(height));
+        if (!m.ok()) {
+            return kInternalError;
+        }
         void* interlaceBufferRaw = nullptr;
         if (interlaceBufferSize) {
            interlaceBufferRaw = sk_malloc_canfail(interlaceBufferSize, sizeof(png_byte));

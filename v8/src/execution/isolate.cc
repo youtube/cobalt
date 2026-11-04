@@ -710,6 +710,14 @@ void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
                                    StackTraceFailureMessage::kIncludeStackTrace,
                                    {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
+
+  // Print an error message similar to hitting V8_Fatal under
+  // `v8::base::ControlledCrashesAreHarmless()`, for fuzzers / Clusterfuzz but
+  // also humans investigating externally reported crashes.
+  v8::base::OS::PrintError(
+      "\n\n#\n# Safely terminating process due to hitting "
+      "Isolate::PushStackTraceAndDie\n#\n");
+
   base::OS::Abort();
 }
 
@@ -719,6 +727,14 @@ void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4,
       this, StackTraceFailureMessage::kDontIncludeStackTrace,
       {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
+
+  // Print an error message similar to hitting V8_Fatal under
+  // `v8::base::ControlledCrashesAreHarmless()`, for fuzzers / Clusterfuzz but
+  // also humans investigating externally reported crashes.
+  v8::base::OS::PrintError(
+      "\n\n#\n# Safely terminating process due to hitting "
+      "Isolate::PushParamsAndDie\n#\n");
+
   base::OS::Abort();
 }
 
@@ -2364,7 +2380,7 @@ Tagged<Object> Isolate::StackOverflow() {
   JSObject::AddProperty(this, exception, factory()->wasm_uncatchable_symbol(),
                         factory()->true_value(), NONE);
 
-  Throw(*exception);
+  Throw(*exception, nullptr, true);
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && v8_flags.stress_compaction) {
@@ -2543,7 +2559,8 @@ DirectHandle<JSMessageObject> Isolate::CreateMessageOrAbort(
 }
 
 Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
-                              MessageLocation* location) {
+                              MessageLocation* location,
+                              bool is_stack_overflow) {
   if (has_exception()) {
     // A termination exception may have been thrown while preparing
     // {raw_exception}, e.g. by the near heap limit callback
@@ -2613,7 +2630,8 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   // Notify debugger of exception.
   if (is_catchable_by_javascript(*exception)) {
     DirectHandle<Object> message(pending_message(), this);
-    std::optional<Tagged<Object>> maybe_exception = debug()->OnThrow(exception);
+    std::optional<Tagged<Object>> maybe_exception =
+        debug()->OnThrow(exception, is_stack_overflow);
     if (maybe_exception.has_value()) {
       return *maybe_exception;
     }
@@ -2740,6 +2758,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);
       iter.wasm_stack()->clear_stack_switch_info();
+#if V8_TARGET_OS_WIN
+      base::Stack::SetCurrentThreadStackBounds(iter.wasm_stack()->limit(),
+                                               iter.wasm_stack()->base());
+#endif
     }
     // Regardless of the stack that the handler belongs to, these fields should
     // be cleared.
@@ -3104,7 +3126,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
               caller_code->GetOffsetFromInstructionStart(this, fast_call_pc);
           // Check if there is actually an exception handler registered at the
           // return address of the fast call. If so, then we tell the
-          // deoptimizer of the exception and just return the the Deotimization
+          // deoptimizer of the exception and just return the Deoptimization
           // Entry. Otherwise we iterate the stack further to find a handler.
           HandlerTable table(caller_code->UnsafeCastToCode());
           int handler_offset = table.LookupReturn(caller_offset);
@@ -4822,8 +4844,28 @@ void Isolate::UpdateLogObjectRelocation() {
       heap()->has_heap_object_allocation_tracker();
 }
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+void Isolate::PrintAndClearRegExpSubjectStrings() {
+  if (trace_regexp_exec_subject_indices_.empty()) return;
+  DCHECK(v8_flags.trace_regexp_exec_ool_subjects);
+  PrintF("--- RegExp Trace Subject Strings ---\n");
+  for (size_t i = 0; i < trace_regexp_exec_subject_indices_.size(); ++i) {
+    Handle<String> subject = Cast<String>(
+        eternal_handles()->Get(trace_regexp_exec_subject_indices_[i]));
+    std::unique_ptr<char[]> c_str = subject->ToCString();
+    PrintF("Subject #%zu: %s\n", i, c_str.get());
+  }
+  trace_regexp_exec_subject_indices_.clear();
+  trace_regexp_exec_subject_hash_to_index_.clear();
+}
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  PrintAndClearRegExpSubjectStrings();
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #if defined(V8_USE_PERFETTO)
   PerfettoLogger::UnregisterIsolate(this);
@@ -6198,6 +6240,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     PrintF("Set up central stack object (limit: %p, base: %p)\n",
            stack->jslimit(), reinterpret_cast<void*>(stack->base()));
   }
+#if V8_TARGET_OS_WIN
+  // Stack::GetStackStart() is meant to return the native stack start, but we
+  // update the TEB's StackBase during wasm stack switching. So call it during
+  // initialization to ensure that it caches the correct value.
+  base::Stack::GetStackStart();
+#endif
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -6592,10 +6640,6 @@ void Isolate::DumpAndResetBuiltinsProfileData() {
       BasicBlockProfiler::Get()->Print(this, out);
     }
     BasicBlockProfiler::Get()->ResetCounts(this);
-  } else {
-    // Only log builtins PGO data if v8 was built with
-    // v8_enable_builtins_profiling=true
-    CHECK_NULL(v8_flags.turbo_profiling_output);
   }
 }
 
@@ -6645,12 +6689,6 @@ bool Isolate::use_optimizer() {
   // TODO(v8:7700): Update this predicate for a world with multiple tiers.
   return (v8_flags.turbofan || v8_flags.maglev) && !serializer_enabled_ &&
          CpuFeatures::SupportsOptimizer() && !is_precise_count_code_coverage();
-}
-
-void Isolate::IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code) {
-  PtrComprCageBase cage_base(this);
-  DCHECK(IsCode(*code, cage_base) || IsTrustedByteArray(*code, cage_base));
-  total_regexp_code_generated_ += code->Size(cage_base);
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {

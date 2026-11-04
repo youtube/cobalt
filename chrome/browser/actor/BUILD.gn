@@ -17,25 +17,20 @@ if (is_android) {
 
 source_set("actor") {
   public = [
-    "actor_features.h",
     "actor_keyed_service.h",
     "actor_keyed_service_factory.h",
     "actor_metrics.h",
     "actor_navigation_throttle.h",
     "actor_proto_conversion.h",
-    "actor_switches.h",
     "actor_tab_data.h",
     "actor_task.h",
     "actor_task_metadata.h",
-    "actor_util.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
     "aggregated_journal_in_memory_serializer.h",
     "aggregated_journal_serializer.h",
-    "enterprise_policy_content_checker.h",
-    "enterprise_policy_url_checker.h",
+    "enterprise_policy_checker.h",
     "execution_engine.h",
-    "origin_checker.h",
     "site_policy.h",
     "tools/attempt_form_filling_tool_request.h",
     "tools/attempt_login_tool_request.h",
@@ -69,7 +64,7 @@ source_set("actor") {
     "//chrome/browser/subscription_eligibility",
     "//chrome/common",
     "//chrome/common:actor_webui_mojom",
-    "//components/actor",
+    "//components/actor/core",
     "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/download/content/public",
     "//components/optimization_guide/content/browser",
@@ -103,7 +98,6 @@ source_set("impl") {
   sources = [
     "action_tracker_for_metrics.cc",
     "action_tracker_for_metrics.h",
-    "actor_features.cc",
     "actor_keyed_service.cc",
     "actor_keyed_service_factory.cc",
     "actor_metrics.cc",
@@ -111,19 +105,14 @@ source_set("impl") {
     "actor_proto_conversion.cc",
     "actor_script_tool_receiver.cc",
     "actor_script_tool_receiver.h",
-    "actor_switches.cc",
     "actor_tab_data.cc",
     "actor_task.cc",
     "actor_task_metadata.cc",
-    "actor_util.cc",
     "aggregated_journal.cc",
     "aggregated_journal_file_serializer.cc",
     "aggregated_journal_in_memory_serializer.cc",
     "aggregated_journal_serializer.cc",
     "execution_engine.cc",
-    "origin_checker.cc",
-    "safety_list_manager.cc",
-    "safety_list_manager.h",
     "site_policy.cc",
     "tools/attempt_form_filling_tool.cc",
     "tools/attempt_form_filling_tool.h",
@@ -243,7 +232,6 @@ source_set("impl") {
       "tools/window_management_tool_request.cc",
     ]
     deps += [
-      "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs:tab_strip_model_observer",
     ]
@@ -268,8 +256,6 @@ source_set("types") {
   sources = [
     "actor_task_delegate.h",
     "autofill_selection_dialog_event_handler.h",
-    "shared_types.cc",
-    "shared_types.h",
   ]
   public_deps = [
     "//base",
@@ -332,9 +318,6 @@ source_set("unit_tests") {
     "actor_test_util_unittest.cc",
     "aggregated_journal_unittest.cc",
     "execution_engine_unittest.cc",
-    "origin_checker_unittest.cc",
-    "safety_list_manager_unittest.cc",
-    "shared_types_unittest.cc",
     "site_policy_unittest.cc",
     "tools/attempt_form_filling_tool_request_unittest.cc",
   ]

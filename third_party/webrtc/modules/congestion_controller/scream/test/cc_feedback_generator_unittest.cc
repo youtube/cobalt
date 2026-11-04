@@ -48,9 +48,9 @@ TEST(CcFeedbackGeneratorTest, BasicFeedback) {
 
   EXPECT_EQ(feedback_1.feedback_time, clock.CurrentTime());
   EXPECT_EQ(feedback_1.data_in_flight, 3 * kPacketSize);
-  ASSERT_THAT(feedback_1.packet_feedbacks, SizeIs(1));
+  ASSERT_THAT(feedback_1.packet_feedbacks, SizeIs(4));
   EXPECT_EQ(feedback_1.packet_feedbacks[0].arrival_time_offset,
-            TimeDelta::Zero());
+            TimeDelta::Millis(50));
   for (const PacketResult& packet : feedback_1.packet_feedbacks) {
     EXPECT_EQ((packet.receive_time - packet.sent_packet.send_time),
               TimeDelta::Millis(25 + 8));
@@ -62,6 +62,22 @@ TEST(CcFeedbackGeneratorTest, BasicFeedback) {
       feedback_generator.ProcessUntilNextFeedback(
           /*send_rate=*/DataRate::KilobitsPerSec(500), clock, nullptr);
   EXPECT_EQ((feedback_2.feedback_time - feedback_1.feedback_time).ms(), 50);
+}
+
+TEST(CcFeedbackGeneratorTest, SendsFirstFeedbackAfterTimeBetweenFeedback) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 25,
+                          .link_capacity = DataRate::KilobitsPerSec(1000)},
+       .time_between_feedback = TimeDelta::Millis(50)});
+
+  TransportPacketsFeedback feedback =
+      feedback_generator.ProcessUntilNextFeedback(
+          /*send_rate=*/DataRate::KilobitsPerSec(500), clock, nullptr);
+
+  ASSERT_FALSE(feedback.packet_feedbacks.empty());
+  EXPECT_EQ(feedback.packet_feedbacks[0].arrival_time_offset,
+            TimeDelta::Millis(50));
 }
 
 TEST(CcFeedbackGeneratorTest, CeMarksPacketsIfSendRateIsTooHigh) {

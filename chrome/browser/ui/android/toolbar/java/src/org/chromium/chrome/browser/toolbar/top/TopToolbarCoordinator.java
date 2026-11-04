@@ -45,6 +45,7 @@ import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.omnibox.LocationBar;
+import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
@@ -78,7 +79,6 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
-import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.ui.base.ActivityResultTracker;
@@ -117,7 +117,6 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private OptionalBrowsingModeButtonController mOptionalButtonController;
 
     private @Nullable SigninButtonCoordinator mSigninButtonCoordinator;
-    private @Nullable NullableObservableSupplier<Tab> mTabSupplier;
 
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private @Nullable ReloadButtonCoordinator mReloadButtonCoordinator;
@@ -230,6 +229,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
             Supplier<Integer> incognitoWindowCountSupplier,
             MonotonicObservableSupplier<Profile> profileSupplier,
+            OneshotSupplier<OmniboxStub> omniboxStubSupplier,
             SigninAndHistorySyncActivityLauncher signinAndHistorySyncActivityLauncher,
             WindowAndroid windowAndroid,
             ActivityResultTracker activityResultTracker,
@@ -249,7 +249,6 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                         () -> toolbarDataProvider.getTab());
 
         if (SigninFeatureMap.sSigninLevelUpButton.isEnabled()) {
-            mTabSupplier = tabSupplier;
             ViewStub signinButtonStub = mToolbarLayout.findViewById(R.id.signin_button_stub);
             if (signinButtonStub != null) {
                 mSigninButtonCoordinator =
@@ -257,13 +256,18 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                                 toolbarLayout.getContext(),
                                 windowAndroid,
                                 signinButtonStub,
+                                tabSupplier,
+                                omniboxStubSupplier,
+                                mToolbarLayout::beginButtonTransition,
                                 profileSupplier,
                                 signinAndHistorySyncActivityLauncher,
                                 activityResultTracker,
                                 deviceLockActivityLauncher,
                                 bottomSheetController,
                                 modalDialogManager,
-                                snackbarManager);
+                                snackbarManager,
+                                normalThemeColorProvider,
+                                incognitoStateProvider);
             }
         }
         mResourceManagerSupplier = resourceManagerSupplier;
@@ -325,6 +329,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                 mBackButtonCoordinator,
                 forwardButtonCoordinator,
                 homeButtonCoordinator,
+                mSigninButtonCoordinator,
                 normalThemeColorProvider,
                 incognitoStateProvider,
                 incognitoWindowCountSupplier);
@@ -641,15 +646,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         if (mOptionalButtonController != null) {
             mOptionalButtonController.updateButtonVisibility();
         }
-        if (mSigninButtonCoordinator != null && mTabSupplier != null) {
-            @Nullable Tab tab = mTabSupplier.get();
-
-            // Should only show the signin button when on the NTP and not incognito.
-            if (tab != null && UrlUtilities.isNtpUrl(tab.getUrl()) && !tab.isOffTheRecord()) {
-                mSigninButtonCoordinator.updateButtonVisibility(true);
-            } else {
-                mSigninButtonCoordinator.updateButtonVisibility(false);
-            }
+        if (mSigninButtonCoordinator != null) {
+            mSigninButtonCoordinator.updateButtonVisibility();
         }
     }
 

@@ -394,7 +394,8 @@ static const TagHandler aliasHandler = {
                 SkAutoAsciiToLC tolc(value);
                 aliasName.set(tolc.lc());
             } else if (MEMEQ("to", name, nameLen)) {
-                to.set(value);
+                SkAutoAsciiToLC tolc(value);
+                to.set(tolc.lc());
             } else if (MEMEQ("weight", name, nameLen)) {
                 if (!parse_non_negative_integer(value, &weight)) {
                     SK_FONTCONFIGPARSER_WARNING("'%s' is an invalid weight", value);

@@ -12,6 +12,7 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
+#include "src/core/SkFontDescriptor.h"
 
 #include <utility>
 
@@ -115,6 +116,62 @@ sk_sp<SkTypeface> SkFontMgr::matchFamilyStyleCharacter(const char familyName[], 
                                                  const char* bcp47[], int bcp47Count,
                                                  SkUnichar character) const {
     return this->onMatchFamilyStyleCharacter(familyName, style, bcp47, bcp47Count, character);
+}
+
+sk_sp<SkTypeface> SkFontMgr::match(const Request& request) const {
+    return this->onMatch(request);
+}
+sk_sp<SkTypeface> SkFontMgr::fallback(const Request& request) const {
+    return this->onFallback(request);
+}
+
+SkFontStyle SkFontMgr::Request::fontStyleFromModel() const {
+    SkScalar weight = 400;
+    SkScalar width = 100;
+    SkScalar slant = 0;
+    SkScalar italic = 0;
+    for (auto&& coord : model) {
+        switch (coord.axis) {
+            case SkFontArguments::VariationPosition::Coordinate::wght: weight = coord.value; break;
+            case SkFontArguments::VariationPosition::Coordinate::wdth: width = coord.value; break;
+            case SkFontArguments::VariationPosition::Coordinate::slnt: slant = coord.value; break;
+            case SkFontArguments::VariationPosition::Coordinate::ital: italic = coord.value; break;
+        }
+    }
+    SkFontStyle::Slant slantEnum = SkFontStyle::kUpright_Slant;
+    if (slant != 0) { slantEnum = SkFontStyle::kOblique_Slant; }
+    if (0 < italic) { slantEnum = SkFontStyle::kItalic_Slant; }
+    SkFontStyle::Width widthEnum = SkFontDescriptor::SkFontStyleWidthForWidthAxisValue(width);
+    return SkFontStyle(SkScalarRoundToInt(weight), widthEnum, slantEnum);
+}
+
+void SkFontMgr::Request::SetModel(SkFontStyle fontStyle,
+                                  SkFontArguments::VariationPosition::Coordinate(&model)[4])
+{
+    model[0] = {SkFontArguments::VariationPosition::Coordinate::wght,
+                (float)fontStyle.weight()};
+    model[1] = {SkFontArguments::VariationPosition::Coordinate::wdth,
+                SkFontDescriptor::SkFontWidthAxisValueForStyleWidth(fontStyle.width())};
+    model[2] = {SkFontArguments::VariationPosition::Coordinate::slnt,
+                fontStyle.slant() == SkFontStyle::kOblique_Slant ? -20.0f : 0.0f};
+    model[3] = {SkFontArguments::VariationPosition::Coordinate::ital,
+                fontStyle.slant() == SkFontStyle::kItalic_Slant ? 1.0f : 0.0f};
+}
+
+sk_sp<SkTypeface> SkFontMgr::onMatch(const Request& request) const {
+    SkFontStyle style = request.fontStyleFromModel();
+    return this->matchFamilyStyle(request.familyName, style);
+}
+
+sk_sp<SkTypeface> SkFontMgr::onFallback(const Request& request) const {
+    SkFontStyle style = request.fontStyleFromModel();
+
+    SkUnichar character = 0x20;
+    if (!request.cmapEntries.empty()) {
+        character = request.cmapEntries[0].character;
+    }
+    return this->matchFamilyStyleCharacter(request.familyName, style,
+                                           request.bcp47.data(), request.bcp47.size(), character);
 }
 
 sk_sp<SkTypeface> SkFontMgr::makeFromData(sk_sp<SkData> data, int ttcIndex) const {

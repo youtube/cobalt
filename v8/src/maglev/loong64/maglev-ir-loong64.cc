@@ -859,6 +859,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs_d(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ fcvt_s_d(result, input);
+  __ fcvt_d_s(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -879,6 +887,10 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ Ceil_d(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ Floor_d(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Trunc_d(out, in);
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -1007,7 +1019,7 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
-    __ srli_w(result_register, result_register, shift_size);
+    __ srli_d(result_register, result_register, shift_size);
   }
 }
 

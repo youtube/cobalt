@@ -12,6 +12,8 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 
@@ -209,6 +211,12 @@ void WebUIPinnedToolbarActions::OnActionsChanged() {
     if (!item->GetVisible()) {
       return;
     }
+    if (static_cast<actions::ActionPinnableState>(
+            item->GetProperty(actions::kActionItemPinnableKey)) ==
+            actions::ActionPinnableState::kNotPinnable &&
+        IsActionPinned(id)) {
+      return;
+    }
     auto mojo_id = ActionIdToPinnedToolbarAction(id);
     CHECK(mojo_id) << "Unsupported pinned action type " << id;
     auto state = toolbar_ui_api::mojom::PinnedToolbarActionState::New();
@@ -363,6 +371,12 @@ void WebUIPinnedToolbarActions::Invoke(
     return;
   }
   if (actions::ActionItem* action = GetActionItemFor(*id)) {
-    action->InvokeAction();
+    action->InvokeAction(
+        actions::ActionInvocationContext::Builder()
+            .SetProperty(
+                kSidePanelOpenTriggerKey,
+                static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                    SidePanelOpenTrigger::kPinnedEntryToolbarButton))
+            .Build());
   }
 }
