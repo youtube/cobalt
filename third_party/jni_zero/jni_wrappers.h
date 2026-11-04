@@ -200,116 +200,22 @@ class JArrayView<T> : public JArrayViewBase<T> {
     friend JArrayView;
   };
 
-<<<<<<< HEAD
-=======
-  JavaObjectArrayReader(const JavaRef<jobjectArray>& array) : array_(array) {
-    size_ = array_.env_->GetArrayLength(array_.obj());
-  }
+An inspection of the upstream and incoming diffs reveals:
 
-  // Copy constructor to allow returning it from JavaRef::ReadElements().
-  JavaObjectArrayReader(const JavaObjectArrayReader& other) = default;
+1. **Upstream Architecture Migration (`HEAD`)**:
+   - Upstream removed `JavaObjectArrayReader` and `ByteArrayView`.
+   - `JArrayViewBase` and the opening of `template <typename T> requires internal::IsJobject<T> class JArrayView<T> : public JArrayViewBase<T>` were moved earlier in the file (lines 91–123).
+   - `class iterator` was nested directly within `JArrayView<T>` (lines 125–201).
 
-  // Assignment operator for consistency with copy constructor.
-  JavaObjectArrayReader& operator=(const JavaObjectArrayReader& other) =
-      default;
+2. **Cobalt Macro Preservation**:
+   - The incoming cherry-pick block (`theirs`) introduces stale copies of `JavaObjectArrayReader`, `ByteArrayView`, `JArrayViewBase`, and a redundant class header for `JArrayView<T>`, but also includes the opening guard `#if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)`.
+   - Outside the conflict block at line 338, there is a matching `#endif // !BUILDFLAG(IS_COBALT) || (concepts)`.
+   - To accept upstream's clean refactoring while keeping the preprocessor directives balanced and preserving Cobalt's concept guard, all deleted/redundant class definitions must be discarded and only the Cobalt `#if` preprocessor check retained.
 
-  // Allow move constructor and assignment since this owns a local ref.
-  JavaObjectArrayReader(JavaObjectArrayReader&& other) = default;
-  JavaObjectArrayReader& operator=(JavaObjectArrayReader&& other) = default;
-
-  bool empty() const { return size_ == 0; }
-
-  jsize size() const { return size_; }
-
-  iterator begin() const { return iterator(this, 0); }
-
-  iterator end() const { return iterator(this, size_); }
-
- private:
-  ScopedJavaLocalRef<jobjectArray> array_;
-  jsize size_;
-
-  friend iterator;
-};
-
-// Use as: @JniType("jni_zero::ByteArrayView") byte[].
-//
-// This requests a direct pointer to the array data rather than a copy of it,
-// so can be more efficient than std::vector<uint8_t> for large arrays.
-//
-// This helper needs to release the array via its destructor, and as a result
-// has more binary size overhead than using std::vector<uint8_t>. As such, you
-// should prefer std::vector for small arrays.
-//
-// Callers must ensure that the passed in array reference outlives this wrapper
-// (always the case when used with @JniType).
-class ByteArrayView {
- public:
-  ByteArrayView(JNIEnv* env, jbyteArray array)
-      : env_(env),
-        array_(array),
-        length_(env->GetArrayLength(array)),
-        bytes_(env->GetByteArrayElements(array, nullptr)) {}
-
-  ~ByteArrayView() {
-    env_->ReleaseByteArrayElements(array_, bytes_, JNI_ABORT);
-  }
-
-  ByteArrayView(const ByteArrayView&) = delete;
-  ByteArrayView(ByteArrayView&& other) = delete;
-  ByteArrayView& operator=(const ByteArrayView&) = delete;
-
-  size_t size() const { return static_cast<size_t>(length_); }
-  bool empty() const { return length_ == 0; }
-  const jbyte* bytes() const { return bytes_; }
-  const uint8_t* data() const { return reinterpret_cast<uint8_t*>(bytes_); }
-  const char* chars() const { return reinterpret_cast<char*>(bytes_); }
-  std::string_view string_view() const {
-    return std::string_view(chars(), size());
-  }
-
- private:
-  JNIEnv* env_;
-  jbyteArray array_;
-  jsize length_;
-  jbyte* bytes_;
-};
-
-// Base class for both primitive and object array views.
-template <typename T>
-class JArrayViewBase {
- public:
-  JArrayViewBase(JNIEnv* env, JArray<T> array)
-      : env_(env), array_(array), length_(env->GetArrayLength(array)) {}
-
-  ~JArrayViewBase() = default;
-
-  // Get the number of elements in this JArray.
-  int32_t GetLength() const noexcept { return length_; }
-
-  // Get the number of elements in this JArray.
-  size_t size() const noexcept { return static_cast<size_t>(length_); }
-
- protected:
-  JNIEnv* env_;
-  JArray<T> array_;
-  int32_t length_;
-};
-
-template <typename T>
-class JArrayView;
-
+```cpp
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-template <typename T>
-  requires internal::IsJobject<T>
-class JArrayView<T> : public JArrayViewBase<T> {
-  using JArrayViewBase<T>::env_;
-  using JArrayViewBase<T>::array_;
-  using JArrayViewBase<T>::length_;
-
- public:
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+```
   JArrayView<T>(JNIEnv* env, JArray<T> array) : JArrayViewBase<T>(env, array) {}
 
   ~JArrayView<T>() = default;
@@ -533,12 +439,9 @@ struct _JniFuncMappings<double> {
 
 }  // namespace internal
 
-<<<<<<< HEAD
-// Wrapper for a primitive jarray (e.g. jbooleanArray, jintArray, etc.).
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+// Wrapper for a primitive jarray (e.g. jbooleanArray, jintArray, etc.).
 template <typename T>
   requires internal::IsPrimitiveType<T>
 class JArrayView<T> : public JArrayViewBase<T> {
