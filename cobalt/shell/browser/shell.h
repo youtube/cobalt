@@ -99,6 +99,13 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Called when the main WebContents calls h5vcc.system.hideSplashScreen().
   void OnMainReady();
 
+  // DO NOT SUBMIT: benchmark-only prototype for b/578964869. Shows the splash
+  // screen again on a warm start, i.e., when the app comes back to the
+  // foreground with the main WebContents already loaded, for at least
+  // `min_duration`, then switches back to the main WebContents. The main
+  // WebContents stays hidden until then.
+  void ShowWarmStartSplashScreen(base::TimeDelta min_duration);
+
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
@@ -333,6 +340,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool awaiting_splash_video_first_frame_ = false;
   // Whether the page of the splash screen has loaded.
   bool is_splash_screen_loaded_ = false;
+  // DO NOT SUBMIT (b/578964869 benchmark): whether the splash screen that is
+  // up was shown for a warm start (ShowWarmStartSplashScreen()), and its
+  // minimum duration.
+  bool is_warm_start_splash_ = false;
+  base::TimeDelta warm_start_splash_min_duration_;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
