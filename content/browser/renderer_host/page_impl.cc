@@ -38,14 +38,8 @@
 namespace content {
 
 PageImpl::PageImpl(RenderFrameHostImpl& rfh, PageDelegate& delegate)
-<<<<<<< HEAD
     : main_document_(rfh), delegate_(delegate) {
-=======
-    : main_document_(rfh),
-      delegate_(delegate),
-      text_autosizer_page_info_({0, 0, 1.f}) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(features::kSharedStorageSelectURLLimit)) {
     select_url_overall_budget_ =
         features::kSharedStorageSelectURLBitBudgetPerPageLoad.Get();
