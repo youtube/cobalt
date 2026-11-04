@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/base_switches.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
@@ -52,7 +53,12 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
 
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
-  EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
+  EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+                        ",LocalNetworkAccessChecks"
+#endif
+                        ),
+            disabled_features);
 }
 
 TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
