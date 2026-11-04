@@ -62,11 +62,10 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
-  EXPECT_EQ(
-      "UseAAudioInput,"
-      "FontSrcLocalMatching,"
-      "DeferAudioFocusUntilAudible",
-      cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
+    EXPECT_EQ(
+        "UseAAudioInput,"
+        "DeferAudioFocusUntilAudible",
+        cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
 }
 
 TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
@@ -93,12 +92,11 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
-  EXPECT_EQ(
-      "TestFeature3,"
-      "UseAAudioInput,"
-      "FontSrcLocalMatching,"
-      "DeferAudioFocusUntilAudible",
-      cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
+    EXPECT_EQ(
+        "TestFeature3,"
+        "UseAAudioInput,"
+        "DeferAudioFocusUntilAudible",
+        cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   EXPECT_EQ(
       "--no-decommit-pooled-pages,--no-concurrent-marking,"
       "--test-flag,--another-flag",
