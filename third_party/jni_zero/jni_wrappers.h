@@ -113,6 +113,8 @@ class JArrayViewBase {
 template <typename T>
 class JArrayView;
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 // Wrapper for a jobjectArray.
 template <typename T>
   requires internal::IsJobject<T>
@@ -200,22 +202,6 @@ class JArrayView<T> : public JArrayViewBase<T> {
     friend JArrayView;
   };
 
-An inspection of the upstream and incoming diffs reveals:
-
-1. **Upstream Architecture Migration (`HEAD`)**:
-   - Upstream removed `JavaObjectArrayReader` and `ByteArrayView`.
-   - `JArrayViewBase` and the opening of `template <typename T> requires internal::IsJobject<T> class JArrayView<T> : public JArrayViewBase<T>` were moved earlier in the file (lines 91–123).
-   - `class iterator` was nested directly within `JArrayView<T>` (lines 125–201).
-
-2. **Cobalt Macro Preservation**:
-   - The incoming cherry-pick block (`theirs`) introduces stale copies of `JavaObjectArrayReader`, `ByteArrayView`, `JArrayViewBase`, and a redundant class header for `JArrayView<T>`, but also includes the opening guard `#if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)`.
-   - Outside the conflict block at line 338, there is a matching `#endif // !BUILDFLAG(IS_COBALT) || (concepts)`.
-   - To accept upstream's clean refactoring while keeping the preprocessor directives balanced and preserving Cobalt's concept guard, all deleted/redundant class definitions must be discarded and only the Cobalt `#if` preprocessor check retained.
-
-```cpp
-#if !BUILDFLAG(IS_COBALT) || \
-    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-```
   JArrayView<T>(JNIEnv* env, JArray<T> array) : JArrayViewBase<T>(env, array) {}
 
   ~JArrayView<T>() = default;
