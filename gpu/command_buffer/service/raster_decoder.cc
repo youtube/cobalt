@@ -25,11 +25,8 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-<<<<<<< HEAD
 #include "base/memory/aligned_memory.h"
-=======
 #include "base/memory/ptr_util.h"
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
