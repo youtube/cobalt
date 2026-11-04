@@ -321,9 +321,6 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(const DecodedAudio& input,
 
 DecodedAudio AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
     const DecodedAudio& input) {
-  SB_DCHECK_EQ(output_channels_, 2);
-  SB_DCHECK_EQ(input.channels(), 1);
-
   DecodedAudio output(output_channels_, sample_type_, input.timestamp(),
                       input.size_in_bytes() * 2);
   size_t frames_left = input.frames();

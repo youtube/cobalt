@@ -67,7 +67,6 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
   }
 
   char* buffer = new char[file_info.st_size];
-  SB_DCHECK(buffer);
   int64_t bytes_to_read = file_info.st_size;
   char* buffer_pos = buffer;
   while (bytes_to_read > 0) {

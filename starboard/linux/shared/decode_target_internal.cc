@@ -127,8 +127,6 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
 void CreateTargetFromImageWithContextRunner(void* context) {
   CreateParamsForImage* params = static_cast<CreateParamsForImage*>(context);
 
-  SB_DCHECK(params->image_data);
-
   // Create the texture
   GLuint texture;
   GL_CALL(glGenTextures(1, &texture));

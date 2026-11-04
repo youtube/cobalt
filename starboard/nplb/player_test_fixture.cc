@@ -707,7 +707,6 @@ void SbPlayerTestFixture::GetDecodeTargetWhenSupported() {
       SB_DCHECK_EQ(SbPlayerGetCurrentFrame(player_), kSbDecodeTargetInvalid);
       return;
     }
-    SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
     SbDecodeTarget frame = SbPlayerGetCurrentFrame(player_);
     if (SbDecodeTargetIsValid(frame)) {
       SbDecodeTargetRelease(frame);

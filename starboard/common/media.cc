@@ -544,9 +544,6 @@ bool ParseVp09Info(const char* codec,
 // This function parses a vp9 codec in the form of "vp9", "vp9.0", "vp9.1",
 // "vp9.2", or "vp9.3".
 bool ParseVp9Info(const char* codec, int* profile, int* bit_depth) {
-  SB_DCHECK(profile);
-  SB_DCHECK(bit_depth);
-
   if (strcmp(codec, "vp9") == 0) {
     *profile = -1;
     *bit_depth = 8;

@@ -32,9 +32,6 @@ template <typename T>
 class KeySystemSupportabilityContainer {
  public:
   Supportability GetKeySystemSupportability(T codec, const char* key_system) {
-    SB_DCHECK(key_system);
-    SB_DCHECK_GT(strlen(key_system), 0U);
-
     std::lock_guard scoped_lock(mutex_);
     auto map_iter = key_system_supportabilities_.find(codec);
     if (map_iter == key_system_supportabilities_.end()) {

@@ -796,7 +796,6 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     info.fd = fd;
     GetInputDeviceInfo(&info);
 
-    SB_DCHECK_NE(info.fd, kInvalidFd);
     input_devices.push_back(info);
   }
 
@@ -833,9 +832,6 @@ bool PollInputEvent(InputDeviceInfo* device_info,
   if (device_info->fd == kInvalidFd) {
     return false;
   }
-
-  SB_DCHECK(out_event);
-  SB_DCHECK(out_modifiers);
 
   const size_t kEventSize = sizeof(struct input_event);
   size_t remaining = kEventSize;

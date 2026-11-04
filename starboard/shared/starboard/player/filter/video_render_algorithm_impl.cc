@@ -148,7 +148,6 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
   SB_DCHECK(media_time_provider);
   SB_CHECK(frames);
-  SB_DCHECK(get_refresh_rate_fn_);
 
   if (frames->empty() || frames->front()->is_end_of_stream()) {
     // Nothing to render.

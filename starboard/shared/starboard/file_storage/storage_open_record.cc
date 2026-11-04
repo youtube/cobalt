@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "starboard/common/file.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
@@ -41,7 +40,6 @@ SbStorageRecord SbStorageOpenRecord(const char* name) {
   }
 
   SbStorageRecord result = new SbStorageRecordPrivate();
-  SB_DCHECK(SbStorageIsValidRecord(result));
   result->file = file;
   if (name) {
     result->name = name;

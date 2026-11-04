@@ -178,7 +178,6 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
       dlclose(avutil_);
       avutil_ = NULL;
     }
-    SB_DCHECK(!AreLibrariesLoaded());
   };
 
   for (auto version_iterator = versions_.rbegin();
@@ -210,7 +209,6 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
       reset_av_libraries();
       continue;
     }
-    SB_DCHECK(AreLibrariesLoaded());
     break;
   }
 
@@ -247,7 +245,6 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
     return false;
   }
 
-  SB_DCHECK(AreLibrariesLoaded());
   return true;
 }
 

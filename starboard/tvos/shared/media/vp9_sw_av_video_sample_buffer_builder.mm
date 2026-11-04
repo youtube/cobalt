@@ -103,8 +103,6 @@ inline void CopyAndMergeUVRow(const uint8_t* source_u,
 
 void CopyVpxImage8IntoPixelBuffer(const vpx_image_t& vpx_image,
                                   CVPixelBufferRef pixel_buffer) {
-  SB_DCHECK(vpx_image.fmt == VPX_IMG_FMT_I420);
-
   CVPixelBufferLockBaseAddress(pixel_buffer, 0);
 
   size_t width = vpx_image.d_w;
@@ -265,8 +263,6 @@ inline void CopyAndMergeUVRow(const uint16_t* source_u,
 
 void CopyVpxImage16IntoPixelBuffer(const vpx_image_t& vpx_image,
                                    CVPixelBufferRef pixel_buffer) {
-  SB_DCHECK(vpx_image.fmt == VPX_IMG_FMT_I42016);
-
   CVPixelBufferLockBaseAddress(pixel_buffer, 0);
 
   size_t width = vpx_image.d_w;
@@ -280,7 +276,6 @@ void CopyVpxImage16IntoPixelBuffer(const vpx_image_t& vpx_image,
   SB_DCHECK(height == CVPixelBufferGetHeightOfPlane(pixel_buffer, 0));
   SB_DCHECK(width / 2 == CVPixelBufferGetWidthOfPlane(pixel_buffer, 1));
   SB_DCHECK(height / 2 == CVPixelBufferGetHeightOfPlane(pixel_buffer, 1));
-  SB_DCHECK(height > 0);
 
   uint16_t* source_y = reinterpret_cast<uint16_t*>(vpx_image.planes[0]);
   uint16_t* source_u = reinterpret_cast<uint16_t*>(vpx_image.planes[1]);

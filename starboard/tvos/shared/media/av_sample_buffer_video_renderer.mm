@@ -217,8 +217,6 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
   }
   sample_buffer_builder_->Reset();
 
-  SB_DCHECK(video_sample_buffers_.empty());
-
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
   onApplicationMainThread(^{

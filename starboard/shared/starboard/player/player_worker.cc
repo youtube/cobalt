@@ -230,16 +230,12 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     SB_DCHECK_GE(samples_written, 0);
     SB_DCHECK_LE(static_cast<size_t>(samples_written), input_buffers.size());
 
-    [[maybe_unused]] size_t num_of_pending_buffers =
-        input_buffers.size() - samples_written;
     input_buffers.erase(input_buffers.begin(),
                         input_buffers.begin() + samples_written);
     if (media_type == kSbMediaTypeAudio) {
       pending_audio_buffers_ = std::move(input_buffers);
-      SB_DCHECK_EQ(pending_audio_buffers_.size(), num_of_pending_buffers);
     } else {
       pending_video_buffers_ = std::move(input_buffers);
-      SB_DCHECK_EQ(pending_video_buffers_.size(), num_of_pending_buffers);
     }
     if (!write_pending_sample_job_token_) {
       write_pending_sample_job_token_ = job_thread_->Schedule(

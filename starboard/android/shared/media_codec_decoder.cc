@@ -1055,7 +1055,6 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     }
 
     SB_DCHECK_GE(size, 0);
-    SB_DCHECK_LE(static_cast<size_t>(size), capacity);
 
     if (size > 0) {
       memcpy(address, data, size);

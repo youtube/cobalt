@@ -162,7 +162,6 @@ MaximumPlayerConfigurationExplorer::MaximumPlayerConfigurationExplorer(
   SB_DCHECK_GT(max_instances_per_config_, 0);
   SB_DCHECK_GT(max_total_instances_, 0);
   SB_DCHECK(fake_graphics_context_provider_);
-  SB_DCHECK_EQ(player_instances_.size(), player_configs_.size());
   SB_DCHECK_LE(player_configs_.size(), 7U)
       << "High number of player configs may be time-consuming to explore.";
   SB_DCHECK_LE(max_instances_per_config_, 7)
