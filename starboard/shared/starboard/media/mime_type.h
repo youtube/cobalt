@@ -67,7 +67,7 @@ class MimeType {
   static const int kInvalidParamIndex;
 
   // Expose the function as a helper function to parse a mime attribute.
-  static bool ParseParamString(const std::string& param_string, Param* param);
+  static std::optional<Param> ParseParamString(const std::string& param_string);
 
   static std::optional<MimeType> Create(const std::string& content_type);
 

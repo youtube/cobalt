@@ -34,44 +34,43 @@ namespace {
 
 typedef std::vector<std::string> Strings;
 
-void ParseParamTypeAndValue(const std::string& name,
-                            const std::string& value,
-                            MimeType::Param* param) {
-  SB_DCHECK(param);
-
-  param->name = name;
+MimeType::Param ParseParamTypeAndValue(const std::string& name,
+                                       const std::string& value) {
+  MimeType::Param param;
+  param.name = name;
   if (value.size() >= 2 && value[0] == '\"' && value.back() == '\"') {
-    param->type = MimeType::kParamTypeString;
-    param->string_value = value.substr(1, value.size() - 2);
-    return;
+    param.type = MimeType::kParamTypeString;
+    param.string_value = value.substr(1, value.size() - 2);
+    return param;
   }
 
-  param->string_value = value;
+  param.string_value = value;
 
   int count;
   int i;
   if (sscanf(value.c_str(), "%d%n", &i, &count) == 1 &&
       static_cast<size_t>(count) == value.size()) {
-    param->type = MimeType::kParamTypeInteger;
-    param->int_value = i;
-    return;
+    param.type = MimeType::kParamTypeInteger;
+    param.int_value = i;
+    return param;
   }
   float f;
   std::stringstream buffer(value);
   buffer.imbue(std::locale::classic());
   buffer >> f;
   if (!buffer.fail() && buffer.rdbuf()->in_avail() == 0) {
-    param->type = MimeType::kParamTypeFloat;
-    param->float_value = f;
-    return;
+    param.type = MimeType::kParamTypeFloat;
+    param.float_value = f;
+    return param;
   }
   if (value == "true" || value == "false") {
-    param->type = MimeType::kParamTypeBoolean;
-    param->bool_value = value == "true";
-    return;
+    param.type = MimeType::kParamTypeBoolean;
+    param.bool_value = value == "true";
+    return param;
   }
 
-  param->type = MimeType::kParamTypeString;
+  param.type = MimeType::kParamTypeString;
+  return param;
 }
 
 bool ContainsSpace(const std::string& str) {
@@ -117,7 +116,8 @@ Strings SplitAndTrim(const std::string& str, char ch) {
 const int MimeType::kInvalidParamIndex = -1;
 
 // static
-bool MimeType::ParseParamString(const std::string& param_string, Param* param) {
+std::optional<MimeType::Param> MimeType::ParseParamString(
+    const std::string& param_string) {
   std::vector<std::string> name_and_value = SplitAndTrim(param_string, '=');
   // The parameter must be on the format 'name=value' and neither |name| nor
   // |value| can be empty. |value| must also not contain '|' and ';'.
@@ -125,13 +125,10 @@ bool MimeType::ParseParamString(const std::string& param_string, Param* param) {
       name_and_value[1].empty() ||
       name_and_value[1].find('|') != std::string::npos ||
       name_and_value[1].find(';') != std::string::npos) {
-    return false;
+    return std::nullopt;
   }
 
-  if (param) {
-    ParseParamTypeAndValue(name_and_value[0], name_and_value[1], param);
-  }
-  return true;
+  return ParseParamTypeAndValue(name_and_value[0], name_and_value[1]);
 }
 
 // static
@@ -163,19 +160,19 @@ std::optional<MimeType> MimeType::Create(const std::string& content_type) {
 
   // 2. Verify the parameters have valid formats, we want to be strict here.
   for (const auto& component : components) {
-    Param param;
-    if (!ParseParamString(component, &param)) {
+    std::optional<Param> param = ParseParamString(component);
+    if (!param) {
       return std::nullopt;
     }
     // There can only be no more than one codecs parameter and it has to be
     // the first parameter if it is present.
-    if (kMimeParamCodecs.EqualsCaseInsensitive(param.name)) {
+    if (kMimeParamCodecs.EqualsCaseInsensitive(param->name)) {
       if (!params.empty()) {
         return std::nullopt;
       }
-      codecs = SplitAndTrim(param.string_value, ',');
+      codecs = SplitAndTrim(param->string_value, ',');
     }
-    params.push_back(std::move(param));
+    params.push_back(std::move(*param));
   }
 
   return MimeType(std::move(type), std::move(subtype), std::move(codecs),

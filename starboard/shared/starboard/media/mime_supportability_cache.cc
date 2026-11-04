@@ -16,10 +16,12 @@
 
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -34,32 +36,36 @@ namespace starboard {
 
 namespace {
 
-// RemoveAttributeFromMime() will return a new mime string with the specified
-// attribute removed. If |attribute_string| is not null, the removed attribute
-// string will be returned via |attribute_string|. Following are some examples:
+struct RemovedAttributeResult {
+  std::string mime_without_attribute;
+  std::string attribute_string;
+};
+
+// RemoveAttributeFromMime() returns a new mime string with the specified
+// attribute removed along with the removed attribute string. Following are some
+// examples:
 //   mime: "video/webm; codecs=\"vp9\"; bitrate=300000"
 //   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\""
+//   mime_without_attribute: "video/webm; codecs=\"vp9\""
 //   attribute_string: "bitrate=300000"
 //
 //   mime: "video/webm; codecs=\"vp9\"; bitrate=300000; eotf=bt709"
 //   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\"; eotf=bt709"
+//   mime_without_attribute: "video/webm; codecs=\"vp9\"; eotf=bt709"
 //   attribute_string: "bitrate=300000"
 //
 //   mime: "bitrate=300000"
 //   attribute_name: "bitrate"
-//   return: ""
+//   mime_without_attribute: ""
 //   attribute_string: "bitrate=300000"
-std::string RemoveAttributeFromMime(const char* mime,
-                                    const char* attribute_name,
-                                    std::string* attribute_string) {
+RemovedAttributeResult RemoveAttributeFromMime(const char* mime,
+                                               const char* attribute_name) {
   size_t name_length = strlen(attribute_name);
   if (name_length == 0) {
-    return mime;
+    return {mime, ""};
   }
 
-  std::string mime_without_attribute;
+  RemovedAttributeResult result;
   const char* start_pos = strstr(mime, attribute_name);
   while (start_pos) {
     if ((start_pos == mime || start_pos[-1] == ';' || isspace(start_pos[-1])) &&
@@ -73,15 +79,13 @@ std::string RemoveAttributeFromMime(const char* mime,
 
   if (!start_pos) {
     // Target attribute is not found.
-    return std::string(mime);
+    return {std::string(mime), ""};
   }
   const char* end_pos = strstr(start_pos, ";");
   if (end_pos) {
     // There may be other attribute after target attribute.
-    if (attribute_string) {
-      // Returned |attribute_string| will not have a trailing ';'.
-      attribute_string->assign(start_pos, end_pos - start_pos);
-    }
+    // Returned |attribute_string| will not have a trailing ';'.
+    result.attribute_string.assign(start_pos, end_pos - start_pos);
 
     end_pos++;
     // Remove leading spaces.
@@ -90,15 +94,15 @@ std::string RemoveAttributeFromMime(const char* mime,
     }
     if (*end_pos) {
       // Append the string after target attribute.
-      mime_without_attribute = std::string(mime, start_pos - mime);
-      mime_without_attribute.append(end_pos);
+      result.mime_without_attribute = std::string(mime, start_pos - mime);
+      result.mime_without_attribute.append(end_pos);
     } else {
       // Target attribute is the last one. Remove trailing spaces.
       size_t mime_length = start_pos - mime;
       while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
         mime_length--;
       }
-      mime_without_attribute = std::string(mime, mime_length);
+      result.mime_without_attribute = std::string(mime, mime_length);
     }
   } else {
     // It can't find a trailing ';'. The target attribute must be the last one.
@@ -111,38 +115,31 @@ std::string RemoveAttributeFromMime(const char* mime,
     if (mime_length > 0 && mime[mime_length - 1] == ';') {
       mime_length--;
     }
-    mime_without_attribute = std::string(mime, mime_length);
-    if (attribute_string) {
-      *attribute_string = std::string(start_pos);
-    }
+    result.mime_without_attribute = std::string(mime, mime_length);
+    result.attribute_string = std::string(start_pos);
   }
-  return mime_without_attribute;
+  return result;
 }
 
-// Note that if bitrate parsing failed, |bitrate| will be set to -1.
-void StripAndParseBitrate(const char* mime,
-                          std::string* mime_without_bitrate,
-                          int* bitrate) {
-  SB_DCHECK(mime_without_bitrate);
-  SB_DCHECK(bitrate);
+struct StrippedBitrateResult {
+  std::string mime_without_bitrate;
+  // Set to -1 if bitrate parsing failed.
+  int bitrate = 0;
+};
 
-  std::string bitrate_string;
-  *mime_without_bitrate =
-      RemoveAttributeFromMime(mime, "bitrate", &bitrate_string);
-
-  if (bitrate_string.empty()) {
-    *bitrate = 0;
-    return;
+StrippedBitrateResult StripAndParseBitrate(const char* mime) {
+  RemovedAttributeResult removed = RemoveAttributeFromMime(mime, "bitrate");
+  if (removed.attribute_string.empty()) {
+    return {std::move(removed.mime_without_attribute), 0};
   }
 
-  MimeType::Param param;
-  if (!MimeType::ParseParamString(bitrate_string, &param) ||
-      param.type != MimeType::kParamTypeInteger) {
-    *bitrate = -1;
-    return;
+  std::optional<MimeType::Param> param =
+      MimeType::ParseParamString(removed.attribute_string);
+  if (!param || param->type != MimeType::kParamTypeInteger) {
+    return {std::move(removed.mime_without_attribute), -1};
   }
-  SB_DCHECK_EQ(param.name, "bitrate");
-  *bitrate = param.int_value;
+  SB_DCHECK_EQ(param->name, "bitrate");
+  return {std::move(removed.mime_without_attribute), param->int_value};
 }
 
 }  // namespace
@@ -156,9 +153,7 @@ MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
   SB_DCHECK(mime);
 
   // Strip the bitrate from mime string and check it separately.
-  std::string mime_without_bitrate;
-  int bitrate;
-  StripAndParseBitrate(mime, &mime_without_bitrate, &bitrate);
+  const auto [mime_without_bitrate, bitrate] = StripAndParseBitrate(mime);
 
   if (bitrate < 0) {
     // The mime string contains an invalid bitrate attribute. In that case, we
@@ -195,9 +190,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
   }
 
   // Strip bitrate as what we do in GetMimeSupportability().
-  std::string mime_without_bitrate;
-  int bitrate;
-  StripAndParseBitrate(mime, &mime_without_bitrate, &bitrate);
+  const auto [mime_without_bitrate, bitrate] = StripAndParseBitrate(mime);
 
   if (bitrate < 0) {
     // The mime string contains an invalid bitrate attribute.
