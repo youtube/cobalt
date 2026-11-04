@@ -34,6 +34,7 @@ namespace blink {
 
 class ExecutionContext;
 class LocalDOMWindow;
+class LowMemoryKillDetails;
 class ScriptState;
 
 class MODULES_EXPORT H5vccSystem final
@@ -61,7 +62,10 @@ class MODULES_EXPORT H5vccSystem final
   void exit();
   uint32_t userOnExitStrategy();
   void hideSplashScreen();
-  ScriptPromise<IDLBoolean> wasLowMemoryKilled(ScriptState*);
+  ScriptPromise<IDLBoolean> wasLowMemoryKilled(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLNullable<LowMemoryKillDetails>> getLowMemoryKillDetails(
+      ScriptState*,
+      ExceptionState&);
 
   void Trace(Visitor*) const override;
 
@@ -74,7 +78,12 @@ class MODULES_EXPORT H5vccSystem final
                                         const String&);
   void OnRequestTrackingAuthorization(ScriptPromiseResolver<IDLUndefined>*,
                                       bool);
-  void OnGetWasLowMemoryKilled(ScriptPromiseResolver<IDLBoolean>*, bool);
+  void OnGetWasLowMemoryKilled(ScriptPromiseResolver<IDLBoolean>*,
+                               std::optional<bool>);
+  void OnGetLowMemoryKillDetails(
+      ScriptPromiseResolver<IDLNullable<LowMemoryKillDetails>>*,
+      bool supported,
+      h5vcc_system::mojom::blink::LowMemoryKillDetailsPtr);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 
