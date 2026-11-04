@@ -205,19 +205,7 @@ inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env,
 }
 #endif
 
-<<<<<<< HEAD
-=======
-// Specialization for ByteArrayView.
-template <>
-inline ByteArrayView FromJniArray<ByteArrayView>(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_object) {
-  jbyteArray j_array = static_cast<jbyteArray>(j_object.obj());
-  return ByteArrayView(env, j_array);
-}
-
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <internal::IsObjectContainer ContainerType>
 inline ContainerType FromJniCollection(JNIEnv* env,
                                        const JavaRef<jobject>& j_collection) {
