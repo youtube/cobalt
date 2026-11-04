@@ -57,19 +57,10 @@ class AudioRendererPcm : public AudioRenderer,
                          private AudioRendererSink::RenderCallback,
                          private JobQueue::JobOwner {
  public:
-  // |max_cached_frames| is a soft limit for the max audio frames this class can
-  // cache so it can:
-  // 1. Avoid using too much memory.
-  // 2. Have the audio cache full to simulate the state that the renderer can no
-  //    longer accept more data.
-  // |min_frames_per_append| is the min number of frames that the audio renderer
-  // tries to append to the sink buffer at once.
   AudioRendererPcm(JobQueue* job_queue,
                    std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const AudioStreamInfo& audio_stream_info,
-                   int max_cached_frames,
-                   int min_frames_per_append,
                    const ExperimentalFeatures& experimental_features);
   ~AudioRendererPcm() override;
 
@@ -91,10 +82,7 @@ class AudioRendererPcm : public AudioRenderer,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(int64_t seek_to_time) override;
-  int64_t GetCurrentMediaTime(bool* is_playing,
-                              bool* is_eos_played,
-                              bool* is_underflow,
-                              double* playback_rate) override;
+  MediaTimeInfo GetCurrentMediaTime() override;
   int64_t GetAudioWriteHead() override;
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override;
 
@@ -106,6 +94,14 @@ class AudioRendererPcm : public AudioRenderer,
     kEOSSentToSink
   };
 
+  // |max_cached_frames_| is a soft limit for the max audio frames this
+  // class can cache so it can:
+  // 1. Avoid using too much memory.
+  // 2. Have the audio cache full to simulate the state that the renderer can no
+  //    longer accept more data.
+  // |min_frames_per_append_| is the min number of frames that the audio
+  // renderer tries to append to the sink buffer at once.
+  const AudioRendererSink::AudioRendererParams renderer_params_;
   const int max_cached_frames_;
   const int min_frames_per_append_;
   const bool allow_audio_writing_on_pause_;

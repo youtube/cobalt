@@ -227,18 +227,14 @@ TEST_F(AudioRendererPassthroughTest, InitialState) {
             std::numeric_limits<int64_t>::max());
   EXPECT_EQ(renderer_->AdjustTimestampToAudioClock(12345), 12345);
 
-  bool is_playing = true;
-  bool is_eos_played = true;
-  bool is_underflow = true;
-  double playback_rate = 0.0;
-  int64_t media_time = renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+  MediaTimeProvider::MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  int64_t media_time = info.current_media_time;
 
   EXPECT_EQ(media_time, 0);
-  EXPECT_FALSE(is_playing);
-  EXPECT_FALSE(is_eos_played);
-  EXPECT_FALSE(is_underflow);
-  EXPECT_DOUBLE_EQ(playback_rate, 1.0);
+  EXPECT_FALSE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_DOUBLE_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(AudioRendererPassthroughTest, AudioTrackCreationFailure) {
@@ -353,22 +349,16 @@ TEST_F(AudioRendererPassthroughTest, PlayAndPause) {
     return fake_audio_track_->play_state() == AudioTrack::PlayState::kPlaying;
   }));
 
-  bool is_playing = false;
-  bool is_eos_played = false;
-  bool is_underflow = false;
-  double playback_rate = 0.0;
-  renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played, &is_underflow,
-                                 &playback_rate);
-  EXPECT_TRUE(is_playing);
+  MediaTimeProvider::MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_TRUE(info.is_playing);
 
   renderer_->Pause();
   ASSERT_TRUE(WaitForCondition([&] {
     return fake_audio_track_->play_state() == AudioTrack::PlayState::kPaused;
   }));
 
-  renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played, &is_underflow,
-                                 &playback_rate);
-  EXPECT_FALSE(is_playing);
+  info = renderer_->GetCurrentMediaTime();
+  EXPECT_FALSE(info.is_playing);
 }
 
 TEST_F(AudioRendererPassthroughTest, SetVolume) {
@@ -383,19 +373,13 @@ TEST_F(AudioRendererPassthroughTest, SetVolume) {
 
 TEST_F(AudioRendererPassthroughTest, SetPlaybackRate) {
   renderer_->SetPlaybackRate(0.0);
-  bool is_playing = false;
-  bool is_eos_played = false;
-  bool is_underflow = false;
-  double playback_rate = -1.0;
-  renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played, &is_underflow,
-                                 &playback_rate);
-  EXPECT_DOUBLE_EQ(playback_rate, 0.0);
+  MediaTimeProvider::MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_DOUBLE_EQ(info.playback_rate, 0.0);
 
   // Unsupported rates (> 0 and != 1.0) are clamped to 1.0.
   renderer_->SetPlaybackRate(1.5);
-  renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played, &is_underflow,
-                                 &playback_rate);
-  EXPECT_DOUBLE_EQ(playback_rate, 1.0);
+  info = renderer_->GetCurrentMediaTime();
+  EXPECT_DOUBLE_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(AudioRendererPassthroughTest, EndOfStreamWithoutSamples) {
@@ -444,15 +428,11 @@ TEST_F(AudioRendererPassthroughTest, SeekAndReuseAudioTrack) {
   EXPECT_TRUE(renderer_->CanAcceptMoreData());
   EXPECT_EQ(fake_audio_track_->play_state(), AudioTrack::PlayState::kPaused);
 
-  bool is_playing = true;
-  bool is_eos_played = true;
-  bool is_underflow = false;
-  double playback_rate = 0.0;
-  int64_t media_time = renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+  MediaTimeProvider::MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  int64_t media_time = info.current_media_time;
 
   EXPECT_EQ(media_time, kSeekTime);
-  EXPECT_FALSE(is_playing);
+  EXPECT_FALSE(info.is_playing);
 
   // Resume playback by writing new samples. The existing FakeAudioTrack should
   // be reused.
@@ -502,18 +482,13 @@ TEST_F(AudioRendererPassthroughTest, GetCurrentMediaTimePausedAndPlaying) {
   // Simulate 4800 frames consumed (100ms at 48000 Hz).
   fake_audio_track_->set_consumed_frames(4800);
 
-  bool is_playing = true;
-  bool is_eos_played = true;
-  bool is_underflow = true;
-  double playback_rate = 0.0;
-
   // When paused, monotonic clock interpolation is not applied.
   // Playback time = audio_start_time (100,000) + 4800 * 1,000,000 / 48000
   // (100,000) = 200,000 us.
-  int64_t media_time = renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+  MediaTimeProvider::MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  int64_t media_time = info.current_media_time;
   EXPECT_EQ(media_time, 200'000);
-  EXPECT_FALSE(is_playing);
+  EXPECT_FALSE(info.is_playing);
 }
 
 }  // namespace

@@ -78,20 +78,18 @@ void MediaTimeProviderImpl::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
 }
 
-int64_t MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
-                                                   bool* is_eos_played,
-                                                   bool* is_underflow,
-                                                   double* playback_rate) {
+MediaTimeProvider::MediaTimeInfo MediaTimeProviderImpl::GetCurrentMediaTime() {
   std::lock_guard scoped_lock(mutex_);
 
-  int64_t current = GetCurrentMediaTime_Locked();
+  MediaTimeInfo info;
+  info.current_media_time = GetCurrentMediaTime_Locked();
 
-  *is_playing = is_playing_;
-  *is_eos_played = false;
-  *is_underflow = false;
-  *playback_rate = playback_rate_;
+  info.is_playing = is_playing_;
+  info.is_eos_played = false;
+  info.is_underflow = false;
+  info.playback_rate = playback_rate_;
 
-  return current;
+  return info;
 }
 
 int64_t MediaTimeProviderImpl::GetCurrentMediaTime_Locked(

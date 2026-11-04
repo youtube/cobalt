@@ -135,12 +135,10 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
         env, encoding, sampling_frequency_hz, channels,
         /*require_hw_av_sync=*/true);
   }
-  bool GetAudioConfiguration(
-      int index,
-      SbMediaAudioConfiguration* configuration) override {
+  std::optional<SbMediaAudioConfiguration> GetAudioConfiguration(
+      int index) override {
     JNIEnv* env = AttachCurrentThread();
-    return AudioOutputManager::GetInstance()->GetAudioConfiguration(
-        env, index, configuration);
+    return AudioOutputManager::GetInstance()->GetAudioConfiguration(env, index);
   }
   void GetCodecCapabilities(
       std::map<std::string, AudioCodecCapabilities>& audio_codec_capabilities,
@@ -386,22 +384,19 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
   return is_av1_8k_capped_at_30_;
 }
 
-bool MediaCapabilitiesCache::GetAudioConfiguration(
-    int index,
-    SbMediaAudioConfiguration* configuration) {
+std::optional<SbMediaAudioConfiguration>
+MediaCapabilitiesCache::GetAudioConfiguration(int index) {
   SB_CHECK_GE(index, 0);
   if (!is_enabled_) {
-    return media_capabilities_provider_->GetAudioConfiguration(index,
-                                                               configuration);
+    return media_capabilities_provider_->GetAudioConfiguration(index);
   }
 
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   if (static_cast<size_t>(index) < audio_configurations_.size()) {
-    *configuration = audio_configurations_[index];
-    return true;
+    return audio_configurations_[index];
   }
-  return false;
+  return std::nullopt;
 }
 
 bool MediaCapabilitiesCache::HasAudioDecoderFor(const std::string& mime_type,
@@ -569,11 +564,14 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   // The limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
   const int kMaxAudioConfigurations = 32;
-  SbMediaAudioConfiguration configuration;
-  while (audio_configurations_.size() < kMaxAudioConfigurations &&
-         media_capabilities_provider_->GetAudioConfiguration(
-             static_cast<int>(audio_configurations_.size()), &configuration)) {
-    audio_configurations_.push_back(configuration);
+  while (audio_configurations_.size() < kMaxAudioConfigurations) {
+    std::optional<SbMediaAudioConfiguration> configuration =
+        media_capabilities_provider_->GetAudioConfiguration(
+            static_cast<int>(audio_configurations_.size()));
+    if (!configuration) {
+      break;
+    }
+    audio_configurations_.push_back(*configuration);
   }
 }
 

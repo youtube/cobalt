@@ -213,18 +213,11 @@ class PlayerComponentsTest
   }
 
   int64_t GetMediaTime() {
-    bool is_playing, is_eos_played, is_underflow;
-    double playback_rate;
-    return GetMediaTimeProvider()->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+    return GetMediaTimeProvider()->GetCurrentMediaTime().current_media_time;
   }
 
   bool IsPlaying() {
-    bool is_playing, is_eos_played, is_underflow;
-    double playback_rate;
-    GetMediaTimeProvider()->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                &is_underflow, &playback_rate);
-    return is_playing;
+    return GetMediaTimeProvider()->GetCurrentMediaTime().is_playing;
   }
 
   int64_t GetCurrentAudioBufferTimestamp() const {

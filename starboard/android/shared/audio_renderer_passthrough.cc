@@ -349,23 +349,19 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 }
 
 // This function can be called from *any* threads.
-int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
-                                                      bool* is_eos_played,
-                                                      bool* is_underflow,
-                                                      double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
+MediaTimeProvider::MediaTimeInfo
+AudioRendererPassthrough::GetCurrentMediaTime() {
+  MediaTimeInfo info;
 
   std::lock_guard scoped_lock(mutex_);
-  *is_playing = !paused_;
-  *is_eos_played = end_of_stream_played_.load();
-  *is_underflow = false;  // TODO: Support underflow
-  *playback_rate = playback_rate_;
+  info.is_playing = !paused_;
+  info.is_eos_played = end_of_stream_played_.load();
+  info.is_underflow = false;  // TODO: Support underflow
+  info.playback_rate = playback_rate_;
 
   if (!audio_track_) {
-    return seek_to_time_;
+    info.current_media_time = seek_to_time_;
+    return info;
   }
 
   int64_t audio_start_time;
@@ -391,7 +387,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
                                audio_stream_info_.samples_per_second;
-    return std::max(playback_time, seek_to_time_);
+    info.current_media_time = std::max(playback_time, seek_to_time_);
+    return info;
   }
 
   int64_t updated_at;
@@ -399,7 +396,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
-    return std::max(audio_start_time, seek_to_time_);
+    info.current_media_time = std::max(audio_start_time, seek_to_time_);
+    return info;
   }
 
   // TODO: This may cause time regression, because the unadjusted time will be
@@ -416,7 +414,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   // before calling AudioTrack.Play(), the returned playback time and last frame
   // consumed time would be the same as at when we pause the video.
   if (audio_track_paused_) {
-    return std::max(playback_time, seek_to_time_);
+    info.current_media_time = std::max(playback_time, seek_to_time_);
+    return info;
   }
 
   // TODO: Cap this to the maximum frames written to the AudioTrack.
@@ -430,7 +429,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   playback_time += std::max<int64_t>(now - updated_at, 0);
 
-  return std::max(playback_time, seek_to_time_);
+  info.current_media_time = std::max(playback_time, seek_to_time_);
+  return info;
 }
 
 void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {

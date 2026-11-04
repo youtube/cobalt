@@ -563,17 +563,13 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
   }
   time_of_last_lag_warning_ = now;
 
-  bool is_playing;
-  bool is_eos_played;
-  bool is_underflow;
-  double playback_rate;
-  int64_t media_time = media_time_provider_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-  if (is_eos_played) {
+  const MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider_->GetCurrentMediaTime();
+  if (info.is_eos_played) {
     return;
   }
   int64_t frame_time = last_decoded_frame_timestamp;
-  int64_t diff_media_frame_time = media_time - frame_time;
+  int64_t diff_media_frame_time = info.current_media_time - frame_time;
   if (diff_media_frame_time <= kDelayBeforeWarning) {
     return;
   }

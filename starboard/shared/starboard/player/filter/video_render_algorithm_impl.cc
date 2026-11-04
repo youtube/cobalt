@@ -46,12 +46,9 @@ void VideoRenderAlgorithmImpl::Render(
     return;
   }
 
-  bool is_audio_playing;
-  bool is_audio_eos_played;
-  bool is_underflow;
-  double playback_rate;
-  int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider->GetCurrentMediaTime();
+  int64_t media_time = info.current_media_time;
 
   // Video frames are synced to the audio timestamp. However, the audio
   // timestamp is not queried at a consistent interval. For example, if the
@@ -78,7 +75,7 @@ void VideoRenderAlgorithmImpl::Render(
   //
   // In the above example, this ensures advancement from frame timestamp 20
   // to frame timestamp 30 when the sample time is 19.
-  if (is_audio_playing && frames->size() > 1 &&
+  if (info.is_playing && frames->size() > 1 &&
       frames->front()->timestamp() == last_frame_timestamp_ &&
       last_frame_timestamp_ - kMediaTimeThresholdUsec < media_time) {
     frames->pop_front();
@@ -111,7 +108,7 @@ void VideoRenderAlgorithmImpl::Render(
     frames->pop_front();
   }
 
-  if (is_audio_eos_played) {
+  if (info.is_eos_played) {
     while (frames->size() > 1) {
       frames->pop_front();
     }
@@ -161,12 +158,9 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     refresh_rate = 60;
   }
 
-  bool is_audio_playing;
-  bool is_audio_eos_played;
-  bool is_underflow;
-  double playback_rate;
-  int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+  MediaTimeProvider::MediaTimeInfo info =
+      media_time_provider->GetCurrentMediaTime();
+  int64_t media_time = info.current_media_time;
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() < media_time) {
@@ -181,10 +175,10 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     auto frame_rate = frame_rate_estimate_.frame_rate();
     SB_DCHECK_NE(frame_rate, VideoFrameRateEstimator::kInvalidFrameRate);
     cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
-    if (playback_rate == 0) {
-      playback_rate = 1.0;
+    if (info.playback_rate == 0) {
+      info.playback_rate = 1.0;
     }
-    cadence_pattern_generator_.UpdateFrameRate(frame_rate * playback_rate);
+    cadence_pattern_generator_.UpdateFrameRate(frame_rate * info.playback_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
     auto frame_duration = static_cast<int64_t>(1'000'000LL / refresh_rate);
@@ -245,7 +239,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     cadence_pattern_generator_.AdvanceToNextFrame();
   }
 
-  if (is_audio_eos_played) {
+  if (info.is_eos_played) {
     while (frames->size() > 1) {
       frames->pop_front();
     }
