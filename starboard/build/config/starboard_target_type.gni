@@ -50,10 +50,6 @@ template("starboard_platform_target") {
       "//starboard/build/config/sabi",
       "//starboard/build/config:starboard",
     ]
-    if (is_android) {
-      # TODO(b/374300500): - Find a way to avoid wrapping this.
-      ldflags = [ "-Wl,--wrap=eglSwapBuffers" ]
-    }
 
     public_deps = [
       "//starboard/common",
