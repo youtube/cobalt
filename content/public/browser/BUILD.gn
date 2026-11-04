@@ -556,17 +556,17 @@ source_set("browser_sources") {
     sources += [ "color_chooser.h" ]
   }
 
-<<<<<<< HEAD
   if (is_linux || is_mac) {
     sources += [
       "cdm_helper.cc",
       "cdm_helper.h",
-=======
+    ]
+  }
+
   if (is_cobalt) {
     sources += [
       "media_player_utils.cc",
       "media_player_utils.h",
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
   }
 
