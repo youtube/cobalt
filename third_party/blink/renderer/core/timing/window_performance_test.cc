@@ -177,13 +177,6 @@ class WindowPerformanceTest : public testing::Test,
     // simulate with filter options.
     performance_->observer_filter_options_ = PerformanceEntry::kInvalid;
   }
-<<<<<<< HEAD
-  void SimulatePaintAndCommit() {
-    performance_->OnPaintFinished();
-    performance_->SetCommitFinishTimeStampForPendingEvents(
-        base::TimeTicks::Now());
-=======
-
 #if BUILDFLAG(IS_COBALT)
   void AddCobaltFrameObserver() {
     performance_->observer_filter_options_ |= PerformanceEntry::kCobaltFrame;
@@ -202,10 +195,10 @@ class WindowPerformanceTest : public testing::Test,
   }
 #endif
 
-  void SimulateJustPaintFinished() { performance_->OnPaintFinished(); }
-  void SimulateJustCommitFinished(base::TimeTicks commit_time) {
-    performance_->SetCommitFinishTimeStampForPendingEvents(commit_time);
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  void SimulatePaintAndCommit() {
+    performance_->OnPaintFinished();
+    performance_->SetCommitFinishTimeStampForPendingEvents(
+        base::TimeTicks::Now());
   }
   void SimulateJustPresentationTime(uint64_t frame_index,
                                     uint64_t expected_frame_source_id = 1,
