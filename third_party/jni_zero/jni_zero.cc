@@ -9,12 +9,7 @@
 #include <cassert>
 #include <type_traits>
 
-<<<<<<< HEAD
 #include "third_party/jni_zero/generate_jni/JniZero_jni.h"
-=======
-#include "build/build_config.h"
-#include "third_party/jni_zero/generate_jni/JniInit_jni.h"
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
 #include "third_party/jni_zero/logging.h"
@@ -57,7 +52,6 @@ LeakedJavaGlobalRef<JClassLoader> g_class_loader = nullptr;
 
 void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 
-<<<<<<< HEAD
 jclass DefaultClassResolver(JNIEnv* env, const char* class_name) {
   JNI_ZERO_DCHECK(g_class_loader);
   auto j_class_name =
@@ -65,17 +59,11 @@ jclass DefaultClassResolver(JNIEnv* env, const char* class_name) {
   return g_class_loader->loadClass(env, j_class_name).Release();
 }
 
-jclass GetClassInternal(JNIEnv* env, const char* class_name) {
-=======
 /* Cobalt specific hack to move Java classes to a custom namespace.
    For every class org.chromium.foo moves them to cobalt.org.chromium.foo
    This works around link-time conflicts when building the final
    package against other Chromium release artifacts. */
-jclass GetClassInternal(JNIEnv* env,
-                        const char* class_name,
-                        const char* split_name) {
-  jclass clazz;
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+jclass GetClassInternal(JNIEnv* env, const char* class_name) {
   if (g_class_resolver != nullptr) {
     return g_class_resolver(env, class_name);
   }

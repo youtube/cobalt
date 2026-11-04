@@ -201,8 +201,9 @@ base::flat_set<url::Origin> GetIsolatedContextOriginSetFromFlag() {
 
   std::vector<std::string_view> origin_strings = base::SplitStringPiece(
       cmdline_origins, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
   base::flat_set<url::Origin> origin_set;
-  for (const std::string_view& origin_string : origin_strings) {
+  for (std::string_view origin_string : origin_strings) {
     url::Origin allowed_origin = url::Origin::Create(GURL(origin_string));
     if (!allowed_origin.opaque()) {
       origin_set.insert(allowed_origin);
@@ -355,12 +356,15 @@ ShellContentBrowserClient::GetWebContentsViewDelegate(
   return CreateShellWebContentsViewDelegate(web_contents);
 }
 
-bool ShellContentBrowserClient::IsIsolatedContextAllowedForUrl(
+bool ShellContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
     BrowserContext* browser_context,
-    const GURL& lock_url) {
-  static base::flat_set<url::Origin> isolated_context_origins =
-      GetIsolatedContextOriginSetFromFlag();
-  return isolated_context_origins.contains(url::Origin::Create(lock_url));
+    const GURL& url) {
+  static auto kIsolatedContextOrigins = GetIsolatedContextOriginSetFromFlag();
+
+  GURL::Replacements replacements;
+  replacements.ClearPort();
+  return kIsolatedContextOrigins.contains(
+      url::Origin::Create(url.ReplaceComponents(replacements)));
 }
 
 bool ShellContentBrowserClient::IsSharedStorageAllowed(
@@ -722,6 +726,7 @@ ShellContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
 void ShellContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         BrowserContext* browser_context,
+        const std::optional<url::Origin>& request_initiator,
         NonNetworkURLLoaderFactoryMap* factories) {
   // Registers factories for kH5vccEmbeddedScheme used to load the main script
   // for Web Workers.

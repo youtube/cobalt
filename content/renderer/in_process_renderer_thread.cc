@@ -4,14 +4,11 @@
 
 #include "content/renderer/in_process_renderer_thread.h"
 
-<<<<<<< HEAD
-#include "base/message_loop/message_pump.h"
-#include "base/task/current_thread.h"
-=======
 #include "base/feature_list.h"
 #include "base/features.h"
+#include "base/message_loop/message_pump.h"
+#include "base/task/current_thread.h"
 #include "base/threading/platform_thread.h"
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "build/build_config.h"
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -39,53 +36,6 @@ InProcessRendererThread::~InProcessRendererThread() {
   Stop();
 }
 
-<<<<<<< HEAD
-=======
-void InProcessRendererThread::Init() {
-  // In single-process mode, we never enter the sandbox, so run the post-sandbox
-  // code now.
-  content::ContentRendererClient* client = GetContentClient()->renderer();
-  if (client) {
-    client->PostSandboxInitialized();
-  }
-
-  // Call AttachCurrentThreadWithName, before any other AttachCurrentThread()
-  // calls. The latter causes Java VM to assign Thread-??? to the thread name.
-  // Please note calls to AttachCurrentThreadWithName after AttachCurrentThread
-  // will not change the thread name kept in Java VM.
-#if BUILDFLAG(IS_ANDROID)
-  base::android::AttachCurrentThreadWithName(thread_name());
-  // Make sure we aren't somehow reinitialising the inprocess renderer thread on
-  // Android. Temporary CHECK() to debug http://crbug.com/514141
-  CHECK(!render_process_);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
-  // critical, but single-process mode never runs that code, so the renderer
-  // main thread stayed at default priority behind the compositor/GPU threads.
-  // Gated behind kCobaltAndroidDisplayCriticalInProcessRenderer for controlled
-  // Finch experimentation. On Starboard/Linux, this is turned off because
-  // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
-    base::PlatformThread::SetCurrentThreadType(
-        base::ThreadType::kPresentation);
-  }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  blink::Platform::InitializeBlink();
-  std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
-      blink::scheduler::WebThreadScheduler::CreateMainThreadScheduler();
-
-  render_process_ = RenderProcessImpl::Create();
-  // RenderThreadImpl doesn't currently support a proper shutdown sequence
-  // and it's okay when we're running in multi-process mode because renderers
-  // get killed by the OS. In-process mode is used for test and debug only.
-  new RenderThreadImpl(params_, renderer_client_id_,
-                       std::move(main_thread_scheduler));
-}
-
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void InProcessRendererThread::CleanUp() {
   render_process_.reset();
 
@@ -136,7 +86,21 @@ void InProcessRendererThread::ThreadDelegate::BindToCurrentThread() {
   // Make sure we aren't somehow reinitialising the inprocess renderer thread on
   // Android. Temporary CHECK() to debug http://crbug.com/514141
   CHECK(!outer_->render_process_);
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
+  // critical, but single-process mode never runs that code, so the renderer
+  // main thread stayed at default priority behind the compositor/GPU threads.
+  // Gated behind kCobaltAndroidDisplayCriticalInProcessRenderer for controlled
+  // Finch experimentation. On Starboard/Linux, this is turned off because
+  // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
+    base::PlatformThread::SetCurrentThreadType(
+        base::ThreadType::kPresentation);
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   blink::Platform::InitializeBlink();
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
       blink::scheduler::WebThreadScheduler::CreateInProcessMainThreadScheduler(

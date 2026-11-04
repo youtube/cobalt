@@ -38,40 +38,6 @@ BASE_FEATURE(kHandleExceptionsInJava,
 
 jclass g_out_of_memory_error_class = nullptr;
 
-#if !BUILDFLAG(IS_ROBOLECTRIC)
-jmethodID g_class_loader_load_class_method_id = nullptr;
-// ClassLoader.loadClass() accepts either slashes or dots on Android, but JVM
-// requires dots. We could translate, but there is no need to go through
-// ClassLoaders in Robolectric anyways.
-// https://cs.android.com/search?q=symbol:DexFile_defineClassNative
-jclass GetClassFromSplit(JNIEnv* env,
-                         const char* class_name,
-                         const char* split_name) {
-  DCHECK(IsStringASCII(class_name));
-  ScopedJavaLocalRef<jstring> j_class_name(env, env->NewStringUTF(class_name));
-  return static_cast<jclass>(env->CallObjectMethod(
-      GetSplitClassLoader(env, split_name), g_class_loader_load_class_method_id,
-      j_class_name.obj()));
-}
-
-// Must be called before using GetClassFromSplit - we need to set the global,
-// and we need to call GetClassLoader at least once to allow the default
-// resolver (env->FindClass()) to get our main ClassLoader class instance, which
-// we then cache use for all future calls to GetSplitClassLoader.
-void PrepareClassLoaders(JNIEnv* env) {
-  if (g_class_loader_load_class_method_id == nullptr) {
-    GetClassLoader(env);
-    ScopedJavaLocalRef<jclass> class_loader_clazz = ScopedJavaLocalRef<jclass>(
-        env, env->FindClass("java/lang/ClassLoader"));
-    CHECK(!ClearException(env));
-    g_class_loader_load_class_method_id =
-        env->GetMethodID(class_loader_clazz.obj(), "loadClass",
-                         "(Ljava/lang/String;)Ljava/lang/Class;");
-    CHECK(!ClearException(env));
-  }
-}
-#endif  // !BUILDFLAG(IS_ROBOLECTRIC)
-
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;
@@ -98,13 +64,6 @@ void InitVM(JavaVM* vm) {
   jni_zero::InitVM(vm);
   jni_zero::SetExceptionHandler(CheckException);
   JNIEnv* env = jni_zero::AttachCurrentThread();
-#if !BUILDFLAG(IS_ROBOLECTRIC)
-  // Warm-up needed for GetClassFromSplit, must be called before we set the
-  // resolver, since GetClassFromSplit won't work until after
-  // PrepareClassLoaders has happened.
-  PrepareClassLoaders(env);
-  jni_zero::SetClassResolver(GetClassFromSplit);
-#endif
   g_out_of_memory_error_class = static_cast<jclass>(
       env->NewGlobalRef(env->FindClass("java/lang/OutOfMemoryError")));
   DCHECK(g_out_of_memory_error_class);

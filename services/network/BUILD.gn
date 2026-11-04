@@ -383,11 +383,6 @@ component("network_service") {
     "//services/network/public/mojom",
     "//services/network/public/proto",
     "//services/network/shared_storage",
-<<<<<<< HEAD
-    "//services/network/trust_tokens",
-=======
-    "//services/network/tpcd/metadata:manager",
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//third_party/liburlpattern",

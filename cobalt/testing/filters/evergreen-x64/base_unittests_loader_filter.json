@@ -32,6 +32,7 @@
     "SamplingHeapProfilerTest.SampleObserver",
     "ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows",
     "StackSamplingProfilerTest.OtherLibrary",
+    "SystemAllocatorTest.HelperBinary",
     "Test.firstTest",
     "ThreadCollisionTest.MTSynchedScopedRecursiveBookCriticalSectionTest",
     "ThreadPoolWorkerThreadCachePurgeTest.Purge",

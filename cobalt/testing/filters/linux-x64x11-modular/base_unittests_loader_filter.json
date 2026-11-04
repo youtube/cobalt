@@ -50,6 +50,7 @@
     "SysStrings.SysNativeMBAndWide",
     "SysStrings.SysNativeMBToWide",
     "SysStrings.SysWideToNativeMB",
+    "SystemAllocatorTest.HelperBinary",
     "Test.firstTest",
     "ThreadCollisionTest.MTSynchedScopedRecursiveBookCriticalSectionTest",
     "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock",

@@ -1120,16 +1120,10 @@ component("base") {
   # Used by metrics/crc32
   deps += [ "//third_party/zlib" ]
 
-<<<<<<< HEAD
-  deps += [
-    "logging/rust_logger",
-    "//third_party/rust/serde_json_lenient/v0_2/wrapper",
-  ]
-=======
   if (!(is_cobalt && is_partner_toolchain)) {
     # NaCl does not support Rust.
     deps += [
-      "logging:rust_logger",
+      "logging/rust_logger",
       "//third_party/rust/serde_json_lenient/v0_2/wrapper",
     ]
   }
@@ -1137,7 +1131,6 @@ component("base") {
   if (is_cobalt_hermetic_build) {
     deps += [ "//starboard/common" ]
   }
->>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (use_asan_backup_ref_ptr) {
     # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
@@ -1846,8 +1839,8 @@ component("base") {
 
   if (is_cobalt && is_partner_toolchain) {
     sources -= [
-      "logging/rust_log_integration.cc",
-      "logging/rust_log_integration.h",
+      "logging/rust_logger/print_rust_log_ffi.cc",
+      "logging/rust_logger/print_rust_log_ffi.h",
     ]
   }
 
