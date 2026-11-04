@@ -42,18 +42,18 @@
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
-#if BUILDFLAG(USE_CRASHPAD)
+#if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/shared/starboard/crash_handler.h"
 #endif
 #else  // BUILDFLAG(IS_STARBOARD)
 #include "starboard/android/shared/crash_handler.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
-#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_CRASHPAD)
+#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/native_stability.h"
 #include "starboard/shared/starboard/native_stability.h"
-#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_CRASHPAD)
+#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -89,14 +89,14 @@ const void* SbSystemGetExtension(const char* name) {
     // return starboard::GetGraphicsApi();
     return NULL;
   }
-#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_CRASHPAD)
+#if !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
   if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
     return starboard::GetNativeStabilityApi();
   }
-#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_CRASHPAD)
+#endif  // !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::GetPlatformInfoApi();
   }

@@ -128,14 +128,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_USE_EVERGREEN" ]
   }
 
-  # use_crashpad and BUILDFLAG(USE_CRASHPAD) should be used for functionality
-  # that depends on the Starboard-side Crashpad handler
-  # (//starboard/crashpad_wrapper), such as the Starboard CrashHandler and
-  # NativeStability extensions. Chromium's crash reporter is independent.
-  if (use_crashpad) {
-    defines += [ "ENABLE_BUILDFLAG_USE_CRASHPAD" ]
-  }
-
   # TODO(b/400818107): Consider deprecating sb_is_modular.
   # In general, you should instead be using is_cobalt_hermetic_build or
   # is_starboard.

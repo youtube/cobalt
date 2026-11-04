@@ -370,7 +370,7 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    if (use_crashpad) {
+    if (use_evergreen) {
       sources += [
         "//starboard/shared/starboard/crash_handler.cc",
         "//starboard/shared/starboard/crash_handler.h",
@@ -378,7 +378,7 @@ static_library("starboard_platform") {
     }
   }
 
-  if (use_crashpad || !is_starboard) {
+  if (use_evergreen || !is_starboard) {
     sources += [
       "//starboard/shared/starboard/native_stability.cc",
       "//starboard/shared/starboard/native_stability.h",

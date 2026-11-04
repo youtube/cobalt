@@ -305,7 +305,7 @@ static_library("starboard_platform_sources") {
     "window/window_internal.cc",
   ]
 
-  if (use_crashpad) {
+  if (use_evergreen) {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",

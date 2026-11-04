@@ -73,7 +73,7 @@ group("gn_all") {
   }
 
   # Build the crashpad_database_util binary to inspect Crashpad databases.
-  if (use_crashpad) {
+  if (use_evergreen && starboard_path != "starboard/no_platform") {
     deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)" ]
   } else if (is_ios) {
     deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
