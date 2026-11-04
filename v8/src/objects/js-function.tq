@@ -1,0 +1,66 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {}
+
+extern class JSBoundFunction extends
+    JSFunctionOrBoundFunctionOrWrappedFunction {
+  // The wrapped function object.
+  bound_target_function: Callable;
+  // The value that is always passed as the this value when calling the wrapped
+  // function.
+  bound_this: JSAny|SourceTextModule;
+  // A list of values whose elements are used as the first arguments to any call
+  // to the wrapped function.
+  bound_arguments: FixedArray;
+}
+
+extern class JSWrappedFunction extends
+    JSFunctionOrBoundFunctionOrWrappedFunction {
+  // The wrapped function object.
+  wrapped_target_function: Callable;
+  // The creation context.
+  context: NativeContext;
+}
+
+// This abstract class represents JS function objects with and without
+// prototype. Respective subclass defines the layout of the object in memory.
+// This class does not use the generated verifier, so if you change anything
+// here, please also update JSFunctionVerify in objects-debug.cc.
+@abstract
+extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
+  dispatch_handle: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding: int32;
+  shared_function_info: SharedFunctionInfo;
+  context: Context;
+  feedback_cell: FeedbackCell;
+}
+
+// These operators are in order to reduce the code churn related to splitting
+// JSFunction into JSFunctionWithoutPrototype and JSFunctionWithPrototype.
+// Only the latter has prototype_or_initial_map field but we keep on using
+// JSFunction as general function type.
+extern operator '.prototype_or_initial_map' macro
+    LoadJSFunctionPrototypeOrInitialMap(JSFunction): JSReceiver|Map|TheHole;
+extern operator '.prototype_or_initial_map=' macro
+    StoreJSFunctionPrototypeOrInitialMap(JSFunction, JSReceiver|Map|TheHole):
+        void;
+
+// Defines layout and instance type for JSFunctions without prototype.
+extern class JSFunctionWithoutPrototype extends JSFunction {}
+
+// Defines layout and instance type for JSFunctions with prototype.
+@highestInstanceTypeWithinParentClassRange
+extern class JSFunctionWithPrototype extends JSFunction {
+  prototype_or_initial_map: JSReceiver|Map|TheHole;
+}
+
+// Class constructors are special, because they are callable, but [[Call]] will
+// raise an exception.
+// See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+@doNotGenerateCast
+@highestInstanceTypeWithinParentClassRange
+extern class JSClassConstructor extends JSFunctionWithPrototype
+    generates 'TNode<JSFunction>';

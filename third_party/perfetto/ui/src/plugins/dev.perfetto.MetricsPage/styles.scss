@@ -1,0 +1,92 @@
+// Copyright (C) 2020 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+@import "../../assets/theme";
+
+.pf-metrics-page-picker {
+  display: flex;
+}
+
+.pf-metrics-page-picker > * {
+  margin-right: 1rem;
+}
+
+.pf-metrics-page {
+  padding: 30px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+
+  & > * {
+    margin-bottom: 1rem;
+  }
+
+  .pf-metrics-page__error {
+    color: var(--pf-color-danger);
+  }
+}
+
+.pf-metricsv2-page {
+  &__metric_id_box {
+    margin-bottom: 1rem;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .pf-callout {
+      flex: 1;
+    }
+  }
+
+  &__metric-filter {
+    margin: 0.5rem 0;
+
+    .pf-text-input {
+      width: 100%;
+    }
+  }
+
+  &__editor {
+    min-height: 300px;
+    margin: 1rem 0;
+
+    .pf-editor {
+      min-height: 300px;
+    }
+
+    .cm-editor {
+      min-height: 300px;
+    }
+  }
+}
+
+.pf-metricsv2-result {
+  &__header {
+    margin-bottom: 1rem;
+  }
+
+  &__tabs {
+    border: 1px solid var(--pf-color-border);
+    border-radius: 4px;
+  }
+
+  &__bundle {
+    .pf-datagrid {
+      min-height: 200px;
+      max-height: 400px;
+    }
+  }
+}
