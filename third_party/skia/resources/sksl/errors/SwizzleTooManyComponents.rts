@@ -1,5 +1,0 @@
-void func() { float4 test = float2(1).xxxxx; }
-
-/*%%*
-too many components in swizzle mask
-*%%*/
