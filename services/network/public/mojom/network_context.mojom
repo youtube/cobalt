@@ -637,10 +637,9 @@ struct NetworkContextParams {
   pending_remote<unexportable_keys.mojom.UnexportableKeyService>?
       bound_sessions_unexportable_key_service;
 
-<<<<<<< HEAD
   // Initial variations headers to use.
   variations.mojom.VariationsHeaders? initial_variations_headers;
-=======
+
   // Extra request headers (e.g. Cobalt's Sec-CH-UA-Co-* client hints) that the
   // network service adds to every request made through a URLLoader of this
   // context, including each redirect hop. This avoids the per-request round
@@ -648,7 +647,6 @@ struct NetworkContextParams {
   // are fixed for the lifetime of the context.
   [EnableIf=is_cobalt]
   map<string, string> cobalt_extra_request_headers;
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 struct NetworkConditions {
