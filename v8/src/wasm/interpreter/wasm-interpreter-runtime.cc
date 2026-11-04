@@ -415,9 +415,7 @@ void WasmInterpreterRuntime::TableSet(const uint8_t*& current_code,
   if (entry_index >= table_size) {
     SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
   } else {
-    DirectHandle<WasmDispatchTable> dispatch_table(
-        wasm_trusted_instance_data()->dispatch_table(table_index), isolate_);
-    WasmTableObject::Set(isolate_, table, dispatch_table, entry_index, ref);
+    WasmTableObject::Set(isolate_, table, entry_index, ref);
   }
 }
 
@@ -481,9 +479,7 @@ uint32_t WasmInterpreterRuntime::TableGrow(uint32_t table_index, uint32_t delta,
       TrustedCast<WasmTableObject>(
           wasm_trusted_instance_data()->tables()->get(table_index)),
       isolate_);
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      wasm_trusted_instance_data()->dispatch_table(table_index), isolate_);
-  return WasmTableObject::Grow(isolate_, table, dispatch_table, delta, value);
+  return WasmTableObject::Grow(isolate_, table, delta, value);
 }
 
 uint32_t WasmInterpreterRuntime::TableSize(uint32_t table_index) {
@@ -515,9 +511,8 @@ void WasmInterpreterRuntime::TableFill(const uint8_t*& current_code,
   if (count == 0) {
     return;
   }
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      wasm_trusted_instance_data()->dispatch_table(table_index), isolate_);
-  WasmTableObject::Fill(isolate_, table, dispatch_table, start, value, count);
+
+  WasmTableObject::Fill(isolate_, table, start, value, count);
 }
 
 bool WasmInterpreterRuntime::MemoryInit(const uint8_t*& current_code,
