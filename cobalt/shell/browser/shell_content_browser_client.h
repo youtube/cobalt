@@ -84,6 +84,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   std::string GetDefaultDownloadName() override;
   std::unique_ptr<WebContentsViewDelegate> GetWebContentsViewDelegate(
       WebContents* web_contents) override;
+  bool ShouldUrlUseApplicationIsolationLevel(BrowserContext* browser_context,
+                                             const GURL& url) override;
   bool IsSharedStorageAllowed(
       content::BrowserContext* browser_context,
       content::RenderFrameHost* rfh,

@@ -36,6 +36,10 @@ const char kDisableSystemFontCheck[] = "disable-system-font-check";
 // Size for the content_shell's host window (i.e. "800x600").
 const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 
+// Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
+// comma-separated list of origins.
+const char kIsolatedContextOrigins[] = "isolated-context-origins";
+
 // When set, no device authentication parameters will be appended to the initial
 // URL."
 const char kOmitDeviceAuthenticationQueryParameters[] =
