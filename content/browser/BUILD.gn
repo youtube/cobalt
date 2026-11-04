@@ -3847,7 +3847,6 @@ source_set("browser") {
     deps += [ "//ash/constants" ]
   }
 
-<<<<<<< HEAD
   if (enable_vrp_flags) {
     sources += [
       "vrp_flags/vrp_flags_factory_impl.cc",
@@ -3855,7 +3854,8 @@ source_set("browser") {
     ]
     deps += [ "//components/vrp_flags" ]
     public_deps += [ "//components/vrp_flags:mojom" ]
-=======
+  }
+
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     _filtered_sources =
@@ -3979,7 +3979,6 @@ source_set("browser") {
       "//content/browser/devtools:devtools_background_services_proto",
       "//content/browser/devtools:protocol_sources",
     ]
->>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
