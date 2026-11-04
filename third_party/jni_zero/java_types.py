@@ -581,10 +581,6 @@ class TypeResolver:
     if self.java_class.name == name:
       return self.java_class
 
-    # Keep the unmodified name for the parent resolver, which holds the
-    # imports needed to resolve e.g. Outer.Inner from import pkg.Outer.
-    name_with_dots = name
-
     for clazz in self.nested_classes:
       if name in (clazz.name, clazz.nested_name):
         return clazz
@@ -610,7 +606,7 @@ class TypeResolver:
       name = name.replace('.', '$')
 
     if self.parent_resolver:
-      return self.parent_resolver.resolve(name_with_dots)
+      return self.parent_resolver.resolve(name)
 
     # java.lang classes always take priority over types from the same package.
     # To use a type from the same package that has the same name as a java.lang

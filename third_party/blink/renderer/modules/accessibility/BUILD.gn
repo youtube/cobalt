@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//content/browser/devtools/features.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("accessibility") {
@@ -77,13 +76,5 @@ blink_modules_sources("accessibility") {
 
   if (is_android) {
     defines = [ "REDUCE_AX_INLINE_TEXTBOXES" ]
-  }
-
-  if (!enable_devtools_backend) {
-    sources -= [
-      "inspector_accessibility_agent.cc",
-      "inspector_type_builder_helper.cc",
-    ]
-    sources += [ "cobalt/inspector_accessibility_agent_stub.h" ]
   }
 }

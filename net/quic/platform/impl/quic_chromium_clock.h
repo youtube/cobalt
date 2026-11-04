@@ -24,20 +24,6 @@ class NET_EXPORT_PRIVATE QuicChromiumClock : public QuicClock {
 
   ~QuicChromiumClock() override;
 
-#if BUILDFLAG(IS_COBALT)
-  // While an instance is alive, ApproximateNow() returns the time of the
-  // last Now() call made inside the outermost scope, instead of reading the
-  // clock. Outside any scope, ApproximateNow() is Now(), so a send after an
-  // idle period isn't stamped with the time the connection went idle.
-  class NET_EXPORT_PRIVATE ScopedApproximateNow {
-   public:
-    ScopedApproximateNow();
-    ScopedApproximateNow(const ScopedApproximateNow&) = delete;
-    ScopedApproximateNow& operator=(const ScopedApproximateNow&) = delete;
-    ~ScopedApproximateNow();
-  };
-#endif
-
   // QuicClock implementation:
   QuicTime ApproximateNow() const override;
   QuicTime Now() const override;
