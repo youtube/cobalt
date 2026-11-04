@@ -19,19 +19,18 @@ enum UserOnExitStrategy {
 };
 
 enum LowMemoryKillForegroundStatus {
-  "unknown",
   "foreground",
   "background",
 };
 
 enum LowMemoryKillPressureSource {
-  "unknown",
   "system",
   "cobalt",
 };
 
-// `timestamp` is required. All other fields are optional; unavailable memory or
-// reason values are null.
+// `timestamp` is required. All other fields are optional; unknown enum
+// values are omitted (`undefined`), and unavailable memory or reason values are
+// null.
 dictionary LowMemoryKillDetails {
   // Wall-clock time of the kill in milliseconds since the POSIX epoch
   // (1970-01-01T00:00:00Z).

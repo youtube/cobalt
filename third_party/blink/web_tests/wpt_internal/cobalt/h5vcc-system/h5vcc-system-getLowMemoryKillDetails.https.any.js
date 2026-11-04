@@ -50,12 +50,13 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
 
 h5vcc_system_tests(async (t, mockH5vccSystem) => {
   // 0n bytes must serialize to JS Number 0, whereas null/undefined memory or
-  // empty/null/undefined reason must serialize to JS null.
+  // empty/null/undefined reason must serialize to JS null, and null/undefined
+  // enum values must be omitted (undefined).
   for (const emptyReason of [null, undefined, '']) {
     mockH5vccSystem.stubLowMemoryKillDetails({
       timestampPosixUsec: 0n,
-      foregroundStatus: mockH5vccSystem.ForegroundStatus.kUnknown,
-      pressureSource: mockH5vccSystem.PressureSource.kSystem,
+      foregroundStatus: null,
+      pressureSource: undefined,
       systemMemoryAvailable: 0n,
       systemMemoryTotal: null,
       cobaltMemoryUsage: 0n,
@@ -66,6 +67,10 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
     const actual = await window.h5vcc.system.getLowMemoryKillDetails();
     assert_not_equals(actual, null);
     assert_equals(actual.timestamp, 0);
+    assert_false('foregroundStatus' in actual);
+    assert_equals(actual.foregroundStatus, undefined);
+    assert_false('pressureSource' in actual);
+    assert_equals(actual.pressureSource, undefined);
     assert_equals(actual.systemMemoryAvailable, 0);
     assert_true('systemMemoryTotal' in actual);
     assert_equals(actual.systemMemoryTotal, null);
@@ -75,15 +80,17 @@ h5vcc_system_tests(async (t, mockH5vccSystem) => {
     assert_true('reason' in actual);
     assert_equals(actual.reason, null);
   }
-}, 'getLowMemoryKillDetails() distinguishes 0 bytes from null and normalizes empty reason');
+}, 'getLowMemoryKillDetails() distinguishes 0 bytes from null, normalizes empty reason, and omits unknown enums');
 
 h5vcc_system_tests(async (t, mockH5vccSystem) => {
+  assert_false('kUnknown' in mockH5vccSystem.ForegroundStatus);
+  assert_false('kUnknown' in mockH5vccSystem.PressureSource);
   const cases = [
     [
-      mockH5vccSystem.ForegroundStatus.kUnknown,
-      'unknown',
-      mockH5vccSystem.PressureSource.kUnknown,
-      'unknown',
+      null,
+      undefined,
+      null,
+      undefined,
     ],
     [
       mockH5vccSystem.ForegroundStatus.kForeground,

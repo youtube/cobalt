@@ -34,8 +34,6 @@ namespace {
 V8LowMemoryKillForegroundStatus::Enum ToV8ForegroundStatus(
     h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus status) {
   switch (status) {
-    case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kUnknown:
-      return V8LowMemoryKillForegroundStatus::Enum::kUnknown;
     case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kForeground:
       return V8LowMemoryKillForegroundStatus::Enum::kForeground;
     case h5vcc_system::mojom::blink::LowMemoryKillForegroundStatus::kBackground:
@@ -47,8 +45,6 @@ V8LowMemoryKillForegroundStatus::Enum ToV8ForegroundStatus(
 V8LowMemoryKillPressureSource::Enum ToV8PressureSource(
     h5vcc_system::mojom::blink::LowMemoryKillPressureSource source) {
   switch (source) {
-    case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kUnknown:
-      return V8LowMemoryKillPressureSource::Enum::kUnknown;
     case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kSystem:
       return V8LowMemoryKillPressureSource::Enum::kSystem;
     case h5vcc_system::mojom::blink::LowMemoryKillPressureSource::kCobalt:
@@ -302,8 +298,13 @@ void H5vccSystem::OnGetLowMemoryKillDetails(
   details->setTimestamp(
       static_cast<DOMHighResTimeStamp>(result->timestamp_posix_usec) /
       base::Time::kMicrosecondsPerMillisecond);
-  details->setForegroundStatus(ToV8ForegroundStatus(result->foreground_status));
-  details->setPressureSource(ToV8PressureSource(result->pressure_source));
+  if (result->foreground_status.has_value()) {
+    details->setForegroundStatus(
+        ToV8ForegroundStatus(*result->foreground_status));
+  }
+  if (result->pressure_source.has_value()) {
+    details->setPressureSource(ToV8PressureSource(*result->pressure_source));
+  }
   details->setSystemMemoryAvailable(result->system_memory_available);
   details->setSystemMemoryTotal(result->system_memory_total);
   details->setCobaltMemoryUsage(result->cobalt_memory_usage);

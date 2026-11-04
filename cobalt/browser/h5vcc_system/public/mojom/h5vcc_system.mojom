@@ -21,21 +21,19 @@ enum UserOnExitStrategy {
 };
 
 enum LowMemoryKillForegroundStatus {
-  kUnknown,
   kForeground,
   kBackground,
 };
 
 enum LowMemoryKillPressureSource {
-  kUnknown,
   kSystem,
   kCobalt,
 };
 
 struct LowMemoryKillDetails {
   int64 timestamp_posix_usec;
-  LowMemoryKillForegroundStatus foreground_status;
-  LowMemoryKillPressureSource pressure_source;
+  LowMemoryKillForegroundStatus? foreground_status;
+  LowMemoryKillPressureSource? pressure_source;
   uint64? system_memory_available;
   uint64? system_memory_total;
   uint64? cobalt_memory_usage;

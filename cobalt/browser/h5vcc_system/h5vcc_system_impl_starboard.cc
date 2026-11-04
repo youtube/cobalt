@@ -93,7 +93,7 @@ std::optional<bool> GetWasLowMemoryKilledShared() {
   return ext->WasLowMemoryKilled();
 }
 
-mojom::LowMemoryKillForegroundStatus ToMojomForegroundStatus(
+std::optional<mojom::LowMemoryKillForegroundStatus> ToMojomForegroundStatus(
     SbLowMemoryKillForegroundStatus status) {
   switch (status) {
     case kSbLowMemoryKillForegroundStatusForeground:
@@ -102,11 +102,11 @@ mojom::LowMemoryKillForegroundStatus ToMojomForegroundStatus(
       return mojom::LowMemoryKillForegroundStatus::kBackground;
     case kSbLowMemoryKillForegroundStatusUnknown:
     default:
-      return mojom::LowMemoryKillForegroundStatus::kUnknown;
+      return std::nullopt;
   }
 }
 
-mojom::LowMemoryKillPressureSource ToMojomPressureSource(
+std::optional<mojom::LowMemoryKillPressureSource> ToMojomPressureSource(
     SbLowMemoryKillPressureSource source) {
   switch (source) {
     case kSbLowMemoryKillPressureSourceSystem:
@@ -115,7 +115,7 @@ mojom::LowMemoryKillPressureSource ToMojomPressureSource(
       return mojom::LowMemoryKillPressureSource::kCobalt;
     case kSbLowMemoryKillPressureSourceUnknown:
     default:
-      return mojom::LowMemoryKillPressureSource::kUnknown;
+      return std::nullopt;
   }
 }
 
