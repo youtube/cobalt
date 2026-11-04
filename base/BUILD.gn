@@ -3091,6 +3091,11 @@ if (is_mac) {
 # This is the subset of files from base that should not be used with a dynamic
 # library. Note that this library cannot depend on base because base depends on
 # base_static.
+if (is_cobalt && is_partner_toolchain) {
+  group("base_static") {
+    public_deps = [ "//copied_base/base:base_static" ]
+  }
+} else {
 static_library("base_static") {
   sources = [
     "base_export.h",
@@ -3123,6 +3128,7 @@ static_library("base_static") {
   if (is_starboard) {
     deps += [ "//starboard/common" ]
   }
+}
 }
 
 buildflag_header("i18n_transliterator") {
