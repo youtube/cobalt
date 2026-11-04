@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "include/core/SkFontStyle.h"
 #include "src/core/SkFontDescriptor.h"
+#include "src/core/SkScalerContext.h"
 #include "src/core/SkTypefaceCache.h"
 
 SkTypeface_Cobalt::SkTypeface_Cobalt(
@@ -37,6 +38,13 @@ SkTypeface_Cobalt::SkTypeface_Cobalt(
 sk_sp<SkTypeface> SkTypeface_Cobalt::onMakeClone(
     const SkFontArguments& args) const {
   return sk_ref_sp(this);
+}
+
+void SkTypeface_Cobalt::onFilterRec(SkScalerContextRec* rec) const {
+  if (!synthesizes_bold_) {
+    rec->fFlags &= ~SkScalerContext::kEmbolden_Flag;
+  }
+  INHERITED::onFilterRec(rec);
 }
 
 void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[],

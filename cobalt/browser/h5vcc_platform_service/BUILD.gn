@@ -22,6 +22,7 @@ source_set("h5vcc_platform_service") {
 
   deps = [
     "//base",
+    "//cobalt/browser:features",
     "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",

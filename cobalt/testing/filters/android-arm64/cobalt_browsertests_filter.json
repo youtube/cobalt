@@ -1,5 +1,5 @@
 {
-  "comment": "Cobalt browser tests are not currently supported by Cobalt's infra. It has different requirements and dependencies than unit tests.",
+  "comment": "Cobalt browser tests on Android are currently only enabled on android-arm due to limited android-arm64 device capacity in CI.",
   "failing_tests": [
     "*"
   ]
