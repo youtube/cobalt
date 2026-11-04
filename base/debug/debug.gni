@@ -55,10 +55,6 @@ assert(
     build_allocation_stack_trace_recorder ||
         !build_allocation_trace_recorder_full_reporting,
     "Report for stack trace recorder is enabled, but the recorder is disabled!")
-<<<<<<< HEAD
-
 assert(!enable_check_elision_warning || !is_debug,
        "Check elision warning requires an optimized build!")
-=======
 }
->>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
