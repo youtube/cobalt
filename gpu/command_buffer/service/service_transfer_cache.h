@@ -20,7 +20,6 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
-#include "build/build_config.h"
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/paint/transfer_cache_entry.h"
 #include "gpu/command_buffer/common/discardable_handle.h"
@@ -92,10 +91,6 @@ class GPU_GLES2_EXPORT ServiceTransferCache
   }
   size_t cache_size_for_testing() const { return total_size_; }
   size_t entries_count_for_testing() const { return entries_.size(); }
-#if BUILDFLAG(IS_COBALT)
-  static uint64_t GetTotalImageMemoryUsageBytes();
-  static uint64_t GetPeakImageMemoryUsageBytes();
-#endif
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ServiceTransferCacheTest, PurgeEntryOnTimer);
@@ -159,13 +154,6 @@ class GPU_GLES2_EXPORT ServiceTransferCache
 
   bool request_post_prune_old_entries_while_pending_ = false;
   base::OneShotTimer prune_old_entries_timer_;
-#if BUILDFLAG(IS_COBALT)
-  void ScheduleRecordDecodedImagesMetrics();
-  void RecordDecodedImagesMetrics();
-
-  size_t peak_image_memory_usage_bytes_ = 0;
-  base::OneShotTimer decoded_images_metrics_timer_;
-#endif
 };
 
 }  // namespace gpu

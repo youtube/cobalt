@@ -339,14 +339,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
 
   // Returns true if this view has a saved compositor frame.
   virtual bool HasSavedCompositorFrame() const = 0;
-
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
-  // Whether to prevent UpdateFrameBounds() from updating the reported view
-  // bounds. This is required when displaying the native search bar, otherwise
-  // Kabuki will resize its contents to respond to the smaller viewport and the
-  // page will appear smaller.
-  virtual void SetAllowAutomaticViewBoundsUpdates(bool allowed) = 0;
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
 };
 
 }  // namespace content

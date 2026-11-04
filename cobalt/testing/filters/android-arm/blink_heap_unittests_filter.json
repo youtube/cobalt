@@ -1,7 +1,0 @@
-{
-  "failing_tests": [
-    "CrossThreadHandleTest.BindToMethodPingPong",
-    "HeapDeathTest.*",
-    "HeapTest.Threading"
-  ]
-}
