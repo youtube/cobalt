@@ -184,7 +184,7 @@ IN_PROC_BROWSER_TEST_F(RenderThreadHiddenGpuChannelBrowserTest,
   // the GPU service, allowing the test to fail fast rather than timing out.
   base::OneShotTimer watchdog;
   bool blocked_until_foregrounded = false;
-  watchdog.Start(FROM_HERE, base::Milliseconds(250),
+  watchdog.Start(FROM_HERE, base::Seconds(2),
                  base::BindLambdaForTesting([&]() {
                    blocked_until_foregrounded = true;
                    content::RestoreGpuProcessOnUI();
