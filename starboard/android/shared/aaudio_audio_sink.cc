@@ -403,7 +403,7 @@ class AaudioAudioSink::StreamController
     UnsupportedFormats::GetInstance()->MarkFailed(channels_, sample_rate_);
   }
 
-  static aaudio_data_callback_result_t DataCallback(AAudioStream* /*stream*/,
+  static aaudio_data_callback_result_t DataCallback(AAudioStream* stream,
                                                     void* user_data,
                                                     void* audio_data,
                                                     int32_t num_frames) {
@@ -414,7 +414,8 @@ class AaudioAudioSink::StreamController
                   num_frames * handle->channels, 0.0f);
       return AAUDIO_CALLBACK_RESULT_STOP;
     }
-    return controller->OnAudioData(handle->generation, audio_data, num_frames);
+    return controller->OnAudioData(handle->generation, stream, audio_data,
+                                   num_frames);
   }
 
   static void ErrorCallback(AAudioStream* /*stream*/,
@@ -482,9 +483,10 @@ class AaudioAudioSink::StreamController
                  << reopen_count_ << "/" << kMaxReopens << ").";
     reopen_start_us_ = CurrentMonotonicTime();
     // Unlike AudioTrackAudioSink on kResetAndContinue, there is no media time
-    // to resync: frames are reported as consumed when copied, so the frames
-    // queued in the disconnected stream (about 2 bursts) are dropped, and the
-    // media time stalls until the new stream pulls frames.
+    // to resync: frames are reported as consumed when presented, so the frames
+    // copied to the disconnected stream but not presented are copied again to
+    // the new stream, and the media time stalls until the new stream presents
+    // frames.
     CloseStream();
     OpenAndStartStream(0, /*is_reopen=*/true);
   }
@@ -607,6 +609,8 @@ class AaudioAudioSink::StreamController
     const int64_t open_ms = ElapsedMs(open_start_us);
 
     const int32_t burst_frames = AAudio::Stream_GetFramesPerBurst(stream);
+    // No callback runs before AAudioStream_requestStart() below.
+    frames_written_.store(0, std::memory_order_relaxed);
     stream_ = stream;
     handle_ = handle;
     delay_before_close_us_ = GetDelayBeforeCloseUs(burst_frames, sample_rate_);
@@ -661,6 +665,7 @@ class AaudioAudioSink::StreamController
   }
 
   aaudio_data_callback_result_t OnAudioData(int generation,
+                                            AAudioStream* stream,
                                             void* audio_data,
                                             int32_t num_frames) {
     float* dest = static_cast<float*>(audio_data);
@@ -668,6 +673,11 @@ class AaudioAudioSink::StreamController
       std::fill_n(dest, num_frames * channels_, 0.0f);
       return AAUDIO_CALLBACK_RESULT_STOP;
     }
+    // The stream position of |audio_data|, i.e. the frames passed to the data
+    // callback of this stream before, which matches the positions returned by
+    // AAudioStream_getTimestamp(). Counted even if the sink outputs silence.
+    const int64_t stream_position =
+        frames_written_.fetch_add(num_frames, std::memory_order_relaxed);
     // If the lock isn't acquired (Flush() or the sink destructor is running),
     // output silence and don't call into the sink.
     std::unique_lock lock(callback_mutex_, std::try_to_lock);
@@ -679,7 +689,8 @@ class AaudioAudioSink::StreamController
       std::fill_n(dest, num_frames * channels_, 0.0f);
       return AAUDIO_CALLBACK_RESULT_STOP;
     }
-    return sink_->OnAudioData(audio_data, num_frames);
+    return sink_->OnAudioData(audio_data, num_frames, stream, generation,
+                              stream_position);
   }
 
   void ReportError(bool capability_changed, const std::string& message) {
@@ -693,8 +704,10 @@ class AaudioAudioSink::StreamController
   const int sample_rate_;
   const bool is_web_audio_;
 
-  // Guards |sink_| and the sink's |is_flushed_|. Held while calling into the
-  // sink, so DetachSinkAndShutdown() waits for in-flight callbacks.
+  // Guards |sink_| and the sink state accessed by its OnAudioData() and
+  // Flush() (e.g. |is_flushed_| and the presented frame tracking). Held while
+  // calling into the sink, so DetachSinkAndShutdown() waits for in-flight
+  // callbacks.
   std::mutex callback_mutex_;
   AaudioAudioSink* sink_;  // Guarded by |callback_mutex_|.
 
@@ -704,6 +717,8 @@ class AaudioAudioSink::StreamController
   // none.
   std::atomic_int active_generation_ = 0;
   std::atomic_int open_count_ = 0;
+  // Frames passed to the data callback of the current stream.
+  std::atomic<int64_t> frames_written_ = 0;
   // When the pending open/reopen task was due, 0 if none, or |kAbandoned|.
   std::atomic<int64_t> waiting_since_us_ = 0;
   std::atomic_bool watchdog_armed_ = false;
@@ -753,8 +768,8 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
   }
 
   auto sink = std::make_unique<AaudioAudioSink>(
-      PassKey<AaudioAudioSink>(), channels, frame_buffers, frames_per_channel,
-      callbacks, context);
+      PassKey<AaudioAudioSink>(), channels, sample_rate, frame_buffers,
+      frames_per_channel, callbacks, context);
   // Not std::make_shared(), so that the memory of the controller is freed
   // even while weak references from callback handles remain.
   sink->controller_ = std::shared_ptr<StreamController>(
@@ -769,6 +784,7 @@ std::unique_ptr<AaudioAudioSink> AaudioAudioSink::Create(
 
 AaudioAudioSink::AaudioAudioSink(PassKey<AaudioAudioSink>,
                                  int channels,
+                                 int sample_rate,
                                  SbAudioSinkFrameBuffers frame_buffers,
                                  int frames_per_channel,
                                  Callbacks callbacks,
@@ -777,7 +793,8 @@ AaudioAudioSink::AaudioAudioSink(PassKey<AaudioAudioSink>,
       frame_buffer_(frame_buffers[0]),
       frames_per_channel_(frames_per_channel),
       callbacks_(callbacks),
-      context_(context) {
+      context_(context),
+      presented_frames_(sample_rate) {
   SB_CHECK(callbacks_.update_source_status);
   SB_CHECK(callbacks_.consume_frames);
   SB_CHECK(frame_buffer_);
@@ -814,6 +831,9 @@ bool AaudioAudioSink::Flush() {
   // Acquire the callback mutex to wait for any in-flight OnAudioData() call.
   std::lock_guard lock(controller_->callback_mutex());
   is_flushed_ = true;
+  // Frames in flight are pre-seek frames: drop them without consuming them.
+  presented_frames_.Reset();
+  timestamp_unavailable_since_us_ = 0;
   return true;
 }
 
@@ -862,8 +882,12 @@ void AaudioAudioSink::WaitForPendingStreamOperationsForTesting() {
 
 // TODO: b/561166288 - Add unit tests for OnAudioData() (ring buffer
 // wrap-around, underrun padding, volume, pause, and discard after Flush()).
-aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
-                                                           int32_t num_frames) {
+aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(
+    void* audio_data,
+    int32_t num_frames,
+    AAudioStream* stream,
+    int generation,
+    int64_t stream_position) {
   float* dest = static_cast<float*>(audio_data);
 
   // After Flush() and until SetStartTime(), output silence and skip
@@ -873,6 +897,21 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
+  // A reopened stream (after AAUDIO_ERROR_DISCONNECTED) restarts positions at
+  // 0. Frames in flight in the old stream were dropped, so copy them again.
+  // Also retry timestamps, which may have failed while the old stream was
+  // disconnecting.
+  if (generation != generation_) {
+    generation_ = generation;
+    presented_frames_.Reset();
+    timestamp_unavailable_since_us_ = 0;
+    timestamps_unavailable_ = false;
+  }
+
+  // Report the frames presented since the last callback. This must happen
+  // before update_source_status(), which accounts for consumed frames.
+  ConsumePresentedFrames(stream, stream_position);
+
   int frames_in_buffer = 0;
   int offset_in_frames = 0;
   bool is_playing = false;
@@ -881,23 +920,65 @@ aaudio_data_callback_result_t AaudioAudioSink::OnAudioData(void* audio_data,
   callbacks_.update_source_status(&frames_in_buffer, &offset_in_frames,
                                   &is_playing, &is_eos_reached, context_);
 
+  // Frames in flight are still counted in |frames_in_buffer| until consumed;
+  // copy only the frames after them.
+  const int frames_in_flight = presented_frames_.frames_in_flight();
+  const int frames_available = frames_in_buffer - frames_in_flight;
   const bool is_paused = playback_rate_.load(std::memory_order_relaxed) == 0.0f;
-  if (!is_playing || is_paused || frames_in_buffer <= 0) {
+  if (!is_playing || is_paused || frames_available <= 0) {
     WriteSilence(dest, num_frames);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
   // On underrun, play what's available and pad the rest with silence.
-  const int frames_to_copy = std::min<int>(num_frames, frames_in_buffer);
-  CopyFromFrameBuffer(offset_in_frames, frames_to_copy,
-                      volume_.load(std::memory_order_relaxed), dest);
+  const int frames_to_copy = std::min<int>(num_frames, frames_available);
+  CopyFromFrameBuffer(
+      (offset_in_frames + frames_in_flight) % frames_per_channel_,
+      frames_to_copy, volume_.load(std::memory_order_relaxed), dest);
   WriteSilence(dest + frames_to_copy * channels_, num_frames - frames_to_copy);
 
-  // TODO: b/561166288 - Frames are reported as consumed when copied, not when
-  // presented, so media time leads actual output by the output latency. Report
-  // presented frames via Stream_GetTimestamp(), like AudioTrackAudioSink.
-  callbacks_.consume_frames(frames_to_copy, CurrentMonotonicTime(), context_);
+  if (timestamps_unavailable_) {
+    // AAudio doesn't provide timestamps: report frames as consumed when
+    // copied. Media time then leads actual output by the output latency.
+    callbacks_.consume_frames(frames_to_copy, CurrentMonotonicTime(), context_);
+    return AAUDIO_CALLBACK_RESULT_CONTINUE;
+  }
+  presented_frames_.OnFramesCopied(stream_position, frames_to_copy);
   return AAUDIO_CALLBACK_RESULT_CONTINUE;
+}
+
+void AaudioAudioSink::ConsumePresentedFrames(AAudioStream* stream,
+                                             int64_t stream_position) {
+  if (timestamps_unavailable_ || presented_frames_.frames_in_flight() == 0) {
+    return;
+  }
+  int64_t timestamp_position = 0;
+  int64_t timestamp_ns = 0;
+  const int64_t now_us = CurrentMonotonicTime();
+  if (AAudio::Stream_GetTimestamp(stream, CLOCK_MONOTONIC, &timestamp_position,
+                                  &timestamp_ns) == AAUDIO_OK) {
+    timestamp_unavailable_since_us_ = 0;
+    const int presented = presented_frames_.OnTimestamp(
+        timestamp_position, timestamp_ns / 1'000, now_us, stream_position);
+    if (presented > 0) {
+      callbacks_.consume_frames(presented, now_us, context_);
+    }
+    return;
+  }
+  // Timestamps are unavailable for a short while after a stream starts.
+  if (timestamp_unavailable_since_us_ == 0) {
+    timestamp_unavailable_since_us_ = now_us;
+    return;
+  }
+  if (now_us - timestamp_unavailable_since_us_ < kTimestampTimeoutUs) {
+    return;
+  }
+  SB_LOG(WARNING) << "AAudio timestamps are unavailable, reporting frames as "
+                     "consumed when copied.";
+  timestamps_unavailable_ = true;
+  callbacks_.consume_frames(presented_frames_.frames_in_flight(), now_us,
+                            context_);
+  presented_frames_.Reset();
 }
 
 // TODO: b/561166288 - When the output device changes (e.g. speaker to

@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 
+#include "starboard/android/shared/aaudio_presented_frame_tracker.h"
 #include "starboard/android/shared/audio_sink_android.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/pass_key.h"
@@ -88,6 +89,7 @@ class AaudioAudioSink final : public AudioSinkAndroid {
 
   AaudioAudioSink(PassKey<AaudioAudioSink>,
                   int channels,
+                  int sample_rate,
                   SbAudioSinkFrameBuffers frame_buffers,
                   int frames_per_channel,
                   Callbacks callbacks,
@@ -124,8 +126,16 @@ class AaudioAudioSink final : public AudioSinkAndroid {
 
   // Called by StreamController with its callback mutex held and only while
   // the sink is attached to it.
+  // |stream_position| is the stream frame position of |audio_data|, and
+  // |generation| identifies the stream.
   aaudio_data_callback_result_t OnAudioData(void* audio_data,
-                                            int32_t num_frames);
+                                            int32_t num_frames,
+                                            AAudioStream* stream,
+                                            int generation,
+                                            int64_t stream_position);
+  // Reports the frames in flight that AAudio has presented as consumed. Falls
+  // back to reporting frames when copied if AAudio provides no timestamps.
+  void ConsumePresentedFrames(AAudioStream* stream, int64_t stream_position);
   void ReportError(bool capability_changed, const std::string& message);
 
   void CopyFromFrameBuffer(int offset_in_frames,
@@ -133,6 +143,10 @@ class AaudioAudioSink final : public AudioSinkAndroid {
                            float volume,
                            float* dest) const;
   void WriteSilence(float* dest, int num_frames) const;
+
+  // How long timestamps may be unavailable while frames are in flight before
+  // falling back to reporting frames as consumed when copied.
+  static constexpr int64_t kTimestampTimeoutUs = 200'000;
 
   const int channels_;
   void* const frame_buffer_;
@@ -148,6 +162,20 @@ class AaudioAudioSink final : public AudioSinkAndroid {
   // queued in the AAudio stream, <= 2 bursts, still play). Guarded by the
   // callback mutex of |controller_|.
   bool is_flushed_ = false;
+
+  // Frames are reported as consumed when AAudio reports them presented, so
+  // that media time follows actual output, like AudioTrackAudioSink. The
+  // following are only accessed with the callback mutex of |controller_| held
+  // (OnAudioData() and Flush()).
+  AaudioPresentedFrameTracker presented_frames_;
+  // The generation of the stream the frames in flight were copied to.
+  int generation_ = 0;
+  // When AAudioStream_getTimestamp() started failing, 0 if it succeeds.
+  int64_t timestamp_unavailable_since_us_ = 0;
+  // Set if AAudio doesn't provide timestamps; frames are then reported as
+  // consumed when copied.
+  bool timestamps_unavailable_ = false;
+
   std::atomic<float> volume_ = 1.0f;
   std::atomic<float> playback_rate_ = 1.0f;
 };

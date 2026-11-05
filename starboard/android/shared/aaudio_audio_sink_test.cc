@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,6 +33,19 @@ constexpr int kChannels = 2;
 constexpr int kSampleRate = 48'000;
 constexpr int kFramesPerChannel = 4'096;
 constexpr int64_t kWaitTimeoutUs = 3'000'000;
+// Frames are consumed when presented, i.e. at least a callback, typically the
+// output latency, after they are copied, rather than right after they are
+// copied in the same callback.
+constexpr int64_t kMinPresentationDelayUs = 500;
+// The first frames are presented well within this, unless the sink falls back
+// to reporting frames as consumed when copied, as AAudio provides no
+// timestamps.
+constexpr int64_t kTimestampFallbackUs = 150'000;
+
+void SetIfUnset(std::atomic<int64_t>& value, int64_t new_value) {
+  int64_t expected = 0;
+  value.compare_exchange_strong(expected, new_value);
+}
 
 // Records the sink callbacks. Pretends there are always frames to play.
 struct FakeRenderer {
@@ -43,6 +57,8 @@ struct FakeRenderer {
     auto* renderer = static_cast<FakeRenderer*>(context);
     EXPECT_FALSE(renderer->sink_destroyed.load());
     ++renderer->update_source_status_count;
+    // The sink copies frames right after this call.
+    SetIfUnset(renderer->first_update_source_status_us, CurrentMonotonicTime());
     *frames_in_buffer = kFramesPerChannel;
     *offset_in_frames = 0;
     *is_playing = true;
@@ -54,6 +70,12 @@ struct FakeRenderer {
                             void* context) {
     auto* renderer = static_cast<FakeRenderer*>(context);
     EXPECT_FALSE(renderer->sink_destroyed.load());
+    EXPECT_GT(frames_consumed, 0);
+    // No more frames than in the buffer can be consumed.
+    EXPECT_LE(frames_consumed, kFramesPerChannel);
+    EXPECT_LE(frames_consumed_at, CurrentMonotonicTime());
+    // Before |frames_consumed|, which tests wait for.
+    SetIfUnset(renderer->first_consume_frames_us, frames_consumed_at);
     renderer->frames_consumed += frames_consumed;
   }
 
@@ -69,6 +91,10 @@ struct FakeRenderer {
   std::atomic_bool sink_destroyed = false;
   std::atomic_int update_source_status_count = 0;
   std::atomic<int64_t> frames_consumed = 0;
+  // When UpdateSourceStatus() and ConsumeFrames() were first called, 0 if
+  // not yet. Tests may reset them to 0 to record the next calls.
+  std::atomic<int64_t> first_update_source_status_us = 0;
+  std::atomic<int64_t> first_consume_frames_us = 0;
   std::atomic_int error_count = 0;
   std::atomic_bool last_error_capability_changed = false;
 };
@@ -144,6 +170,38 @@ class AaudioAudioSinkTest : public ::testing::Test {
   bool WaitForOpenCount(const AaudioAudioSink& sink, int count) {
     return WaitFor(
         [&] { return sink.GetStreamOpenCountForTesting() >= count; });
+  }
+
+  // Returns the rate at which frames are consumed over about 1 s, in frames
+  // per second.
+  int64_t MeasureConsumptionRate() {
+    const int64_t start_frames = renderer_.frames_consumed.load();
+    const int64_t start_us = CurrentMonotonicTime();
+    usleep(1'000'000);
+    const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+    return (renderer_.frames_consumed.load() - start_frames) * 1'000'000 /
+           elapsed_us;
+  }
+
+  // Frames are presented at the sample rate. Use loose bounds, as timestamps
+  // may be stale and are extrapolated.
+  void ExpectConsumptionAtSampleRate() {
+    const int64_t rate = MeasureConsumptionRate();
+    SB_LOG(INFO) << "Frames consumed per second: " << rate;
+    EXPECT_GT(rate, kSampleRate * 7 / 10);
+    EXPECT_LT(rate, kSampleRate * 13 / 10);
+  }
+
+  // Returns how long after the first frames were copied they were consumed.
+  int64_t GetFirstPresentationDelayUs() {
+    const int64_t first_update_us =
+        renderer_.first_update_source_status_us.load();
+    const int64_t first_consume_us = renderer_.first_consume_frames_us.load();
+    EXPECT_NE(first_update_us, 0);
+    EXPECT_NE(first_consume_us, 0);
+    SB_LOG(INFO) << "First frames consumed "
+                 << first_consume_us - first_update_us << " us after copied.";
+    return first_consume_us - first_update_us;
   }
 
   FakeRenderer renderer_;
@@ -371,6 +429,74 @@ TEST_F(AaudioAudioSinkTest, NonDisconnectErrorIsReported) {
   sink->SimulateErrorForTesting(AAUDIO_ERROR_INTERNAL);
   EXPECT_EQ(renderer_.error_count.load(), 1);
   EXPECT_FALSE(renderer_.last_error_capability_changed.load());
+
+  DestroySink(std::move(sink));
+}
+
+TEST_F(AaudioAudioSinkTest, FramesAreConsumedWhenPresented) {
+  auto sink = CreateSink();
+  ASSERT_TRUE(sink);
+  ASSERT_TRUE(WaitForFramesConsumed());
+  // Without AAudio timestamps, the sink falls back to reporting the frames as
+  // consumed when copied after a timeout, so this also holds.
+  EXPECT_GE(GetFirstPresentationDelayUs(), kMinPresentationDelayUs);
+
+  ExpectConsumptionAtSampleRate();
+  // Media time doesn't lead real time (allowing 50 ms for timestamp jitter).
+  const int64_t elapsed_us =
+      CurrentMonotonicTime() - renderer_.first_update_source_status_us.load();
+  EXPECT_LE(renderer_.frames_consumed.load(),
+            (elapsed_us + 50'000) * kSampleRate / 1'000'000);
+  EXPECT_EQ(renderer_.error_count.load(), 0);
+
+  DestroySink(std::move(sink));
+}
+
+TEST_F(AaudioAudioSinkTest, FlushDropsFramesInFlight) {
+  auto sink = CreateSink();
+  ASSERT_TRUE(sink);
+  ASSERT_TRUE(WaitForFramesConsumed());
+  // Without AAudio timestamps, the sink reports frames as consumed when copied
+  // after a timeout (200 ms), also after Flush().
+  const bool has_timestamps =
+      GetFirstPresentationDelayUs() < kTimestampFallbackUs;
+  usleep(100'000);
+
+  // Frames copied but not presented yet are pre-seek frames, so they are never
+  // reported as consumed.
+  ASSERT_TRUE(sink->Flush());
+  const int64_t frames_consumed = renderer_.frames_consumed.load();
+  usleep(200'000);
+  EXPECT_EQ(renderer_.frames_consumed.load(), frames_consumed);
+
+  // No callbacks reach the renderer until SetStartTime().
+  renderer_.first_update_source_status_us = 0;
+  renderer_.first_consume_frames_us = 0;
+  sink->SetStartTime(0);
+  ASSERT_TRUE(WaitForFramesConsumed());
+  if (has_timestamps) {
+    EXPECT_GE(GetFirstPresentationDelayUs(), kMinPresentationDelayUs);
+  }
+  ExpectConsumptionAtSampleRate();
+  EXPECT_EQ(sink->GetStreamOpenCountForTesting(), 1);
+  EXPECT_EQ(renderer_.error_count.load(), 0);
+
+  DestroySink(std::move(sink));
+}
+
+TEST_F(AaudioAudioSinkTest, ReopenedStreamContinuesConsumption) {
+  auto sink = CreateSink();
+  ASSERT_TRUE(sink);
+  ASSERT_TRUE(WaitForFramesConsumed());
+  usleep(100'000);
+
+  sink->SimulateErrorForTesting(AAUDIO_ERROR_DISCONNECTED);
+  ASSERT_TRUE(WaitForOpenCount(*sink, 2));
+  ASSERT_TRUE(WaitForFramesConsumed());
+  // Frames presented by the new stream are consumed at the sample rate.
+  usleep(200'000);
+  ExpectConsumptionAtSampleRate();
+  EXPECT_EQ(renderer_.error_count.load(), 0);
 
   DestroySink(std::move(sink));
 }
