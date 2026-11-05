@@ -38,6 +38,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
@@ -1110,6 +1111,21 @@ void WindowPerformance::ReportEvent(
                                            ? event_end_time
                                            : timings->commit_finish_time;
   base::TimeDelta time_to_next_paint = event_end_time - processing_end;
+
+  // ATOM_PERF (PoC): Log key event latency. `presented` is the presentation
+  // time of the next frame after the event was handled.
+  if (event_timing_entry->name() == "keydown" ||
+      event_timing_entry->name() == "keyup") {
+    LOG(INFO) << "ATOM_PERF event name=" << event_timing_entry->name().Utf8()
+              << " created_us="
+              << event_creation_time.since_origin().InMicroseconds()
+              << " processing_start_us="
+              << processing_start.since_origin().InMicroseconds()
+              << " processing_end_us="
+              << processing_end.since_origin().InMicroseconds()
+              << " presented_us="
+              << event_end_time.since_origin().InMicroseconds();
+  }
 
   // event_creation_time might be null in certain tests.
   // CHECK(!event_creation_time.is_null());

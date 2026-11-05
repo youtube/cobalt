@@ -315,6 +315,15 @@ class CORE_EXPORT ImagePaintTimingDetector final
     records_manager_.Clear();
   }
 
+  // ATOM_PERF (PoC): Logs the presentation time of the first paint of every
+  // loaded image that is visible in the viewport. Unlike LCP, this does not
+  // stop on user input and does not skip images smaller than the current
+  // largest one.
+  void AtomRecordImage(const LayoutObject& object,
+                       const MediaTiming& media_timing,
+                       const PropertyTreeStateOrAlias& current_paint_chunk_properties,
+                       const gfx::Rect& image_border);
+
   void Trace(Visitor*) const;
 
  private:
@@ -345,6 +354,18 @@ class CORE_EXPORT ImagePaintTimingDetector final
   unsigned frame_index_ = 1;
   unsigned last_registered_frame_index_ = 0;
   bool added_entry_in_latest_frame_ = false;
+
+  // ATOM_PERF (PoC): Images queued for logging on the next presentation.
+  struct AtomPendingImage {
+    DISALLOW_NEW();
+    String url;
+    gfx::RectF rect;
+    unsigned frame_index;
+  };
+  void AtomLogPaintedImages(base::TimeTicks presentation_timestamp,
+                            unsigned last_queued_frame_index);
+  Vector<AtomPendingImage> atom_pending_images_;
+  HashSet<MediaRecordIdHash> atom_seen_images_;
 
   bool contains_full_viewport_image_ = false;
 

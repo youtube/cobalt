@@ -5,6 +5,13 @@ import("//cobalt/build/configs/cobalt.gni")
 import("//third_party/icu/config.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
+declare_args() {
+  # ATOM_PERF (PoC): Set to false to build the CoAT APK without
+  # android:debuggable, so performance measurements are not skewed by ART's
+  # debug mode (CheckJNI, boot image deoptimization, JDWP).
+  cobalt_coat_debuggable = true
+}
+
 java_cpp_template("cobalt_build_info_srcjar") {
   sources = [ "apk/app/src/main/java/dev/cobalt/coat/CobaltBuildInfo.tmpl" ]
   defines = []
@@ -22,6 +29,7 @@ jinja_template("cobalt_manifest") {
   variables = [
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
+    "debuggable=$cobalt_coat_debuggable",
   ]
 }
 

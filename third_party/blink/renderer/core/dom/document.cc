@@ -39,6 +39,7 @@
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/i18n/time_formatting.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
@@ -48,6 +49,7 @@
 #include "cc/animation/animation_timeline.h"
 #include "cc/input/overscroll_behavior.h"
 #include "cc/input/scroll_snap_data.h"
+#include "components/viz/common/frame_timing_details.h"
 #include "mojo/public/cpp/bindings/lib/wtf_hash_util.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -2097,6 +2099,20 @@ void Document::DidChangeVisibilityState() {
 
   if (IsPageVisible())
     GetDocumentAnimations().MarkAnimationsCompositorPending();
+
+  // ATOM_PERF (PoC): Log when the page becomes visible and when the first
+  // frame after that is presented (end point for warm launch).
+  if (IsPageVisible() && GetFrame() && GetFrame()->IsOutermostMainFrame()) {
+    LOG(INFO) << "ATOM_PERF page_visible t_us="
+              << base::TimeTicks::Now().since_origin().InMicroseconds();
+    GetFrame()->GetChromeClient().NotifyPresentationTime(
+        *GetFrame(),
+        WTF::BindOnce([](const viz::FrameTimingDetails& details) {
+          LOG(INFO) << "ATOM_PERF first_frame_after_visible t_us="
+                    << details.presentation_feedback.timestamp.since_origin()
+                           .InMicroseconds();
+        }));
+  }
 
   if (hidden() && canvas_font_cache_)
     canvas_font_cache_->PruneAll();
