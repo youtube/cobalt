@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_renderer.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -35,8 +36,13 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/media/url_player.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 using ::base::test::RunOnceCallback;
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::NiceMock;
@@ -127,6 +133,32 @@ class StarboardRendererTest : public testing::Test {
     return &decode_target_graphics_context_provider_;
   }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  SbPlayer InitializeUrlPlayer() {
+    renderer_->SetSourceUrl("https://example.com/master.m3u8");
+
+    SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+    EXPECT_CALL(mock_sbplayer_interface_, CreateUrlPlayer(_, _, _, _, _, _))
+        .WillOnce(DoAll(SaveArg<2>(&player_status_cb_),
+                        SaveArg<4>(&player_error_cb_), SaveArg<5>(&context_),
+                        Return(player)));
+    EXPECT_CALL(renderer_init_cb_, Run(_)).WillOnce(SaveArg<0>(&init_status_));
+
+    renderer_->Initialize(&media_resource_, &renderer_client_,
+                          renderer_init_cb_.Get());
+    task_environment_.RunUntilIdle();
+    return player;
+  }
+
+  void ReportPlayerError(SbPlayer player,
+                         SbPlayerError error,
+                         const char* message) {
+    ASSERT_TRUE(player_error_cb_);
+    player_error_cb_(player, context_, error, message);
+    task_environment_.RunUntilIdle();
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   base::test::TaskEnvironment task_environment_;
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
@@ -144,6 +176,9 @@ class StarboardRendererTest : public testing::Test {
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
   std::unique_ptr<StarboardRenderer> renderer_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::optional<PipelineStatus> init_status_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {
@@ -266,6 +301,98 @@ TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksEnded) {
   player_status_cb_(player, context_, kSbPlayerStateEndOfStream,
                     /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeUntilPresenting) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  // Simulate a platform that processes SbPlayerSeek() asynchronously and keeps
+  // reporting the pre-seek position from SbPlayerGetInfo() until the seek
+  // completes.
+  constexpr base::TimeDelta kPreSeekTime = base::Seconds(40);
+  constexpr base::TimeDelta kSeekTime = base::Seconds(20);
+  constexpr base::TimeDelta kPlayedTime = kSeekTime + base::Milliseconds(500);
+  base::TimeDelta platform_media_time = kPreSeekTime;
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+        *info = {};
+        info->current_media_timestamp = platform_media_time.InMicroseconds();
+        info->duration = SB_PLAYER_NO_DURATION;
+      }));
+  int seek_ticket = SB_PLAYER_INITIAL_TICKET;
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(player, kSeekTime, _))
+      .WillOnce(SaveArg<2>(&seek_ticket));
+
+  renderer_->StartPlayingFrom(kSeekTime);
+  // The stale pre-seek position must not leak out, as the pipeline clamps
+  // media time so that it never goes backwards.
+  EXPECT_EQ(renderer_->GetMediaTime(), kSeekTime);
+
+  player_status_cb_(player, context_, kSbPlayerStatePrerolling, seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), kSeekTime);
+
+  // Once the SbPlayer presents, the platform media time is reported again.
+  platform_media_time = kPlayedTime;
+  EXPECT_CALL(renderer_client_,
+              OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
+                                     BUFFERING_CHANGE_REASON_UNKNOWN));
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), kPlayedTime);
+}
+
+TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeAfterBackwardSeek) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
+  base::TimeDelta platform_media_time = base::Seconds(40);
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+        *info = {};
+        info->current_media_timestamp = platform_media_time.InMicroseconds();
+        info->duration = SB_PLAYER_NO_DURATION;
+      }));
+  int ticket = SB_PLAYER_INITIAL_TICKET;
+  EXPECT_CALL(mock_sbplayer_interface_, Seek(player, _, _))
+      .WillRepeatedly(SaveArg<2>(&ticket));
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _))
+      .Times(AnyNumber());
+
+  // Play from 40s until presenting, then advance to 41s.
+  renderer_->StartPlayingFrom(base::Seconds(40));
+  const int first_seek_ticket = ticket;
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket);
+  task_environment_.RunUntilIdle();
+  platform_media_time = base::Seconds(41);
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(41));
+
+  // Seek back to 20s. The platform keeps reporting 41s until it presents.
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(flush_cb, Run());
+  renderer_->Flush(flush_cb.Get());
+  task_environment_.RunUntilIdle();
+  renderer_->StartPlayingFrom(base::Seconds(20));
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(20));
+
+  // A late Presenting for the previous seek has a stale ticket and must not
+  // end the override.
+  player_status_cb_(player, context_, kSbPlayerStatePresenting,
+                    first_seek_ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(20));
+
+  platform_media_time = base::Milliseconds(20500);
+  player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Milliseconds(20500));
 }
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
@@ -490,6 +617,37 @@ TEST_F(StarboardRendererTest,
                     SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_FALSE(init_status_.has_value());
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  ReportPlayerError(
+      player, static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported),
+      "AV key value is not loaded.");
+
+  ASSERT_TRUE(init_status_.has_value());
+  EXPECT_EQ(init_status_->code(), DEMUXER_ERROR_COULD_NOT_OPEN);
+}
+
+TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedAfterInitialization) {
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(init_status_.has_value());
+  ASSERT_EQ(init_status_->code(), PIPELINE_OK);
+
+  EXPECT_CALL(renderer_client_,
+              OnError(HasStatusCode(DEMUXER_ERROR_COULD_NOT_OPEN)));
+  ReportPlayerError(
+      player, static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported),
+      "item failed");
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 }  // namespace
 

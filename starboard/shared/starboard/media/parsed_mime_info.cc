@@ -137,7 +137,7 @@ bool ParseAudioInfo(const MimeType& mime_type,
 bool ParseVideoInfo(const MimeType& mime_type,
                     const std::string& codec,
                     ParsedMimeInfo::VideoCodecInfo* video_info) {
-  SB_DCHECK(video_info);
+  SB_CHECK(video_info);
   SB_DCHECK(video_info->codec == kSbMediaVideoCodecNone);
 
   if (!ParseVideoCodec(codec.c_str(), &video_info->codec, &video_info->profile,

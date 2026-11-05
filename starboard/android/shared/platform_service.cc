@@ -153,7 +153,7 @@ void* Send(CobaltExtensionPlatformService service,
            bool* invalid_state) {
   SB_DCHECK(length == 0 || data);
   SB_DCHECK(output_length);
-  SB_DCHECK(invalid_state);
+  SB_CHECK(invalid_state);
 
   if (!service || service->cobalt_service.is_null()) {
     SB_LOG(ERROR) << "Send failed: Service or Java handle is null.";

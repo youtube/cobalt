@@ -222,6 +222,10 @@ typedef enum SbEventType {
   // The platform's text-to-speech settings have changed. The data field of this
   // SbEvent type is a boolean indicating if text-to-speech is enabled.
   kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+
+  // One or more of the fields returned by the Accessibility extension's
+  // GetCaptionSettings() has changed.
+  kSbEventTypeAccessibilityCaptionSettingsChanged,
 } SbEventType;
 
 // This structure represents a Starboard event and its data.

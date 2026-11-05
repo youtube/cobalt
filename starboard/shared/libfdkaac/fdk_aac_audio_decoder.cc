@@ -144,7 +144,7 @@ void FdkAacAudioDecoder::TeardownCodec() {
 bool FdkAacAudioDecoder::WriteToFdkDecoder(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_CHECK(input_buffer);
 
   unsigned char* data = const_cast<unsigned char*>(input_buffer->data());
   const unsigned int data_size_in_bytes = input_buffer->size();
@@ -199,7 +199,7 @@ void FdkAacAudioDecoder::TryToUpdateStreamInfo() {
     return;
   }
   CStreamInfo* stream_info = aacDecoder_GetStreamInfo(decoder_);
-  SB_DCHECK(stream_info);
+  SB_CHECK(stream_info);
 
   num_channels_ = stream_info->numChannels;
   samples_per_second_ = stream_info->sampleRate;
