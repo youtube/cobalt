@@ -92,7 +92,7 @@ private:
 
     // It turns out that these seem to be really good default parameters. Maybe the default
     // allocation could be brough down a little bit.
-    static constexpr uint32_t kMaxSearchLimit = 32;
+    static constexpr int32_t  kMaxSearchLimit = 32;
     static constexpr uint32_t kDefaultAllocation = 4096;
 
     // TODO (thomsmit): Try using SkSTArenaAllocWithReset that has the first storage block stored

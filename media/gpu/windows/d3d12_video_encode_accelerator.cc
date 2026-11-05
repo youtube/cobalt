@@ -269,10 +269,15 @@ void GenerateResourceFromSharedImageVideoFrame(
     return;
   }
 
+  auto* shared_image_stub = command_buffer_helper->GetSharedImageStub();
+  if (!shared_image_stub || !shared_image_stub->shared_context_state()) {
+    std::move(frame_available_cb)
+        .Run(std::move(frame), base::win::ScopedHandle(), 0, E_FAIL);
+    return;
+  }
+
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
-      command_buffer_helper->GetSharedImageStub()
-          ->shared_context_state()
-          ->GetD3D11Device();
+      shared_image_stub->shared_context_state()->GetD3D11Device();
   if (!d3d11_device) {
     std::move(frame_available_cb)
         .Run(std::move(frame), base::win::ScopedHandle(), 0, E_FAIL);
@@ -290,17 +295,38 @@ void GenerateResourceFromSharedImageVideoFrame(
 D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult::
     GetCommandBufferHelperResult() = default;
 D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult::
-    GetCommandBufferHelperResult(const GetCommandBufferHelperResult& other) =
+    GetCommandBufferHelperResult(GetCommandBufferHelperResult&& other) =
         default;
+D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult&
+D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult::operator=(
+    GetCommandBufferHelperResult&& other) = default;
 D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult::
     ~GetCommandBufferHelperResult() = default;
+
+std::unique_ptr<D3D11To12Fence> Create11On12InteropFence(
+    ID3D12Device* d3d12_device,
+    ID3D11Device* d3d11_device);
 
 D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult
 GetCommandBufferHelperOnGpuThread(
     base::RepeatingCallback<scoped_refptr<CommandBufferHelper>()>
-        get_command_buffer_helper_cb) {
+        get_command_buffer_helper_cb,
+    Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device) {
   D3D12VideoEncodeAccelerator::GetCommandBufferHelperResult result;
   result.command_buffer_helper = get_command_buffer_helper_cb.Run();
+
+  if (result.command_buffer_helper) {
+    auto* shared_image_stub =
+        result.command_buffer_helper->GetSharedImageStub();
+    if (shared_image_stub && shared_image_stub->shared_context_state()) {
+      Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
+          shared_image_stub->shared_context_state()->GetD3D11Device();
+      if (d3d11_device) {
+        result.source_texture_fence =
+            Create11On12InteropFence(d3d12_device.Get(), d3d11_device.Get());
+      }
+    }
+  }
 
   // For D3D12 VEA, the encoding device is always on the same adapter as
   // rendering device, so we don't check if the adapter is the same as the one
@@ -819,6 +845,10 @@ void D3D12VideoEncodeAccelerator::EncodeTask(
 void D3D12VideoEncodeAccelerator::TryEncodeFrames() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_sequence_checker_);
 
+  if (error_occurred_) {
+    return;
+  }
+
   while (!input_frames_queue_.empty() && !bitstream_buffers_.empty()) {
     auto& next_input = input_frames_queue_.front();
     if (next_input.resolving_shared_image ||
@@ -830,9 +860,12 @@ void D3D12VideoEncodeAccelerator::TryEncodeFrames() {
       break;
     }
 
-    DoEncodeTask(next_input, bitstream_buffers_.front());
+    const bool success = DoEncodeTask(next_input, bitstream_buffers_.front());
     input_frames_queue_.pop_front();
     bitstream_buffers_.pop();
+    if (!success) {
+      break;
+    }
   }
 
   if (flush_requested_ && input_frames_queue_.empty()) {
@@ -843,7 +876,7 @@ void D3D12VideoEncodeAccelerator::TryEncodeFrames() {
   }
 }
 
-void D3D12VideoEncodeAccelerator::DoEncodeTask(
+bool D3D12VideoEncodeAccelerator::DoEncodeTask(
     const InputFrameRef& input_frame,
     const BitstreamBuffer& bitstream_buffer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_sequence_checker_);
@@ -856,9 +889,10 @@ void D3D12VideoEncodeAccelerator::DoEncodeTask(
     } else {
       frame = ConvertToMemoryMappedFrame(std::move(frame));
       if (!frame) {
-        return NotifyError(
+        NotifyError(
             {EncoderStatus::Codes::kInvalidInputFrame,
              "Failed to convert shared memory mappable SI for encoding"});
+        return false;
       }
       picture_buffer = CreateResourceForSharedMemoryVideoFrame(*frame);
     }
@@ -867,19 +901,22 @@ void D3D12VideoEncodeAccelerator::DoEncodeTask(
   } else if (frame->HasSharedImage()) {
     picture_buffer = input_frame.resolved_picture;
   } else {
-    return NotifyError({EncoderStatus::Codes::kInvalidInputFrame,
-                        "Unsupported frame storage type for encoding"});
+    NotifyError({EncoderStatus::Codes::kInvalidInputFrame,
+                 "Unsupported frame storage type for encoding"});
+    return false;
   }
   if (!picture_buffer.resource) {
-    return NotifyError({EncoderStatus::Codes::kInvalidInputFrame,
-                        "Failed to create input_texture"});
+    NotifyError({EncoderStatus::Codes::kInvalidInputFrame,
+                 "Failed to create input_texture"});
+    return false;
   }
 
   auto result_or_error =
       encoder_->Encode(picture_buffer, frame->ColorSpace(), bitstream_buffer,
                        input_frame.options);
   if (!result_or_error.has_value()) {
-    return NotifyError(std::move(result_or_error).error());
+    NotifyError(std::move(result_or_error).error());
+    return false;
   }
 
   D3D12VideoEncodeDelegate::EncodeResult result =
@@ -898,6 +935,7 @@ void D3D12VideoEncodeAccelerator::DoEncodeTask(
   child_task_runner_->PostTask(
       FROM_HERE, BindOnce(&Client::BitstreamBufferReady, client_,
                           result.bitstream_buffer_id, result.metadata));
+  return true;
 }
 
 void D3D12VideoEncodeAccelerator::DestroyTask() {
@@ -907,26 +945,36 @@ void D3D12VideoEncodeAccelerator::DestroyTask() {
 }
 
 void D3D12VideoEncodeAccelerator::NotifyError(EncoderStatus status) {
+  // We return here when `error_occurred_` was already true, as this is not the
+  // first error that is reported.
+  if (error_occurred_.exchange(true)) {
+    return;
+  }
+
+  CHECK(!status.is_ok());
   base::UmaHistogramEnumeration(
       GetEncoderStatusHistogramName(config_.output_profile), status.code());
 
   if (!child_task_runner_->RunsTasksInCurrentSequence()) {
     child_task_runner_->PostTask(
-        FROM_HERE, BindOnce(&D3D12VideoEncodeAccelerator::NotifyError,
-                            child_weak_this_, std::move(status)));
+        FROM_HERE,
+        BindOnce(&D3D12VideoEncodeAccelerator::NotifyErrorOnChildSequence,
+                 child_weak_this_, std::move(status)));
     return;
   }
 
-  CHECK(!status.is_ok());
+  NotifyErrorOnChildSequence(std::move(status));
+}
+
+void D3D12VideoEncodeAccelerator::NotifyErrorOnChildSequence(
+    EncoderStatus status) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(child_sequence_checker_);
   MEDIA_LOG(ERROR, media_log_)
       << "D3D12VEA error " << static_cast<int32_t>(status.code()) << ": "
       << status.message();
-  if (!error_occurred_) {
-    if (client_) {
-      client_->NotifyErrorStatus(status);
-      client_ptr_factory_->InvalidateWeakPtrs();
-    }
-    error_occurred_ = true;
+  if (client_) {
+    client_->NotifyErrorStatus(status);
+    client_ptr_factory_->InvalidateWeakPtrs();
   }
 }
 
@@ -968,14 +1016,11 @@ std::unique_ptr<D3D11To12Fence> Create11On12InteropFence(
 }
 
 void D3D12VideoEncodeAccelerator::OnCommandBufferHelperAvailable(
-    const GetCommandBufferHelperResult& result) {
-  command_buffer_helper_ = result.command_buffer_helper;
+    GetCommandBufferHelperResult result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_sequence_checker_);
+  command_buffer_helper_ = std::move(result.command_buffer_helper);
+  source_texture_fence_ = std::move(result.source_texture_fence);
 
-  source_texture_fence_ = Create11On12InteropFence(
-      device_.Get(), command_buffer_helper_->GetSharedImageStub()
-                         ->shared_context_state()
-                         ->GetD3D11Device()
-                         .Get());
   if (!source_texture_fence_) {
     return NotifyError(
         {EncoderStatus::Codes::kD3D12CreateFenceFailed,
@@ -985,10 +1030,7 @@ void D3D12VideoEncodeAccelerator::OnCommandBufferHelperAvailable(
 
   // Resolve frames in the queue that are waiting for command buffer
   // availability.
-  encoder_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&D3D12VideoEncodeAccelerator::ResolveQueuedSharedImages,
-                     encoder_weak_this_));
+  ResolveQueuedSharedImages();
 }
 
 void D3D12VideoEncodeAccelerator::SetCommandBufferHelperCB(
@@ -1003,10 +1045,12 @@ void D3D12VideoEncodeAccelerator::SetCommandBufferHelperCB(
   gpu_task_runner->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&GetCommandBufferHelperOnGpuThread,
-                     get_command_buffer_helper_cb),
-      base::BindOnce(
-          &D3D12VideoEncodeAccelerator::OnCommandBufferHelperAvailable,
-          child_weak_this_));
+                     get_command_buffer_helper_cb, device_),
+      base::BindPostTask(
+          encoder_task_runner_,
+          base::BindOnce(
+              &D3D12VideoEncodeAccelerator::OnCommandBufferHelperAvailable,
+              encoder_weak_this_)));
 }
 
 // This runs on the encoder task runner. It does not replace the original

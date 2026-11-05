@@ -130,6 +130,8 @@ enum Condition : int {
   al = 10,  // Always.
   overflow32 = 11,
   nooverflow32 = 12,
+  overflow64 = 19,
+  nooverflow64 = 20,
 
   // Unified cross-platform condition names/aliases.
   // Do not set unsigned constants equal to their signed variants.
@@ -149,8 +151,6 @@ enum Condition : int {
   kNoOverflow = nooverflow,
   kZero = 17,
   kNotZero = 18,
-  kOverflow32 = overflow32,
-  kNoOverflow32 = nooverflow32,
 };
 
 inline Condition to_condition(Condition cond) {
@@ -185,8 +185,10 @@ inline bool is_signed(Condition cond) {
     case kNoOverflow:
     case kZero:
     case kNotZero:
-    case kOverflow32:
-    case kNoOverflow32:
+    case overflow32:
+    case nooverflow32:
+    case overflow64:
+    case nooverflow64:
       return true;
 
     case kUnsignedLessThan:
@@ -235,10 +237,14 @@ constexpr inline Condition NegateCondition(Condition cond) {
       return kNotZero;
     case kNotZero:
       return kZero;
-    case kOverflow32:
-      return kNoOverflow32;
-    case kNoOverflow32:
-      return kOverflow32;
+    case overflow32:
+      return nooverflow32;
+    case nooverflow32:
+      return overflow32;
+    case overflow64:
+      return nooverflow64;
+    case nooverflow64:
+      return overflow64;
     default:
       DCHECK(false);
   }

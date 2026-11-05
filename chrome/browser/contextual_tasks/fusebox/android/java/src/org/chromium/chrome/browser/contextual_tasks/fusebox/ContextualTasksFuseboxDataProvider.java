@@ -12,12 +12,12 @@ import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.StringRes;
 
-import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
@@ -33,17 +33,32 @@ import org.chromium.url.GURL;
 public class ContextualTasksFuseboxDataProvider implements LocationBarDataProvider {
     private final NonNullObservableSupplier<@ControlsPosition Integer> mToolbarPosition =
             ObservableSuppliers.createNonNull(ControlsPosition.TOP);
-    private final UserDataHost mUserDataHost = new UserDataHost();
-    private @ColorInt int mPrimaryColor;
-    private boolean mIsIncognito;
+    private @Nullable FuseboxSessionState mFuseboxSessionState;
+    private final @ColorInt int mPrimaryColor;
+    private final boolean mIsIncognito;
 
-    void initialize(Context context, boolean isIncognito) {
+    /**
+     * @param context The current {@link Context}.
+     * @param isIncognito Whether the current session is incognito.
+     */
+    public ContextualTasksFuseboxDataProvider(Context context, boolean isIncognito) {
         mPrimaryColor = ChromeColors.getPrimaryBackgroundColor(context, isIncognito);
         mIsIncognito = isIncognito;
     }
 
+    /**
+     * Set the {@link FuseboxSessionState} associated with the fusebox.
+     *
+     * @param fuseboxSessionState The {@link FuseboxSessionState} representing the fusebox.
+     */
+    public void setFuseboxSessionState(@Nullable FuseboxSessionState fuseboxSessionState) {
+        mFuseboxSessionState = fuseboxSessionState;
+    }
+
     void destroy() {
-        mUserDataHost.destroy();
+        if (mFuseboxSessionState != null) {
+            mFuseboxSessionState.destroy();
+        }
     }
 
     @Override
@@ -87,8 +102,8 @@ public class ContextualTasksFuseboxDataProvider implements LocationBarDataProvid
     }
 
     @Override
-    public UserDataHost getUserDataHost() {
-        return mUserDataHost;
+    public @Nullable FuseboxSessionState getFuseboxSessionState() {
+        return mFuseboxSessionState;
     }
 
     @Override

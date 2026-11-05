@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -56,6 +57,13 @@ std::unique_ptr<Thread> GlobalSimulatedTimeController::CreateThread(
     const std::string& name,
     std::unique_ptr<SocketServer> socket_server) {
   return impl_.CreateThread(name, std::move(socket_server));
+}
+
+std::unique_ptr<Thread>
+GlobalSimulatedTimeController::CreateThreadWithSocketServer(
+    absl::string_view name,
+    SocketServer* socket_server) {
+  return impl_.CreateThreadWithSocketServer(name, socket_server);
 }
 
 Thread* GlobalSimulatedTimeController::GetMainThread() {

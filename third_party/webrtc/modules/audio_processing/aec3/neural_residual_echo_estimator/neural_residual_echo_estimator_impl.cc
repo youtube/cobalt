@@ -566,14 +566,6 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
   }
 }
 
-EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
-    bool multi_channel) const {
-  EchoCanceller3Config config;
-  config.suppressor = AdjustConfig(config.suppressor);
-  config.filter.enable_coarse_filter_output_usage = false;
-  return config;
-}
-
 EchoCanceller3Config::Suppressor NeuralResidualEchoEstimatorImpl::AdjustConfig(
     const EchoCanceller3Config::Suppressor& suppressor_config) const {
   EchoCanceller3Config::Suppressor adjusted_suppressor_config =

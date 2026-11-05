@@ -19,9 +19,15 @@ use bssl_x509::store::X509Store;
 use super::TlsContextBuilder;
 use crate::{
     check_lib_error,
-    context::{CertificateCache, SupportedMode},
-    credentials::{CertificateVerificationMode, TlsCredential},
-    errors::Error,
+    context::{
+        CertificateCache,
+        SupportedMode, //
+    },
+    credentials::{
+        CertificateVerificationMode,
+        TlsCredential, //
+    },
+    errors::Error, //
 };
 
 /// # Credentials
@@ -58,7 +64,10 @@ where
     ///   if the certificate request by the server is not fulfilled.
     /// - [`CertificateVerificationMode::PeerCertMandatory`] which will abort handshake if
     ///   the request is not fulfilled.
-    pub fn with_certificate_mode(&mut self, mode: CertificateVerificationMode) -> &mut Self {
+    pub fn with_certificate_verification_mode(
+        &mut self,
+        mode: CertificateVerificationMode,
+    ) -> &mut Self {
         let conn = self.ptr();
         unsafe {
             // Safety: we only uninstall the vtable.

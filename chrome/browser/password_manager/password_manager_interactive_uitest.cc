@@ -40,7 +40,8 @@
 
 namespace {
 
-constexpr autofill::FieldRendererId kElementId(1000);
+constexpr autofill::FieldGlobalId kElementId(autofill::LocalFrameToken(),
+                                             autofill::FieldRendererId(1000));
 
 }  // namespace
 
@@ -104,12 +105,12 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerInteractiveTest, UsernameChanged) {
   // Spin the message loop to make sure the password store had a chance to save
   // the password.
   WaitForPasswordStore();
-  EXPECT_FALSE(password_store->IsEmpty());
+  EXPECT_FALSE(GetAllLoginsSync(password_store.get()).empty());
 
   // Verify that there are two saved password, the old password and the new
   // password.
   password_manager::TestPasswordStore::PasswordMap stored_passwords =
-      password_store->stored_passwords();
+      GetAllLoginsSync(password_store.get());
   EXPECT_EQ(1u, stored_passwords.size());
   EXPECT_EQ(2u, stored_passwords.begin()->second.size());
   EXPECT_EQ(u"temp", (stored_passwords.begin()->second)[0].username_value);
@@ -364,7 +365,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerInteractiveTest,
           base::i18n::LEFT_TO_RIGHT, std::u16string(),
           /*show_webauthn_credentials=*/false,
           /*show_identity_credentials=*/false, element_bounds),
-      form, 0, 0));
+      form, {}, {}));
   autofill::AutofillSuggestionController* controller = nullptr;
   // Showing the Autofill Popup is an asynchronous task.
   EXPECT_TRUE(base::test::RunUntil([&]() {
@@ -395,7 +396,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerInteractiveTest,
           base::i18n::LEFT_TO_RIGHT, std::u16string(),
           /*show_webauthn_credentials=*/false,
           /*show_identity_credentials=*/false, element_bounds),
-      form, 0, 0));
+      form, {}, {}));
   // Showing the Autofill Popup is an asynchronous task.
   EXPECT_TRUE(base::test::RunUntil([&]() {
     return controller =
@@ -423,7 +424,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerInteractiveTest,
           base::i18n::LEFT_TO_RIGHT, std::u16string(),
           /*show_webauthn_credentials=*/false,
           /*show_identity_credentials=*/false, element_bounds),
-      form, 0, 0));
+      form, {}, {}));
   // Showing the Autofill Popup is an asynchronous task.
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(autofill_client->suggestion_controller_for_testing());

@@ -82,6 +82,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 #include "src/parsing/preparse-data.h"
 #include "src/regexp/regexp.h"
 #include "src/roots/roots.h"
@@ -1973,8 +1974,6 @@ void Smi::SmiPrint(Tagged<Smi> smi, std::ostream& os) { os << smi.value(); }
 
 void Struct::BriefPrintDetails(std::ostream& os) {}
 
-void StructLayout::BriefPrintDetails(std::ostream& os) {}
-
 void Tuple2::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
@@ -2100,6 +2099,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return PropertyArray::SizeFor(
         UncheckedCast<PropertyArray>(*this)->length(kAcquireLoad).value());
   }
+  if (instance_type == SCOPE_INFO_TYPE) {
+    return UncheckedCast<ScopeInfo>(*this)->AllocatedSize();
+  }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
         UncheckedCast<FeedbackVector>(*this)->length());
@@ -2158,6 +2160,18 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == HOLE_TYPE) {
     return sizeof(Hole);
+  }
+  if (instance_type == TURBOSHAFT_WORD32_SET_TYPE_TYPE) {
+    return TurboshaftWord32SetType::SizeFor(
+        UncheckedCast<TurboshaftWord32SetType>(*this)->set_size());
+  }
+  if (instance_type == TURBOSHAFT_WORD64_SET_TYPE_TYPE) {
+    return TurboshaftWord64SetType::SizeFor(
+        UncheckedCast<TurboshaftWord64SetType>(*this)->set_size());
+  }
+  if (instance_type == TURBOSHAFT_FLOAT64_SET_TYPE_TYPE) {
+    return TurboshaftFloat64SetType::SizeFor(
+        UncheckedCast<TurboshaftFloat64SetType>(*this)->set_size());
   }
   UNREACHABLE();
 }
@@ -4510,7 +4524,7 @@ Maybe<bool> JSArray::SetLength(Isolate* isolate, DirectHandle<JSArray> array,
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)
 // static
 Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
-                                  DirectHandle<Object> value,
+                                  DirectHandle<JSPrototype> value,
                                   bool from_javascript,
                                   ShouldThrow should_throw) {
   STACK_CHECK(isolate, Nothing<bool>());

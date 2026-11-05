@@ -21,17 +21,6 @@ found in the LICENSE file.
         android:orientation="vertical"
         android:visibility="visible">
 
-        <!-- Handle Bar -->
-        <ImageView
-            android:id="@+id/handle_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="7dp"
-            android:src="@drawable/drag_handlebar"
-            app:tint="@macro/drag_handle_color"
-            android:importantForAccessibility="no"/>
-
         <!-- Toolbar Container -->
         <FrameLayout
             android:id="@+id/toolbar_container"
@@ -43,23 +32,37 @@ found in the LICENSE file.
             android:id="@+id/web_ui_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="5dp" />
+            android:layout_marginTop="@dimen/tab_bottom_sheet_web_ui_top_margin"
+            android:layout_weight="1" />
 
         <!-- Fusebox Container -->
         <FrameLayout
             android:id="@+id/fusebox_container"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="5dp" />
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
     <!-- Actor Control View: Appears when BottomSheet is collapsed -->
+    <!-- The content includes the actor control view and the drag handle bar frame. -->
     <FrameLayout
         android:id="@+id/actor_control_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/tab_bottom_sheet_peek_height_total"
         android:layout_gravity="top"
+        android:paddingTop="@dimen/tab_bottom_sheet_handle_area_height"
+        android:paddingBottom="@dimen/tab_bottom_sheet_peek_container_bottom_padding"
+        android:background="@color/tab_bottom_sheet_bg"
         android:visibility="gone">
     </FrameLayout>
+
+    <!-- Handle Bar: Positioned absolute last to win Z-indexing in FrameLayout -->
+    <ImageView
+        android:id="@+id/handle_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="@dimen/tab_bottom_sheet_handle_margin"
+        android:src="@drawable/drag_handlebar"
+        app:tint="@macro/drag_handle_color"
+        android:importantForAccessibility="no"/>
 </FrameLayout>

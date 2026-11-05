@@ -260,6 +260,11 @@ class PLATFORM_EXPORT TransformPaintPropertyNode final
     return parent ? &parent->NearestScrollTranslationNode() : nullptr;
   }
 
+  // The root of the 2d translation subtree containing this node.
+  const TransformPaintPropertyNode* RootOf2dTranslation() const {
+    return GetTransformCache().root_of_2d_translation();
+  }
+
   // This is different from NearestScrollTranslationNode in that for a
   // fixed-position paint offset translation, this returns
   // ScrollTranslationForFixed() instead of the ancestor scroll translation
@@ -337,6 +342,13 @@ class PLATFORM_EXPORT TransformPaintPropertyNode final
   bool RequiresCompositingForFixedPosition() const {
     return DirectCompositingReasons() & CompositingReason::kFixedPosition;
   }
+  bool RequiresCompositingForFixedPositionOnly() const {
+    return RequiresCompositingForFixedPosition() &&
+           (DirectCompositingReasons() &
+            ~CompositingReason::kFixedPositionReasons) ==
+               CompositingReason::kNone;
+  }
+  bool CanMergeForFixedPosition(const TransformPaintPropertyNode& other) const;
 
   bool RequiresCompositingForFixedToViewport() const {
     return DirectCompositingReasons() & CompositingReason::kUndoOverscroll;
@@ -345,6 +357,10 @@ class PLATFORM_EXPORT TransformPaintPropertyNode final
   bool RequiresCompositingForStickyPosition() const {
     return DirectCompositingReasons() & CompositingReason::kStickyPosition;
   }
+  bool RequiresCompositingForStickyPositionOnly() const {
+    return DirectCompositingReasons() == CompositingReason::kStickyPosition;
+  }
+  bool CanMergeForStickyPosition(const TransformPaintPropertyNode& other) const;
 
   bool RequiresCompositingForAnchorPosition() const {
     return DirectCompositingReasons() & CompositingReason::kAnchorPosition;

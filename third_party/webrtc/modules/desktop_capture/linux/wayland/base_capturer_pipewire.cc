@@ -75,6 +75,10 @@ BaseCapturerPipeWire::BaseCapturerPipeWire(
 }
 
 BaseCapturerPipeWire::~BaseCapturerPipeWire() {
+  // Destroy the portal first. Its destructor may block until in-flight
+  // GDBus callbacks finish, and those callbacks access other members
+  // (options_, callback_) through the notifier_ pointer.
+  portal_.reset();
   options_.screencast_stream()->StopScreenCastStream();
 }
 

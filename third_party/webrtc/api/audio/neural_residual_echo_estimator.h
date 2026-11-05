@@ -54,9 +54,6 @@ class NeuralResidualEchoEstimator {
                         std::span<std::array<float, 65>> R2,
                         std::span<std::array<float, 65>> R2_unbounded) = 0;
 
-  // Returns a recommended AEC3 configuration for this estimator.
-  virtual EchoCanceller3Config GetConfiguration(bool multi_channel) const = 0;
-
   // Adjusts the provided AEC3 suppressor configuration based on the estimator's
   // requirements.
   virtual EchoCanceller3Config::Suppressor AdjustConfig(

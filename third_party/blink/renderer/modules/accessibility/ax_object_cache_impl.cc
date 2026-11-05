@@ -39,8 +39,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "services/metrics/public/cpp/ukm_builders.h"
-#include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/render_accessibility.mojom-blink.h"
@@ -3553,7 +3551,12 @@ bool AXObjectCacheImpl::CommitAXUpdates(Document& document, bool force) {
 
       // Update (create or remove) validation child of root, if it is needed, so
       // that the tree can be frozen in the correct state.
-      ValidationMessageObjectIfInvalid();
+      if (ValidationMessageObjectIfInvalid()) {
+        // A validation message exists and must be a child of root. Ensure root
+        // rebuilds its children to include it, since Init(Root()) only sets the
+        // has_dirty_descendants_ flag but not children_dirty_.
+        InvalidateChildren(Root());
+      }
 
       // If MarkDocumentDirty() was called, do it now, so that the entire tree
       // is invalidated before updating it.
@@ -5373,6 +5376,7 @@ bool AXObjectCacheImpl::IsImmediateProcessingRequiredForEvent(
     case ax::mojom::blink::Event::kAutocorrectionOccured:
     case ax::mojom::blink::Event::kChildrenChanged:
     case ax::mojom::blink::Event::kControlsChanged:
+    case ax::mojom::blink::Event::kEnabledChanged:
     case ax::mojom::blink::Event::kEndOfTest:
     case ax::mojom::blink::Event::kFocusAfterMenuClose:
     case ax::mojom::blink::Event::kFocusContext:
@@ -5651,6 +5655,9 @@ void AXObjectCacheImpl::MarkAXObjectDirtyWithCleanLayoutHelper(
   }
 
   std::vector<ui::AXEventIntent> event_intents;
+  for (const auto& intent : ActiveEventIntents()) {
+    event_intents.push_back(intent.key.intent());
+  }
   AddDirtyObjectToSerializationQueue(obj, event_from, event_from_action,
                                      event_intents);
 
@@ -5861,8 +5868,18 @@ void AXObjectCacheImpl::RestoreParentOrPruneWithCleanLayout(Node* child_node) {
     ChildrenChangedOnAncestorOf(child);
   } else {
     // If no parent is currently available, the child may no longer be part of
-    // the tree. Remove the child's subtree and ask the parent (if any) to
-    // rebuild its subtree.
+    // the tree. However, if the node is still connected to the document, it
+    // will get a parent once tree building reaches its natural ancestor. This
+    // can happen during eager subtree construction in CreateAndInit(), where
+    // aria-owns re-evaluation runs before the parent's AXObject exists.
+    // Pruning such a node would corrupt the tree. See crbug.com/501371770.
+    if (child_node && child_node->isConnected()) {
+      // Mark the parent dirty so it picks up this child on next update.
+      if (parent) {
+        ChildrenChangedWithCleanLayout(parent);
+      }
+      return;
+    }
     RemoveSubtree(child_node);
     ChildrenChangedWithCleanLayout(parent);
   }
@@ -6141,30 +6158,6 @@ void AXObjectCacheImpl::AddDirtyObjectToSerializationQueue(
   }
 }
 
-void AXObjectCacheImpl::MaybeSendCanvasHasNonTrivialFallbackUKM(
-    const AXObject* ax_canvas) {
-  if (!ax_canvas->ChildCountIncludingIgnored()) {
-    // Canvas does not have fallback.
-    return;
-  }
-
-  if (ax_canvas->ChildCountIncludingIgnored() == 1 &&
-      ui::IsText(ax_canvas->FirstChildIncludingIgnored()->RoleValue())) {
-    // Ignore a fallback if it's just a single piece of text, as we are
-    // looking for advanced uses of canvas fallbacks.
-    return;
-  }
-
-  has_emitted_canvas_fallback_ukm_ = true;  // Stop checking.
-
-  ukm::UkmRecorder* ukm_recorder = GetDocument().UkmRecorder();
-  DCHECK(ukm_recorder);
-  ukm::builders::Accessibility_CanvasHasNonTrivialFallback(
-      GetDocument().UkmSourceID())
-      .SetSeen(true)
-      .Record(ukm_recorder);
-}
-
 void AXObjectCacheImpl::GetUpdatesAndEventsForSerialization(
     std::vector<ui::AXTreeUpdate>& updates,
     std::vector<ui::AXEvent>& events,
@@ -6254,12 +6247,6 @@ void AXObjectCacheImpl::GetUpdatesAndEventsForSerialization(
       // node from changed_bounds_ids_ to avoid sending it in
       // SerializeLocationChanges() later.
       changed_bounds_ids_.erase(id);
-
-      // Record advanced uses of canvas fallbacks.
-      if (!has_emitted_canvas_fallback_ukm_ &&
-          node_data.role == ax::mojom::blink::Role::kCanvas) {
-        MaybeSendCanvasHasNonTrivialFallbackUKM(ObjectFromAXID(node_data.id));
-      }
     }
 
     DCHECK(already_serialized_ids.Contains(obj->AXObjectID()))

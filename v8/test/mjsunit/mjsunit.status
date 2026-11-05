@@ -79,9 +79,6 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # BUG(chromium:1497251): Probably some data race in the interpreter.
-  'regress/regress-1497251': [SKIP],
-
   # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
@@ -160,6 +157,7 @@
   'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'maglev/regress-464612781': [PASS, SLOW],
+  'maglev/regress-500774816': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
@@ -174,6 +172,8 @@
   'regress/regress-447613219': [PASS, SLOW],
   'regress/regress-494583765' : [PASS, SLOW],
   'regress/regress-7558019': [PASS, SLOW],
+  'regress/regress-499721612': [PASS, SLOW],
+  'regress/regress-498010834': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
@@ -674,6 +674,10 @@
   'regress/wasm/regress-488089242': [SKIP],
   'regress/wasm/regress-489349562': [SKIP],
   'wasm/cont-bind': [SKIP],
+  'wasm/regress-496645739': [SKIP],
+  'wasm/regress-497667917': [SKIP],
+  'wasm/regress-498482620': [SKIP],
+  'wasm/regress-499719427': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/wasmfx*': [SKIP],
@@ -818,6 +822,12 @@
   'regress/wasm/regress-457106696': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
+
+  # --experimental-wasm-compact-imports
+  'wasm/compact-imports': [SKIP],
+
+  # --experimental-wasm-wide-arithmetic
+  'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-deopt
   'regress/wasm/regress-363826217': [SKIP],
@@ -1262,6 +1272,7 @@
   # Too slow.
   'asm/embenchen/zlib': [SKIP],
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-499721612': [SKIP],
   'regress/regress-779407': [SKIP],
   'wasm/embenchen/box2d': [SKIP],
   'wasm/embenchen/lua_binarytrees': [SKIP],
@@ -1985,7 +1996,8 @@
 ##############################################################################
 ['simulator_run and arch == ppc64', {
   # Slow tests
-  'wasm/wasm-interpreter': [PASS, SLOW]
+  'wasm/wasm-interpreter': [PASS, SLOW],
+  'regress/regress-499721612': [SKIP]
 }],  # 'simulator_run and arch == ppc64'
 
 ##############################################################################
@@ -2141,6 +2153,10 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-334687959': [SKIP],
+
+  # These tests require Turbolev (--turbofan) which nooptimization disables.
+  'wasm/wasm-wrapper-inlining-turbolev': [SKIP],
+  'wasm/wrapper-inlining-lazy-deopt-turbolev': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -2736,6 +2752,8 @@
 ['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # Tests that rely on turbofan
   'wasm/bigint-opt': [SKIP],
+  # BUG(501108091): Sparkplug code is not correctly merged.
+  'regress/regress-1497251': [SKIP],
 }], # variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit
 
 ##############################################################################

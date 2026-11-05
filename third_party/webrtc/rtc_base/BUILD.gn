@@ -468,6 +468,7 @@ rtc_library("logging") {
     "../api/units:timestamp",
     "synchronization:mutex",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -666,7 +667,10 @@ rtc_library("rtc_operations_chain") {
 
 if (is_mac || is_ios) {
   rtc_library("rtc_task_queue_gcd") {
-    visibility = [ "../api/task_queue:default_task_queue_factory" ]
+    visibility = [
+      ":rtc_task_queue_unittests",
+      "../api/task_queue:default_task_queue_factory",
+    ]
     sources = [
       "task_queue_gcd.cc",
       "task_queue_gcd.h",
@@ -1941,21 +1945,54 @@ if (rtc_include_tests) {
   }
 
   if (!build_with_chromium) {
-    rtc_library("rtc_base_nonparallel_tests") {
+    rtc_library("socket_unittest") {
       testonly = true
-
       sources = [
-        "cpu_time_unittest.cc",
-        "file_rotating_stream_unittest.cc",
-        "null_socket_server_unittest.cc",
-        "physical_socket_server_unittest.cc",
-        "socket_address_unittest.cc",
         "socket_unittest.cc",
         "socket_unittest.h",
       ]
       deps = [
         ":async_udp_socket",
         ":buffer",
+        ":checks",
+        ":ip_address",
+        ":logging",
+        ":net_helpers",
+        ":net_test_helpers",
+        ":rtc_base_tests_utils",
+        ":socket",
+        ":socket_address",
+        ":socket_factory",
+        ":socket_server",
+        ":testclient",
+        ":threading",
+        "../api:rtc_error_matchers",
+        "../api/environment",
+        "../api/transport:ecn_marking",
+        "../api/units:time_delta",
+        "../test:create_test_environment",
+        "../test:near_matcher",
+        "../test:test_support",
+        "../test:wait_until",
+        "//testing/gtest",
+        "//third_party/abseil-cpp/absl/strings:string_view",
+      ]
+    }
+
+    rtc_cc_test("cpu_time_unittest") {
+      sources = [ "cpu_time_unittest.cc" ]
+      deps = [
+        ":platform_thread",
+        ":rtc_base_tests_utils",
+        ":threading",
+        ":timeutils",
+        "../test:test_support",
+      ]
+    }
+
+    rtc_cc_test("file_rotating_stream_unittest") {
+      sources = [ "file_rotating_stream_unittest.cc" ]
+      deps = [
         ":file_rotating_stream",
         ":ip_address",
         ":logging",
@@ -1978,14 +2015,53 @@ if (rtc_include_tests) {
         "../api/units:timestamp",
         "../test:create_test_environment",
         "../test:fileutils",
-        "../test:near_matcher",
+        "../test:test_support",
+        "system:file_wrapper",
+        "//third_party/abseil-cpp/absl/strings:string_view",
+      ]
+    }
+
+    rtc_cc_test("null_socket_server_unittest") {
+      sources = [ "null_socket_server_unittest.cc" ]
+      deps = [
+        ":null_socket_server",
+        ":socket_server",
+        ":threading",
+        "../api/environment",
+        "../api/units:time_delta",
+        "../api/units:timestamp",
+        "../test:create_test_environment",
+        "../test:run_loop",
+        "../test:test_support",
+      ]
+    }
+
+    rtc_cc_test("physical_socket_server_unittest") {
+      sources = [ "physical_socket_server_unittest.cc" ]
+      deps = [
+        ":ip_address",
+        ":logging",
+        ":net_helpers",
+        ":net_test_helpers",
+        ":rtc_base_tests_utils",
+        ":socket",
+        ":socket_address",
+        ":socket_unittest",
+        ":threading",
+        "../api:rtc_error_matchers",
         "../test:run_loop",
         "../test:test_support",
         "../test:wait_until",
-        "system:file_wrapper",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/memory",
-        "//third_party/abseil-cpp/absl/strings:string_view",
+      ]
+    }
+
+    rtc_cc_test("socket_address_unittest") {
+      sources = [ "socket_address_unittest.cc" ]
+      deps = [
+        ":ip_address",
+        ":net_helpers",
+        ":socket_address",
+        "../test:test_support",
       ]
     }
 
@@ -2129,6 +2205,9 @@ if (rtc_include_tests) {
       testonly = true
 
       sources = [ "task_queue_unittest.cc" ]
+      if (is_mac || is_ios) {
+        sources += [ "task_queue_gcd_unittest.cc" ]
+      }
       deps = [
         ":rtc_event",
         ":task_queue_for_test",
@@ -2138,6 +2217,9 @@ if (rtc_include_tests) {
         "../test:test_support",
         "//third_party/abseil-cpp/absl/memory",
       ]
+      if (is_mac || is_ios) {
+        deps += [ ":rtc_task_queue_gcd" ]
+      }
     }
 
     rtc_library("weak_ptr_unittests") {

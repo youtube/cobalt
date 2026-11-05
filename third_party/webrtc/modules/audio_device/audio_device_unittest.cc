@@ -33,7 +33,6 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -525,10 +524,6 @@ class MAYBE_AudioDeviceTest
  protected:
   MAYBE_AudioDeviceTest()
       : audio_layer_(GetParam()), env_(CreateEnvironment()) {
-    LogMessage::LogToDebug(LS_INFO);
-    // Add extra logging fields here if needed for debugging.
-    LogMessage::LogTimestamps();
-    LogMessage::LogThreads();
     audio_device_ = CreateAudioDevice();
     EXPECT_NE(audio_device_.get(), nullptr);
     AudioDeviceModule::AudioLayer audio_layer;

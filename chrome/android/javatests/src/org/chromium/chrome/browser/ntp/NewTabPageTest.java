@@ -46,7 +46,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.GarbageCollectionTestUtils;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.memory.MemoryPressureCallback;
@@ -115,7 +114,6 @@ import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -246,6 +244,7 @@ public class NewTabPageTest {
         int[] toolbarContentIds =
                 new int[] {
                     R.id.home_button,
+                    R.id.back_button,
                     R.id.location_bar_background_view,
                     R.id.location_bar,
                     R.id.toolbar_buttons
@@ -508,25 +507,6 @@ public class NewTabPageTest {
         callback.waitForCallback(0);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> MemoryPressureListener.removeCallback(pressureCallback));
-    }
-
-    @Test
-    @DisabledTest(message = "Test is flaky. crbug.com/1077724")
-    @SmallTest
-    @Feature("NewTabPage")
-    public void testNewTabPageCanBeGarbageCollected() throws IOException {
-        WeakReference<NewTabPage> ntpRef = new WeakReference<>(mNtp);
-
-        mActivityTestRule.loadUrl("about:blank");
-
-        mNtp = null;
-        mMostVisitedSites = null;
-        mSuggestionsDeps.getFactory().mostVisitedSites = null;
-        mFakebox = null;
-        mMvTilesLayout = null;
-        mTab = null;
-
-        Assert.assertTrue(GarbageCollectionTestUtils.canBeGarbageCollected(ntpRef));
     }
 
     @Test

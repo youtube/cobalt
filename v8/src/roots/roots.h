@@ -117,6 +117,7 @@ class RootVisitor;
   V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
+  V(Map, function_template_info_map, FunctionTemplateInfoMap)                  \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, instruction_stream_map, InstructionStreamMap)                         \
   V(Map, interceptor_info_map, InterceptorInfoMap)                             \
@@ -129,6 +130,7 @@ class RootVisitor;
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
   V(Map, object_boilerplate_description_map, ObjectBoilerplateDescriptionMap)  \
+  V(Map, object_template_info_map, ObjectTemplateInfoMap)                      \
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
@@ -139,6 +141,7 @@ class RootVisitor;
   V(Map, registered_symbol_table_map, RegisteredSymbolTableMap)                \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \

@@ -47,6 +47,14 @@
 
 BSSL_NAMESPACE_BEGIN
 
+static Span<const uint8_t> ASN1StringToBytes(const ASN1_STRING *str) {
+  return Span(ASN1_STRING_get0_data(str), ASN1_STRING_length(str));
+}
+
+static std::string_view ASN1StringToStringView(const ASN1_STRING *str) {
+  return BytesAsStringView(ASN1StringToBytes(str));
+}
+
 // |obj| and |i2d_func| require different template parameters because C++ may
 // deduce, say, |ASN1_STRING*| via |obj| and |const ASN1_STRING*| via
 // |i2d_func|. Template argument deduction then fails. The language is not able
@@ -788,25 +796,29 @@ TEST(ASN1Test, ParseASN1Object) {
 }
 
 TEST(ASN1Test, BitString) {
-  const size_t kNotWholeBytes = static_cast<size_t>(-1);
   const struct {
     std::vector<uint8_t> in;
-    size_t num_bytes;
+    int num_bytes;
+    uint8_t unused_bits;
   } kValidInputs[] = {
       // Empty bit string
-      {{0x03, 0x01, 0x00}, 0},
+      {{0x03, 0x01, 0x00}, 0, 0},
       // 0b1
-      {{0x03, 0x02, 0x07, 0x80}, kNotWholeBytes},
+      {{0x03, 0x02, 0x07, 0x80}, 1, 7},
       // 0b1010
-      {{0x03, 0x02, 0x04, 0xa0}, kNotWholeBytes},
+      {{0x03, 0x02, 0x04, 0xa0}, 1, 4},
       // 0b1010101
-      {{0x03, 0x02, 0x01, 0xaa}, kNotWholeBytes},
+      {{0x03, 0x02, 0x01, 0xaa}, 1, 1},
       // 0b10101010
-      {{0x03, 0x02, 0x00, 0xaa}, 1},
+      {{0x03, 0x02, 0x00, 0xaa}, 1, 0},
       // Bits 0 and 63 are set
-      {{0x03, 0x09, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, 8},
+      {{0x03, 0x09, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+       8,
+       0},
       // 64 zero bits
-      {{0x03, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 8},
+      {{0x03, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+       8,
+       0},
   };
   for (const auto &test : kValidInputs) {
     SCOPED_TRACE(Bytes(test.in));
@@ -817,13 +829,16 @@ TEST(ASN1Test, BitString) {
     ASSERT_TRUE(val);
     TestSerialize(val.get(), i2d_ASN1_BIT_STRING, test.in);
 
+    EXPECT_EQ(ASN1_STRING_length(val.get()), test.num_bytes);
+    EXPECT_EQ(ASN1_BIT_STRING_unused_bits(val.get()), test.unused_bits);
+
     // Check the byte count.
     size_t num_bytes;
-    if (test.num_bytes == kNotWholeBytes) {
+    if (test.unused_bits != 0) {
       EXPECT_FALSE(ASN1_BIT_STRING_num_bytes(val.get(), &num_bytes));
     } else {
       ASSERT_TRUE(ASN1_BIT_STRING_num_bytes(val.get(), &num_bytes));
-      EXPECT_EQ(num_bytes, test.num_bytes);
+      EXPECT_EQ(num_bytes, static_cast<size_t>(test.num_bytes));
     }
   }
 
@@ -940,12 +955,70 @@ TEST(ASN1Test, SetBit) {
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 63));
   EXPECT_EQ(0, ASN1_BIT_STRING_get_bit(val.get(), 64));
 
-  // By default, a BIT STRING implicitly truncates trailing zeros.
+  // A BIT STRING may be manually set with trailing zeros.
   val.reset(ASN1_BIT_STRING_new());
   ASSERT_TRUE(val);
-  static const uint8_t kZeros[64] = {0};
+  static const uint8_t kZeros[5] = {0};
   ASSERT_TRUE(ASN1_STRING_set(val.get(), kZeros, sizeof(kZeros)));
+  static const uint8_t kBitStringZeros[] = {0x03, 0x06, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00};
+  TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitStringZeros);
+}
+
+TEST(ASN1Test, SetBitString) {
+  // Creating an ASN1_BIT_STRING and then filling in a byte string should assign
+  // the byte string, not a silently truncated version.
+  UniquePtr<ASN1_BIT_STRING> val(ASN1_BIT_STRING_new());
+  ASSERT_TRUE(val);
+  const uint8_t kBytesf000[] = {0xf0, 0x00};
+  ASSERT_TRUE(
+      ASN1_STRING_set(val.get(), kBytesf000, sizeof(kBytesf000)));
+  static const uint8_t kBitStringf000[] = {0x03, 0x03, 0x00, 0xf0, 0x00};
+  TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitStringf000);
+
+  // A thin wrapper to simplify getting pointer/length pairs to call the
+  // function.
+  auto set1 = [](ASN1_BIT_STRING *s, const std::vector<uint8_t> &data,
+                 int unused_bits) {
+    return ASN1_BIT_STRING_set1(s, data.data(), data.size(), unused_bits);
+  };
+
+  // Setting a count of unused bits works.
+  ASSERT_TRUE(set1(val.get(), {0xf0}, 4));
+  static const uint8_t kBitString1111[] = {0x03, 0x02, 0x04, 0xf0};
+  TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString1111);
+
+  ASSERT_TRUE(set1(val.get(), {0xf0}, 0));
+  static const uint8_t kBitString11110000[] = {0x03, 0x02, 0x00, 0xf0};
+  TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString11110000);
+
+  ASSERT_TRUE(set1(val.get(), {}, 0));
+  static const uint8_t kBitStringEmpty[] = {0x03, 0x01, 0x00};
   TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitStringEmpty);
+
+  // All unused bits must be zero.
+  EXPECT_FALSE(set1(val.get(), {0xff}, 1));
+  EXPECT_FALSE(set1(val.get(), {0xf0}, 5));
+
+  // Invalid unused bit counts.
+  EXPECT_FALSE(set1(val.get(), {0x00, 0x00}, 8));
+  EXPECT_FALSE(set1(val.get(), {0x00, 0x00}, -1));
+  EXPECT_FALSE(set1(val.get(), {}, 1));
+
+  // |ASN1_STRING_set| and |ASN1_STRING_set0| should clear the count of unused
+  // bits, rather then carry it over.
+  ASSERT_TRUE(set1(val.get(), {0xf0}, 4));
+  static const uint8_t kBytes[] = {0x00, 0x01, 0x02};
+  ASSERT_TRUE(ASN1_STRING_set(val.get(), kBytes, sizeof(kBytes)));
+  EXPECT_EQ(ASN1_BIT_STRING_unused_bits(val.get()), 0);
+  EXPECT_EQ(Bytes(ASN1StringToBytes(val.get())), Bytes(kBytes));
+
+  ASSERT_TRUE(set1(val.get(), {0xf0}, 4));
+  void *copy = OPENSSL_memdup(kBytes, sizeof(kBytes));
+  ASSERT_NE(copy, nullptr);
+  ASN1_STRING_set0(val.get(), copy, sizeof(kBytes));
+  EXPECT_EQ(ASN1_BIT_STRING_unused_bits(val.get()), 0);
+  EXPECT_EQ(Bytes(ASN1StringToBytes(val.get())), Bytes(kBytes));
 }
 
 TEST(ASN1Test, StringToUTF8) {
@@ -1007,12 +1080,6 @@ TEST(ASN1Test, StringToUTF8) {
       ERR_clear_error();
     }
   }
-}
-
-static std::string_view ASN1StringToStringView(const ASN1_STRING *str) {
-  return std::string_view(
-      reinterpret_cast<const char *>(ASN1_STRING_get0_data(str)),
-      ASN1_STRING_length(str));
 }
 
 static bool ASN1Time_check_posix(const ASN1_TIME *s, int64_t t) {
@@ -2325,9 +2392,6 @@ TEST(ASN1Test, StringCmp) {
   const Input kInputs[] = {
       {V_ASN1_BIT_STRING, {}, ASN1_STRING_FLAG_BITS_LEFT | 0, false},
       {V_ASN1_BIT_STRING, {}, 0, true},
-      // When |ASN1_STRING_FLAG_BITS_LEFT| is unset, BIT STRINGs implicitly
-      // drop trailing zeros.
-      {V_ASN1_BIT_STRING, {0x00, 0x00, 0x00, 0x00}, 0, true},
 
       {V_ASN1_OCTET_STRING, {}, 0, false},
       {V_ASN1_UTF8STRING, {}, 0, false},
@@ -2345,8 +2409,6 @@ TEST(ASN1Test, StringCmp) {
       {V_ASN1_BIT_STRING, {0xe0}, ASN1_STRING_FLAG_BITS_LEFT | 5, false},
       // 4-bit inputs.
       {V_ASN1_BIT_STRING, {0xf0}, ASN1_STRING_FLAG_BITS_LEFT | 4, false},
-      {V_ASN1_BIT_STRING, {0xf0}, 0, true},        // 4 trailing zeros dropped.
-      {V_ASN1_BIT_STRING, {0xf0, 0x00}, 0, true},  // 12 trailing zeros dropped.
       // 5-bit inputs.
       {V_ASN1_BIT_STRING, {0x00}, ASN1_STRING_FLAG_BITS_LEFT | 3, false},
       {V_ASN1_BIT_STRING, {0xf0}, ASN1_STRING_FLAG_BITS_LEFT | 3, false},

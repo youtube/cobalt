@@ -32,7 +32,7 @@ import {ModelMode} from '//resources/mojo/components/omnibox/composebox/composeb
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {ComposeboxFile, ContextType, ContextualSearchInputStateDeletionType, FILE_VALIDATION_ERRORS_MAP, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordContextualElementClickedMetric, recordEnumerationValue, recordInputTypeShown, recordModelModeShown, recordToolModeShown, recordUserAction, TabUploadOrigin} from './common.js';
+import {ComposeboxFile, ContextType, ContextualSearchInputStateDeletionType, FILE_VALIDATION_ERRORS_MAP, getLoadTimeBoolean, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordContextualElementClickedMetric, recordEnumerationValue, recordInputTypeShown, recordModelModeShown, recordToolModeShown, recordUserAction, TabUploadOrigin} from './common.js';
 import type {ComposeboxState, TabUpload} from './common.js';
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
@@ -40,7 +40,7 @@ import type {PageHandlerRemote} from './composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from './composebox_dropdown.js';
 import type {ComposeboxFileInputsElement} from './composebox_file_inputs.js';
 import type {ComposeboxInputElement} from './composebox_input.js';
-import {ComposeboxEmbedderMixin} from './composebox_mixin.js';
+import {ComposeboxEmbedderMixin, VoiceSearchAction} from './composebox_mixin.js';
 import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {ContextUploadStatus, InputType, ToolMode} from './composebox_query.mojom-webui.js';
 import type {ContextUploadErrorType, InputState} from './composebox_query.mojom-webui.js';
@@ -48,13 +48,8 @@ import type {ComposeboxVoiceSearchElement} from './composebox_voice_search.js';
 import type {ContextualEntrypointAndMenuElement} from './contextual_entrypoint_and_menu.js';
 import type {ErrorScrimElement} from './error_scrim.js';
 import type {ComposeboxFileCarouselElement} from './file_carousel.js';
-import {WindowProxy} from './window_proxy.js';
 
-export enum VoiceSearchAction {
-  ACTIVATE = 0,
-  QUERY_SUBMITTED = 1,
-}
-
+export {VoiceSearchAction};
 
 export enum SubmitButtonIconType {
   FORWARD = 'forward',
@@ -98,6 +93,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
   static override get properties() {
     return {
+      smartTabSharingActive_: {type: Boolean},
       showLensButton: {type: Boolean},
       suggestionActivityEnabled: {type: Boolean},
       lensButtonTriggersOverlay: {type: Boolean},
@@ -108,10 +104,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       expanding_: {
         reflect: true,
         type: Boolean,
-      },
-      animationState: {
-        reflect: true,
-        type: String,
       },
       isCanvasQuerySubmitted: {
         type: Boolean,
@@ -141,23 +133,18 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         reflect: true,
         type: Boolean,
       },
-      searchboxLayoutMode: {
-        type: String,
-        reflect: true,
-      },
       carouselOnTop_: {
         type: Boolean,
       },
       showMenuOnClick: {type: Boolean},
       entrypointName: {type: String, reflect: true},
-      disableVoiceSearchAnimation: {type: Boolean},
       disableCaretColorAnimation: {
         type: Boolean,
         reflect: true,
       },
       disableComposeboxAnimation: {type: Boolean},
-      // Embedders can opt out of public composebox resize events when they do not
-      // use them.
+      // Embedders can opt out of public composebox resize events when they do
+      // not use them.
       observeResize: {type: Boolean},
       enableCarouselScrolling: {type: Boolean},
       inputPlaceholderOverride: {type: String},
@@ -182,12 +169,9 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   accessor showLensButton: boolean = true;
   accessor ntpRealboxNextEnabled: boolean = false;
   accessor searchboxNextEnabled: boolean = false;
-  accessor searchboxLayoutMode: string = '';
   accessor carouselOnTop_: boolean = false;
-  accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
   accessor showMenuOnClick: boolean = true;
   accessor entrypointName: string = '';
-  accessor disableVoiceSearchAnimation: boolean = false;
   accessor lensButtonDisabled: boolean = false;
 
   accessor submitButtonIconType: SubmitButtonIconType =
@@ -198,6 +182,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   // it gets focused, at which point it will expand. If false, defaults to the
   // expanded state.
   protected accessor isCollapsible: boolean = false;
+  protected accessor smartTabSharingActive_: boolean = false;
   // Whether the composebox is currently expanded. Always true if isCollapsible
   // is false.
   protected accessor expanding_: boolean = false;
@@ -303,8 +288,15 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.searchboxHandler_.notifySessionStarted();
 
     const inputState = await this.searchboxHandler_.getInputState();
-      if (inputState) {
-        this.inputState = inputState.state;
+    if (inputState) {
+      this.inputState = inputState.state;
+    }
+
+    const smartTabSharingVisible =
+        getLoadTimeBoolean('composeboxSmartTabSharingVisible', false);
+    if (smartTabSharingVisible) {
+      const {active} = await this.pageHandler_.getSmartTabSharingActive();
+      this.smartTabSharingActive_ = active;
     }
 
     this.syncResizeObservers_();
@@ -510,6 +502,10 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     return this.expanding_;
   }
 
+  setExpandingForTesting(expanding: boolean) {
+    this.expanding_ = expanding;
+  }
+
   protected async updateState_(state: ComposeboxState) {
     const text = state.text || '';
     const files = state.files || [];
@@ -607,6 +603,12 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       return false;
     }
 
+    // Don't show dropdown if there's only verbatim match.
+    if (this.result?.matches.length === 1 &&
+        this.result?.matches[0]?.allowedToBeDefaultMatch) {
+      return false;
+    }
+
     // Do not show dropdown if there's an error scrim.
     if (this.errorMessage !== '') {
       return false;
@@ -672,15 +674,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         this.result.matches.some((match) => match.isNoncannedAimSuggestion);
     this.fire('show-suggestion-activity-link', showActivityLink);
     return showActivityLink;
-  }
-
-  protected shouldShowVoiceSearch_(): boolean {
-    return this.showVoiceSearch &&
-        WindowProxy.getInstance().hasWebkitSpeechRecognition();
-  }
-
-  protected shouldShowVoiceSearchAnimation_(): boolean {
-    return !this.disableVoiceSearchAnimation && this.shouldShowVoiceSearch_();
   }
 
   // TODO(crbug.com/486706573): Refactor this function and move the common logic
@@ -752,6 +745,11 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         ComposeboxContextAddedMethod.CONTEXT_MENU, this.composeboxSource);
   }
 
+  protected onSmartTabSharingActiveChanged_(e: CustomEvent<{active: boolean}>) {
+    this.smartTabSharingActive_ = e.detail.active;
+    this.pageHandler_.setSmartTabSharingActive(e.detail.active);
+  }
+
 
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.
   injectInput(
@@ -783,10 +781,20 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
     if (tab) {
       // Ignore the `TabInfo` update if there is a matching
-      // `automaticActiveTab_`.
+      // `automaticActiveTab_`, unless the title has changed.
       if (this.automaticActiveTab_ &&
           tab.url === this.automaticActiveTab_.url &&
           tab.tabId === this.automaticActiveTab_.tabId) {
+        if (this.automaticActiveTab_.name !== tab.title) {
+          const updatedFile = new ComposeboxFile(
+              this.automaticActiveTab_.uuid, tab.title,
+              this.automaticActiveTab_.type, this.automaticActiveTab_.inputType,
+              this.automaticActiveTab_);
+          this.automaticActiveTab_ = updatedFile;
+          const fileMap = new Map(this.files);
+          fileMap.set(updatedFile.uuid, updatedFile);
+          this.files = fileMap;
+        }
         return;
       }
 
@@ -965,33 +973,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     }
   }
 
-  protected voiceSearchEndCleanup_() {
-    this.inVoiceSearchMode = false;
-    this.animationState = GlowAnimationState.NONE;
-    this.transcript = '';
-  }
-
-  protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
-    e.stopPropagation();
-    this.voiceSearchEndCleanup_();
-    // For contextual tasks composebox voice metrics.
-    // TODO(crbug.com/466412331): Don't only fire this for composebox, this
-    // should be recorded for all.
-    this.fire('composebox-voice-search-transcription-success');
-    // TODO(crbug.com/466412331): Remove, only recorded for the NTP.
-    this.fire(
-        'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
-    this.input = e.detail;
-    const metricName =
-        `ContextualSearch.UserAction.SubmitVoiceQuery.${this.composeboxSource}`;
-    recordUserAction(metricName);
-    recordBoolean(metricName, true);
-    this.searchboxHandler_.submitQuery(
-        e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
-        /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
-    this.submitCleanup();
-  }
-
   protected onVoiceSearchButtonClick_() {
     this.inVoiceSearchMode = true;
     this.animationState = GlowAnimationState.LISTENING;
@@ -1001,27 +982,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.shadowRoot
         .querySelector<ComposeboxVoiceSearchElement>(
             'cr-composebox-voice-search')!.start();
-  }
-
-  protected onVoiceSearchCancel_(e: CustomEvent<boolean>) {
-    // If closing was the user canceling voice search:
-    if (e.detail) {
-      // For contextual tasks composebox voice metrics.
-      this.fire('composebox-voice-search-user-canceled');
-    }
-    this.voiceSearchEndCleanup_();
-    this.receivedSpeech = false;
-  }
-
-  protected onVoiceSearchError_(e: CustomEvent<boolean>) {
-    // For contextual tasks composebox voice metrics:
-    if (e.detail) {
-      // An error that canceled voice search.
-      this.fire('composebox-voice-search-error-and-canceled');
-    } else {
-      // An error that did not cancel voice search.
-      this.fire('composebox-voice-search-error');
-    }
   }
 
   protected onLinkClicked_(e: CustomEvent<{ event: Event }>) {
@@ -1329,19 +1289,13 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     }
     this.fileUploadsComplete = this.pendingUploads.size === 0;
     if (this.inVoiceSearchMode) {
-      this.voiceSearchEndCleanup_();
+      this.voiceSearchEndCleanup();
     }
   }
 
   protected shouldDisableFileInputs_() {
     return !this.contextMenuEnabled || !this.showMenuOnClick ||
         this.entrypointName === 'ContextualTasks';
-  }
-
-  protected shouldShowVoiceSearchAtBottom_(): boolean {
-    return (this.searchboxLayoutMode === 'TallBottomContext' ||
-            !this.searchboxLayoutMode) &&
-        this.shouldShowVoiceSearch_();
   }
 
   // TODO(crbug.com/486707998): Move this to omnibox composebox.

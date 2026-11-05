@@ -179,6 +179,12 @@ V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
   inline void set_wrapper(Tagged<RegExpDataWrapper> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  inline uint32_t quick_check_mask() const;
+  inline void set_quick_check_mask(uint32_t value);
+
+  inline uint32_t quick_check_value() const;
+  inline void set_quick_check_value(uint32_t value);
+
   inline int capture_count() const;
 
   static constexpr bool TypeSupportsCaptures(Type t) {
@@ -197,9 +203,11 @@ V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
   TaggedMember<String> escaped_source_;
   TaggedMember<Smi> flags_;
   TaggedMember<RegExpDataWrapper> wrapper_;
+  uint32_t quick_check_mask_;
+  uint32_t quick_check_value_;
 } V8_OBJECT_END;
 
-V8_OBJECT class RegExpDataWrapper : public StructLayout {
+V8_OBJECT class RegExpDataWrapper : public Struct {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
@@ -234,15 +242,12 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   inline Tagged<Code> code(IsolateForSandbox isolate, bool is_one_byte) const;
   DECL_PROTECTED_POINTER_ACCESSORS(latin1_bytecode, TrustedByteArray)
   DECL_PROTECTED_POINTER_ACCESSORS(uc16_bytecode, TrustedByteArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(capture_name_map, TrustedFixedArray)
+  inline void set_capture_name_map(DirectHandle<TrustedFixedArray> value);
   inline bool has_bytecode(bool is_one_byte) const;
   inline void clear_bytecode(bool is_one_byte);
   inline void set_bytecode(bool is_one_byte, Tagged<TrustedByteArray> bytecode);
   inline Tagged<TrustedByteArray> bytecode(bool is_one_byte) const;
-  inline Tagged<UnionOf<FixedArray, Smi>> capture_name_map() const;
-  inline void set_capture_name_map(
-      Tagged<UnionOf<FixedArray, Smi>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_capture_name_map(DirectHandle<FixedArray> capture_name_map);
   inline int max_register_count() const;
   inline void set_max_register_count(int value);
   // Number of captures (without the match itself).
@@ -283,9 +288,9 @@ V8_OBJECT class IrRegExpData : public RegExpData {
 
   ProtectedTaggedMember<TrustedByteArray> latin1_bytecode_;
   ProtectedTaggedMember<TrustedByteArray> uc16_bytecode_;
+  ProtectedTaggedMember<TrustedFixedArray> capture_name_map_;
   CodePointerMember latin1_code_;
   CodePointerMember uc16_code_;
-  TaggedMember<UnionOf<FixedArray, Smi>> capture_name_map_;
   TaggedMember<Smi> max_register_count_;
   TaggedMember<Smi> capture_count_;
   TaggedMember<Smi> ticks_until_tier_up_;
@@ -336,7 +341,7 @@ class JSRegExpResultIndices
  public:
   static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-      DirectHandle<Object> maybe_names);
+      DirectHandle<RegExpData> re_data);
 
   static constexpr int kInObjectPropertyCount =
       (kSize - JSArray::kHeaderSize) / kTaggedSize;

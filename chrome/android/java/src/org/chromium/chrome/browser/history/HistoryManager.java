@@ -276,6 +276,10 @@ public class HistoryManager
                     this, R.string.history_manager_search, R.id.search_menu_id);
         } else {
             mToolbar.initializeInlineSearchView(this, R.id.search_menu_id);
+            ViewGroup searchBoxContainer =
+                    mToolbar.initializeSearchBoxContainer(
+                            mSelectableListLayout, R.string.history_manager_search);
+            mSelectableListLayout.addInlineSearchBox(searchBoxContainer);
         }
 
         mToolbar.setInfoMenuItem(R.id.info_menu_id);
@@ -305,7 +309,6 @@ public class HistoryManager
         mContentManager.maybeQueryApps();
 
         mContentManager.getAdapter().setIsLargeFormFactorDevice(mIsLargeFormFactorDevice);
-        mContentManager.getAdapter().setToolbar(mToolbar);
     }
 
     private void initializeEmptyView() {
@@ -411,7 +414,10 @@ public class HistoryManager
     }
 
     public void setQuery(String query) {
-        assumeNonNull(mToolbar);
+        if (mToolbar == null) {
+            // In the Incognito mode, we don't have the query box.
+            return;
+        }
 
         if (!mIsLargeFormFactorDevice && !mIsSearching) {
             enterSearchMode(false);

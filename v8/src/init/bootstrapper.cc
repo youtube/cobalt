@@ -19,7 +19,6 @@
 #include "src/extensions/cputracemark-extension.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/gc-extension.h"
-#include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -167,7 +166,6 @@ void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
   v8::RegisterExtension(std::make_unique<StatisticsExtension>());
   v8::RegisterExtension(std::make_unique<TriggerFailureExtension>());
-  v8::RegisterExtension(std::make_unique<IgnitionStatisticsExtension>());
   if (isValidCpuTraceMarkFunctionName()) {
     v8::RegisterExtension(std::make_unique<CpuTraceMarkExtension>(
         v8_flags.expose_cputracemark_as));
@@ -6496,15 +6494,6 @@ bool Genesis::InstallABunchOfRandomThings() {
     {
       PropertyAttributes attribs = DONT_ENUM;
 
-      // names descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(), factory()->regexp_result_names_symbol(),
-            JSRegExpResult::kNamesOffset, attribs, Representation::Tagged(),
-            true);
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
-
       // regexp_input_index descriptor.
       {
         Descriptor d = Descriptor::DataField(
@@ -6741,9 +6730,6 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
          (!v8_flags.expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
-         (!v8_flags.expose_ignition_statistics ||
-          InstallExtension(isolate, "v8/ignition-statistics",
-                           &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
 #ifdef V8_FUZZILLI

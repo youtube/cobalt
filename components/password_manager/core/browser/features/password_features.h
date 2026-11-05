@@ -22,9 +22,6 @@ BASE_DECLARE_FEATURE(kActorLogin);
 // Killswitch for the conflicting permission cleanup. Conflicting permissions
 // are the ones granted for 2 different accounts on the same website.
 BASE_DECLARE_FEATURE(kActorLoginConflictingPermissionCleanup);
-// Enables a click using the actor framework for federated logins without
-// heuristics.
-BASE_DECLARE_FEATURE(kActorLoginFederatedClickFromActor);
 // Enables Actor Login form finding with async check
 BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
 BASE_DECLARE_FEATURE(kActorLoginLocalClassificationModel);
@@ -80,6 +77,11 @@ BASE_DECLARE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem);
 
 // Enables Biometrics for the Touch To Fill feature. This only effects Android.
 BASE_DECLARE_FEATURE(kBiometricTouchToFill);
+
+// Kill switch for calling OnAddPasswordFillData() asynchronously to avoid
+// reentrant AutofillManager::Observer events.
+// TODO(crbug.com/500883329): Clean up after M141 BP (June 29, 2026).
+BASE_DECLARE_FEATURE(kCallOnAddPasswordFillDataAsynchronously);
 
 // Checks if submitted form is identical to an observed form before evaluating
 // login success/failure.

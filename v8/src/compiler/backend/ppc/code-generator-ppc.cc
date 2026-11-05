@@ -332,24 +332,32 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     case kOverflow:
       // Overflow checked for add/sub only.
       switch (op) {
-        case kPPC_Add32:
         case kPPC_Add64:
-        case kPPC_Sub:
-        case kPPC_AddWithOverflow32:
-        case kPPC_SubWithOverflow32:
-          return lt;
+        case kPPC_Sub64:
+        case kPPC_Neg64:
+        case kPPC_Mul64:
+          return overflow64;
+        case kPPC_Add32:
+        case kPPC_Sub32:
+        case kPPC_Neg32:
+        case kPPC_Mul32:
+          return overflow32;
         default:
           break;
       }
       break;
     case kNotOverflow:
       switch (op) {
-        case kPPC_Add32:
         case kPPC_Add64:
-        case kPPC_Sub:
-        case kPPC_AddWithOverflow32:
-        case kPPC_SubWithOverflow32:
-          return ge;
+        case kPPC_Sub64:
+        case kPPC_Neg64:
+        case kPPC_Mul64:
+          return nooverflow64;
+        case kPPC_Add32:
+        case kPPC_Sub32:
+        case kPPC_Neg32:
+        case kPPC_Mul32:
+          return nooverflow32;
         default:
           break;
       }
@@ -413,39 +421,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                          \
   } while (0)
 
-#define ASSEMBLE_ADD_WITH_OVERFLOW()                                    \
-  do {                                                                  \
-    if (HasRegisterInput(instr, 1)) {                                   \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputRegister(1), kScratchReg, r0);   \
-    } else {                                                            \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputInt32(1), kScratchReg, r0);      \
-    }                                                                   \
-  } while (0)
 
-#define ASSEMBLE_SUB_WITH_OVERFLOW()                                    \
-  do {                                                                  \
-    if (HasRegisterInput(instr, 1)) {                                   \
-      __ SubAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                i.InputRegister(1), kScratchReg, r0);   \
-    } else {                                                            \
-      __ AddAndCheckForOverflow(i.OutputRegister(), i.InputRegister(0), \
-                                -i.InputInt32(1), kScratchReg, r0);     \
-    }                                                                   \
-  } while (0)
-
-#define ASSEMBLE_ADD_WITH_OVERFLOW32()         \
-  do {                                         \
-    ASSEMBLE_ADD_WITH_OVERFLOW();              \
-    __ extsw(kScratchReg, kScratchReg, SetRC); \
-  } while (0)
-
-#define ASSEMBLE_SUB_WITH_OVERFLOW32()         \
-  do {                                         \
-    ASSEMBLE_SUB_WITH_OVERFLOW();              \
-    __ extsw(kScratchReg, kScratchReg, SetRC); \
-  } while (0)
 
 #define ASSEMBLE_COMPARE(cmp_instr, cmpl_instr)                        \
   do {                                                                 \
@@ -1426,22 +1402,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 63 - i.InputInt32(2), i.OutputRCBit());
       break;
     case kPPC_Add32:
-      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-        ASSEMBLE_ADD_WITH_OVERFLOW();
-      } else {
-        if (HasRegisterInput(instr, 1)) {
-          __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-                 LeaveOE, i.OutputRCBit());
-        } else {
-          __ AddS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
-                    r0, LeaveOE, i.OutputRCBit());
-        }
-        __ extsw(i.OutputRegister(), i.OutputRegister());
-      }
-      break;
     case kPPC_Add64:
       if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-        ASSEMBLE_ADD_WITH_OVERFLOW();
+        if (HasRegisterInput(instr, 1)) {
+          __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 SetOE);
+        } else {
+          __ mov(r0, i.InputImmediate(1));
+          __ add(i.OutputRegister(), i.InputRegister(0), r0, SetOE);
+        }
+        __ MoveToCrFromXer(cr0);
       } else {
         if (HasRegisterInput(instr, 1)) {
           __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -1451,16 +1421,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     r0, LeaveOE, i.OutputRCBit());
         }
       }
-      break;
-    case kPPC_AddWithOverflow32:
-      ASSEMBLE_ADD_WITH_OVERFLOW32();
+      if (instr->arch_opcode() == kPPC_Add32) {
+        __ extsw(i.OutputRegister(), i.OutputRegister());
+      }
       break;
     case kPPC_AddDouble:
       ASSEMBLE_FLOAT_BINOP_RC(fadd, MiscField::decode(instr->opcode()));
       break;
-    case kPPC_Sub:
+    case kPPC_Sub32:
+    case kPPC_Sub64:
       if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
-        ASSEMBLE_SUB_WITH_OVERFLOW();
+        if (HasRegisterInput(instr, 1)) {
+          __ sub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 SetOE);
+        } else {
+          __ mov(r0, i.InputImmediate(1));
+          __ sub(i.OutputRegister(), i.InputRegister(0), r0, SetOE);
+        }
+        __ MoveToCrFromXer(cr0);
       } else {
         if (HasRegisterInput(instr, 1)) {
           __ sub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -1470,20 +1448,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     r0, LeaveOE, i.OutputRCBit());
         }
       }
-      break;
-    case kPPC_SubWithOverflow32:
-      ASSEMBLE_SUB_WITH_OVERFLOW32();
+      if (instr->arch_opcode() == kPPC_Sub32) {
+        __ extsw(i.OutputRegister(), i.OutputRegister());
+      }
       break;
     case kPPC_SubDouble:
       ASSEMBLE_FLOAT_BINOP_RC(fsub, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mul32:
-      __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-               LeaveOE, i.OutputRCBit());
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 SetOE);
+        __ MoveToCrFromXer(cr0);
+      } else {
+        __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 LeaveOE, i.OutputRCBit());
+      }
+      __ extsw(i.OutputRegister(), i.OutputRegister());
       break;
     case kPPC_Mul64:
-      __ mulld(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-               LeaveOE, i.OutputRCBit());
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        __ mulld(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 SetOE);
+        __ MoveToCrFromXer(cr0);
+      } else {
+        __ mulld(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 LeaveOE, i.OutputRCBit());
+      }
       break;
     case kPPC_Mul32WithHigh32:
       if (i.OutputRegister(0) == i.InputRegister(0) ||
@@ -1623,8 +1614,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow:
       ASSEMBLE_IEEE754_BINOP(pow);
       break;
-    case kPPC_Neg:
-      __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
+    case kPPC_Neg32:
+    case kPPC_Neg64:
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        __ neg(i.OutputRegister(), i.InputRegister(0), SetOE);
+        __ MoveToCrFromXer(cr0);
+      } else {
+        __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE,
+               i.OutputRCBit());
+      }
+      if (instr->arch_opcode() == kPPC_Neg32) {
+        __ extsw(i.OutputRegister(), i.OutputRegister());
+      }
       break;
     case kPPC_MaxDouble:
       __ MaxF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1921,21 +1922,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_DoubleToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      if (check_conversion) {
         __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      }
       __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        // Set 2nd output to zero if conversion fails.
         CRegister cr = cr0;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
-        __ li(i.OutputRegister(1), Operand(1));
-        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
-      }
+        // Handle conversion failures (such as overflow).
+        if (i.OutputCount() > 1) {
+          __ li(i.OutputRegister(1), Operand(1));
+          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+        } else {
+          __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
+        }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
@@ -3035,6 +3035,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     case eq:
     case lt:
     case gt:
+    case overflow32:
+    case overflow64:
       if (reg_value != 1) __ li(reg, Operand(1));
       __ li(kScratchReg, Operand::Zero());
       __ isel(cond, reg, reg, kScratchReg, cr);
@@ -3042,6 +3044,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     case ne:
     case ge:
     case le:
+    case nooverflow32:
+    case nooverflow64:
       if (reg_value != 1) __ li(reg, Operand(1));
       // r0 implies logical zero in this form
       __ isel(NegateCondition(cond), reg, r0, reg, cr);

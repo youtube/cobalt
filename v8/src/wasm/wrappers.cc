@@ -4,19 +4,12 @@
 
 #include "src/wasm/wrappers.h"
 
-#include <bit>
-#include <optional>
-
-#include "src/base/small-vector.h"
-#include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/turboshaft/dataview-lowering-reducer.h"
-#include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/fast-api-call-lowering-reducer.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
-#include "src/execution/isolate-data.h"
-#include "src/objects/object-list-macros.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -46,29 +39,35 @@ const compiler::turboshaft::TSCallDescriptor* GetBuiltinCallDescriptor(
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       compiler::turboshaft::Graph& graph,
                       const CanonicalSig* sig,
-                      WrapperCompilationInfo wrapper_info) {
+                      WrapperCompilationInfo wrapper_info,
+                      DirectHandle<JSReceiver> callable) {
   Zone zone(data->allocator(), ZONE_NAME);
   using WrapperAssembler = compiler::turboshaft::Assembler<
       compiler::turboshaft::SelectLoweringReducer,
       compiler::turboshaft::DataViewLoweringReducer,
+      compiler::turboshaft::FastApiCallLoweringReducer,
       compiler::turboshaft::VariableReducer>;
   WrapperAssembler assembler(data, graph, graph, &zone);
   WasmWrapperTSGraphBuilder<WrapperAssembler> builder(
-      &zone, assembler, sig,
-      /*is_inlining_into_js*/ false);
-  if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
-    builder.BuildJSToWasmWrapper();
-  } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
-    builder.BuildWasmToJSWrapper(wrapper_info.import_kind,
-                                 wrapper_info.expected_arity,
-                                 wrapper_info.suspend);
-  } else if (wrapper_info.code_kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
-    builder.BuildCapiCallWrapper();
-  } else if (wrapper_info.code_kind == CodeKind::WASM_STACK_ENTRY) {
-    builder.BuildWasmStackEntryWrapper();
-  } else {
-    // TODO(thibaudm): Port remaining wrappers.
-    UNREACHABLE();
+      &zone, assembler, sig, /*is_inlining_into_js*/ false);
+  switch (wrapper_info.code_kind) {
+    case CodeKind::JS_TO_WASM_FUNCTION:
+      return builder.BuildJSToWasmWrapper();
+    case CodeKind::WASM_TO_JS_FUNCTION:
+      if (wrapper_info.import_kind == ImportCallKind::kWasmToJSFastApi) {
+        return builder.BuildJSFastApiCallWrapper(callable);
+      }
+      return builder.BuildWasmToJSWrapper(wrapper_info.import_kind,
+                                          wrapper_info.expected_arity,
+                                          wrapper_info.suspend);
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+      return builder.BuildCapiCallWrapper();
+    case CodeKind::C_WASM_ENTRY:
+      return builder.BuildCWasmEntryWrapper();
+    case CodeKind::WASM_STACK_ENTRY:
+      return builder.BuildWasmStackEntryWrapper();
+    default:
+      UNREACHABLE();
   }
 }
 

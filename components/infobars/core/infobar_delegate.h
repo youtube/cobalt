@@ -16,15 +16,6 @@
 class ConfirmInfoBarDelegate;
 class ThemeInstalledInfoBarDelegate;
 
-namespace blocked_content {
-class PopupBlockedInfoBarDelegate;
-}
-
-#if BUILDFLAG(IS_ANDROID)
-namespace offline_pages {
-class OfflinePageInfoBarDelegate;
-}
-#endif
 
 namespace translate {
 class TranslateInfoBarDelegate;
@@ -326,15 +317,9 @@ class InfoBarDelegate {
   // Type-checking downcast routines:
   virtual ConfirmInfoBarDelegate* AsConfirmInfoBarDelegate();
   virtual const ConfirmInfoBarDelegate* AsConfirmInfoBarDelegate() const;
-  virtual blocked_content::PopupBlockedInfoBarDelegate*
-  AsPopupBlockedInfoBarDelegate();
   virtual ThemeInstalledInfoBarDelegate* AsThemePreviewInfobarDelegate();
 #if BUILDFLAG(IS_IOS)
   virtual translate::TranslateInfoBarDelegate* AsTranslateInfoBarDelegate();
-#endif
-#if BUILDFLAG(IS_ANDROID)
-  virtual offline_pages::OfflinePageInfoBarDelegate*
-  AsOfflinePageInfoBarDelegate();
 #endif
 
   void set_infobar(InfoBar* infobar) { infobar_ = infobar; }

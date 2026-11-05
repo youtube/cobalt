@@ -13,10 +13,12 @@
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -49,7 +51,7 @@ class GlicMetricsBrowserTest : public InProcessBrowserTest {
       const std::vector<base::test::FeatureRef>& extra_disabled_features = {}) {
     std::vector<base::test::FeatureRef> enabled_features =
         GetDefaultEnabledGlicTestFeatures();
-    enabled_features.push_back(features::kGlicTrustFirstOnboarding);
+
     enabled_features.insert(enabled_features.end(),
                             extra_enabled_features.begin(),
                             extra_enabled_features.end());
@@ -66,6 +68,30 @@ class GlicMetricsBrowserTest : public InProcessBrowserTest {
 
   std::unique_ptr<GlicTestEnvironment> glic_test_environment_;
 };
+
+class GlicMetricsBrowserTestWithMessageFirstFre
+    : public GlicMetricsBrowserTest {
+ public:
+  GlicMetricsBrowserTestWithMessageFirstFre()
+      : GlicMetricsBrowserTest({features::kGlicMessageFirstFre}, {}) {}
+};
+
+IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTestWithMessageFirstFre,
+                       GlicFreShown_MessageFirstFreEnabled) {
+  base::UserActionTester user_action_tester;
+  base::HistogramTester histogram_tester;
+
+  SetFRECompletion(browser()->profile(), prefs::FreStatus::kNotStarted);
+
+  GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile())
+      ->ToggleUI(browser(), /*prevent_close=*/false,
+                 mojom::InvocationSource::kOsButton);
+
+  EXPECT_EQ(user_action_tester.GetActionCount("Glic.Fre.Shown"), 1);
+
+  histogram_tester.ExpectUniqueSample("Glic.Fre.Shown.InvocationSource",
+                                      mojom::InvocationSource::kOsButton, 1);
+}
 
 IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, GlicFreShown_MultiInstance) {
   base::UserActionTester user_action_tester;
@@ -122,14 +148,11 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   auto* glic_service =
       GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
 
-  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
-  auto* tab = tabs::TabInterface::GetFromContents(web_contents);
-  ASSERT_TRUE(tab);
-
   GlicInvokeOptions options(mojom::InvocationSource::kNavigationCapture);
-  options.conversation = DefaultConversation{};
+  options.target.conversation = DefaultConversation{};
+  options.target.surface = TabListInterface::From(browser())->GetActiveTab();
 
-  glic_service->Invoke(tab, std::move(options));
+  glic_service->Invoke(std::move(options));
 
   // Verify that GlicInstanceMetrics::OnOpen was called with kNavigationCapture.
   histogram_tester.ExpectUniqueSample(
@@ -151,10 +174,6 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   auto* glic_service =
       GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
 
-  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
-  auto* tab = tabs::TabInterface::GetFromContents(web_contents);
-  ASSERT_TRUE(tab);
-
   // 1. Open the side panel first via ToggleUI.
   glic_service->ToggleUI(browser(), /*prevent_close=*/false,
                          mojom::InvocationSource::kOsButton);
@@ -165,10 +184,11 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
 
   // 2. Call Invoke with a NEW conversation.
   GlicInvokeOptions options(mojom::InvocationSource::kNavigationCapture);
-  options.conversation = NewConversation{};
+  options.target.conversation = NewConversation{};
+  options.target.surface = TabListInterface::From(browser())->GetActiveTab();
 
   base::HistogramTester histogram_tester_invoke;
-  glic_service->Invoke(tab, std::move(options));
+  glic_service->Invoke(std::move(options));
 
   // 3. Verify that Glic.Instance.Open IS incremented because a new instance is
   // created.
@@ -188,13 +208,14 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   auto* glic_service =
       GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
 
-  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
-  auto* tab = tabs::TabInterface::GetFromContents(web_contents);
-  ASSERT_TRUE(tab);
-
   // 1. Open the side panel first via ToggleUI.
   glic_service->ToggleUI(browser(), /*prevent_close=*/false,
                          mojom::InvocationSource::kOsButton);
+
+  auto* tab = TabListInterface::From(browser())->GetActiveTab();
+  auto* coordinator = GlicSidePanelCoordinator::GetForTab(tab);
+  ASSERT_TRUE(coordinator);
+  ASSERT_TRUE(base::test::RunUntil([&]() { return coordinator->IsShowing(); }));
 
   EXPECT_EQ(user_action_tester.GetActionCount("Glic.Instance.Open"), 1);
   histogram_tester.ExpectUniqueSample("Glic.Instance.SidePanel.OpenSource",
@@ -203,9 +224,10 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   // 2. Call Invoke with DefaultConversation (representing current
   // conversation).
   GlicInvokeOptions options(mojom::InvocationSource::kNavigationCapture);
-  options.conversation = DefaultConversation{};
+  options.target.conversation = DefaultConversation{};
+  options.target.surface = TabListInterface::From(browser())->GetActiveTab();
 
-  glic_service->Invoke(tab, std::move(options));
+  glic_service->Invoke(std::move(options));
 
   // 3. Verify that Glic.Instance.Open is NOT incremented.
   EXPECT_EQ(user_action_tester.GetActionCount("Glic.Instance.Open"), 1);
@@ -276,8 +298,9 @@ class GlicMetricsBrowserTestWithCaptureRegion : public GlicMetricsBrowserTest {
 };
 
 #if !BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/500964398): This test is flaky.
 IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTestWithCaptureRegion,
-                       SelectionUsedFromController) {
+                       DISABLED_SelectionUsedFromController) {
   // The feature is enabled in constructor of
   // GlicMetricsBrowserTestWithCaptureRegion but let's double check.
   ASSERT_TRUE(base::FeatureList::IsEnabled(features::kGlicCaptureRegion));

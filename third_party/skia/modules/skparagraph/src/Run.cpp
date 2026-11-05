@@ -365,6 +365,17 @@ bool Cluster::isSoftBreak() const {
                                        SkUnicode::CodeUnitFlags::kSoftLineBreakBefore);
 }
 
+bool Cluster::isSoftHyphen() const {
+    auto text = fOwner->text();
+    const char* p = text.begin() + fTextRange.start;
+    const char* end = text.begin() + fTextRange.end;
+    if (p >= end) {
+        return false;
+    }
+    SkUnichar cp = SkUTF::NextUTF8(&p, end);
+    return cp == 0x00AD && p == end;
+}
+
 bool Cluster::isGraphemeBreak() const {
     return fOwner->codeUnitHasProperty(fTextRange.end, SkUnicode::CodeUnitFlags::kGraphemeStart);
 }

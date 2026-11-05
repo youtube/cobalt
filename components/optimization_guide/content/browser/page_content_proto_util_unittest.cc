@@ -879,8 +879,7 @@ TEST_F(PageContentProtoUtilTest, ConvertGeometry_ActionableElements) {
                   .has_value());
 
   EXPECT_EQ(page_content.proto.version(),
-            optimization_guide::proto::
-                ANNOTATED_PAGE_CONTENT_VERSION_ONLY_ACTIONABLE_ELEMENTS_1_0);
+            optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0);
   ASSERT_EQ(page_content.proto.root_node().children_nodes_size(), 1);
   EXPECT_EQ(page_content.proto.root_node()
                 .children_nodes(0)
@@ -2294,8 +2293,13 @@ TEST_P(PageContentProtoUtilAutofillRedactionTest,
                                             .children_nodes(0)
                                             .content_attributes()
                                             .form_control_data();
-  EXPECT_EQ(form_control_data_proto.redaction_decision(),
-            proto::REDACTION_DECISION_NO_REDACTION_NECESSARY);
+  if (ShouldEnableOtpRedaction()) {
+    EXPECT_EQ(form_control_data_proto.redaction_decision(),
+              proto::REDACTION_DECISION_UNREDACTED_EMPTY_OTP_FIELD);
+  } else {
+    EXPECT_EQ(form_control_data_proto.redaction_decision(),
+              proto::REDACTION_DECISION_NO_REDACTION_NECESSARY);
+  }
   EXPECT_TRUE(form_control_data_proto.field_value().empty());
 }
 

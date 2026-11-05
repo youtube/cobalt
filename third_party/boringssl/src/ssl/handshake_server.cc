@@ -32,6 +32,7 @@
 #include <openssl/md5.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
+#include <openssl/pool.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
 
@@ -223,7 +224,7 @@ struct TLS12ServerParams {
 };
 
 static TLS12ServerParams choose_params(SSL_HANDSHAKE *hs,
-                                       const SSL_CREDENTIAL *cred,
+                                       const SSLCredential *cred,
                                        Span<const uint8_t> allowed_cert_types,
                                        const STACK_OF(SSL_CIPHER) *client_pref,
                                        bool has_ecdhe_group) {
@@ -744,7 +745,7 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
   if (client_pref == nullptr) {
     return ssl_hs_error;
   }
-  Array<SSL_CREDENTIAL *> creds;
+  Array<SSLCredential *> creds;
   if (!ssl_get_full_credential_list(hs, &creds)) {
     return ssl_hs_error;
   }
@@ -762,14 +763,12 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
                            client_pref.get(), has_ecdhe_group);
   } else {
     // Select the first credential which works.
-    for (SSL_CREDENTIAL *cred : creds) {
+    for (SSLCredential *cred : creds) {
       ERR_clear_error();
       params = choose_params(hs, cred, *allowed_cert_types, client_pref.get(),
                              has_ecdhe_group);
       if (params.ok()) {
         hs->credential = UpRef(cred);
-        hs->ssl->s3->server_cert_type =
-            ssl_credential_type_to_cert_type(hs->credential->type);
         break;
       }
     }
@@ -861,11 +860,10 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
       // classed by them as a bug, but it's assumed by at least NGINX.
       hs->new_session->verify_result = X509_V_OK;
     }
-  }
-
-  if (!ssl_negotiate_client_certificate_type(hs, &alert, &client_hello)) {
-    ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
-    return ssl_hs_error;
+    if (!ssl_negotiate_client_certificate_type(hs, &alert, &client_hello)) {
+      ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
+      return ssl_hs_error;
+    }
   }
 
   // HTTP/2 negotiation depends on the cipher suite, so ALPN negotiation was
@@ -1238,11 +1236,25 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
 
   CBS certificate_msg = msg.body;
   uint8_t alert = SSL_AD_DECODE_ERROR;
-  if (!ssl_parse_cert_chain(&alert, &hs->new_session->certs, &hs->peer_pubkey,
-                            hs->config->retain_only_sha256_of_client_certs
-                                ? hs->new_session->peer_sha256
-                                : nullptr,
-                            &certificate_msg, ssl->ctx->pool)) {
+
+  bool parse_ok;
+  uint8_t *const out_sha256 = hs->config->retain_only_sha256_of_client_certs
+                                  ? hs->new_session->peer_sha256
+                                  : nullptr;
+  if (hs->peer_cert_type == TLSEXT_cert_type_rpk) {
+    hs->new_session->peer_cert_type = TLSEXT_cert_type_rpk;
+    parse_ok =
+        ssl_parse_rpk_cert(&alert, &hs->new_session->peer_raw_public_key,
+                           &hs->peer_pubkey, out_sha256, &certificate_msg);
+  } else {
+    assert(hs->peer_cert_type == TLSEXT_cert_type_x509);
+    hs->new_session->peer_cert_type = TLSEXT_cert_type_x509;
+    parse_ok =
+        ssl_parse_cert_chain(&alert, &hs->new_session->certs, &hs->peer_pubkey,
+                             out_sha256, &certificate_msg, ssl->ctx->pool);
+  }
+
+  if (!parse_ok) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
     return ssl_hs_error;
   }
@@ -1254,7 +1266,7 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) == 0) {
+  if (!ssl_session_has_peer_cred(hs->new_session.get())) {
     // No client certificate so the handshake buffer may be discarded.
     hs->transcript.FreeBuffer();
 
@@ -1279,7 +1291,7 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
 }
 
 static enum ssl_hs_wait_t do_verify_client_certificate(SSL_HANDSHAKE *hs) {
-  if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) > 0) {
+  if (ssl_session_has_peer_cred(hs->new_session.get())) {
     switch (ssl_verify_peer_cert(hs)) {
       case ssl_verify_ok:
         break;
@@ -1529,13 +1541,16 @@ static enum ssl_hs_wait_t do_read_client_certificate_verify(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  // The peer certificate must be valid for signing.
-  const CRYPTO_BUFFER *leaf =
-      sk_CRYPTO_BUFFER_value(hs->new_session->certs.get(), 0);
-  CBS leaf_cbs;
-  CRYPTO_BUFFER_init_CBS(leaf, &leaf_cbs);
-  if (!ssl_cert_check_key_usage(&leaf_cbs, key_usage_digital_signature)) {
-    return ssl_hs_error;
+  // The X.509 peer certificate must be valid for signing. (RPKs have no
+  // keyUsage to enforce.)
+  if (hs->new_session->peer_cert_type == TLSEXT_cert_type_x509) {
+    const CRYPTO_BUFFER *leaf =
+        sk_CRYPTO_BUFFER_value(hs->new_session->certs.get(), 0);
+    CBS leaf_cbs;
+    CRYPTO_BUFFER_init_CBS(leaf, &leaf_cbs);
+    if (!ssl_cert_check_key_usage(&leaf_cbs, key_usage_digital_signature)) {
+      return ssl_hs_error;
+    }
   }
 
   CBS certificate_verify = msg.body, signature;

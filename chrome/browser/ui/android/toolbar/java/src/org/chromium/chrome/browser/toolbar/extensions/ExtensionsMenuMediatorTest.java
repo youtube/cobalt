@@ -11,7 +11,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -44,6 +43,7 @@ import org.chromium.chrome.browser.extensions.ContextMenuSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridgeJni;
@@ -51,10 +51,12 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionTestUtils;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridgeJni;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
+import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridgeRule;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
 import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.listmenu.ListMenuButton;
@@ -63,6 +65,7 @@ import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.test.util.MockitoHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,10 +99,14 @@ public class ExtensionsMenuMediatorTest {
     @Mock private MenuModelBridge mActionContextMenuModelBridge;
     @Mock private PropertyModel mMenuPropertyModel;
     @Mock private PropertyModel mSitePermissionsPropertyModel;
+    @Mock private TabCreator mTabCreator;
+    @Mock private Runnable mOnDismissMenu;
+    @Mock private ExtensionsToolbarBridge mExtensionsToolbarBridge;
     @Mock private Runnable mOnReadyRunnable;
 
     @Captor private ArgumentCaptor<ExtensionsMenuBridge> mBridgeCaptor;
     @Captor private ArgumentCaptor<ListMenuHost.PopupMenuShownListener> mPopupListenerCaptor;
+    @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
 
     private final SettableNullableObservableSupplier<Tab> mCurrentTabSupplier =
             ObservableSuppliers.createNullable();
@@ -133,22 +140,8 @@ public class ExtensionsMenuMediatorTest {
                         "label", ExtensionsMenuTypes.ControlState.Status.HIDDEN, /* isOn= */ false);
         when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong()))
                 .thenReturn(mSiteSettingsState);
-        when(mExtensionsMenuBridgeJniMock.init(any(), anyLong()))
+        when(mExtensionsMenuBridgeJniMock.init(any(), anyLong(), anyLong()))
                 .thenReturn(EXTENSIONS_MENU_BRIDGE_POINTER);
-
-        // Mock default extension site permissions state.
-        ExtensionsMenuTypes.ControlState toggleState =
-                new ExtensionsMenuTypes.ControlState(
-                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
-                        /* text= */ "",
-                        /* accessibleName= */ "",
-                        /* tooltipText= */ "",
-                        /* isOn= */ true,
-                        /* icon= */ null);
-        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
-                new ExtensionsMenuTypes.ExtensionSitePermissionsState(toggleState);
-        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), any()))
-                .thenReturn(sitePermissionsState);
 
         // Set the current tab.
         MockTab tab = new MockTab(TAB_ID, mProfile);
@@ -163,13 +156,16 @@ public class ExtensionsMenuMediatorTest {
                         mTask,
                         mProfile,
                         mCurrentTabSupplier,
+                        mTabCreator,
+                        mExtensionsToolbarBridge,
                         mActionModels,
                         mMenuPropertyModel,
                         mSitePermissionsPropertyModel,
+                        mOnDismissMenu,
                         mOnReadyRunnable);
 
         // Capture the bridge instance created inside the constructor
-        verify(mExtensionsMenuBridgeJniMock).init(mBridgeCaptor.capture(), anyLong());
+        verify(mExtensionsMenuBridgeJniMock).init(mBridgeCaptor.capture(), anyLong(), anyLong());
     }
 
     @After
@@ -240,9 +236,12 @@ public class ExtensionsMenuMediatorTest {
                         mTask,
                         mProfile,
                         mCurrentTabSupplier,
+                        mTabCreator,
+                        mExtensionsToolbarBridge,
                         mActionModels,
                         mMenuPropertyModel,
                         mSitePermissionsPropertyModel,
+                        mOnDismissMenu,
                         mOnReadyRunnable);
 
         // Verify it should have populated immediately without needing a callback.
@@ -289,15 +288,24 @@ public class ExtensionsMenuMediatorTest {
      */
     @Test
     public void testOnActionIconUpdated_SitePermissionsPage() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
         // Add two extensions.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
         entries.add(
                 ExtensionTestUtils.createSimpleMenuEntry(
                         "id_b", "Extension B", ICON_BLUE, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Mock being on the site permissions page for "id_a".
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(sitePermissionsState);
 
         // Open extensions menu and go to Extension's A site permissions page.
         mBridgeCaptor.getValue().onReady();
@@ -308,7 +316,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify site permissions page has ICON_RED.
         verify(mSitePermissionsPropertyModel)
-                .set(SitePermissionsPageProperties.EXTENSION_ICON, ICON_RED);
+                .set(SitePermissionsPageProperties.EXTENSION_ICON, extensionIcon);
 
         // Mock being on the site permissions page for "id_a".
         when(mMenuPropertyModel.get(ExtensionsMenuProperties.CURRENT_PAGE))
@@ -516,15 +524,24 @@ public class ExtensionsMenuMediatorTest {
      */
     @Test
     public void testOnActionUpdated_SitePermissionsPage() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
         // Add two extensions.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
         entries.add(
                 ExtensionTestUtils.createSimpleMenuEntry(
                         "id_b", "Extension B", ICON_BLUE, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Mock the site permissions page info for "id_a".
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(sitePermissionsState);
 
         // Open extensions menu and go to Extension's A site permissions page.
         mBridgeCaptor.getValue().onReady();
@@ -535,7 +552,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify site permissions page has 'Extension A'.
         verify(mSitePermissionsPropertyModel)
-                .set(SitePermissionsPageProperties.EXTENSION_NAME, "Extension A");
+                .set(SitePermissionsPageProperties.EXTENSION_NAME, extensionName);
 
         // Mock being on the site permissions page for "id_a".
         when(mMenuPropertyModel.get(ExtensionsMenuProperties.CURRENT_PAGE))
@@ -548,6 +565,11 @@ public class ExtensionsMenuMediatorTest {
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
                         "id_a", "Extension A Updated", ICON_RED, /* isPinned= */ false);
         when(mExtensionsMenuBridgeJniMock.getMenuEntry(anyLong(), eq(0))).thenReturn(updatedEntryA);
+        ExtensionsMenuTypes.ExtensionSitePermissionsState updatedSitePermissionsStateA =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        "Extension A Updated", ICON_RED);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(updatedSitePermissionsStateA);
 
         clearInvocations(mSitePermissionsPropertyModel);
         mBridgeCaptor.getValue().onActionUpdated(0);
@@ -1071,13 +1093,22 @@ public class ExtensionsMenuMediatorTest {
      */
     @Test
     public void testSitePermissionsButton_ClickNavigates() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
         // Initialize an action with host permissions, whose menu entry has a site permissions
         // button.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Mock being on the site permissions page for "id_a".
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(sitePermissionsState);
 
         // Open extensions menu.
         mBridgeCaptor.getValue().onReady();
@@ -1096,7 +1127,7 @@ public class ExtensionsMenuMediatorTest {
         verify(mSitePermissionsPropertyModel)
                 .set(SitePermissionsPageProperties.EXTENSION_ID, "id_a");
         verify(mSitePermissionsPropertyModel)
-                .set(SitePermissionsPageProperties.EXTENSION_NAME, "Extension A");
+                .set(SitePermissionsPageProperties.EXTENSION_NAME, extensionName);
 
         // Trigger the back button on the site permissions page.
         mMenuMediator.onBackButtonClicked();
@@ -1112,12 +1143,21 @@ public class ExtensionsMenuMediatorTest {
      */
     @Test
     public void testSitePermissionsPage_OnManageThisExtensionClicked() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
         // Add extension with host permissions.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Mock being on the site permissions page for "id_a".
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(sitePermissionsState);
 
         // Open extensions menu and go to the site permissions page.
         mBridgeCaptor.getValue().onReady();
@@ -1131,11 +1171,38 @@ public class ExtensionsMenuMediatorTest {
                 .thenReturn("id_a");
 
         // Click on 'manage this extension'.
-        Callback<String> openUrlCallback = mock(Callback.class);
-        mMenuMediator.onManageThisExtensionClicked(openUrlCallback);
+        mMenuMediator.onManageThisExtensionClicked();
+
+        // Verify dismiss runnable was called.
+        verify(mOnDismissMenu).run();
 
         // Verify extension page was opened for the extension.
-        verify(openUrlCallback).onResult(UrlConstants.CHROME_EXTENSIONS_ID_URL + "id_a");
+        verify(mTabCreator).createNewTab(mLoadUrlParamsCaptor.capture(), anyInt(), any());
+        assertEquals(
+                UrlConstants.CHROME_EXTENSIONS_URL + "?id=id_a",
+                mLoadUrlParamsCaptor.getValue().getUrl());
+    }
+
+    /** Tests that clicking on the 'discover extensions' button opens the web store page. */
+    @Test
+    public void testOnDiscoverExtensionsClicked() {
+        mMenuMediator.onDiscoverExtensionsClicked();
+
+        verify(mOnDismissMenu).run();
+        verify(mTabCreator).createNewTab(mLoadUrlParamsCaptor.capture(), anyInt(), any());
+        assertEquals(UrlConstants.CHROME_WEBSTORE_URL, mLoadUrlParamsCaptor.getValue().getUrl());
+    }
+
+    /**
+     * Tests that clicking on the 'manage extensions' button opens the extensions management page.
+     */
+    @Test
+    public void testOnManageExtensionsClicked() {
+        mMenuMediator.onManageExtensionsClicked();
+
+        verify(mOnDismissMenu).run();
+        verify(mTabCreator).createNewTab(mLoadUrlParamsCaptor.capture(), anyInt(), any());
+        assertEquals(UrlConstants.CHROME_EXTENSIONS_URL, mLoadUrlParamsCaptor.getValue().getUrl());
     }
 
     /**
@@ -1144,27 +1211,22 @@ public class ExtensionsMenuMediatorTest {
      */
     @Test
     public void testSitePermissionsPage_OnSitePermissionsButtonClicked() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
         // Add extension with host permissions.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
 
         // Open extensions menu.
         mBridgeCaptor.getValue().onReady();
 
-        // Mock the extension site permissions state from native.
-        ExtensionsMenuTypes.ControlState toggleState =
-                new ExtensionsMenuTypes.ControlState(
-                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
-                        /* text= */ "",
-                        /* accessibleName= */ "",
-                        /* tooltipText= */ "",
-                        /* isOn= */ true,
-                        /* icon= */ null);
+        // Mock the site permissions page info for "id_a".
         ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
-                new ExtensionsMenuTypes.ExtensionSitePermissionsState(toggleState);
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
         when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
                 .thenReturn(sitePermissionsState);
 
@@ -1198,6 +1260,84 @@ public class ExtensionsMenuMediatorTest {
         listenerCaptor.getValue().onCheckedChanged(null, false);
         verify(mExtensionsMenuBridgeJniMock)
                 .onShowRequestsTogglePressed(EXTENSIONS_MENU_BRIDGE_POINTER, "id_a", false);
+    }
+
+    /**
+     * Tests that clicking on a site access option on the site permissions page for an extension
+     * notifies the bridge with the correct option.
+     */
+    @Test
+    public void testSitePermissionsPage_OnSiteAccessSelected() {
+        String extensionName = "Extension A";
+        Bitmap extensionIcon = ICON_RED;
+        List<ExtensionsMenuTypes.MenuEntryState> entries = new java.util.ArrayList<>();
+        entries.add(
+                ExtensionTestUtils.createMenuEntryWithHostPermissions(
+                        "id_a", extensionName, extensionIcon, /* isPinned= */ false));
+        when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Mock the site permissions page info for "id_a".
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState(
+                        extensionName, extensionIcon);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id_a")))
+                .thenReturn(sitePermissionsState);
+
+        // Open extensions menu and go to Extension's A site permissions page.
+        mBridgeCaptor.getValue().onReady();
+        ListItem itemA = mActionModels.get(0);
+        View.OnClickListener listener =
+                itemA.model.get(ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_ON_CLICK);
+        listener.onClick(null);
+
+        // Verify site permissions page is shown for "id_a".
+        verify(mMenuPropertyModel)
+                .set(
+                        ExtensionsMenuProperties.CURRENT_PAGE,
+                        ExtensionsMenuProperties.Page.SITE_PERMISSIONS);
+        verify(mSitePermissionsPropertyModel)
+                .set(SitePermissionsPageProperties.EXTENSION_ID, "id_a");
+
+        // Verify site access selected is 'on all sites'. Verify other options are enabled and off.
+        verify(mSitePermissionsPropertyModel)
+                .set(
+                        SitePermissionsPageProperties.ON_CLICK_STATE,
+                        sitePermissionsState.onClickOption);
+        verify(mSitePermissionsPropertyModel)
+                .set(
+                        SitePermissionsPageProperties.ON_SITE_STATE,
+                        sitePermissionsState.onSiteOption);
+        verify(mSitePermissionsPropertyModel)
+                .set(
+                        SitePermissionsPageProperties.ON_ALL_SITES_STATE,
+                        sitePermissionsState.onAllSitesOption);
+        assertEquals(
+                ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                sitePermissionsState.onClickOption.status);
+        assertFalse(sitePermissionsState.onClickOption.isOn);
+        assertEquals(
+                ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                sitePermissionsState.onSiteOption.status);
+        assertFalse(sitePermissionsState.onSiteOption.isOn);
+        assertEquals(
+                ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                sitePermissionsState.onAllSitesOption.status);
+        assertTrue(sitePermissionsState.onAllSitesOption.isOn);
+
+        // Select 'on site' option.
+        ArgumentCaptor<Callback<Integer>> listenerCaptor = MockitoHelper.callbackCaptor();
+        verify(mSitePermissionsPropertyModel)
+                .set(
+                        eq(SitePermissionsPageProperties.ON_SITE_ACCESS_SELECTED_LISTENER),
+                        listenerCaptor.capture());
+        listenerCaptor.getValue().onResult(ExtensionsMenuTypes.UserSiteAccess.ON_SITE);
+
+        // Verify bridge is notified with the correct option.
+        verify(mExtensionsMenuBridgeJniMock)
+                .onSiteAccessSelected(
+                        EXTENSIONS_MENU_BRIDGE_POINTER,
+                        "id_a",
+                        ExtensionsMenuTypes.UserSiteAccess.ON_SITE);
     }
 
     /** Helper to assert that the item at the given index has the correct information. */

@@ -98,6 +98,7 @@ class TabStripSceneLayer : public SceneLayer {
                         bool visible,
                         bool should_apply_hover_highlight,
                         int32_t tint,
+                        bool should_tint,
                         int32_t background_tint,
                         float button_alpha,
                         bool is_keyboard_focused,
@@ -122,17 +123,13 @@ class TabStripSceneLayer : public SceneLayer {
                                  int32_t keyboard_focus_ring_resource_id,
                                  int32_t keyboard_focus_ring_color);
 
-  void UpdateTabStripLeftFade(JNIEnv* env,
-                              int32_t resource_id,
-                              float opacity,
-                              int32_t leftFadeColor,
-                              float left_padding);
-
-  void UpdateTabStripRightFade(JNIEnv* env,
-                               int32_t resource_id,
-                               float opacity,
-                               int32_t rightFadeColor,
-                               float right_padding);
+  void UpdateTabStripFade(JNIEnv* env,
+                          bool is_left,
+                          int32_t fade_color,
+                          float opacity,
+                          float gradient_width,
+                          float opaque_width,
+                          float padding);
 
   void PutStripTabLayer(JNIEnv* env,
                         int32_t id,
@@ -159,6 +156,9 @@ class TabStripSceneLayer : public SceneLayer {
                         float media_indicator_spacing,
                         float media_indicator_internal_padding,
                         float title_to_media_indicator_spacing,
+                        int32_t tab_indicator_overlay_resource_id,
+                        float tab_indicator_overlay_rotation,
+                        float tab_indicator_overlay_width,
                         float toolbar_width,
                         float x,
                         float y,
@@ -253,8 +253,8 @@ class TabStripSceneLayer : public SceneLayer {
   scoped_refptr<cc::slim::UIResourceLayer> new_tab_button_;
   scoped_refptr<cc::slim::UIResourceLayer> new_tab_button_background_;
   scoped_refptr<cc::slim::UIResourceLayer> new_tab_button_keyboard_focus_ring_;
-  scoped_refptr<cc::slim::UIResourceLayer> left_fade_;
-  scoped_refptr<cc::slim::UIResourceLayer> right_fade_;
+  scoped_refptr<cc::slim::SolidColorLayer> left_fade_;
+  scoped_refptr<cc::slim::SolidColorLayer> right_fade_;
 
   // Layers covering the tab strip padding area, used as an visual extension of
   // fading.

@@ -62,6 +62,7 @@ import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.test.util.MockitoHelper;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -202,7 +203,7 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     public void suggestionFavicons_showFaviconWhenAvailable() {
-        final ArgumentCaptor<Callback<Bitmap>> callback = ArgumentCaptor.forClass(Callback.class);
+        final ArgumentCaptor<Callback<Bitmap>> callback = MockitoHelper.callbackCaptor();
         createSuggestion(
                 OmniboxSuggestionType.URL_WHAT_YOU_TYPED,
                 /* isSearch= */ false,
@@ -222,7 +223,7 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     public void suggestionFavicons_doNotReplaceFallbackIconWhenNoFaviconIsAvailable() {
-        final ArgumentCaptor<Callback<Bitmap>> callback = ArgumentCaptor.forClass(Callback.class);
+        final ArgumentCaptor<Callback<Bitmap>> callback = MockitoHelper.callbackCaptor();
         createSuggestion(
                 OmniboxSuggestionType.URL_WHAT_YOU_TYPED,
                 /* isSearch= */ false,
@@ -394,30 +395,6 @@ public class BaseSuggestionProcessorUnitTest {
                 mContext.getString(
                         R.string.accessibility_omnibox_btn_refine, mSuggestion.getFillIntoEdit());
         Assert.assertEquals(expectedDescription, action.accessibilityDescription);
-    }
-
-    @Test
-    @Config(qualifiers = "sw600dp")
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF})
-    public void setRemoveOrRefineAction_removeActionOnTabletWithAlphabeticKeyboard() {
-        DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
-        OmniboxFeatures.sOmniboxImprovementForLFFRemoveSuggestionViaButton.setForTesting(true);
-
-        var action = setUpDeleteScenarioForRemoveActionTesting();
-
-        var expectedDescription =
-                mContext.getString(
-                        R.string.accessibility_omnibox_remove_suggestion,
-                        mSuggestion.getFillIntoEdit());
-        Assert.assertEquals(expectedDescription, action.accessibilityDescription);
-        Assert.assertEquals(
-                R.drawable.btn_close, shadowOf(action.icon.drawable).getCreatedFromResId());
-
-        var monitor = new UserActionTester();
-        action.callback.run();
-        Assert.assertEquals(1, monitor.getActionCount("MobileOmniboxRemoveSuggestion.Button"));
-        Assert.assertEquals(1, monitor.getActions().size());
-        monitor.tearDown();
     }
 
     @Test

@@ -15,7 +15,7 @@ import type {AudioCapturer} from './audio_capturer.js';
 import {BlobAudioCapturer, MicrophoneAudioCapturer} from './audio_capturer.js';
 import {AudioPlayer} from './audio_player.js';
 import {Conversation, State} from './conversation.js';
-import type {ApiConfig, ConversationConfig, Persona} from './conversation.js';
+import type {ApiConfig, ConversationConfig, OutputTranscriptionMessage, Persona} from './conversation.js';
 import {errorLog, log} from './logging.js';
 import type {PageContext} from './page_context_manager.js';
 import {AiOverlayToolsRemote} from './tools.mojom-webui.js';
@@ -137,12 +137,11 @@ export class AppElement extends CrLitElement {
     // Start listening for page context updates immediately to ensure we catch
     // any initial updates before the Conversation is initialized.
     const didChangePageId = this.pageCallbackRouter.didChangePage.addListener(
-        (url: string, title: string|null,
-         content: string|null) => this.initialPageContext =
+        (url, title, content) => this.initialPageContext =
             {url, title, content, hasHadContent: (content?.length ?? 0) > 0});
     const updateContextId =
         this.pageCallbackRouter.updateCurrentPageContext.addListener(
-            (title: string, content: string) => {
+            (title, content) => {
               if (this.initialPageContext) {
                 this.initialPageContext.title = title;
                 this.initialPageContext.content = content;
@@ -157,13 +156,12 @@ export class AppElement extends CrLitElement {
       this.unregisterPageContextListeners = null;
     };
 
-    this.pageCallbackRouter.setCaptionsVisible.addListener(
-        (visible: boolean) => {
-          log(FILE, `setCaptionsVisible: ${visible}`);
-          this.captionsVisible = visible;
-        });
+    this.pageCallbackRouter.setCaptionsVisible.addListener(visible => {
+      log(FILE, `setCaptionsVisible: ${visible}`);
+      this.captionsVisible = visible;
+    });
 
-    this.pageCallbackRouter.setUsePersona.addListener((usePersona: boolean) => {
+    this.pageCallbackRouter.setUsePersona.addListener(usePersona => {
       log(FILE, `setUsePersona: ${usePersona}`);
       if (this.usePersona === usePersona) {
         return;
@@ -396,7 +394,7 @@ export class AppElement extends CrLitElement {
     }
   }
 
-  private onMessageFromConversation(msg: any) {
+  private onMessageFromConversation(msg: OutputTranscriptionMessage) {
     if (msg.type === 'outputTranscription') {
       this.transcription = msg.text;
 

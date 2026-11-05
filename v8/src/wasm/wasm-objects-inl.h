@@ -61,19 +61,15 @@ namespace v8::internal {
   }
 
 // WasmModuleObject
-Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() const {
+Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() {
   return managed_native_module()->ptr();
-}
-const std::shared_ptr<wasm::NativeModule>&
-WasmModuleObject::shared_native_module() const {
-  return managed_native_module()->get();
 }
 
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>, kInstancesOffset)
 
-const std::shared_ptr<BackingStore>& WasmMemoryObject::backing_store() const {
-  return managed_backing_store()->get();
+Managed<BackingStore>::Ptr WasmMemoryObject::backing_store() const {
+  return managed_backing_store()->ptr();
 }
 
 // WasmGlobalObject
@@ -785,6 +781,27 @@ EXTERNAL_POINTER_ACCESSORS(WasmStackObject, stack, wasm::StackMemory*,
 TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,
                           kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
+
+int WasmExceptionTag::index() const { return index_.load().value(); }
+void WasmExceptionTag::set_index(int value) {
+  index_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Managed<wasm::NativeModule>> AsmWasmData::managed_native_module() const {
+  return managed_native_module_.load();
+}
+void AsmWasmData::set_managed_native_module(
+    Tagged<Managed<wasm::NativeModule>> value, WriteBarrierMode mode) {
+  managed_native_module_.store(this, value, mode);
+}
+
+Tagged<HeapNumber> AsmWasmData::uses_bitset() const {
+  return uses_bitset_.load();
+}
+void AsmWasmData::set_uses_bitset(Tagged<HeapNumber> value,
+                                  WriteBarrierMode mode) {
+  uses_bitset_.store(this, value, mode);
+}
 
 #include "src/objects/object-macros-undef.h"
 

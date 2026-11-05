@@ -146,12 +146,13 @@ private:
     const NonMSAAClip& fNonMSAAClip;
     const SkShader*    fClipShader;
 
-    // Base (incomplete) dst usage that will be augmented by opacity analysis calculated in toKey()
+    // Base (incomplete) dst usage that will be augmented by opacity analysis calculated in toKey().
+    // This is only relevant for kSrcOver, fDstUsage is set assuming the paint is opaque; if it's
+    // not actually opaque it will be adjusted accordingly.
     const SkEnumBitMask<DstUsage> fDstUsage;
 
     // Used for asserts
-    SkDEBUGCODE(const SkEnumBitMask<DstUsage> fDstUsageNoCoverage;)
-    SkDEBUGCODE(const Coverage fRendererCoverage;)
+    SkDEBUGCODE(const Coverage fCoverage;)
 };
 
 } // namespace skgpu::graphite

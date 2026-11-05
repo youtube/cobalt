@@ -308,6 +308,18 @@ absl::string_view NetworkTypeToStatsNetworkAdapterType(AdapterType type) {
   return {};
 }
 
+absl::string_view NetworkSliceToStatsNetworkSlice(NetworkSlice slice) {
+  switch (slice) {
+    case NetworkSlice::UNIFIED_COMMUNICATIONS:
+      return "unified-communications";
+    case NetworkSlice::NO_SLICE:
+      /* Should not be handled here. Report empty slice in stats instead. */
+      break;
+  }
+  RTC_DCHECK_NOTREACHED();
+  return {};
+}
+
 const char* QualityLimitationReasonToRTCQualityLimitationReason(
     QualityLimitationReason reason) {
   switch (reason) {
@@ -1074,6 +1086,10 @@ const std::string& ProduceIceCandidateStats(Timestamp timestamp,
     }
     if (candidate.protocol() == "tcp") {
       candidate_stats->tcp_type = candidate.tcptype();
+    }
+    if (candidate.network_slice() != NetworkSlice::NO_SLICE) {
+      candidate_stats->network_slice =
+          NetworkSliceToStatsNetworkSlice(candidate.network_slice());
     }
 
     stats = candidate_stats.get();

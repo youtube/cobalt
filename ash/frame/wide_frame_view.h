@@ -13,7 +13,7 @@
 #include "chromeos/ui/frame/immersive/immersive_fullscreen_controller_delegate.h"
 #include "ui/aura/window_observer.h"
 #include "ui/display/display_observer.h"
-#include "ui/views/widget/widget_delegate.h"
+#include "ui/views/view.h"
 
 namespace chromeos {
 class ImmersiveFullscreenController;
@@ -37,7 +37,7 @@ namespace ash {
 // FrameViewAsh. Investigate if we integrate this into
 // FrameViewAsh.
 class ASH_EXPORT WideFrameView
-    : public views::WidgetDelegateView,
+    : public views::View,
       public aura::WindowObserver,
       public display::DisplayObserver,
       public chromeos::ImmersiveFullscreenControllerDelegate,
@@ -60,12 +60,14 @@ class ASH_EXPORT WideFrameView
 
   chromeos::HeaderView* header_view() { return header_view_; }
 
- private:
   static gfx::Rect GetFrameBounds(views::Widget* target);
 
+ private:
   // views::View:
   void Layout(PassKey) override;
   void OnMouseEvent(ui::MouseEvent* event) override;
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
 
   // aura::WindowObserver:
   void OnWindowDestroying(aura::Window* window) override;
@@ -90,8 +92,6 @@ class ASH_EXPORT WideFrameView
 
   // The target widget this frame will control.
   raw_ptr<views::Widget> target_;
-
-  std::unique_ptr<views::Widget> widget_;
 
   display::ScopedDisplayObserver display_observer_{this};
 

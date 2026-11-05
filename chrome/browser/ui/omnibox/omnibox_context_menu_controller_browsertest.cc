@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_context_menu_controller.h"
 
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -67,7 +68,7 @@ class OmniboxContextMenuControllerBrowserTest : public InProcessBrowserTest {
           {{omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.name,
             "inline"},
            {omnibox::kShowToolsAndModels.name, "true"}}},
-         {omnibox::kWebUIOmniboxPopup, {}}},
+         {omnibox::internal::kWebUIOmniboxPopup, {}}},
         /*disabled_features=*/{omnibox::kAimServerEligibilityEnabled,
                                omnibox::kAimFuseboxEligibilityCheckEnabled,
                                omnibox::kAimUsePecApi});
@@ -172,6 +173,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
 IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
                        RecordHistogramOnTabSelected) {
   base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
 
   // Navigate the initial tab to the popup URL.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -195,6 +197,15 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
 
   histogram_tester.ExpectUniqueSample(
       "ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox", 0, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.AimEntrypoint.ClassicPopup.ContextualElement.Clicked",
+      omnibox::ContextType::kTab, 1);
+
+  EXPECT_EQ(
+      1,
+      user_action_tester.GetActionCount(
+          "Omnibox.AimEntrypoint.ClassicPopup.ContextualElement.Clicked.Tab"));
 }
 
 class OmniboxContextMenuControllerBrowserTestWithCommand
@@ -274,7 +285,7 @@ class OmniboxContextMenuControllerPecBrowserTest : public InProcessBrowserTest {
           {{omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.name,
             "inline"},
            {omnibox::kShowToolsAndModels.name, "true"}}},
-         {omnibox::kWebUIOmniboxPopup, {}},
+         {omnibox::internal::kWebUIOmniboxPopup, {}},
          {omnibox::kAimUsePecApi, {}}},
         /*disabled_features=*/{omnibox::kAimServerEligibilityEnabled,
                                omnibox::kAimFuseboxEligibilityCheckEnabled});

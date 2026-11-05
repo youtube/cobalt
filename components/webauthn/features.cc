@@ -11,12 +11,6 @@
 namespace webauthn::features {
 
 #if BUILDFLAG(IS_ANDROID)
-
-// Enabled by default in M144. Remove in or after M147.
-BASE_FEATURE(kWebAuthnAndroidPasskeyCacheMigration,
-             "WebAuthenticationAndroidPasskeyCacheMigration",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Development flag. Not supposed to be enabled by default.
 BASE_FEATURE(kWebAuthnAndroidCredManForDev, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -28,10 +22,6 @@ const base::FeatureParam<std::string> kWebAuthnAndroidCredManForDevMode{
 // Enabled by default in M145. Remove in or after M148.
 BASE_FEATURE(kWebAuthnAndroidCredManRequestExtraBundle,
              "WebAuthenticationAndroidCredManRequestExtraBundle",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enabled by default in M145. Remove in or after M148.
-BASE_FEATURE(kWebAuthnConditionalUiSuppressedOnWebView,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)

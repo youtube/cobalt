@@ -573,6 +573,7 @@ void PersistTabContextBrowserAgent::ExtractAndStoreContext(
           base::BindOnce(&DeleteContextFromStorage, webstate_unique_id,
                          storage_directory_path_));
     }
+    return;
   }
 
   // Cancel any ongoing page context operation.
@@ -622,7 +623,23 @@ void PersistTabContextBrowserAgent::OnPageContextExtracted(
     base::WeakPtr<web::WebState> weak_web_state,
     PageContextWrapperCallbackResponse response) {
   web::WebState* web_state = weak_web_state.get();
-  if (!response.has_value() || !web_state) {
+  if (!web_state) {
+    return;
+  }
+
+  // Cleanup stored extraction on failure to remove stale extractions.
+  if (!response.has_value()) {
+    std::string webstate_unique_id =
+        base::NumberToString(web_state->GetUniqueIdentifier().identifier());
+    if (use_page_content_cache_) {
+      DeleteContextFromContentCache(
+          web_state->GetUniqueIdentifier().identifier());
+    } else {
+      task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(&DeleteContextFromStorage, webstate_unique_id,
+                         storage_directory_path_));
+    }
     return;
   }
 
@@ -638,6 +655,15 @@ void PersistTabContextBrowserAgent::OnPageContextExtracted(
         FROM_HERE, base::BindOnce(&WriteContextToStorage,
                                   std::move(serialized_page_context),
                                   webstate_unique_id, storage_directory_path_));
+  }
+
+  // Offload the destruction of the PageContext proto to a background task.
+  if (IsPageContextIPCOptimizationEnabled()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](std::unique_ptr<optimization_guide::proto::PageContext>) {},
+            std::move(response.value())));
   }
 }
 

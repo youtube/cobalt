@@ -302,6 +302,10 @@ inline constexpr char kQuickOfficeExtensionId[] =
 inline constexpr char kMimeHandlerPrivateTestExtensionId[] =
     "oickdpebdnfbgkcaoklfcdhjniefkcji";
 
+// The extension id of the component extension used to render Indigo's image
+// replacement.
+inline constexpr char kIndigoExtensionId[] = "gcgachbpjjonjloecffgdajegokngglh";
+
 // The extension id of the Files Manager application.
 inline constexpr char kFilesManagerAppId[] = "hhaomjibdihmijegdhdafkllkbggdgoj";
 
@@ -525,6 +529,14 @@ inline constexpr char kDocsOfflineExtensionId[] =
 
 // This is used extensively, generally as a key in a dictionary.
 inline constexpr char kId[] = "id";
+
+// The key name of extension request timestamp used by the
+// prefs::kCloudExtensionRequestIds preference.
+inline constexpr char kExtensionRequestTimestamp[] = "timestamp";
+
+// The key name of the extension workflow request justification used by the
+// prefs::kCloudExtensionRequestIds preference.
+inline constexpr char kExtensionWorkflowJustification[] = "justification";
 
 }  // namespace extension_misc
 

@@ -393,11 +393,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
                        (code->builtin_id() == Builtin::kJSToWasmWrapper);
 #if V8_ENABLE_DRUMBRAKE
   // TODO(paolosev@microsoft.com) - Implement an empty
-  // GenericJSToWasmInterpreterWrapper also when V8_ENABLE_DRUMBRAKE is not
+  // kJSToWasmInterpreterWrapper also when V8_ENABLE_DRUMBRAKE is not
   // defined to get rid of these #ifdefs.
-  is_js_to_wasm =
-      is_js_to_wasm ||
-      (code->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper);
+  is_js_to_wasm = is_js_to_wasm ||
+                  (code->builtin_id() == Builtin::kJSToWasmInterpreterWrapper);
 #endif  // V8_ENABLE_DRUMBRAKE
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }
@@ -424,7 +423,7 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
   }
   HandleScope scope(isolate);
   if (args.length() != 1 || !IsWasmInstanceObject(args[0])) {
-    // TODO(manoskouk): What is a more elegant way to report an error here?
+    PrintF("Pass a Wasm instance as the first and only argument!\n");
     return CrashUnlessFuzzing(isolate);
   }
 
@@ -451,7 +450,12 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmCode* code = native_module->GetCode(i);
       if (code) {
-        DCHECK(code->is_liftoff());
+        if (!code->is_liftoff()) {
+          PrintF(
+              "You're holding it wrong! Don't call "
+              "%%GenerateWasmCompilationHints after triggering tier-up!\n");
+          return CrashUnlessFuzzing(isolate);
+        }
         if (module->marked_for_tierup.contains(i)) {
           PrintF("%d: optimized\n", i);
         } else {

@@ -369,6 +369,89 @@ TEST_F(RtpDemuxerTest, OnRtpPacketCalledOnCorrectSinkByPayloadType) {
   EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
 }
 
+TEST_F(RtpDemuxerTest, DontSignalRtpPayloadTypeWhenPtDemuxingDisabled) {
+  constexpr uint32_t ssrc1 = 10;
+  constexpr uint32_t ssrc2 = 11;
+  constexpr uint8_t pt1 = 30;
+  constexpr uint8_t pt2 = 31;
+
+  // Sink 1 registered when PT demuxing is enabled (default).
+  MockRtpPacketSink sink1;
+  RtpDemuxerCriteria criteria1;
+  criteria1.payload_types() = {pt1};
+  EXPECT_TRUE(AddSink(criteria1, &sink1));
+
+  // Disable PT demuxing.
+  demuxer_.set_use_payload_type_demuxing(false);
+
+  // Sink 2 registered when PT demuxing is disabled.
+  MockRtpPacketSink sink2;
+  RtpDemuxerCriteria criteria2;
+  criteria2.payload_types() = {pt2};
+  EXPECT_TRUE(AddSink(criteria2, &sink2));
+
+  // Packet with pt1 should not go to sink1 because fallback is disabled.
+  auto packet1 = CreatePacketWithSsrc(ssrc1);
+  packet1->SetPayloadType(pt1);
+  EXPECT_CALL(sink1, OnRtpPacket(_)).Times(0);
+  EXPECT_FALSE(demuxer_.OnRtpPacket(*packet1));
+
+  // Packet with pt2 should not go to sink2 because fallback is disabled and it
+  // was not registered by PT.
+  auto packet2 = CreatePacketWithSsrc(ssrc2);
+  packet2->SetPayloadType(pt2);
+  EXPECT_CALL(sink2, OnRtpPacket(_)).Times(0);
+  EXPECT_FALSE(demuxer_.OnRtpPacket(*packet2));
+}
+
+TEST_F(RtpDemuxerTest, DynamicPayloadTypeDemuxing) {
+  constexpr uint32_t ssrc = 10;
+  constexpr uint8_t payload_type = 30;
+
+  MockRtpPacketSink sink;
+  RtpDemuxerCriteria criteria;
+  criteria.payload_types() = {payload_type};
+
+  demuxer_.set_use_payload_type_demuxing(false);
+  EXPECT_TRUE(AddSink(criteria, &sink));
+
+  auto packet = CreatePacketWithSsrc(ssrc);
+  packet->SetPayloadType(payload_type);
+
+  EXPECT_CALL(sink, OnRtpPacket(_)).Times(0);
+  EXPECT_FALSE(demuxer_.OnRtpPacket(*packet));
+
+  demuxer_.set_use_payload_type_demuxing(true);
+
+  EXPECT_CALL(sink, OnRtpPacket(SamePacketAs(*packet))).Times(1);
+  EXPECT_TRUE(demuxer_.OnRtpPacket(*packet));
+}
+
+TEST_F(RtpDemuxerTest, SignaledSsrcOverridesLearnedBinding) {
+  constexpr uint32_t ssrc = 10;
+  constexpr uint8_t payload_type = 30;
+
+  MockRtpPacketSink sink1;
+  RtpDemuxerCriteria criteria1;
+  criteria1.payload_types() = {payload_type};
+  EXPECT_TRUE(AddSink(criteria1, &sink1));
+
+  auto packet1 = CreatePacketWithSsrc(ssrc);
+  packet1->SetPayloadType(payload_type);
+  EXPECT_CALL(sink1, OnRtpPacket(SamePacketAs(*packet1))).Times(1);
+  EXPECT_TRUE(demuxer_.OnRtpPacket(*packet1));
+
+  MockRtpPacketSink sink2;
+  RtpDemuxerCriteria criteria2;
+  criteria2.ssrcs().insert(ssrc);
+  EXPECT_TRUE(AddSink(criteria2, &sink2));
+
+  auto packet2 = CreatePacketWithSsrc(ssrc);
+  EXPECT_CALL(sink1, OnRtpPacket(_)).Times(0);
+  EXPECT_CALL(sink2, OnRtpPacket(SamePacketAs(*packet2))).Times(1);
+  EXPECT_TRUE(demuxer_.OnRtpPacket(*packet2));
+}
+
 TEST_F(RtpDemuxerTest, PacketsDeliveredInRightOrder) {
   constexpr uint32_t ssrc = 101;
   MockRtpPacketSink sink;

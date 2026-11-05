@@ -9,6 +9,8 @@
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/pref_service.h"
+#import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
+#import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -18,7 +20,6 @@
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_drs_view_controller.h"
 #import "ios/chrome/browser/orchestrator/ui_bundled/omnibox_focus_orchestrator.h"
-#import "ios/chrome/browser/orchestrator/ui_bundled/omnibox_focus_orchestrator_parity.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
@@ -57,6 +58,8 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/secondary_toolbar_coordinator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/toolbar_coordinatee.h"
+#import "ios/chrome/browser/toolbar/tab_group/coordinator/tab_group_indicator_coordinator.h"
+#import "ios/chrome/browser/toolbar/tab_group/ui/tab_group_indicator_constants.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_utils.h"
@@ -75,7 +78,8 @@
                                       PrimaryToolbarViewControllerDelegate,
                                       ReaderModeChipCommands,
                                       ToolbarCommands,
-                                      ToolbarMediatorDelegate>
+                                      ToolbarMediatorDelegate,
+                                      FullscreenBrowserAgentObserving>
 
 /// Whether this coordinator has been started.
 @property(nonatomic, assign) BOOL started;
@@ -126,11 +130,14 @@
   std::unique_ptr<FullscreenUIUpdater> _topToolbarFullscreenUIUpdater;
   /// Top location bar coordinator.
   LocationBarCoordinator* _topLocationBarCoordinator;
+  /// Coordinator for the tab group indicator.
+  TabGroupIndicatorCoordinator* _tabGroupIndicatorCoordinator;
   /// Bottom toolbar mediator.
   ToolbarMediator* _bottomToolbarMediator;
   /// Bottom toolbar view controller.
   ToolbarViewController* _bottomToolbarViewController;
-  /// Fullscreen UI Updater for the bottom toolbar.
+  /// Observer for fullscreen layout calculations.
+  std::unique_ptr<FullscreenBrowserAgentObserverBridge> _fullscreenObserver;
   std::unique_ptr<FullscreenUIUpdater> _bottomToolbarFullscreenUIUpdater;
   /// Bottom location bar coordinator.
   LocationBarCoordinator* _bottomLocationBarCoordinator;
@@ -205,8 +212,24 @@
         createToolbarViewControllerForMediator:_topToolbarMediator
                                    locationBar:_topLocationBarCoordinator
                                                    .locationBarViewController];
-    _topToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
-        FullscreenController::FromBrowser(browser), _topToolbarViewController);
+    _tabGroupIndicatorCoordinator = [[TabGroupIndicatorCoordinator alloc]
+        initWithBaseViewController:self.baseViewController
+                           browser:browser];
+    _tabGroupIndicatorCoordinator.toolbarHeightDelegate =
+        self.toolbarHeightDelegate;
+    [_tabGroupIndicatorCoordinator start];
+    [_topToolbarViewController
+        setTabGroupIndicatorView:_tabGroupIndicatorCoordinator.view];
+
+    if (!IsFullscreenRefactoringEnabled()) {
+      _topToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
+          FullscreenController::FromBrowser(browser),
+          _topToolbarViewController);
+    } else {
+      _fullscreenObserver =
+          std::make_unique<FullscreenBrowserAgentObserverBridge>(
+              self, FullscreenBrowserAgent::FromBrowser(browser));
+    }
 
     _bottomLocationBarCoordinator =
         [self createLocationBarCoordinatorActive:isOmniboxInBottomPosition
@@ -216,9 +239,11 @@
         createToolbarViewControllerForMediator:_bottomToolbarMediator
                                    locationBar:_bottomLocationBarCoordinator
                                                    .locationBarViewController];
-    _bottomToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
-        FullscreenController::FromBrowser(browser),
-        _bottomToolbarViewController);
+    if (!IsFullscreenRefactoringEnabled()) {
+      _bottomToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
+          FullscreenController::FromBrowser(browser),
+          _bottomToolbarViewController);
+    }
 
     LayoutGuideCenter* layoutGuideCenter = LayoutGuideCenterForBrowser(browser);
     [layoutGuideCenter referenceView:_topToolbarViewController.view
@@ -260,12 +285,7 @@
   [self.secondaryToolbarCoordinator start];
 
   if (!IsChromeNextIaEnabled()) {
-    if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-      self.orchestrator = [[OmniboxFocusOrchestratorParity alloc] init];
-    } else {
-      self.orchestrator = [[OmniboxFocusOrchestrator alloc] init];
-    }
-
+    self.orchestrator = [[OmniboxFocusOrchestrator alloc] init];
     [self updateOrchestratorAnimatee];
   }
 
@@ -297,12 +317,17 @@
     [_topLocationBarCoordinator stop];
     _topLocationBarCoordinator = nil;
     _topToolbarViewController = nil;
+    _fullscreenObserver = nullptr;
+    _topToolbarFullscreenUIUpdater = nullptr;
+
+    [_tabGroupIndicatorCoordinator stop];
 
     [_bottomToolbarMediator disconnect];
     _bottomToolbarMediator = nil;
     [_bottomLocationBarCoordinator stop];
     _bottomLocationBarCoordinator = nil;
     _bottomToolbarViewController = nil;
+    _bottomToolbarFullscreenUIUpdater = nullptr;
   }
 
   self.orchestrator.editViewAnimatee = nil;
@@ -503,15 +528,23 @@
 
 - (CGFloat)expandedPrimaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    if ([self isOmniboxInBottomPosition]) {
+    BOOL isOmniboxInBottomPosition = [self isOmniboxInBottomPosition];
+    CGFloat height = 0;
+    if (_tabGroupIndicatorCoordinator.viewVisible) {
+      height += kTabGroupIndicatorHeight;
+      if (isOmniboxInBottomPosition) {
+        height -= kTopToolbarUnsplitMargin;
+      }
+    }
+    if (isOmniboxInBottomPosition) {
       // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
       // zero. This is a temporary fix for the pdf bug.
-      return 1;
+      return height > 0 ? height : 1;
     }
     if (ShouldHaveFullHeightTopToolbar(self.traitEnvironment)) {
-      return kToolbarHeight;
+      return height + kToolbarHeight;
     }
-    return kTopToolbarIPhonePortraitHeight;
+    return height + kTopToolbarIPhonePortraitHeight;
   }
   CGFloat height =
       self.primaryToolbarViewController.view.intrinsicContentSize.height;
@@ -1017,6 +1050,33 @@
   return 0;
 }
 
+#pragma mark - FullscreenBrowserAgentObserving
+
+- (void)fullscreenWillUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
+  agent->AddObscuredInsetRange(UIRectEdgeTop,
+                               [self collapsedPrimaryToolbarHeight],
+                               [self expandedPrimaryToolbarHeight]);
+  agent->AddObscuredInsetRange(UIRectEdgeBottom,
+                               [self collapsedSecondaryToolbarHeight],
+                               [self expandedSecondaryToolbarHeight]);
+}
+
+- (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
+  CGFloat topMin = [self collapsedPrimaryToolbarHeight];
+  CGFloat topMax = [self expandedPrimaryToolbarHeight];
+  CGFloat topInset = topMin + (topMax - topMin) * agent->top_progress();
+  agent->AddObscuredInset(UIRectEdgeTop, topInset);
+  [_topToolbarViewController updateForFullscreenProgress:agent->top_progress()];
+
+  CGFloat bottomMin = [self collapsedSecondaryToolbarHeight];
+  CGFloat bottomMax = [self expandedSecondaryToolbarHeight];
+  CGFloat bottomInset =
+      bottomMin + (bottomMax - bottomMin) * agent->bottom_progress();
+  agent->AddObscuredInset(UIRectEdgeBottom, bottomInset);
+  [_bottomToolbarViewController
+      updateForFullscreenProgress:agent->bottom_progress()];
+}
+
 #pragma mark - Private
 
 /// Whether the omnibox is currently in edit state.
@@ -1056,42 +1116,24 @@
 /// an incognito browser, the NTP is displayed, and whether the fakebox was
 /// pinned if it was selected.
 - (OmniboxFocusTrigger)omniboxFocusTrigger {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    web::WebState* webState =
-        self.browser->GetWebStateList()->GetActiveWebState();
-    if (!webState) {
-      return OmniboxFocusTrigger::kOther;
-    }
-    if (!IsVisibleURLNewTabPage(webState)) {
-      return OmniboxFocusTrigger::kOther;
-    }
-
-    // (De)focusing on NTP.
-
-    if (self.isOffTheRecord || !IsSplitToolbarMode(self.traitEnvironment)) {
-      return _focusedFromFakebox ? OmniboxFocusTrigger::kUnpinnedFakebox
-                                 : OmniboxFocusTrigger::kNTPOmnibox;
-    }
-
-    return _fakeboxPinned ? OmniboxFocusTrigger::kPinnedFakebox
-                          : OmniboxFocusTrigger::kUnpinnedFakebox;
-
-  } else {
-    if (self.isOffTheRecord || !IsSplitToolbarMode(self.traitEnvironment)) {
-      return _focusedFromFakebox ? OmniboxFocusTrigger::kUnpinnedFakebox
-                                 : OmniboxFocusTrigger::kOther;
-    }
-    web::WebState* webState =
-        self.browser->GetWebStateList()->GetActiveWebState();
-    if (!webState) {
-      return OmniboxFocusTrigger::kOther;
-    }
-    if (!IsVisibleURLNewTabPage(webState)) {
-      return OmniboxFocusTrigger::kOther;
-    }
-    return _fakeboxPinned ? OmniboxFocusTrigger::kPinnedFakebox
-                          : OmniboxFocusTrigger::kUnpinnedFakebox;
+  web::WebState* webState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  if (!webState) {
+    return OmniboxFocusTrigger::kOther;
   }
+  if (!IsVisibleURLNewTabPage(webState)) {
+    return OmniboxFocusTrigger::kOther;
+  }
+
+  // (De)focusing on NTP.
+
+  if (self.isOffTheRecord || !IsSplitToolbarMode(self.traitEnvironment)) {
+    return _focusedFromFakebox ? OmniboxFocusTrigger::kUnpinnedFakebox
+                               : OmniboxFocusTrigger::kNTPOmnibox;
+  }
+
+  return _fakeboxPinned ? OmniboxFocusTrigger::kPinnedFakebox
+                        : OmniboxFocusTrigger::kUnpinnedFakebox;
 }
 
 - (void)updateOrchestratorAnimatee {

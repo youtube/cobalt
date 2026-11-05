@@ -117,6 +117,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.util.TextResolver;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.widget.list_view.ListViewTouchTracker;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
@@ -220,8 +221,8 @@ class TabListMediator implements TabListNotificationHandler {
      * An interface to get a SelectionDelegate that contains the selected items for a selectable tab
      * list.
      */
-    public interface SelectionDelegateProvider {
-        SelectionDelegate getSelectionDelegate();
+    public interface SelectionDelegateProvider<E> {
+        SelectionDelegate<E> getSelectionDelegate();
     }
 
     /** An interface to get the onClickListener when clicking on a grid card. */
@@ -337,7 +338,8 @@ class TabListMediator implements TabListNotificationHandler {
             mCurrentTabGroupModelFilterSupplier;
     private final @Nullable ThumbnailProvider mThumbnailProvider;
     private final TabListFaviconProvider mTabListFaviconProvider;
-    private final @Nullable SelectionDelegateProvider mSelectionDelegateProvider;
+    private final @Nullable SelectionDelegateProvider<TabListEditorItemSelectionId>
+            mSelectionDelegateProvider;
     private final @Nullable GridCardOnClickListenerProvider mGridCardOnClickListenerProvider;
     private final @Nullable TabGridDialogHandler mTabGridDialogHandler;
     private final @Nullable Supplier<@Nullable PriceWelcomeMessageController>
@@ -1043,7 +1045,8 @@ class TabListMediator implements TabListNotificationHandler {
             @Nullable ThumbnailProvider thumbnailProvider,
             TabListFaviconProvider tabListFaviconProvider,
             boolean actionOnRelatedTabs,
-            @Nullable SelectionDelegateProvider selectionDelegateProvider,
+            @Nullable SelectionDelegateProvider<TabListEditorItemSelectionId>
+                    selectionDelegateProvider,
             @Nullable GridCardOnClickListenerProvider gridCardOnClickListenerProvider,
             @Nullable TabGridDialogHandler dialogHandler,
             @Nullable Supplier<@Nullable PriceWelcomeMessageController>
@@ -2030,7 +2033,8 @@ class TabListMediator implements TabListNotificationHandler {
 
     private void unbindTabActionStateProperties(PropertyModel model) {
         model.set(TabProperties.IS_SELECTED, false);
-        for (WritableObjectPropertyKey propertyKey : TabProperties.TAB_ACTION_STATE_OBJECT_KEYS) {
+        for (WritableObjectPropertyKey<?> propertyKey :
+                TabProperties.TAB_ACTION_STATE_OBJECT_KEYS) {
             model.set(propertyKey, null);
         }
     }
@@ -2174,7 +2178,8 @@ class TabListMediator implements TabListNotificationHandler {
 
     private boolean isTabSelected(@TabActionState int tabActionState, Tab tab) {
         if (tabActionState == TabActionState.SELECTABLE) {
-            SelectionDelegate selectionDelegate = getTabSelectionDelegate();
+            SelectionDelegate<TabListEditorItemSelectionId> selectionDelegate =
+                    getTabSelectionDelegate();
             assert selectionDelegate != null : "Null selection delegate while in SELECTABLE state.";
             return selectionDelegate.isItemSelected(
                     TabListEditorItemSelectionId.createTabId(tab.getId()));

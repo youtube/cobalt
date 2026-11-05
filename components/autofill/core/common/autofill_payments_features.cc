@@ -264,7 +264,7 @@ BASE_FEATURE(kAutofillEnableVirtualCardJavaPaymentsDataManager,
 
 // When enabled, certain strings and logos referencing Google Account, Google
 // Payments, and Google Pay will instead reference Google Wallet.
-BASE_FEATURE(kAutofillEnableWalletBranding, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillEnableWalletBranding, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, further brings certain strings and images referencing Google
 // Pay and Google Wallet into consistency with branding requirements.
@@ -315,6 +315,11 @@ BASE_FEATURE(kAutofillTouchToFillShowManualFillForVcnFix,
 // flag remains as a way to easily enable upload credit card save for testers,
 // as well as enable non-fully-launched countries on a trial basis.
 BASE_FEATURE(kAutofillUpstream, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, users should not see offers to save the same credit card twice
+// in a week, as the strike database enforces a 7-day delay between strikes.
+BASE_FEATURE(kAutofillUpstreamEnforceStrikeDelay,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, updates the VCN strike database with different values of
 // kExpiryTimeDelta as part of of the VCN strike optimization experiment.

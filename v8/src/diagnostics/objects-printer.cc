@@ -1224,8 +1224,8 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
-  EmbedderDataSlot start(*this, 0);
-  EmbedderDataSlot end(*this, length());
+  EmbedderDataSlot start(this, 0);
+  EmbedderDataSlot end(this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
     PrintEmbedderData(isolate, os, slot);
@@ -1388,15 +1388,31 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
 }
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
-  TorqueGeneratedFunctionTemplateInfo<
-      FunctionTemplateInfo,
-      TemplateInfoWithProperties>::FunctionTemplateInfoPrint(os);
+  PrintHeader(os, "FunctionTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - number_of_properties: " << number_of_properties();
+  os << "\n - property_list: " << Brief(property_list());
+  os << "\n - property_accessors: " << Brief(property_accessors());
+  os << "\n - class_name: " << Brief(class_name());
+  os << "\n - interface_name: " << Brief(interface_name());
+  os << "\n - signature: " << Brief(signature());
+  os << "\n - rare_data: " << Brief(rare_data(kAcquireLoad));
+  os << "\n - shared_function_info: " << Brief(shared_function_info());
+  os << "\n - cached_property_name: " << Brief(cached_property_name());
+  os << "\n - callback_data: " << Brief(callback_data(kAcquireLoad));
+  os << "\n - flag: " << flag();
+  os << "\n - length: " << length();
+  os << "\n - instance_type: " << instance_type();
+  os << "\n - exception_context: " << exception_context();
 
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(*this, &isolate)) {
+  if (GetIsolateFromHeapObject(this, &isolate)) {
     os << " - callback: " << AS_PTR(callback(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - callback (redirected): " << AS_PTR(callback_raw(isolate));
+      os << "\n - callback (redirected): "
+         << AS_PTR(this->callback_.load_raw(isolate));
     }
   } else {
     os << "\n - callback: " << kUnavailableString;
@@ -1433,6 +1449,28 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
        << allowed_receiver_instance_type_range_end() << "]";
   }
   os << '\n';
+}
+
+void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {
+  PrintHeader(os, "ObjectTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - number_of_properties: " << number_of_properties();
+  os << "\n - property_list: " << Brief(property_list());
+  os << "\n - property_accessors: " << Brief(property_accessors());
+  os << "\n - constructor: " << Brief(constructor());
+  os << "\n - data: " << data();
+  os << "\n";
+}
+
+void DictionaryTemplateInfo::DictionaryTemplateInfoPrint(std::ostream& os) {
+  PrintHeader(os, "DictionaryTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - property_names: " << Brief(property_names());
+  os << "\n";
 }
 
 #undef AS_PTR
@@ -1732,7 +1770,7 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {
   uint32_t len = length().value();
   os << "\n - length: " << len;
   os << "\n - hash: " << Hash();
-  PrintFixedArrayElements(os, Tagged(*this), len);
+  PrintFixedArrayElements<PropertyArray>(os, this, len);
   os << "\n";
 }
 
@@ -2741,6 +2779,13 @@ void Cell::CellPrint(std::ostream& os) {
   os << "\n";
 }
 
+void MegaDomHandler::MegaDomHandlerPrint(std::ostream& os) {
+  PrintHeader(os, "MegaDomHandler");
+  os << "\n - accessor: " << Brief(accessor());
+  os << "\n - context: " << Brief(context());
+  os << "\n";
+}
+
 void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";
@@ -2941,11 +2986,88 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+void TurboshaftWord32RangeType::TurboshaftWord32RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord32RangeType");
+  os << "\n - from: " << from();
+  os << "\n - to: " << to();
+  os << "\n";
+}
+void TurboshaftWord32SetType::TurboshaftWord32SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord32SetType");
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+void TurboshaftWord64RangeType::TurboshaftWord64RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord64RangeType");
+  os << "\n - from_high: " << from_high();
+  os << "\n - from_low: " << from_low();
+  os << "\n - to_high: " << to_high();
+  os << "\n - to_low: " << to_low();
+  os << "\n";
+}
+void TurboshaftWord64SetType::TurboshaftWord64SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord64SetType");
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+void TurboshaftFloat64RangeType::TurboshaftFloat64RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftFloat64RangeType");
+  os << "\n - special_values: " << special_values();
+  os << "\n - min: " << min();
+  os << "\n - max: " << max();
+  os << "\n";
+}
+void TurboshaftFloat64SetType::TurboshaftFloat64SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftFloat64SetType");
+  os << "\n - special_values: " << special_values();
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+
+void TurbofanBitsetType::TurbofanBitsetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanBitsetType");
+  os << "\n - bitset_low: " << bitset_low();
+  os << "\n - bitset_high: " << bitset_high();
+  os << "\n";
+}
+void TurbofanUnionType::TurbofanUnionTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanUnionType");
+  os << "\n - type1: " << Brief(type1());
+  os << "\n - type2: " << Brief(type2());
+  os << "\n";
+}
+void TurbofanRangeType::TurbofanRangeTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanRangeType");
+  os << "\n - min: " << min();
+  os << "\n - max: " << max();
+  os << "\n";
+}
+void TurbofanHeapConstantType::TurbofanHeapConstantTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanHeapConstantType");
+  os << "\n - constant: " << Brief(constant());
+  os << "\n";
+}
+void TurbofanOtherNumberConstantType::TurbofanOtherNumberConstantTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurbofanOtherNumberConstantType");
+  os << "\n - constant: " << constant();
+  os << "\n";
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
   os << "\n - uses bitset: " << uses_bitset()->value();
+  os << "\n";
+}
+
+void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {
+  PrintHeader(os, "WasmExceptionTag");
+  os << "\n - index: " << index();
   os << "\n";
 }
 
@@ -3935,7 +4057,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
   os << "\n - length: " << length();
   if (length() > 0) {
-    PrintScopeInfoList(*this, os, "context slots", ContextLocalCount());
+    PrintScopeInfoList(this, os, "context slots", ContextLocalCount());
     // TODO(neis): Print module stuff if present.
   }
   os << "\n";
@@ -4473,9 +4595,9 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
-  bool is_meta_map = IsMetaMapMap(*this);
+  bool is_meta_map = IsMetaMapMap(this);
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_map = IsWasmObjectMap(*this);
+  bool is_wasm_map = IsWasmObjectMap(this);
 #else
   constexpr bool is_wasm_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4499,7 +4621,7 @@ void Map::MapPrint(std::ostream& os) {
     os << instance_size();
   }
 
-  if (IsJSObjectMap(*this)) {
+  if (IsJSObjectMap(this)) {
     os << "\n - inobject properties: " << GetInObjectProperties();
     os << "\n - unused property fields: " << UnusedPropertyFields();
   }
@@ -4525,7 +4647,7 @@ void Map::MapPrint(std::ostream& os) {
   if (has_non_instance_prototype()) os << "\n - has_non_instance_prototype";
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
-  if (IsContextMap(*this)) {
+  if (IsContextMap(this)) {
     os << "\n - native context: " << Brief(native_context());
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
@@ -4549,11 +4671,11 @@ void Map::MapPrint(std::ostream& os) {
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (!HeapLayout::InReadOnlySpace(*this)) {
-    Isolate* isolate = HeapLayout::InWritableSharedSpace(*this)
+  if (!HeapLayout::InReadOnlySpace(this)) {
+    Isolate* isolate = HeapLayout::InWritableSharedSpace(this)
                            ? Isolate::Current()->shared_space_isolate()
                            : Isolate::Current();
-    TransitionsAccessor transitions(isolate, *this);
+    TransitionsAccessor transitions(isolate, this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0 || transitions.HasPrototypeTransitions() ||
         transitions.HasSideStepTransitions()) {
@@ -4574,7 +4696,7 @@ void Map::MapPrint(std::ostream& os) {
   if (has_non_instance_prototype()) {
     os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
   }
-  if (!IsContextMap(*this)) {
+  if (!IsContextMap(this)) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }
   os << "\n - dependent code: " << Brief(dependent_code());

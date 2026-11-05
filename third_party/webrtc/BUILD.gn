@@ -50,6 +50,7 @@ if (!build_with_chromium) {
         ":audio_engine_tests",
         ":rtc_p2p_unittests",
         ":rtc_unittests",
+        ":test_suites",
         ":video_engine_tests",
         ":voip_unittests",
         ":webrtc_nonparallel_tests",
@@ -82,6 +83,7 @@ if (!build_with_chromium) {
         "video:video_loopback",
         "video/timing:video_timing_tests",
       ]
+      deps += [ "tools_webrtc:validate_test_registration" ]
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]
       }
@@ -122,6 +124,13 @@ if (!build_with_chromium) {
     if (target_os == "android") {
       deps += [ "tools_webrtc:binary_version_check" ]
     }
+  }
+}
+
+if (rtc_include_tests) {
+  group("test_suites") {
+    testonly = true
+    deps = [ ":webrtc_nonparallel_tests" ]
   }
 }
 
@@ -760,9 +769,15 @@ if (rtc_include_tests && !build_with_chromium) {
     }
   }
 
-  rtc_test("webrtc_nonparallel_tests") {
+  rtc_test_suite("webrtc_nonparallel_tests") {
     testonly = true
-    deps = [ "rtc_base:rtc_base_nonparallel_tests" ]
+    tests = [
+      "rtc_base:cpu_time_unittest",
+      "rtc_base:file_rotating_stream_unittest",
+      "rtc_base:null_socket_server_unittest",
+      "rtc_base:physical_socket_server_unittest",
+      "rtc_base:socket_address_unittest",
+    ]
     if (is_android) {
       shard_timeout = 900
     }

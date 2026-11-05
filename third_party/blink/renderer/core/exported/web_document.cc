@@ -421,7 +421,8 @@ size_t WebDocument::ActiveResourceRequestCount() const {
   return ConstUnwrap<Document>()->Fetcher()->ActiveRequestCount();
 }
 
-std::optional<base::UnguessableToken> WebDocument::ExecuteScriptTool(
+bool WebDocument::ExecuteScriptTool(
+    const base::UnguessableToken& invocation_id,
     const WebString& name,
     const WebString& input_arguments,
     WebScriptToolResultCallback tool_result_cb) {
@@ -438,7 +439,7 @@ std::optional<base::UnguessableToken> WebDocument::ExecuteScriptTool(
     }
     // TODO(481899636): PLUMB SIGNAL TO THE BROWSER SIDE!
     return model_context->ExecuteTool(
-        name, input_arguments,
+        invocation_id, name, input_arguments,
         /* signal= */ nullptr,
         blink::BindOnce(
             [](WebScriptToolResultCallback tool_result_cb,
@@ -458,13 +459,14 @@ std::optional<base::UnguessableToken> WebDocument::ExecuteScriptTool(
             },
             std::move(tool_result_cb), std::move(web_tool_declaration)));
   }
-  return std::nullopt;
+  return false;
 }
 
-void WebDocument::CancelScriptTool(const base::UnguessableToken& execution_id) {
+void WebDocument::CancelScriptTool(
+    const base::UnguessableToken& invocation_id) {
   if (auto* model_context = ModelContextSupplement::modelContext(
           *Unwrap<Document>()->domWindow()->navigator())) {
-    model_context->CancelTool(execution_id);
+    model_context->CancelTool(invocation_id);
   }
 }
 

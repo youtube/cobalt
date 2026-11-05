@@ -152,11 +152,8 @@ constexpr bool is_important_struct(InstanceType type) {
 
 template <typename StructType>
 constexpr int StructSize() {
-  if constexpr (std::is_base_of_v<StructLayout, StructType>) {
-    return sizeof(StructType);
-  } else {
-    return StructType::kSize;
-  }
+  static_assert(std::is_base_of_v<Struct, StructType>);
+  return sizeof(StructType);
 }
 
 using AllocationSiteWithoutWeakNext = AllocationSite;
@@ -270,7 +267,7 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
                                    SKIP_WRITE_BARRIER);
   Tagged<Map> map = isolate()->factory()->InitializeMap(
       Cast<Map>(result), instance_type, instance_size, elements_kind,
-      inobject_properties, roots);
+      inobject_properties, roots, /*during_bootstrap=*/true);
 
   return AllocationResult::FromObject(map);
 }
@@ -320,7 +317,7 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
   map->set_raw_transitions(Smi::zero());
   map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);
-  map->init_prototype_and_constructor_or_back_pointer(roots);
+  map->init_prototype_and_constructor_or_back_pointer_during_bootstrap(roots);
 }
 
 AllocationResult Heap::Allocate(DirectHandle<Map> map,
@@ -648,7 +645,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_MAP(FOREIGN_TYPE, sizeof(Foreign), foreign)
     ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, sizeof(TrustedForeign), trusted_foreign)
-    ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, MegaDomHandler::kSize, mega_dom_handler)
+    ALLOCATE_MAP(MEGA_DOM_HANDLER_TYPE, sizeof(MegaDomHandler),
+                 mega_dom_handler)
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map()->set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
@@ -754,6 +752,9 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
+    ALLOCATE_VARSIZE_MAP(SLOPPY_ARGUMENTS_ELEMENTS_TYPE,
+                         sloppy_arguments_elements)
+
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
 
@@ -802,6 +803,12 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_dispatch_table_for_imports);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, sizeof(WeakCell), weak_cell)
+    ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, sizeof(DictionaryTemplateInfo),
+                 dictionary_template_info)
+    ALLOCATE_MAP(FUNCTION_TEMPLATE_INFO_TYPE, sizeof(FunctionTemplateInfo),
+                 function_template_info)
+    ALLOCATE_MAP(OBJECT_TEMPLATE_INFO_TYPE, sizeof(ObjectTemplateInfo),
+                 object_template_info)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
 
@@ -820,9 +827,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
                  SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)
-
-    ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, DictionaryTemplateInfo::kSize,
-                 dictionary_template_info)
   }
 
   return true;
@@ -989,8 +993,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(ScopeInfo::SizeFor(ScopeInfo::kVariablePartIndex),
-                    AllocationType::kReadOnly);
+        AllocateRaw(ScopeInfo::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
                                   SKIP_WRITE_BARRIER);

@@ -20,6 +20,7 @@ android_library("java") {
 
   deps = [
     ":java_resources",
+    "//base:callback_java",
     "//base:log_java",
     "//base:supplier_java",
     "//base:tasks_java",
@@ -32,6 +33,7 @@ android_library("java") {
     "//chrome/browser/ui/side_panel_container/public:java",
     "//chrome/browser/ui/side_ui/public:java",
     "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:context_menu_java",
     "//components/embedder_support/android:web_contents_delegate_java",
     "//components/thin_webview:factory_java",
     "//components/thin_webview:java",
@@ -44,7 +46,10 @@ android_library("java") {
 }
 
 android_resources("java_resources") {
-  sources = [ "android/java/res/layout/side_panel_container.xml" ]
+  sources = [
+    "android/java/res/drawable/side_panel_container_bg.xml",
+    "android/java/res/layout/side_panel_container.xml",
+  ]
 }
 
 android_library("javatests") {
@@ -65,6 +70,7 @@ android_library("javatests") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/junit",
+    "//third_party/mockito:mockito_java",
     "//ui/android:ui_no_recycler_view_java",
   ]
   resources_package = "org.chromium.chrome.browser.ui.side_panel_container"

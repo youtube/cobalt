@@ -188,7 +188,6 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
       const CodecSpecificInfo* codec_specific_info) override;
 
   // Implements EncodedImageCallback.
-  void OnDroppedFrame(EncodedImageCallback::DropReason reason) override;
   void OnFrameDropped(uint32_t rtp_timestamp,
                       int spatial_id,
                       bool is_end_of_temporal_unit) override;

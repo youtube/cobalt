@@ -207,7 +207,6 @@ after discussions on the right group.
       <annotation id="drivefs_http_client"/>
       <annotation id="download_bubble_retry_download"/>
       <annotation id="quick_answers_loader"/>
-      <annotation id="chrome_search_suggest_service"/>
       <annotation id="chrome_commerce_price_email_pref_fetcher"/>
       <annotation id="chrome_commerce_price_email_pref_sender"/>
       <annotation id="receive_messages_express"/>
@@ -403,6 +402,7 @@ after discussions on the right group.
       <annotation id="actor_login_permission_service"/>
       <annotation id="fetch_email_one_time_token"/>
       <annotation id="multistep_filter_server_requests"/>
+      <annotation id="glic_private_api_prompt_fetcher"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

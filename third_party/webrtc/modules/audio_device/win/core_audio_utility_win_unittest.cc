@@ -60,11 +60,6 @@ class CoreAudioUtilityWinTest : public ::testing::Test {
     // the library functions. All COM functions will return CO_E_NOTINITIALIZED
     // otherwise.
     EXPECT_TRUE(com_init_.Succeeded());
-
-    // Configure logging.
-    webrtc::LogMessage::LogToDebug(webrtc::LS_INFO);
-    webrtc::LogMessage::LogTimestamps();
-    webrtc::LogMessage::LogThreads();
   }
 
   virtual ~CoreAudioUtilityWinTest() {}

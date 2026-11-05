@@ -217,6 +217,7 @@ class RtpDemuxer {
   flat_map<std::pair<std::string, std::string>, RtpPacketSinkInterface*>
       sink_by_mid_and_rsid_;
   flat_map<std::string, RtpPacketSinkInterface*> sink_by_rsid_;
+  flat_set<uint32_t> signaled_ssrcs_;
 
   // Tracks all the MIDs that have been identified in added criteria. Used to
   // determine if a packet should be dropped right away because the MID is

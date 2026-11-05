@@ -35,10 +35,8 @@ bool IsValidOption(const SelectOption& option) {
 bool IsValidFormFieldData(const FormFieldData& field) {
   return IsValidString16(field.label()) && IsValidString16(field.name()) &&
          IsValidString16(field.value()) &&
-         std::to_underlying(field.form_control_type()) >=
-             std::to_underlying(FormControlType::kMinValue) &&
-         std::to_underlying(field.form_control_type()) <=
-             std::to_underlying(FormControlType::kMaxValue) &&
+         mojom::IsKnownEnumValue(field.form_control_type()) &&
+         (!field.IsSelectElement() || field.max_length() == 0) &&
          IsValidString(field.autocomplete_attribute()) &&
          IsValidOptionVector(field.options());
 }

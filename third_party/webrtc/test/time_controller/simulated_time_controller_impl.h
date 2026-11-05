@@ -13,7 +13,6 @@
 
 #include <list>
 #include <memory>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -67,9 +66,13 @@ class SimulatedTimeControllerImpl : public TaskQueueFactory,
 
   // Create thread using provided `socket_server`.
   std::unique_ptr<Thread> CreateThread(
-      const std::string& name,
+      absl::string_view name,
       std::unique_ptr<SocketServer> absl_nullable socket_server)
       RTC_LOCKS_EXCLUDED(time_lock_, lock_);
+
+  std::unique_ptr<Thread> CreateThreadWithSocketServer(
+      absl::string_view name,
+      SocketServer* socket_server) RTC_LOCKS_EXCLUDED(time_lock_, lock_);
 
   // Runs all runners in `runners_` that has tasks or modules ready for
   // execution.

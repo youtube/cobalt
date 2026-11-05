@@ -116,6 +116,9 @@ class RTC_EXPORT IPAddress {
   // Returns the same address if this isn't a mapped address.
   IPAddress Normalized() const;
 
+  // Returns an unmapped address from multiple IPv4-embedding formats.
+  IPAddress NormalizeWithCheckForEmbeddedIPv4Address() const;
+
   // Returns this address as an IPv6 address.
   // Maps v4 addresses (as ::ffff:a.b.c.d), returns v6 addresses unchanged.
   IPAddress AsIPv6Address() const;
@@ -213,7 +216,9 @@ size_t HashIP(const IPAddress& ip);
 // These are only really applicable for IPv6 addresses.
 bool IPIs6Bone(const IPAddress& ip);
 bool IPIs6To4(const IPAddress& ip);
+bool IPIsIsatap(const IPAddress& ip);
 RTC_EXPORT bool IPIsMacBased(const IPAddress& ip);
+bool IPIsNat64(const IPAddress& ip);
 bool IPIsSiteLocal(const IPAddress& ip);
 bool IPIsTeredo(const IPAddress& ip);
 bool IPIsULA(const IPAddress& ip);

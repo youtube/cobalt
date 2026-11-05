@@ -2642,7 +2642,7 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
   BIND(&if_property_array);
   {
     TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
-        properties, PropertyArray::kLengthAndHashOffset);
+        properties, offsetof(PropertyArray, length_and_hash_));
     var_hash = DecodeWord32<PropertyArray::HashField>(length_and_hash);
     Goto(&done);
   }
@@ -3104,8 +3104,8 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
     TNode<PropertyArray> object, TNode<IntPtrT> index) {
   int additional_offset = 0;
-  return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
-                               additional_offset));
+  return CAST(LoadArrayElement(object, OFFSET_OF_DATA_START(PropertyArray),
+                               index, additional_offset));
 }
 
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
@@ -3124,7 +3124,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
     TNode<PropertyArray> object) {
   TNode<Int32T> value = LoadAndUntagToWord32ObjectField(
-      object, PropertyArray::kLengthAndHashOffset);
+      object, offsetof(PropertyArray, length_and_hash_));
   return Signed(
       ChangeUint32ToWord(DecodeWord32<PropertyArray::LengthField>(value)));
 }
@@ -4138,7 +4138,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
          barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   static_assert(static_cast<int>(OFFSET_OF_DATA_START(FixedArray)) ==
-                static_cast<int>(PropertyArray::kHeaderSize));
+                static_cast<int>(OFFSET_OF_DATA_START(PropertyArray)));
   int header_size =
       OFFSET_OF_DATA_START(FixedArray) + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset =
@@ -4148,7 +4148,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
                 static_cast<int>(offsetof(WeakFixedArray, length_)));
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
-                static_cast<int>(PropertyArray::kLengthAndHashOffset));
+                static_cast<int>(offsetof(PropertyArray, length_and_hash_)));
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
   CSA_DCHECK(
@@ -4159,7 +4159,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
               IsPropertyArray(object),
               [=, this] {
                 TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
-                    object, PropertyArray::kLengthAndHashOffset);
+                    object, offsetof(PropertyArray, length_and_hash_));
                 return Signed(ChangeUint32ToWord(
                     DecodeWord32<PropertyArray::LengthField>(length_and_hash)));
               },
@@ -5967,8 +5967,9 @@ void CodeStubAssembler::InitializePropertyArrayLength(
   CSA_DCHECK(this,
              IntPtrLessThanOrEqual(
                  length, IntPtrConstant(PropertyArray::LengthField::kMax)));
-  StoreObjectFieldNoWriteBarrier(
-      property_array, PropertyArray::kLengthAndHashOffset, SmiTag(length));
+  StoreObjectFieldNoWriteBarrier(property_array,
+                                 offsetof(PropertyArray, length_and_hash_),
+                                 SmiTag(length));
 }
 
 TNode<PropertyArray> CodeStubAssembler::AllocatePropertyArray(
@@ -7186,10 +7187,11 @@ TNode<AdditiveSafeIntegerT> CodeStubAssembler::TryFloat64ToAdditiveSafeInteger(
          if_failed);
 
   BIND(&if_int64);
-  // Check if AdditiveSafeInteger: (value - kMinAdditiveSafeInteger) >> 53 == 0
-  TNode<Int64T> shifted_value =
-      Word64Shr(Int64Sub(value_int64, Int64Constant(kMinAdditiveSafeInteger)),
-                Uint64Constant(kAdditiveSafeIntegerBitLength));
+  // Check if AdditiveSafeIntegerFeedback: (value -
+  // kMinAdditiveSafeIntegerFeedback) >> 51 == 0
+  TNode<Int64T> shifted_value = Word64Shr(
+      Int64Sub(value_int64, Int64Constant(kMinAdditiveSafeIntegerFeedback)),
+      Uint64Constant(kAdditiveSafeIntegerFeedbackBitLength));
   GotoIfNot(Word64Equal(shifted_value, Int64Constant(0)), if_failed);
   return UncheckedCast<AdditiveSafeIntegerT>(value_int64);
 }
@@ -12302,11 +12304,13 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&load_property_array);
     {
       var_storage = LoadFastProperties(CAST(object), true);
-      CSA_DCHECK(this, UintPtrLessThan(
-                           IntPtrSub(field_offset_in_words,
-                                     IntPtrConstant(PropertyArray::kHeaderSize /
-                                                    kTaggedSize)),
-                           LoadPropertyArrayLength(CAST(var_storage.value()))));
+      CSA_DCHECK(
+          this,
+          UintPtrLessThan(
+              IntPtrSub(field_offset_in_words,
+                        IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) /
+                                       kTaggedSize)),
+              LoadPropertyArrayLength(CAST(var_storage.value()))));
       Goto(&load_field);
     }
 
@@ -12436,7 +12440,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
         if (holder.has_value()) {
           Label use_cached_property(this);
           TNode<HeapObject> cached_property_name = LoadObjectField<HeapObject>(
-              getter, FunctionTemplateInfo::kCachedPropertyNameOffset);
+              getter, offsetof(FunctionTemplateInfo, cached_property_name_));
 
           Label* has_cached_property = mode == kCallJSGetterUseCachedName
                                            ? &use_cached_property
@@ -13713,6 +13717,35 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
+TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayStoreOffset(
+    TNode<IntPtrT> offset, ElementsKind kind) {
+#if V8_ENABLE_SANDBOX
+  // If the ElementsKind is concurrently modified between the bound check and
+  // the store, we might write outside of the sandbox. To prevent this
+  // ElementsKind switcheroo, mask the offset such that it is at most
+  // kMaxSafeBufferSizeForSandbox.
+  // For 1-byte elements, the offset is identical to the index and cannot
+  // exceed the checked bounds to cause an out-of-bounds write relative to the
+  // backing store, so we can skip masking.
+  if (ElementsKindToByteSize(kind) != 1) {
+    TVARIABLE(IntPtrT, offset_var, offset);
+    Label no_mask(this);
+    // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+    // that the graph structure does not depend on the value of the predicate
+    // (BoolConstant uses cached nodes).
+    GotoIfNot(UniqueInt32Constant(kRequiresTypedArrayAccessMasks), &no_mask);
+    {
+      offset_var =
+          WordAnd(offset_var.value(), IntPtrConstant(kBoundedSizeMask));
+      Goto(&no_mask);
+    }
+    BIND(&no_mask);
+    return offset_var.value();
+  }
+#endif  // V8_ENABLE_SANDBOX
+  return offset;
+}
+
 // TODO(solanes): Since we can't use `if constexpr` until we enable C++17 we
 // have to specialize the BigInt and Word32T cases. Since we can't partly
 // specialize, we have to specialize all used combinations.
@@ -13725,7 +13758,8 @@ void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
       std::is_same_v<TIndex, UintPtrT> || std::is_same_v<TIndex, IntPtrT>,
       "Only UintPtrT or IntPtrT indices is allowed");
   DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   TVARIABLE(UintPtrT, var_low);
   // Only used on 32-bit platforms.
   TVARIABLE(UintPtrT, var_high);
@@ -13779,7 +13813,8 @@ void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
   if (kind == UINT8_CLAMPED_ELEMENTS) {
     CSA_DCHECK(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);
@@ -13821,7 +13856,8 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
       "Only Int32T, Float32T, Float64T or object value "
       "types are allowed");
   DCHECK(IsTypedArrayElementsKind(kind));
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);
@@ -18664,19 +18700,21 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
 
 TNode<Uint8T> CodeStubAssembler::ElementsKindToElementByteShift(
     TNode<Int32T> elements_kind) {
-  Label invalid_kind(this, Label::kDeferred), end(this);
+  CSA_DCHECK(this, IsElementsKindInRange(
+                       elements_kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+                       LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
   TNode<Uint32T> index = Unsigned(Int32Sub(
       elements_kind, Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
-  Branch(
-      Uint32GreaterThan(
-          index, Uint32Constant(LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
-      &invalid_kind, &end);
 
-  BIND(&invalid_kind);
-  Unreachable();
+#ifdef V8_ENABLE_SANDBOX
+  // Make sure we don't read out of bounds in case the elements_kind value is
+  // not trusted.
+  constexpr size_t table_size =
+      TypedArrayAndRabGsabTypedArrayElementsKindTableSize();
+  static_assert(base::bits::IsPowerOfTwo(table_size));
+  index = Word32And(index, Uint32Constant(table_size - 1));
+#endif  // V8_ENABLE_SANDBOX
 
-  BIND(&end);
   TNode<RawPtrT> shift_table = UncheckedCast<RawPtrT>(ExternalConstant(
       ExternalReference::
           typed_array_and_rab_gsab_typed_array_elements_kind_shifts()));

@@ -569,16 +569,17 @@ android_library("chrome_test_java_org.chromium.chrome.browser.autofill") {
 
   sources = [
     "src/org/chromium/chrome/browser/autofill/AutofillSnackbarControllerTest.java",
-    "src/org/chromium/chrome/browser/autofill/AutofillUpstreamTest.java",
     "src/org/chromium/chrome/browser/autofill/TouchToFillCreditCardTest.java",
     "src/org/chromium/chrome/browser/autofill/anchored_dialog/AnchoredDialogTest.java",
     "src/org/chromium/chrome/browser/autofill/save_card/AutofillSaveCardBottomSheetRenderTest.java",
     "src/org/chromium/chrome/browser/autofill/save_card/AutofillSaveCardBottomSheetViewBinderTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/AutofillCardBenefitsFragmentTest.java",
+    "src/org/chromium/chrome/browser/autofill/settings/AutofillIdentityDocsFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/AutofillPaymentMethodsFragmentCardBenefitsTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/AutofillPaymentMethodsFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/AutofillProfilesFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/AutofillTestRule.java",
+    "src/org/chromium/chrome/browser/autofill/settings/AutofillTravelFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/FinancialAccountsManagementFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/HomeOfTransactionsFragmentTest.java",
     "src/org/chromium/chrome/browser/autofill/settings/NonCardPaymentMethodsManagementFragmentTest.java",
@@ -941,6 +942,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.ntp") {
     "src/org/chromium/chrome/browser/ntp/NewTabPageColorWithFeedV2Test.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageCreationTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageLoadTest.java",
+    "src/org/chromium/chrome/browser/ntp/NewTabPageMemoryLeakTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageNavigationTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageSigninPromoTest.java",
     "src/org/chromium/chrome/browser/ntp/NewTabPageTest.java",
@@ -1278,6 +1280,8 @@ android_library("chrome_test_java_org.chromium.chrome.browser.signin") {
     "src/org/chromium/chrome/browser/signin/SigninManagerIntegrationTest.java",
     "src/org/chromium/chrome/browser/signin/SigninSignoutIntegrationTest.java",
     "src/org/chromium/chrome/browser/signin/SigninSurveyControllerTest.java",
+    "src/org/chromium/chrome/browser/signin/services/WebSigninLoadingDialogRenderTest.java",
+    "src/org/chromium/chrome/browser/signin/services/WebSigninLoadingDialogTest.java",
   ]
 
   deps = [

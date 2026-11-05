@@ -1191,10 +1191,6 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
       return residual_echo_estimate_requested_;
     }
 
-    EchoCanceller3Config GetConfiguration(bool multi_channel) const override {
-      return EchoCanceller3Config();
-    }
-
     EchoCanceller3Config::Suppressor AdjustConfig(
         const EchoCanceller3Config::Suppressor& config) const override {
       return config;

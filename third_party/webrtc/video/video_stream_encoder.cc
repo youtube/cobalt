@@ -138,17 +138,6 @@ int GetNumSpatialLayers(const VideoCodec& codec) {
   }
 }
 
-std::optional<EncodedImageCallback::DropReason> MaybeConvertDropReason(
-    VideoStreamEncoderObserver::DropReason reason) {
-  switch (reason) {
-    case VideoStreamEncoderObserver::DropReason::kMediaOptimization:
-      return EncodedImageCallback::DropReason::kDroppedByMediaOptimizations;
-    case VideoStreamEncoderObserver::DropReason::kEncoder:
-      return EncodedImageCallback::DropReason::kDroppedByEncoder;
-    default:
-      return std::nullopt;
-  }
-}
 
 bool RequiresEncoderReset(const VideoCodec& prev_send_codec,
                           const VideoCodec& new_send_codec,
@@ -2445,24 +2434,6 @@ EncodedImageCallback::Result VideoStreamEncoder::OnEncodedImage(
   return result;
 }
 
-void VideoStreamEncoder::OnDroppedFrame(DropReason reason) {
-  sink_->OnDroppedFrame(reason);
-  encoder_queue_->PostTask([this, reason] {
-    RTC_DCHECK_RUN_ON(encoder_queue_.get());
-    switch (reason) {
-      case webrtc::EncodedImageCallback::DropReason::kDroppedByEncoder:
-        stream_resource_manager_.OnFrameDropped(
-            VideoStreamEncoderObserver::DropReason::kEncoder);
-        break;
-      case webrtc::EncodedImageCallback::DropReason::
-          kDroppedByMediaOptimizations:
-        stream_resource_manager_.OnFrameDropped(
-            VideoStreamEncoderObserver::DropReason::kMediaOptimization);
-        break;
-    }
-  });
-}
-
 void VideoStreamEncoder::OnFrameDropped(uint32_t rtp_timestamp,
                                         int spatial_id,
                                         bool is_end_of_temporal_unit) {
@@ -2476,6 +2447,8 @@ void VideoStreamEncoder::OnFrameDropped(uint32_t rtp_timestamp,
     if (frame_instrumentation_generator_ && is_end_of_temporal_unit) {
       frame_instrumentation_generator_->OnFrameReleased(rtp_timestamp);
     }
+    encoder_stats_observer_->OnFrameDropped(
+        VideoStreamEncoderObserver::DropReason::kEncoder);
   });
 }
 
@@ -2769,9 +2742,7 @@ void VideoStreamEncoder::ProcessDroppedFrame(
     VideoStreamEncoderObserver::DropReason reason) {
   accumulated_update_rect_.Union(frame.update_rect());
   accumulated_update_rect_is_valid_ &= frame.has_update_rect();
-  if (auto converted_reason = MaybeConvertDropReason(reason)) {
-    OnDroppedFrame(*converted_reason);
-  }
+  stream_resource_manager_.OnFrameDropped(reason);
   encoder_stats_observer_->OnFrameDropped(reason);
 }
 

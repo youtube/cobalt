@@ -136,7 +136,6 @@
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/zero_suggest_cache_service.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/mock_smart_bubble_stats_store.h"
@@ -1418,11 +1417,9 @@ class ChromeBrowsingDataRemoverDelegateWithPasswordsTest
  public:
   void SetUp() override {
     ChromeBrowsingDataRemoverDelegateTest::SetUp();
-    OSCryptMocker::SetUp();
   }
 
   void TearDown() override {
-    OSCryptMocker::TearDown();
     ChromeBrowsingDataRemoverDelegateTest::TearDown();
   }
 
@@ -1568,9 +1565,9 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearWebAppData) {
                                 constants::DATA_TYPE_HISTORY, false);
 
   // Verify that web app's last launch time is cleared.
-  EXPECT_EQ(
-      provider->registrar_unsafe().GetAppById(web_app_id)->last_launch_time(),
-      base::Time());
+  EXPECT_FALSE(provider->registrar_unsafe()
+                   .GetAppLastLaunchTime(web_app_id)
+                   .has_value());
   // Verify that web app's last badging time is cleared.
   EXPECT_EQ(
       provider->registrar_unsafe().GetAppById(web_app_id)->last_badging_time(),
@@ -3083,13 +3080,13 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, RemovePersistentPermission) {
       HostContentSettingsMapFactory::GetForProfile(GetProfile());
 
   PersistentStoragePermissionContext persistent_permission(GetProfile());
-  persistent_permission.UpdateContentSetting(
+  persistent_permission.UpdateSetting(
       permissions::PermissionRequestData(
           std::make_unique<permissions::ContentSettingPermissionResolver>(
               ContentSettingsType::PERSISTENT_STORAGE),
           /*user_gesture=*/true, kOrigin1, GURL()),
       CONTENT_SETTING_ALLOW, /*is_one_time=*/false);
-  persistent_permission.UpdateContentSetting(
+  persistent_permission.UpdateSetting(
       permissions::PermissionRequestData(
           std::make_unique<permissions::ContentSettingPermissionResolver>(
               ContentSettingsType::PERSISTENT_STORAGE),
@@ -3134,7 +3131,7 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest,
   HostContentSettingsMap* host_content_settings_map =
       HostContentSettingsMapFactory::GetForProfile(GetProfile());
   PersistentStoragePermissionContext persistent_permission(GetProfile());
-  persistent_permission.UpdateContentSetting(
+  persistent_permission.UpdateSetting(
       permissions::PermissionRequestData(
           std::make_unique<permissions::ContentSettingPermissionResolver>(
               ContentSettingsType::PERSISTENT_STORAGE),

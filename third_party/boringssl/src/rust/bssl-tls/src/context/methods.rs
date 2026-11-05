@@ -12,14 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::{ffi::c_int, marker::PhantomData, ptr::null_mut};
+use core::{
+    ffi::c_int,
+    marker::PhantomData,
+    ptr::null_mut, //
+};
 
 use once_cell::sync::Lazy;
 
 use crate::{
     Methods,
-    context::{QuicMode, TlsMode},
-    methods::drop_box_rust_methods,
+    context::{
+        DtlsMode,
+        QuicMode,
+        TlsMode, //
+    },
+    methods::drop_box_rust_methods, //
 };
 
 pub(crate) struct RustContextMethods<M>(PhantomData<fn() -> M>);
@@ -74,6 +82,14 @@ impl HasTlsContextMethod for TlsMode {
     #[inline(always)]
     fn registration() -> c_int {
         static TLS_CONTEXT_METHOD: Lazy<c_int> = Lazy::new(register_tls_context_vtable::<TlsMode>);
+        *TLS_CONTEXT_METHOD
+    }
+}
+
+impl HasTlsContextMethod for DtlsMode {
+    #[inline(always)]
+    fn registration() -> c_int {
+        static TLS_CONTEXT_METHOD: Lazy<c_int> = Lazy::new(register_tls_context_vtable::<DtlsMode>);
         *TLS_CONTEXT_METHOD
     }
 }

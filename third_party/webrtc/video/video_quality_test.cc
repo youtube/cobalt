@@ -295,9 +295,6 @@ class QualityTestVideoEncoder : public VideoEncoder,
     return callback_->OnEncodedImage(encoded_image, codec_specific_info);
   }
 
-  void OnDroppedFrame(DropReason reason) override {
-    callback_->OnDroppedFrame(reason);
-  }
   void OnFrameDropped(uint32_t rtp_timestamp,
                       int spatial_id,
                       bool is_end_of_temporal_unit) override {

@@ -6,13 +6,12 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
-#include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_management_internal.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
-#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/mv2_experiment_stage.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"
@@ -123,8 +122,7 @@ class MV2DeprecationImpactCheckerUnitTest
                                    base::Value(static_cast<int>(*pref_value)));
     }
 
-    impact_checker_ = std::make_unique<MV2DeprecationImpactChecker>(
-        ExtensionManagementFactory::GetForBrowserContext(profile()));
+    impact_checker_ = std::make_unique<MV2DeprecationImpactChecker>(profile());
   }
 
   void TearDown() override {

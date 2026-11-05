@@ -368,7 +368,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
       resource_provider_from_webgpu_access_;
 #endif
   Canvas2DColorParams color_params_;
-  bool need_dispatch_context_restored_ = false;
   base::RepeatingClosure on_restore_failed_callback_for_testing_;
 };
 

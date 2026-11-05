@@ -56,6 +56,8 @@ void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
 
 }  // namespace internal
 
+// This is the implementation of the public `WasmStreaming` API, see
+// `include/v8-wasm.h`.
 class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
@@ -74,6 +76,8 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
   void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
+    // Finish can only be called on the main thread of the isolate.
+    CHECK_EQ(i_isolate_->thread_id(), i::ThreadId::Current());
     streaming_decoder_->Finish(caching_callback);
   }
 
@@ -163,7 +167,7 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
       i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
-  return managed->get();
+  return managed->ptr().as_shared_ptr();
 }
 
 class WasmModuleCompilation::Impl {
@@ -2853,7 +2857,7 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  std::shared_ptr<i::BackingStore> backing_store = receiver->backing_store();
+  i::Managed<i::BackingStore>::Ptr backing_store = receiver->backing_store();
 #ifdef DEBUG
   if (i::Tagged<i::JSArrayBuffer> buffer;
       TryCast(receiver->array_buffer(), &buffer)) {
@@ -2869,9 +2873,14 @@ void WebAssemblyMemoryGrowImpl(
     return;
   }
 
-  static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
-  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
-                                          static_cast<uint32_t>(delta_pages));
+  int32_t ret;
+  if (delta_pages > i::wasm::kV8MaxWasmMemory64Pages - old_pages) {
+    ret = -1;
+  } else {
+    static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
+    ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                    static_cast<uint32_t>(delta_pages));
+  }
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory");
     return;
@@ -2929,7 +2938,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(memory, WasmMemoryObject);
 
-  std::shared_ptr<i::BackingStore> backing_store = memory->backing_store();
+  i::Managed<i::BackingStore>::Ptr backing_store = memory->backing_store();
   size_t curr_size = backing_store->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
   uint32_t min_size = static_cast<uint32_t>(curr_size);

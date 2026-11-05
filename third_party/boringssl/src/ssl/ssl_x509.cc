@@ -201,6 +201,9 @@ static void ssl_crypto_x509_session_clear(SSL_SESSION *session) {
 static bool ssl_crypto_x509_session_verify_cert_chain(SSL_SESSION *session,
                                                       SSL_HANDSHAKE *hs,
                                                       uint8_t *out_alert) {
+  if (session->peer_cert_type != TLSEXT_cert_type_x509) {
+    return false;
+  }
   *out_alert = SSL_AD_INTERNAL_ERROR;
   STACK_OF(X509) *const cert_chain = session->x509_chain;
   if (cert_chain == nullptr || sk_X509_num(cert_chain) == 0) {
@@ -293,7 +296,7 @@ static bool ssl_crypto_x509_ssl_auto_chain_if_needed(SSL_HANDSHAKE *hs) {
   // Only build a chain if the feature isn't disabled, the legacy credential
   // exists but has no intermediates configured.
   SSL *ssl = hs->ssl;
-  SSL_CREDENTIAL *cred = hs->config->cert->legacy_credential.get();
+  SSLCredential *cred = hs->config->cert->legacy_credential.get();
   if ((ssl->mode & SSL_MODE_NO_AUTO_CHAIN) || !cred->IsComplete() ||
       sk_CRYPTO_BUFFER_num(cred->chain.get()) != 1) {
     return true;
@@ -596,7 +599,7 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x) {
 static int ssl_cert_cache_leaf_cert(CERT *cert) {
   assert(cert->x509_method);
 
-  const SSL_CREDENTIAL *cred = cert->legacy_credential.get();
+  const SSLCredential *cred = cert->legacy_credential.get();
   if (cert->x509_leaf != nullptr || cred->chain == nullptr) {
     return 1;
   }
@@ -742,7 +745,7 @@ int SSL_clear_chain_certs(SSL *ssl) {
 static int ssl_cert_cache_chain_certs(CERT *cert) {
   assert(cert->x509_method);
 
-  const SSL_CREDENTIAL *cred = cert->legacy_credential.get();
+  const SSLCredential *cred = cert->legacy_credential.get();
   if (cert->x509_chain != nullptr || cred->chain == nullptr ||
       sk_CRYPTO_BUFFER_num(cred->chain.get()) < 2) {
     return 1;

@@ -253,10 +253,8 @@ def CheckNoPragmaOnce(input_api, output_api, source_file_filter):
     return []
 
 
-def CheckNoFRIEND_TEST(# pylint: disable=invalid-name
-        input_api,
-        output_api,
-        source_file_filter):
+def CheckNoFRIEND_TEST(  # pylint: disable=invalid-name
+        input_api, output_api, source_file_filter):
     """Make sure that gtest's FRIEND_TEST() macro is not used, the
   FRIEND_TEST_ALL_PREFIXES() macro from testsupport/gtest_prod_util.h should be
   used instead since that allows for FLAKY_, FAILS_ and DISABLED_ prefixes."""
@@ -287,7 +285,8 @@ def IsLintDisabled(disabled_paths, file_path):
     return False
 
 
-def CheckApprovedFilesLintClean(input_api, output_api,
+def CheckApprovedFilesLintClean(input_api,
+                                output_api,
                                 source_file_filter=None):
     """Checks that all new or non-exempt .cc and .h files pass cpplint.py.
   This check is based on CheckChangeLintsClean in
@@ -372,6 +371,7 @@ def CheckNoMixingSources(input_api, gn_files, output_api):
 
   See bugs.webrtc.org/7743 for more context.
   """
+
     def _MoreThanOneSourceUsed(*sources_lists):
         sources_used = 0
         for source_list in sources_lists:
@@ -679,6 +679,7 @@ def CheckDeps(input_api, output_api):
                 deps_checker.results_formatter.GetResults())))
     return results
 
+
 def CheckUnwantedDependencies(input_api, output_api, source_file_filter):
     """Runs checkdeps on #include statements added in this
   change. Breaking - rules is an error, breaking ! rules is a
@@ -796,6 +797,7 @@ def CheckChangeHasBugField(input_api, output_api):
 
 def CheckJSONParseErrors(input_api, output_api, source_file_filter):
     """Check that JSON files do not contain syntax errors."""
+
     def FilterFile(affected_file):
         return (input_api.os_path.splitext(affected_file.LocalPath())[1]
                 == '.json' and source_file_filter(affected_file))
@@ -822,6 +824,7 @@ def CheckJSONParseErrors(input_api, output_api, source_file_filter):
 
 
 def RunPythonTests(input_api, output_api):
+
     def Join(*args):
         return input_api.os_path.join(input_api.PresubmitLocalPath(), *args)
 
@@ -913,6 +916,8 @@ def CommonChecks(input_api, output_api):
     results.extend(
         input_api.canned_checks.CheckLicense(input_api, output_api,
                                              _LicenseHeader(input_api)))
+    results.extend(
+        input_api.canned_checks.CheckSkillFiles(input_api, output_api))
 
     # TODO(bugs.webrtc.org/12114): Delete this filter and run pylint on
     # all python files. This is a temporary solution.
@@ -1378,6 +1383,7 @@ def CheckLFNewline(input_api, output_api, source_file_filter):
                     output_api.PresubmitError(error_msg.format(file_path)))
     return results
 
+
 def _ExtractAddRulesFromParsedDeps(parsed_deps):
     """Extract the rules that add dependencies from a parsed DEPS file.
 
@@ -1401,6 +1407,7 @@ def _ParseDeps(contents):
 
     # Stubs for handling special syntax in the root DEPS file.
     class VarImpl:
+
         def __init__(self, local_scope):
             self._local_scope = local_scope
 

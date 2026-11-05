@@ -520,6 +520,139 @@ DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   return direct_handle(array, isolate());
 }
 
+Handle<TurboshaftWord32RangeType> Factory::NewTurboshaftWord32RangeType(
+    uint32_t from, uint32_t to, AllocationType allocation) {
+  Handle<TurboshaftWord32RangeType> result(
+      Cast<TurboshaftWord32RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftWord32RangeType), allocation,
+          *turboshaft_word32range_type_map())),
+      isolate());
+  result->set_from(from);
+  result->set_to(to);
+  return result;
+}
+
+Handle<TurboshaftWord32SetType> Factory::NewTurboshaftWord32SetType(
+    uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftWord32SetType> result(
+      Cast<TurboshaftWord32SetType>(AllocateRawWithImmortalMap(
+          TurboshaftWord32SetType::SizeFor(set_size), allocation,
+          *turboshaft_word32set_type_map())),
+      isolate());
+  result->set_set_size(set_size);
+  return result;
+}
+
+Handle<TurboshaftWord64RangeType> Factory::NewTurboshaftWord64RangeType(
+    uint32_t from_high, uint32_t from_low, uint32_t to_high, uint32_t to_low,
+    AllocationType allocation) {
+  Handle<TurboshaftWord64RangeType> result(
+      Cast<TurboshaftWord64RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftWord64RangeType), allocation,
+          *turboshaft_word64range_type_map())),
+      isolate());
+  result->set_from_high(from_high);
+  result->set_from_low(from_low);
+  result->set_to_high(to_high);
+  result->set_to_low(to_low);
+  return result;
+}
+
+Handle<TurboshaftWord64SetType> Factory::NewTurboshaftWord64SetType(
+    uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftWord64SetType> result(
+      Cast<TurboshaftWord64SetType>(AllocateRawWithImmortalMap(
+          TurboshaftWord64SetType::SizeFor(set_size), allocation,
+          *turboshaft_word64set_type_map())),
+      isolate());
+  result->set_set_size(set_size);
+  return result;
+}
+
+Handle<TurboshaftFloat64RangeType> Factory::NewTurboshaftFloat64RangeType(
+    uint32_t special_values, uint32_t padding, double min, double max,
+    AllocationType allocation) {
+  USE(padding);
+  Handle<TurboshaftFloat64RangeType> result(
+      Cast<TurboshaftFloat64RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftFloat64RangeType), allocation,
+          *turboshaft_float64range_type_map())),
+      isolate());
+  result->set_special_values(special_values);
+  result->set_min(min);
+  result->set_max(max);
+  return result;
+}
+
+Handle<TurboshaftFloat64SetType> Factory::NewTurboshaftFloat64SetType(
+    uint32_t special_values, uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftFloat64SetType> result(
+      Cast<TurboshaftFloat64SetType>(AllocateRawWithImmortalMap(
+          TurboshaftFloat64SetType::SizeFor(set_size), allocation,
+          *turboshaft_float64set_type_map())),
+      isolate());
+  result->set_special_values(special_values);
+  result->set_set_size(set_size);
+  return result;
+}
+
+Handle<TurbofanBitsetType> Factory::NewTurbofanBitsetType(
+    uint32_t bitset_low, uint32_t bitset_high, AllocationType allocation) {
+  Handle<TurbofanBitsetType> result(
+      Cast<TurbofanBitsetType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanBitsetType), allocation, *turbofan_bitset_type_map())),
+      isolate());
+  result->set_bitset_low(bitset_low);
+  result->set_bitset_high(bitset_high);
+  return result;
+}
+
+Handle<TurbofanUnionType> Factory::NewTurbofanUnionType(
+    DirectHandle<TurbofanType> type1, DirectHandle<TurbofanType> type2,
+    AllocationType allocation) {
+  Handle<TurbofanUnionType> result(
+      Cast<TurbofanUnionType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanUnionType), allocation, *turbofan_union_type_map())),
+      isolate());
+  result->set_type1(*type1);
+  result->set_type2(*type2);
+  return result;
+}
+
+Handle<TurbofanRangeType> Factory::NewTurbofanRangeType(
+    double min, double max, AllocationType allocation) {
+  Handle<TurbofanRangeType> result(
+      Cast<TurbofanRangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanRangeType), allocation, *turbofan_range_type_map())),
+      isolate());
+  result->set_min(min);
+  result->set_max(max);
+  return result;
+}
+
+Handle<TurbofanHeapConstantType> Factory::NewTurbofanHeapConstantType(
+    DirectHandle<HeapObject> constant, AllocationType allocation) {
+  Handle<TurbofanHeapConstantType> result(
+      Cast<TurbofanHeapConstantType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanHeapConstantType), allocation,
+          *turbofan_heap_constant_type_map())),
+      isolate());
+  result->set_constant(*constant);
+  return result;
+}
+
+Handle<TurbofanOtherNumberConstantType>
+Factory::NewTurbofanOtherNumberConstantType(double constant,
+                                            AllocationType allocation) {
+  Handle<TurbofanOtherNumberConstantType> result(
+      Cast<TurbofanOtherNumberConstantType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanOtherNumberConstantType), allocation,
+          *turbofan_other_number_constant_type_map())),
+      isolate());
+  result->set_constant(constant);
+  return result;
+}
+
 DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);
@@ -2600,8 +2733,8 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
 Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                                    int instance_size,
                                    ElementsKind elements_kind,
-                                   int inobject_properties,
-                                   ReadOnlyRoots roots) {
+                                   int inobject_properties, ReadOnlyRoots roots,
+                                   bool during_bootstrap) {
   DisallowGarbageCollection no_gc;
   map->set_bit_field(0);
   map->set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -2612,7 +2745,11 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
       Map::Bits3::IsExtensibleBit::encode(true);
   map->set_bit_field3(bit_field3);
   map->set_instance_type(type);
-  map->init_prototype_and_constructor_or_back_pointer(roots);
+  if (during_bootstrap) {
+    map->init_prototype_and_constructor_or_back_pointer_during_bootstrap(roots);
+  } else {
+    map->init_prototype_and_constructor_or_back_pointer(roots);
+  }
   map->set_instance_size(instance_size);
   if (InstanceTypeChecker::IsJSObject(type)) {
     // JSObjects that may be allocated in RO space must have RO maps.
@@ -4547,6 +4684,8 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->set_pattern(*pattern);
+  instance->set_quick_check_mask(0);
+  instance->set_quick_check_value(0);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
   instance->set_wrapper(raw_wrapper);
   raw_wrapper->set_data(instance);
@@ -4572,7 +4711,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->clear_capture_name_map();
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   int ticks_until_tier_up = v8_flags.regexp_tier_up
@@ -4581,6 +4720,8 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
   instance->set_ticks_until_tier_up(ticks_until_tier_up);
   instance->set_backtrack_limit(backtrack_limit);
   instance->set_bit_field(bit_field);
+  instance->set_quick_check_mask(0);
+  instance->set_quick_check_value(0);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
   instance->set_wrapper(raw_wrapper);
   raw_wrapper->set_data(instance);
@@ -4612,12 +4753,14 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->clear_capture_name_map();
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   instance->set_ticks_until_tier_up(JSRegExp::kUninitializedValue);
   instance->set_backtrack_limit(JSRegExp::kUninitializedValue);
   instance->set_bit_field(0);
+  instance->set_quick_check_mask(0);
+  instance->set_quick_check_value(0);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
   instance->set_wrapper(raw_wrapper);
   raw_wrapper->set_data(instance);
@@ -5077,15 +5220,14 @@ inline void InitializeTemplateWithProperties(
 
 DirectHandle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     int length, bool do_not_cache) {
-  const int size = FunctionTemplateInfo::SizeFor();
   Tagged<FunctionTemplateInfo> obj =
       Cast<FunctionTemplateInfo>(AllocateRawWithImmortalMap(
-          size, AllocationType::kOld,
+          sizeof(FunctionTemplateInfo), AllocationType::kOld,
           read_only_roots().function_template_info_map()));
   {
     // Disallow GC until all fields of obj have acceptable types.
     DisallowGarbageCollection no_gc;
-    Tagged<FunctionTemplateInfo> raw = *obj;
+    Tagged<FunctionTemplateInfo> raw = obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
@@ -5114,14 +5256,14 @@ DirectHandle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
 
 DirectHandle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
     DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache) {
-  const int size = ObjectTemplateInfo::SizeFor();
-  Tagged<ObjectTemplateInfo> obj = Cast<ObjectTemplateInfo>(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld,
-                                 read_only_roots().object_template_info_map()));
+  Tagged<ObjectTemplateInfo> obj =
+      Cast<ObjectTemplateInfo>(AllocateRawWithImmortalMap(
+          sizeof(ObjectTemplateInfo), AllocationType::kOld,
+          read_only_roots().object_template_info_map()));
   {
     // Disallow GC until all fields of obj have acceptable types.
     DisallowGarbageCollection no_gc;
-    Tagged<ObjectTemplateInfo> raw = *obj;
+    Tagged<ObjectTemplateInfo> raw = obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     if (constructor.is_null()) {
@@ -5136,10 +5278,10 @@ DirectHandle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
 
 DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
     DirectHandle<FixedArray> property_names) {
-  const int size = DictionaryTemplateInfo::SizeFor();
   DirectHandle<Map> map = dictionary_template_info_map();
-  Tagged<DictionaryTemplateInfo> obj = Cast<DictionaryTemplateInfo>(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
+  Tagged<DictionaryTemplateInfo> obj =
+      Cast<DictionaryTemplateInfo>(AllocateRawWithImmortalMap(
+          sizeof(DictionaryTemplateInfo), AllocationType::kOld, *map));
   InitializeTemplate(obj, true);
   obj->set_property_names(*property_names);
   return direct_handle(obj, isolate());

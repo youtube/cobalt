@@ -4,7 +4,9 @@
 
 package org.chromium.chrome.browser.ui.side_panel_container;
 
+import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelType;
 
 /** Coordinator of the side panel container UI. */
@@ -32,16 +34,24 @@ public interface SidePanelContainerCoordinator {
      * <p>This method is intended for a side panel feature.
      *
      * <p>If the container is closed, calling this method will show the container. If the container
-     * already has content, the existing content will be replaced.
+     * already has content, the existing content will be replaced with no animation.
+     *
+     * @param content Wrapper object for the content to show in the side panel.
+     * @param onAnimationFinishedCallback Callback to invoke after content is populated.
      */
-    void populateContent(SidePanelContent content);
+    void populateContent(
+            SidePanelContent content, Callback<@Nullable Void> onAnimationFinishedCallback);
 
     /**
-     * Removes {@link SidePanelContent} from this side panel container.
+     * Removes {@link SidePanelContent} from this side panel container and closes the container.
      *
      * <p>This method is for a side panel feature. Calling it will also close the container.
+     *
+     * @param onAnimationFinishedCallback Callback to invoke after content is removed.
+     * @param suppressAnimations Whether or not to suppress animations for this removal.
      */
-    void removeContent();
+    void removeContentAndClose(
+            Callback<@Nullable Void> onAnimationFinishedCallback, boolean suppressAnimations);
 
     /** Returns whether the given {@link SidePanelContent} is shown in this side panel container. */
     boolean isShowing(SidePanelContent sidePanelContent);

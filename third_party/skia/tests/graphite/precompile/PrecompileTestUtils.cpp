@@ -125,9 +125,6 @@ bool skip(const char* str) {
         return true;
     }
 #endif // SK_VULKAN
-    if (strstr(str, "RE_GainmapEffect")) {
-        return true;
-    }
     return false;
 }
 

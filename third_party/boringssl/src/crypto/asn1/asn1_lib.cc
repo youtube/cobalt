@@ -266,6 +266,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, ossl_ssize_t len_s) {
     }
   }
   str->length = (int)len;
+  str->flags &= ~0x07;  // Clear unused bits if this is a BIT STRING.
   if (data != nullptr) {
     OPENSSL_memcpy(str->data, data, len);
     // Historically, OpenSSL would NUL-terminate most (but not all)
@@ -281,6 +282,7 @@ void ASN1_STRING_set0(ASN1_STRING *str, void *data, int len) {
   OPENSSL_free(str->data);
   str->data = reinterpret_cast<uint8_t *>(data);
   str->length = len;
+  str->flags &= ~0x07;  // Clear unused bits if this is a BIT STRING.
 }
 
 ASN1_STRING *ASN1_STRING_new() {
@@ -318,20 +320,18 @@ void ASN1_STRING_free(ASN1_STRING *str) {
 }
 
 int ASN1_STRING_cmp(const ASN1_STRING *a, const ASN1_STRING *b) {
-  // Capture padding bits and implicit truncation in BIT STRINGs.
-  int a_length = a->length, b_length = b->length;
   uint8_t a_padding = 0, b_padding = 0;
   if (a->type == V_ASN1_BIT_STRING) {
-    a_length = asn1_bit_string_length(a, &a_padding);
+    a_padding = ASN1_BIT_STRING_unused_bits(a);
   }
   if (b->type == V_ASN1_BIT_STRING) {
-    b_length = asn1_bit_string_length(b, &b_padding);
+    b_padding = ASN1_BIT_STRING_unused_bits(b);
   }
 
-  if (a_length < b_length) {
+  if (a->length < b->length) {
     return -1;
   }
-  if (a_length > b_length) {
+  if (a->length > b->length) {
     return 1;
   }
   // In a BIT STRING, the number of bits is 8 * length - padding. Invert this
@@ -343,7 +343,7 @@ int ASN1_STRING_cmp(const ASN1_STRING *a, const ASN1_STRING *b) {
     return 1;
   }
 
-  int ret = OPENSSL_memcmp(a->data, b->data, a_length);
+  int ret = OPENSSL_memcmp(a->data, b->data, a->length);
   if (ret != 0) {
     return ret;
   }

@@ -423,20 +423,6 @@ void IdentityDialogController::OnAccountsDisplayed() {
   std::move(on_accounts_displayed_).Run();
 }
 
-void IdentityDialogController::OnFlowCompleted(
-    content::webid::FederatedLoginResult result) {
-  // OnFlowCompleted() may be invoked while the WebContents is being destroyed,
-  // so be careful when trying to access the Page.
-  if (rp_web_contents_->IsBeingDestroyed()) {
-    return;
-  }
-  content::webid::FederatedEmbedderLoginRequest* embedder_login_request =
-      content::webid::FederatedEmbedderLoginRequest::Get(rp_web_contents_);
-  if (embedder_login_request) {
-    embedder_login_request->OnFederatedResultReceived(result);
-  }
-}
-
 void IdentityDialogController::OnAccountSelected(
     const GURL& idp_config_url,
     const std::string& account_id,
@@ -514,7 +500,9 @@ void IdentityDialogController::ShowUrl(LinkType type, const GURL& url) {
 content::WebContents* IdentityDialogController::ShowModalDialog(
     const GURL& url,
     blink::mojom::RpMode rp_mode,
-    DismissCallback dismiss_callback) {
+    DismissCallback dismiss_callback,
+    content::IdentityRequestDialogController::ShownModalAsyncCallback
+        on_shown_async) {
   on_dismiss_ = std::move(dismiss_callback);
   rp_mode_ = rp_mode;
   if (!TrySetAccountView()) {
@@ -526,7 +514,8 @@ content::WebContents* IdentityDialogController::ShowModalDialog(
   did_show_ui_ = true;
   NotifyEmbedderOfResult(FederatedLoginResult::kContinuation);
   // Show the modal dialog even if FedCM UI is not being shown.
-  return account_view_->ShowModalDialog(url, rp_mode);
+  return account_view_->ShowModalDialog(url, rp_mode,
+                                        std::move(on_shown_async));
 }
 
 void IdentityDialogController::CloseModalDialog() {

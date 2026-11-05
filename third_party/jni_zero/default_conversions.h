@@ -74,7 +74,7 @@ inline ContainerType FromJniArray(JNIEnv* env,
         ret.insert(ElementType::Adopt(env, j_element));
       }
     } else {
-      auto element = ScopedJavaLocalRef<jobject>::Adopt(env, j_element);
+      auto element = jni_zero::AdoptRef(env, j_element);
       if constexpr (has_push_back) {
         ret.push_back(FromJniType<ElementType>(env, element));
       } else if constexpr (has_insert) {
@@ -106,7 +106,7 @@ ToJniArray(JNIEnv* env, const ContainerType& collection, jclass clazz) {
     }
     ++i;
   }
-  return ScopedJavaLocalRef<jobjectArray>::Adopt(env, j_array);
+  return jni_zero::AdoptRef(env, j_array);
 }
 #else
 namespace internal {
@@ -203,18 +203,7 @@ inline ScopedJavaLocalRef<jarray> ToJniArray(JNIEnv* env,
   }
   return ToJniArray(env, int_vec);
 }
-#endif
 
-// Specialization for ByteArrayView.
-template <>
-inline ByteArrayView FromJniArray<ByteArrayView>(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_object) {
-  jbyteArray j_array = static_cast<jbyteArray>(j_object.obj());
-  return ByteArrayView(env, j_array);
-}
-
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <internal::IsObjectContainer ContainerType>
 inline ContainerType FromJniCollection(JNIEnv* env,
                                        const JavaRef<jobject>& j_collection) {
@@ -260,16 +249,16 @@ inline ContainerType FromJniType(JNIEnv* env,
       ret.emplace(std::piecewise_construct, std::forward_as_tuple(env, j_key),
                   std::forward_as_tuple(env, j_value));
     } else if constexpr (IsJavaRef<KeyType>) {
-      auto value = ScopedJavaLocalRef<jobject>::Adopt(env, j_value);
+      auto value = jni_zero::AdoptRef(env, j_value);
       ret.emplace(std::piecewise_construct, std::forward_as_tuple(env, j_key),
                   FromJniType<ValueType>(env, value));
     } else if constexpr (IsJavaRef<ValueType>) {
-      auto key = ScopedJavaLocalRef<jobject>::Adopt(env, j_key);
+      auto key = jni_zero::AdoptRef(env, j_key);
       ret.emplace(std::piecewise_construct, FromJniType<KeyType>(env, key),
                   std::forward_as_tuple(env, j_value));
     } else {
-      auto key = ScopedJavaLocalRef<jobject>::Adopt(env, j_key);
-      auto value = ScopedJavaLocalRef<jobject>::Adopt(env, j_value);
+      auto key = jni_zero::AdoptRef(env, j_key);
+      auto value = jni_zero::AdoptRef(env, j_value);
       ret.emplace(FromJniType<KeyType>(env, key),
                   FromJniType<ValueType>(env, value));
     }
@@ -311,7 +300,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
     }
     ++i;
   }
-  auto array = ScopedJavaLocalRef<jobjectArray>::Adopt(env, j_array);
+  auto array = jni_zero::AdoptRef(env, j_array);
   return ArrayToMap(env, array);
 }
 #endif

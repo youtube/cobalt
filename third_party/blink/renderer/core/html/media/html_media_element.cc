@@ -1158,6 +1158,10 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
   StopPeriodicTimers();
   load_timer_.Stop();
   CancelDeferredLoad();
+  if (RuntimeEnabledFeatures::LazyLoadVideoAndAudioEnabled()) {
+    lazy_media_load_state_ = LazyMediaLoadState::kNone;
+    LazyMediaHelper::StopMonitoring(this);
+  }
   // FIXME: Figure out appropriate place to reset LoadTextTrackResource if
   // necessary and set pending_action_flags_ to 0 here.
   pending_action_flags_ &= ~kLoadMediaResource;
@@ -4336,6 +4340,10 @@ void HTMLMediaElement::ClearMediaPlayer() {
   CloseMediaSource();
 
   CancelDeferredLoad();
+  if (RuntimeEnabledFeatures::LazyLoadVideoAndAudioEnabled()) {
+    lazy_media_load_state_ = LazyMediaLoadState::kNone;
+    LazyMediaHelper::StopMonitoring(this);
+  }
 
   {
     AudioSourceProviderClientLockScope scope(*this);

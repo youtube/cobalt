@@ -30,7 +30,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -528,18 +527,6 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   __ TailCallBuiltin(Builtin::kRunMicrotasks);
 }
 
-static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
-                                          Register sfi_data,
-                                          Register scratch1) {
-  Label done;
-
-  __ CmpObjectType(sfi_data, INTERPRETER_DATA_TYPE, scratch1);
-  __ j(not_equal, &done, Label::kNear);
-  __ LoadInterpreterDataBytecodeArray(sfi_data, sfi_data);
-
-  __ bind(&done);
-}
-
 static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
                                  Register scratch) {
   DCHECK(!AreAliased(code, scratch));
@@ -887,6 +874,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
 
+  ResetSharedFunctionInfoAge(masm, ecx);
+
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label is_baseline, compile_lazy;
@@ -897,8 +886,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Register feedback_vector = ecx;
   Register closure = edi;
   Register scratch = eax;
-  __ LoadFeedbackVector(feedback_vector, closure, scratch, &push_stack_frame,
-                        Label::kNear);
+
+  Label budget_interrupt;
+  Label after_budget_check;
+
+  // Save BytecodeArray to xmm1 to preserve it across frame setup.
+  __ movd(xmm1, ecx);
+
+  __ LoadFeedbackCell(ecx, closure);
+  __ movd(xmm2, ecx);
+
+  __ LoadFeedbackVectorFromCell(feedback_vector, ecx, scratch,
+                                &push_stack_frame, Label::kNear);
 
 #ifndef V8_JITLESS
 
@@ -926,29 +925,32 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ movd(kJavaScriptCallArgCountRegister, xmm0);
   __ push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
-  // Get the bytecode array from the function object and load it into
-  // kInterpreterBytecodeArrayRegister.
-  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  ResetSharedFunctionInfoAge(masm, eax);
-  __ mov(kInterpreterBytecodeArrayRegister,
-         FieldOperand(eax, SharedFunctionInfo::kTrustedFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
-
-  // Check function data field is actually a BytecodeArray object.
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
-    __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
-                     eax);
-    __ Assert(
-        equal,
-        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-  }
+  DCHECK_EQ(kInterpreterBytecodeArrayRegister, kJavaScriptCallTargetRegister);
+  // Restore bytecode array from xmm1.
+  __ movd(kInterpreterBytecodeArrayRegister, xmm1);
 
   // Push bytecode array.
   __ push(kInterpreterBytecodeArrayRegister);
   // Push Smi tagged initial bytecode array offset.
   __ push(Immediate(Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag)));
   __ push(feedback_vector);
+
+  // Check function data field still matches the saved bytecode array.
+  if (v8_flags.debug_code) {
+    __ mov(eax, Operand(ebp, StandardFrameConstants::kFunctionOffset));
+    __ mov(eax, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(eax,
+           FieldOperand(eax, SharedFunctionInfo::kTrustedFunctionDataOffset));
+    __ CmpObjectType(eax, INTERPRETER_DATA_TYPE, ecx);
+    Label done;
+    __ j(not_equal, &done, Label::kNear);
+    __ LoadInterpreterDataBytecodeArray(eax, eax);
+    __ bind(&done);
+    __ cmp(eax, kInterpreterBytecodeArrayRegister);
+    __ Assert(
+        equal,
+        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+  }
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -988,6 +990,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ j(zero, &no_incoming_new_target_or_generator_register);
   __ mov(Operand(ebp, ecx, times_system_pointer_size, 0), edx);
   __ bind(&no_incoming_new_target_or_generator_register);
+
+  // Reduce interrupt budget.
+  __ movd(ecx, xmm2);
+  __ mov(edx, FieldOperand(kInterpreterBytecodeArrayRegister,
+                           BytecodeArray::kLengthOffset));
+  __ SmiUntag(edx);
+  __ sub(FieldOperand(ecx, offsetof(FeedbackCell, interrupt_budget_)), edx);
+  __ j(less, &budget_interrupt);
+  __ bind(&after_budget_check);
 
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
@@ -1054,6 +1065,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   LeaveInterpreterFrame(masm, edx, ecx);
   __ ret(0);
 
+  __ bind(&budget_interrupt);
+  __ push(Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
+
+  // After the call, restore the bytecode array, bytecode offset and accumulator
+  // registers again.
+  __ mov(kInterpreterBytecodeArrayRegister,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+
+  __ jmp(&after_budget_check);
+
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
   // for the call to the StackGuard.
@@ -1088,7 +1113,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
@@ -3791,11 +3815,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Load suspender from closure.
   // -------------------------------------------
   Register sfi = closure;
-  __ Move(
-      sfi,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  __ Move(sfi, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   Register function_data = sfi;
   __ Move(function_data,
           FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
@@ -4614,7 +4634,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     api_function_address = ReassignRegister(topmost_script_having_context);
 
     __ mov(api_function_address,
-           FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
+           FieldOperand(func_templ, offsetof(FunctionTemplateInfo, callback_)));
   }
 
   __ PushReturnAddressFrom(argc);

@@ -643,6 +643,15 @@ HeapObjectsMap::HeapObjectsMap(Heap* heap)
   entries_.emplace_back(0, kNullAddress, 0, true);
 }
 
+bool HeapObjectsMap::ContainsEntryWithIdForTesting(SnapshotObjectId id) const {
+  for (auto& entry : entries_) {
+    if (entry.id == id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   DCHECK_NE(kNullAddress, to);
   DCHECK_NE(kNullAddress, from);
@@ -891,6 +900,20 @@ void HeapObjectsMap::RemoveDeadEntries() {
          entries_map_.occupancy());
 }
 
+#ifdef DEBUG
+void HeapObjectsMap::CheckEntriesNotAccessed() {
+  // First entry is dummy.
+  DCHECK_EQ(entries_[0].id, 0);
+  DCHECK_EQ(entries_[0].size, 0);
+  DCHECK_EQ(entries_[0].addr, kNullAddress);
+  DCHECK(entries_[0].accessed);
+
+  for (size_t i = 1; i < entries_.size(); ++i) {
+    DCHECK(!entries_.at(i).accessed);
+  }
+}
+#endif
+
 V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
                                SnapshottingProgressReportingInterface* progress,
                                v8::HeapProfiler::ContextNameResolver* resolver)
@@ -1075,7 +1098,14 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     return AddEntry(object, HeapEntry::kHidden, name);
 
   } else if (InstanceTypeChecker::IsContext(instance_type)) {
-    return AddEntry(object, HeapEntry::kObject, "system / Context");
+    Tagged<Context> context = Cast<Context>(object);
+    Tagged<ScopeInfo> scope_info =
+        Cast<ScopeInfo>(context->get(Context::SCOPE_INFO_INDEX, kRelaxedLoad));
+    SnapshotObjectId scope_info_id = heap_object_map_->FindOrAddEntry(
+        scope_info.address(), SizeForSnapshot(scope_info, cage_base));
+    return AddEntry(
+        object, HeapEntry::kObject,
+        names_->GetFormatted("system / Context / scope @%u", scope_info_id));
 
   } else if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
@@ -1664,15 +1694,17 @@ class ExternalStringRecorder
       : entry_(entry),
         explorer_(explorer),
         generator_(generator),
-        names_(names) {}
+        names_(names),
+        next_index_(1) {}
   void RecordSharedMemoryUsage(const void* location, size_t size) final {
     ExternalDataEntryAllocator allocator(size, explorer_,
                                          "system / ExternalStringData");
     HeapEntry* data_entry =
         generator_->FindOrAddEntry(const_cast<HeapThing>(location), &allocator);
-    entry_->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
-                                       "backing_store", data_entry, names_,
-                                       generator_, HeapEntry::kOffHeapPointer);
+    const char* name =
+        names_->GetFormatted("%d / backing_store", next_index_++);
+    entry_->SetNamedReference(HeapGraphEdge::kInternal, name, data_entry,
+                              generator_, HeapEntry::kOffHeapPointer);
   }
 
  private:
@@ -1680,12 +1712,22 @@ class ExternalStringRecorder
   V8HeapExplorer* explorer_;
   HeapSnapshotGenerator* generator_;
   StringsStorage* names_;
+  int next_index_;
 };
 
 }  // namespace
 
 void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                                              Tagged<String> string) {
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "length", string->length());
+  if (names_->NeedsTruncation(string->length())) {
+    AddBoolEdge(entry, HeapGraphEdge::kInternal, "truncated", true);
+  }
+  if (!string->IsOneByteRepresentation()) {
+    AddBoolEdge(entry, HeapGraphEdge::kInternal, "two_byte_representation",
+                true);
+  }
+
   if (IsConsString(string)) {
     Tagged<ConsString> cs = Cast<ConsString>(string);
     SetInternalReference(entry, "first", cs->first(),
@@ -2266,6 +2308,26 @@ void V8HeapExplorer::ExtractBytecodeArrayReferences(
 
 void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
                                                 Tagged<ScopeInfo> info) {
+  // Empty ScopeInfo is used for builtins and NativeContexts and does not have
+  // any of the following fields.
+  if (info->IsEmpty()) return;
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "scope_type", info->scope_type());
+  AddStringEdge(entry, HeapGraphEdge::kInternal, "scope_type_name",
+                ToString(info->scope_type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "context_local_count",
+             info->ContextLocalCount());
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "parameter_count",
+             info->ParameterCount());
+  if (info->HasOuterScopeInfo()) {
+    SetInternalReference(entry, "outer_scope_info", info->OuterScopeInfo(),
+                         info->OuterScopeInfoOffset());
+  }
+  if (info->HasPositionInfo()) {
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
+               info->StartPosition());
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
+               info->EndPosition());
+  }
   if (!info->HasInlinedLocalNames()) {
     TagObject(info->context_local_names_hashtable(), "(context local names)",
               HeapEntry::kCode);
@@ -2853,44 +2915,26 @@ void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
 void V8HeapExplorer::AddIntEdge(HeapEntry* parent_entry,
                                 HeapGraphEdge::Type type,
                                 const char* reference_name, int value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kHeapNumber, "int", id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
-
-  HeapEntry* value_entry =
-      snapshot_->AddEntry(HeapEntry::kString, names_->GetFormatted("%d", value),
-                          heap_object_map_->get_next_id(), 0, 0);
-  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
-                           generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateIntEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::AddBoolEdge(HeapEntry* parent_entry,
                                  HeapGraphEdge::Type type,
                                  const char* reference_name, bool value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kHeapNumber, "bool", id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
-
-  HeapEntry* value_entry =
-      snapshot_->AddEntry(HeapEntry::kString, value ? "true" : "false",
-                          heap_object_map_->get_next_id(), 0, 0);
-  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
-                           generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateBoolEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::AddStringEdge(HeapEntry* parent_entry,
                                    HeapGraphEdge::Type type,
                                    const char* reference_name,
                                    const char* value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  // Use size 0 here because this method is not intended to be used for actual
-  // String objects but for displaying a visible name for e.g. VisitorId in
-  // visitor_name.
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kString, names_->GetCopy(value), id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateStringEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,
@@ -3480,11 +3524,50 @@ HeapSnapshotGenerator::HeapSnapshotGenerator(
     v8::HeapProfiler::ContextNameResolver* resolver, Heap* heap,
     cppgc::EmbedderStackState stack_state)
     : snapshot_(snapshot),
+      heap_object_map_(snapshot->profiler()->heap_object_map()),
+      names_(snapshot->profiler()->names()),
       control_(control),
       v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this),
       heap_(heap),
       stack_state_(stack_state) {}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateIntEntry(int value) {
+  HeapEntry*& entry = int_entries_[value];
+  if (!entry) {
+    HeapEntry* value_entry = snapshot_->AddEntry(
+        HeapEntry::kString, names_->GetFormatted("%d", value),
+        heap_object_map_->get_next_id(), 0, 0);
+    entry = snapshot_->AddEntry(HeapEntry::kHeapNumber, "int",
+                                heap_object_map_->get_next_id(), 0, 0);
+    entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
+                             this);
+  }
+  return entry;
+}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateBoolEntry(bool value) {
+  HeapEntry*& entry = bool_entries_[value ? 1 : 0];
+  if (!entry) {
+    HeapEntry* value_entry =
+        snapshot_->AddEntry(HeapEntry::kString, value ? "true" : "false",
+                            heap_object_map_->get_next_id(), 0, 0);
+    entry = snapshot_->AddEntry(HeapEntry::kHeapNumber, "bool",
+                                heap_object_map_->get_next_id(), 0, 0);
+    entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
+                             this);
+  }
+  return entry;
+}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateStringEntry(const char* string) {
+  HeapEntry*& entry = string_entries_[string];
+  if (!entry) {
+    entry = snapshot_->AddEntry(HeapEntry::kString, names_->GetCopy(string),
+                                heap_object_map_->get_next_id(), 0, 0);
+  }
+  return entry;
+}
 
 namespace {
 class V8_NODISCARD NullContextForSnapshotScope {
@@ -3507,6 +3590,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
   Isolate* isolate = heap_->isolate();
   SafepointScope scope(isolate, kGlobalSafepointForSharedSpaceIsolate);
+
+#ifdef DEBUG
+  heap_object_map_->CheckEntriesNotAccessed();
+#endif
 
   auto temporary_native_context_tags =
       v8_heap_explorer_.CollectTemporaryNativeContextTags();
@@ -3551,6 +3638,11 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   // Same as above, but no allocations, no GC run, and no progress report.
   SafepointScope scope(heap_->isolate(), kGlobalSafepointForSharedSpaceIsolate);
+
+#ifdef DEBUG
+  heap_object_map_->CheckEntriesNotAccessed();
+#endif
+
   // There is short gap between leaving the GC's safepoint and entering the
   // snapshot's safepoint above. It is necessary to not only complete sweeping,
   // but also ensure that linear allocation areas are iterable.

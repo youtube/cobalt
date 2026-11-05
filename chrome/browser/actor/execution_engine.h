@@ -20,6 +20,7 @@
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
@@ -181,6 +182,7 @@ class ExecutionEngine : public ToolDelegate,
   Profile& GetProfile() override;
   AggregatedJournal& GetJournal() override;
   favicon::FaviconService* GetFaviconService() override;
+  const EnterprisePolicyChecker& GetEnterprisePolicyChecker() const override;
   void IsAcceptableNavigationDestination(
       const GURL& url,
       DecisionCallbackWithReason callback) override;
@@ -202,6 +204,12 @@ class ExecutionEngine : public ToolDelegate,
   void InterruptFromTool() override;
   void UninterruptFromTool() override;
   void EnqueueFollowupAction(std::unique_ptr<ToolRequest> action) override;
+  void AddTab(
+      tabs::TabHandle tab_handle,
+      bool stop_task_on_detach,
+      base::OnceCallback<void(mojom::ActionResultPtr)> callback) override;
+  bool HasTab(tabs::TabHandle tab_handle) override;
+  void RemoveTab(tabs::TabHandle tab_handle) override;
   base::WeakPtr<actor_login::ActionSequenceDelegate> GetActionSequenceDelegate()
       override;
 

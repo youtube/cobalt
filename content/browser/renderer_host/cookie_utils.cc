@@ -17,6 +17,7 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/navigation_or_document_handle.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/cookie_access_details.h"
@@ -268,9 +269,7 @@ bool ShouldReportDevToolsIssueForStatus(
              net::CookieInclusionStatus::ExclusionReason::
                  EXCLUDE_THIRD_PARTY_BLOCKED_WITHIN_FIRST_PARTY_SET) ||
          status.HasExclusionReason(net::CookieInclusionStatus::ExclusionReason::
-                                       EXCLUDE_THIRD_PARTY_PHASEOUT) ||
-         status.exemption_reason() ==
-             net::CookieInclusionStatus::ExemptionReason::k3PCDMetadata;
+                                       EXCLUDE_THIRD_PARTY_PHASEOUT);
 }
 
 }  // namespace
@@ -559,10 +558,16 @@ void EmitCookieWarningsAndMetrics(
     GetContentClient()->browser()->LogWebFeatureForCurrentPage(
         rfh, blink::mojom::WebFeature::kPartitionedCookies);
   }
-  if (valid_partitioned_cookies_for_ukm_exist) {
-    ukm::SourceId source_id = rfh->GetPageUkmSourceId();
-    RecordPartitionedCookieUseV3UKM(rfh, source_id);
+  if (valid_partitioned_cookies_for_ukm_exist &&
+      !rfh->IsInLifecycleState(
+          RenderFrameHost::LifecycleState::kPrerendering)) {
+    PageImpl& page = rfh->GetPage();
+    if (!page.has_recorded_partitioned_cookie_use()) {
+      RecordPartitionedCookieUseV3UKM(rfh, rfh->GetPageUkmSourceId());
+      page.set_has_recorded_partitioned_cookie_use(true);
+    }
   }
+
   if (partitioned_cookies_exist && !httponly_cookie_names.empty()) {
     bool has_shadowed_cookie = false;
     for (const auto& cookie_name : httponly_cookie_names) {

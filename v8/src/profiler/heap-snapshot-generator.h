@@ -342,13 +342,16 @@ class HeapObjectsMap {
 
   Heap* heap() const { return heap_; }
 
-  SnapshotObjectId FindEntry(Address addr);
+  V8_EXPORT_PRIVATE SnapshotObjectId FindEntry(Address addr);
   SnapshotObjectId FindOrAddEntry(
       Address addr, unsigned int size,
       MarkEntryAccessed accessed = MarkEntryAccessed::kYes,
       IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
+  V8_EXPORT_PRIVATE bool ContainsEntryWithIdForTesting(
+      SnapshotObjectId id) const;
+
   bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
@@ -377,6 +380,10 @@ class HeapObjectsMap {
 
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
+#ifdef DEBUG
+  // Verifies that no entries have their accessed flag set.
+  void CheckEntriesNotAccessed();
+#endif
 
  private:
   struct EntryInfo {
@@ -673,7 +680,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   using HeapEntriesMap = base::HashMap;
   // The SmiEntriesMap instance is used to track a mapping between smi and
   // their representations in heap snapshots.
-  using SmiEntriesMap = std::unordered_map<int, HeapEntry*>;
+  using SmiEntriesMap = absl::flat_hash_map<int, HeapEntry*>;
 
   HeapSnapshotGenerator(HeapSnapshot* snapshot, v8::ActivityControl* control,
                         v8::HeapProfiler::ContextNameResolver* resolver,
@@ -693,6 +700,10 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
     auto it = smis_map_.find(smi.value());
     return it != smis_map_.end() ? it->second : nullptr;
   }
+
+  HeapEntry* FindOrCreateIntEntry(int value);
+  HeapEntry* FindOrCreateBoolEntry(bool value);
+  HeapEntry* FindOrCreateStringEntry(const char* string);
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   HeapThing FindHeapThingForHeapEntry(HeapEntry* entry) {
@@ -752,12 +763,18 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   void InitProgressCounter();
 
   HeapSnapshot* snapshot_;
+  HeapObjectsMap* heap_object_map_;
+  StringsStorage* names_;
+
   v8::ActivityControl* control_;
   V8HeapExplorer v8_heap_explorer_;
   NativeObjectsExplorer dom_explorer_;
   // Mapping from HeapThing pointers to HeapEntry indices.
   HeapEntriesMap entries_map_;
   SmiEntriesMap smis_map_;
+  absl::flat_hash_map<int, HeapEntry*> int_entries_;
+  HeapEntry* bool_entries_[2] = {nullptr, nullptr};
+  absl::flat_hash_map<std::string, HeapEntry*> string_entries_;
   // Used during snapshot generation.
   uint32_t progress_counter_;
   uint32_t progress_total_;

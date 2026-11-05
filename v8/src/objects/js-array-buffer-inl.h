@@ -11,6 +11,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -152,7 +153,7 @@ ArrayBufferExtension** JSArrayBuffer::extension_location() const {
 void JSArrayBuffer::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+    Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
@@ -229,6 +230,17 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
                     JSArrayBuffer::IsResizableByJsBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
                     JSArrayBuffer::IsImmutableBit)
+
+bool JSArrayBuffer::was_detached(AcquireLoadTag) const {
+  uint32_t bits = ACQUIRE_READ_UINT32_FIELD(*this, kBitFieldOffset);
+  return WasDetachedBit::decode(bits);
+}
+
+void JSArrayBuffer::set_was_detached(bool value, ReleaseStoreTag) {
+  uint32_t bits = bit_field();
+  bits = WasDetachedBit::update(bits, value);
+  RELEASE_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
+}
 
 bool JSArrayBuffer::IsEmpty() const {
   auto backing_store = GetBackingStore();

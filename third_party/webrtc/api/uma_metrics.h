@@ -237,7 +237,7 @@ enum SdpMungingType {
   // DataChannel-related munging.
   kDataChannelSctpInit = 100,
   kDataChannelMaxMessageSize = 101,
-  kDataChannelSctpPort = 101,
+  kDataChannelSctpPort = 102,
   kMaxValue,
 };
 
@@ -248,6 +248,18 @@ enum class SdpMungingOutcome {
   kAccepted = 0,
   kRejected = 1,
   kMaxValue = kRejected,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum SdpBandwidthCategory {
+  kSdpBandwidthParseFailure = 0,
+  kSdpBandwidthNegativeOne = 1,
+  kSdpBandwidthZero = 2,
+  kSdpBandwidthSmall = 3,  // 1 to INT_MAX/1000
+  kSdpBandwidthLarge = 4,  // INT_MAX/1000 + 1 to INT_MAX
+  kSdpBandwidthNegative = 5,
+  kSdpBandwidthMax
 };
 
 // When adding new metrics please consider using the style described in

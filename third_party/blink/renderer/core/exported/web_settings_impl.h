@@ -80,7 +80,6 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetDefaultFontSize(int) override;
   void SetDefaultTextEncodingName(const WebString&) override;
   void SetDefaultVideoPosterURL(const WebString&) override;
-  void SetDeviceScaleAdjustment(float) override;
 
   void SetDisableReadingFromCanvas(bool) override;
   void SetDontSendKeyEventsToJavascript(bool) override;
@@ -107,6 +106,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetHideDownloadUI(bool) override;
   void SetPresentationReceiver(bool) override;
   void SetHighlightAds(bool) override;
+  void SetInspectorHighlightAds(bool) override;
   void SetHyperlinkAuditingEnabled(bool) override;
   void SetIgnoreMainFrameOverflowHiddenQuirk(bool) override;
   void SetImageAnimationPolicy(mojom::blink::ImageAnimationPolicy) override;
@@ -172,10 +172,10 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetTargetBlankImpliesNoOpenerEnabledWillBeRemoved(bool) override;
   void SetIgnorePermissionForDeviceChangedEvent(bool) override;
   void SetTextAreasAreResizable(bool) override;
-  void SetTextAutosizingEnabled(bool) override;
   void SetAccessibilityFontScaleFactor(float) override;
   void SetAccessibilityTextSizeContrastFactor(int) override;
   void SetAccessibilityAlwaysShowFocus(bool) override;
+  void SetTextSizeAdjustEnabled(bool) override;
   void SetTextTrackKindUserPreference(TextTrackKindUserPreference) override;
   void SetTextTrackBackgroundColor(const WebString&) override;
   void SetTextTrackFontFamily(const WebString&) override;

@@ -24,7 +24,7 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 #ifdef WEBRTC_ARCH_ARM64
-#include <asm/unistd_64.h>
+#include <asm/unistd.h>
 #endif
 
 namespace webrtc {

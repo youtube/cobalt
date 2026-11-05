@@ -964,7 +964,7 @@ static i::DirectHandle<i::EmbedderDataArray> EmbedderDataFor(
   i::DirectHandle<i::EmbedderDataArray> data(
       i::Cast<i::EmbedderDataArray>(env->embedder_data()), i_isolate);
   if (index < data->length()) return data;
-  if (!Utils::ApiCheck(can_grow && index < i::EmbedderDataArray::kMaxLength,
+  if (!Utils::ApiCheck(can_grow && index < i::kEmbedderDataArrayMaxLength,
                        location, "Index too large")) {
     return {};
   }
@@ -4917,9 +4917,10 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
     // We do not allow exceptions thrown while setting the prototype
     // to propagate outside.
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate));
-    auto result =
-        i::JSProxy::SetPrototype(i_isolate, i::Cast<i::JSProxy>(self),
-                                 value_obj, from_javascript, i::kThrowOnError);
+    if (!i::IsJSReceiver(*value_obj) && !i::IsNull(*value_obj)) return {};
+    auto result = i::JSProxy::SetPrototype(i_isolate, i::Cast<i::JSProxy>(self),
+                                           i::Cast<i::JSPrototype>(value_obj),
+                                           from_javascript, i::kThrowOnError);
     if (result.IsNothing()) return {};
     // Convert Just(false) to Just(true).
     return Just(true);
@@ -5450,7 +5451,7 @@ V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
   }
   // Bad index, report an API error.
   Utils::ApiCheck(index >= 0, location, "Negative index");
-  Utils::ApiCheck(index < i::EmbedderDataArray::kMaxLength, location,
+  Utils::ApiCheck(index < i::kEmbedderDataArrayMaxLength, location,
                   "Index too large");
   return nullptr;
 }
@@ -8879,7 +8880,7 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
                               i::Isolate::Current());
   size_t length;
   std::unique_ptr<char[]> cstring = url->ToCString(&length);
-  return CompiledWasmModule(std::move(obj->shared_native_module()),
+  return CompiledWasmModule(obj->native_module().as_shared_ptr(),
                             {cstring.get(), length});
 #else
   UNREACHABLE();

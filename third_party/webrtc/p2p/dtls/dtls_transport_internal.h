@@ -17,6 +17,7 @@
 #include <optional>
 #include <utility>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/dtls_transport_interface.h"
 #include "api/rtc_error.h"
@@ -128,6 +129,17 @@ class DtlsTransportInternal : public PacketTransportInternal {
     dtls_transport_state_callback_list_.Send(transport, state);
   }
 
+  void SubscribeDtlsRoleChange(
+      absl::AnyInvocable<void(DtlsTransportInternal*, SSLRole)> callback) {
+    RTC_CHECK(!dtls_role_change_callback_);
+    dtls_role_change_callback_ = std::move(callback);
+  }
+  void SendDtlsRoleChange(DtlsTransportInternal* transport, SSLRole role) {
+    if (dtls_role_change_callback_) {
+      dtls_role_change_callback_(transport, role);
+    }
+  }
+
   // Emitted whenever the Dtls handshake failed on some transport channel.
   // F: void(SSLHandshakeError)
   template <typename F>
@@ -151,6 +163,8 @@ class DtlsTransportInternal : public PacketTransportInternal {
   CallbackList<const SSLHandshakeError> dtls_handshake_error_callback_list_;
   CallbackList<DtlsTransportInternal*, const DtlsTransportState>
       dtls_transport_state_callback_list_;
+  absl::AnyInvocable<void(DtlsTransportInternal*, SSLRole)>
+      dtls_role_change_callback_;
 };
 
 }  //  namespace webrtc

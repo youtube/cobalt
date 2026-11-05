@@ -442,7 +442,7 @@ RtpTransceiver::~RtpTransceiver() {
   RTC_DCHECK(!owned_receive_channel_);
 }
 
-RTCError RtpTransceiver::CreateChannel(
+void RtpTransceiver::CreateChannel(
     absl::string_view mid,
     Call* call_ptr,
     const MediaConfig& media_config,
@@ -452,7 +452,9 @@ RTCError RtpTransceiver::CreateChannel(
     const VideoOptions& video_options,
     VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
     absl::AnyInvocable<RtpTransportInternal*(absl::string_view) &&>
-        transport_lookup) {
+        transport_lookup,
+    ScopedOperationsBatcher& worker_tasks,
+    ScopedOperationsBatcher& network_tasks) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(!channel_);
   RTC_DCHECK(!mid_ || mid_.value() == mid);
@@ -488,77 +490,90 @@ RTCError RtpTransceiver::CreateChannel(
         OnPacketReceived(packet.Ssrc(), flag);
       };
 
-  std::unique_ptr<ChannelInterface> new_channel;
   // TODO(bugs.webrtc.org/11992): CreateVideoChannel internally switches to
   // the worker thread. We shouldn't be using the `call_ptr_` hack here but
   // simply be on the worker thread and use `call_` (update upstream code).
-  context()->worker_thread()->BlockingCall([&] {
-    RTC_DCHECK_RUN_ON(context()->worker_thread());
+  worker_tasks.AddWithFinalizer(
+      [this, mid_str = std::string(mid), call_ptr, media_config, srtp_required,
+       crypto_options, audio_options, video_options,
+       video_bitrate_allocator_factory,
+       callbacks = std::move(callbacks)]() mutable
+          -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+        RTC_DCHECK_RUN_ON(context()->worker_thread());
 
-    std::unique_ptr<MediaSendChannelInterface> media_send_channel;
-    std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel;
+        std::unique_ptr<MediaSendChannelInterface> media_send_channel;
+        std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel;
 
-    if (owned_send_channel_) {
-      RTC_DCHECK(owned_receive_channel_);
-      media_send_channel = std::move(owned_send_channel_);
-      media_receive_channel = std::move(owned_receive_channel_);
-      // Apply options to the voice channels for audio and send channel for
-      // video. Note that the video options are primarily for sending.
-      if (media_type() == MediaType::AUDIO) {
-        media_send_channel->AsVoiceSendChannel()->SetOptions(audio_options);
-        media_receive_channel->AsVoiceReceiveChannel()->SetOptions(
-            audio_options);
-      } else if (media_type() == MediaType::VIDEO) {
-        media_send_channel->AsVideoSendChannel()->SetOptions(video_options);
-      }
-    } else {
-      auto channels = CreateMediaContentChannels(
-          media_type(), env_, media_engine(), call_ptr, media_config,
-          audio_options, video_options, crypto_options,
-          video_bitrate_allocator_factory, GetEncoderSwitchRequestCallback());
-      media_send_channel = std::move(channels.first);
-      media_receive_channel = std::move(channels.second);
-      SetMediaChannels(media_send_channel.get(), media_receive_channel.get());
-    }
+        if (owned_send_channel_) {
+          RTC_DCHECK(owned_receive_channel_);
+          media_send_channel = std::move(owned_send_channel_);
+          media_receive_channel = std::move(owned_receive_channel_);
+          // Apply options to the voice channels for audio and send channel for
+          // video. Note that the video options are primarily for sending.
+          if (media_type() == MediaType::AUDIO) {
+            media_send_channel->AsVoiceSendChannel()->SetOptions(audio_options);
+            media_receive_channel->AsVoiceReceiveChannel()->SetOptions(
+                audio_options);
+          } else if (media_type() == MediaType::VIDEO) {
+            media_send_channel->AsVideoSendChannel()->SetOptions(video_options);
+          }
+        } else {
+          auto channels = CreateMediaContentChannels(
+              media_type(), env_, media_engine(), call_ptr, media_config,
+              audio_options, video_options, crypto_options,
+              video_bitrate_allocator_factory,
+              GetEncoderSwitchRequestCallback());
+          media_send_channel = std::move(channels.first);
+          media_receive_channel = std::move(channels.second);
+          SetMediaChannels(media_send_channel.get(),
+                           media_receive_channel.get());
+        }
 
-    if (media_type() == MediaType::AUDIO) {
-      new_channel =
-          CreateMediaChannel<VoiceChannel, VoiceMediaSendChannelInterface,
-                             VoiceMediaReceiveChannelInterface>(
-              context(), media_send_channel, media_receive_channel, mid,
-              srtp_required, crypto_options, std::move(callbacks));
-    } else {
-      new_channel =
-          CreateMediaChannel<VideoChannel, VideoMediaSendChannelInterface,
-                             VideoMediaReceiveChannelInterface>(
-              context(), media_send_channel, media_receive_channel, mid,
-              srtp_required, crypto_options, std::move(callbacks));
-    }
-  });
+        std::unique_ptr<ChannelInterface> new_channel;
+        if (media_type() == MediaType::AUDIO) {
+          new_channel =
+              CreateMediaChannel<VoiceChannel, VoiceMediaSendChannelInterface,
+                                 VoiceMediaReceiveChannelInterface>(
+                  context(), media_send_channel, media_receive_channel, mid_str,
+                  srtp_required, crypto_options, std::move(callbacks));
+        } else {
+          new_channel =
+              CreateMediaChannel<VideoChannel, VideoMediaSendChannelInterface,
+                                 VideoMediaReceiveChannelInterface>(
+                  context(), media_send_channel, media_receive_channel, mid_str,
+                  srtp_required, crypto_options, std::move(callbacks));
+        }
 
-  channel_ = std::move(new_channel);
-  transport_name_ = std::nullopt;
+        return ScopedOperationsBatcher::FinalizerTask(
+            [this, new_channel = std::move(new_channel)]() mutable {
+              RTC_DCHECK_RUN_ON(thread_);
+              channel_ = std::move(new_channel);
+              transport_name_ = std::nullopt;
+            });
+      });
 
-  std::optional<std::string> transport_name;
-  RTCError err = context()->network_thread()->BlockingCall(
-      [&, flag = signaling_thread_safety_, channel = channel_.get()]() {
+  network_tasks.AddWithFinalizer(
+      [this, transport_lookup = std::move(transport_lookup)]() mutable
+          -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+        RTC_DCHECK_RUN_ON(context()->network_thread());
+        auto* channel = channel_.get();
+        RTC_DCHECK(channel);
         RtpTransportInternal* transport =
             std::move(transport_lookup)(channel->mid());
         if (!channel->SetRtpTransport(transport)) {
           return RTCError::InvalidParameter()
                  << "Invalid transport for mid=" << channel->mid();
         }
+        std::optional<std::string> transport_name;
         if (transport) {
           transport_name = transport->transport_name();
         }
-        return RTCError::OK();
+        return ScopedOperationsBatcher::FinalizerTask(
+            [this, transport_name = std::move(transport_name)]() mutable {
+              RTC_DCHECK_RUN_ON(thread_);
+              transport_name_ = std::move(transport_name);
+            });
       });
-
-  if (err.ok()) {
-    transport_name_ = std::move(transport_name);
-  }
-
-  return err;
 }
 
 RTCError RtpTransceiver::SetChannelForTest(

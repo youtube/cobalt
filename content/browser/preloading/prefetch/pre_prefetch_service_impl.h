@@ -20,6 +20,7 @@
 
 namespace content {
 
+class PrefetchRequest;
 class PrePrefetchServiceCore;
 
 // The subset of `PrefetchRequest` members that `PrePrefetchService` has to
@@ -58,10 +59,11 @@ struct PrePrefetchPreCalculatedHeadersKey {
 // simultaneously, otherwise this will lead a data race for `core_`.
 class CONTENT_EXPORT PrePrefetchServiceImpl : public PrePrefetchService {
  public:
-  PrePrefetchServiceImpl(BrowserContext* browser_context,
-                         std::optional<url::Origin> initial_origin_hint,
-                         bool initial_javascript_enabled_hint,
-                         bool initial_should_append_variations_header_hint);
+  PrePrefetchServiceImpl(
+      BrowserContext* browser_context,
+      std::optional<url::Origin> initial_origin_hint,
+      std::optional<bool> initial_javascript_enabled_hint,
+      std::optional<bool> initial_should_append_variations_header_hint);
   ~PrePrefetchServiceImpl() override;
 
   // Starts PrePrefetch for the given `url`, for embedder triggers.
@@ -82,15 +84,27 @@ class CONTENT_EXPORT PrePrefetchServiceImpl : public PrePrefetchService {
       bool should_disable_block_until_head_timeout,
       bool should_bypass_http_cache) override;
 
+  [[nodiscard]] std::unique_ptr<PrePrefetchHandle>
+  StartPrePrefetchRequestForTesting(
+      std::unique_ptr<const PrefetchRequest> prefetch_request);
+
   // Sets the URLLoaderFactory for testing. The caller must keep the ownership
   // of the factory during the test.
   static void SetURLLoaderFactoryForTesting(
       network::SharedURLLoaderFactory* url_loader_factory);
 
  private:
+  [[nodiscard]] std::unique_ptr<PrePrefetchHandle>
+  StartPrePrefetchRequestInternal(
+      std::unique_ptr<const PrefetchRequest> prefetch_request);
+
   PrefetchUpdateHeadersParams PreCalculatePrePrefetchHeadersOnUI(
       BrowserContext* browser_context,
       const PrePrefetchPreCalculatedHeadersKey& key) const;
+
+  // This is UI-thread bound, and must not be dereferenced during this
+  // `PrePrefetchServiceCore` sequence.
+  base::WeakPtr<BrowserContext> browser_context_weak_on_ui_thread_;
 
   scoped_refptr<base::SequencedTaskRunner> core_task_runner_;
   base::SequenceBound<PrePrefetchServiceCore> core_;

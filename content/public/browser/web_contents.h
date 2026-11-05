@@ -24,6 +24,7 @@
 #include "base/process/kill.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"
+#include "base/types/token_type.h"
 #include "build/build_config.h"
 #include "cc/input/browser_controls_state.h"
 #include "content/common/content_export.h"
@@ -69,6 +70,9 @@
 namespace base {
 class FilePath;
 }  // namespace base
+namespace perfetto {
+class NamedTrack;
+}  // namespace perfetto
 
 namespace blink {
 namespace web_pref {
@@ -174,6 +178,7 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   ADVANCED_MEMORY_SAFETY_CHECKS();
 
  public:
+  using UniqueToken = base::TokenType<class WebContentsTokenTag>;
   struct CONTENT_EXPORT CreateParams {
     explicit CreateParams(
         BrowserContext* context,
@@ -453,6 +458,13 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
 
   // Returns a weak pointer.
   virtual base::WeakPtr<WebContents> GetWeakPtr() = 0;
+
+  // Returns the unique token for this WebContents.
+  virtual const UniqueToken& GetUniqueToken() const = 0;
+
+  // Returns a tracing track to use as a grouping parent. Do not emit directly
+  // events to this track.
+  virtual const perfetto::NamedTrack& GetTracingTrack() const = 0;
 
   // Returns true if the WebContents is never user-visible and thus never need
   // to generate pixels for display.
@@ -1673,8 +1685,11 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // ResourceCoordinatorTabHelper::IsLoaded() is true for the new tab contents.
   // These will be used to record metrics with the latency between the input
   // event and the time when the WebContents is painted.
+  // `had_saved_frame_at_start` is true if a compositor frame for this view was
+  // already available when the tab switch started.
   virtual void SetTabSwitchStartTime(base::TimeTicks start_time,
-                                     bool destination_is_loaded) = 0;
+                                     bool destination_is_loaded,
+                                     bool had_saved_frame_at_start) = 0;
 
   // Starts browser-initiated prefetch, triggered by embedder.
   // - `prefetch_url` is the url the prefetch will be performed.

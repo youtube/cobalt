@@ -449,10 +449,10 @@ chromium-metrics-reviews@google.com.
   <int value="53" label="UMA_INCOGNITO_REAUTH_ENABLED_FROM_PROMO"/>
   <int value="54" label="UMA_PRIVACY_SANDBOX_ADD_SITE"/>
   <int value="55" label="UMA_PRIVACY_SANDBOX_REMOVE_SITE"/>
-  <int value="56" label="UMA_CREATOR_FOLLOW_SUCCESS"/>
-  <int value="57" label="UMA_CREATOR_FOLLOW_FAILURE"/>
-  <int value="58" label="UMA_CREATOR_UNFOLLOW_SUCCESS"/>
-  <int value="59" label="UMA_CREATOR_UNFOLLOW_FAILURE"/>
+  <int value="56" label="(Obsolete) UMA_CREATOR_FOLLOW_SUCCESS"/>
+  <int value="57" label="(Obsolete) UMA_CREATOR_FOLLOW_FAILURE"/>
+  <int value="58" label="(Obsolete) UMA_CREATOR_UNFOLLOW_SUCCESS"/>
+  <int value="59" label="(Obsolete) UMA_CREATOR_UNFOLLOW_FAILURE"/>
   <int value="60" label="UMA_QUICK_DELETE"/>
   <int value="61" label="UMA_AUTO_TRANSLATE"/>
   <int value="63" label="UMA_CLEAR_BROWSING_DATA"/>
@@ -481,6 +481,7 @@ chromium-metrics-reviews@google.com.
   <int value="86" label="UMA_AUTOFILL_AI_LOCAL_SAVE_FALLBACK"/>
   <int value="87" label="UMA_EXCLUSIVE_ACCESS_BUBBLE"/>
   <int value="88" label="UMA_CONTEXTUAL_TASKS_BOTTOM_SHEET_CLOSED_UNDO"/>
+  <int value="89" label="UMA_ACTOR"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/messages/android/java/src/org/chromium/chrome/browser/ui/messages/snackbar/Snackbar.java:SnackbarIdentifier) -->
@@ -669,6 +670,7 @@ chromium-metrics-reviews@google.com.
 <enum name="WebUIUrlHashes">
   <int value="-2137891043" label="chrome-untrusted://scanner-feedback/"/>
   <int value="-2117475303" label="chrome://comments-side-panel.top-chrome/"/>
+  <int value="-2107365589" label="chrome://subresource-filter-internals/"/>
   <int value="-2103246641" label="chrome://signin-internals/"/>
   <int value="-2087891836" label="chrome://debug-webuis-disabled/"/>
   <int value="-2086395469" label="chrome://dlp-internals/"/>
@@ -817,6 +819,7 @@ chromium-metrics-reviews@google.com.
              Manager)"/>
   <int value="-623121238" label="chrome://arc-graphics-tracing/"/>
   <int value="-614294009" label="chrome://crostini-credits/"/>
+  <int value="-611540207" label="chrome://indigo-internals/"/>
   <int value="-606058756" label="chrome://accessibility/"/>
   <int value="-601472337" label="chrome://shimless-rma/"/>
   <int value="-566908909" label="chrome://suggestions/"/>
@@ -939,6 +942,7 @@ chromium-metrics-reviews@google.com.
   <int value="821023334" label="chrome://screenlock-icon/"/>
   <int value="858923205" label="chrome://cloud-upload/"/>
   <int value="864711974" label="chrome://emoji-picker/"/>
+  <int value="870607687" label="chrome://accessibility-annotator-internals/"/>
   <int value="890996135" label="chrome://enterprise-reporting/"/>
   <int value="894368493" label="chrome://internet-config-dialog/"/>
   <int value="911597664" label="chrome://multidevice-setup/"/>

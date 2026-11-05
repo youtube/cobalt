@@ -68,8 +68,7 @@ class RTC_EXPORT EncodedImageCallback {
   // kDroppedByMediaOptimizations - dropped by MediaOptimizations (for rate
   // limiting purposes).
   // kDroppedByEncoder - dropped by encoder's internal rate limiter.
-  // TODO: bugs.webrtc.org/467444018 - Deprecate and remove after a transition
-  // period.
+  // TODO: bugs.webrtc.org/467444018 - Remove when OnDroppedFrame is deleted.
   enum class DropReason : uint8_t {
     kDroppedByMediaOptimizations,
     kDroppedByEncoder
@@ -80,8 +79,7 @@ class RTC_EXPORT EncodedImageCallback {
       const EncodedImage& encoded_image,
       const CodecSpecificInfo* codec_specific_info) = 0;
 
-  // TODO: bugs.webrtc.org/467444018 - Deprecate and remove after a transition
-  // period.
+  [[deprecated("bugs.webrtc.org/467444018 -Use OnFrameDropped instead.")]]
   virtual void OnDroppedFrame(DropReason /* reason */) {}
 
   // Callback function called when an encoder has decided to drop a frame.

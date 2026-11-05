@@ -400,6 +400,7 @@ absl_test("hardening_test") {
   sources = [ "internal/hardening_test.cc" ]
   deps = [
     ":config",
+    ":core_headers",
     ":hardening",
   ]
 }

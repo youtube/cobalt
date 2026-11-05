@@ -12,8 +12,11 @@
 
 #if RTC_LOG_ENABLED()
 
+#include <stdlib.h>
+
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
@@ -422,20 +425,90 @@ TEST(LogTest, EnumSupportsAbslStringify) {
   LogMessage::RemoveLogToStream(&stream);
 }
 
-TEST(LogTest, LogPrefix) {
-  std::string str;
-  LogSinkImpl stream(&str);
-  LogMessage::AddLogToStream(&stream, LS_INFO);
+#if !defined(WEBRTC_CHROMIUM_BUILD)
+// Logging initialization tests require isolation because they modify global
+// state that can only be set once per process. We use EXPECT_EXIT to run
+// them in a forked child process.
 
-  LogMessage::SetLogPrefix("PREFIX: ");
-  absl::Cleanup remove_prefix = [&] { LogMessage::SetLogPrefix(""); };
-  RTC_LOG(LS_INFO) << "<-- Do you see the prefix?";
-  EXPECT_THAT(str, HasSubstr("PREFIX: "));
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) && !defined(WEBRTC_IOS)
+TEST(LogTest, ExplicitInitialization) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "1");
+#else
+  setenv("WEBRTC_TEST_SKIP_LOGGING_INIT", "1", 1);
+#endif
+  EXPECT_EXIT(
+      {
+        LoggingConfig config;
+        config.set_min_severity(LS_WARNING);
+        config.set_log_prefix("TEST_PREFIX: ");
+        bool success = InitializeLogging(std::move(config));
+        if (!success) {
+          exit(1);
+        }
 
-  LogMessage::RemoveLogToStream(&stream);
+        if (GetLoggingConfig().min_severity() != LS_WARNING) {
+          exit(2);
+        }
+
+        RTC_LOG(LS_WARNING) << "Test message";
+        exit(0);
+      },
+      ::testing::ExitedWithCode(0), "TEST_PREFIX: .*Test message");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "");
+#else
+  unsetenv("WEBRTC_TEST_SKIP_LOGGING_INIT");
+#endif
 }
 
-#if !defined(WEBRTC_CHROMIUM_BUILD)
+TEST(LogTest, ImplicitInitialization) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+  EXPECT_EXIT(
+      {
+        RTC_LOG(LS_WARNING) << "Trigger implicit init";
+        LoggingConfig config;
+        if (InitializeLogging(std::move(config))) {
+          exit(1);
+        }
+        exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+}
+
+TEST(LogTest, DoubleExplicitInitialization) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "1");
+#else
+  setenv("WEBRTC_TEST_SKIP_LOGGING_INIT", "1", 1);
+#endif
+  EXPECT_EXIT(
+      {
+        LoggingConfig config1;
+        if (!InitializeLogging(std::move(config1))) {
+          exit(1);
+        }
+
+        LoggingConfig config2;
+        if (InitializeLogging(std::move(config2))) {
+          exit(2);
+        }
+
+        exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "");
+#else
+  unsetenv("WEBRTC_TEST_SKIP_LOGGING_INIT");
+#endif
+}
+
+#endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) &&
+        // !defined(WEBRTC_IOS)
+
 TEST(LogTest, LogQueueNameFromThread) {
   std::string str;
   LogSinkImpl stream(&str);
@@ -456,8 +529,10 @@ TEST(LogTest, LogQueueNameFromThread) {
 class LogTestWithParam : public testing::TestWithParam<bool> {};
 
 TEST_P(LogTestWithParam, LogQueueNameFromTaskQueueOverridingThread) {
-  LogMessage::SetLogPrefix("LogTest: ");
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   bool prev_log_threads = LogMessage::LogThreads(GetParam());
+#pragma clang diagnostic pop
   bool prev_log_queue_names = LogMessage::SetLogQueueNames(true);
 
   std::string str;
@@ -465,8 +540,10 @@ TEST_P(LogTestWithParam, LogQueueNameFromTaskQueueOverridingThread) {
   LogMessage::AddLogToStream(&stream, LS_INFO);
   absl::Cleanup cleanup = [&] {
     LogMessage::RemoveLogToStream(&stream);
-    LogMessage::SetLogPrefix("");
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     LogMessage::LogThreads(prev_log_threads);
+#pragma clang diagnostic pop
     LogMessage::SetLogQueueNames(prev_log_queue_names);
   };
 
@@ -517,7 +594,7 @@ TEST_P(LogTestWithParam, LogQueueNameFromTaskQueueOverridingThread) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, LogTestWithParam, ::testing::Bool());
-#endif
+#endif  // !defined(WEBRTC_CHROMIUM_BUILD)
 
 }  // namespace webrtc
 #endif  // RTC_LOG_ENABLED()

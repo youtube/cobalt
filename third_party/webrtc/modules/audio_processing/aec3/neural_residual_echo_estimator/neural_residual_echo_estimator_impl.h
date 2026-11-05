@@ -80,7 +80,6 @@ class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
       std::span<std::array<float, kFftLengthBy2Plus1>> R2,
       std::span<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) override;
 
-  EchoCanceller3Config GetConfiguration(bool multi_channel) const override;
   EchoCanceller3Config::Suppressor AdjustConfig(
       const EchoCanceller3Config::Suppressor& config) const override;
 

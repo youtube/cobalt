@@ -362,7 +362,10 @@ bool DtlsTransportInternalImpl::SetDtlsRole(SSLRole role) {
     return true;
   }
 
-  dtls_role_ = role;
+  if (!dtls_role_ || *dtls_role_ != role) {
+    dtls_role_ = role;
+    SendDtlsRoleChange(this, role);
+  }
   return true;
 }
 
@@ -402,7 +405,10 @@ RTCError DtlsTransportInternalImpl::SetRemoteParameters(
   // initiates DTLS setup.
   if (role) {
     if (is_dtls_restart) {
-      dtls_role_ = *role;
+      if (!dtls_role_ || *dtls_role_ != *role) {
+        dtls_role_ = *role;
+        SendDtlsRoleChange(this, *role);
+      }
     } else {
       if (!SetDtlsRole(*role)) {
         return RTCError(RTCErrorType::INVALID_PARAMETER,

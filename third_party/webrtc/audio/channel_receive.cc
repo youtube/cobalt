@@ -502,10 +502,6 @@ AudioMixer::Source::AudioFrameInfo ChannelReceive::GetAudioFrameWithInfo(
         SafeTask(worker_safety_.flag(), [this, infos_copy, delivery_time]() {
           RTC_DCHECK_RUN_ON(&worker_thread_checker_);
           source_tracker_.OnFrameDelivered(infos_copy, delivery_time);
-          if (nack_tracker_) {
-            nack_tracker_->UpdateLastDecodedPacket(
-                infos_copy.back().rtp_timestamp());
-          }
         }));
   }
 
@@ -910,8 +906,7 @@ void ChannelReceive::SetNACKStatus(bool enable, int max_packets) {
   if (enable) {
     rtp_receive_statistics_->SetMaxReorderingThreshold(remote_ssrc_,
                                                        max_packets);
-    nack_tracker_ = std::make_unique<NackTracker>(env_.field_trials());
-    nack_tracker_->SetMaxNackListSize(max_packets);
+    nack_tracker_ = std::make_unique<NackTracker>(max_packets);
   } else {
     rtp_receive_statistics_->SetMaxReorderingThreshold(
         remote_ssrc_, kDefaultMaxReorderingThreshold);

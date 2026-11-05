@@ -1745,6 +1745,28 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_host.foundation = "foundationIsAString";
   expected_a_local_host.username_fragment = "iceusernamefragment";
 
+  std::unique_ptr<Candidate> a_local_tcp_slice =
+      CreateFakeCandidate("1.2.3.4", 5, "tcp", ADAPTER_TYPE_VPN,
+                          IceCandidateType::kHost, 0, ADAPTER_TYPE_ETHERNET);
+  a_local_tcp_slice->set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+  a_local_tcp_slice->set_tcptype("a_local_tcp_slice's tcptype");
+  RTCLocalIceCandidateStats expected_a_local_tcp_slice(
+      "I" + a_local_tcp_slice->id(), Timestamp::Zero());
+  expected_a_local_tcp_slice.transport_id = "Ta0";
+  expected_a_local_tcp_slice.network_type = "vpn";
+  expected_a_local_tcp_slice.ip = "1.2.3.4";
+  expected_a_local_tcp_slice.address = "1.2.3.4";
+  expected_a_local_tcp_slice.port = 5;
+  expected_a_local_tcp_slice.protocol = "tcp";
+  expected_a_local_tcp_slice.candidate_type = "host";
+  expected_a_local_tcp_slice.priority = 0;
+  expected_a_local_tcp_slice.vpn = true;
+  expected_a_local_tcp_slice.network_adapter_type = "ethernet";
+  expected_a_local_tcp_slice.foundation = "foundationIsAString";
+  expected_a_local_tcp_slice.username_fragment = "iceusernamefragment";
+  expected_a_local_tcp_slice.tcp_type = "a_local_tcp_slice's tcptype";
+  expected_a_local_tcp_slice.network_slice = "unified-communications";
+
   std::unique_ptr<Candidate> a_remote_srflx =
       CreateFakeCandidate("6.7.8.9", 10, "remote_srflx's protocol",
                           ADAPTER_TYPE_UNKNOWN, IceCandidateType::kSrflx, 1);
@@ -1919,6 +1941,8 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
       .remote_candidate = *a_remote_relay;
   a_transport_channel_stats.ice_transport_stats.candidate_stats_list.push_back(
       CandidateStats(*a_local_host_not_paired));
+  a_transport_channel_stats.ice_transport_stats.candidate_stats_list.push_back(
+      CandidateStats(*a_local_tcp_slice));
 
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", "a");
@@ -1944,6 +1968,11 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   ASSERT_TRUE(report->Get(expected_a_local_host.id()));
   EXPECT_EQ(expected_a_local_host, report->Get(expected_a_local_host.id())
                                        ->cast_to<RTCLocalIceCandidateStats>());
+
+  ASSERT_TRUE(report->Get(expected_a_local_tcp_slice.id()));
+  EXPECT_EQ(expected_a_local_tcp_slice,
+            report->Get(expected_a_local_tcp_slice.id())
+                ->cast_to<RTCLocalIceCandidateStats>());
 
   ASSERT_TRUE(report->Get(expected_a_local_host_not_paired.id()));
   EXPECT_EQ(expected_a_local_host_not_paired,

@@ -71,6 +71,7 @@ rtc_library("audio") {
     "../api/transport/rtp:rtp_source",
     "../api/units:data_rate",
     "../api/units:data_size",
+    "../api/units:frequency",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "../call:audio_sender_interface",

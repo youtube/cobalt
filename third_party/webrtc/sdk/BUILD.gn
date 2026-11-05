@@ -740,17 +740,22 @@ if (is_ios || is_mac) {
         "objc/components/video_codec/RTCDefaultVideoDecoderFactory.h",
         "objc/components/video_codec/RTCDefaultVideoDecoderFactory.m",
         "objc/components/video_codec/RTCDefaultVideoEncoderFactory.h",
-        "objc/components/video_codec/RTCDefaultVideoEncoderFactory.m",
+        "objc/components/video_codec/RTCDefaultVideoEncoderFactory.mm",
       ]
 
       deps = [
+        ":base_native_additions_objc",
         ":base_objc",
+        ":helpers_objc",
         ":native_video",
         ":videocodec_objc",
         ":videotoolbox_objc",
         ":vp8",
         ":vp9",
         ":vpx_codec_constants",
+        "../api/video_codecs:scalability_mode",
+        "../api/video_codecs:scalability_mode_helper",
+        "//third_party/abseil-cpp/absl/algorithm:container",
       ]
 
       defines = []
@@ -1182,6 +1187,7 @@ if (is_ios || is_mac) {
             "objc/unittests/RTCCertificateTest.mm",
             "objc/unittests/RTCConfigurationTest.mm",
             "objc/unittests/RTCDataChannelConfigurationTest.mm",
+            "objc/unittests/RTCDefaultVideoEncoderFactory_xctest.mm",
             "objc/unittests/RTCEncodedImage_xctest.mm",
             "objc/unittests/RTCFileVideoCapturer_xctest.mm",
             "objc/unittests/RTCH264ProfileLevelId_xctest.m",
@@ -1213,6 +1219,7 @@ if (is_ios || is_mac) {
             ":base_native_additions_objc",
             ":base_objc",
             ":callback_logger_objc",
+            ":default_codec_factory_objc",
             ":framework_objc",
             ":helpers_objc",
             ":mediaconstraints_objc",

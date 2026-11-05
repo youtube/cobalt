@@ -23,6 +23,7 @@
 //   - Validate that ImageType fields are valid in combination with ImageDimension:
 //     validate_image_types()
 //   - Variables are Pointers: validate_all_alive_variables_are_pointers()
+//   - No pointer->pointer type: validate_no_pointer_to_pointer_type()
 //
 // Control flow:
 //   - Branches must have the appropriate targets set (merge, trueblock for if, etc); every block
@@ -40,6 +41,10 @@
 //     transformations shouldn't retintroduce it): validate_no_constant_foldable_instruction()
 //   - Case values are always ConstantId, and the Constant data type is int or uint:
 //     validate_case_values_are_int_or_uint_constants()
+//   - No duplicated case values for Switch opcode: validate_switch_has_unique_case_values()
+//   - Block inputs have MergeInput opcode, nothing else has that opcode:
+//     validate_merge_block_input_prerequisites(),
+//     validate_no_merge_input_opcode_in_block_instruction()
 
 // TODO(http://anglebug.com/349994211): to validate:
 //   - If there's a cached "has side effect", that it's correct.
@@ -51,8 +56,6 @@
 //   - Arguments of OpCode that must be pointer type is indeed a pointer
 //   - Loop blocks ends in the appropriate instructions.
 //   - Do blocks end in DoLoop (unless already terminated by something else, like Return)
-//   - Maximum one default case for Switch instructions.
-//   - No pointer->pointer type.
 //   - Interface variables with NameSource::Internal are unique.
 //   - NameSource::Internal names don't start with the user and temporary name prefixes (_u, t and f
 //     respectively).
@@ -61,7 +64,6 @@
 //   - blocks, those should always be Temporary.
 //   - No identity swizzles.
 //   - Type matches?
-//   - Block inputs have MergeInput opcode, nothing else has that opcode.
 //   - Block inputs are not pointers.  AST-ifier does not handle that.
 //   - Whatever else is in the AST validation currently.
 //   - Validate built-ins that accept an out or inout parameter, that the corresponding parameter is
@@ -265,6 +267,7 @@ impl<'a> Validator<'a> {
     fn validate(&self) {
         self.validate_all_ids_are_present();
         self.validate_all_alive_variables_are_pointers();
+        self.validate_no_pointer_to_pointer_type();
         self.validate_all_variables_are_declared_in_scope();
         self.validate_all_registers_are_declared_in_scope();
         self.validate_no_identical_types_with_different_ids();
@@ -874,6 +877,19 @@ impl<'a> Validator<'a> {
         }
     }
 
+    fn validate_no_pointer_to_pointer_type(&self) {
+        for data_type in self.ir.meta.all_types().iter().filter(|t| !t.is_dead_code_eliminated()) {
+            if data_type.is_pointer()
+                && self.ir.meta.get_type(data_type.get_element_type_id().unwrap()).is_pointer()
+            {
+                self.on_error(format_args!(
+                    "invalid type: type {:?} is a pointer to a pointer",
+                    data_type
+                ));
+            }
+        }
+    }
+
     fn validate_all_variables_are_declared_in_scope(&self) {
         let mut vars_declared_map = DeclaredVarTracker::new();
         vars_declared_map.set_global_declared_vars(self.ir.meta.all_global_variables());
@@ -1303,6 +1319,15 @@ impl<'a> Validator<'a> {
         }
     }
 
+    fn validate_no_merge_input_opcode_in_block_instruction(&self, opcode: &OpCode) {
+        if matches!(opcode, OpCode::MergeInput) {
+            self.on_error(format_args!(
+                "Invalid Block Instruction {:?}, MergeInput is only allowed in Block input",
+                opcode
+            ));
+        }
+    }
+
     fn validate_all_branch_instructions_have_valid_target(&self) {
         let mut block_meta_data_tracker = Vec::new();
         for entry in &self.ir.function_entries {
@@ -1618,6 +1643,13 @@ impl<'a> Validator<'a> {
         block: &Block,
         block_kind: traverser::BlockKind,
     ) {
+        // If the current block has any inputs, the corresponding instruction must be MergeInput
+        // OpCode
+        block.input.inspect(|input| {
+            if !matches!(self.ir.meta.get_instruction(input.id).op, OpCode::MergeInput) {
+                self.on_error(format_args!("Block inputs must have MergeInput OpCode"));
+            }
+        });
         if block.merge_block.as_ref().and_then(|merge_block| merge_block.input).is_some() {
             // merge_block with input is only allowed when current block ends with OpCode::If, and
             // "if true" block exists
@@ -1673,7 +1705,9 @@ impl<'a> Validator<'a> {
                 self.validate_struct_field_in_bounds(opcode);
                 self.validate_if_condition_is_bool(opcode);
                 self.validate_case_values_are_int_or_uint_constants(opcode);
+                self.validate_switch_has_unique_case_values(opcode);
                 self.validate_no_constant_foldable_instruction(opcode);
+                self.validate_no_merge_input_opcode_in_block_instruction(opcode);
             },
         );
     }
@@ -1732,6 +1766,17 @@ impl<'a> Validator<'a> {
                     ));
                 }
             }
+        }
+    }
+
+    fn validate_switch_has_unique_case_values(&self, opcode: &OpCode) {
+        if let OpCode::Switch(_, case_values) = opcode
+            && case_values.iter().collect::<HashSet<_>>().len() != case_values.len()
+        {
+            self.on_error(format_args!(
+                "invalid Switch instruction: {:?}, has duplicated case values",
+                opcode
+            ));
         }
     }
 }

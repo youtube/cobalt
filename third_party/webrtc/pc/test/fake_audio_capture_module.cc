@@ -12,6 +12,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <utility>
 
 #include "api/audio/audio_device_defines.h"
 #include "api/make_ref_counted.h"
@@ -40,7 +42,8 @@ static const int kTotalDelayMs = 0;
 static const int kClockDriftMs = 0;
 static const uint32_t kMaxVolume = 14392;
 
-FakeAudioCaptureModule::FakeAudioCaptureModule()
+FakeAudioCaptureModule::FakeAudioCaptureModule(
+    std::unique_ptr<webrtc::Thread> process_thread)
     : audio_callback_(nullptr),
       recording_(false),
       playing_(false),
@@ -49,18 +52,27 @@ FakeAudioCaptureModule::FakeAudioCaptureModule()
       current_mic_level_(kMaxVolume),
       started_(false),
       next_frame_time_(0),
+      process_thread_(std::move(process_thread)),
       frames_received_(0) {}
 
 FakeAudioCaptureModule::~FakeAudioCaptureModule() {
   RTC_DCHECK(!initialized_);
 }
 
-webrtc::scoped_refptr<FakeAudioCaptureModule> FakeAudioCaptureModule::Create() {
-  auto capture_module = webrtc::make_ref_counted<FakeAudioCaptureModule>();
+webrtc::scoped_refptr<FakeAudioCaptureModule> FakeAudioCaptureModule::Create(
+    std::unique_ptr<webrtc::Thread> process_thread) {
+  auto capture_module = webrtc::make_ref_counted<FakeAudioCaptureModule>(
+      std::move(process_thread));
   if (!capture_module->Initialize()) {
     return nullptr;
   }
   return capture_module;
+}
+
+webrtc::scoped_refptr<FakeAudioCaptureModule> FakeAudioCaptureModule::Create() {
+  auto thread = webrtc::Thread::Create();
+  thread->Start();
+  return Create(std::move(thread));
 }
 
 int FakeAudioCaptureModule::frames_received() const {
@@ -425,19 +437,8 @@ bool FakeAudioCaptureModule::ShouldStartProcessing() {
 void FakeAudioCaptureModule::UpdateProcessing(bool start) {
   RTC_DCHECK(initialized_);
   if (start) {
-    if (!process_thread_) {
-      process_thread_ = webrtc::Thread::Create();
-      process_thread_->Start();
-    }
+    RTC_DCHECK(process_thread_);
     process_thread_->PostTask([this] { StartProcessP(); });
-  } else {
-    if (process_thread_) {
-      process_thread_->Stop();
-      process_thread_.reset(nullptr);
-      process_thread_checker_.Detach();
-    }
-    webrtc::MutexLock lock(&mutex_);
-    started_ = false;
   }
 }
 
@@ -457,6 +458,10 @@ void FakeAudioCaptureModule::ProcessFrameP() {
   RTC_DCHECK_RUN_ON(&process_thread_checker_);
   {
     webrtc::MutexLock lock(&mutex_);
+    if (!recording_ && !playing_) {
+      started_ = false;
+      return;
+    }
     if (!started_) {
       next_frame_time_ = webrtc::TimeMillis();
       started_ = true;

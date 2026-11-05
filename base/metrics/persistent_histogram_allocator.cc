@@ -670,33 +670,31 @@ std::unique_ptr<HistogramBase> PersistentHistogramAllocator::CreateHistogram(
 
   // Create the right type of histogram.
   std::unique_ptr<HistogramBase> histogram;
-  // TODO(crbug.com/394149163): We can pass the name_hash to the histogram
-  // constructors, and then use it here.
   switch (histogram_type) {
     case HISTOGRAM:
       histogram = Histogram::PersistentCreate(
-          durable_name, ranges, counts_data, logged_data,
+          durable_name, name_hash, ranges, counts_data, logged_data,
           &histogram_data_ptr->samples_metadata,
           &histogram_data_ptr->logged_metadata);
       DCHECK(histogram);
       break;
     case LINEAR_HISTOGRAM:
       histogram = LinearHistogram::PersistentCreate(
-          durable_name, ranges, counts_data, logged_data,
+          durable_name, name_hash, ranges, counts_data, logged_data,
           &histogram_data_ptr->samples_metadata,
           &histogram_data_ptr->logged_metadata);
       DCHECK(histogram);
       break;
     case BOOLEAN_HISTOGRAM:
       histogram = BooleanHistogram::PersistentCreate(
-          durable_name, ranges, counts_data, logged_data,
+          durable_name, name_hash, ranges, counts_data, logged_data,
           &histogram_data_ptr->samples_metadata,
           &histogram_data_ptr->logged_metadata);
       DCHECK(histogram);
       break;
     case CUSTOM_HISTOGRAM:
       histogram = CustomHistogram::PersistentCreate(
-          durable_name, ranges, counts_data, logged_data,
+          durable_name, name_hash, ranges, counts_data, logged_data,
           &histogram_data_ptr->samples_metadata,
           &histogram_data_ptr->logged_metadata);
       DCHECK(histogram);
@@ -724,8 +722,11 @@ PersistentHistogramAllocator::GetOrCreateStatisticsRecorderHistogram(
 
   std::string_view lookup_name =
       name_override.empty() ? histogram->histogram_name() : name_override;
+  uint64_t name_hash = name_override.empty() ? histogram->name_hash()
+                                             : HashMetricName(lookup_name);
 
-  HistogramBase* existing = StatisticsRecorder::FindHistogram(lookup_name);
+  HistogramBase* existing =
+      StatisticsRecorder::FindHistogram(name_hash, lookup_name);
   if (existing) {
     return existing;
   }

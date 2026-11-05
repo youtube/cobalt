@@ -255,8 +255,8 @@ struct TestConfig {
   bool no_server_name_ack = false;
   std::vector<uint8_t> accepted_peer_cert_types;
   std::vector<uint8_t> available_client_cert_types;
-  std::optional<uint8_t> expect_client_certificate_type;
-  std::optional<uint8_t> expect_server_certificate_type;
+  std::optional<uint8_t> expect_peer_certificate_type;
+  std::vector<uint8_t> expect_peer_rpk_sha256;
 
   std::vector<const char *> handshaker_args;
 

@@ -791,6 +791,11 @@ def _VerifyTargetExecutablesAreInBuildDirectory(commands):
 
 def _ValidateBuildingWithClangCoverage():
   """Asserts that targets are built with Clang coverage enabled."""
+  if not _GetBuildArgsPath():
+    logging.warning(
+        'Assuming targets are built with coverage instrumentation enabled.')
+    return
+
   build_args = _GetBuildArgs()
 
   if (CLANG_COVERAGE_BUILD_ARG not in build_args or
@@ -811,6 +816,20 @@ def _ValidateCurrentPlatformIsSupported():
   assert current_platform in supported_platforms, ('Coverage is only'
                                                    'supported on %s' %
                                                    supported_platforms)
+
+
+def _GetBuildArgsPath():
+  """Returns the path to the args.gn file in the build directory.
+
+  Return:
+    A string containing a path to the file if exists, otherwise None.
+  """
+  build_args_path = os.path.join(BUILD_DIR, 'args.gn')
+  if not os.path.exists(build_args_path):
+    logging.warning('"%s" is missing args.gn file. Assuming non-GN build.',
+                    BUILD_DIR)
+    return None
+  return build_args_path
 
 
 def _ProcessGnFile(file_path, args_dict, processed_files):
@@ -858,9 +877,9 @@ def _GetBuildArgs():
     return _BUILD_ARGS
 
   _BUILD_ARGS = {}
-  build_args_path = os.path.join(BUILD_DIR, 'args.gn')
-  assert os.path.exists(build_args_path), ('"%s" is not a build directory, '
-                                           'missing args.gn file.' % BUILD_DIR)
+  build_args_path = _GetBuildArgsPath()
+  if not build_args_path:
+    return _BUILD_ARGS
 
   processed_files = set()
   _ProcessGnFile(build_args_path, _BUILD_ARGS, processed_files)

@@ -42,6 +42,7 @@
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/port_allocator.h"
+#include "p2p/base/transport_description.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
 #include "pc/data_channel_controller.h"
@@ -166,6 +167,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   PeerConnectionInterface::RTCConfiguration GetConfiguration();
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& configuration);
+  void UpdateCachedIceCredentials(std::vector<IceParameters> credentials);
   bool AddIceCandidate(const IceCandidate* candidate);
   void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback);
@@ -384,11 +386,13 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Either creates or destroys the transceiver's BaseChannel according to the
   // given media section.
-  RTCError UpdateTransceiverChannel(
+  void UpdateTransceiverChannel(
       scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
           transceiver,
       const ContentInfo& content,
-      const ContentGroup* bundle_group) RTC_RUN_ON(signaling_thread());
+      const ContentGroup* bundle_group,
+      ScopedOperationsBatcher& worker_tasks,
+      ScopedOperationsBatcher& network_tasks) RTC_RUN_ON(signaling_thread());
 
   // Either creates or destroys the local data channel according to the given
   // media section.
@@ -704,6 +708,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Member variables for caching global options.
   AudioOptions audio_options_ RTC_GUARDED_BY(signaling_thread());
   VideoOptions video_options_ RTC_GUARDED_BY(signaling_thread());
+  std::vector<IceParameters> cached_pooled_ice_credentials_
+      RTC_GUARDED_BY(signaling_thread());
 
   // A video bitrate allocator factory.
   // This can be injected using the PeerConnectionDependencies,

@@ -376,24 +376,6 @@ chromium-metrics-reviews@google.com.
   <summary>Records an app launch grouped by launch source.</summary>
 </histogram>
 
-<histogram name="Apps.AppList.AggregatedMlAppRankFail" units="units"
-    expires_after="M92">
-  <owner>pdyson@chromium.org</owner>
-  <summary>
-    The number of apps the were not able to be ranked by the Aggregated ML app
-    ranker (Top Cat).
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.AggregatedMlAppRankSuccess" units="units"
-    expires_after="M92">
-  <owner>pdyson@chromium.org</owner>
-  <summary>
-    The number of apps successfully ranked by the Aggregated ML app ranker (Top
-    Cat).
-  </summary>
-</histogram>
-
 <histogram name="Apps.AppList.AnnotationStorage.DatabaseSize" units="MB"
     expires_after="2026-12-01">
   <owner>chenjih@google.com</owner>
@@ -1529,15 +1511,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Apps.AppList.ZeroStateSuggestionOpenType"
-    enum="AppListSearchResult" expires_after="2021-03-15">
-  <owner>jennyz@chromium.org</owner>
-  <owner>newcomer@chromium.org</owner>
-  <summary>
-    The type of the app list suggestion that was opened by user in zero state.
-  </summary>
-</histogram>
-
 <histogram name="Apps.AppListAppLaunchedV2{AppListState}"
     enum="AppListLaunchedFrom" expires_after="2026-01-18">
   <owner>tbarzic@chromium.org</owner>
@@ -2356,7 +2329,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.MediaApp.Load.OtherOpenWindowCount" units="windows"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>tapted@chromium.org</owner>
   <owner>patricialor@chromium.org</owner>
   <summary>

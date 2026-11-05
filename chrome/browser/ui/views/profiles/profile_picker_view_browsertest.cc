@@ -1933,11 +1933,10 @@ IN_PROC_BROWSER_TEST_P(ForceSigninProfilePickerCreationFlowBrowserTest,
   EXPECT_EQ(new_browser->GetProfile(), default_profile);
   EXPECT_FALSE(default_profile_entry->IsSigninRequired());
 
-  ui_test_utils::WaitForBrowserSetLastActive(
-      new_browser, /*wait_for_set_last_active_observed=*/false);
-
   // Default profile is now active.
-  EXPECT_NE(default_profile_entry->GetActiveTime(), base::Time());
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return default_profile_entry->GetActiveTime() != base::Time();
+  }));
 }
 
 // Regression test for crbug.com/360733721.
@@ -4442,8 +4441,8 @@ IN_PROC_BROWSER_TEST_F(SigninErrorProfilePickerBrowserTest,
   ASSERT_TRUE(ProfilePicker::IsOpen());
 
   content::WebContents* signin_web_contents = web_contents();
-  auto auth_error =
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
+  auto auth_error = GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+      GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN);
 
   {
     // Simulate Dice token exchange failure in a scope, to avoid having

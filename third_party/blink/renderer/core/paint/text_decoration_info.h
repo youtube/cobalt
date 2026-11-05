@@ -40,7 +40,7 @@ enum class ResolvedUnderlinePosition {
   kOver
 };
 
-using MinimumThickness1 = base::StrongAlias<class MinimumThickness1Tag, bool>;
+using IsSvgText = base::StrongAlias<class IsSvgTextTag, bool>;
 
 // Holds the resolved metrics and styling for a single AppliedTextDecoration.
 // This immutable structure decouples index-specific properties from the overall
@@ -49,10 +49,19 @@ struct ResolvedDecoration {
   STACK_ALLOCATED();
 
  public:
+  // ResolveDecorationAt() must fill `applied_text_decoration`, so it never be
+  // nullptr.
+  const AppliedTextDecoration* applied_text_decoration = nullptr;
+  const SimpleFontData* font_data = nullptr;
   TextDecorationLine lines = TextDecorationLine::kNone;
+  float ascent = 0.f;
+  float computed_font_size = 0.f;
   float resolved_thickness = 0.f;
+  ResolvedUnderlinePosition underline_position =
+      ResolvedUnderlinePosition::kNearAlphabeticBaselineAuto;
   bool has_underline = false;
   bool has_overline = false;
+  bool is_flipped_underline_and_overline = false;
 
   // TODO(crbug.com/501752810): Move more fields from TextDecorationInfo.
 
@@ -79,17 +88,16 @@ class CORE_EXPORT TextDecorationInfo {
   STACK_ALLOCATED();
 
  public:
-  TextDecorationInfo(
-      LineRelativeOffset local_origin,
-      LayoutUnit width,
-      const ComputedStyle& target_style,
-      const InlinePaintContext* inline_context,
-      const TextDecorationLine selection_decoration_line,
-      const Color selection_decoration_color,
-      const AppliedTextDecoration* decoration_override = nullptr,
-      const Font* font_override = nullptr,
-      MinimumThickness1 minimum_thickness1 = MinimumThickness1(true),
-      float scaling_factor = 1.0f);
+  TextDecorationInfo(LineRelativeOffset local_origin,
+                     LayoutUnit width,
+                     const ComputedStyle& target_style,
+                     const InlinePaintContext* inline_context,
+                     const TextDecorationLine selection_decoration_line,
+                     const Color selection_decoration_color,
+                     const AppliedTextDecoration* decoration_override = nullptr,
+                     const Font* font_override = nullptr,
+                     IsSvgText is_svg_text = IsSvgText(false),
+                     float svg_resource_scaling_factor = 1.0f);
 
   wtf_size_t AppliedDecorationCount() const;
   const AppliedTextDecoration& AppliedDecoration(wtf_size_t) const;
@@ -129,13 +137,13 @@ class CORE_EXPORT TextDecorationInfo {
   // Returns the scaling factor for the decoration.
   // It can be different from FragmentItem::SvgScalingFactor() if the
   // text works as a resource.
-  float ScalingFactor() const { return scaling_factor_; }
+  float SvgResourceScalingFactor() const {
+    return svg_resource_scaling_factor_;
+  }
   float BaselineForInkSkip() const {
     return local_origin_.line_over.ToFloat() + target_ascent_;
   }
 
-  // |ResolveDecorationAt| may change the results of these methods.
-  const SimpleFontData* FontData() const { return font_data_; }
   Color LineColor(const ResolvedDecoration& decoration) const;
 
   // Overrides the line color with the given topmost active highlight ‘color’
@@ -152,16 +160,6 @@ class CORE_EXPORT TextDecorationInfo {
 
   LayoutUnit Width() const { return width_; }
 
-  // |ResolveDecorationAt| may change the results of these methods.
-  float ComputedFontSize() const { return computed_font_size_; }
-  float Ascent() const { return ascent_; }
-  ResolvedUnderlinePosition FlippedUnderlinePosition() const {
-    return flipped_underline_position_;
-  }
-  ResolvedUnderlinePosition OriginalUnderlinePosition() const {
-    return original_underline_position_;
-  }
-
   // The |ComputedStyle| of the target text/box to paint decorations for.
   const ComputedStyle& target_style_;
   // The |ComputedStyle| of the [decorating box]. Decorations are computed from
@@ -172,12 +170,11 @@ class CORE_EXPORT TextDecorationInfo {
   // Decorating box properties for the current |decoration_index_|.
   const InlinePaintContext* const inline_context_ = nullptr;
   const DecoratingBox* decorating_box_ = nullptr;
-  const AppliedTextDecoration* applied_text_decoration_ = nullptr;
+
   const TextDecorationLine selection_decoration_line_ =
       TextDecorationLine::kNone;
   const Color selection_decoration_color_;
   const Font* font_ = nullptr;
-  const SimpleFontData* font_data_ = nullptr;
 
   // These "overrides" fields force using the specified style or font instead
   // of the one from the decorating box. Note that using them means that the
@@ -189,11 +186,7 @@ class CORE_EXPORT TextDecorationInfo {
   const LineRelativeOffset local_origin_;
   const LayoutUnit width_;
   const float target_ascent_ = 0.f;
-  const float scaling_factor_;
-
-  // Cached properties for the current |decoration_index_|.
-  float ascent_ = 0.f;
-  float computed_font_size_ = 0.f;
+  const float svg_resource_scaling_factor_;
 
   wtf_size_t decoration_index_ = 0;
 
@@ -205,12 +198,10 @@ class CORE_EXPORT TextDecorationInfo {
 
   ResolvedUnderlinePosition original_underline_position_ =
       ResolvedUnderlinePosition::kNearAlphabeticBaselineAuto;
-  ResolvedUnderlinePosition flipped_underline_position_ =
-      ResolvedUnderlinePosition::kNearAlphabeticBaselineAuto;
 
   bool flip_underline_and_overline_ = false;
   bool use_decorating_box_ = false;
-  const bool minimum_thickness_is_one_ = false;
+  const bool is_svg_text_ = false;
   bool antialias_ = false;
 
   std::optional<Color> highlight_override_;

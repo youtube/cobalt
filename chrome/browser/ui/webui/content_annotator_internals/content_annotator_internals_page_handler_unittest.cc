@@ -29,8 +29,11 @@
 namespace content_annotator_internals {
 
 using ::base::test::DictionaryHasValues;
+using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Invoke;
 using ::testing::Pointee;
+using ::testing::Property;
 
 namespace {
 
@@ -40,6 +43,11 @@ class MockPage : public accessibility_annotator_internals::mojom::Page {
   BindAndGetRemote() {
     return receiver_.BindNewPipeAndPassRemote();
   }
+
+  MOCK_METHOD(void,
+              OnContentAnnotationsAdded,
+              (base::Value content),
+              (override));
 
  private:
   mojo::Receiver<accessibility_annotator_internals::mojom::Page> receiver_{
@@ -107,26 +115,30 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, GetAnnotatedContentWithData) {
       AccessibilityAnnotatorBackendFactory::GetForProfile(profile());
   ASSERT_TRUE(backend);
 
-  base::DictValue annotations;
-  annotations.Set("key", "value");
   base::DictValue classifier_results;
   classifier_results.Set("url_match_result", "test category");
 
-  base::DictValue expected_annotations = annotations.Clone();
   base::DictValue expected_classifier = classifier_results.Clone();
   base::Time now;
   ASSERT_TRUE(base::Time::FromUTCString("2026-04-10 10:00:00 UTC", &now));
+
+  optimization_guide::proto::ContentAnnotation content_annotation;
+  content_annotation.set_description("Test annotation description");
+  content_annotation.set_status(
+      optimization_guide::proto::ContentAnnotation::CONFIRMED);
+  auto* order = content_annotation.mutable_structured_data()->add_orders();
+  order->set_id("order_123");
 
   accessibility_annotator::AccessibilityAnnotatorBackend::ContentAnnotationsData
       data;
   data.page_title = "Title";
   data.tab_id = 123;
-  data.visit_id = static_cast<history::VisitID>(123);
+  data.url = GURL("https://example.com");
   data.navigation_timestamp = now;
-  data.annotations = std::move(annotations);
+  data.content_annotation = std::move(content_annotation);
   data.classifier_results = std::move(classifier_results);
 
-  backend->SetContentAnnotationsCacheData(GURL("https://example.com"),
+  backend->SetContentAnnotationsCacheData(static_cast<history::VisitID>(123),
                                           std::move(data));
 
   base::RunLoop run_loop;
@@ -136,19 +148,28 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, GetAnnotatedContentWithData) {
         const base::ListValue& list = content.GetList();
         ASSERT_EQ(list.size(), 1u);
         const base::DictValue& entry = list[0].GetDict();
-        EXPECT_THAT(entry,
-                    DictionaryHasValues(
+        EXPECT_THAT(
+            entry,
+            DictionaryHasValues(
+                base::DictValue()
+                    .Set("url", "https://example.com/")
+                    .Set("title", "Title")
+                    .Set("tab_id", 123)
+                    .Set("visit_id", "123")
+                    .Set("navigation_timestamp",
+                         "4/10/26, 10:00:00\xe2\x80\xaf"
+                         "AM")
+                    .Set("classifier_results", std::move(expected_classifier))
+                    .Set(
+                        "content_annotation",
                         base::DictValue()
-                            .Set("url", "https://example.com/")
-                            .Set("title", "Title")
-                            .Set("tab_id", 123)
-                            .Set("visit_id", "123")
-                            .Set("navigation_timestamp",
-                                 "4/10/26, 10:00:00\xe2\x80\xaf"
-                                 "AM")
-                            .Set("annotations", std::move(expected_annotations))
-                            .Set("classifier_results",
-                                 std::move(expected_classifier))));
+                            .Set("description", "Test annotation description")
+                            .Set("status", "CONFIRMED")
+                            .Set("structured_data",
+                                 base::DictValue().Set(
+                                     "orders", base::ListValue().Append(
+                                                   base::DictValue().Set(
+                                                       "id", "order_123")))))));
         run_loop.Quit();
       }));
   run_loop.Run();
@@ -162,7 +183,8 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, ClearContentAnnotationsCache) {
   accessibility_annotator::AccessibilityAnnotatorBackend::ContentAnnotationsData
       data;
   data.page_title = "Title";
-  backend->SetContentAnnotationsCacheData(GURL("https://example.com"),
+  data.url = GURL("https://example.com");
+  backend->SetContentAnnotationsCacheData(static_cast<history::VisitID>(1),
                                           std::move(data));
 
   // Verify data is present.
@@ -199,6 +221,97 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, ClearContentAnnotationsCache) {
         }));
     run_loop.Run();
   }
+}
+
+TEST_F(ContentAnnotatorInternalsPageHandlerTest, DeleteAnnotatedContent) {
+  accessibility_annotator::AccessibilityAnnotatorBackend* backend =
+      AccessibilityAnnotatorBackendFactory::GetForProfile(profile());
+  ASSERT_TRUE(backend);
+
+  // Add two entries.
+  accessibility_annotator::AccessibilityAnnotatorBackend::ContentAnnotationsData
+      data1;
+  data1.page_title = "Title 1";
+  data1.url = GURL("https://example.com/1");
+  backend->SetContentAnnotationsCacheData(static_cast<history::VisitID>(1),
+                                          std::move(data1));
+
+  accessibility_annotator::AccessibilityAnnotatorBackend::ContentAnnotationsData
+      data2;
+  data2.page_title = "Title 2";
+  data2.url = GURL("https://example.com/2");
+  backend->SetContentAnnotationsCacheData(static_cast<history::VisitID>(2),
+                                          std::move(data2));
+
+  // Verify data is present.
+  {
+    base::RunLoop run_loop;
+    handler()->GetAnnotatedContent(
+        base::BindLambdaForTesting([&](base::Value content) {
+          ASSERT_TRUE(content.is_list());
+          EXPECT_EQ(content.GetList().size(), 2u);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  // Delete one entry.
+  {
+    base::RunLoop run_loop;
+    std::vector<int64_t> visit_ids = {1};
+    handler()->DeleteAnnotatedContent(
+        visit_ids, base::BindLambdaForTesting([&](bool success) {
+          EXPECT_TRUE(success);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  // Verify only one entry remains.
+  {
+    base::RunLoop run_loop;
+    handler()->GetAnnotatedContent(
+        base::BindLambdaForTesting([&](base::Value content) {
+          ASSERT_TRUE(content.is_list());
+          const base::ListValue& list = content.GetList();
+          ASSERT_EQ(list.size(), 1u);
+          const base::DictValue& entry = list[0].GetDict();
+          EXPECT_THAT(entry.FindString("url"),
+                      Pointee(Eq("https://example.com/2")));
+          EXPECT_THAT(entry.FindString("title"), Pointee(Eq("Title 2")));
+          EXPECT_THAT(entry.FindString("visit_id"), Pointee(Eq("2")));
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+}
+
+TEST_F(ContentAnnotatorInternalsPageHandlerTest,
+       OnContentAnnotationsAddedPushesToUI) {
+  base::test::ScopedRestoreICUDefaultLocale locale("en_US");
+  base::test::ScopedRestoreDefaultTimezone timezone("UTC");
+
+  accessibility_annotator::AccessibilityAnnotatorBackend* backend =
+      AccessibilityAnnotatorBackendFactory::GetForProfile(profile());
+  ASSERT_TRUE(backend);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_page(), OnContentAnnotationsAdded(Property(
+                               &base::Value::GetList,
+                               ElementsAre(DictionaryHasValues(
+                                   base::DictValue()
+                                       .Set("url", "https://example.com/")
+                                       .Set("title", "Title")
+                                       .Set("visit_id", "123"))))))
+      .WillOnce([&](const base::Value& content) { run_loop.Quit(); });
+
+  accessibility_annotator::AccessibilityAnnotatorBackend::ContentAnnotationsData
+      data;
+  data.page_title = "Title";
+  data.url = GURL("https://example.com");
+  backend->SetContentAnnotationsCacheData(static_cast<history::VisitID>(123),
+                                          std::move(data));
+  run_loop.Run();
 }
 
 }  // namespace

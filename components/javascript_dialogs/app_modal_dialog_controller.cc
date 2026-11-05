@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/check_op.h"
 #include "build/build_config.h"
 #include "components/javascript_dialogs/app_modal_dialog_manager.h"
 #include "components/javascript_dialogs/app_modal_dialog_queue.h"
@@ -62,9 +63,7 @@ std::u16string EnforceMaxPromptSize(const std::u16string& in_string) {
 
 }  // namespace
 
-ChromeJavaScriptDialogExtraData::ChromeJavaScriptDialogExtraData()
-    : has_already_shown_a_dialog_(false),
-      suppress_javascript_messages_(false) {}
+ChromeJavaScriptDialogExtraData::ChromeJavaScriptDialogExtraData() = default;
 
 AppModalDialogController::AppModalDialogController(
     content::WebContents* web_contents,
@@ -86,18 +85,21 @@ AppModalDialogController::AppModalDialogController(
       display_suppress_checkbox_(display_suppress_checkbox),
       is_before_unload_dialog_(is_before_unload_dialog),
       is_reload_(is_reload),
-      callback_(std::move(callback)),
-      use_override_prompt_text_(false) {}
+      callback_(std::move(callback)) {}
 
 AppModalDialogController::~AppModalDialogController() {
   CompleteDialog();
 }
 
-void AppModalDialogController::ShowModalDialog() {
-  view_ = AppModalDialogManager::GetInstance()->view_factory()->Run(this);
+void AppModalDialogController::ShowModalDialog(
+    std::unique_ptr<AppModalDialogController> controller) {
+  CHECK_EQ(this, controller.get());
+  view_ = AppModalDialogManager::GetInstance()->view_factory()->Run(
+      std::move(controller));
   view_->ShowAppModalDialog();
-  if (app_modal_dialog_observer)
+  if (app_modal_dialog_observer) {
     app_modal_dialog_observer->Notify(this);
+  }
 }
 
 void AppModalDialogController::ActivateModalDialog() {
@@ -126,13 +128,15 @@ bool AppModalDialogController::IsValid() {
 }
 
 void AppModalDialogController::Invalidate() {
-  if (!valid_)
+  if (!valid_) {
     return;
+  }
 
   valid_ = false;
   CallDialogClosedCallback(false, std::u16string());
-  if (view_)
+  if (view_) {
     CloseModalDialog();
+  }
 }
 
 void AppModalDialogController::OnCancel(bool suppress_js_messages) {
@@ -144,18 +148,15 @@ void AppModalDialogController::OnCancel(bool suppress_js_messages) {
   // is a temporary workaround.
   CompleteDialog();
 
-  NotifyDelegate(false, std::u16string(), suppress_js_messages);
+  NotifyDelegate(/*success=*/false, std::u16string(), suppress_js_messages);
 }
 
 void AppModalDialogController::OnAccept(const std::u16string& prompt_text,
                                         bool suppress_js_messages) {
-  std::u16string prompt_text_to_use = prompt_text;
-  // This is only for testing.
-  if (use_override_prompt_text_)
-    prompt_text_to_use = override_prompt_text_;
-
   CompleteDialog();
-  NotifyDelegate(true, prompt_text_to_use, suppress_js_messages);
+
+  NotifyDelegate(/*success=*/true, override_prompt_text_.value_or(prompt_text),
+                 suppress_js_messages);
 }
 
 void AppModalDialogController::OnClose() {
@@ -165,7 +166,6 @@ void AppModalDialogController::OnClose() {
 void AppModalDialogController::SetOverridePromptText(
     const std::u16string& override_prompt_text) {
   override_prompt_text_ = override_prompt_text;
-  use_override_prompt_text_ = true;
 }
 
 void AppModalDialogController::WebContentsDestroyed() {
@@ -175,14 +175,15 @@ void AppModalDialogController::WebContentsDestroyed() {
 void AppModalDialogController::NotifyDelegate(bool success,
                                               const std::u16string& user_input,
                                               bool suppress_js_messages) {
-  if (!valid_)
+  if (!valid_) {
     return;
+  }
 
   CallDialogClosedCallback(success, user_input);
 
   // The close callback above may delete web_contents_, thus removing the extra
   // data from the map owned by ::AppModalDialogManager. Make sure
-  // to only use the data if still present. http://crbug.com/236476
+  // to only use the data if still present. https://crbug.com/41009870
   if (auto* contents = web_contents()) {
     auto extra_data = extra_data_map_->find(contents);
     if (extra_data != extra_data_map_->end()) {
@@ -192,15 +193,16 @@ void AppModalDialogController::NotifyDelegate(bool success,
   }
 
   // On Views, we can end up coming through this code path twice :(.
-  // See crbug.com/63732.
+  // See https://crbug.com/40085084.
   valid_ = false;
 }
 
 void AppModalDialogController::CallDialogClosedCallback(
     bool success,
     const std::u16string& user_input) {
-  if (!callback_.is_null())
+  if (!callback_.is_null()) {
     std::move(callback_).Run(success, user_input);
+  }
 }
 
 AppModalDialogObserver::AppModalDialogObserver() {

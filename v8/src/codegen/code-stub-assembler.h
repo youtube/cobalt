@@ -1100,9 +1100,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
       TNode<FunctionTemplateInfo> object) {
-    return LoadExternalPointerFromObject(object,
-                                         FunctionTemplateInfo::kCallbackOffset,
-                                         kFunctionTemplateInfoCallbackTag);
+    return LoadExternalPointerFromObject(
+        object, offsetof(FunctionTemplateInfo, callback_),
+        kFunctionTemplateInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
@@ -4085,7 +4085,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
     return GetArrayAllocationSize(element_count, PACKED_ELEMENTS,
-                                  PropertyArray::kHeaderSize);
+                                  OFFSET_OF_DATA_START(PropertyArray));
   }
 
   template <typename TIndex>
@@ -5021,6 +5021,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<UnionOf<FixedArray, PropertyArray>> array, TNode<TIndex> index,
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
+
+  TNode<IntPtrT> ComputeTypedArrayStoreOffset(TNode<IntPtrT> offset,
+                                              ElementsKind kind);
 
   template <typename TIndex>
   void StoreElementTypedArrayBigInt(TNode<RawPtrT> elements, ElementsKind kind,

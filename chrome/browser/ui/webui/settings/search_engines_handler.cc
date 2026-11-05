@@ -313,11 +313,14 @@ base::DictValue SearchEnginesHandler::CreateDictionaryForEngine(
   // The icons that are used for search engines in the EEA region are bundled
   // with Chrome. We use the favicon service for countries outside the EEA
   // region to guarantee having icons for all search engines.
+  // There may not be a resource ID associated with this template URL, e.g. for
+  // starter pack engines or non-branded builds. In this case, do not set the
+  // icon path but let the WebUI handle the fallback logic instead.
   regional_capabilities::RegionalCapabilitiesService* regional_capabilities =
       regional_capabilities::RegionalCapabilitiesServiceFactory::GetForProfile(
           profile);
   const bool is_eea_region = regional_capabilities->IsInEeaCountry();
-  if (is_eea_region) {
+  if (is_eea_region && template_url->GetBaseBuiltinResourceId().has_value()) {
     // The search engine icon path are 24px, but displayed at 16px, or 32px on
     // HiDPI screens. Use the 2x version (48px) for a large enough icon.
     // Note that this icon path is used in `site-favicon` which does not
@@ -453,12 +456,13 @@ void SearchEnginesHandler::HandleSearchEngineEditStarted(
 void SearchEnginesHandler::OnEditedKeyword(TemplateURL* template_url,
                                            const std::u16string& title,
                                            const std::u16string& keyword,
-                                           const std::string& url) {
-  DCHECK(!url.empty());
+                                           const std::string& fixed_up_url) {
+  CHECK(!fixed_up_url.empty());
   if (template_url) {
-    list_controller_.ModifyTemplateURL(template_url, title, keyword, url);
+    list_controller_.ModifyTemplateURL(template_url, title, keyword,
+                                       fixed_up_url);
   } else {
-    list_controller_.AddTemplateURL(title, keyword, url);
+    list_controller_.AddTemplateURL(title, keyword, fixed_up_url);
   }
 
   edit_controller_.reset();

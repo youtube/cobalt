@@ -1299,7 +1299,12 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kRiscvTruncUlD, node);
+  InstructionCode opcode = kRiscvTruncUlD;
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+  VisitRR(this, opcode, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
@@ -1702,193 +1707,11 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
-void InstructionSelector::VisitUnalignedLoad(OpIndex node) {
-  auto load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  RiscvOperandGenerator g(this);
-  OpIndex base = load.base();
-  OpIndex index = load.index();
+void InstructionSelector::VisitUnalignedLoad(OpIndex node) { UNIMPLEMENTED(); }
 
-  InstructionCode opcode = kArchNop;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat32:
-      opcode = kRiscvULoadFloat;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kRiscvULoadDouble;
-      break;
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsUnsigned() ? kRiscvUlhu : kRiscvUlh;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kRiscvUlw;
-      break;
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord64:
-      opcode = kRiscvUld;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kRiscvRvvLd;
-      break;
-    case MachineRepresentation::kSimd256:            // Fall through.
-    case MachineRepresentation::kBit:                // Fall through.
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
-    case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kFloat16:            // Fall through.
-    case MachineRepresentation::kFloat16RawBits:     // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-  }
-  bool traps_on_null;
-  if (load.is_trapping(&traps_on_null)) {
-    if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
-    } else {
-      opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
-    }
-  }
-  if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None), addr_reg,
-         g.UseRegister(index), g.UseRegister(base));
-    // Emit desired load opcode, using temp addr_reg.
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
-  }
-}
-
-void InstructionSelector::VisitUnalignedStore(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  auto store_view = this->store_view(node);
-  DCHECK_EQ(store_view.displacement(), 0);
-  OpIndex base = store_view.base();
-  OpIndex index = store_view.index().value();
-  OpIndex value = store_view.value();
-
-  MachineRepresentation rep = store_view.stored_rep().representation();
-
-  ArchOpcode opcode;
-  switch (rep) {
-    case MachineRepresentation::kFloat32:
-      opcode = kRiscvUStoreFloat;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kRiscvUStoreDouble;
-      break;
-    case MachineRepresentation::kWord8:
-      opcode = kRiscvSb;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kRiscvUsh;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kRiscvUsw;
-      break;
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord64:
-      opcode = kRiscvUsd;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kRiscvRvvSt;
-      break;
-    case MachineRepresentation::kSimd256:            // Fall through.
-    case MachineRepresentation::kBit:                // Fall through.
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
-    case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kFloat16:            // Fall through.
-    case MachineRepresentation::kFloat16RawBits:     // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-  }
-
-  if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-         g.UseRegister(base), g.UseImmediate(index),
-         g.UseRegisterOrImmediateZero(value));
-  } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None), addr_reg,
-         g.UseRegister(index), g.UseRegister(base));
-    // Emit desired store opcode, using temp addr_reg.
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-         addr_reg, g.TempImmediate(0), g.UseRegisterOrImmediateZero(value));
-  }
-}
+void InstructionSelector::VisitUnalignedStore(OpIndex node) { UNIMPLEMENTED(); }
 
 namespace {
-
-bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
-  const Operation& op = selector->Get(n);
-  if (op.Is<LoadOp>()) {
-    const LoadOp& load = op.Cast<LoadOp>();
-    return load.machine_type().IsUnsigned() ||
-           load.machine_type().IsCompressed();
-  } else if (op.Is<WordBinopOp>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    switch (binop.kind) {
-      case WordBinopOp::Kind::kUnsignedDiv:
-      case WordBinopOp::Kind::kUnsignedMod:
-      case WordBinopOp::Kind::kUnsignedMulOverflownBits:
-        return true;
-      default:
-        return false;
-    }
-  } else if (op.Is<ChangeOrDeoptOp>()) {
-    const ChangeOrDeoptOp& change = op.Cast<ChangeOrDeoptOp>();
-    return change.kind == ChangeOrDeoptOp::Kind::kFloat64ToUint32;
-  } else if (op.Is<ConvertJSPrimitiveToUntaggedOp>()) {
-    const ConvertJSPrimitiveToUntaggedOp& convert =
-        op.Cast<ConvertJSPrimitiveToUntaggedOp>();
-    return convert.kind ==
-           ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32;
-  } else if (op.Is<ConstantOp>()) {
-    const ConstantOp& constant = op.Cast<ConstantOp>();
-    return constant.kind == ConstantOp::Kind::kCompressedHeapObject;
-  } else {
-    return false;
-  }
-}
-
-bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
-                                  FlagsCondition condition) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return false;
-  }
-  switch (condition) {
-    case kSignedLessThan:
-    case kSignedLessThanOrEqual:
-    case kSignedGreaterThan:
-    case kSignedGreaterThanOrEqual:
-      return false;
-    default:
-      break;
-  }
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  if (IsNodeUnsigned(selector, op.input(0)) ==
-      IsNodeUnsigned(selector, op.input(1))) {
-    return true;
-  }
-  return false;
-}
 
 // Shared routine for multiple word compare operations.
 
@@ -1908,56 +1731,9 @@ void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
   selector->UpdateSourcePosition(instr, node);
 }
 
-void VisitOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
-                                 InstructionCode opcode,
-                                 FlagsContinuation* cont) {
-  if (v8_flags.debug_code) {
-    RiscvOperandGenerator g(selector);
-    InstructionOperand leftOp = g.TempRegister();
-    InstructionOperand rightOp = g.TempRegister();
-    InstructionOperand optimizedResult = g.TempRegister();
-    InstructionOperand fullResult = g.TempRegister();
-    FlagsCondition condition = cont->condition();
-    InstructionCode testOpcode = opcode |
-                                 FlagsConditionField::encode(condition) |
-                                 FlagsModeField::encode(kFlags_set);
-
-    const Operation& op = selector->Get(node);
-    DCHECK_EQ(op.input_count, 2);
-    selector->Emit(testOpcode, optimizedResult, g.UseRegister(op.input(0)),
-                   g.UseRegister(op.input(1)));
-    selector->Emit(kRiscvShl64, leftOp, g.UseRegister(op.input(0)),
-                   g.TempImmediate(32));
-    selector->Emit(kRiscvShl64, rightOp, g.UseRegister(op.input(1)),
-                   g.TempImmediate(32));
-    selector->Emit(testOpcode, fullResult, leftOp, rightOp);
-
-    selector->Emit(kRiscvAssertEqual, g.NoOutput(), optimizedResult, fullResult,
-                   g.TempImmediate(static_cast<int>(
-                       AbortReason::kUnsupportedNonPrimitiveCompare)));
-  }
-
-  Instruction* instr = VisitWordCompare(selector, node, opcode, cont, false);
-  selector->UpdateSourcePosition(instr, node);
-}
-
 void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                         FlagsContinuation* cont) {
-#ifdef USE_SIMULATOR
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  const Operation& lhs = selector->Get(op.input(0));
-  const Operation& rhs = selector->Get(op.input(1));
-  if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
-#else
-  if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
-#endif
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else {
-    VisitOptimizedWord32Compare(selector, node, kRiscvCmp, cont);
-  }
+  VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
 }
 
 void VisitWord64Compare(InstructionSelector* selector, OpIndex node,

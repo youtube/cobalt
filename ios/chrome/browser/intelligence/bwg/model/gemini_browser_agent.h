@@ -40,12 +40,13 @@ class PageContext;
 class ScopedFullscreenDisabler;
 @class BWGLinkOpeningHandler;
 @class GeminiPageStateChangeHandler;
-@class BWGSessionHandler;
+@class GeminiSessionHandler;
 @class GeminiCameraHandler;
 @class GeminiPageContext;
 @class GeminiViewStateChangeHandler;
 @class GeminiScrollObserver;
 @class GeminiSuggestionHandler;
+@class GeminiActuationHandler;
 
 @protocol BWGGatewayProtocol;
 
@@ -284,14 +285,17 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   __strong GeminiPageStateChangeHandler* gemini_page_state_change_handler_ =
       nullptr;
 
-  // Handler for the BWG sessions.
-  __strong BWGSessionHandler* bwg_session_handler_ = nullptr;
+  // Handler for the Gemini sessions.
+  __strong GeminiSessionHandler* bwg_session_handler_ = nullptr;
 
   // Handler for Gemini camera.
   __strong GeminiCameraHandler* gemini_camera_handler_ = nullptr;
 
   // Handler for Gemini suggestion chips.
   __strong GeminiSuggestionHandler* gemini_suggestion_handler_ = nullptr;
+
+  // Handler for Gemini actor.
+  __strong GeminiActuationHandler* gemini_actuation_handler_ = nullptr;
 
   // Delegate implementation for BWGSessionHandler.
   __strong GeminiViewStateChangeHandler* gemini_view_state_handler_ = nullptr;

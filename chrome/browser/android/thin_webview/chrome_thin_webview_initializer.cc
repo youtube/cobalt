@@ -4,23 +4,30 @@
 
 #include "chrome/browser/android/thin_webview/chrome_thin_webview_initializer.h"
 
+#include "chrome/browser/android/web_contents_theme_client.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/tab_helpers.h"
 #include "components/permissions/permission_request_manager.h"
 
-namespace thin_webview {
-namespace android {
+namespace thin_webview::android {
 
 // static
 void ChromeThinWebViewInitializer::Initialize() {
   ThinWebViewInitializer::SetInstance(new ChromeThinWebViewInitializer);
 }
 
-void ChromeThinWebViewInitializer::AttachTabHelpers(
+void ChromeThinWebViewInitializer::SetUpTheming(
     content::WebContents* web_contents) {
+  night_mode::WebContentsThemeClient::CreateForWebContents(web_contents);
+}
+
+void ChromeThinWebViewInitializer::AttachTabHelpers(
+    content::WebContents* web_contents,
+    bool enable_permission_requests) {
   TabHelpers::AttachTabHelpers(web_contents);
   permissions::PermissionRequestManager::FromWebContents(web_contents)
-      ->set_web_contents_supports_permission_requests(false);
+      ->set_web_contents_supports_permission_requests(
+          enable_permission_requests);
 }
 
 void ChromeThinWebViewInitializer::SetContextMenuPopulatorFactory(
@@ -32,5 +39,4 @@ void ChromeThinWebViewInitializer::SetContextMenuPopulatorFactory(
   }
 }
 
-}  // namespace android
-}  // namespace thin_webview
+}  // namespace thin_webview::android

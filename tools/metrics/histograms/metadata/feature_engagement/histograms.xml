@@ -98,6 +98,9 @@ chromium-metrics-reviews@google.com.
       summary="message shown along with a disabled and grayed-out virtual
                card suggestion in the autofill suggestion list indicating
                that the merchant has opted-out of accepting virtual cards."/>
+  <variant name="IPH_AutofillDownstreamCardAwareness"
+      summary="message shown alongside the Autofill dropdown to educate users
+               that an externally-saved card can be used in Chrome."/>
   <variant name="IPH_AutofillEnableLoyaltyCards"
       summary="toast educating users about the possibility of autofilling
                loyalty cards"/>
@@ -781,7 +784,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.EventStorageMigration.Status"
-    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-08-09">
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-10-11">
   <owner>cheickcisse@google.com</owner>
   <owner>shaktisahu@chromium.org</owner>
   <summary>

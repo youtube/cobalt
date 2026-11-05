@@ -77,6 +77,9 @@ const base::FeatureParam<double> kWaitForLateScrollEventsDeadlineRatio{
 BASE_FEATURE(kPreserveDiscardableImageMapQuality,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kScrollEndRepaintFollowsScrollUpdate,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCCSlimming, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsCCSlimmingEnabled() {
@@ -157,8 +160,6 @@ bool IsEligibleForThrottleMainFrameTo60Hz() {
 
 BASE_FEATURE(kViewTransitionCaptureAndDisplay,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kViewTransitionFloorTransform, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // The feature is the enabled for the cc infrastructure to set the frame rate
 // throttles from the main thread.
@@ -244,9 +245,6 @@ BASE_FEATURE_PARAM(double,
                    &kScrollJankV4Metric,
                    "fling_continuity_threshold_pixels",
                    0.2);
-
-BASE_FEATURE(kOrderScrollJankV4EventMetricsByArrivedInRendererCompositor,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kManualBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
 

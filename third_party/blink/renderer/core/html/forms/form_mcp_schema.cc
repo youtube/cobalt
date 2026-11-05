@@ -125,6 +125,9 @@ std::unique_ptr<JSONObject> FormMCPSchema::ComputeJSON() {
   auto required = std::make_unique<JSONArray>();
   auto properties = std::make_unique<JSONObject>();
 
+  // This needs to run before name_to_controls_.erase
+  ReportMissingParamNameIssuesIfNeeded();
+
   // We must emit parameters in the same order they (first) appear
   // in the ListedElements() traversal.
   for (const String& name : ordered_names_) {
@@ -148,6 +151,29 @@ std::unique_ptr<JSONObject> FormMCPSchema::ComputeJSON() {
   return out;
 }
 
+void FormMCPSchema::ReportMissingParamNameIssuesIfNeeded() {
+  if (!form_->GetDocument().GetFrame()) {
+    return;
+  }
+  // Iterate through controls with an empty name
+  if (auto it = name_to_controls_.find(""); it != name_to_controls_.end()) {
+    for (ListedElement* element : *it->value) {
+      DOMNodeId violating_node_id =
+          DOMNodeIds::IdForNode(&element->ToHTMLElement());
+      auto* form_control =
+          DynamicTo<HTMLFormControlElement>(&element->ToHTMLElement());
+      bool is_required = form_control && form_control->IsRequired();
+      AuditsIssue::ReportGenericIssue(
+          form_->GetDocument().GetFrame(),
+          is_required ? mojom::blink::GenericIssueErrorType::
+                            kFormModelContextRequiredParameterMissingName
+                      : mojom::blink::GenericIssueErrorType::
+                            kFormModelContextParameterMissingName,
+          violating_node_id);
+    }
+  }
+}
+
 void FormMCPSchema::ReportParameterIssueIfNeeded(
     const String& name,
     const JSONObject& parameter_schema) {
@@ -162,6 +188,9 @@ void FormMCPSchema::ReportParameterIssueIfNeeded(
   CHECK(!controls.empty());
   DOMNodeId violating_node_id =
       DOMNodeIds::IdForNode(&controls.front()->ToHTMLElement());
+  if (!form_->GetDocument().GetFrame()) {
+    return;
+  }
   AuditsIssue::ReportGenericIssue(
       form_->GetDocument().GetFrame(),
       mojom::blink::GenericIssueErrorType::
@@ -1218,6 +1247,7 @@ void FormMCPSchema::ProcessForm(HTMLFormElement& form) {
       }
     }
   }
+  DCHECK_EQ(submit_button_, form.FindDefaultButton());
 }
 
 FormMCPSchema::ControlVector& FormMCPSchema::EnsureControlVector(

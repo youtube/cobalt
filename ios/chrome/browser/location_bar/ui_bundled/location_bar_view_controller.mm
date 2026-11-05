@@ -359,14 +359,12 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
                      withAction:@selector(sizeClassDidChange)];
 
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    _defaultSearchEngineIconView = [[UIImageView alloc] init];
-    _defaultSearchEngineIconView.translatesAutoresizingMaskIntoConstraints = NO;
-    _defaultSearchEngineIconView.contentMode = UIViewContentModeCenter;
-    AddSizeConstraints(
-        _defaultSearchEngineIconView,
-        CGSizeMake(kOmniboxLeadingImageSize + 12.0f, kOmniboxLeadingImageSize));
-  }
+  _defaultSearchEngineIconView = [[UIImageView alloc] init];
+  _defaultSearchEngineIconView.translatesAutoresizingMaskIntoConstraints = NO;
+  _defaultSearchEngineIconView.contentMode = UIViewContentModeCenter;
+  AddSizeConstraints(
+      _defaultSearchEngineIconView,
+      CGSizeMake(kOmniboxLeadingImageSize + 12.0f, kOmniboxLeadingImageSize));
 
   if (IsProactiveSuggestionsFrameworkEnabled()) {
     _locationBarSteadyView.pageActionMenuHandler = self.pageActionMenuHandler;
@@ -772,6 +770,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
     state = kNoButton;
   }
 
+  if (IsChromeNextIaEnabled() && !IsChromeNextIaShareIconVisible() &&
+      state == kShareButton) {
+    state = kNoButton;
+  }
+
   if (_trailingButtonState == state) {
     return;
   }
@@ -818,12 +821,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
 // Computes correct placeholder text.
 - (NSString*)searchOrTypeURLPlaceholderText {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
-    return l10n_util::GetNSStringF(IDS_OMNIBOX_EMPTY_HINT_WITH_DSE_NAME,
-                                   self.searchProviderName.cr_UTF16String);
-  } else {
-    return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
-  }
+  return l10n_util::GetNSStringF(IDS_OMNIBOX_EMPTY_HINT_WITH_DSE_NAME,
+                                 self.searchProviderName.cr_UTF16String);
 }
 
 #pragma mark - UIContextMenuInteractionDelegate
@@ -951,7 +950,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   // Show Top or Bottom Address Bar action.
   BOOL canShowMoveAddressBarAction = NO;
   if (IsChromeNextIaEnabled()) {
-    canShowMoveAddressBarAction = IsBottomOmniboxAvailable();
+    canShowMoveAddressBarAction = IsBottomOmniboxAvailable() && !_isNTP;
   } else {
     canShowMoveAddressBarAction =
         IsBottomOmniboxAvailable() && IsSplitToolbarMode(self);

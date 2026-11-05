@@ -64,6 +64,11 @@ def get_external_commits():
         date_str = parts[1]
         month_key = date_str[:7]
 
+        # Exclude common bot/service account prefixes from all totals
+        if email.startswith('webrtc-version-updater') or email.startswith(
+                'chromium-webrtc-autoroll'):
+            continue
+
         # Track all commits per month (before filtering)
         monthly_all_summary[month_key] += 1
 
@@ -71,11 +76,6 @@ def get_external_commits():
         domain = email.split('@')[-1] if '@' in email else ''
         if any(domain == d or domain.endswith('.' + d)
                for d in corporate_domains):
-            continue
-
-        # Also exclude common bot/service account prefixes
-        if email.startswith('webrtc-version-updater') or email.startswith(
-                'chromium-webrtc-autoroll'):
             continue
 
         # Update author counts

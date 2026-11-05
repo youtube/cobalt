@@ -252,13 +252,6 @@ class BaseChannel : public ChannelInterface,
   RtpHeaderExtensions GetDeduplicatedRtpHeaderExtensions(
       const RtpHeaderExtensions& extensions);
 
-  // Checks that the provided RTP header extensions are valid.
-  // This verifies that all extension IDs are within the valid range,
-  // that there are no duplicate IDs, and that no existing extension ID
-  // has been reassigned to a different URI.
-  RTCError CheckRtpExtensionValidity(
-      const RtpHeaderExtensions& extensions) const RTC_RUN_ON(worker_thread());
-
   // Returns `true` if either an update wasn't needed or one was successfully
   // applied. If the return value is `false`, then updating the demuxer criteria
   // failed, which needs to be treated as an error.

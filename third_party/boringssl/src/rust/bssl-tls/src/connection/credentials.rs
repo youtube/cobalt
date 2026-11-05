@@ -13,27 +13,38 @@
 // limitations under the License.
 
 use alloc::ffi::CString;
-use core::{ffi::CStr, ptr::null};
+use core::{
+    ffi::CStr,
+    ptr::null, //
+};
 
 use bssl_x509::store::X509Store;
 
-use super::{Client, methods::HasTlsConnectionMethod};
+use super::{
+    Client,
+    methods::HasTlsConnectionMethod, //
+};
 use crate::{
     check_lib_error,
     config::ConfigurationError,
-    connection::lifecycle::{EstablishedTlsConnection, TlsConnectionInHandshake},
-    credentials::{CertificateVerificationMode, TlsCredential},
+    connection::{
+        TlsConnectionBuilder,
+        lifecycle::{
+            EstablishedTlsConnection,
+            TlsConnectionInHandshake, //
+        }, //
+    }, //
+    credentials::{
+        CertificateVerificationMode,
+        TlsCredential, //
+    },
     errors::Error,
-    ffi::slice_into_ffi_raw_parts,
+    ffi::slice_into_ffi_raw_parts, //
 };
 
-/// # Custom certificate verification
-impl<M> TlsConnectionInHandshake<'_, Client, M>
-where
-    M: HasTlsConnectionMethod,
-{
+impl<R, M> TlsConnectionBuilder<R, M> {
     /// Configure the certificate verification mode.
-    pub fn set_certificate_verification_mode(
+    pub fn with_certificate_verification_mode(
         &mut self,
         mode: CertificateVerificationMode,
     ) -> &mut Self {
@@ -45,7 +56,13 @@ where
         }
         self
     }
+}
 
+/// # Custom certificate verification
+impl<M> TlsConnectionInHandshake<'_, Client, M>
+where
+    M: HasTlsConnectionMethod,
+{
     /// Get the certificate verification mode set by [`Self::set_certificate_verification_mode`].
     pub fn get_certificate_verification_mode(&self) -> Option<CertificateVerificationMode> {
         unsafe {

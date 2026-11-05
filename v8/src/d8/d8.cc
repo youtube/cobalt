@@ -143,6 +143,7 @@ thread_local Worker* current_worker_ = nullptr;
 
 constexpr v8::EmbedderDataTypeTag kInspectorClientTag = 1;
 
+std::unordered_map<std::string, std::string> bundle_module_files;
 #ifdef V8_FUZZILLI
 bool fuzzilli_reprl = true;
 #else
@@ -1301,31 +1302,43 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
-  if (module_specifier.starts_with(kDataURLPrefix)) {
-    source_text = String::NewFromUtf8(
-        isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
-  } else if (IsAbsolutePath(module_specifier)) {
-    source_text = ReadFile(isolate, module_specifier.c_str(), false);
-    if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
-      std::string fallback_file_name = module_specifier + ".js";
-      source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
-      if (source_text.IsEmpty()) {
-        fallback_file_name = module_specifier + ".mjs";
-        source_text = ReadFile(isolate, fallback_file_name.c_str());
+
+  bool found_in_bundle = false;
+  if (options.bundle) {
+    auto it = bundle_module_files.find(module_specifier);
+    if (it != bundle_module_files.end()) {
+      source_text = String::NewFromUtf8(isolate, it->second.c_str());
+      found_in_bundle = true;
+    }
+  }
+
+  if (!found_in_bundle) {
+    if (module_specifier.starts_with(kDataURLPrefix)) {
+      source_text = String::NewFromUtf8(
+          isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
+    } else if (IsAbsolutePath(module_specifier)) {
+      source_text = ReadFile(isolate, module_specifier.c_str(), false);
+      if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
+        std::string fallback_file_name = module_specifier + ".js";
+        source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
+        if (source_text.IsEmpty()) {
+          fallback_file_name = module_specifier + ".mjs";
+          source_text = ReadFile(isolate, fallback_file_name.c_str());
+        }
       }
+    } else {
+      // Loading modules is only allowed for local absolute paths.
+      std::ostringstream msg;
+      msg << "d8: Reading module from " << module_specifier
+          << " is not supported.";
+      if (!referrer.IsEmpty()) {
+        std::string referrer_specifier =
+            module_data->GetModuleSpecifier(referrer);
+        msg << "\n    imported by " << referrer_specifier;
+      }
+      ThrowError(isolate, msg.view());
+      return MaybeLocal<Module>();
     }
-  } else {
-    // Loading modules is only allowed for local absolute paths.
-    std::ostringstream msg;
-    msg << "d8: Reading module from " << module_specifier
-        << " is not supported.";
-    if (!referrer.IsEmpty()) {
-      std::string referrer_specifier =
-          module_data->GetModuleSpecifier(referrer);
-      msg << "\n    imported by " << referrer_specifier;
-    }
-    ThrowError(isolate, msg.view());
-    return MaybeLocal<Module>();
   }
 
   if (source_text.IsEmpty()) {
@@ -2769,18 +2782,21 @@ void Shell::TestVerifySourcePositions(
 
   auto callable =
       i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(arg_handle);
-  while (IsJSBoundFunction(*callable)) {
+  while (IsJSBoundFunction(*callable) || IsJSWrappedFunction(*callable)) {
     internal::DisallowGarbageCollection no_gc;
-    auto bound_function = i::Cast<i::JSBoundFunction>(callable);
-    auto bound_target = bound_function->bound_target_function();
-    if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(bound_target)) {
+    auto target =
+        IsJSBoundFunction(*callable)
+            ? i::Cast<i::JSBoundFunction>(callable)->bound_target_function()
+            : i::Cast<i::JSWrappedFunction>(callable)
+                  ->wrapped_target_function();
+    if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(target)) {
       internal::AllowGarbageCollection allow_gc;
-      ThrowError(isolate, "Expected function as bound target.");
+      ThrowError(isolate, "Expected function as target.");
       return;
     }
-    callable = handle(
-        i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(bound_target),
-        i_isolate);
+    callable =
+        handle(i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(target),
+               i_isolate);
   }
 
   i::DirectHandle<i::JSFunction> function = i::Cast<i::JSFunction>(callable);
@@ -4807,22 +4823,6 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   return handle_scope.Escape(context);
 }
 
-void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
-  HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate);
-  Context::Scope context_scope(context);
-
-  i::DirectHandle<i::JSObject> dispatch_counters =
-      reinterpret_cast<i::Isolate*>(isolate)
-          ->interpreter()
-          ->GetDispatchCountersObject();
-  std::ofstream dispatch_counters_stream(
-      i::v8_flags.trace_ignition_dispatches_output_file);
-  dispatch_counters_stream << *String::Utf8Value(
-      isolate, JSON::Stringify(context, Utils::ToLocal(dispatch_counters))
-                   .ToLocalChecked());
-}
-
 namespace {
 int LineFromOffset(Local<debug::Script> script, int offset) {
   debug::Location location = script->GetSourceLocation(offset);
@@ -5591,6 +5591,136 @@ bool ends_with(const char* input, const char* suffix) {
   return false;
 }
 
+bool TryExecuteBundle(Isolate* isolate, const std::string& content,
+                      Local<String> file_name, bool* out_success) {
+  // Find the first // JS_BUNDLE_ comment. It's either
+  // "// JS_BUNDLE_SCRIPT", "// JS_BUNDLE_MODULE:filename.mjs", or "//
+  // JS_BUNDLE_MODULE_ENTRYPOINT". Then find either the end of the file, or the
+  // next // JS_BUNDLE_ comment. Between those locations, we have our file (or
+  // module).
+
+  // We first gather all scripts and modules, and then execute the scripts and
+  // the module entrypoints in order.
+
+  std::string script_marker = "// JS_BUNDLE_SCRIPT";
+  std::string module_marker_prefix = "// JS_BUNDLE_MODULE:";
+  std::string entrypoint_marker_prefix = "// JS_BUNDLE_MODULE_ENTRYPOINT";
+  std::string marker_prefix = "// JS_BUNDLE_";
+
+  size_t pos = 0;
+  // Skip whitespace and comments before the first marker.
+  while (pos < content.length()) {
+    if (isspace(content[pos])) {
+      pos++;
+      continue;
+    }
+    if (pos + 2 <= content.length() && content[pos] == '/') {
+      if (content[pos + 1] == '/') {
+        // Check if it's a marker.
+        if (content.compare(pos, marker_prefix.length(), marker_prefix) == 0) {
+          break;
+        }
+        // Skip single line comment.
+        pos = content.find('\n', pos);
+        if (pos == std::string::npos) return false;
+        pos++;
+        continue;
+      } else if (content[pos + 1] == '*') {
+        // Skip multi-line comment.
+        pos = content.find("*/", pos + 2);
+        if (pos == std::string::npos) return false;
+        pos += 2;
+        continue;
+      }
+    }
+    // Not a bundle if we encounter anything else.
+    return false;
+  }
+
+  if (pos >= content.length()) return false;
+
+  bundle_module_files.clear();
+
+  struct ExecutionItem {
+    enum Type { kScript, kModuleEntrypoint };
+    Type type;
+    std::string content_or_name;
+  };
+  std::vector<ExecutionItem> execution_order;
+  int anon_module_counter = 0;
+
+  while (pos < content.length()) {
+    // We expect a marker at pos.
+    if (content.compare(pos, marker_prefix.length(), marker_prefix) != 0) {
+      break;
+    }
+
+    size_t nl_pos = content.find('\n', pos);
+    std::string header;
+    if (nl_pos == std::string::npos) {
+      header = content.substr(pos);
+      pos = content.length();
+    } else {
+      header = content.substr(pos, nl_pos - pos);
+      if (!header.empty() && header.back() == '\r') header.pop_back();
+      pos = nl_pos + 1;
+    }
+
+    // Find the next marker.
+    size_t next_marker = content.find(marker_prefix, pos);
+    size_t part_end =
+        (next_marker == std::string::npos) ? content.length() : next_marker;
+
+    std::string part_content = content.substr(pos, part_end - pos);
+    pos = part_end;
+
+    if (header == script_marker) {
+      execution_order.push_back({ExecutionItem::kScript, part_content});
+    } else if (header.starts_with(module_marker_prefix)) {
+      std::string m_name = header.substr(module_marker_prefix.length());
+      std::string normalized_name =
+          NormalizeModuleSpecifier(m_name, GetWorkingDirectory());
+      bundle_module_files[normalized_name] = part_content;
+    } else if (header.starts_with(entrypoint_marker_prefix)) {
+      std::string m_name;
+      if (header.length() > entrypoint_marker_prefix.length() &&
+          header[entrypoint_marker_prefix.length()] == ':') {
+        m_name = header.substr(entrypoint_marker_prefix.length() + 1);
+      } else {
+        m_name = "entrypoint_" + std::to_string(anon_module_counter++) + ".mjs";
+      }
+      std::string normalized_name =
+          NormalizeModuleSpecifier(m_name, GetWorkingDirectory());
+      bundle_module_files[normalized_name] = part_content;
+      execution_order.push_back(
+          {ExecutionItem::kModuleEntrypoint, normalized_name});
+    } else {
+      std::cout << "Warning: Unknown bundle marker: " << header << "\n";
+    }
+  }
+
+  // Second pass: Execution
+  for (const auto& item : execution_order) {
+    Shell::set_script_executed();
+    if (item.type == ExecutionItem::kScript) {
+      Local<String> source =
+          String::NewFromUtf8(isolate, item.content_or_name.c_str())
+              .ToLocalChecked();
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kReportExceptions)) {
+        *out_success = false;
+      }
+    } else if (item.type == ExecutionItem::kModuleEntrypoint) {
+      if (!Shell::ExecuteModule(isolate, item.content_or_name.c_str())) {
+        *out_success = false;
+      }
+    }
+  }
+
+  bundle_module_files.clear();
+  return true;  // Bundle handled successfully (even if execution failed)
+}
+
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
 #ifdef V8_FUZZILLI
@@ -5613,14 +5743,26 @@ bool SourceGroup::Execute(Isolate* isolate) {
     }
     buffer[script_size] = 0;
 
-    Local<String> source =
-        String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
-            .ToLocalChecked();
+    std::string content(buffer, script_size);
     delete[] buffer;
-    Shell::set_script_executed();
-    if (!Shell::ExecuteString(isolate, source, file_name,
-                              Shell::kReportExceptions)) {
-      return false;
+
+    bool handled_as_bundle = false;
+    if (Shell::options.bundle) {
+      handled_as_bundle =
+          TryExecuteBundle(isolate, content, file_name, &success);
+    }
+
+    if (!handled_as_bundle) {
+      Local<String> source =
+          String::NewFromUtf8(isolate, content.c_str(), NewStringType::kNormal)
+              .ToLocalChecked();
+      Shell::set_script_executed();
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kReportExceptions)) {
+        return false;
+      }
+    } else if (!success) {
+      return false;  // Bundle execution failed
     }
   }
 #endif  // V8_FUZZILLI
@@ -5681,8 +5823,19 @@ bool SourceGroup::Execute(Isolate* isolate) {
     }
     Shell::set_script_executed();
     Shell::update_script_size(source->Length());
-    if (!Shell::ExecuteString(isolate, source, file_name,
-                              Shell::kReportExceptions)) {
+
+    bool handled_as_bundle = false;
+    if (Shell::options.bundle) {
+      String::Utf8Value utf8(isolate, source);
+      std::string content(*utf8, utf8.length());
+      if (TryExecuteBundle(isolate, content, file_name, &success)) {
+        handled_as_bundle = true;
+        if (!success) break;
+      }
+    }
+
+    if (!handled_as_bundle && !Shell::ExecuteString(isolate, source, file_name,
+                                                    Shell::kReportExceptions)) {
       success = false;
       break;
     }
@@ -5878,7 +6031,13 @@ std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   while (!out_queue_.Dequeue(&result)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
-    if (!is_running()) break;
+    if (!is_running()) {
+      // Do try to read one more message from the queue though, in case a
+      // message was posted between the previous Dequeue and the is_running()
+      // check.
+      out_queue_.Dequeue(&result);
+      break;
+    }
     out_semaphore_.ParkedWait(
         reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
   }
@@ -6241,7 +6400,7 @@ bool FlagMatches(const char* flag, char** arg, bool keep_flag = false) {
 
 template <size_t N>
 bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
-                        char* argv[], int* i) {
+                        char* argv[], int* i, bool keep_flag = false) {
   char* current_arg = argv[*i];
 
   // Compare the flag up to the last character of the flag name (not including
@@ -6250,16 +6409,16 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
     // Match against --flag=value
     if (current_arg[N - 1] == '=') {
       *flag_value = argv[*i] + N;
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       return true;
     }
     // Match against --flag value
     if (current_arg[N - 1] == '\0') {
       CHECK_LT(*i, argc - 1);
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       (*i)++;
       *flag_value = argv[*i];
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       return true;
     }
   }
@@ -6274,6 +6433,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.d8_path = argv[0];
   bool disallow_unsafe_flags = false;
   bool exit_on_flag_contradictions = false;
+  bool flag_processing_mode_explicitly_set = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
     if (FlagMatches("--", &argv[i])) {
@@ -6287,19 +6447,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.include_arguments = false;
     } else if (FlagMatches("--simulate-errors", &argv[i])) {
       options.simulate_errors = true;
-    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true) ||
-               FlagMatches("--no-abort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true) ||
-               FlagMatches("--noabort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = false;
-    } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = true;
-    } else if (FlagMatches("--exit-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = true;
-      exit_on_flag_contradictions = true;
+    } else if (FlagWithArgMatches("--flag-processing-mode", &flag_value, argc,
+                                  argv, &i, /*keep_flag=*/true)) {
+      flag_processing_mode_explicitly_set = true;
+      if (strcmp(flag_value, "exit-on-error") == 0) {
+        check_d8_flag_contradictions = true;
+        exit_on_flag_contradictions = true;
+      } else if (strcmp(flag_value, "ignore-contradictions") == 0) {
+        check_d8_flag_contradictions = false;
+        exit_on_flag_contradictions = false;
+      } else if (strcmp(flag_value, "abort-on-error") == 0) {
+        check_d8_flag_contradictions = true;
+        exit_on_flag_contradictions = false;
+      }
+    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true)) {
+      if (!flag_processing_mode_explicitly_set) {
+        check_d8_flag_contradictions = false;
+      }
     } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
                            /*keep_flag=*/true)) {
       disallow_unsafe_flags = true;
@@ -6330,7 +6494,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--ignore-unhandled-promises", &argv[i])) {
       options.ignore_unhandled_promises = true;
     } else if (FlagMatches("--isolate", &argv[i], /*keep_flag=*/true)) {
-      options.num_isolates++;
+      // Bundles and isolates together are not supported.
+      if (!options.bundle) {
+        options.num_isolates++;
+      }
     } else if (FlagMatches("--throws", &argv[i])) {
       options.expected_to_throw = true;
     } else if (FlagMatches("--no-fail", &argv[i])) {
@@ -6450,6 +6617,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                                   argv, &i)) {
       // Value is expressed in MB.
       options.max_serializer_memory = atoi(flag_value) * i::MB;
+    } else if (FlagMatches("--bundle", &argv[i])) {
+      options.bundle = true;
+      // Bundles and isolates together are not supported.
+      options.num_isolates = 1;
 #ifdef V8_FUZZILLI
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
@@ -6551,7 +6722,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --shell   run an interactive JavaScript shell\n"
       "  --module  execute a file as a JavaScript module\n";
   using HelpOptions = i::FlagList::HelpOptions;
-  i::v8_flags.abort_on_contradictory_flags = true;
+  i::v8_flags.flag_processing_mode = "abort-on-error";
   static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
   i::FlagList::SetFlagsFromString(kStandaloneD8ShellFlag,
                                   strlen(kStandaloneD8ShellFlag));
@@ -7481,11 +7652,12 @@ int Shell::Main(int argc, char* argv[]) {
 
       if (i::v8_flags.stress_runs > 0) {
         options.stress_runs = i::v8_flags.stress_runs;
-        for (int i = 0; i < options.stress_runs && result == 0; i++) {
+        for (int i = 0; i < options.stress_runs; i++) {
           printf("============ Run %d/%d ============\n", i + 1,
                  options.stress_runs.get());
           bool last_run = i == options.stress_runs - 1;
-          result = RunMain(isolate, last_run);
+          int this_result = RunMain(isolate, last_run);
+          if (this_result != 0) result = this_result;
         }
       } else if (options.code_cache_options != ShellOptions::kNoProduceCache) {
         // Park the main thread here in case the new isolate wants to perform
@@ -7541,10 +7713,6 @@ int Shell::Main(int argc, char* argv[]) {
       // executed, but never on --test
       if (use_interactive_shell()) {
         RunShell(isolate);
-      }
-
-      if (i::v8_flags.trace_ignition_dispatches_output_file != nullptr) {
-        WriteIgnitionDispatchCountersFile(isolate);
       }
 
       if (options.cpu_profiler) {

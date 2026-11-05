@@ -259,7 +259,7 @@ static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
 
 bool ssl_check_tls13_credential_ignoring_issuer(
     SSL_HANDSHAKE *hs, Span<const uint8_t> allowed_cert_types,
-    const SSL_CREDENTIAL *cred, uint16_t *out_sigalg) {
+    const SSLCredential *cred, uint16_t *out_sigalg) {
   assert(!allowed_cert_types.empty());
   const auto is_cert_type_allowed = [&](uint8_t cert_type) {
     return std::find(allowed_cert_types.begin(), allowed_cert_types.end(),
@@ -296,7 +296,7 @@ bool ssl_check_tls13_credential_ignoring_issuer(
 
 static bool check_signature_credential(SSL_HANDSHAKE *hs,
                                        Span<const uint8_t> allowed_cert_types,
-                                       const SSL_CREDENTIAL *cred,
+                                       const SSLCredential *cred,
                                        uint16_t *out_sigalg) {
   return ssl_check_tls13_credential_ignoring_issuer(hs, allowed_cert_types,
                                                     cred, out_sigalg) &&
@@ -306,7 +306,7 @@ static bool check_signature_credential(SSL_HANDSHAKE *hs,
 }
 
 static bool check_pake_credential(SSL_HANDSHAKE *hs,
-                                  const SSL_CREDENTIAL *cred) {
+                                  const SSLCredential *cred) {
   assert(cred->type == SSLCredentialType::kSPAKE2PlusV1Server);
   // Look for a client PAKE share that matches |cred|.
   if (hs->pake_share == nullptr ||
@@ -320,7 +320,7 @@ static bool check_pake_credential(SSL_HANDSHAKE *hs,
   return true;
 }
 
-static bool check_psk_credential(SSL_HANDSHAKE *hs, const SSL_CREDENTIAL *cred,
+static bool check_psk_credential(SSL_HANDSHAKE *hs, const SSLCredential *cred,
                                  const std::optional<SSLOfferedPSKs> &psks) {
   assert(cred->type == SSLCredentialType::kPreSharedKey);
   SSL *const ssl = hs->ssl;
@@ -397,7 +397,7 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
   }
 
   // Select the credential to use.
-  Array<SSL_CREDENTIAL *> creds;
+  Array<SSLCredential *> creds;
   if (!ssl_get_full_credential_list(hs, &creds)) {
     return ssl_hs_error;
   }
@@ -412,7 +412,7 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
     return ssl_hs_error;
   }
-  for (SSL_CREDENTIAL *cred : creds) {
+  for (SSLCredential *cred : creds) {
     ERR_clear_error();
     if (cred->type == SSLCredentialType::kSPAKE2PlusV1Server) {
       if (check_pake_credential(hs, cred)) {
@@ -459,8 +459,6 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_HANDSHAKE_FAILURE);
     return ssl_hs_error;
   }
-  ssl->s3->server_cert_type =
-      ssl_credential_type_to_cert_type(hs->credential->type);
 
   // HTTP/2 negotiation depends on the cipher suite, so ALPN negotiation was
   // deferred. Complete it now.
@@ -657,10 +655,10 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
   if (using_certificate(hs)) {
     // Determine whether to request a client certificate.
     hs->cert_request = !!(hs->config->verify_mode & SSL_VERIFY_PEER);
-  }
-  if (!ssl_negotiate_client_certificate_type(hs, &alert, &client_hello)) {
-    ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
-    return ssl_hs_error;
+    if (!ssl_negotiate_client_certificate_type(hs, &alert, &client_hello)) {
+      ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
+      return ssl_hs_error;
+    }
   }
 
   // Record connection properties in the new session.
@@ -1373,7 +1371,7 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
 
 static enum ssl_hs_wait_t do_read_client_certificate_verify(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
-  if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) == 0) {
+  if (!ssl_session_has_peer_cred(hs->new_session.get())) {
     // Skip this state.
     hs->tls13_state = state13_read_channel_id;
     return ssl_hs_ok;

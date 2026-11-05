@@ -116,6 +116,12 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
       {"combobox window.background.popup ", "menu(gtk-combobox-popup-menu) ",
        GtkCssMenuItem(), ":hover cellview"}))};
   mixer[ui::kColorFrameActive] = {frame_color};
+  mixer[ui::kColorFrameCaptionForegroundActive] = {
+      GetFgColor(header_selector + " label.title")};
+  // TODO: The :backdrop foreground color query does not work on GTK4. Replace
+  // this approximation with the actual query once a solution is found.
+  mixer[ui::kColorFrameCaptionForegroundInactive] = ui::AlphaBlend(
+      ui::kColorFrameCaptionForegroundActive, ui::kColorFrameInactive, 0x80);
   mixer[ui::kColorFrameInactive] = {frame_color_inactive};
   mixer[ui::kColorFocusableBorderUnfocused] = {entry_border};
   mixer[ui::kColorHelpIconActive] = {GetFgColor("button.image-button:hover")};

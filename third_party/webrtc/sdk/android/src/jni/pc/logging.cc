@@ -35,7 +35,10 @@ JNI_FUNCTION_DECLARATION(void,
                          Logging_nativeEnableLogThreads,
                          JNIEnv* jni,
                          jclass) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   LogMessage::LogThreads(true);
+#pragma clang diagnostic pop
 }
 
 JNI_FUNCTION_DECLARATION(void,

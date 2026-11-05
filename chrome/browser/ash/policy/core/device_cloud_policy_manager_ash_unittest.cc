@@ -36,10 +36,10 @@
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_status.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/fake_start_crd_session_job_delegate.h"
-#include "chrome/browser/ash/policy/uploading/heartbeat_scheduler.h"
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/policy/messaging_layer/public/report_client_test_util.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -229,15 +229,20 @@ class DeviceCloudPolicyManagerAshTest
     manager_->Init(&schema_registry_);
     manager_->SetSigninProfileSchemaRegistry(&schema_registry_);
 
-    user_manager_ = std::make_unique<user_manager::FakeUserManager>(
-        TestingBrowserProcess::GetGlobal()->local_state());
-    manager_->OnUserManagerCreated(user_manager_.get());
-    user_session_manager_ = std::make_unique<ash::UserSessionManager>();
-
     // SharedURLLoaderFactory and LocalState singletons have to be set since
     // they are accessed by EnrollmentHandler and StartupUtils.
     TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
         test_url_loader_factory_.GetSafeWeakWrapper());
+
+    user_manager_ = std::make_unique<user_manager::FakeUserManager>(
+        TestingBrowserProcess::GetGlobal()->local_state());
+    manager_->OnUserManagerCreated(user_manager_.get());
+    user_session_manager_ = std::make_unique<ash::UserSessionManager>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()
+            ->GetFeatures()
+            ->application_locale_storage(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory());
 
     // SystemSaltGetter is used in DeviceOAuth2TokenService.
     ash::SystemSaltGetter::Initialize();
@@ -275,6 +280,8 @@ class DeviceCloudPolicyManagerAshTest
 
     manager_.reset();
     install_attributes_.reset();
+
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
 
     DeviceOAuth2TokenServiceFactory::Shutdown();
     ash::SystemSaltGetter::Shutdown();
@@ -377,6 +384,7 @@ class DeviceCloudPolicyManagerAshTest
 
   std::unique_ptr<reporting::ReportingClient::TestEnvironment>
       reporting_test_enviroment_;
+  network::TestURLLoaderFactory test_url_loader_factory_;
 
   std::unique_ptr<ash::InstallAttributes> install_attributes_;
 
@@ -399,7 +407,6 @@ class DeviceCloudPolicyManagerAshTest
       external_data_manager_;
   std::unique_ptr<TestingDeviceCloudPolicyManagerAsh> manager_;
   std::unique_ptr<DeviceCloudPolicyInitializer> initializer_;
-  network::TestURLLoaderFactory test_url_loader_factory_;
 
  private:
   // This property is required to instantiate the session manager, a singleton
@@ -1004,23 +1011,6 @@ class DeviceCloudPolicyManagerAshEnrollmentTest
 TEST_P(DeviceCloudPolicyManagerAshEnrollmentTest, Success) {
   RunTest();
   ExpectSuccessfulEnrollment();
-}
-
-TEST_P(DeviceCloudPolicyManagerAshEnrollmentTest,
-       EnabledKioskHeartbeatsViaERP) {
-  RunTest();
-  EXPECT_FALSE(manager_->GetHeartbeatSchedulerForTesting());
-}
-
-TEST_P(DeviceCloudPolicyManagerAshEnrollmentTest,
-       DisabledKioskHeartbeatsViaERP) {
-    base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      chromeos::features::kKioskHeartbeatsViaERP);
-
-  RunTest();
-  EXPECT_EQ(manager_->GetHeartbeatSchedulerForTesting()->last_heartbeat(),
-            base::Time());
 }
 
 TEST_P(DeviceCloudPolicyManagerAshEnrollmentTest, Reenrollment) {

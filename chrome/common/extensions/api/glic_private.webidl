@@ -4,16 +4,16 @@
 
 enum ProfileReadyState {
   // Unknown failure, not ready.
-  "ERROR",
+  "error",
   // Would be ready if the user updated their profile sign in state.
-  "SIGN_IN_REQUIRED",
+  "sign-in-required",
   // Ready to use Gemini
-  "READY",
+  "ready",
   // Not eligible to use Gemini in Chrome due to admin controls.
-  "DISABLED_BY_ADMIN",
+  "disabled-by-admin",
   // Not eligible to use Gemini in Chrome based on account capability
   // values.
-  "INELIGIBLE"
+  "ineligible"
 };
 
 dictionary ProfileState {
@@ -30,13 +30,48 @@ dictionary ProfileState {
   required boolean actuationAllowed;
 };
 
+enum InvocationSource {
+  "unknown",
+  "universal-cart"
+};
+
+dictionary InvokeDetails {
+  // The prompt ID to lookup from Chrome.
+  required DOMString promptId;
+
+  // The source of the invocation.
+  required InvocationSource invocationSource;
+
+  // Whether should invoke the task in a new tab. Default to false.
+  boolean inNewTab;
+};
+
+enum ErrorCode {
+  "local-invalid-invocation-source",
+  "local-missing-prompt-id",
+  "server-missing-prompt",
+  "http-error",
+  "parse-error",
+  "local-no-active-tab",
+  "local-glic-not-enabled",
+  "local-glic-not-ready",
+  "local-glic-actuation-not-allowed",
+  "local-glic-not-enabled-and-consented"
+};
+
+
+
 // Private API for Gemini (Glic) synchronization.
 [implemented_in="chrome/browser/extensions/api/glic_private/glic_private_api.h"]
 interface GlicPrivate {
   // Retrieves the current Glic state for the profile.
   // |Returns|: Promise that resolves to the current Glic state.
   // |PromiseValue|: state: The current Glic state.
-  [requiredCallback] static Promise<ProfileState> getState();
+  static Promise<ProfileState> getState();
+
+  // Invokes glic with details.
+  // |Returns| : Resolves with tracking state on success.
+  static Promise<undefined> invoke(InvokeDetails details);
 };
 
 partial interface Browser {

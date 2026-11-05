@@ -197,15 +197,6 @@ declare_args() {
   # default setting code below.
   v8_enable_concurrent_marking = true
 
-  # Sets -DV8_IGNITION_DISPATCH_COUNTING.
-  # Enables counting frequencies of bytecode dispatches. After building in this
-  # configuration, subsequent runs of d8 can output frequencies for each pair
-  # of (current, next) bytecode instructions executed if you specify
-  # --trace-ignition-dispatches-output-file, or can generate a JS object with
-  # those frequencies if you run with --expose-ignition-statistics and call the
-  # extension function getIgnitionDispatchCounters().
-  v8_enable_ignition_dispatch_counting = false
-
   # Enable frame elision for builtins.
   v8_enable_builtins_frame_elision = true
 
@@ -1387,9 +1378,6 @@ config("features") {
   if (v8_enable_atomic_object_field_writes) {
     defines += [ "V8_ATOMIC_OBJECT_FIELD_WRITES" ]
   }
-  if (v8_enable_ignition_dispatch_counting) {
-    defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
-  }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
@@ -2323,6 +2311,9 @@ if (v8_enable_webassembly) {
     "src/debug/debug-wasm-objects.tq",
     "src/wasm/wasm-objects.tq",
   ]
+  if (v8_enable_drumbrake) {
+    torque_files += [ "src/builtins/wasm-interpreter-wrappers.tq" ]
+  }
 }
 
 if (v8_enable_experimental_tq_to_tsa) {
@@ -3865,7 +3856,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/simplified-operator-reducer.h",
     "src/compiler/simplified-operator.h",
     "src/compiler/state-values-utils.h",
-    "src/compiler/string-builder-optimizer.h",
     "src/compiler/turbofan-graph-visualizer.h",
     "src/compiler/turbofan-graph.h",
     "src/compiler/turbofan-typer.h",
@@ -4047,7 +4037,6 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/cputracemark-extension.h",
     "src/extensions/externalize-string-extension.h",
     "src/extensions/gc-extension.h",
-    "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
     "src/flags/save-flags.h",
@@ -4857,7 +4846,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/module-decoder.h",
       "src/wasm/module-instantiate.h",
       "src/wasm/names-provider.h",
-      "src/wasm/object-access.h",
       "src/wasm/pgo.h",
       "src/wasm/signature-hashing.h",
       "src/wasm/simd-shuffle.h",
@@ -5479,7 +5467,6 @@ v8_compiler_sources = [
   "src/compiler/simplified-operator-reducer.cc",
   "src/compiler/simplified-operator.cc",
   "src/compiler/state-values-utils.cc",
-  "src/compiler/string-builder-optimizer.cc",
   "src/compiler/turbofan-enabled.cc",
   "src/compiler/turbofan-graph-visualizer.cc",
   "src/compiler/turbofan-graph.cc",
@@ -5960,7 +5947,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/extensions/cputracemark-extension.cc",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/gc-extension.cc",
-    "src/extensions/ignition-statistics-extension.cc",
     "src/extensions/statistics-extension.cc",
     "src/extensions/trigger-failure-extension.cc",
     "src/flags/flags.cc",

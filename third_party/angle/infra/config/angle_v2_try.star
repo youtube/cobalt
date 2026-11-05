@@ -6,6 +6,7 @@
 
 load("@chromium-luci//builder_config.star", "builder_config")
 load("@chromium-luci//builders.star", "os")
+load("@chromium-luci//gn_args.star", "gn_args")
 load("@chromium-luci//try.star", "try_")
 load("//constants.star", "default_experiments", "siso")
 
@@ -40,7 +41,7 @@ try_.defaults.set(
 
 def apply_cq_builder_defaults(kwargs):
     kwargs.setdefault("max_concurrent_builds", 4)
-    kwargs.setdefault("tryjob", try_.job())
+    kwargs.setdefault("cq_settings", try_.cq_settings())
     return kwargs
 
 def apply_linux_cq_builder_defaults(kwargs):
@@ -174,8 +175,8 @@ angle_win_functional_cq_tester(
 
 def apply_trace_tester_defaults(kwargs):
     kwargs.setdefault(
-        "tryjob",
-        try_.job(
+        "cq_settings",
+        try_.cq_settings(
             # Trace tests are only run on CQ if files in the capture folders change.
             location_filters = [
                 cq.location_filter(path_regexp = "DEPS"),
@@ -291,6 +292,33 @@ angle_linux_manual_builder(
         "ci/angle-android-arm64-samsung-s24-rel",
     ],
     gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+# This is effectively a copy of angle-cq-linux-x64-rel, but manual-only and
+# with the angle_ir GN arg config set. Mirroring is done in this way instead
+# of having CI builders because we do not have a need for the CI builders and
+# this keeps the tests in sync between the IR and non-IR builders.
+angle_linux_manual_builder(
+    name = "angle-try-linux-x64-ir-rel",
+    description_html = ("Tests release ANGLE on Linux/x64 on multiple hardware configs using " +
+                        "ANGLE's new intermediate representation for shaders. Manual only."),
+    mirrors = [
+        "ci/angle-linux-x64-builder-rel",
+        "ci/angle-linux-x64-intel-uhd630-rel",
+        "ci/angle-linux-x64-nvidia-gtx1660-rel",
+        "ci/angle-linux-x64-sws-rel",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "angle_ir",
+            "capture",
+            "component",
+            "linux_clang",
+            "opencl",
+            "release_with_dchecks",
+            "x64",
+        ],
+    ),
 )
 
 angle_linux_manual_builder(

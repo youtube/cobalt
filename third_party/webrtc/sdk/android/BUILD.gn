@@ -183,6 +183,7 @@ if (is_android) {
       ":generated_rtcerror_jni_java",
       "../../rtc_base:base_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
 

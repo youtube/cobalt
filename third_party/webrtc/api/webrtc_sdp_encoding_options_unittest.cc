@@ -59,6 +59,48 @@ TEST(WebRtcSdpEncodingOptionsTest,
 }
 
 TEST(WebRtcSdpEncodingOptionsTest,
+     SdpSerializeUsesWildcardForCommonFeedbackParams) {
+  const std::string sdp_string =
+      "v=0\r\n"
+      "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=video 3457 RTP/SAVPF 101 102\r\n"
+      "a=rtpmap:101 VP8/90000\r\n"
+      "a=rtcp-fb:101 nack\r\n"
+      "a=rtcp-fb:101 nack pli\r\n"
+      "a=rtpmap:102 VP9/90000\r\n"
+      "a=rtcp-fb:102 nack\r\n"
+      "a=rtcp-fb:102 nack pli\r\n"
+      "a=rtcp-fb:102 transport-cc\r\n";
+
+  std::unique_ptr<SessionDescriptionInterface> jdesc =
+      SdpDeserialize(SdpType::kOffer, sdp_string);
+  ASSERT_TRUE(jdesc);
+
+  // Create a new description with encoding options.
+  std::unique_ptr<SessionDescriptionInterface> jdesc_with_options =
+      SessionDescriptionInterface::Create(
+          jdesc->GetType(), jdesc->description()->Clone(), jdesc->id(),
+          jdesc->version(), {}, {.use_wildcard = true});
+
+  std::string serialized = SdpSerialize(*jdesc_with_options);
+
+  // Expect wildcarded common feedback params.
+  EXPECT_THAT(serialized, HasSubstr("a=rtcp-fb:* nack"));
+  EXPECT_THAT(serialized, HasSubstr("a=rtcp-fb:* nack pli"));
+
+  // Expect non-common param to remain per-payload type.
+  EXPECT_THAT(serialized, HasSubstr("a=rtcp-fb:102 transport-cc"));
+
+  // And common ones NOT to be per-payload type.
+  EXPECT_THAT(serialized, Not(HasSubstr("a=rtcp-fb:101 nack")));
+  EXPECT_THAT(serialized, Not(HasSubstr("a=rtcp-fb:102 nack")));
+  EXPECT_THAT(serialized, Not(HasSubstr("a=rtcp-fb:101 nack pli")));
+  EXPECT_THAT(serialized, Not(HasSubstr("a=rtcp-fb:102 nack pli")));
+}
+
+TEST(WebRtcSdpEncodingOptionsTest,
      SdpSerializeDoesNotUseWildcardWhenEncodingOptionDisabled) {
   const std::string sdp_string =
       "v=0\r\n"

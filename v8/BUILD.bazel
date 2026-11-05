@@ -1306,6 +1306,9 @@ filegroup(
             "src/debug/debug-wasm-objects.tq",
             "src/wasm/wasm-objects.tq",
         ],
+        ":is_v8_enable_drumbrake": [
+            "src/wasm/wasm-interpreter-objects.tq"
+        ],
         "//conditions:default": [],
     }),
 )
@@ -1730,8 +1733,6 @@ filegroup(
         "src/extensions/externalize-string-extension.h",
         "src/extensions/gc-extension.cc",
         "src/extensions/gc-extension.h",
-        "src/extensions/ignition-statistics-extension.cc",
-        "src/extensions/ignition-statistics-extension.h",
         "src/extensions/statistics-extension.cc",
         "src/extensions/statistics-extension.h",
         "src/extensions/trigger-failure-extension.cc",
@@ -3150,7 +3151,6 @@ filegroup(
             "src/wasm/module-instantiate.h",
             "src/wasm/names-provider.cc",
             "src/wasm/names-provider.h",
-            "src/wasm/object-access.h",
             "src/wasm/pgo.cc",
             "src/wasm/pgo.h",
             "src/wasm/signature-hashing.h",
@@ -3526,8 +3526,6 @@ filegroup(
         "src/compiler/simplified-operator-reducer.h",
         "src/compiler/state-values-utils.cc",
         "src/compiler/state-values-utils.h",
-        "src/compiler/string-builder-optimizer.cc",
-        "src/compiler/string-builder-optimizer.h",
         "src/compiler/turbofan.h",
         "src/compiler/turbofan-enabled.cc",
         "src/compiler/turbofan-graph.cc",

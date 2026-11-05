@@ -29,6 +29,7 @@ extern class MyObject extends Struct {
   // KEEP these fields here! Torque needs them for layout verification.
   flags: SmiTagged<MyObjectFlags>;
   value: JSAny|TheHole;
+  smi_value: Smi;
   weak_ref: Weak<Map>|Undefined;
 }
 ```
@@ -52,6 +53,39 @@ Define the explicit memory layout in the C++ header.
    * *Note:* You can omit `PtrComprCageBase` getter overloads (e.g. `value(cage_base)`) as `TaggedMember` handles decompression natively.
 6. **Diagnostic Declarations:** Add `DECL_PRINTER(MyObject)` and `DECL_VERIFIER(MyObject)`.
 7. **Size Constants:** If you need size constants (like `kAlignedSize`), define them as `inline constexpr int` in the header, outside the `V8_OBJECT` block to avoid duplicate symbol errors during linking.
+8. **Variable-Length Tail:** For objects with a variable-length suffix (FixedArray-style data), declare the tail as `FLEXIBLE_ARRAY_MEMBER(ElementT, name)` after the fixed members. Per-index access is then natural via the generated `name()` accessor combined with TaggedMember's atomic methods, avoiding any need to reach for the static `TaggedField<>` API. For tagged elements use `FLEXIBLE_ARRAY_MEMBER(TaggedMember<JSAny>, objects)`; for raw embedder slots use `FLEXIBLE_ARRAY_MEMBER(Address, slots)`. Example accessors:
+   ```cpp
+   Tagged<JSAny> MyArray::get(int index) const {
+     return objects()[index].Relaxed_Load();
+   }
+   void MyArray::set(int index, Tagged<JSAny> value, WriteBarrierMode mode) {
+     objects()[index].Relaxed_Store(this, value, mode);
+   }
+   Tagged<JSAny> MyArray::Swap(int index, Tagged<JSAny> value, SeqCstAccessTag) {
+     return objects()[index].SeqCst_Swap(this, value);
+   }
+   ```
+   `SizeFor(int length)` and `OffsetOfElementAt(int index)` should be **declared inside the class but defined out of line** so they can use `OFFSET_OF_DATA_START(MyObject)` (which references the FAM and is therefore not visible mid-class-body):
+   ```cpp
+   V8_OBJECT class MyObject : public HeapObjectLayout {
+     // ...
+     static constexpr int SizeFor(int length);
+     // ...
+     FLEXIBLE_ARRAY_MEMBER(TaggedMember<JSAny>, objects);
+   } V8_OBJECT_END;
+
+   constexpr int MyObject::SizeFor(int length) {
+     return OFFSET_OF_DATA_START(MyObject) + length * kTaggedSize;
+   }
+   ```
+   The `BodyDescriptor` typedef can also use `OFFSET_OF_DATA_START`:
+   ```cpp
+   template <>
+   struct ObjectTraits<MyObject> {
+     using BodyDescriptor =
+         FlexibleBodyDescriptor<OFFSET_OF_DATA_START(MyObject)>;
+   };
+   ```
 
 ```cpp
 // Example: src/objects/my-object.h
@@ -65,11 +99,14 @@ namespace v8::internal {
 V8_OBJECT class MyObject : public StructLayout {
  public:
   // Accessors
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
 
   inline Tagged<UnionOf<JSAny, Hole>> value() const;
   inline void set_value(Tagged<UnionOf<JSAny, Hole>> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int smi_value() const;
+  inline void set_smi_value(int value);
 
   inline Tagged<UnionOf<Weak<Map>, Undefined>> weak_ref() const;
   inline void set_weak_ref(Tagged<UnionOf<Weak<Map>, Undefined>> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -169,6 +206,70 @@ void MyObject::set_my_atomic_field(Tagged<Object> value, ReleaseStoreTag,
 }
 ```
 
+### Primitive Byte / Word Atomic Fields
+
+Legacy classes often used `RELAXED_READ_BYTE_FIELD(obj, kFooOffset)` /
+`RELAXED_WRITE_UINT16_FIELD(...)` / `ACQUIRE_READ_UINT32_FIELD(...)` style
+macros to access primitive `uint8_t` / `uint16_t` / `uint32_t` fields
+atomically. These macros expand to `FIELD_ADDR(obj, offset)` which does
+not exist on `HeapObjectLayout` subclasses.
+
+**Do not add `RELAXED_READ_BYTE(&obj->field_)` style "field-pointer"
+macros as a workaround.** Instead, declare the field as a `std::atomic`
+member of the appropriate width and use the standard `.load()` /
+`.store()` accessors with `std::memory_order_*`:
+
+```cpp
+// In the V8_OBJECT body:
+std::atomic<uint8_t> visitor_id_;
+std::atomic<uint16_t> instance_type_;
+std::atomic<uint32_t> bit_field3_;
+
+// In -inl.h:
+VisitorId MyObject::visitor_id() const {
+  return static_cast<VisitorId>(
+      visitor_id_.load(std::memory_order_relaxed));
+}
+void MyObject::set_visitor_id(VisitorId id) {
+  visitor_id_.store(static_cast<uint8_t>(id), std::memory_order_relaxed);
+}
+
+uint32_t MyObject::release_acquire_bit_field3() const {
+  return bit_field3_.load(std::memory_order_acquire);
+}
+void MyObject::set_release_acquire_bit_field3(uint32_t value) {
+  bit_field3_.store(value, std::memory_order_release);
+}
+```
+
+`std::atomic<uintN_t>` for N in {8, 16, 32, 64} is lock-free and has the
+same size and alignment as the underlying integer type, so the object
+layout is unchanged. Fields accessed only non-atomically can stay plain
+integers.
+
+### Dropping `PtrComprCageBase` Getter Overloads
+
+`DECL_GETTER(FooName, Type)` expands to *two* declarations: a no-arg
+version and one taking a `PtrComprCageBase cage_base`. Under
+`HeapObjectLayout`, the cage base can always be derived from `this`, so
+the cage-arg overload is redundant. **Drop the with-cage overload** when
+porting: replace `DECL_GETTER(GetFoo, Tagged<X>)` with
+`inline Tagged<X> GetFoo() const;` and inline only the no-arg variant in
+`-inl.h`. Update callers that were passing `cage_base` to use the
+no-arg form. Example:
+
+```cpp
+// Before (in .h):
+DECL_GETTER(GetBackPointer, Tagged<HeapObject>)
+
+// After (in .h):
+inline Tagged<HeapObject> GetBackPointer() const;
+
+// Caller update (js-objects.cc etc.):
+- if (new_map->GetBackPointer(isolate) == *old_map) ...
++ if (new_map->GetBackPointer() == *old_map) ...
+```
+
 ### Missing Functionality in `FooMember` Types
 
 As you migrate classes, you will replace static `FooField` operations (e.g., `TaggedField`, `TrustedPointerField`) with instance-based `FooMember` wrappers (e.g., `TaggedMember`, `TrustedPointerMember`).
@@ -235,7 +336,8 @@ Before building with `@cppObjectLayoutDefinition`, look in your build output dir
 
 Update references to sizes and offsets throughout the codebase (e.g., in `code-stub-assembler.cc` or builtins).
 
-*   **Size:** Use `sizeof(MyObject)` instead of `MyObject::kSize`.
+*   **Size (fixed-size objects):** Use `sizeof(MyObject)` instead of `MyObject::kSize`.
+*   **Size (variable-size objects with a `FLEXIBLE_ARRAY_MEMBER`):** Use `OFFSET_OF_DATA_START(MyObject)` instead of `MyObject::kHeaderSize`. The values are equivalent, but `OFFSET_OF_DATA_START` makes the intent explicit and statically asserts that the class has a flexible array member.
 *   **Offsets:** Use `offsetof(MyObject, field_name_)` instead of `MyObject::kFieldNameOffset`. Because the fields are public, `offsetof` will work seamlessly anywhere.
 
 ### Handling Field Addresses in Internal APIs
@@ -307,6 +409,15 @@ To solve this, V8 offers the `ObjectTraits<T>` pattern. The rule is as follows:
 1. **Build:** Run `tools/dev/gm.py`.
 2. **Torque Asserts:** If compilation fails in `TorqueGeneratedMyObjectAsserts`, your C++ layout does not match the Torque definition. Fix the ordering or types in your C++ `V8_OBJECT`.
 3. **Tests:** Run all test suites (`tools/run-tests.py ... cctest unittests mjsunit`) to confirm the write barriers and offset calculations are functioning perfectly at runtime.
+
+### Fixing `VisitorId` and `InstanceType` Desyncs
+
+When porting a class to `@cppObjectLayoutDefinition`, Torque might stop automatically generating its `VisitorId` in `TORQUE_POINTER_VISITOR_ID_LIST`, especially if you implement a manual C++ `BodyDescriptor`. This leads to runtime heap corruption or crashes in `HeapVisitor` (e.g., size mismatches like `68 vs 1048620` because the `VisitorId` enum values shifted and your object is being visited as a `FeedbackVector`).
+
+To fix this, you must manually register the visitor:
+1.  **`src/objects/map.h`**: Add `VISITOR_ID_ENUM_DECL(MyObject)` to the end of the `VisitorId` enum definition, right before `kVisitorIdCount`.
+2.  **`src/heap/heap-visitor.h`**: Add `V(MyObject)` to the appropriate visitor list macro (e.g., `POINTER_VISITOR_ID_LIST` or `TRUSTED_VISITOR_ID_LIST`).
+*Note: Do NOT remove the class from C++ type lists like `HEAP_OBJECT_ORDINARY_TYPE_LIST` unless you are absolutely sure, as Torque relies on the generated `InstanceType` enums matching the C++ ones.*
 
 ### Trusted Pointer and Code Pointer Accessors
 

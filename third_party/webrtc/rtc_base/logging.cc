@@ -11,7 +11,6 @@
 #include "rtc_base/logging.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cinttypes>
 #include <cstdarg>
 #include <cstdint>
@@ -22,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/no_destructor.h"
 #include "absl/strings/string_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/timestamp.h"
@@ -82,12 +82,49 @@ Mutex& GetLoggingLock() {
   return mutex;
 }
 
+// Internal helper to manage config state.
+// NOTE: The return value is non-const only while transitioning away from and
+// deprecating legacy global methods that allow modifying the logging config
+// after initialization. Once those methods are removed, this should return a
+// const reference again to ensure lockless read-only access.
+LoggingConfig& GetOrInitConfig(LoggingConfig* init_config,
+                               bool& config_applied) {
+  static absl::NoDestructor<LoggingConfig> config([&]() {
+    config_applied = true;
+    if (init_config != nullptr) {
+      return std::move(*init_config);
+    }
+    return LoggingConfig();  // Default configuration
+  }());
+  return *config;
+}
+
 }  // namespace
+
+LoggingConfig::LoggingConfig() = default;
+LoggingConfig::LoggingConfig(LoggingConfig&&) = default;
+LoggingConfig& LoggingConfig::operator=(LoggingConfig&&) = default;
+LoggingConfig::~LoggingConfig() = default;
+
+bool InitializeLogging(LoggingConfig config) {
+  bool config_applied = false;
+  GetOrInitConfig(&config, config_applied);
+  if (config_applied) {
+    MutexLock lock(&GetLoggingLock());
+    LogMessage::UpdateMinLogSeverity();
+  }
+  return config_applied;
+}
+
+const LoggingConfig& GetLoggingConfig() {
+  bool dummy;
+  return GetOrInitConfig(nullptr, dummy);
+}
 
 LogLineRef::LogLineRef() = default;
 
 std::string LogLineRef::DefaultLogLine() const {
-  StringBuilder log_output(LogMessage::LogPrefix());
+  StringBuilder log_output(GetLoggingConfig().log_prefix());
   if (timestamp_ != Timestamp::MinusInfinity()) {
     // TODO(kwiberg): Switch to absl::StrFormat, if binary size is ok.
     char timestamp[50];  // Maximum string length of an int64_t is 20.
@@ -134,12 +171,9 @@ bool LogMessage::log_to_stderr_ = true;
 // cleanup by setting to null, or let it leak (safe at program exit).
 constinit LogSink* LogMessage::streams_ RTC_GUARDED_BY(GetLoggingLock()) =
     nullptr;
-constinit std::atomic<bool> LogMessage::streams_empty_ = {true};
 
 // Boolean options default to false.
-constinit bool LogMessage::log_thread_ = false;
 constinit bool LogMessage::log_timestamp_ = false;
-constinit absl::string_view LogMessage::log_prefix_ = "";
 constinit bool LogMessage::log_queue_name_ = false;
 
 LogMessage::LogMessage(const char* file, int line, LoggingSeverity sev)
@@ -151,6 +185,7 @@ LogMessage::LogMessage(const char* file,
                        LogErrorContext err_ctx,
                        int err) {
   log_line_.set_severity(sev);
+  const LoggingConfig& config = GetLoggingConfig();
   if (log_timestamp_) {
     int64_t log_start_time = LogStartTime();
     // Use SystemTimeMillis so that even if tests use fake clocks, the timestamp
@@ -162,7 +197,7 @@ LogMessage::LogMessage(const char* file,
     log_line_.set_timestamp(Timestamp::Millis(time));
   }
 
-  if (log_thread_) {
+  if (config.log_thread()) {
     log_line_.set_thread_id(CurrentThreadId());
   }
 
@@ -227,8 +262,16 @@ LogMessage::~LogMessage() {
 
   log_line_.set_message(print_stream_.Release());
 
-  if (log_line_.severity() >= g_dbg_sev) {
+  const LoggingConfig& config = GetLoggingConfig();
+
+  if (log_line_.severity() >= config.debug_severity()) {
     OutputToDebug(log_line_);
+  }
+
+  for (const auto& sink : config.sinks()) {
+    if (log_line_.severity() >= sink->min_severity_) {
+      sink->OnLogMessage(log_line_);
+    }
   }
 
   MutexLock lock(&GetLoggingLock());
@@ -266,16 +309,12 @@ uint32_t LogMessage::WallClockStartTime() {
   return g_start_wallclock;
 }
 
-absl::string_view LogMessage::LogPrefix() {
-  return log_prefix_;
-}
-
 bool LogMessage::LogThreads(bool enabled) {
-  return std::exchange(log_thread_, enabled);
-}
-
-void LogMessage::SetLogPrefix(absl::string_view prefix) {
-  log_prefix_ = prefix;
+  bool dummy;
+  LoggingConfig& config = GetOrInitConfig(nullptr, dummy);
+  bool prev = config.log_thread();
+  config.set_log_thread(enabled);
+  return prev;
 }
 
 bool LogMessage::SetLogQueueNames(bool enabled) {
@@ -312,7 +351,6 @@ void LogMessage::AddLogToStream(LogSink* stream, LoggingSeverity min_sev) {
   stream->min_severity_ = min_sev;
   stream->next_ = streams_;
   streams_ = stream;
-  streams_empty_.store(false, std::memory_order_relaxed);
   UpdateMinLogSeverity();
 }
 
@@ -325,7 +363,6 @@ void LogMessage::RemoveLogToStream(LogSink* stream) {
       break;
     }
   }
-  streams_empty_.store(streams_ == nullptr, std::memory_order_relaxed);
   UpdateMinLogSeverity();
 }
 
@@ -344,7 +381,8 @@ void LogMessage::ConfigureLogging(absl::string_view params) {
     if (token == "tstamp") {
       LogTimestamps();
     } else if (token == "thread") {
-      LogThreads();
+      bool dummy;
+      GetOrInitConfig(nullptr, dummy).set_log_thread(true);
 
       // Logging levels
     } else if (token == "verbose") {
@@ -381,6 +419,11 @@ void LogMessage::ConfigureLogging(absl::string_view params) {
 void LogMessage::UpdateMinLogSeverity()
     RTC_EXCLUSIVE_LOCKS_REQUIRED(GetLoggingLock()) {
   LoggingSeverity min_sev = g_dbg_sev;
+  const LoggingConfig& config = GetLoggingConfig();
+  min_sev = std::min(min_sev, config.min_severity());
+  for (const auto& sink : config.sinks()) {
+    min_sev = std::min(min_sev, sink->min_severity_);
+  }
   for (LogSink* entry = streams_; entry != nullptr; entry = entry->next_) {
     min_sev = std::min(min_sev, entry->min_severity_);
   }
@@ -472,11 +515,8 @@ void LogMessage::OutputToDebug(const LogLineRef& log_line) {
   }
 }
 
-// static
 bool LogMessage::IsNoop(LoggingSeverity severity) {
-  if (severity >= g_dbg_sev || severity >= g_min_sev)
-    return false;
-  return streams_empty_.load(std::memory_order_relaxed);
+  return severity < g_min_sev;
 }
 
 void LogMessage::FinishPrintStream() {
@@ -574,7 +614,14 @@ void Log(const LogArgType* fmt, ...) {
 
 }  // namespace webrtc_logging_impl
 }  // namespace webrtc
-#endif
+#else   // RTC_LOG_ENABLED()
+namespace webrtc {
+const LoggingConfig& GetLoggingConfig() {
+  static const absl::NoDestructor<LoggingConfig> config;
+  return *config;
+}
+}  // namespace webrtc
+#endif  // RTC_LOG_ENABLED()
 
 namespace webrtc {
 // Default implementation, override is recomended.
@@ -614,4 +661,5 @@ void LogSink::OnLogMessage(absl::string_view msg,
 void LogSink::OnLogMessage(absl::string_view msg) {
   OnLogMessage(std::string(msg));
 }
+
 }  // namespace webrtc

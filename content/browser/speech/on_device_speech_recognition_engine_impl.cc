@@ -197,10 +197,23 @@ void OnDeviceSpeechRecognitionEngine::OnAsrStreamCreated(
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   asr_stream_.Bind(std::move(asr_stream));
   asr_stream_responder_.Bind(std::move(asr_stream_responder));
+  asr_stream_responder_.set_disconnect_with_reason_handler(base::BindOnce(
+      &OnDeviceSpeechRecognitionEngine::OnResponderDisconnectedWithReason,
+      weak_factory_.GetWeakPtr()));
 }
 
 void OnDeviceSpeechRecognitionEngine::OnRecognizerDisconnected() {
+  OnResponderDisconnectedWithReason(0, "");
+}
+
+void OnDeviceSpeechRecognitionEngine::OnResponderDisconnectedWithReason(
+    uint32_t custom_reason,
+    const std::string& description) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
+  media::mojom::SpeechRecognitionError error;
+  error.code = media::mojom::SpeechRecognitionErrorCode::kServiceNotAllowed;
+  error.details = media::mojom::SpeechAudioErrorDetails::kNone;
+  delegate_->OnSpeechRecognitionEngineError(error);
   EndRecognition();
 }
 
@@ -211,7 +224,8 @@ OnDeviceSpeechRecognitionEngine::ConvertAccumulatedAudioData() {
   auto signed_buffer = on_device_model::mojom::AudioData::New();
   signed_buffer->channel_count = audio_parameters_.channels();
   signed_buffer->sample_rate = audio_parameters_.sample_rate();
-  signed_buffer->frame_count = accumulated_audio_data_.size();
+  signed_buffer->frame_count =
+      base::checked_cast<int32_t>(accumulated_audio_data_.size());
 
   // Normalization factor for converting int16_t audio samples to float.
   constexpr float kInt16ToFloatNormalizer = 32768.0f;

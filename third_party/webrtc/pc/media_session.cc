@@ -720,6 +720,7 @@ RTCErrorOr<std::unique_ptr<SessionDescription>>
 MediaSessionDescriptionFactory::CreateOfferOrError(
     const MediaSessionOptions& session_options,
     const SessionDescription* current_description) const {
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   // Must have options for each existing section.
   if (current_description) {
     RTC_DCHECK_LE(current_description->contents().size(),

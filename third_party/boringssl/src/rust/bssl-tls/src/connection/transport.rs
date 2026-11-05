@@ -16,16 +16,27 @@
 //!
 
 use crate::{
-    connection::TlsConnectionRef,
-    context::TlsMode,
+    connection::{
+        TlsConnectionRef,
+        methods::HasTlsConnectionMethod, //
+    },
+    context::HasBasicIo,
     errors::Error,
-    io::{AbstractReader, AbstractSocket, AbstractWriter, RustBio},
+    io::{
+        AbstractReader,
+        AbstractSocket,
+        AbstractWriter,
+        RustBio, //
+    }, //
 };
 
 /// # Transport configurations
 ///
 /// These are the methods to configure the underlying IO drivers and transport configurations.
-impl<R> TlsConnectionRef<R, TlsMode> {
+impl<R, M> TlsConnectionRef<R, M>
+where
+    M: HasBasicIo + HasTlsConnectionMethod,
+{
     /// Set up underlying transport driver.
     pub fn set_io<S: 'static + AbstractSocket>(&mut self, socket: S) -> Result<&mut Self, Error> {
         let bio = RustBio::new_duplex(socket)?;

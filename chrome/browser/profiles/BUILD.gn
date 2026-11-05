@@ -148,6 +148,7 @@ source_set("profile_manager_impl") {
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
     "//chrome/browser:buildflags",
+    "//chrome/browser/accessibility",
     "//chrome/browser/browsing_data",
     "//chrome/browser/navigation_predictor",
     "//chrome/browser/prefs",
@@ -363,6 +364,7 @@ source_set("profiles_extra_parts_impl") {
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser:font_pref",
+    "//chrome/browser/accessibility",
     "//chrome/browser/accessibility_annotator",
     "//chrome/browser/accessibility_annotator/first_run",
     "//chrome/browser/account_settings",
@@ -430,6 +432,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/page_image_service",
     "//chrome/browser/page_info",
     "//chrome/browser/passage_embeddings",
+    "//chrome/browser/password_manager",
     "//chrome/browser/password_manager/actor_login:factories",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/payments",
@@ -467,6 +470,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/speech",
     "//chrome/browser/storage",
     "//chrome/browser/storage_access_api",
+    "//chrome/browser/subresource_filter",
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
@@ -545,6 +549,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/private_ai",
       "//chrome/browser/profile_resetter",
       "//chrome/browser/record_replay",
+      "//chrome/browser/record_replay:impl",
       "//chrome/browser/screen_ai:screen_ai_service_router_factory",
       "//chrome/browser/search",
       "//chrome/browser/search_engine_choice",
@@ -565,7 +570,6 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/user_education",
     ]
   }
-
   if (is_chromeos) {
     deps += [
       "//chrome/browser/apps/almanac_api_client",
@@ -586,6 +590,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/chromeos/enterprise/cloud_storage",
       "//chrome/browser/chromeos/extensions/telemetry/api:keyed_service_factory",
       "//chrome/browser/chromeos/policy/dlp",
+      "//chrome/browser/media_galleries",
       "//chrome/browser/nearby_sharing",
       "//chrome/browser/policy:onc",
       "//chrome/browser/push_notification",

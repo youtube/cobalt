@@ -112,8 +112,6 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   StoreObjectField(result, JSRegExpResult::kInputOffset, input);
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
                                  undefined_value);
-  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kNamesOffset,
-                                 undefined_value);
 
   StoreObjectField(result, JSRegExpResult::kRegexpInputOffset, input);
 
@@ -282,19 +280,16 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
     // The names fixed array associates names at even indices with a capture
     // index at odd indices.
-    TNode<Object> maybe_names =
-        LoadObjectField(data, offsetof(IrRegExpData, capture_name_map_));
+    auto maybe_names = LoadProtectedPointerField<Union<Smi, TrustedFixedArray>>(
+        data, offsetof(IrRegExpData, capture_name_map_));
     GotoIf(TaggedEqual(maybe_names, SmiZero()), &maybe_build_indices,
            GotoHint::kLabel);
 
     // One or more named captures exist, add a property for each one.
-
-    TNode<FixedArray> names = CAST(maybe_names);
-    TNode<IntPtrT> names_length = LoadAndUntagFixedArrayBaseLength(names);
+    TNode<TrustedFixedArray> names =
+        TrustedCast<TrustedFixedArray>(maybe_names, "from RegExpData");
+    TNode<IntPtrT> names_length = SmiUntag(LoadTrustedFixedArrayLength(names));
     CSA_DCHECK(this, IntPtrGreaterThan(names_length, IntPtrZero()));
-
-    // Stash names in case we need them to build the indices array later.
-    StoreObjectField(result, JSRegExpResult::kNamesOffset, names);
 
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap
@@ -324,8 +319,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       TNode<IntPtrT> i_plus_1 = IntPtrAdd(i, IntPtrConstant(1));
       TNode<IntPtrT> i_plus_2 = IntPtrAdd(i_plus_1, IntPtrConstant(1));
 
-      TNode<String> name = CAST(LoadFixedArrayElement(names, i));
-      TNode<Smi> index = CAST(LoadFixedArrayElement(names, i_plus_1));
+      TNode<String> name = CAST(LoadTrustedFixedArrayObjects(names, i));
+      TNode<Smi> index = CAST(LoadTrustedFixedArrayObjects(names, i_plus_1));
       TNode<HeapObject> capture =
           CAST(LoadFixedArrayElement(result_elements, SmiUntag(index)));
 
@@ -382,12 +377,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   BIND(&maybe_build_indices);
   GotoIfNot(has_indices, &out, GotoHint::kLabel);
   {
-    const TNode<Object> maybe_names =
-        LoadObjectField(result, JSRegExpResultWithIndices::kNamesOffset);
     const TNode<JSRegExpResultIndices> indices =
-        UncheckedCast<JSRegExpResultIndices>(
-            CallRuntime(Runtime::kRegExpBuildIndices, context, regexp,
-                        match_info, maybe_names));
+        UncheckedCast<JSRegExpResultIndices>(CallRuntime(
+            Runtime::kRegExpBuildIndices, context, regexp, match_info));
     StoreObjectField(result, JSRegExpResultWithIndices::kIndicesOffset,
                      indices);
     Goto(&out);
@@ -709,6 +701,35 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     Unreachable();
 
     BIND(&next);
+  }
+
+  // Fast-reject via (chars & mask) == value, using up to a 4-character
+  // mask precomputed during RegExp compilation.
+  {
+    Label proceed(this);
+
+    GotoIfNot(to_direct.IsOneByte(), &proceed);
+
+    TNode<Uint32T> mask =
+        LoadObjectField<Uint32T>(data, offsetof(RegExpData, quick_check_mask_));
+    GotoIf(Word32Equal(mask, Int32Constant(0)), &proceed);
+
+    TNode<IntPtrT> remaining = IntPtrSub(int_string_length, int_last_index);
+    GotoIf(IntPtrLessThan(remaining, IntPtrConstant(kUInt32Size / kCharSize)),
+           &proceed);
+
+    TNode<Uint32T> expected = LoadObjectField<Uint32T>(
+        data, offsetof(RegExpData, quick_check_value_));
+
+    TNode<IntPtrT> actual_index = IntPtrAdd(int_last_index, to_direct.offset());
+    TNode<RawPtrT> string_data = to_direct.PointerToData(&proceed);
+
+    TNode<Uint32T> loaded_word = Load<Uint32T>(string_data, actual_index);
+
+    TNode<Word32T> masked_chars = Word32And(loaded_word, mask);
+    Branch(Word32Equal(masked_chars, expected), &proceed, &out);
+
+    BIND(&proceed);
   }
 
   // Check (number_of_captures + 1) * 2 <= offsets vector size.

@@ -279,19 +279,10 @@ DEFINE_BOOL(disallow_developer_only_features, false,
   DEFINE_IMPLICATION(name, developer_only_features)           \
   DEFINE_NEG_IMPLICATION(disallow_developer_only_features, name)
 
-// ATTENTION: This is set to true by default in d8. But for API compatibility,
-// it generally defaults to false.
-DEFINE_BOOL(abort_on_contradictory_flags, false,
-            "Disallow flags or implications overriding each other.")
-// This implication is also hard-coded into the flags processing to make sure it
-// becomes active before we even process subsequent flags.
-DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
-// As abort_on_contradictory_flags, but it will simply exit with return code 0.
-DEFINE_BOOL(exit_on_contradictory_flags, false,
-            "Exit with return code 0 on contradictory flags.")
-// We rely on abort_on_contradictory_flags to turn on the analysis.
-DEFINE_WEAK_IMPLICATION(exit_on_contradictory_flags,
-                        abort_on_contradictory_flags)
+DEFINE_STRING(flag_processing_mode, nullptr,
+              "Control behavior for flag errors. Possible values: "
+              "abort-on-error, exit-on-error, ignore-contradictions.")
+
 // This is not really a flag, it affects the interpretation of the next flag but
 // doesn't become permanently true when specified. This only works for flags
 // defined in this file, but not for d8 flags defined in src/d8/d8.cc.
@@ -1014,6 +1005,7 @@ DEFINE_BOOL(
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
 #if V8_ENABLE_WEBASSEMBLY
 // Disable optimizing Wasm compilers. Wasm code must execute with Liftoff.
 DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
@@ -1242,10 +1234,6 @@ DEFINE_BOOL(
 #endif
 DEFINE_BOOL(trace_ignition_codegen, false,
             "trace the codegen of ignition interpreter bytecode handlers")
-DEFINE_STRING(
-    trace_ignition_dispatches_output_file, nullptr,
-    "write the bytecode handler dispatch table to the specified file (d8 only) "
-    "(requires building with v8_enable_ignition_dispatch_counting)")
 
 DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
@@ -1745,12 +1733,18 @@ DEFINE_EXPERIMENTAL_FEATURE(
 // pipeline. Note however, that this feature is independent of the Turboshaft
 // Wasm pipeline (since the inlinee gets compiled with the JS pipeline).
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
-DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
+// The Wasm-in-JS body inlining also depends on the Turbolev-based JS-to-Wasm
+// wrapper inlining.
+DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining,
+                   turbolev_inline_js_wasm_wrappers)
+// Both are staged behind --turbolev-future.
+DEFINE_IMPLICATION(turbolev_future, turboshaft_wasm_in_js_inlining)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_inline_js_wasm_wrappers,
     "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 DEFINE_IMPLICATION(turbolev_future, turbolev_inline_js_wasm_wrappers)
+DEFINE_IMPLICATION(turbolev_inline_js_wasm_wrappers, turbolev)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
@@ -1903,6 +1897,8 @@ DEFINE_IMPLICATION(enable_slow_asserts, verify_get_js_builtin_state)
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
+DEFINE_BOOL(wasm_unsafe_fast_api_wrapper, false, "allow use of the unsafe fast "
+            "API wrapper")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
@@ -2200,7 +2196,6 @@ DEFINE_BOOL(flush_liftoff_code, true,
 DEFINE_BOOL(stress_branch_hinting, false,
             "stress branch hinting by generating a random hint for each branch "
             "instruction")
-DEFINE_WEAK_IMPLICATION(fuzzing, stress_branch_hinting)
 
 DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
               "maximum allowed size of wasm modules")
@@ -2463,45 +2458,48 @@ DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_DEVELOPER_FLAG(trace_gc,
                       "print one trace line following each garbage collection")
-DEFINE_BOOL(trace_gc_nvp, false,
-            "print one detailed trace line in name=value format "
-            "after each garbage collection")
-DEFINE_BOOL(trace_gc_ignore_scavenger, false,
-            "do not print trace line after scavenger collection")
-DEFINE_BOOL(trace_memory_reducer, false, "print memory reducer behavior")
-DEFINE_BOOL(trace_gc_verbose, false,
-            "print more details following each garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_nvp,
+                      "print one detailed trace line in name=value format "
+                      "after each garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_ignore_scavenger,
+                      "do not print trace line after scavenger collection")
+DEFINE_DEVELOPER_FLAG(trace_memory_reducer, "print memory reducer behavior")
+DEFINE_DEVELOPER_FLAG(trace_gc_verbose,
+                      "print more details following each garbage collection")
 DEFINE_IMPLICATION(trace_gc_verbose, trace_gc)
-DEFINE_BOOL(trace_gc_freelists, false,
-            "prints details of each freelist before and after "
-            "each major garbage collection")
-DEFINE_BOOL(trace_gc_freelists_verbose, false,
-            "prints details of freelists of each page before and after "
-            "each major garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_freelists,
+                      "prints details of each freelist before and after "
+                      "each major garbage collection")
+DEFINE_DEVELOPER_FLAG(
+    trace_gc_freelists_verbose,
+    "prints details of freelists of each page before and after "
+    "each major garbage collection")
 DEFINE_IMPLICATION(trace_gc_freelists_verbose, trace_gc_freelists)
-DEFINE_BOOL(trace_gc_heap_layout, false,
-            "print layout of pages in heap before and after gc")
+DEFINE_DEVELOPER_FLAG(trace_gc_heap_layout,
+                      "print layout of pages in heap before and after gc")
 DEFINE_BOOL(trace_gc_heap_layout_ignore_minor_gc, true,
             "do not print trace line before and after minor-gc")
-DEFINE_BOOL(trace_evacuation_candidates, false,
-            "Show statistics about the pages evacuation by the compaction")
+DEFINE_DEVELOPER_FLAG(
+    trace_evacuation_candidates,
+    "Show statistics about the pages evacuation by the compaction")
 
-DEFINE_BOOL(trace_pending_allocations, false,
-            "trace calls to Heap::IsAllocationPending that return true")
+DEFINE_DEVELOPER_FLAG(
+    trace_pending_allocations,
+    "trace calls to Heap::IsAllocationPending that return true")
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
 DEFINE_INT(trace_duplicate_threshold_kb, 0,
            "print duplicate objects in the heap if their size is more than "
            "given threshold")
-DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
-DEFINE_BOOL(trace_fragmentation_verbose, false,
-            "report fragmentation for old space (detailed)")
-DEFINE_BOOL(minor_ms_trace_fragmentation, false,
-            "trace fragmentation after marking")
-DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
-DEFINE_BOOL(trace_mutator_utilization, false,
-            "print mutator utilization, allocation speed, gc speed")
+DEFINE_DEVELOPER_FLAG(trace_fragmentation, "report fragmentation for old space")
+DEFINE_DEVELOPER_FLAG(trace_fragmentation_verbose,
+                      "report fragmentation for old space (detailed)")
+DEFINE_DEVELOPER_FLAG(minor_ms_trace_fragmentation,
+                      "trace fragmentation after marking")
+DEFINE_DEVELOPER_FLAG(trace_evacuation, "report evacuation statistics")
+DEFINE_DEVELOPER_FLAG(trace_mutator_utilization,
+                      "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
@@ -2513,7 +2511,7 @@ DEFINE_INT(incremental_marking_hard_trigger, 0,
 DEFINE_BOOL(incremental_marking_unified_schedule, false,
             "Use a single schedule for determining a marking schedule between "
             "JS and C++ objects.")
-DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
+DEFINE_DEVELOPER_FLAG(trace_unmapper, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(minor_gc_task, true, "schedule minor GC tasks")
 DEFINE_UINT(minor_gc_task_trigger, 80,
@@ -2574,17 +2572,17 @@ DEFINE_FLOAT(
 DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "Threshold on mutator utilization to trigger out-of-memory "
              "failure near heap limit.")
-DEFINE_BOOL(trace_incremental_marking, false,
-            "trace progress of the incremental marking")
-DEFINE_BOOL(print_gc_clearing_dependency_graph, false,
-            "print clearing dependency graph in dot format")
-DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
-DEFINE_BOOL(trace_stress_scavenge, false, "trace stress scavenge progress")
-DEFINE_BOOL(track_gc_object_stats, false,
-            "track object counts and memory usage")
-DEFINE_BOOL(trace_gc_object_stats, false,
-            "trace object counts and memory usage")
-DEFINE_BOOL(trace_zone_stats, false, "trace zone memory usage")
+DEFINE_DEVELOPER_FLAG(trace_incremental_marking,
+                      "trace progress of the incremental marking")
+DEFINE_DEVELOPER_FLAG(print_gc_clearing_dependency_graph,
+                      "print clearing dependency graph in dot format")
+DEFINE_DEVELOPER_FLAG(trace_stress_marking, "trace stress marking progress")
+DEFINE_DEVELOPER_FLAG(trace_stress_scavenge, "trace stress scavenge progress")
+DEFINE_DEVELOPER_FLAG(track_gc_object_stats,
+                      "track object counts and memory usage")
+DEFINE_DEVELOPER_FLAG(trace_gc_object_stats,
+                      "trace object counts and memory usage")
+DEFINE_DEVELOPER_FLAG(trace_zone_stats, "trace zone memory usage")
 DEFINE_GENERIC_IMPLICATION(
     trace_zone_stats,
     TracingFlags::zone_stats.store(
@@ -2592,7 +2590,7 @@ DEFINE_GENERIC_IMPLICATION(
 DEFINE_SIZE_T(
     zone_stats_tolerance, 1 * MB,
     "report a tick only when allocated zone memory changes by this amount")
-DEFINE_BOOL(trace_zone_type_stats, false, "trace per-type zone memory usage")
+DEFINE_DEVELOPER_FLAG(trace_zone_type_stats, "trace per-type zone memory usage")
 DEFINE_GENERIC_IMPLICATION(
     trace_zone_type_stats,
     TracingFlags::zone_stats.store(
@@ -2621,8 +2619,9 @@ DEFINE_NEG_NEG_IMPLICATION(parallel_marking, concurrent_marking)
 DEFINE_IMPLICATION(concurrent_marking, incremental_marking)
 DEFINE_BOOL(track_detached_contexts, true,
             "track native contexts that are expected to be garbage collected")
-DEFINE_BOOL(trace_detached_contexts, false,
-            "trace native contexts that are expected to be garbage collected")
+DEFINE_DEVELOPER_FLAG(
+    trace_detached_contexts,
+    "trace native contexts that are expected to be garbage collected")
 DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 #ifdef VERIFY_HEAP
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
@@ -2679,6 +2678,8 @@ DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
 DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
+DEFINE_BOOL(compaction_on_regular_gcs, true,
+            "Perform compaction on regular GCs")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
 DEFINE_INT(compaction_max_evacuated_bytes_mb, 4,
@@ -2718,7 +2719,7 @@ DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
-DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
+DEFINE_DEVELOPER_FLAG(trace_flush_code, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
@@ -2955,9 +2956,6 @@ DEFINE_BOOL(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_BOOL(expose_statistics, false, "expose statistics extension")
 DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
-DEFINE_BOOL(expose_ignition_statistics, false,
-            "expose ignition-statistics extension (requires building with "
-            "v8_enable_ignition_dispatch_counting)")
 DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
@@ -4031,23 +4029,24 @@ DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 #endif
 
 // elements.cc
-DEFINE_BOOL(trace_elements_transitions, false, "trace elements transitions")
+DEFINE_DEVELOPER_FLAG(trace_elements_transitions, "trace elements transitions")
 
-DEFINE_BOOL(trace_creation_allocation_sites, false,
-            "trace the creation of allocation sites")
+DEFINE_DEVELOPER_FLAG(trace_creation_allocation_sites,
+                      "trace the creation of allocation sites")
 
-DEFINE_BOOL(print_code, false, "print generated code")
-DEFINE_BOOL(print_opt_code, false, "print optimized code")
+DEFINE_DEVELOPER_FLAG(print_code, "print generated code")
+DEFINE_DEVELOPER_FLAG(print_opt_code, "print optimized code")
 DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
-DEFINE_BOOL(print_code_verbose, false, "print more information for code")
-DEFINE_BOOL(print_builtin_code, false, "print generated code for builtins")
+DEFINE_DEVELOPER_FLAG(print_code_verbose, "print more information for code")
+DEFINE_DEVELOPER_FLAG(print_builtin_code, "print generated code for builtins")
 DEFINE_STRING(print_builtin_code_filter, "*",
               "filter for printing builtin code")
-DEFINE_BOOL(print_regexp_code, false, "print generated regexp code")
-DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
+DEFINE_DEVELOPER_FLAG(print_regexp_code, "print generated regexp code")
+DEFINE_DEVELOPER_FLAG(print_regexp_bytecode, "print generated regexp bytecode")
 
 #ifdef ENABLE_DISASSEMBLER
-DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
+DEFINE_DEVELOPER_FLAG(print_all_code,
+                      "enable all flags related to printing code")
 DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
@@ -4217,7 +4216,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
 DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_contradictory_flags)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_far_code_range)
@@ -4269,7 +4267,7 @@ DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
 // Note: The mode may be insufficient and/or incomplete. Passing this flag does
 // not guarantee a bug will be classified as a valid vulnerability. The V8 team
 // reserves the right to make the final determination on security impact during
-// triage. See docs/security_triaging.md.
+// triage. See docs/security/triaging.md.
 DEFINE_BOOL(run_as_security_poc, false,
             "Run programs as security proof of concept (POC).")
 // Unsafe flags generally lead to unsupported configurations.
@@ -4283,6 +4281,27 @@ DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
 // Experimental features are not ready for broad usage yet. Bugs in these areas
 // are not considered security issues.
 DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
+
+// Runs a program as sandbox security POC. This mode is used to determine
+// whether a bug in a program can lead to a sandbox violation. The mode enables
+// the memory corruption APIs and as such allows to directly modify untrusted V8
+// heap contents. V8 supports many different configurations and modes that are
+// sometimes incomplete or incompatible. The flag aims at providing guidance on
+// what is actually considered a security issue.
+//
+// Note: The mode may be insufficient and/or incomplete. Passing this flag does
+// not guarantee a bug will be classified as a valid vulnerability. The V8 team
+// reserves the right to make the final determination on security impact during
+// triage. See docs/security/triaging.md.
+DEFINE_BOOL(
+    run_as_sandbox_security_poc, false,
+    "Run programs as security proof of concept (POC) for the V8 sandbox")
+// Use the same configuration as `--run-as-security-poc`.
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, run_as_security_poc)
+// Enable sandbox test mode which allows for using memory corruption APIs and
+// also installs the crash filter that determines whether issues are crashing
+// inside or outside of the sandbox.
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, sandbox_testing)
 
 #undef FLAG
 

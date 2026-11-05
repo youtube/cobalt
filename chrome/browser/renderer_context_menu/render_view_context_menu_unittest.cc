@@ -63,6 +63,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/lens/buildflags.h"
 #include "components/lens/lens_features.h"
@@ -1200,6 +1201,139 @@ TEST_F(RenderViewContextMenuPrefsTest, LensImageSearchEnabled) {
   EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE));
 }
 
+// Verify that the Lens Image Search menu item has an icon in fallback case
+TEST_F(RenderViewContextMenuPrefsTest, LensImageSearchFallbackHasIcon) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures({lens::features::kLensStandalone,
+                             lens::features::kShowContextualTasksMenuIcon},
+                            {lens::features::kLensOverlay});
+  SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                       /*supports_image_search=*/true);
+  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
+  params.has_image_contents = true;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE));
+  std::optional<size_t> index = menu.menu_model().GetIndexOfCommandId(
+      IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE);
+  ASSERT_TRUE(index.has_value());
+  EXPECT_FALSE(menu.menu_model().GetIconAt(index.value()).IsEmpty());
+}
+
+// Verify that the Lens Video Search menu item has an icon in fallback case
+TEST_F(RenderViewContextMenuPrefsTest, LensVideoSearchFallbackHasIcon) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {lens::features::kLensStandalone, media::kContextMenuSearchForVideoFrame,
+       lens::features::kShowContextualTasksMenuIcon},
+      {lens::features::kLensOverlay});
+  SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                       /*supports_image_search=*/true);
+  content::ContextMenuParams params = CreateParams(MenuItem::VIDEO);
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORVIDEOFRAME));
+  std::optional<size_t> index = menu.menu_model().GetIndexOfCommandId(
+      IDC_CONTENT_CONTEXT_SEARCHLENSFORVIDEOFRAME);
+  ASSERT_TRUE(index.has_value());
+  EXPECT_FALSE(menu.menu_model().GetIconAt(index.value()).IsEmpty());
+}
+
+#if BUILDFLAG(IS_MAC)
+// Verify that the Lens Image Search menu item has NO icon when flag is disabled
+TEST_F(RenderViewContextMenuPrefsTest,
+       LensImageSearchFallbackNoIconWhenFlagDisabled) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures({lens::features::kLensStandalone},
+                            {lens::features::kLensOverlay,
+                             lens::features::kShowContextualTasksMenuIcon});
+  SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                       /*supports_image_search=*/true);
+  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
+  params.has_image_contents = true;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE));
+  std::optional<size_t> index = menu.menu_model().GetIndexOfCommandId(
+      IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE);
+  ASSERT_TRUE(index.has_value());
+  EXPECT_TRUE(menu.menu_model().GetIconAt(index.value()).IsEmpty());
+}
+#endif  // BUILDFLAG(IS_MAC)
+
+// Verify that the Lens Image Search menu item has an icon in overlay case
+TEST_F(RenderViewContextMenuPrefsTest, LensImageSearchOverlayHasIcon) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {lens::features::kLensStandalone, lens::features::kLensOverlay,
+       lens::features::kShowContextualTasksMenuIcon},
+      {});
+  SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                       /*supports_image_search=*/true);
+  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
+  params.has_image_contents = true;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  // Item ID might be different for overlay, let's check both
+  bool present = menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE) ||
+                 menu.IsItemPresent(IDC_CONTENT_CONTEXT_LENS_OVERLAY);
+  EXPECT_TRUE(present);
+
+  std::optional<size_t> index = menu.menu_model().GetIndexOfCommandId(
+      IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE);
+  if (!index.has_value()) {
+    index =
+        menu.menu_model().GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_OVERLAY);
+  }
+  ASSERT_TRUE(index.has_value());
+  EXPECT_FALSE(menu.menu_model().GetIconAt(index.value()).IsEmpty());
+}
+
+#if BUILDFLAG(IS_MAC)
+// Verify that the Lens Image Search menu item has NO icon in overlay case when
+// flag is disabled
+TEST_F(RenderViewContextMenuPrefsTest,
+       LensImageSearchOverlayNoIconWhenFlagDisabled) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {lens::features::kLensStandalone, lens::features::kLensOverlay},
+      {lens::features::kShowContextualTasksMenuIcon});
+  SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                       /*supports_image_search=*/true);
+  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
+  params.has_image_contents = true;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  bool present = menu.IsItemPresent(IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE) ||
+                 menu.IsItemPresent(IDC_CONTENT_CONTEXT_LENS_OVERLAY);
+  EXPECT_TRUE(present);
+
+  std::optional<size_t> index = menu.menu_model().GetIndexOfCommandId(
+      IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE);
+  if (!index.has_value()) {
+    index =
+        menu.menu_model().GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_OVERLAY);
+  }
+  ASSERT_TRUE(index.has_value());
+  EXPECT_TRUE(menu.menu_model().GetIconAt(index.value()).IsEmpty());
+}
+#endif  // BUILDFLAG(IS_MAC)
+
 // Verify that the Lens Image Search menu item is enabled for Progressive Web
 // Apps
 TEST_F(RenderViewContextMenuPrefsTest, LensImageSearchForProgressiveWebApp) {
@@ -1996,3 +2130,46 @@ INSTANTIATE_TEST_SUITE_P(All,
                          testing::Values("MenuShuffleDefault",
                                          "MenuShuffleSeparation",
                                          "MenuShufflePlaceAtBottom"));
+
+class ReentrantTestRenderViewContextMenu : public TestRenderViewContextMenu {
+ public:
+  using TestRenderViewContextMenu::TestRenderViewContextMenu;
+
+  void NotifyObserversOnContextMenuShown() {
+    for (auto& observer : observers_) {
+      observer.OnContextMenuShown(params_, gfx::Rect());
+    }
+  }
+};
+
+class MockReentrantObserver : public RenderViewContextMenuObserver {
+ public:
+  explicit MockReentrantObserver(ReentrantTestRenderViewContextMenu* menu)
+      : menu_(menu) {}
+
+  bool IsCommandIdSupported(int command_id) override {
+    return command_id == IDC_CONTENT_CONTEXT_COPY;
+  }
+
+  bool IsCommandIdEnabled(int command_id) override { return true; }
+
+  void OnContextMenuShown(const content::ContextMenuParams& params,
+                          const gfx::Rect& bounds) override {
+    bool enabled = false;
+    menu_->IsCommandIdKnown(IDC_CONTENT_CONTEXT_COPY, &enabled);
+  }
+
+ private:
+  raw_ptr<ReentrantTestRenderViewContextMenu> menu_;
+};
+
+TEST_F(RenderViewContextMenuPrefsTest, ReentrantObserverListTest) {
+  content::ContextMenuParams params;
+  ReentrantTestRenderViewContextMenu menu(
+      *web_contents()->GetPrimaryMainFrame(), params);
+  MockReentrantObserver observer(&menu);
+  menu.AddObserverForTesting(&observer);
+
+  // This should not crash with ReentrantObserverList.
+  menu.NotifyObserversOnContextMenuShown();
+}

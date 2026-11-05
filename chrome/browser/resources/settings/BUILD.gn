@@ -177,6 +177,7 @@ build_webui("build") {
     "search_page/omnibox_extension_entry.ts",
     "search_page/search_engine_edit_dialog.ts",
     "search_page/search_engine_entry.ts",
+    "search_page/search_engine_icon.ts",
     "search_page/search_engine_list_dialog.ts",
     "search_page/search_engines_list.ts",
     "search_page/search_engines_page.ts",
@@ -376,6 +377,7 @@ build_webui("build") {
     "site_settings/website_usage_browser_proxy.ts",
     "time.ts",
     "tooltip_mixin.ts",
+    "your_saved_info_page/policy_utils.ts",
     "your_saved_info_page/saved_info_handler_proxy.ts",
   ]
 

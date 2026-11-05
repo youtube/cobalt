@@ -15,6 +15,24 @@
 
 namespace accessibility_annotator {
 
+class MockAccessibilityAnnotatorBackendObserver
+    : public AccessibilityAnnotatorBackend::Observer {
+ public:
+  MockAccessibilityAnnotatorBackendObserver();
+  ~MockAccessibilityAnnotatorBackendObserver() override;
+
+  MOCK_METHOD(void,
+              OnContentAnnotationsAdded,
+              (history::VisitID,
+               const AccessibilityAnnotatorBackend::ContentAnnotationsData&),
+              (override));
+  MOCK_METHOD(void,
+              OnContentAnnotationsDeleted,
+              (base::span<const history::VisitID>),
+              (override));
+  MOCK_METHOD(void, OnContentAnnotationsCleared, (), (override));
+};
+
 class TestAccessibilityAnnotatorBackend : public AccessibilityAnnotatorBackend {
  public:
   TestAccessibilityAnnotatorBackend();
@@ -29,15 +47,15 @@ class TestAccessibilityAnnotatorBackend : public AccessibilityAnnotatorBackend {
   MOCK_METHOD(void, RemoveObserver, (Observer*), (override));
   MOCK_METHOD(base::optional_ref<const ContentAnnotationsData>,
               GetContentAnnotationsCacheData,
-              (const GURL&),
+              (history::VisitID),
               (const, override));
   MOCK_METHOD(void,
               SetContentAnnotationsCacheData,
-              (const GURL&, ContentAnnotationsData),
+              (history::VisitID, ContentAnnotationsData),
               (override));
   MOCK_METHOD(void,
               RemoveContentAnnotationsCacheData,
-              (base::span<const GURL>),
+              (base::span<const history::VisitID>),
               (override));
   MOCK_METHOD(void, ClearContentAnnotationsCache, (), (override));
   MOCK_METHOD(base::Value, GetDebugUICacheData, (), (const, override));

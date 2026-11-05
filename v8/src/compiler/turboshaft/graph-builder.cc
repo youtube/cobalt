@@ -253,16 +253,23 @@ std::optional<BailoutReason> GraphBuilder::Run() {
                        predecessors[j]->rpo_number();
               });
 
+    // Skip loop back-edge predecessors: their final_frame_state hasn't been
+    // computed yet at header-visit time.
     OpIndex dominating_frame_state = OpIndex::Invalid();
-    if (!predecessors.empty()) {
-      dominating_frame_state =
-          block_mapping[predecessors[0]->rpo_number()].final_frame_state;
-      for (size_t i = 1; i < predecessors.size(); ++i) {
-        if (block_mapping[predecessors[i]->rpo_number()].final_frame_state !=
-            dominating_frame_state) {
-          dominating_frame_state = OpIndex::Invalid();
-          break;
-        }
+    bool first_fs = true;
+    for (BasicBlock* pred : predecessors) {
+      if (pred->rpo_number() >= block->rpo_number()) {
+        // Skipping loop backedge.
+        DCHECK(block->IsLoopHeader());
+        continue;
+      }
+      OpIndex pred_fs = block_mapping[pred->rpo_number()].final_frame_state;
+      if (first_fs) {
+        dominating_frame_state = pred_fs;
+        first_fs = false;
+      } else if (pred_fs != dominating_frame_state) {
+        dominating_frame_state = OpIndex::Invalid();
+        break;
       }
     }
 
@@ -1173,6 +1180,14 @@ OpIndex GraphBuilder::Process(
                               ChangeOrDeoptOp::Kind::kFloat64ToInt64,
                               params.mode(), params.feedback());
     }
+    case IrOpcode::kCheckedFloat64ToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kFloat64ToUint64,
+                              params.mode(), params.feedback());
+    }
 
     case IrOpcode::kCheckedTaggedToInt32: {
       DCHECK(dominating_frame_state.valid());
@@ -1205,6 +1220,16 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), dominating_frame_state,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64,
+          params.mode(), params.feedback());
+    }
+    case IrOpcode::kCheckedTaggedToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ConvertJSPrimitiveToUntaggedOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64,
           params.mode(), params.feedback());
     }
 
@@ -1424,13 +1449,17 @@ OpIndex GraphBuilder::Process(
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&
-          v8_flags.turboshaft_wasm_in_js_inlining) {
+          v8_flags.turboshaft_wasm_in_js_inlining && js_wasm_calls_sidetable) {
         // A JS-to-Wasm call where the wrapper got inlined in TurboFan but the
         // actual Wasm body inlining was either not possible or is going to
         // happen later in Turboshaft. See https://crbug.com/353475584.
         // Make sure that for each not-yet-body-inlined call node, there is an
         // entry in the sidetable.
-        DCHECK_NOT_NULL(js_wasm_calls_sidetable);
+        // In some cctests, we build a Wasm call manually (i.e., it was not
+        // created by JS-to-Wasm wrapper inlining in Turbofan) and are thus
+        // missing the `js_wasm_calls_sidetable`. Handle that gracefully.
+        // TODO(dlehmann): Remove all this once we decide to only keep the
+        // Turbolev-based Wasm-in-JS body inlining.
         auto it = js_wasm_calls_sidetable->find(node->id());
         CHECK_NE(it, js_wasm_calls_sidetable->end());
         wasm_call_parameters = it->second;
@@ -1790,26 +1819,26 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCheckedAdditiveSafeIntegerAdd: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedAddDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedAdditiveSafeIntegerSub: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedSubDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedInt64Add:
       DCHECK(Is64());

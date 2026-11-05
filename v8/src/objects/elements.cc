@@ -806,15 +806,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                       Tagged<Object> expected,
                                       Tagged<Object> value,
                                       SeqCstAccessTag tag) final {
-    return handle(HeapObject::SeqCst_CompareAndSwapField(
-                      expected, value,
-                      [=](Tagged<Object> expected_value,
-                          Tagged<Object> new_value) {
-                        return Subclass::CompareAndSwapAtomicInternalImpl(
-                            holder->elements(), entry, expected_value,
-                            new_value, tag);
-                      }),
-                  isolate);
+    return handle(
+        HeapObject::SeqCst_CompareAndSwapField(
+            expected, value,
+            [=](Tagged<Object> expected_value, Tagged<Object> new_value) {
+              return Subclass::CompareAndSwapAtomicInternalImpl(
+                  holder->elements(), entry, expected_value, new_value, tag);
+            }),
+        isolate);
   }
 
   static Tagged<Object> CompareAndSwapAtomicInternalImpl(
@@ -3526,12 +3525,25 @@ class TypedElementsAccessor
   // Conversion of scalar value to handlified object.
   static Handle<Object> ToHandle(Isolate* isolate, ElementType value);
 
+  static size_t ComputeStoreOffset(size_t offset) {
+#if V8_ENABLE_SANDBOX
+    // If the ElementsKind is concurrently modified between the bound check and
+    // the store, we might write outside of the sandbox. To prevent this
+    // ElementsKind switcheroo, mask the offset such that it is at most
+    // kMaxSafeBufferSizeForSandbox.
+    if constexpr (kRequiresTypedArrayAccessMasks && sizeof(ElementType) > 1) {
+      return offset & (kBoundedSizeMask / sizeof(ElementType));
+    }
+#endif
+    return offset;
+  }
+
   static void SetImpl(DirectHandle<JSObject> holder, InternalIndex entry,
                       Tagged<Object> value) {
     auto typed_array = Cast<JSTypedArray>(holder);
     DCHECK_LE(entry.raw_value(), typed_array->GetLength());
-    auto* entry_ptr =
-        static_cast<ElementType*>(typed_array->DataPtr()) + entry.raw_value();
+    auto* entry_ptr = static_cast<ElementType*>(typed_array->DataPtr()) +
+                      ComputeStoreOffset(entry.raw_value());
     auto is_shared = typed_array->buffer()->is_shared() ? kShared : kUnshared;
     SetImpl(entry_ptr, FromObject(value), is_shared);
   }
@@ -3755,17 +3767,17 @@ class TypedElementsAccessor
 
   static bool ToTypedSearchValue(double search_value,
                                  ElementType* typed_search_value) {
-    if (!base::IsValueInRangeForNumericType<ElementType>(search_value) &&
-        std::isfinite(search_value)) {
-      // Return true if value can't be represented in this space.
-      return true;
-    }
     ElementType typed_value;
     if constexpr (IsFloat16TypedArrayElementsKind(Kind)) {
       typed_value = fp16_ieee_from_fp32_value(static_cast<float>(search_value));
       *typed_search_value = typed_value;
       return (static_cast<double>(fp16_ieee_to_fp32_value(typed_value)) !=
               search_value);  // Loss of precision.
+    }
+    if (!base::IsValueInRangeForNumericType<ElementType>(search_value) &&
+        std::isfinite(search_value)) {
+      // Return true if value can't be represented in this space.
+      return true;
     }
     typed_value = static_cast<ElementType>(search_value);
     *typed_search_value = typed_value;
@@ -4170,7 +4182,7 @@ class TypedElementsAccessor
 
     uint8_t* source_data = static_cast<uint8_t*>(source->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination->DataPtr()) +
-                         offset * destination_size;
+                         ComputeStoreOffset(offset) * destination_size;
 
     bool source_shared = source->buffer()->is_shared();
     bool destination_shared = destination->buffer()->is_shared();
@@ -4224,14 +4236,14 @@ class TypedElementsAccessor
       }
 
       switch (source_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
-  case TYPE##_ELEMENTS: {                                                      \
-    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);            \
-    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data);    \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                                 \
-        source_data_ptr, dest_data_ptr, length,                                \
-        source_shared || destination_shared ? kShared : kUnshared);            \
-    break;                                                                     \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                           \
+  case TYPE##_ELEMENTS: {                                                   \
+    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);         \
+    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data); \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                              \
+        source_data_ptr, dest_data_ptr, length,                             \
+        source_shared || destination_shared ? kShared : kUnshared);         \
+    break;                                                                  \
   }
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -4306,7 +4318,8 @@ class TypedElementsAccessor
 
     Tagged<Oddball> undefined = ReadOnlyRoots(isolate).undefined_value();
     ElementType* dest_data =
-        reinterpret_cast<ElementType*>(destination->DataPtr()) + offset;
+        reinterpret_cast<ElementType*>(destination->DataPtr()) +
+        ComputeStoreOffset(offset);
 
     // Fast-path for packed Smi kind.
     if (kind == PACKED_SMI_ELEMENTS) {

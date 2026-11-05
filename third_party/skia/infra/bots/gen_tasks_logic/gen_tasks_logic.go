@@ -890,7 +890,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 			"Ubuntu24.04": UBUNTU_24_04_OS,
 			"Win":         DEFAULT_OS_WIN_GCE,
 			"Win10":       "Windows-10-19045",
-			"Win11":       "Windows-11-26100.1742",
+			"Win11":       "Windows-11-26100",
 			"iOS":         "iOS-13.3.1",
 			"iOS18":       "iOS-18.2.1",
 		}[os]
@@ -906,7 +906,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 			d["gce"] = "1"
 		}
 		if os == "Win11" && b.GPU("IntelUHDGraphics770") {
-			d["os"] = "Windows-11-26200.6584"
+			d["os"] = "Windows-11-26200"
 		}
 		if strings.Contains(os, "iOS") {
 			d["pool"] = "SkiaIOS"
@@ -953,6 +953,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 				"Guybrush": "16002.27.0",
 				"Octopus":  "16002.21.0",
 				"Corsola":  "16200.0.0",
+				"Rauru":    "16503.10.0",
 				"Trogdor":  "16002.26.0",
 			}[b.Parts["model"]]
 			if !ok {

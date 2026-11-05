@@ -2823,9 +2823,11 @@ class WasmDecoder : public Decoder {
             decoder->read_prefixed_opcode<ValidationTag>(pc, "atomic_index");
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
-            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kAcquireReleaseAtomicEnabled,
-                                      kIsRMWAtomicOp, validate);
+            WasmOpcode full_opcode =
+                static_cast<WasmOpcode>((kAtomicPrefix << 8) | opcode);
+            MemoryAccessImmediate imm(
+                decoder, pc + length, UINT32_MAX, kAcquireReleaseAtomicEnabled,
+                WasmOpcodes::IsAtomicRmwOpcode(full_opcode), validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -4629,6 +4631,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return true;
   }
 
+  bool IsEquivalentTypeVec(base::Vector<const ValueType> left,
+                           base::Vector<const ValueType> right) {
+    if (left.size() != right.size()) return false;
+
+    auto right_it = right.begin();
+    for (ValueType left_el : left) {
+      if (!EquivalentTypes(left_el, *right_it++, this->module_)) return false;
+    }
+    return true;
+  }
+
   DECODE(ContNew) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
@@ -4640,7 +4653,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                RefTypeKind::kFunction));
 
     // Push a continuation type.
-    Value* value = Push(ValueType::Ref(imm.heap_type()));
+    Value* value =
+        Push(ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, imm, func_ref, value);
     return 1 + imm.length;
   }
@@ -4690,7 +4704,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Value orig_cont = Pop(ValueType::RefNull(orig_cont_imm.heap_type()));
     PoppedArgVector args = PopSomeArgs(orig_cont_sig, delta);
-    Value* new_cont = Push(ValueType::Ref(new_cont_imm.heap_type()));
+    Value* new_cont = Push(ValueType::Ref(new_cont_imm.heap_type())
+                               .AsExactIfEnabled(this->enabled_));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ContBind, orig_cont_imm, orig_cont,
                                        args.data(), new_cont_imm, new_cont);
     return 1 + orig_cont_imm.length + new_cont_imm.length;
@@ -4791,7 +4806,27 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         stack_.shrink_to(stack_size);
         DCHECK_LT(i, handler_table_imm.table_count);
-      } else if (handler.kind != kSwitch) {
+      } else if (handler.kind == kSwitch) {
+        const WasmTagSig* tag_sig = handler.tag.tag->sig;
+        base::Vector<const ValueType> old_cont_returns =
+            this->module_->signature(cont_imm.cont_type->contfun_typeindex())
+                ->returns();
+        if (!VALIDATE(
+                IsEquivalentTypeVec(tag_sig->returns(), old_cont_returns))) {
+          this->DecodeError(
+              "Type mismatch between tag returns and cont returns for switch "
+              "handler %u",
+              handler_iterator.cur_index() - 1);
+          return -1;
+        }
+
+        if (!VALIDATE(tag_sig->parameter_count() == 0)) {
+          this->DecodeError(
+              "switch tag %d has %d parameters but should have no parameters",
+              handler.tag.index, tag_sig->parameter_count());
+          return 0;
+        }
+      } else {
         this->DecodeError("invalid handler kind %d", handler.kind);
         return -1;
       }
@@ -4807,8 +4842,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (handlers[i].kind == kOnSuspend) {
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
-        Value* suspend_cont = Push(
-            ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont));
+        stack_.EnsureMoreCapacity(1, this->zone_);
+        Value* suspend_cont =
+            Push(ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont)
+                     .AsExactIfEnabled(this->enabled_));
         const HandlerCase& handler = handlers[i];
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
@@ -4967,6 +5004,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!VALIDATE(IsSubtypeVec(cont_sig->returns(), tag_sig->returns()))) {
       this->DecodeError("return(s) from continuation %d do not match tag %d",
                         contimm.index.index, tagimm.index);
+      return 0;
+    }
+
+    if (!VALIDATE(tag_sig->parameter_count() == 0)) {
+      this->DecodeError(
+          "switch tag %d has %d parameters but should have no parameters",
+          tagimm.index, tag_sig->parameter_count());
       return 0;
     }
 
@@ -7813,7 +7857,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprI64MulWideS:
       case kExprI64MulWideU: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
         auto [a, b] = Pop(kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);

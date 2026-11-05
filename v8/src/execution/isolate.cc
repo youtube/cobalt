@@ -706,6 +706,9 @@ DirectHandle<String> Isolate::StackTraceString() {
 
 void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
                                    void* ptr4, void* ptr5, void* ptr6) {
+  // Constructing the stack trace requires allocations and handles and is
+  // therefore only supported on the main thread.
+  CHECK(LocalHeap::Current()->is_main_thread());
   StackTraceFailureMessage message(this,
                                    StackTraceFailureMessage::kIncludeStackTrace,
                                    {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
@@ -2736,6 +2739,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
+          // Exception escapes the current suspender, unwind to the parent.
+          // Clear the external stack pointer to avoid a UAF.
+          suspender->set_stack(this, nullptr);
           suspender = suspender->parent();
         }
         RetireWasmStack(active_stack);
@@ -7743,7 +7749,6 @@ void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
         env->global_object()));
     return;
   }
-  counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
 
   {
     // Create a copy of JSGlobalProxy that will be used as holder for contextual

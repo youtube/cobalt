@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
+#include "src/objects/managed.h"
 #include "src/sandbox/sandbox.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -230,9 +231,6 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     int mb_length = static_cast<int>(byte_length / MB);
     if (mb_length > 0) {
       counters->array_buffer_big_allocations()->AddSample(mb_length);
-    }
-    if (shared == SharedFlag::kYes) {
-      counters->shared_array_allocations()->AddSample(mb_length);
     }
     auto allocate_buffer = [allocator, initialized](size_t byte_length) {
       if (initialized == InitializedFlag::kUninitialized) {

@@ -67,7 +67,6 @@
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
 #include "components/gcm_driver/instance_id/instance_id_profile_service.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/plus_addresses/core/common/features.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/base/consent_level.h"
@@ -227,9 +226,6 @@ SyncTest::SyncTest(TestType test_type)
 SyncTest::~SyncTest() = default;
 
 void SyncTest::SetUp() {
-  // Mock the Mac Keychain service.  The real Keychain can block on user input.
-  OSCryptMocker::SetUp();
-
   switch (server_type_) {
     case EXTERNAL_LIVE_SERVER: {
       break;
@@ -256,9 +252,6 @@ void SyncTest::TearDown() {
 
   // Allow the PlatformBrowserTest framework to perform its tear down.
   PlatformBrowserTest::TearDown();
-
-  // Return OSCrypt to its real behaviour
-  OSCryptMocker::TearDown();
 }
 
 void SyncTest::PostRunTestOnMainThread() {
@@ -724,7 +717,8 @@ void SyncTest::InitializeProfile(int index, Profile* profile) {
 
 bool SyncTest::SetupSyncInternal(SetupSyncMode setup_mode,
                                  SyncWaitCondition wait_condition,
-                                 SyncTestAccount account) {
+                                 SyncTestAccount account,
+                                 bool enable_history_sync_in_transport_mode) {
   // Create sync profiles and clients if they haven't already been created.
   if (profiles_.empty()) {
     if (!SetupClients()) {
@@ -752,7 +746,8 @@ bool SyncTest::SetupSyncInternal(SetupSyncMode setup_mode,
     if (setup_mode == SetupSyncMode::kSyncTransportOnly) {
       if (!client->SignInPrimaryAccount(account) ||
           !client->AwaitEngineInitialization() ||
-          !client->EnableHistorySyncNoWaitForCompletion()) {
+          (enable_history_sync_in_transport_mode &&
+           !client->EnableHistorySyncNoWaitForCompletion())) {
         ADD_FAILURE() << "SetupSync() failed.";
         return false;
       }
@@ -815,6 +810,24 @@ bool SyncTest::SetupSyncInternal(SetupSyncMode setup_mode,
               << "cache guid: " << GetCacheGuid(client_index);
   }
 
+  // Because clients may modify sync data as part of startup (for example
+  // local session-related data is rewritten), we need to ensure all
+  // startup-based changes have propagated between the clients.
+  //
+  // Tests that don't use self-notifications or are allowlisted to run in E2E
+  // mode can't await quiescence. They'll have to find their own way of waiting
+  // for an initial state if they really need such guarantees.
+  if (wait_condition != NO_WAITING && TestUsesSelfNotifications() &&
+      !sync_integration_test_util::IsCurrentTestAllowlistedForE2EMode()) {
+    // Bypass E2E check because all tests are calling SetupSync(), and in this
+    // call site it's also verified that it's not called in E2E tests
+    // (implicitly via TestUsesSelfNotifications()).
+    if (!SyncServiceImplHarness::AwaitQuiescence(GetSyncClients())) {
+      ADD_FAILURE() << "AwaitQuiescence() failed.";
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -839,26 +852,9 @@ bool SyncTest::SetupSyncWithMode(SetupSyncMode setup_mode,
 
   base::ScopedAllowBlockingForTesting allow_blocking;
 
-  if (!SetupSyncInternal(setup_mode, wait_condition, account)) {
+  if (!SetupSyncInternal(setup_mode, wait_condition, account,
+                         /*enable_history_sync_in_transport_mode=*/true)) {
     return false;
-  }
-
-  // Because clients may modify sync data as part of startup (for example
-  // local session-related data is rewritten), we need to ensure all
-  // startup-based changes have propagated between the clients.
-  //
-  // Tests that don't use self-notifications or are allowlisted to run in E2E
-  // mode can't await quiescence. They'll have to find their own way of waiting
-  // for an initial state if they really need such guarantees.
-  if (wait_condition != NO_WAITING && TestUsesSelfNotifications() &&
-      !sync_integration_test_util::IsCurrentTestAllowlistedForE2EMode()) {
-    // Bypass E2E check because all tests are calling SetupSync(), and in this
-    // call site it's also verified that it's not called in E2E tests
-    // (implicitly via TestUsesSelfNotifications()).
-    if (!SyncServiceImplHarness::AwaitQuiescence(GetSyncClients())) {
-      ADD_FAILURE() << "AwaitQuiescence() failed.";
-      return false;
-    }
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -877,6 +873,26 @@ bool SyncTest::SetupSyncWithMode(SetupSyncMode setup_mode,
 #endif
 
   DLOG(INFO) << "SyncTest::SetupSync() completed.";
+  return true;
+}
+
+bool SyncTest::SignIn(SyncTestAccount account) {
+#if BUILDFLAG(IS_ANDROID)
+  // For Android, currently the framework only supports one client.
+  // The client uses the default profile.
+  CHECK(num_clients_ == 1)
+      << "For Android, currently it only supports one client.";
+#endif
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+
+  if (!SetupSyncInternal(SetupSyncMode::kSyncTransportOnly,
+                         WAIT_FOR_COMMITS_TO_COMPLETE, account,
+                         /*enable_history_sync_in_transport_mode=*/false)) {
+    return false;
+  }
+
+  DLOG(INFO) << "SyncTest::SignIn() completed.";
   return true;
 }
 

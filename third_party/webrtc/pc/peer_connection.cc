@@ -19,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -624,7 +625,8 @@ PeerConnection::PeerConnection(
   // Field trials specific to the peerconnection should be owned by the `env`,
   RTC_DCHECK(dependencies.trials == nullptr);
 
-  transport_controller_copy_ =
+  std::vector<IceParameters> pooled_credentials;
+  std::tie(transport_controller_copy_, pooled_credentials) =
       InitializeNetworkThread(stun_servers, turn_servers);
 
   if (call_ptr_) {
@@ -641,6 +643,7 @@ PeerConnection::PeerConnection(
       env_, this, configuration_, std::move(dependencies.cert_generator),
       std::move(dependencies.video_bitrate_allocator_factory), context_.get(),
       codec_lookup_helper_.get());
+  sdp_handler_->UpdateCachedIceCredentials(std::move(pooled_credentials));
   rtp_manager_ = std::make_unique<RtpTransmissionManager>(
       env_, call_ptr_, IsUnifiedPlan(), context_.get(),
       codec_lookup_helper_.get(), &usage_pattern_, observer_,
@@ -717,7 +720,8 @@ PeerConnection::~PeerConnection() {
   data_channel_controller_.PrepareForShutdown();
 }
 
-JsepTransportController* PeerConnection::InitializeNetworkThread(
+std::pair<JsepTransportController*, std::vector<IceParameters>>
+PeerConnection::InitializeNetworkThread(
     const ServerAddresses& stun_servers,
     const std::vector<RelayServerConfig>& turn_servers) {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -844,7 +848,11 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
         pa_result.enable_ipv6 ? kPeerConnection_IPv6 : kPeerConnection_IPv4;
     RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.IPMetrics", address_family,
                               kPeerConnectionAddressFamilyCounter_Max);
-    return InitializeTransportController_n(std::move(controller), *config);
+    JsepTransportController* controller_ptr =
+        InitializeTransportController_n(std::move(controller), *config);
+    std::vector<IceParameters> credentials =
+        port_allocator_->GetPooledIceCredentials();
+    return std::make_pair(controller_ptr, credentials);
   });
 }
 
@@ -856,13 +864,19 @@ PeerConnection::MakeCloseOnNetworkThreadTask() {
     return nullptr;
   }
 
-  return [this]() -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
+  auto jsep_close_task = transport_controller_copy_->MakeCloseTask();
+
+  return [this, jsep_close_task = std::move(jsep_close_task)]() mutable
+             -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
     RTC_DCHECK_RUN_ON(network_thread());
     if (network_thread_safety_->alive()) {
       // port_allocator_ and transport_controller_ live on the network thread
       // and must be destroyed there.
       TeardownDataChannelTransport_n(RTCError::OK());
       port_allocator_->DiscardCandidatePool();
+
+      std::move(jsep_close_task)();
+
       transport_controller_.reset();
       port_allocator_.reset();
       network_thread_safety_->SetNotAlive();
@@ -1667,30 +1681,39 @@ RTCError PeerConnection::SetConfiguration(
 
   // Apply part of the configuration on the network thread.  In theory this
   // shouldn't fail.
-  if (!network_thread()->BlockingCall(
-          [this, needs_ice_restart, &ice_config, &stun_servers, &turn_servers,
-           &modified_config, has_local_description] {
-            RTC_DCHECK_RUN_ON(network_thread());
-            // As described in JSEP, calling setConfiguration with new ICE
-            // servers or candidate policy must set a "needs-ice-restart" bit so
-            // that the next offer triggers an ICE restart which will pick up
-            // the changes.
-            if (needs_ice_restart)
-              transport_controller_->SetNeedsIceRestartFlag();
+  std::vector<IceParameters> pooled_credentials;
+  // TODO: webrtc:42222117 - For carrying `new_states` from the transport
+  // controller on the network thread to the transport controller on the
+  // signaling thread, we should instead use a
+  // ScopedOperationsBatcher::BatchTaskWithFinalizer.
+  flat_map<std::string, JsepTransportController::TransportState> new_states;
+  if (!network_thread()->BlockingCall([&] {
+        RTC_DCHECK_RUN_ON(network_thread());
+        // As described in JSEP, calling setConfiguration with new ICE
+        // servers or candidate policy must set a "needs-ice-restart" bit so
+        // that the next offer triggers an ICE restart which will pick up
+        // the changes.
+        if (needs_ice_restart)
+          transport_controller_->SetNeedsIceRestartFlag();
 
-            transport_controller_->SetIceConfig(ice_config);
-            return ReconfigurePortAllocator_n(
-                stun_servers, turn_servers, modified_config.type,
-                modified_config.ice_candidate_pool_size,
-                modified_config.GetTurnPortPrunePolicy(),
-                modified_config.turn_customizer,
-                modified_config.stun_candidate_keepalive_interval,
-                has_local_description);
-          })) {
+        transport_controller_->SetIceConfig(ice_config);
+        bool result = ReconfigurePortAllocator_n(
+            stun_servers, turn_servers, modified_config.type,
+            modified_config.ice_candidate_pool_size,
+            modified_config.GetTurnPortPrunePolicy(),
+            modified_config.turn_customizer,
+            modified_config.stun_candidate_keepalive_interval,
+            has_local_description);
+        pooled_credentials = port_allocator_->GetPooledIceCredentials();
+        new_states = transport_controller_n()->GetTransportStates_n();
+        return result;
+      })) {
     return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
                      << "Failed to apply configuration to PortAllocator.");
   }
 
+  transport_controller_s()->SetTransportStates(std::move(new_states));
+  sdp_handler_->UpdateCachedIceCredentials(std::move(pooled_credentials));
   configuration_ = modified_config;
   return RTCError::OK();
 }
@@ -2412,12 +2435,6 @@ bool PeerConnection::StartRtcEventLog_w(
 void PeerConnection::StopRtcEventLog_w() {
   RTC_DCHECK_RUN_ON(worker_thread());
   env_.event_log().StopLogging();
-}
-
-std::optional<SSLRole> PeerConnection::GetSctpSslRole_n() {
-  RTC_DCHECK_RUN_ON(network_thread());
-  return sctp_mid_n_ ? transport_controller_->GetDtlsRole(*sctp_mid_n_)
-                     : std::nullopt;
 }
 
 bool PeerConnection::GetSslRole(const std::string& content_name,

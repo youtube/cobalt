@@ -25,6 +25,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -306,10 +307,20 @@ ContextualSearchboxHandler::ContextualSearchboxHandler(
                 &ContextualSearchboxHandler::GetContextualSessionHandle,
                 base::Unretained(this)),
             base::BindRepeating(
-                &ContextualSearchboxHandler::CreateImageEncodingOptions));
+                &ContextualSearchboxHandler::CreateImageEncodingOptions),
+            contextual_tasks_context_service_,
+            webui::GetBrowserWindowInterface(web_contents_));
     query_contextualizer_ =
         std::make_unique<contextual_tasks::QueryContextualizer>(
             contextual_tasks_service_, desktop_delegate_.get());
+  }
+}
+
+void ContextualSearchboxHandler::UpdateTabListObservation(
+    TabListInterface* tab_list) {
+  tab_list_observation_.Reset();
+  if (tab_list) {
+    tab_list_observation_.Observe(tab_list);
   }
 }
 
@@ -630,25 +641,38 @@ void ContextualSearchboxHandler::OnInputStateChanged(
 
 void ContextualSearchboxHandler::InitializeInputStateModel() {
   // This implicitly also initializes the file upload status observer.
-  if (auto* session_handle = GetContextualSessionHandle()) {
-    auto* service = AimEligibilityServiceFactory::GetForProfile(profile_);
-    const omnibox::SearchboxConfig* config_ptr =
-        service ? service->GetSearchboxConfig() : nullptr;
-    input_state_model_ = std::make_unique<contextual_search::InputStateModel>(
-        *session_handle, config_ptr ? *config_ptr : omnibox::SearchboxConfig(),
-        web_contents_ ? web_contents_->GetLastCommittedURL() : GURL(),
-        profile_ ? profile_->IsOffTheRecord() : false);
-    if (profile_) {
-      input_state_model_->SetPrefService(profile_->GetPrefs());
-    }
-    input_state_subscription_ = input_state_model_->subscribe(
-        base::BindRepeating(&ContextualSearchboxHandler::OnInputStateChanged,
-                            weak_ptr_factory_.GetWeakPtr()));
-    input_state_model_->Initialize();
+  auto* session_handle = GetContextualSessionHandle();
+  if (!session_handle) {
+    return;
   }
+
+  auto* service = AimEligibilityServiceFactory::GetForProfile(profile_);
+  const omnibox::SearchboxConfig* config =
+      service ? service->GetSearchboxConfig() : nullptr;
+
+  const signin::IdentityManager* identity_manager =
+      profile_ ? IdentityManagerFactory::GetForProfile(profile_) : nullptr;
+  bool has_primary_account =
+      identity_manager &&
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
+
+  GURL url = web_contents_ ? web_contents_->GetLastCommittedURL() : GURL();
+  bool is_off_the_record = profile_ && profile_->IsOffTheRecord();
+
+  // Create the model with clean arguments
+  input_state_model_ = std::make_unique<contextual_search::InputStateModel>(
+      *session_handle, config ? *config : omnibox::SearchboxConfig(), url,
+      is_off_the_record, has_primary_account);
+
+  if (profile_) {
+    input_state_model_->SetPrefService(profile_->GetPrefs());
+  }
+
+  input_state_subscription_ = input_state_model_->subscribe(
+      base::BindRepeating(&ContextualSearchboxHandler::OnInputStateChanged,
+                          weak_ptr_factory_.GetWeakPtr()));
+  input_state_model_->Initialize();
 }
-
-
 
 void ContextualSearchboxHandler::RecordTabAddedMetric(
     tabs::TabInterface* const tab,
@@ -868,8 +892,11 @@ void ContextualSearchboxHandler::ContextualizeQueryAndOpenUrl(
         }
       }
     }
-    if (contextual_tasks::GetIsSmartTabSharingEnabled() &&
-        IsSmartTabSharingActive()) {
+
+    const bool is_eligible_for_promo =
+        !IsSmartTabSharingActive() &&
+        contextual_tasks::GetIsSmartTabSharingEnabled();
+    if (is_eligible_for_promo) {
       contextual_tasks::TabSelectionOptions tab_selection_options;
       tab_selection_options.tab_selection_timeout =
           contextual_tasks::GetSmartTabSharingTabSelectionTimeout();
@@ -878,15 +905,14 @@ void ContextualSearchboxHandler::ContextualizeQueryAndOpenUrl(
         tab_selection_options.browser_window_interface =
             browser_window_interface->GetWeakPtr();
       }
+      tab_selection_options.min_model_score = static_cast<float>(
+          contextual_tasks::GetSmartTabSharingPromoScoreThreshold());
       contextual_tasks_context_service_->GetRelevantTabsForQuery(
           tab_selection_options, query_text, explicit_urls,
           base::BindOnce(&ContextualSearchboxHandler::
-                             ContextualizeQueryWithRelevantTabsAndOpenUrl,
-                         weak_ptr_factory_.GetWeakPtr(), query_text,
-                         disposition, aim_entry_point,
-                         std::move(additional_params)));
-      return;
-    } else {
+                             OnRelevantTabsReceivedToMaybeShowPromo,
+                         weak_ptr_factory_.GetWeakPtr()));
+    } else if (!contextual_tasks::GetIsSmartTabSharingEnabled()) {
       // Run dark experiment if smart tab sharing is not enabled and do not
       // block.
       contextual_tasks::TabSelectionOptions tab_selection_options;
@@ -900,57 +926,35 @@ void ContextualSearchboxHandler::ContextualizeQueryAndOpenUrl(
     }
   }
 
-  ContextualizeQueryWithRelevantTabsAndOpenUrl(
-      query_text, disposition, aim_entry_point, std::move(additional_params),
-      /*relevant_tabs=*/{});
-}
-
-void ContextualSearchboxHandler::ContextualizeQueryWithRelevantTabsAndOpenUrl(
-    const std::string& query_text,
-    WindowOpenDisposition disposition,
-    omnibox::ChromeAimEntryPoint aim_entry_point,
-    std::map<std::string, std::string> additional_params,
-    std::vector<base::WeakPtr<content::WebContents>> relevant_tabs) {
   if (query_contextualizer_) {
-    std::vector<int32_t> tabs_to_recontextualize;
-    std::vector<int32_t> tabs_to_force_contextualize;
-    tabs_to_force_contextualize.reserve(relevant_tabs.size());
-    for (const auto& relevant_tab : relevant_tabs) {
-      if (relevant_tab) {
-        tabs::TabInterface* tab =
-            tabs::TabInterface::MaybeGetFromContents(relevant_tab.get());
-        if (tab) {
-          tabs_to_force_contextualize.push_back(tab->GetHandle().raw_value());
-        }
-      }
-    }
-      // It is safe to use base::Unretained(this) here because
-      // `query_contextualizer_` is owned by `this` and will be destroyed when
-      // `this` is destroyed, cancelling any pending callbacks.
-      query_contextualizer_->Contextualize(
-          GetTaskId(), query_text, tabs_to_recontextualize,
-          tabs_to_force_contextualize,
-          /*on_ineligible_callback=*/base::DoNothing(),
-          /*on_processed_callback=*/base::DoNothing(),
-          base::BindOnce(
-              [](ContextualSearchboxHandler* self, const std::string& query,
-                 WindowOpenDisposition disp,
-                 omnibox::ChromeAimEntryPoint entry_point,
-                 std::map<std::string, std::string> params,
-                 base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
-                     handle) {
-                // The session handle is accessed via
-                // GetContextualSessionHandle(), so we ignore it here.
-                self->ComputeAndOpenQueryUrl(query, disp, entry_point,
-                                             std::move(params));
-              },
-              base::Unretained(this), query_text, disposition, aim_entry_point,
-              std::move(additional_params)));
-      return;
+    query_contextualizer_->Contextualize(
+        GetTaskId(), query_text, /*tabs_to_recontextualize=*/{},
+        /*tabs_to_force_contextualize=*/{},
+        /*on_ineligible_callback=*/base::DoNothing(),
+        /*on_processed_callback=*/base::DoNothing(),
+        base::BindOnce(
+            [](ContextualSearchboxHandler* self, const std::string& query,
+               WindowOpenDisposition disp,
+               omnibox::ChromeAimEntryPoint entry_point,
+               std::map<std::string, std::string> params,
+               base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+                   handle) {
+              self->ComputeAndOpenQueryUrl(query, disp, entry_point,
+                                           std::move(params));
+            },
+            base::Unretained(this), query_text, disposition, aim_entry_point,
+            std::move(additional_params)),
+        /*enable_smart_tab_selection=*/IsSmartTabSharingActive());
+    return;
   }
 
   ComputeAndOpenQueryUrl(query_text, disposition, aim_entry_point,
                          std::move(additional_params));
+}
+
+void ContextualSearchboxHandler::OnRelevantTabsReceivedToMaybeShowPromo(
+    std::vector<base::WeakPtr<content::WebContents>> relevant_tabs) {
+  // TODO: b/502330712 - If non-empty, propagate to UI to show the promo.
 }
 
 void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(

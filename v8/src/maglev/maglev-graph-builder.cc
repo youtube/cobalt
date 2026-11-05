@@ -2805,23 +2805,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
   // If the constant is the undefined value, we can compare it
   // against holey floats.
-  if (maybe_constant->IsUndefined()) {
-    ValueNode* holey_float = nullptr;
-    if (left->is_holey_float64()) {
-      holey_float = left;
-    } else if (right->is_holey_float64()) {
-      holey_float = right;
-    }
-    if (holey_float) {
+  if (maybe_constant->IsUndefined() && other->is_holey_float64()) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-      SetAccumulator(AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>(
-          {holey_float}));
+    SetAccumulator(
+        AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>({other}));
 #else
-      SetAccumulator(
-          AddNewNodeNoInputConversion<HoleyFloat64IsHole>({holey_float}));
+    SetAccumulator(AddNewNodeNoInputConversion<HoleyFloat64IsHole>({other}));
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
       return ReduceResult::Done();
-    }
   }
 
   if (left->properties().value_representation() !=
@@ -4150,9 +4141,16 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
   RecordSmiUse(object);
-  // For constants, we may be able to skip the runtime check.
-  if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
-    if (Smi::IsValid(constant_value.value())) return object;
+  // For non-tagged constants, we may be able to skip the runtime check: every
+  // non-tagged arm of the switch below emits a value-range check, which is
+  // exactly what `Smi::IsValid` proves. For tagged inputs the runtime check
+  // (CheckSmi) is a tag-bit check, and value-equivalence (e.g. via the
+  // checked_value alternative, which may hold a HeapNumber constant) does not
+  // imply Smi tagging.
+  if (object->value_representation() != ValueRepresentation::kTagged) {
+    if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
+      if (Smi::IsValid(constant_value.value())) return object;
+    }
   }
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
@@ -9758,6 +9756,42 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
   return {};
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSubstring(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  if (args.count() != 1 && args.count() != 2) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  ValueNode* start_index = args[0];
+  ValueNode* end_index;
+  if (args.count() > 1) {
+    end_index = args[1];
+  } else {
+    GET_VALUE_OR_ABORT(end_index, BuildLoadStringLength(receiver));
+  }
+
+  ValueNode* zero = GetInt32Constant(0);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
+
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Max(start_index, zero));
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(clamped_start, length));
+
+  ValueNode* clamped_end;
+  GET_VALUE_OR_ABORT(clamped_end, BuildInt32Max(end_index, zero));
+  GET_VALUE_OR_ABORT(clamped_end, BuildInt32Min(clamped_end, length));
+
+  ValueNode* from;
+  GET_VALUE_OR_ABORT(from, BuildInt32Min(clamped_start, clamped_end));
+  ValueNode* to;
+  GET_VALUE_OR_ABORT(to, BuildInt32Max(clamped_start, clamped_end));
+  return AddNewNode<StringSubstring>({receiver, from, to});
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {
@@ -12158,9 +12192,10 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   // lazily-deoptimize with a JSReceiver triggering valueOf
   // (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
   // signature); the reducer only uses the frame state for numeric params.
+  // LINT.IfChange(WasmWrapperInliningConditions)
   bool wrap_args_for_wasm = false;
   if (is_turbolev() && v8_flags.turbolev_inline_js_wasm_wrappers &&
-      !shared.HasBuiltinId()) {
+      shared.object()->HasWasmExportedFunctionData(local_isolate_)) {
     // The SharedFunctionInfo of a Wasm exported function does not carry a
     // builtin ID, so the check above filters out regular JS builtins.
     // However, the Code installed in the dispatch table can be either:
@@ -12173,6 +12208,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
                          (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
   }
+  // LINT.ThenChange(src/compiler/turboshaft/turbolev-graph-builder.cc:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   return AddNewNode<CallKnownJSFunction>(
@@ -15063,7 +15099,6 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
         // backing store.
         int param_count = parameter_count_without_receiver();
         DCHECK_GT(param_count, 0);
-        DCHECK(CanAllocateSloppyArgumentElements());
         int param_idx_in_ctxt = compilation_unit_->shared_function_info()
                                     .context_parameters_start() +
                                 param_count - 1;
@@ -15089,6 +15124,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                   broker()),
               GetInt32Constant(length), elements, GetClosure());
         } else {
+          DCHECK(CanAllocateSloppyArgumentElements());
           ArgumentsLength* length =
               AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);

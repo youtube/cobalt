@@ -49,6 +49,7 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "p2p/test/fake_ice_transport.h"
+#include "p2p/test/fake_port_allocator.h"
 #include "pc/channel.h"
 #include "pc/channel_interface.h"
 #include "pc/connection_context.h"
@@ -361,8 +362,10 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
                              int64_t packet_time_us) {};
     config.un_demuxable_packet_handler =
         [](const RtpPacketReceived& parsed_packet) {};
+    port_allocator_.emplace(env, network_thread_->socketserver(),
+                            network_thread_);
     transport_controller_ = std::make_unique<JsepTransportController>(
-        env, signaling_thread_, network_thread_, /*port_allocator=*/nullptr,
+        env, signaling_thread_, network_thread_, &(*port_allocator_),
         /*async_dns_resolver_factory=*/nullptr,
         /*lna_permission_factory=*/nullptr, std::move(config));
   }
@@ -371,7 +374,10 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     for (auto transceiver : transceivers_) {
       transceiver->internal()->ClearChannel();
     }
-    network_thread_->BlockingCall([&]() { transport_controller_.reset(); });
+    network_thread_->BlockingCall([&]() {
+      transport_controller_.reset();
+      port_allocator_ = std::nullopt;
+    });
   }
 
   static PeerConnectionFactoryDependencies MakeDependencies(
@@ -795,6 +801,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   PayloadTypePicker payload_type_picker_;
   FakeCodecLookupHelper codec_lookup_helper_;
   std::unique_ptr<IceTransportFactory> ice_transport_factory_;
+  std::optional<FakePortAllocator> port_allocator_;
   std::unique_ptr<JsepTransportController> transport_controller_;
   std::map<std::string, std::string> transport_names_by_mid_;
 };

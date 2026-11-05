@@ -26,9 +26,13 @@ void JNI_ChildProcessService_RegisterFileDescriptors(
     const JavaParamRef<jlongArray>& j_offsets,
     const JavaParamRef<jlongArray>& j_sizes) {
   std::vector<absl::optional<std::string>> keys;
-  JavaObjectArrayReader<jstring> keys_array(j_keys);
-  keys.reserve(checked_cast<size_t>(keys_array.size()));
-  for (auto str : keys_array) {
+  // Can not use j_keys.CreateView(env): JArrayView<jobject> needs concepts,
+  // which copied_base lacks since it is built as C++17.
+  jsize keys_size = env->GetArrayLength(j_keys.obj());
+  keys.reserve(checked_cast<size_t>(keys_size));
+  for (jsize i = 0; i < keys_size; ++i) {
+    auto str = ScopedJavaLocalRef<jstring>::Adopt(
+        env, static_cast<jstring>(env->GetObjectArrayElement(j_keys.obj(), i)));
     absl::optional<std::string> key;
     if (str) {
       key = base::android::ConvertJavaStringToUTF8(env, str);

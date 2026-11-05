@@ -375,6 +375,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_script_scope() const {
     return scope_type_ == SCRIPT_SCOPE || scope_type_ == REPL_MODE_SCOPE;
   }
+  bool is_toplevel_scope() const { return scope_type_ <= MODULE_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
   bool is_block_scope() const {
     return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;
@@ -824,6 +825,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                         AstNodeFactory* ast_node_factory,
                         UnresolvedList* new_unresolved_list,
                         bool maybe_in_arrowhead);
+
+  // Mark a variable as used and maybe-assigned if it might be dynamically
+  // accessed by name (e.g. via eval(), in a catch scope, or script scope).
+  void MarkMaybeAssignedIfEval(Variable* var);
 
   // Predicates.
   bool MustAllocate(Variable* var);

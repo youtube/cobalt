@@ -2020,7 +2020,13 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
       IsRtcOk());
 
   VerifyDtlsRoles(caller(), callee());
-  ASSERT_THAT(callee2->dtls_transport_role(), Eq(std::nullopt));
+  if (callee_active) {
+    ASSERT_THAT(callee2->dtls_transport_role(),
+                Eq(DtlsTransportTlsRole::kClient));
+  } else {
+    ASSERT_THAT(callee2->dtls_transport_role(),
+                Eq(DtlsTransportTlsRole::kServer));
+  }
 
   std::atomic<int> caller_sent_on_dc(0);
   std::atomic<int> callee2_sent_on_dc(0);

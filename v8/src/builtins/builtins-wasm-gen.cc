@@ -47,9 +47,15 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
 
   // Otherwise this must be a proper `WASM` frame, holding a
   // `WasmTrustedInstanceData` in the slot.
+  // There is a special case for wasm frames that are the first frame of a
+  // growable stack segment: they are represented with the special frame type
+  // `WASM_SEGMENT_START`.
   TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
-  CSA_CHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                        StackFrame::WASM))));
+  CSA_CHECK(this,
+            Word32Or(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                           StackFrame::WASM))),
+                     WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                           StackFrame::WASM_SEGMENT_START)))));
   TNode<HeapObject> instance_data =
       CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   context_result =
@@ -171,11 +177,39 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
 // existing arguments on the stack. So when mass-creating such constructors,
 // we don't need to compile any bytecode, we only need to allocate an
 // appropriate Context and use this builtin as the code.
+// Ideas for future optimizations:
+// (1) Introduce a fast path version of this wrapper that immediately and
+//     unconditionally performs the tail call; it can be used whenever the
+//     wrapped function's (dynamic) signature guarantees that it always
+//     returns a JSReceiver (in Wasm terms: a subtype of (ref struct)).
+// (2) Build inlining support in Turbofan that skips the wrapper entirely.
 TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
   TNode<Context> context = Parameter<Context>(Descriptor::kContext);
   static constexpr int kSlot = wasm::kConstructorFunctionContextSlot;
   TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+
+  TNode<Object> new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  Label non_construct_call(this), create_object(this);
+  GotoIf(IsUndefined(new_target), &non_construct_call);
+  // When called as a constructor, we have to make sure we're returning a
+  // JSReceiver.
+  CodeStubArguments args(this, argc);
+  TNode<Object> result =
+      CallBuiltin(Builtin::kCallFunctionForwardVarargs, context, target,
+                  Int32Constant(1), Int32Constant(0), UndefinedConstant());
+  GotoIf(TaggedIsSmi(result), &create_object, GotoHint::kFallthrough);
+  GotoIfNot(IsJSReceiver(CAST(result)), &create_object, GotoHint::kFallthrough);
+  args.PopAndReturn(CAST(result));
+
+  BIND(&create_object);
+  TNode<JSFunction> this_constructor =
+      Parameter<JSFunction>(Descriptor::kJSTarget);
+  result = CallBuiltin(Builtin::kFastNewObject, context, this_constructor,
+                       new_target);
+  args.PopAndReturn(CAST(result));
+
+  BIND(&non_construct_call);
   TailCallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined, context,
                   target, argc);
 }

@@ -1366,8 +1366,8 @@ TEST_P(OverviewSessionTest,
   UpdateDisplay("800x600");
   EnterTabletMode();
   std::unique_ptr<aura::Window> window1(CreateTestWindow());
-  std::unique_ptr<aura::Window> window2(
-      CreateTestWindow(gfx::Rect(), aura::client::WINDOW_TYPE_POPUP));
+  std::unique_ptr<aura::Window> window2(CreateTestWindowInShell(
+      {.window_type = aura::client::WINDOW_TYPE_POPUP}));
   EXPECT_TRUE(window_util::ShouldExcludeForOverview(window2.get()));
   ToggleOverview();
   auto* item1 = GetOverviewItemForWindow(window1.get());
@@ -5400,10 +5400,12 @@ class SplitViewOverviewSessionTest : public OverviewTestBase {
 
  protected:
   aura::Window* CreateWindow(const gfx::Rect& bounds) {
-    aura::Window* window = CreateTestWindowInShell(
-        {.delegate =
-             aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate(),
-         .bounds = bounds});
+    aura::Window* window =
+        CreateTestWindowInShell(
+            {.delegate =
+                 aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate(),
+             .bounds = bounds})
+            .release();
     return window;
   }
 
@@ -5412,7 +5414,8 @@ class SplitViewOverviewSessionTest : public OverviewTestBase {
     auto* delegate =
         aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate();
     aura::Window* window =
-        CreateTestWindowInShell({.delegate = delegate, .bounds = bounds});
+        CreateTestWindowInShell({.delegate = delegate, .bounds = bounds})
+            .release();
     delegate->set_minimum_size(size);
     return window;
   }
@@ -7553,8 +7556,9 @@ class SplitViewOverviewSessionInClamshellTest
   aura::Window* CreateWindowWithHitTestComponent(int hit_test_component,
                                                  const gfx::Rect& bounds) {
     return CreateTestWindowInShell(
-        {.delegate = new TestWindowHitTestDelegate(hit_test_component),
-         .bounds = bounds});
+               {.delegate = new TestWindowHitTestDelegate(hit_test_component),
+                .bounds = bounds})
+        .release();
   }
 
  private:

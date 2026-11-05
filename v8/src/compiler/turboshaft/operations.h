@@ -18,6 +18,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/small-vector.h"
+#include "src/base/string-format.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
@@ -2389,6 +2390,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt64,
     kFloat64ToInt32,
     kFloat64ToUint32,
+    kFloat64ToUint64,
     kFloat64ToAdditiveSafeInteger,
     kFloat64ToInt64,
     kFloat64NotHole,
@@ -2410,6 +2412,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
+      case Kind::kFloat64ToUint64:
         return RepVector<RegisterRepresentation::Word64()>();
       case Kind::kFloat64NotHole:
         return RepVector<RegisterRepresentation::Float64()>();
@@ -2430,6 +2433,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64ToUint32:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
+      case Kind::kFloat64ToUint64:
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
     }
@@ -2646,12 +2650,14 @@ struct PhiOp : OperationT<PhiOp> {
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(CheckPhiInputCount(inputs)), rep(rep) {}
 
-  static base::Vector<const OpIndex> CheckPhiInputCount(
+  static V8_INLINE base::Vector<const OpIndex> CheckPhiInputCount(
       base::Vector<const OpIndex> inputs) {
-    // We add an additional CHECK specifically for Phi, to prevent Wasm from
-    // passing too many inputs, e.g. as part of a br_table operation.
-    CHECK_LE(inputs.size(),
-             std::numeric_limits<decltype(PhiOp::input_count)>::max());
+    // We check the phi input count explicitly to prevent Wasm from passing too
+    // many inputs, e.g. as part of a br_table operation.
+    if (V8_UNLIKELY(inputs.size() >
+                    std::numeric_limits<decltype(PhiOp::input_count)>::max())) {
+      V8::FatalProcessOutOfMemory(nullptr, "Too many phi inputs");
+    }
     return inputs;
   }
 
@@ -5369,6 +5375,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     kInt32,
     kAdditiveSafeInteger,
     kInt64,
+    kUint64,
     kFloat64,
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
     kHoleyFloat64,
@@ -5398,6 +5405,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
         return RepVector<RegisterRepresentation::Word32()>();
       case UntaggedKind::kAdditiveSafeInteger:
       case UntaggedKind::kInt64:
+      case UntaggedKind::kUint64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -7453,27 +7461,42 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
 struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   WasmTypeCheckConfig config;
+  bool has_rtt;
+  bool has_frame_state;
 
   static constexpr OpEffects effects =
       OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
-                 WasmTypeCheckConfig config)
-      : Base(1 + rtt.valid()), config(config) {
+                 WasmTypeCheckConfig config, OptionalV<FrameState> frame_state)
+      : Base(1 + rtt.valid() + frame_state.valid()),
+        config(config),
+        has_rtt(rtt.valid()),
+        has_frame_state(frame_state.valid()) {
     input(0) = object;
-    if (rtt.valid()) {
-      input(1) = rtt.value();
+    int idx = 1;
+    if (has_rtt) {
+      input(idx++) = rtt.value();
+    }
+    if (has_frame_state) {
+      input(idx++) = frame_state.value();
     }
   }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(object()), mapper.Map(rtt()), config);
+    return fn(mapper.Map(object()), mapper.Map(rtt()), config,
+              mapper.Map(frame_state()));
   }
 
   V<Object> object() const { return Base::input<Object>(0); }
   OptionalV<Map> rtt() const {
-    return input_count > 1 ? input<Map>(1) : OptionalV<Map>::Nullopt();
+    return has_rtt ? input<Map>(1) : OptionalV<Map>::Nullopt();
+  }
+  OptionalV<FrameState> frame_state() const {
+    int idx = 1 + (has_rtt ? 1 : 0);
+    return has_frame_state ? input<FrameState>(idx)
+                           : OptionalV<FrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -7482,18 +7505,18 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return input_count > 1
-               ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                                MaybeRegisterRepresentation::Tagged()>()
-               : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+    return has_rtt ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                                    MaybeRegisterRepresentation::Tagged()>()
+                   : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
-
 
   auto options() const { return std::tuple{config}; }
 
   static WasmTypeCastOp& New(Graph* graph, V<Object> object, OptionalV<Map> rtt,
-                             WasmTypeCheckConfig config) {
-    return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
+                             WasmTypeCheckConfig config,
+                             OptionalV<FrameState> frame_state) {
+    return Base::New(graph, 1 + rtt.valid() + frame_state.valid(), object, rtt,
+                     config, frame_state);
   }
 
   void Validate(const Graph& graph) const { DCHECK(config.is_valid()); }

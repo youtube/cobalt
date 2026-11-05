@@ -296,7 +296,6 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               RunWithObserver,
               (absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>),
               (override));
-  MOCK_METHOD(std::optional<SSLRole>, GetSctpSslRole_n, (), (override));
   MOCK_METHOD(PeerConnectionInterface::IceConnectionState,
               ice_connection_state_internal,
               (),

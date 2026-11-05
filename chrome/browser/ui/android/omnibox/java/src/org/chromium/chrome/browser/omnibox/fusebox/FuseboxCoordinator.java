@@ -324,6 +324,9 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         if (mViewHolder == null || mViewHolder.addButton == null) return;
         mViewHolder.addButton.requestFocus();
         mViewHolder.addButton.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+        if (mMediator != null) {
+            mMediator.hidePopup();
+        }
     }
 
     @Initializer
@@ -347,6 +350,13 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         if (mInput == null || mMetrics == null) return;
         mMetrics.notifyOmniboxSessionEnded(
                 userDidNavigate, mInput.getRequestType(), mInput.getModelMode());
+    }
+
+    /** Toggles the attachments, tools, and models menu. */
+    public void plusButtonClicked() {
+        if (mMediator != null) {
+            mMediator.onPlusButtonClicked();
+        }
     }
 
     /**

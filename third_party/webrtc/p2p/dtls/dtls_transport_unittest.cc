@@ -1576,6 +1576,31 @@ TEST_F(DtlsTransportInternalImplTest, TestCertificatesAfterConnect) {
             certificate1->GetSSLCertificate().ToPEMString());
 }
 
+TEST_F(DtlsTransportInternalImplTest, TestImplicitRoleDetection) {
+  PrepareDtls(KT_DEFAULT);
+
+  client1_.SetupTransports(env_, ICEROLE_CONTROLLING);
+  client2_.SetupTransports(env_, ICEROLE_CONTROLLED);
+
+  client2_.dtls_transport()->SetDtlsRole(SSL_CLIENT);
+
+  SetRemoteFingerprintFromCert(client2_.dtls_transport(),
+                               client1_.certificate());
+
+  client2_.Connect(&client1_, false);
+
+  EXPECT_THAT(
+      webrtc::WaitUntil(
+          [&] {
+            SSLRole role;
+            return client1_.dtls_transport()->GetDtlsRole(&role) &&
+                   role == SSL_SERVER;
+          },
+          IsTrue(),
+          {.timeout = TimeDelta::Millis(kTimeout), .clock = &time_controller_}),
+      IsRtcOk());
+}
+
 // Test that packets are retransmitted according to the expected schedule.
 // Each time a timeout occurs, the retransmission timer should be doubled up to
 // 60 seconds. The timer defaults to 1 second, but for WebRTC we should be

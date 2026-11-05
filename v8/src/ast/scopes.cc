@@ -317,6 +317,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
               kCreatedInitialized, maybe_assigned, &was_added);
   DCHECK(was_added);
   AllocateHeapSlot(variable);
+  set_is_hoisted_in_context(scope_info->is_hoisted_in_context());
 }
 
 void DeclarationScope::SetDefaults() {
@@ -1153,6 +1154,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(was_added);
   var->AllocateTo(location, index);
   var->set_initializer_position(lookup_result.initializer_position);
+
   return var;
 }
 
@@ -1214,18 +1216,6 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
   Variable* var =
       Declare(zone(), name, mode, kind, init_flag, kNotAssigned, was_added);
-
-  // Pessimistically assume that top-level variables will be assigned and used.
-  //
-  // Top-level variables in a script can be accessed by other scripts or even
-  // become global properties. While this does not apply to top-level variables
-  // in a module (assuming they are not exported), we must still mark these as
-  // assigned because they might be accessed by a lazily parsed top-level
-  // function, which, for efficiency, we preparse without variable tracking.
-  if (is_script_scope() || is_module_scope()) {
-    if (mode != VariableMode::kConst) var->SetMaybeAssigned();
-    var->set_is_used();
-  }
 
   return var;
 }
@@ -1361,6 +1351,7 @@ Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
   Variable* result = Declare(zone(), name, VariableMode::kVar, NORMAL_VARIABLE,
                              kCreatedInitialized, kNotAssigned, &was_added);
   DCHECK(was_added);
+  result->set_is_used();
   return result;
 }
 
@@ -2288,6 +2279,12 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     if (scope->outer_scope_ == outer_scope_end) break;
+    if (scope->is_hoisted_in_context()) {
+      *access_position = scope->outer_scope()->start_position();
+    } else if (scope->is_eval_scope()) {
+      *access_position = scope->AsDeclarationScope()->eval_position();
+    }
+
     if (V8_UNLIKELY(scope->is_dynamic_scope())) {
       DCHECK(!scope->is_script_scope());
       if (scope->is_declaration_scope() &&
@@ -2302,12 +2299,6 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
       CHECK_EQ(mode, kDeserializedScope);
       CHECK(scope->is_debug_evaluate_scope());
       return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
-    }
-
-    if (scope->is_hoisted_in_context()) {
-      *access_position = scope->outer_scope()->start_position();
-    } else if (scope->is_eval_scope()) {
-      *access_position = scope->AsDeclarationScope()->eval_position();
     }
     force_context_allocation |= scope->is_function_scope();
     scope = scope->outer_scope_;
@@ -2602,23 +2593,22 @@ bool Scope::ResolveVariablesRecursively(Scope* end) {
   return true;
 }
 
-bool Scope::MustAllocate(Variable* var) {
-  DCHECK(var->location() != VariableLocation::MODULE);
+void Scope::MarkMaybeAssignedIfEval(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
-  // TODO(dcarney): hoist this check out of MustAllocate since it's mutating
-  // state and confusing.
-  if (!var->raw_name()->IsEmpty() &&
-      (inner_scope_calls_eval() || is_catch_scope() || is_script_scope())) {
+  if (!var->raw_name()->IsEmpty() && inner_scope_calls_eval()) {
     var->set_is_used();
-    if (inner_scope_calls_eval() && !var->is_this()) var->SetMaybeAssigned();
+    if (!var->is_this()) var->SetMaybeAssigned();
   }
+}
+
+bool Scope::MustAllocate(Variable* var) {
+  DCHECK(var->location() != VariableLocation::MODULE);
   CHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
   return !var->IsGlobalObjectProperty() && var->is_used();
 }
-
 
 bool Scope::MustAllocateInContext(Variable* var) {
   // If var is accessed from an inner scope, or if there is a possibility
@@ -2658,6 +2648,7 @@ void DeclarationScope::AllocateParameterLocals() {
   bool has_mapped_arguments = false;
   if (arguments_ != nullptr) {
     DCHECK(!is_arrow_scope());
+    MarkMaybeAssignedIfEval(arguments_);
     if (MustAllocate(arguments_) && !has_arguments_parameter()) {
       // 'arguments' is used and does not refer to a function
       // parameter of the same name. If the arguments object
@@ -2671,14 +2662,6 @@ void DeclarationScope::AllocateParameterLocals() {
       arguments_ = nullptr;
     }
   }
-  // TODO(dcarney): move check from MustAllocate here for parameters.
-  // Mark all remaining parameters as used if they are reachable through
-  // arguments.
-  if (arguments_ != nullptr) {
-    for (int i = 0; i < num_parameters(); i++) {
-      parameter(i)->set_is_used();
-    }
-  }
 
   // The same parameter may occur multiple times in the parameters_ list.
   // If it does, and if it is not copied into the context object, it must
@@ -2689,10 +2672,13 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK_NOT_NULL(var);
     DCHECK(!has_rest() || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
-    if (has_mapped_arguments) {
+    // Parameter is reachable through arguments.
+    if (arguments_ != nullptr) {
       var->set_is_used();
-      var->SetMaybeAssigned();
-      var->ForceContextAllocation();
+      if (has_mapped_arguments) {
+        var->SetMaybeAssigned();
+        var->ForceContextAllocation();
+      }
     }
     AllocateParameter(var, i);
   }
@@ -2704,8 +2690,7 @@ void DeclarationScope::AllocateParameterLocals() {
 }
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
-  // TODO(dcarney): eliminate this check.
-  USE(MustAllocate(var));
+  MarkMaybeAssignedIfEval(var);
   if (has_forced_context_allocation_for_parameters() ||
       MustAllocateInContext(var)) {
     DCHECK(var->IsUnallocated() || var->IsContextSlot());
@@ -2727,7 +2712,9 @@ void DeclarationScope::AllocateReceiver() {
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK_EQ(var->scope(), this);
-  if (var->IsUnallocated() && MustAllocate(var)) {
+  if (!var->IsUnallocated()) return;
+  MarkMaybeAssignedIfEval(var);
+  if (MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
       DCHECK_IMPLIES(is_catch_scope(),
@@ -2768,20 +2755,27 @@ void DeclarationScope::AllocateLocals() {
   // allocated in the context, it must be the last slot in the context,
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
-  if (function_ != nullptr && MustAllocate(function_)) {
-    AllocateNonParameterLocal(function_);
-  } else {
-    function_ = nullptr;
+  if (function_ != nullptr) {
+    MarkMaybeAssignedIfEval(function_);
+    if (MustAllocate(function_)) {
+      AllocateNonParameterLocal(function_);
+    } else {
+      function_ = nullptr;
+    }
   }
 
   DCHECK(!has_rest() || !MustAllocate(rest_parameter()) ||
          !rest_parameter()->IsUnallocated());
 
-  if (new_target_ != nullptr && !MustAllocate(new_target_)) {
-    new_target_ = nullptr;
+  if (new_target_ != nullptr) {
+    MarkMaybeAssignedIfEval(new_target_);
+    if (!MustAllocate(new_target_)) {
+      new_target_ = nullptr;
+    }
   }
 
   NullifyRareVariableIf(RareVariable::kThisFunction, [=, this](Variable* var) {
+    MarkMaybeAssignedIfEval(var);
     return !MustAllocate(var);
   });
 }

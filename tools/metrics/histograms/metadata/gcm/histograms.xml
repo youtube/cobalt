@@ -73,15 +73,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GCM.Crypto.RemoveKeySuccessRate" enum="BooleanSuccess"
-    expires_after="M94">
-  <owner>peter@chromium.org</owner>
-  <owner>zea@chromium.org</owner>
-  <summary>
-    Success rate of removing keying material from the GCM key store.
-  </summary>
-</histogram>
-
 <histogram name="GCM.Database.Open" enum="LevelDBStatus" expires_after="never">
 <!-- expires-never: core storage metric; consumed in separate dashboard (go/chrome-storage-dashboard) -->
 
@@ -168,7 +159,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GCM.RegistrationRequestStatus"
-    enum="GCMRegistrationRequestStatus" expires_after="2026-08-09">
+    enum="GCMRegistrationRequestStatus" expires_after="2026-10-11">
   <owner>peter@chromium.org</owner>
   <summary>
     Status code of the outcome of a GCM registration request. The Unknown error

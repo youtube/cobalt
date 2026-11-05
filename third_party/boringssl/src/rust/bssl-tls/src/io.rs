@@ -16,18 +16,33 @@
 
 use alloc::boxed::Box;
 use core::{
-    ffi::{CStr, c_char, c_int, c_long, c_void},
+    ffi::{
+        CStr,
+        c_char,
+        c_int,
+        c_long,
+        c_void, //
+    },
     fmt,
     ptr::NonNull,
-    task::{Context, Waker},
+    task::{
+        Context,
+        Waker, //
+    },
 };
 
 use once_cell::sync::Lazy;
 
 use crate::{
     abort_on_panic,
-    errors::{Error, TlsRetryReason},
-    ffi::{sanitise_mut_slice, sanitize_slice},
+    errors::{
+        Error,
+        TlsRetryReason, //
+    },
+    ffi::{
+        sanitise_mut_byteslice,
+        sanitize_slice, //
+    },
 };
 
 /// A wrapper around a `dyn AbstractSocket`, delegating BIO methods to the
@@ -348,10 +363,8 @@ unsafe extern "C" fn rust_bio_read(
     // Zero the buffer now.
     // TODO(@xfding): maybe we want to have a buffer wrapper that tracks initialised region.
     let Some(buf) = (unsafe {
-        // Safety: `buffer` is valid for holding `len` bytes by BoringSSL invariants.
-        buffer.write_bytes(0, len);
         // Safety: `buffer` and `len` are sanitised and initialised for the right memory region.
-        sanitise_mut_slice(buffer as *mut u8, len)
+        sanitise_mut_byteslice(buffer as *mut u8, len)
     }) else {
         return -1;
     };

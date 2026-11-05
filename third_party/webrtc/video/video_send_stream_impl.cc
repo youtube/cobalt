@@ -972,11 +972,6 @@ EncodedImageCallback::Result VideoSendStreamImpl::OnEncodedImage(
   return rtp_video_sender_->OnEncodedImage(encoded_image, codec_specific_info);
 }
 
-void VideoSendStreamImpl::OnDroppedFrame(
-    EncodedImageCallback::DropReason reason) {
-  activity_ = true;
-}
-
 void VideoSendStreamImpl::OnFrameDropped(uint32_t rtp_timestamp,
                                          int spatial_id,
                                          bool is_end_of_temporal_unit) {

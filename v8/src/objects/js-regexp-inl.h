@@ -91,6 +91,16 @@ void RegExpData::set_wrapper(Tagged<RegExpDataWrapper> value,
   wrapper_.store(this, value, mode);
 }
 
+uint32_t RegExpData::quick_check_mask() const { return quick_check_mask_; }
+void RegExpData::set_quick_check_mask(uint32_t value) {
+  quick_check_mask_ = value;
+}
+
+uint32_t RegExpData::quick_check_value() const { return quick_check_value_; }
+void RegExpData::set_quick_check_value(uint32_t value) {
+  quick_check_value_ = value;
+}
+
 int RegExpData::capture_count() const {
   switch (type_tag()) {
     case Type::ATOM:
@@ -177,6 +187,27 @@ void IrRegExpData::clear_uc16_bytecode() {
   uc16_bytecode_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
+Tagged<TrustedFixedArray> IrRegExpData::capture_name_map() const {
+  return capture_name_map_.load();
+}
+void IrRegExpData::set_capture_name_map(Tagged<TrustedFixedArray> value,
+                                        WriteBarrierMode mode) {
+  capture_name_map_.store(this, value, mode);
+}
+void IrRegExpData::set_capture_name_map(DirectHandle<TrustedFixedArray> value) {
+  if (value.is_null()) {
+    clear_capture_name_map();
+  } else {
+    set_capture_name_map(*value);
+  }
+}
+bool IrRegExpData::has_capture_name_map() const {
+  return !capture_name_map_.load().is_null();
+}
+void IrRegExpData::clear_capture_name_map() {
+  capture_name_map_.store(this, {}, SKIP_WRITE_BARRIER);
+}
+
 bool IrRegExpData::has_bytecode(bool is_one_byte) const {
   return is_one_byte ? has_latin1_bytecode() : has_uc16_bytecode();
 }
@@ -197,22 +228,6 @@ void IrRegExpData::set_bytecode(bool is_one_byte,
 }
 Tagged<TrustedByteArray> IrRegExpData::bytecode(bool is_one_byte) const {
   return is_one_byte ? latin1_bytecode() : uc16_bytecode();
-}
-
-Tagged<UnionOf<FixedArray, Smi>> IrRegExpData::capture_name_map() const {
-  return capture_name_map_.load();
-}
-void IrRegExpData::set_capture_name_map(Tagged<UnionOf<FixedArray, Smi>> value,
-                                        WriteBarrierMode mode) {
-  capture_name_map_.store(this, value, mode);
-}
-void IrRegExpData::set_capture_name_map(
-    DirectHandle<FixedArray> capture_name_map) {
-  if (capture_name_map.is_null()) {
-    set_capture_name_map(Smi::zero());
-  } else {
-    set_capture_name_map(*capture_name_map);
-  }
 }
 
 int IrRegExpData::max_register_count() const {

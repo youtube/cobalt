@@ -18,6 +18,7 @@
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/managed.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/torque-defined-classes.h"
 #include "src/sandbox/trusted-pointer-scope.h"
@@ -318,7 +319,8 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
   // The fast API call wrapper currently does not support function overloading.
   // Therefore, if the matching function is not function 0, the fast API cannot
   // be used.
-  return FindSupportedWasmFastApiFunction(
+  return v8_flags.wasm_unsafe_fast_api_wrapper &&
+         FindSupportedWasmFastApiFunction(
              isolate, expected_sig, shared, shared->api_func_data(),
              ReceiverKind::kAnyReceiver,
              /*only_first_allowed=*/true) != std::nullopt;
@@ -1025,12 +1027,11 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
                           memory_buffer);
   MaybeDirectHandle<WasmInstanceObject> instance_object = builder.Build();
   if (!instance_object.is_null()) {
-    const std::shared_ptr<NativeModule>& native_module =
-        module_object->shared_native_module();
+    Managed<NativeModule>::Ptr native_module = module_object->native_module();
     if (v8_flags.experimental_wasm_pgo_to_file &&
         native_module->ShouldPgoDataBeWritten() &&
         native_module->module()->num_declared_functions > 0) {
-      WriteOutPGOTask::Schedule(native_module);
+      WriteOutPGOTask::Schedule(std::move(native_module).as_shared_ptr());
     }
     if (builder.ExecuteStartFunction()) {
       return instance_object;
@@ -1047,7 +1048,7 @@ InstanceBuilder::InstanceBuilder(
     MaybeDirectHandle<JSArrayBuffer> asmjs_memory_buffer)
     : isolate_(isolate),
       context_id_(context_id),
-      native_module_(module_object->shared_native_module()),
+      native_module_(module_object->native_module().as_shared_ptr()),
       wire_bytes_(native_module_->wire_bytes()),
       enabled_(native_module_->enabled_features()),
       module_(native_module_->module()),
@@ -2392,8 +2393,7 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t memory_index = import.index;
     auto memory_object = Cast<WasmMemoryObject>(value);
 
-    std::shared_ptr<BackingStore> backing_store =
-        memory_object->backing_store();
+    Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
 #ifdef DEBUG
     if (Tagged<JSArrayBuffer> buffer;
         TryCast(memory_object->array_buffer(), &buffer)) {

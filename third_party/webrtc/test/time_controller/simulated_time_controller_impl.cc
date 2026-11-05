@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <string>
 #include <utility>
 
 #include "absl/base/nullability.h"
@@ -62,7 +61,7 @@ SimulatedTimeControllerImpl::CreateTaskQueue(
 }
 
 std::unique_ptr<Thread> SimulatedTimeControllerImpl::CreateThread(
-    const std::string& name,
+    absl::string_view name,
     std::unique_ptr<SocketServer> absl_nullable socket_server) {
   std::unique_ptr<SimulatedThread> thread;
   if (socket_server == nullptr) {
@@ -70,6 +69,20 @@ std::unique_ptr<Thread> SimulatedTimeControllerImpl::CreateThread(
   } else {
     thread =
         std::make_unique<SimulatedThread>(this, name, std::move(socket_server));
+  }
+  Register(thread.get());
+  return thread;
+}
+
+std::unique_ptr<Thread>
+SimulatedTimeControllerImpl::CreateThreadWithSocketServer(
+    absl::string_view name,
+    SocketServer* socket_server) {
+  std::unique_ptr<SimulatedThread> thread;
+  if (socket_server == nullptr) {
+    thread = std::make_unique<SimulatedThread>(this, name);
+  } else {
+    thread = std::make_unique<SimulatedThread>(this, name, socket_server);
   }
   Register(thread.get());
   return thread;

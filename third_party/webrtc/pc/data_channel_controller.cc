@@ -367,9 +367,13 @@ RTCError DataChannelController::ReserveOrAllocateSid(
   }
 
   // Attempt to allocate an ID based on the negotiated role.
-  std::optional<SSLRole> role = pc_->GetSctpSslRole_n();
-  if (!role)
-    role = fallback_ssl_role;
+  std::optional<SSLRole> role;
+  if (data_channel_transport_) {
+    role = data_channel_transport_->DtlsRole();
+    if (!role) {
+      role = fallback_ssl_role;
+    }
+  }
   if (role) {
     sid = sid_allocator_.AllocateSid(*role);
     if (!sid.has_value())

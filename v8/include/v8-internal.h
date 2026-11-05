@@ -229,6 +229,12 @@ constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 // 16 GB so that the base address + size for the emulated virtual address space
 // lies within the 64 GB total virtual address space.
 constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
+#elif defined(V8_HOST_ARCH_RISCV64)
+// Most RISC-V hardware currently uses Sv39 (39-bit VA, 256GB userspace).
+// Limit the sandbox to 128GB (a quarter of Sv39 userspace) to avoid exceeding
+// the available virtual address space. Uses V8_HOST_ARCH so that simulator
+// builds on x64 are not unnecessarily constrained.
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -275,6 +281,7 @@ static_assert(1ULL << (64 - kBoundedSizeShift) ==
                   kMaxSafeBufferSizeForSandbox + 1,
               "The maximum size of a BoundedSize must be synchronized with the "
               "kMaxSafeBufferSizeForSandbox");
+constexpr size_t kBoundedSizeMask = (1ULL << (64 - kBoundedSizeShift)) - 1;
 
 // Size of the guard regions surrounding the sandbox. This assumes a worst-case
 // scenario of a 32-bit unsigned index used to access an array of 64-bit values
@@ -291,6 +298,19 @@ static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
 static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
               "The maximum allowed buffer size must not be larger than the "
               "sandbox's guard regions");
+
+#if defined(V8_TARGET_OS_ANDROID)
+// On Android, we often won't have sufficient virtual address space available.
+constexpr size_t kAdditionalTrailingGuardRegionSize = 0;
+#else
+// Worst-case, we need 8 (max element size) * 32GB (max ArrayBuffer size) +
+// 32GB (additional bounded size offset for TypedArray access).
+constexpr size_t kAdditionalTrailingGuardRegionSize =
+    288ULL * GB - kSandboxGuardRegionSize;
+#endif
+
+constexpr bool kRequiresTypedArrayAccessMasks =
+    kAdditionalTrailingGuardRegionSize == 0;
 
 #endif  // V8_ENABLE_SANDBOX
 

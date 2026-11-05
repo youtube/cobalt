@@ -50,6 +50,7 @@
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transport.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/session_description.h"
 #include "pc/test/enable_fake_media.h"
 #include "pc/test/fake_codec_lookup_helper.h"
@@ -1031,11 +1032,15 @@ TEST_F(RtpTransceiverTestWithFakeCall,
       /*on_negotiation_needed=*/[] {});
 
   EXPECT_FALSE(transceiver->HasChannel());
-  auto error = transceiver->CreateChannel(
+  ScopedOperationsBatcher worker_tasks(context()->worker_thread());
+  ScopedOperationsBatcher network_tasks(context()->network_thread());
+  transceiver->CreateChannel(
       "0", call_.get(), MediaConfig(), /*srtp_required=*/false, CryptoOptions(),
       audio_options, VideoOptions(), nullptr,
-      [](absl::string_view) -> RtpTransportInternal* { return nullptr; });
-  EXPECT_TRUE(error.ok());
+      [](absl::string_view) -> RtpTransportInternal* { return nullptr; },
+      worker_tasks, network_tasks);
+  EXPECT_TRUE(worker_tasks.Run().ok());
+  EXPECT_TRUE(network_tasks.Run().ok());
 
   ASSERT_TRUE(transceiver->HasChannel());
   auto* voice_channel = transceiver->voice_media_send_channel();

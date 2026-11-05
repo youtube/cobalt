@@ -4,59 +4,48 @@
 
 #import "ios/chrome/browser/tab_picker/coordinator/tab_picker_coordinator.h"
 
-#import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
-#import "ios/chrome/browser/composebox/public/composebox_theme.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_logger.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui/base_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 
-@interface ComposeboxTabPickerCoordinator ()
+@interface TabPickerCoordinator ()
 
 // Returns `YES` if the coordinator is started.
 @property(nonatomic, assign) BOOL started;
 
 @end
 
-@implementation ComposeboxTabPickerCoordinator {
+@implementation TabPickerCoordinator {
   /// The tab picker mediator.
-  ComposeboxTabPickerMediator* _mediator;
+  TabPickerMediator* _mediator;
   /// The tab picker view controller.
-  ComposeboxTabPickerViewController* _viewController;
+  TabPickerViewController* _viewController;
   // The navigation controller displaying the tab picker.
   UINavigationController* _navigationController;
-  // The theme for the composebox.
-  ComposeboxTheme* _theme;
-}
-
-- (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser
-                                     theme:(ComposeboxTheme*)theme {
-  self = [super initWithBaseViewController:viewController browser:browser];
-  if (self) {
-    _theme = theme;
-  }
-
-  return self;
 }
 
 - (void)start {
-  _viewController = [[ComposeboxTabPickerViewController alloc] init];
+  _viewController = [[TabPickerViewController alloc] init];
 
-  _mediator = [[ComposeboxTabPickerMediator alloc]
+  _mediator = [[TabPickerMediator alloc]
         initWithGridConsumer:_viewController.gridViewController
            tabPickerConsumer:_viewController
       tabsAttachmentDelegate:self];
-  _mediator.debugLogger = self.debugLogger;
+  _mediator.logger = self.logger;
+  _mediator.snackbarPresenter = self.snackbarPresenter;
   _mediator.browser = self.browser;
 
   _viewController.mutator = _mediator;
   _viewController.gridViewController.snapshotAndfaviconDataSource = _mediator;
   _viewController.gridViewController.mutator = _mediator;
   _viewController.gridViewController.gridProvider = _mediator;
-  _viewController.composeboxTabPickerHandler = self.composeboxTabPickerHandler;
+  _viewController.tabPickerHandler = self.tabPickerHandler;
 
-  if (_theme.incognito) {
+  if (self.browser->GetProfile()->IsOffTheRecord()) {
     _viewController.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
   }
 
@@ -67,20 +56,18 @@
                                         animated:YES
                                       completion:nil];
   self.started = YES;
-  [self.debugLogger
-      logEvent:[ComposeboxDebuggerEvent
-                   composeboxGeneralEvent:composebox_debugger::event::
-                                              Composebox::kTabPickerShown]];
+  if ([self.logger respondsToSelector:@selector(logTabPickerShown)]) {
+    [self.logger logTabPickerShown];
+  }
 }
 
 - (void)stop {
   if (!self.started) {
     return;
   }
-  [self.debugLogger
-      logEvent:[ComposeboxDebuggerEvent
-                   composeboxGeneralEvent:composebox_debugger::event::
-                                              Composebox::kTabPickerHidden]];
+  if ([self.logger respondsToSelector:@selector(logTabPickerHidden)]) {
+    [self.logger logTabPickerHidden];
+  }
   [_navigationController.presentingViewController
       dismissViewControllerAnimated:YES
                          completion:nil];
@@ -91,9 +78,9 @@
   [super stop];
 }
 
-#pragma mark - ComposeboxTabsAttachmentDelegate
+#pragma mark - TabsAttachmentDelegate
 
-- (void)attachSelectedTabs:(ComposeboxTabPickerMediator*)tabPickerMediator
+- (void)attachSelectedTabs:(TabPickerMediator*)tabPickerMediator
        selectedWebStateIDs:(std::set<web::WebStateID>)selectedWebStateIDs
          cachedWebStateIDs:(std::set<web::WebStateID>)cachedWebStateIDs {
   [self.delegate attachSelectedTabsWithWebStateIDs:selectedWebStateIDs

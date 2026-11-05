@@ -193,7 +193,6 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicOnboardingApiTest",
       "GlicApiTestHibernateOnMemoryUsage",
       "GlicApiTestWithDaisyChain",
-      "GlicApiTestWithSkills",
       "GlicApiTestNoFloatyOrLiveMode",
   };
 }
@@ -202,8 +201,7 @@ std::vector<std::string> GetTestSuiteNames() {
 struct TestParams {
   // This is only used by one fixture.
   bool enable_scroll_to_pdf = false;
-  bool trust_first_onboarding_arm1 = false;
-  bool trust_first_onboarding_arm2 = false;
+  bool onboarding_needed = false;
   bool auto_open_pdf = false;
 };
 
@@ -219,10 +217,7 @@ class WithTestParams : public testing::WithParamInterface<TestParams> {
     if (info.param.enable_scroll_to_pdf) {
       result.push_back("EnableScrollToPdf");
     }
-    if (info.param.trust_first_onboarding_arm1) {
-      result.push_back("TrustFirstOnboardingArm1");
-    }
-    if (info.param.trust_first_onboarding_arm2) {
+    if (info.param.onboarding_needed) {
       result.push_back("TrustFirstOnboardingArm2");
     }
     if (info.param.auto_open_pdf) {
@@ -711,28 +706,6 @@ class GlicApiTestWithGeminiActOnWebPolicy : public GlicApiTestWithOneTab {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-class GlicApiTestHibernateAllOnMemoryPressure : public GlicApiTest {
- public:
-  GlicApiTestHibernateAllOnMemoryPressure() {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        kGlicHibernateAllOnMemoryPressure, {{"aggressive", "false"}});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-class GlicApiTestHibernateAllAggressiveOnMemoryPressure : public GlicApiTest {
- public:
-  GlicApiTestHibernateAllAggressiveOnMemoryPressure() {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        kGlicHibernateAllOnMemoryPressure, {{"aggressive", "true"}});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
 class GlicApiTestHibernateOnMemoryUsage : public GlicApiTest {
  public:
   GlicApiTestHibernateOnMemoryUsage() {
@@ -844,7 +817,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, MAYBE_testReload) {
       .params = base::Value(base::DictValue().Set("failWith", "none")),
   });
 }
-
 
 // The client navigates to the 'sorry' page before it finishes initialize().
 // Chrome should show this page.
@@ -1573,8 +1545,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestRuntimeFeatureOff,
   ASSERT_EQ("Method called", result.ExtractString());
 
   WaitForWebUiState(mojom::WebUiState::kError);
-  histogram_tester->ExpectUniqueSample("Glic.Host.WebClientState.OnDestroy",
-                                       9 /*MOJO_PIPE_CLOSED_UNEXPECTEDLY*/, 1);
+  histogram_tester->ExpectUniqueSample(
+      "Glic.Host.WebClientState.OnDestroy",
+      11 /*MOJO_PIPE_CLOSED_UNEXPECTEDLY_AFTER_INITIALIZE*/, 1);
 
   // Verify the reload button works.
   RunTestSequence(
@@ -1718,8 +1691,7 @@ class GlicOnboardingApiTest : public GlicApiTestWithOneTab {
   GlicOnboardingApiTest()
       : GlicApiTestWithOneTab({.fre_status = prefs::FreStatus::kNotStarted}) {
     feature_list_.InitWithFeaturesAndParameters(
-        {{features::kGlicTrustFirstOnboarding, {}},
-         {features::kGlicMultiInstance, {}},
+        {{features::kGlicMultiInstance, {}},
          {mojom::features::kGlicMultiTab, {}},
          {features::kGlicMultitabUnderlines, {}}},
         {/*disabled_features=*/});
@@ -3213,7 +3185,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegion) {
   // test to avoid a race condition where CaptureRegion is called before the
   // focused tab is known.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->sharing_manager().GetFocusedTabData().focus();
+    return GetService()
+        ->active_instance_sharing_manager()
+        .GetFocusedTabData()
+        .focus();
   }));
   base::RunLoop run_loop;
   region_capture_controller().SetOnCaptureRegionForTesting(
@@ -3233,7 +3208,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionMultiple) {
   ASSERT_TRUE(AddTabAtIndex(0, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->sharing_manager().GetFocusedTabData().focus();
+    return GetService()
+        ->active_instance_sharing_manager()
+        .GetFocusedTabData()
+        .focus();
   }));
   base::RunLoop run_loop;
   region_capture_controller().SetOnCaptureRegionForTesting(
@@ -3262,7 +3240,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionCancelBrowser) {
   ASSERT_TRUE(AddTabAtIndex(0, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->sharing_manager().GetFocusedTabData().focus();
+    return GetService()
+        ->active_instance_sharing_manager()
+        .GetFocusedTabData()
+        .focus();
   }));
   base::RunLoop run_loop;
   region_capture_controller().SetOnCaptureRegionForTesting(
@@ -3294,7 +3275,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionCalledTwice) {
   ASSERT_TRUE(AddTabAtIndex(0, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetService()->sharing_manager().GetFocusedTabData().focus();
+    return GetService()
+        ->active_instance_sharing_manager()
+        .GetFocusedTabData()
+        .focus();
   }));
 
   base::RunLoop run_loop;
@@ -3340,8 +3324,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testRegisterConversationWithEmptyId) {
 
 // TODO(b/498955581): Clean up glic hibernation experiments, and test in the
 // coordinator test.
-IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
-                       testHibernateAllOnMemoryPressure) {
+IN_PROC_BROWSER_TEST_P(GlicApiTest, testHibernateAllOnMemoryPressure) {
   GetService()->web_contents_warming_pool().EnsurePreload();
 
   // Open 3 instances, with instance 2 being the active one.
@@ -3385,41 +3368,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllOnMemoryPressure,
   ASSERT_FALSE(instance1->IsHibernated());
 }
 
-IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateAllAggressiveOnMemoryPressure,
-                       testHibernateAllAggressiveOnMemoryPressure) {
-  GetService()->web_contents_warming_pool().EnsurePreload();
-
-  // Open instance 1, making it active and showing.
-  GlicInstanceImpl* instance1 = OpenGlicInNewTabAndGetInstance(0, kFirstTab);
-  ASSERT_TRUE(instance1->IsShowing());
-
-  // There is a warmed contents initially.
-  GetService()->web_contents_warming_pool().EnsurePreload();
-  ASSERT_TRUE(
-      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
-
-  WebUIStateListener listener(&instance1->host());
-
-  // Simulate memory pressure.
-  base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MEMORY_PRESSURE_LEVEL_CRITICAL);
-
-  // Verify the warmed contents is reset.
-  ASSERT_FALSE(
-      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
-
-  // In aggressive mode, even the showing instance should be hibernated and
-  // closed.
-  tabs::TabInterface* tab = browser()->tab_strip_model()->GetTabAtIndex(0);
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return instance1->IsHibernated() &&
-           !GlicSidePanelCoordinator::IsGlicSidePanelActive(tab);
-  }));
-
-  // The instance should also be closed (not showing).
-  ASSERT_FALSE(instance1->IsShowing());
-}
-
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelWillOpenBeforeClientReady) {
   RunTestSequence(InstrumentTab(kFirstTab),
                   OpenGlic(GlicInstrumentMode::kNone));
@@ -3438,8 +3386,7 @@ class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
  public:
   GlicGetHostCapabilityApiTest()
       : GlicApiTestWithOneTab(
-            {.fre_status = (GetParam().trust_first_onboarding_arm1 ||
-                            GetParam().trust_first_onboarding_arm2)
+            {.fre_status = GetParam().onboarding_needed
                                ? prefs::FreStatus::kNotStarted
                                : prefs::FreStatus::kCompleted}) {
     std::vector<base::test::FeatureRefAndParams> enabled_features;
@@ -3456,25 +3403,9 @@ class GlicGetHostCapabilityApiTest : public GlicApiTestWithOneTab {
           features::kGlicPanelResetSizeAndLocationOnOpen);
     }
 
-    CHECK(!(GetParam().trust_first_onboarding_arm1 &&
-            GetParam().trust_first_onboarding_arm2));
-    if (GetParam().trust_first_onboarding_arm1) {
-      enabled_features.push_back(
-          {features::kGlicTrustFirstOnboarding,
-           {{features::kGlicTrustFirstOnboardingArmParam.name, "1"}}});
-      enabled_features.push_back({features::kGlicMultiInstance, {}});
-      enabled_features.push_back({mojom::features::kGlicMultiTab, {}});
-      enabled_features.push_back({features::kGlicMultitabUnderlines, {}});
-    } else if (GetParam().trust_first_onboarding_arm2) {
-      enabled_features.push_back(
-          {features::kGlicTrustFirstOnboarding,
-           {{features::kGlicTrustFirstOnboardingArmParam.name, "2"}}});
-      enabled_features.push_back({features::kGlicMultiInstance, {}});
-      enabled_features.push_back({mojom::features::kGlicMultiTab, {}});
-      enabled_features.push_back({features::kGlicMultitabUnderlines, {}});
-    } else {
-      disabled_features.push_back(features::kGlicTrustFirstOnboarding);
-    }
+    enabled_features.push_back({features::kGlicMultiInstance, {}});
+    enabled_features.push_back({mojom::features::kGlicMultiTab, {}});
+    enabled_features.push_back({features::kGlicMultitabUnderlines, {}});
 
     if (GetParam().auto_open_pdf) {
       enabled_features.push_back(
@@ -3500,11 +3431,7 @@ IN_PROC_BROWSER_TEST_P(GlicGetHostCapabilityApiTest, testGetHostCapabilities) {
         std::to_underlying(mojom::HostCapability::kScrollToPdf));
 #endif
   }
-  if (GetParam().trust_first_onboarding_arm1) {
-    expected_capabilities.Append(
-        std::to_underlying(mojom::HostCapability::kTrustFirstOnboardingArm1));
-  }
-  if (GetParam().trust_first_onboarding_arm2) {
+  if (GetParam().onboarding_needed) {
     expected_capabilities.Append(
         std::to_underlying(mojom::HostCapability::kTrustFirstOnboardingArm2));
   }
@@ -3579,27 +3506,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
       InProcessBrowserTest::embedded_test_server()->GetURL("/title1.html")));
 
   // Continue the JS test to verify the metadata update.
-  ContinueJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPageMetadataTabDestroyed) {
-  // TODO(harringtond): Re-enable this when multi-instance supports floating.
-  // We can float the window before closing the tab.
-  SKIP_TEST_FOR_MULTI_INSTANCE();
-  // Runs the JS test until the first `advanceToNextStep()`.
-  ExecuteJsTest();
-
-  // The JS test is now paused.
-  content::WebContents* web_contents_to_close =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  // Add a new tab to keep the browser alive before closing the active tab.
-  ASSERT_TRUE(AddTabAtIndex(0, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
-  browser()->tab_strip_model()->CloseWebContentsAt(
-      browser()->tab_strip_model()->GetIndexOfWebContents(
-          web_contents_to_close),
-      CLOSE_NONE);
-
-  // Continue the JS test to verify the observable is completed.
   ContinueJsTest();
 }
 
@@ -3771,157 +3677,15 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateOnMemoryUsage,
   histogram_tester.ExpectTotalCount("Glic.Instance.MemoryUsageAtThreshold", 1);
 }
 
-class GlicApiTestWithSkills : public GlicApiTest {
- public:
-  GlicApiTestWithSkills() {
-    scoped_feature_list_.InitWithFeatures({features::kSkillsEnabled}, {});
-  }
-
-  void SetUpOnMainThread() override {
-    GlicApiTest::SetUpOnMainThread();
-    service_ =
-        skills::SkillsServiceFactory::GetForProfile(browser()->profile());
-    ASSERT_TRUE(service_);
-    service_->SetServiceStatusForTesting(
-        skills::SkillsService::ServiceStatus::kReady);
-
-    NavigateTabAndOpenGlic();
-  }
-
-  void TearDownOnMainThread() override {
-    service_ = nullptr;
-    GlicApiTest::TearDownOnMainThread();
-  }
-
-  skills::SkillsService* SkillsService() { return service_; }
-
- private:
-  raw_ptr<skills::SkillsService> service_ = nullptr;
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testGetSkillSuccess) {
-  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_1",
-                            /*name=*/"test_skill_1",
-                            /*icon=*/"test_icon_1",
-                            /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_2",
-                            /*name=*/"test_skill_2",
-                            /*icon=*/"test_icon_2",
-                            /*prompt=*/"test_prompt_2");
-  ExecuteJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testGetSkillPreviewsSuccess) {
-  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_1",
-                            /*name=*/"test_skill_1",
-                            /*icon=*/"test_icon_1",
-                            /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_2",
-                            /*name=*/"test_skill_2",
-                            /*icon=*/"test_icon_2",
-                            /*prompt=*/"test_prompt_2");
-  ExecuteJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testDisplaySkillInDialogSuccess) {
-  ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    tabs::TabInterface* tab =
-        InProcessBrowserTest::browser()->tab_strip_model()->GetActiveTab();
-    auto* controller = static_cast<skills::SkillsUiTabController*>(
-        skills::SkillsUiTabControllerInterface::From(tab));
-    if (controller && controller->IsShowing()) {
-      const auto& skill = controller->GetCurrentSkillForTesting();
-      return skill.has_value() && skill->id == "id" && skill->name == "name" &&
-             skill->icon == "icon" && skill->prompt == "prompt" &&
-             skill->source == sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
-    }
-    return false;
-  }));
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUi) {
-  ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    tabs::TabInterface* tab =
-        InProcessBrowserTest::browser()->tab_strip_model()->GetActiveTab();
-    return tab &&
-           base::StartsWith(tab->GetContents()->GetLastCommittedURL().spec(),
-                            chrome::kChromeUISkillsURL);
-  }));
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUiNoWindow) {
-  RunTestSequence(OpenGlicFloatingWindow(GlicInstrumentMode::kHostAndContents));
-
-  Browser* main_browser = browser();
-  CloseMainBrowserWithIncognitoKeepAlive();
-
-  ui_test_utils::WaitForBrowserToClose(main_browser);
-
-  // Track the floating instance so ExecuteJsTest knows where to run.
-  TrackFloatingGlicInstance();
-  ExecuteJsTest();
-
-  tabs::TabInterface* skills_tab = nullptr;
-  ASSERT_TRUE(base::test::RunUntil([&]() -> bool {
-    auto all_bwis = GetAllBrowserWindowInterfaces();
-    for (auto* bwi : all_bwis) {
-      for (auto* tab : TabListInterface::From(bwi)->GetAllTabs()) {
-        if (tab->GetContents()->GetLastCommittedURL().spec().starts_with(
-                chrome::kChromeUISkillsURL)) {
-          skills_tab = tab;
-          return true;
-        }
-      }
-    }
-    return false;
-  }));
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
-                       testSendingContextualSkillsToGlic) {
-  SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_1",
-                            /*icon=*/"user_icon_1",
-                            /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_2",
-                            /*icon=*/"user_icon_2",
-                            /*prompt=*/"user_prompt_2");
-
-  ExecuteJsTest();
-
-  std::vector<mojom::SkillPreviewPtr> skills_batch_1;
-  skills_batch_1.push_back(mojom::SkillPreview::New(
-      "contextual_skill_id_1", "contextual_skill_1", "contextual_skill_icon_1",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_1",
-      /*image_url=*/GURL("https://example.com")));
-  skills_batch_1.push_back(mojom::SkillPreview::New(
-      "contextual_skill_id_2", "contextual_skill_2", "contextual_skill_icon_2",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_2",
-      /*image_url=*/GURL("https://example.com")));
-  GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_1));
-  ContinueJsTest();
-
-  std::vector<mojom::SkillPreviewPtr> skills_batch_2;
-  skills_batch_2.push_back(mojom::SkillPreview::New(
-      "contextual_skill_id_3", "contextual_skill_3", "contextual_skill_icon_3",
-      mojom::SkillSource::kFirstParty, "contextual_skill_description_3",
-      /*image_url=*/GURL("https://example.com")));
-  GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_2));
-  ContinueJsTest();
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    GlicGetHostCapabilityApiTest,
-    testing::Values(TestParams{},
-                    TestParams{.enable_scroll_to_pdf = true},
-                    TestParams{.trust_first_onboarding_arm1 = true},
-                    TestParams{.trust_first_onboarding_arm2 = true},
-                    TestParams{.trust_first_onboarding_arm1 = true,
-                               .auto_open_pdf = true}),
-    &WithTestParams::PrintTestVariant);
+INSTANTIATE_TEST_SUITE_P(,
+                         GlicGetHostCapabilityApiTest,
+                         testing::Values(TestParams{},
+                                         TestParams{
+                                             .enable_scroll_to_pdf = true},
+                                         TestParams{.onboarding_needed = true},
+                                         TestParams{.onboarding_needed = true,
+                                                    .auto_open_pdf = true}),
+                         &WithTestParams::PrintTestVariant);
 
 auto DefaultTestParamSet() {
   return testing::Values(TestParams{});
@@ -4005,14 +3769,6 @@ INSTANTIATE_TEST_SUITE_P(,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 INSTANTIATE_TEST_SUITE_P(,
-                         GlicApiTestHibernateAllOnMemoryPressure,
-                         DefaultTestParamSet(),
-                         WithTestParams::PrintTestVariant);
-INSTANTIATE_TEST_SUITE_P(,
-                         GlicApiTestHibernateAllAggressiveOnMemoryPressure,
-                         DefaultTestParamSet(),
-                         WithTestParams::PrintTestVariant);
-INSTANTIATE_TEST_SUITE_P(,
                          GlicOnboardingApiTest,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
@@ -4022,10 +3778,6 @@ INSTANTIATE_TEST_SUITE_P(,
                          WithTestParams::PrintTestVariant);
 INSTANTIATE_TEST_SUITE_P(,
                          GlicApiTestWithDaisyChain,
-                         DefaultTestParamSet(),
-                         &WithTestParams::PrintTestVariant);
-INSTANTIATE_TEST_SUITE_P(,
-                         GlicApiTestWithSkills,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 INSTANTIATE_TEST_SUITE_P(,

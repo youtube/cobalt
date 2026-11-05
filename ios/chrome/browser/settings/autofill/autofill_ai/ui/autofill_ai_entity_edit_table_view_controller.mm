@@ -57,6 +57,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   // The title text for the view.
   NSString* _titleText;
+
+  // Whether the loading state is currently shown.
+  BOOL _loadingState;
 }
 
 #pragma mark - UIViewController
@@ -78,6 +81,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   } else {
     self.navigationItem.rightBarButtonItem = [self editButtonItem];
   }
+  [self validateFields];
 
   [self loadModel];
 }
@@ -132,7 +136,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 - (void)setupBottomSaveButton {
   _saveButton = [[ChromeButton alloc] initWithStyle:ChromeButtonStylePrimary];
   _saveButton.title =
-      l10n_util::GetNSString(IDS_IOS_SAVE_ENTITY_IN_SETTINGS_BUTTON_TEXT);
+      l10n_util::GetNSString(autofill::GetSaveEntityAcceptButtonStringId());
   _saveButton.translatesAutoresizingMaskIntoConstraints = NO;
   [_saveButton addTarget:self
                   action:@selector(didTapSaveNewEntity)
@@ -194,6 +198,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
     [self loadModel];
     [self.tableView reloadData];
   }
+  [self validateFields];
 }
 
 - (void)setEditingAllowed:(BOOL)editingAllowed {
@@ -219,47 +224,35 @@ typedef NS_ENUM(NSInteger, ItemType) {
     [self updateAccessoryAndSelectionStyleForCountryItem:countryItem];
   }
   [self reconfigureCellsForItems:@[ item ]];
+  [self validateFields];
 }
 
 - (void)reloadData {
   [self.tableView reloadData];
 }
 
-- (void)showLoadingState {
-  _saveButton.enabled = NO;
+- (void)setLoadingState:(BOOL)loadingState {
+  _loadingState = loadingState;
+
+  [self validateFields];
 
   UIButtonConfiguration* buttonConfig = _saveButton.configuration;
   if (buttonConfig) {
-    buttonConfig.showsActivityIndicator = YES;
+    buttonConfig.showsActivityIndicator = _loadingState;
     _saveButton.configuration = buttonConfig;
   }
 
-  // Prevent user from interacting with the form or dismissing the view.
-  self.tableView.userInteractionEnabled = NO;
-  self.navigationItem.leftBarButtonItem.enabled = NO;
-  self.navigationItem.rightBarButtonItem.enabled = NO;
+  // Prevent user from interacting with the form or dismissing the view in
+  // loading state.
+  self.tableView.userInteractionEnabled = !_loadingState;
+  self.navigationItem.leftBarButtonItem.enabled = !_loadingState;
 
-  // Prevent swipe-to-dismiss for modals.
-  self.modalInPresentation = YES;
-  // Prevent edge-swipe back gesture.
-  self.navigationController.interactivePopGestureRecognizer.enabled = NO;
-}
+  // Prevent swipe-to-dismiss for modals in loading state.
+  self.modalInPresentation = _loadingState;
 
-- (void)hideLoadingState {
-  _saveButton.enabled = YES;
-
-  UIButtonConfiguration* buttonConfig = _saveButton.configuration;
-  if (buttonConfig) {
-    buttonConfig.showsActivityIndicator = NO;
-    _saveButton.configuration = buttonConfig;
-  }
-
-  // Restore user interaction.
-  self.tableView.userInteractionEnabled = YES;
-  self.navigationItem.leftBarButtonItem.enabled = YES;
-  self.navigationItem.rightBarButtonItem.enabled = YES;
-  self.modalInPresentation = NO;
-  self.navigationController.interactivePopGestureRecognizer.enabled = YES;
+  // Prevent edge-swipe back gesture in loading state.
+  self.navigationController.interactivePopGestureRecognizer.enabled =
+      !_loadingState;
 }
 
 - (void)didFinishSavingWithLocalFallback:(BOOL)isLocalFallback {
@@ -433,30 +426,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
 }
 
 - (void)tableViewItemDidChange:(TableViewTextEditItem*)tableViewTextEditItem {
-  // We don't have to monitor every keystroke. When the user finishes editing,
-  // switches to another field, or hits the Done button or Save button, that
-  // will trigger the validation.
+  [self validateFields];
 }
 
 - (void)tableViewItemDidEndEditing:
     (TableViewTextEditItem*)tableViewTextEditItem {
-  if ([tableViewTextEditItem isKindOfClass:[AutofillAIEntityEditItem class]]) {
-    AutofillAIEntityEditItem* editItem =
-        base::apple::ObjCCastStrict<AutofillAIEntityEditItem>(
-            tableViewTextEditItem);
-
-    const autofill::DenseSet<autofill::AttributeType> presentAttributes =
-        [self presentAttributes];
-    const autofill::DenseSet<autofill::AttributeType> missingFields =
-        [self.mutator getMissingRequiredFieldsFor:presentAttributes];
-
-    BOOL isValid = !missingFields.contains(
-        autofill::AttributeType(editItem.attributeType));
-    if (editItem.hasValidValueStatus != isValid) {
-      editItem.hasValidValueStatus = isValid;
-      [self reconfigureCellsForItems:@[ editItem ]];
-    }
-  }
+  [self validateFields];
 }
 
 #pragma mark - TableViewLinkHeaderFooterItemDelegate
@@ -487,11 +462,15 @@ typedef NS_ENUM(NSInteger, ItemType) {
   return present;
 }
 
-- (BOOL)validateFields {
+- (autofill::DenseSet<autofill::AttributeType>)missingRequiredFields {
   const autofill::DenseSet<autofill::AttributeType> presentAttributes =
       [self presentAttributes];
+  return [self.mutator getMissingRequiredFieldsFor:presentAttributes];
+}
+
+- (BOOL)validateFields {
   const autofill::DenseSet<autofill::AttributeType> missingFields =
-      [self.mutator getMissingRequiredFieldsFor:presentAttributes];
+      [self missingRequiredFields];
 
   NSMutableArray<TableViewItem*>* itemsToReconfigure =
       [[NSMutableArray alloc] init];
@@ -519,7 +498,17 @@ typedef NS_ENUM(NSInteger, ItemType) {
   if (itemsToReconfigure.count > 0) {
     [self reconfigureCellsForItems:itemsToReconfigure];
   }
-  return missingFields.empty();
+  BOOL isValid = missingFields.empty();
+  BOOL buttonEnabled = isValid && !_loadingState;
+  if (self.mode == AutofillAIEntityEditMode::kCreate) {
+    if (_saveButton) {
+      _saveButton.enabled = buttonEnabled;
+    }
+  } else {
+    self.navigationItem.rightBarButtonItem.enabled = buttonEnabled;
+  }
+
+  return isValid;
 }
 
 - (void)updateAccessoryAndSelectionStyleForCountryItem:
@@ -534,6 +523,10 @@ typedef NS_ENUM(NSInteger, ItemType) {
     countryItem.editingAccessoryType = UITableViewCellAccessoryNone;
     countryItem.selectionStyle = UITableViewCellSelectionStyleNone;
   }
+}
+
+- (UIButton*)saveButton {
+  return _saveButton;
 }
 
 @end

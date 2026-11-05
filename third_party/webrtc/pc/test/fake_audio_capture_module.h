@@ -45,6 +45,10 @@ class FakeAudioCaptureModule : public webrtc::AudioDeviceModule {
   static const size_t kNumberBytesPerSample = sizeof(Sample);
 
   // Creates a FakeAudioCaptureModule or returns NULL on failure.
+  static webrtc::scoped_refptr<FakeAudioCaptureModule> Create(
+      std::unique_ptr<webrtc::Thread> process_thread);
+
+  // Creates a FakeAudioCaptureModule with a default started thread.
   static webrtc::scoped_refptr<FakeAudioCaptureModule> Create();
 
   // Returns the number of frames that have been successfully pulled by the
@@ -157,7 +161,9 @@ class FakeAudioCaptureModule : public webrtc::AudioDeviceModule {
   // exposed in which case the burden of proper instantiation would be put on
   // the creator of a FakeAudioCaptureModule instance. To create an instance of
   // this class use the Create(..) API.
-  FakeAudioCaptureModule();
+  explicit FakeAudioCaptureModule(
+      std::unique_ptr<webrtc::Thread> process_thread);
+
   // The destructor is protected because it is reference counted and should not
   // be deleted directly.
   ~FakeAudioCaptureModule() override;

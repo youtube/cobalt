@@ -29,15 +29,17 @@ CompositorFrameReportingController::CompositorFrameReportingController(
     bool is_trees_in_viz_client)
     : should_report_histograms_(should_report_histograms),
       layer_tree_host_id_(layer_tree_host_id),
-      is_trees_in_viz_client_(is_trees_in_viz_client),
-      predictor_jank_tracker_(std::make_unique<PredictorJankTracker>()),
-      scroll_jank_dropped_frame_tracker_(
-          std::make_unique<ScrollJankDroppedFrameTracker>()),
-      scroll_jank_v4_processor_(std::make_unique<ScrollJankV4Processor>()) {
-  global_trackers_.predictor_jank_tracker = predictor_jank_tracker_.get();
-  global_trackers_.scroll_jank_dropped_frame_tracker =
-      scroll_jank_dropped_frame_tracker_.get();
-  global_trackers_.scroll_jank_v4_processor = scroll_jank_v4_processor_.get();
+      is_trees_in_viz_client_(is_trees_in_viz_client) {
+  if (should_report_histograms_) {
+    predictor_jank_tracker_ = std::make_unique<PredictorJankTracker>();
+    scroll_jank_dropped_frame_tracker_ =
+        std::make_unique<ScrollJankDroppedFrameTracker>();
+    scroll_jank_v4_processor_ = std::make_unique<ScrollJankV4Processor>();
+    global_trackers_.predictor_jank_tracker = predictor_jank_tracker_.get();
+    global_trackers_.scroll_jank_dropped_frame_tracker =
+        scroll_jank_dropped_frame_tracker_.get();
+    global_trackers_.scroll_jank_v4_processor = scroll_jank_v4_processor_.get();
+  }
 }
 
 CompositorFrameReportingController::~CompositorFrameReportingController() {
@@ -617,7 +619,7 @@ void CompositorFrameReportingController::DidPresentCompositorFrame(
 
   for (auto submitted_frame = submitted_compositor_frames_.begin();
        submitted_frame != submitted_compositor_frames_.end() &&
-       !viz::FrameTokenGT(submitted_frame->frame_token, frame_token);) {
+       submitted_frame->frame_token <= frame_token;) {
     bool is_earlier_frame = submitted_frame->frame_token != frame_token;
 
     // If the presentation feedback is a failure, earlier frames should still be

@@ -158,9 +158,21 @@ mojom("mojom") {
           mojom = "media.mojom.AudioParameters"
           cpp = "::media::AudioParameters"
         },
+        {
+          mojom = "media.mojom.AudioParametersHardwareCapabilities"
+          cpp = "::media::AudioParameters::HardwareCapabilities"
+        },
+        {
+          mojom = "media.mojom.AudioParametersFormat"
+          cpp = "::media::AudioParameters::Format"
+        },
+        {
+          mojom = "media.mojom.AudioLatencyType"
+          cpp = "::media::AudioLatency::Type"
+        },
       ]
-      traits_headers = [ "//media/base/ipc/media_param_traits.h" ]
-      traits_public_deps = [ "//media/base/ipc" ]
+      traits_headers = [ "audio_parameters_mojom_traits.h" ]
+      traits_public_deps = [ ":shared_mojom_traits" ]
     },
     {
       types = [
@@ -451,7 +463,10 @@ mojom("mojom") {
 
 mojom("media_types") {
   generate_java = true
-  sources = [ "media_types.mojom" ]
+  sources = [
+    "channel_layout.mojom",
+    "media_types.mojom",
+  ]
 
   if (is_cobalt && use_starboard_media) {
     enabled_features = [ "use_starboard_media" ]
@@ -555,6 +570,10 @@ mojom("media_types") {
         {
           mojom = "media.mojom.RendererType"
           cpp = "::media::RendererType"
+        },
+        {
+          mojom = "media.mojom.ChannelLayout"
+          cpp = "::media::ChannelLayout"
         },
       ]
       traits_headers = [ "media_types_enum_mojom_traits.h" ]
@@ -693,10 +712,6 @@ mojom("media_types") {
         {
           mojom = "media.mojom.BufferingStateChangeReason"
           cpp = "::media::BufferingStateChangeReason"
-        },
-        {
-          mojom = "media.mojom.ChannelLayout"
-          cpp = "::media::ChannelLayout"
         },
         {
           mojom = "media.mojom.MediaLogRecord"
@@ -1029,6 +1044,8 @@ mojom("video_encode") {
 
 source_set("shared_mojom_traits") {
   sources = [
+    "audio_parameters_mojom_traits.cc",
+    "audio_parameters_mojom_traits.h",
     "audio_processing_mojom_traits.cc",
     "audio_processing_mojom_traits.h",
     "picture_in_picture_events_info_mojom_traits.cc",

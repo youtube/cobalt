@@ -22,6 +22,7 @@
 ['variant in (jitless, nooptimization)', {
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-type-combos': [SKIP],
 }],  # variant in (jitless, nooptimization)
 
 ['variant == jitless', {
@@ -43,17 +44,14 @@
   'wasm/crash/regress-481074858': [SKIP],
 }], # official_build
 
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
-  # Maglev doesn't support inlining of Wasm code.
-  'wasm-in-js-inlining-turboshaft': [FAIL],
-}],
-
 # There are two sources of output differences between 32 and 64 bit platforms:
 # First, on 32 bit platforms we can't inline JS-to-Wasm wrappers with i64 args,
 # and second, the wrapper inlining tests also enable Wasm-into-JS body inlining,
 # which is not supported on 32 bit platforms.
 ['arch in (ia32, arm, riscv32)', {
   'wasm-in-js-inlining-turboshaft': [SKIP],
+  'wasm-in-js-inlining-turboshaft-stacktrace-api': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-type-combos': [SKIP],
 }],
 ]
