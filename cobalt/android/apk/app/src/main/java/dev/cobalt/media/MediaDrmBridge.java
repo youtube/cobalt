@@ -133,12 +133,12 @@ public class MediaDrmBridge {
           String.format("Device is not provisioned. StackTrace: %s", Log.getStackTraceString(e)));
     }
 
-    @CalledByNative("OperationResult")
+    @CalledByNative
     public String getErrorMessage() {
       return mErrorMessage;
     }
 
-    @CalledByNative("OperationResult")
+    @CalledByNative
     public int getStatusCode() {
       return mStatus;
     }
@@ -789,12 +789,12 @@ public class MediaDrmBridge {
       mStatusCode = statusCode;
     }
 
-    @CalledByNative("KeyStatus")
+    @CalledByNative
     private byte[] getKeyId() {
       return (mKeyId == null) ? null : mKeyId.clone();
     }
 
-    @CalledByNative("KeyStatus")
+    @CalledByNative
     private int getStatusCode() {
       return mStatusCode;
     }

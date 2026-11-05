@@ -593,12 +593,12 @@ public class AudioTrackBridge {
       mNanoTime = nanoTime;
     }
 
-    @CalledByNative("AudioTimestamp")
+    @CalledByNative
     public long getFramePosition() {
       return mFramePosition;
     }
 
-    @CalledByNative("AudioTimestamp")
+    @CalledByNative
     public long getNanoTime() {
       return mNanoTime;
     }
