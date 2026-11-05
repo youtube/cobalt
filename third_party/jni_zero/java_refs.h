@@ -437,7 +437,10 @@ class JavaRef : public JavaRef<jobject> {
   }
 
   void Set(JNIEnv* env, int32_t index, const JavaRef<jobject>& value) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     env->SetObjectArrayElement(this->obj(), index, value.obj());
   }
@@ -503,7 +506,10 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   }
 
   template <typename U>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsConvertableJObject<T, U>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Set(JNIEnv* env, int32_t index, const JavaRef<U>& value) const {
     env->SetObjectArrayElement(this->obj(), index, value.obj());
   }
