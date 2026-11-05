@@ -457,7 +457,7 @@ void ServiceWorkerVersion::SetStatus(Status status) {
 #endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 =======
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (status == REDUNDANT) {
     embedded_worker_->OnWorkerVersionDoomed();
 

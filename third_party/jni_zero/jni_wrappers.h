@@ -309,7 +309,7 @@ class JArrayView<T> : public JArrayViewBase<T> {
   using JArrayViewBase<T>::length_;
 
  public:
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   JArrayView<T>(JNIEnv* env, JArray<T> array) : JArrayViewBase<T>(env, array) {}
 
   ~JArrayView<T>() = default;
@@ -538,7 +538,7 @@ struct _JniFuncMappings<double> {
 =======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <typename T>
   requires internal::IsPrimitiveType<T>
 class JArrayView<T> : public JArrayViewBase<T> {

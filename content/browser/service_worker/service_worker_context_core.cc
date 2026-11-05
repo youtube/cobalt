@@ -1514,5 +1514,5 @@ void ServiceWorkerContextCore::SetServiceWorkerUsbDelegateObserverForTesting(
 
 =======
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace content

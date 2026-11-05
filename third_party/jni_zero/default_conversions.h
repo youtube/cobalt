@@ -217,7 +217,7 @@ inline ByteArrayView FromJniArray<ByteArrayView>(
 }
 
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <internal::IsObjectContainer ContainerType>
 inline ContainerType FromJniCollection(JNIEnv* env,
                                        const JavaRef<jobject>& j_collection) {

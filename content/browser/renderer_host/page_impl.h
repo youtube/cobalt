@@ -170,7 +170,7 @@ class CONTENT_EXPORT PageImpl : public Page {
   }
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   FencedFrameURLMapping& fenced_frame_urls_map() {
     return fenced_frame_urls_map_;
   }

@@ -864,7 +864,7 @@ def _ProcessGnFile(file_path, args_dict, processed_files):
         key = key_value_pair[0].strip()
         value = key_value_pair[1].strip().strip('"')
         args_dict[key] = value
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 
 def _GetBuildArgs():
@@ -889,7 +889,7 @@ def _GetBuildArgs():
   build_args_path = os.path.join(BUILD_DIR, 'args.gn')
   assert os.path.exists(build_args_path), ('"%s" is not a build directory, '
                                            'missing args.gn file.' % BUILD_DIR)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   processed_files = set()
   _ProcessGnFile(build_args_path, _BUILD_ARGS, processed_files)

@@ -2082,7 +2082,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/cpuinfo/src':
 #    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '7607ca500436b37ad23fb8d18614bec7796b68a7',
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2667,7 +2667,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/perfetto':
 #    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'd6d4e7f478503496c39188e37ea7ba6ddca46760',
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3067,7 +3067,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/webrtc':
 #    Var('webrtc_git') + '/src.git' + '@' + '29546deb6d13f1768bd23c180714fa57ad073108',
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

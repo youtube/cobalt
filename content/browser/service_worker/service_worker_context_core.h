@@ -62,7 +62,7 @@ class ServiceWorkerHidDelegateObserver;
 =======
 class ServiceWorkerUsbDelegateObserver;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 class ServiceWorkerUsbDelegateObserver;
@@ -588,7 +588,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 #endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 =======
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -712,7 +712,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 =======
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;

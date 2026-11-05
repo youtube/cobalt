@@ -358,7 +358,7 @@
 #define BUILDFLAG_INTERNAL_IS_STARBOARD_TOOLCHAIN() (1)
 #else
 #define BUILDFLAG_INTERNAL_IS_STARBOARD_TOOLCHAIN() (0)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on

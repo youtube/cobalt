@@ -1349,7 +1349,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
           std::make_unique<FencedFrameViewportObserver>(this))
 #endif
 {
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 8cfe242b639 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
