@@ -225,6 +225,20 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // across sessions.
 BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 
+<<<<<<< HEAD
+=======
+// Preconnects to the initial launch URL origin during PreMainMessageLoopRun()
+// while WebContents creation is deferred to ShellManager.launchShell(), so DNS
+// resolution and TCP/TLS handshakes overlap with browser/UI startup before the
+// first navigation starts.
+BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
+
+// Also writes HttpServerProperties to disk when the app is paused, instead of
+// leaving it to its 60 s write-coalescing timer, which a background kill does
+// not honor.
+BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
+
+>>>>>>> fd8913197cc (cobalt/browser: Add finch feature to Flush HttpServerProperties on Pause (#13696))
 }  // namespace features
 }  // namespace cobalt
 

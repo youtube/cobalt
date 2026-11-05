@@ -231,5 +231,16 @@ BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
              "CobaltStabilityMetricsDeduplication",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+<<<<<<< HEAD
+=======
+BASE_FEATURE(kCobaltStartupPreconnect,
+             "CobaltStartupPreconnect",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause,
+             "CobaltFlushHttpServerPropertiesOnPause",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+>>>>>>> fd8913197cc (cobalt/browser: Add finch feature to Flush HttpServerProperties on Pause (#13696))
 }  // namespace features
 }  // namespace cobalt
