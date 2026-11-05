@@ -285,7 +285,5 @@ if (is_cobalt_hermetic_build) {
 }
 target(_wrapper_target_type, "starboard_unittests_wrapper") {
   testonly = true
-  if (starboard_path != "starboard/no_platform") {
-    deps = [ ":starboard_unittests($starboard_toolchain)" ]
-  }
+  deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
