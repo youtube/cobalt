@@ -168,6 +168,19 @@ template("generate_bindings") {
     ]
     outputs = invoker.outputs
 
+    if (!use_webrtc_peer_connection) {
+      # RTCDiagnosticLoggingOptions lives in modules/webrtc (kept in Cobalt), not
+      # modules/peerconnection (removed), so its generated bindings must still be
+      # produced. Drop everything the broad "*v8_rtc_*" patterns catch EXCEPT
+      # v8_rtc_diagnostic_logging_options, leaving it in place.
+      _dropped_outputs = filter_exclude(
+          filter_include(outputs, cobalt_bindings_exclude_patterns),
+          [ "*v8_rtc_diagnostic_logging_options.*" ])
+      _kept_outputs = filter_exclude(outputs, _dropped_outputs)
+      outputs = []
+      outputs = _kept_outputs
+    }
+
     args = [
       "--web_idl_database",
       rebase_path(web_idl_database, root_build_dir),
@@ -302,19 +315,6 @@ generate_bindings("generate_bindings_union") {
   outputs =
       generated_union_sources_in_core + generated_union_sources_in_modules +
       generated_union_sources_for_testing_in_core
-
-  if (!use_webrtc_peer_connection) {
-    # RTCDiagnosticLoggingOptions lives in modules/webrtc (kept in Cobalt), not
-    # modules/peerconnection (removed), so its generated bindings must still be
-    # produced. Drop everything the broad "*v8_rtc_*" patterns catch EXCEPT
-    # v8_rtc_diagnostic_logging_options, leaving it in place.
-    _dropped_outputs = filter_exclude(
-        filter_include(outputs, cobalt_bindings_exclude_patterns),
-        [ "*v8_rtc_diagnostic_logging_options.*" ])
-    _kept_outputs = filter_exclude(outputs, _dropped_outputs)
-    outputs = []
-    outputs = _kept_outputs
-  }
 }
 
 group("generate_bindings_all") {
