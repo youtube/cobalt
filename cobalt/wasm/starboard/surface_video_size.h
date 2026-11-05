@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_STARBOARD_WASM_SURFACE_VIDEO_SIZE_H_
-#define COBALT_STARBOARD_WASM_SURFACE_VIDEO_SIZE_H_
+#ifndef COBALT_WASM_STARBOARD_SURFACE_VIDEO_SIZE_H_
+#define COBALT_WASM_STARBOARD_SURFACE_VIDEO_SIZE_H_
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -21,7 +21,8 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 // The size of the video on each Wasm surface, from its players' stream info.
 // The surface's <video> element reports it as its natural size, so the
@@ -44,7 +45,8 @@ class SurfaceVideoSize {
       Callback callback);
 };
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
-#endif  // COBALT_STARBOARD_WASM_SURFACE_VIDEO_SIZE_H_
+#endif  // COBALT_WASM_STARBOARD_SURFACE_VIDEO_SIZE_H_

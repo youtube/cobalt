@@ -16,17 +16,17 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
-#include "cobalt/starboard_wasm/event_queue.h"
-#include "cobalt/starboard_wasm/guest_memory.h"
-#include "cobalt/starboard_wasm/wasm_player_host.h"
-#include "cobalt/starboard_wasm/wasm_starboard_abi.h"
+#include "cobalt/wasm/starboard/event_queue.h"
+#include "cobalt/wasm/starboard/guest_memory.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
+#include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 #include "third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_imports.h"
 
 namespace blink {
 
-using cobalt::starboard_wasm::GuestMemory;
-using cobalt::starboard_wasm::WasmPlayerHost;
-using cobalt::starboard_wasm::WasmSbEvent;
+using cobalt::wasm::starboard::GuestMemory;
+using cobalt::wasm::starboard::WasmPlayerHost;
+using cobalt::wasm::starboard::WasmSbEvent;
 
 H5vccWasmPlayer::H5vccWasmPlayer(H5vccWasmImports& imports)
     : imports_(&imports) {}
@@ -211,7 +211,7 @@ bool H5vccWasmPlayer::canChangeType(v8::Isolate* isolate,
 }
 
 void H5vccWasmPlayer::requestWake() {
-  if (cobalt::starboard_wasm::EventQueue* queue = imports_->events()) {
+  if (cobalt::wasm::starboard::EventQueue* queue = imports_->events()) {
     queue->RequestWake();
   }
 }
@@ -219,7 +219,7 @@ void H5vccWasmPlayer::requestWake() {
 uint32_t H5vccWasmPlayer::pollEvents(v8::Isolate* isolate,
                                      uint32_t events,
                                      uint32_t count) {
-  cobalt::starboard_wasm::EventQueue* queue = imports_->events();
+  cobalt::wasm::starboard::EventQueue* queue = imports_->events();
   GuestMemory memory = imports_->Memory(isolate);
   uint8_t* out = memory.Array(events, count, sizeof(WasmSbEvent));
   if (!queue || !out) {

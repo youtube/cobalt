@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // SbPlayer and the SbMedia queries it needs, one operation per Starboard
-// function. Records are defined in cobalt/starboard_wasm/wasm_starboard_abi.h.
+// function. Records are defined in cobalt/wasm/starboard/wasm_starboard_abi.h.
 // Inputs that would crash the process are rejected (false or 0) without
 // calling Starboard (see wasm_starboard_abi.h); the rest of Starboard's API
 // contract is the caller's to keep.

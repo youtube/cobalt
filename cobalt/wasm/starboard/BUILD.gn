@@ -14,7 +14,8 @@
 
 # Starboard's SbPlayer exposed to WebAssembly guests; Blink exposes it as
 # h5vccWasmImports.
-static_library("starboard_wasm") {
+static_library("starboard") {
+  output_name = "cobalt_wasm_starboard"
   sources = [
     "event_queue.cc",
     "event_queue.h",
@@ -59,7 +60,7 @@ source_set("unit_tests") {
     "wasm_player_host_unittest.cc",
   ]
   deps = [
-    ":starboard_wasm",
+    ":starboard",
     ":surface_video_size",
     "//base/test:test_support",
     "//gin:gin_test",

@@ -23,7 +23,7 @@ source_set("gpu") {
     "//cobalt/browser:memory_ablation",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
-    "//cobalt/starboard_wasm",
+    "//cobalt/wasm/starboard",
     "//components/viz/common",
     "//components/viz/service",
     "//content/public/child",

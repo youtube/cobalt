@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/guest_memory.h"
+#include "cobalt/wasm/starboard/guest_memory.h"
 
 #include "gin/converter.h"
 #include "gin/test/v8_test.h"
@@ -22,7 +22,8 @@
 #include "v8/include/v8-wasm.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 namespace {
 
 constexpr uint32_t kPageSize = 65536;
@@ -78,5 +79,6 @@ TEST_F(GuestMemoryTest, FailsWithoutMemory) {
 }
 
 }  // namespace
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt

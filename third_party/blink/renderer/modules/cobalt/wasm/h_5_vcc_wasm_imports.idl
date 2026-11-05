@@ -23,7 +23,7 @@
 // Pointer arguments are byte offsets into the WebAssembly.Memory passed to
 // bindMemory(); without bound memory, or for an out-of-bounds range, the
 // operation fails. Records are defined in
-// cobalt/starboard_wasm/wasm_starboard_abi.h.
+// cobalt/wasm/starboard/wasm_starboard_abi.h.
 // Disabled by default (see H5vccWasmImports in runtime_enabled_features.json5).
 // When enabled, only the outermost main frame and dedicated workers
 // same-origin with it get an instance; the attribute is null elsewhere.

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_STARBOARD_WASM_GUEST_MEMORY_H_
-#define COBALT_STARBOARD_WASM_GUEST_MEMORY_H_
+#ifndef COBALT_WASM_STARBOARD_GUEST_MEMORY_H_
+#define COBALT_WASM_STARBOARD_GUEST_MEMORY_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -28,7 +28,8 @@
 #include "v8/include/v8-persistent-handle.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 // Resolves guest pointers, which are byte offsets into the WebAssembly.Memory
 // bound with bindMemory(), for the duration of one import call. Memory can
@@ -75,7 +76,8 @@ class GuestMemory {
   size_t size_ = 0;
 };
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
-#endif  // COBALT_STARBOARD_WASM_GUEST_MEMORY_H_
+#endif  // COBALT_WASM_STARBOARD_GUEST_MEMORY_H_

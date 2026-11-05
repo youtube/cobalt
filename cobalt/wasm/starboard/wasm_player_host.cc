@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/wasm_player_host.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
 
 #include <string.h>
 
@@ -33,10 +33,10 @@
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "cobalt/starboard_wasm/event_queue.h"
-#include "cobalt/starboard_wasm/guest_memory.h"
-#include "cobalt/starboard_wasm/surface_video_size.h"
-#include "cobalt/starboard_wasm/wasm_starboard_abi.h"
+#include "cobalt/wasm/starboard/event_queue.h"
+#include "cobalt/wasm/starboard/guest_memory.h"
+#include "cobalt/wasm/starboard/surface_video_size.h"
+#include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -49,7 +49,8 @@
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 namespace {
 
@@ -948,5 +949,6 @@ void WasmPlayerHost::PlayerErrorCB(SbPlayer player,
   PushEvent(context, {kWasmSbEventPlayerError, 0, error, 0, 0});
 }
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt

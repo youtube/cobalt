@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_STARBOARD_WASM_WASM_PLAYER_HOST_H_
-#define COBALT_STARBOARD_WASM_WASM_PLAYER_HOST_H_
+#ifndef COBALT_WASM_STARBOARD_WASM_PLAYER_HOST_H_
+#define COBALT_WASM_STARBOARD_WASM_PLAYER_HOST_H_
 
 #include <stdint.h>
 
@@ -30,7 +30,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/unguessable_token.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/starboard_wasm/wasm_starboard_abi.h"
+#include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -45,7 +45,8 @@ class SbPlayerInterface;
 }  // namespace media
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 class EventQueue;
 class GuestMemory;
@@ -219,7 +220,8 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
   base::WeakPtrFactory<WasmPlayerHost> weak_factory_{this};
 };
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
-#endif  // COBALT_STARBOARD_WASM_WASM_PLAYER_HOST_H_
+#endif  // COBALT_WASM_STARBOARD_WASM_PLAYER_HOST_H_

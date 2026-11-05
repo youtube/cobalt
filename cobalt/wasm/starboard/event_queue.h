@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_STARBOARD_WASM_EVENT_QUEUE_H_
-#define COBALT_STARBOARD_WASM_EVENT_QUEUE_H_
+#ifndef COBALT_WASM_STARBOARD_EVENT_QUEUE_H_
+#define COBALT_WASM_STARBOARD_EVENT_QUEUE_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -26,10 +26,11 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
-#include "cobalt/starboard_wasm/wasm_starboard_abi.h"
+#include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 // The events waiting for H5vccWasmPlayer.pollEvents(). Starboard callbacks
 // Push() on their own threads; the queue never drops events. Players hold a
@@ -70,7 +71,8 @@ class EventQueue : public base::RefCountedThreadSafe<EventQueue> {
   bool wake_requested_ GUARDED_BY(lock_) = false;
 };
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
-#endif  // COBALT_STARBOARD_WASM_EVENT_QUEUE_H_
+#endif  // COBALT_WASM_STARBOARD_EVENT_QUEUE_H_

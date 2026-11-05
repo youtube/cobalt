@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/surface_video_size.h"
+#include "cobalt/wasm/starboard/surface_video_size.h"
 
 #include <vector>
 
@@ -26,7 +26,8 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 namespace {
 
 class SurfaceVideoSizeTest : public testing::Test {
@@ -104,5 +105,6 @@ TEST_F(SurfaceVideoSizeTest, NotifiesOnWatchersSequence) {
 }
 
 }  // namespace
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt

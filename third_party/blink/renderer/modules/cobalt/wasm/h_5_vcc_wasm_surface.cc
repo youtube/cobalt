@@ -14,12 +14,12 @@
 
 #include "third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_surface.h"
 
-#include "cobalt/starboard_wasm/wasm_player_host.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
 #include "third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_imports.h"
 
 namespace blink {
 
-using cobalt::starboard_wasm::WasmPlayerHost;
+using cobalt::wasm::starboard::WasmPlayerHost;
 
 H5vccWasmSurface::H5vccWasmSurface(H5vccWasmImports& imports)
     : imports_(&imports) {}

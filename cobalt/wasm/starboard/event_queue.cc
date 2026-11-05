@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/event_queue.h"
+#include "cobalt/wasm/starboard/event_queue.h"
 
 #include <utility>
 
@@ -20,7 +20,8 @@
 #include "base/location.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 EventQueue::EventQueue(scoped_refptr<base::SequencedTaskRunner> task_runner,
                        base::RepeatingClosure on_wake)
@@ -87,5 +88,6 @@ void EventQueue::RunWake() {
   }
 }
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
