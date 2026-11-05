@@ -9,14 +9,11 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
-<<<<<<< HEAD
-#include "base/threading/thread.h"
-=======
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "base/strings/string_split.h"
 #include "base/strings/string_number_conversions.h"
-#endif
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/khronos/EGL/egl.h"
