@@ -31,8 +31,8 @@ class ParsedMimeInfo {
  public:
   struct AudioCodecInfo {
     SbMediaAudioCodec codec = kSbMediaAudioCodecNone;
-    int channels;
-    int bitrate;
+    int channels = 0;
+    int bitrate = 0;
   };
 
   struct VideoCodecInfo {
@@ -54,7 +54,7 @@ class ParsedMimeInfo {
   // Extra information for audio codec. Note that audio_info() can only be
   // used when has_audio_info() returns true.
   const AudioCodecInfo& audio_info() const {
-    SB_DCHECK(has_audio_info());
+    SB_CHECK(has_audio_info());
     return audio_info_;
   }
 
@@ -64,7 +64,7 @@ class ParsedMimeInfo {
   // Extra information for video codec. Note that video_info() can only be
   // used when has_video_info() returns true.
   const VideoCodecInfo& video_info() const {
-    SB_DCHECK(has_video_info());
+    SB_CHECK(has_video_info());
     return video_info_;
   }
 

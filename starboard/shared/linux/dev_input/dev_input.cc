@@ -1108,7 +1108,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
     const struct input_event& event,
     int modifiers,
     InputDeviceInfo* device_info) {
-  SB_DCHECK_EQ(event.type, EV_ABS);
+  SB_CHECK_EQ(event.type, EV_ABS);
   SbKey key = kSbKeyUnknown;
   float axis_value = 0;
   float previous_axis_value = 0;
@@ -1262,7 +1262,7 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
     const struct input_event& event,
     int modifiers,
     InputDeviceInfo* device_info) {
-  SB_DCHECK_EQ(event.type, EV_KEY);
+  SB_CHECK_EQ(event.type, EV_KEY);
   SB_DCHECK_LE(event.value, 2);
 
   SbKey key = KeyCodeToSbKey(device_info->tuning
