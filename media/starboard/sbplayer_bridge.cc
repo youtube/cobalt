@@ -1603,15 +1603,15 @@ void SbPlayerBridge::SendColorSpaceHistogram() const {
   const auto& cs_info = video_config_.color_space_info();
 
   if (video_stream_info_.color_metadata.bits_per_channel > 8) {
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Primaries", cs_info.primaries);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Transfer", cs_info.transfer);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Matrix", cs_info.matrix);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Range", cs_info.range);
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Primaries", cs_info.primaries());
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Transfer", cs_info.transfer());
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Matrix", cs_info.matrix());
+    UmaHistogramEnumeration("Cobalt.Media.HDR.Range", cs_info.range());
   } else {
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Primaries", cs_info.primaries);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Transfer", cs_info.transfer);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Matrix", cs_info.matrix);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Range", cs_info.range);
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Primaries", cs_info.primaries());
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Transfer", cs_info.transfer());
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Matrix", cs_info.matrix());
+    UmaHistogramEnumeration("Cobalt.Media.SDR.Range", cs_info.range());
   }
 }
 
