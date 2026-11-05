@@ -22,6 +22,7 @@
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 #include "ui/android/window_android_compositor.h"
@@ -176,6 +177,8 @@ void CobaltVideoOverlayWindow::SetNextSlideButtonVisibility(bool is_visible) {}
 void CobaltVideoOverlayWindow::SetPreviousSlideButtonVisibility(
     bool is_visible) {}
 void CobaltVideoOverlayWindow::SetPlaybackControlsVisibility(bool is_visible) {}
+void CobaltVideoOverlayWindow::SetImmersiveVideoOptions(
+    blink::mojom::ImmersiveOptionsPtr options) {}
 
 void CobaltVideoOverlayWindow::SetMediaPosition(
     const media_session::MediaPosition& position) {}
