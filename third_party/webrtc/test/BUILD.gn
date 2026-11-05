@@ -575,6 +575,10 @@ rtc_library("video_test_support") {
   ]
 
   if (is_cobalt && (is_starboard || use_starboard_media)) {
+    sources -= [
+      "testsupport/ivf_frame_reader.cc",
+      "testsupport/ivf_frame_reader.h",
+    ]
     deps -= [
       "../modules/video_coding:webrtc_vp8",
       "../modules/video_coding:webrtc_vp9",
