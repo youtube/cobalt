@@ -64,7 +64,7 @@ if (enable_strict_deps) {
   assert(use_unified_system_module, "strict deps requires unified modules")
 =======
   use_llvm_libatomic = !is_apple && !(is_cobalt && is_partner_toolchain)
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 use_custom_libcxx =

@@ -1077,7 +1077,7 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 //   size_t i = 0;
 //   for (; i < 300; i++) {
 //     EXPECT_TRUE(ExecJs(tab, "performance.mark('mark1');"));
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 //     base::RunLoop flush;
 //     session->Flush([&flush](bool) { flush.QuitWhenIdle(); });
@@ -1105,7 +1105,7 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 //     }
 //   }
 //   ASSERT_LT(i, 300U);
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 //   base::test::TestTraceProcessorImpl ttp;
 //   absl::Status status = ttp.ParseTrace(trace);

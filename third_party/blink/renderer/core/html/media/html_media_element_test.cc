@@ -537,7 +537,7 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
 #if BUILDFLAG(IS_COBALT)
   void ProgressEventTimerFired() { Media()->ProgressEventTimerFired(); }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // Helpers to call MediaPlayerObserver mojo methods and check their results.
@@ -2950,5 +2950,5 @@ TEST_P(HTMLMediaElementTest,
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace blink

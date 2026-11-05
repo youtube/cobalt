@@ -436,7 +436,7 @@ class CONTENT_EXPORT MediaStreamManager
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 =======
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Determines whether the captured surface (tab/window) should be focused.
   // This can be called at most once, and only within the first 1s of the
   // capture session being initiated. If a call with |focus=false| is not

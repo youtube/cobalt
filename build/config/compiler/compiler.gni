@@ -240,7 +240,7 @@ if (is_starboard) {
 } else if (is_android) {
   use_relative_vtables_abi = (current_cpu == "arm64" || current_cpu == "arm") &&
                              use_custom_libcxx && !is_component_build
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 assert(!is_cfi || use_thin_lto, "CFI requires ThinLTO")

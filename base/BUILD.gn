@@ -1227,7 +1227,7 @@ component("base") {
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Base provides conversions between CXX types and base types (e.g.
     # std::string_view).
@@ -1943,7 +1943,7 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # Windows.
