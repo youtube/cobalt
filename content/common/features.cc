@@ -128,6 +128,16 @@ BASE_FEATURE(kCDPScreenshotNewSurface,
              "CDPScreenshotNewSurface",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, RenderThreadImpl::EstablishGpuChannelSync() returns nullptr
+// immediately while the renderer process is hidden instead of blocking the
+// renderer main thread waiting for GPU channel establishment during background
+// EGL teardown.
+BASE_FEATURE(kCobaltSkipSyncGpuChannelWhenHidden,
+             "CobaltSkipSyncGpuChannelWhenHidden",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // When enabled, code cache does not use a browsing_data filter for deletions.
 BASE_FEATURE(kCodeCacheDeletionWithoutFilter,
              "CodeCacheDeletionWithoutFilter",
