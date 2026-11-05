@@ -320,7 +320,7 @@ SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
 }
 
 SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   if (!j_starboard_bridge_) {
     return false;
   }
