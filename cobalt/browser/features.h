@@ -223,6 +223,11 @@ BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 // first navigation starts.
 BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
 
+// Also writes HttpServerProperties to disk when the app is paused, instead of
+// leaving it to its 60 s write-coalescing timer, which a background kill does
+// not honor.
+BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
+
 }  // namespace features
 }  // namespace cobalt
 
