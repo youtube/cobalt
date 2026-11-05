@@ -15066,16 +15066,12 @@ void RenderFrameHostImpl::BindSerialService(
 }
 #endif
 
-<<<<<<< HEAD
 void RenderFrameHostImpl::BindModelContextHost(
     mojo::PendingReceiver<blink::mojom::ModelContextHost> receiver) {
   ModelContextUserData::Bind(this, std::move(receiver));
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-=======
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
