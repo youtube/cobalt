@@ -114,7 +114,7 @@ if (current_toolchain == starboard_toolchain) {
       data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     }
 
-    if (use_evergreen && starboard_path != "starboard/no_platform") {
+    if (use_evergreen) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

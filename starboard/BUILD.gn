@@ -257,7 +257,7 @@ if (current_toolchain == starboard_toolchain) {
     if (sb_filter_based_player && !is_android) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
-    if (use_evergreen && starboard_path != "starboard/no_platform") {
+    if (use_evergreen) {
       deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
     }
     if (is_starboard) {
@@ -285,5 +285,7 @@ if (is_cobalt_hermetic_build) {
 }
 target(_wrapper_target_type, "starboard_unittests_wrapper") {
   testonly = true
-  deps = [ ":starboard_unittests($starboard_toolchain)" ]
+  if (starboard_path != "starboard/no_platform") {
+    deps = [ ":starboard_unittests($starboard_toolchain)" ]
+  }
 }
