@@ -23,6 +23,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
@@ -53,6 +54,11 @@ using ::testing::StrictMock;
 namespace media {
 
 namespace {
+
+constexpr char kSbPlayerCreateHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
+constexpr char kSbPlayerCreateToInitializedHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
 
 class StarboardRendererTest : public testing::Test {
  protected:
@@ -367,6 +373,39 @@ TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
   task_environment_.RunUntilIdle();
 
   renderer_.reset();
+}
+
+TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencies) {
+  base::HistogramTester histogram_tester;
+  SbPlayer player = InitializeWithAudioAndVideo();
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
+
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 1);
+}
+
+TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
+  base::HistogramTester histogram_tester;
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(Return(kSbPlayerInvalid));
+  EXPECT_CALL(renderer_init_cb_,
+              Run(HasStatusCode(DECODER_ERROR_NOT_SUPPORTED)));
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  // The failed SbPlayerCreate() call is still recorded, but a player that was
+  // never created can't report kSbPlayerStateInitialized.
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
@@ -802,6 +841,20 @@ TEST_F(StarboardRendererTest,
 }
 
 #if BUILDFLAG(IS_IOS_TVOS)
+TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatenciesForUrlPlayer) {
+  base::HistogramTester histogram_tester;
+  SbPlayer player = InitializeUrlPlayer();
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
+
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
+  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 1);
+}
+
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
   SbPlayer player = InitializeUrlPlayer();
   ASSERT_FALSE(init_status_.has_value());

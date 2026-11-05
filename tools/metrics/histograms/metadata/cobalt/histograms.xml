@@ -416,6 +416,38 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerCreate"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player creation latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time taken by the Starboard call that creates the platform player
+    in SbPlayerBridge: SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL
+    player. Recorded for every call, including calls that fail to create a valid
+    player. See also Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player initialization latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Time from the start of the Starboard call that creates the platform player
+    (SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL player) until
+    SbPlayerBridge receives the kSbPlayerStateInitialized player status. This
+    includes the synchronous call measured by
+    Cobalt.Media.LatencyTiming.SbPlayerCreate plus the player's asynchronous
+    initialization. Recorded once per player creation, when the bridge accepts
+    its first kSbPlayerStateInitialized status. Not recorded if player creation
+    fails.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -595,7 +627,8 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
     units="milestone" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -606,7 +639,8 @@ Always run the pretty print utility on this file after editing:
   <token key="ExitReason" variants="AndroidExitReasonToken"/>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
     enum="Boolean" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>

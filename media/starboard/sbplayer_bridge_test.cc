@@ -24,6 +24,7 @@
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/numerics/byte_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
@@ -42,9 +43,11 @@ namespace media {
 namespace {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::SaveArg;
 
 // BlockAddID for HDR10+ (ITU-T T.35) dynamic metadata carried in a WebM
 // BlockAdditional element. SbPlayerBridge treats alpha_data as an opaque blob,
@@ -337,6 +340,50 @@ TEST_F(SbPlayerBridgeStatisticsTest, FrameTotalsContinueAcrossSuspendResume) {
   bridge_->Resume(kSbWindowInvalid);
   SetVideoFramesDecoded(second_player, 12);
   EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 17u);
+}
+
+// Repeated kSbPlayerStateInitialized statuses for the same SbPlayer must only
+// record Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized once.
+TEST(SbPlayerBridgeLatencyTest, RecordsCreateToInitializedOncePerPlayer) {
+  base::test::TaskEnvironment task_environment;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
+  FakeSbPlayerBridgeHost host;
+  base::HistogramTester histogram_tester;
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbPlayerStatusFunc player_status_func = nullptr;
+  void* context = nullptr;
+  EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<4>(&player_status_func), SaveArg<6>(&context),
+                      Return(player)));
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
+  auto bridge = std::make_unique<SbPlayerBridge>(
+      &mock_sbplayer_interface, task_environment.GetMainThreadTaskRunner(),
+      base::BindRepeating(
+          []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
+      AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
+      kSbDrmSystemInvalid, &host,
+      /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      /*max_video_input_size=*/0, experimental_features
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*surface_view=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+  ASSERT_TRUE(bridge->IsValid());
+  ASSERT_TRUE(player_status_func);
+  histogram_tester.ExpectTotalCount("Cobalt.Media.LatencyTiming.SbPlayerCreate",
+                                    1);
+
+  for (int i = 0; i < 2; ++i) {
+    player_status_func(player, context, kSbPlayerStateInitialized,
+                       SB_PLAYER_INITIAL_TICKET);
+    task_environment.RunUntilIdle();
+  }
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized", 1);
 }
 
 }  // namespace
