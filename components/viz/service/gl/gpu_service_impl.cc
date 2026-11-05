@@ -276,15 +276,18 @@ GpuServiceImpl::GpuServiceImpl(
 
 #if BUILDFLAG(IS_COBALT)
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
-    PendingEstablishGpuChannelRequest(int32_t client_id,
-                                      uint64_t client_tracing_id,
-                                      bool is_gpu_host,
-                                      bool enable_extra_handles_validation,
-                                      EstablishGpuChannelCallback callback)
+    PendingEstablishGpuChannelRequest(
+        int32_t client_id,
+        uint64_t client_tracing_id,
+        bool is_gpu_host,
+        bool enable_extra_handles_validation,
+        mojo::ScopedMessagePipeHandle channel_handle,
+        EstablishGpuChannelCallback callback)
     : client_id(client_id),
       client_tracing_id(client_tracing_id),
       is_gpu_host(is_gpu_host),
       enable_extra_handles_validation(enable_extra_handles_validation),
+      channel_handle(std::move(channel_handle)),
       callback(std::move(callback)) {}
 
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
@@ -932,7 +935,8 @@ void GpuServiceImpl::EstablishGpuChannel(
   if (display && !display->IsInitialized()) {
     pending_establish_gpu_channel_requests_.push_back(
         {client_id, client_tracing_id, is_gpu_host,
-         enable_extra_handles_validation, std::move(callback)});
+         enable_extra_handles_validation, std::move(channel_handle),
+         std::move(callback)});
     return;
   }
 #endif
@@ -1238,13 +1242,14 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
       EstablishGpuChannel(request.client_id, request.client_tracing_id,
                           request.is_gpu_host,
                           request.enable_extra_handles_validation,
+                          std::move(request.channel_handle),
                           std::move(request.callback));
     } else {
       LOG(ERROR)
           << "Failed to initialize display on foreground, rejecting pending "
              "GPU channel request.";
       std::move(request.callback)
-          .Run(mojo::ScopedMessagePipeHandle(), gpu_info_, gpu_feature_info_,
+          .Run(/*success=*/false, gpu_info_, gpu_feature_info_,
                gpu::SharedImageCapabilities());
     }
   }
