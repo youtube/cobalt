@@ -1055,18 +1055,6 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 
 //   Shell* tab = CreateBrowser();
 
-<<<<<<< HEAD
-  // Wait until the renderer connects to the tracing service and starts tracing.
-  // We do this by periodically emitting a performance mark and checking the
-  // trace contents for its name. This can lead to multiple marks appearing in
-  // the trace (e.g. if the renderer does startup tracing for some time before
-  // connecting to the service), but it doesn't matter. We just want to make
-  // sure that at least one of them is there.
-  std::vector<char> trace;
-  size_t i = 0;
-  for (; i < 1000; i++) {
-    EXPECT_TRUE(ExecJs(tab, "performance.mark('mark1');"));
-=======
 //   // Wait until the renderer connects to the tracing service and starts tracing.
 //   // We do this by periodically emitting a performance mark and checking the
 //   // trace contents for its name. This can lead to multiple marks appearing in
@@ -1075,26 +1063,13 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 //   // sure that at least one of them is there.
 //   std::vector<char> trace;
 //   size_t i = 0;
-//   for (; i < 300; i++) {
+//   for (; i < 1000; i++) {
 //     EXPECT_TRUE(ExecJs(tab, "performance.mark('mark1');"));
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 //     base::RunLoop flush;
 //     session->Flush([&flush](bool) { flush.QuitWhenIdle(); });
 //     flush.Run();
 
-<<<<<<< HEAD
-    std::vector<char> buffer = session->ReadTraceBlocking();
-    trace.insert(trace.end(), buffer.begin(), buffer.end());
-    std::vector<char> mark_name = {'m', 'a', 'r', 'k', '1'};
-    auto it = std::search(buffer.begin(), buffer.end(), mark_name.begin(),
-                          mark_name.end());
-    if (it != buffer.end()) {
-      break;
-    }
-  }
-  ASSERT_LT(i, 1000U);
-=======
 //     std::vector<char> buffer = session->ReadTraceBlocking();
 //     trace.insert(trace.end(), buffer.begin(), buffer.end());
 //     std::vector<char> mark_name = {'m', 'a', 'r', 'k', '1'};
@@ -1104,8 +1079,7 @@ IN_PROC_BROWSER_TEST_F(SystemTracingEndToEndBrowserTest, SimpleTraceEvent) {
 //       break;
 //     }
 //   }
-//   ASSERT_LT(i, 300U);
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+//   ASSERT_LT(i, 1000U);
 
 //   base::test::TestTraceProcessorImpl ttp;
 //   absl::Status status = ttp.ParseTrace(trace);
