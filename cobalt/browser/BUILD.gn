@@ -127,6 +127,10 @@ source_set("browser") {
     ]
   }
 
+  if (is_linux) {
+    deps += [ "//components/os_crypt/async/browser:posix_key_provider" ]
+  }
+
   if (is_android) {
     deps += [
       "//cobalt/android:jni_headers",

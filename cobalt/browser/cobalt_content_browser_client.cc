@@ -15,7 +15,10 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -65,6 +68,9 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
+#if BUILDFLAG(IS_LINUX)
+#include "components/os_crypt/async/browser/posix_key_provider.h"
+#endif  // BUILDFLAG(IS_LINUX)
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -136,6 +142,26 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 // This value is expected by offline data processing and should not be changed.
 constexpr const char kUserAgentAnnotationKey[] = "user_agent_string";
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
+
+// Creates the OSCryptAsync instance used to encrypt the on-disk cookie store.
+//
+// OSCryptAsync no longer falls back to the legacy synchronous OSCrypt when it
+// has no usable key (kOSCryptAsyncPreventFallbackToSync is enabled by default),
+// so an instance without key providers cannot encrypt anything and the SQLite
+// cookie store silently drops every persistent cookie. On Linux (including
+// Starboard platforms such as RDK and AOSP), register PosixKeyProvider: it
+// provides the same "v10" key that legacy OSCrypt used when no keyring is
+// configured, so cookies written by earlier Cobalt versions stay readable.
+std::unique_ptr<os_crypt_async::OSCryptAsync> CreateOSCryptAsync() {
+  std::vector<std::pair<os_crypt_async::OSCryptAsync::Precedence,
+                        std::unique_ptr<os_crypt_async::KeyProvider>>>
+      providers;
+#if BUILDFLAG(IS_LINUX)
+  providers.emplace_back(
+      /*precedence=*/5u, std::make_unique<os_crypt_async::PosixKeyProvider>());
+#endif  // BUILDFLAG(IS_LINUX)
+  return std::make_unique<os_crypt_async::OSCryptAsync>(std::move(providers));
+}
 
 void BindPlatformWindowProviderService(
     uint64_t window_handle,
@@ -247,10 +273,7 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
     : startup_timestamp_(startup_timestamp),
       deep_link_(deep_link),
       is_visible_(is_visible),
-      os_crypt_async_(std::make_unique<os_crypt_async::OSCryptAsync>(
-          std::vector<
-              std::pair<os_crypt_async::OSCryptAsync::Precedence,
-                        std::unique_ptr<os_crypt_async::KeyProvider>>>{})),
+      os_crypt_async_(CreateOSCryptAsync()),
       cookie_encryption_provider_(
           std::make_unique<CookieEncryptionProviderImpl>(
               os_crypt_async_.get())) {
