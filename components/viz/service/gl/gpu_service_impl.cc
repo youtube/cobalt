@@ -126,17 +126,15 @@
 #include "ui/ozone/public/surface_factory_ozone.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
-<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_VRP_FLAGS)
 #include "components/vrp_flags/vrp_flags.h"       // nogncheck
 #include "components/vrp_flags/vrp_flags_impl.h"  // nogncheck
 #endif                                            // BUILDFLAG(ENABLE_VRP_FLAGS)
-=======
+
 #if BUILDFLAG(IS_COBALT)
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_surface_egl.h"
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace viz {
 
