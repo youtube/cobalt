@@ -127,8 +127,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
     int64_t start_media_time,
     std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
-    bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
+    const AudioTrackAudioSinkType::Options& options,
     void* context) {
   std::unique_ptr<AudioTrack> audio_track = AudioTrack::Create(
       kSbMediaAudioCodingTypePcm, sample_type, channels, sampling_frequency_hz,
@@ -140,8 +139,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::Create(
   auto audio_sink = std::make_unique<AudioTrackAudioSink>(
       PassKey<AudioTrackAudioSink>(), channels, sampling_frequency_hz,
       sample_type, frame_buffers, frames_per_channel, preferred_buffer_size,
-      callbacks, start_media_time, tunnel_mode_audio_session_id,
-      allow_audio_writing_on_pause, pause_using_audio_track_state,
+      callbacks, start_media_time, tunnel_mode_audio_session_id, options,
       std::move(audio_track), context);
 
   audio_sink->SpawnThread();
@@ -159,8 +157,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::CreateForTesting(
     AudioTrackAudioSinkType::Callbacks callbacks,
     int64_t start_media_time,
     std::optional<int> tunnel_mode_audio_session_id,
-    bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
+    const AudioTrackAudioSinkType::Options& options,
     std::unique_ptr<AudioTrack> fake_audio_track,
     void* context) {
   if (!fake_audio_track) {
@@ -170,8 +167,7 @@ std::unique_ptr<AudioTrackAudioSink> AudioTrackAudioSink::CreateForTesting(
   auto audio_sink = std::make_unique<AudioTrackAudioSink>(
       PassKey<AudioTrackAudioSink>(), channels, sampling_frequency_hz,
       sample_type, frame_buffers, frames_per_channel, preferred_buffer_size,
-      callbacks, start_media_time, tunnel_mode_audio_session_id,
-      allow_audio_writing_on_pause, pause_using_audio_track_state,
+      callbacks, start_media_time, tunnel_mode_audio_session_id, options,
       std::move(fake_audio_track), context);
 
   audio_sink->SpawnThread();
@@ -189,8 +185,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     AudioTrackAudioSinkType::Callbacks callbacks,
     int64_t start_media_time,
     std::optional<int> tunnel_mode_audio_session_id,
-    bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
+    const AudioTrackAudioSinkType::Options& options,
     std::unique_ptr<AudioTrack> audio_track,
     void* context)
     : channels_(channels),
@@ -205,8 +200,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               ? AudioTrack::kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
-      allow_audio_writing_on_pause_(allow_audio_writing_on_pause),
-      pause_using_audio_track_state_(pause_using_audio_track_state),
+      allow_audio_writing_on_pause_(options.allow_audio_writing_on_pause),
+      pause_using_audio_track_state_(options.pause_using_audio_track_state),
       audio_track_(std::move(audio_track)),
       audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
   SB_DCHECK(callbacks_.update_source_status);
@@ -612,9 +607,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
                 {update_source_status_func, consume_frames_func, error_func},
                 /*start_media_time=*/0,
                 /*tunnel_mode_audio_session_id=*/std::nullopt,
-                /*is_web_audio=*/true,
-                /*allow_audio_writing_on_pause=*/false,
-                /*pause_using_audio_track_state=*/false, context);
+                /*is_web_audio=*/true, Options{}, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -627,8 +620,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int64_t start_media_time,
     std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
-    bool allow_audio_writing_on_pause,
-    bool pause_using_audio_track_state,
+    const Options& options,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -639,8 +631,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   auto audio_sink = AudioTrackAudioSink::Create(
       channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes, callbacks,
-      start_media_time, tunnel_mode_audio_session_id, is_web_audio,
-      allow_audio_writing_on_pause, pause_using_audio_track_state, context);
+      start_media_time, tunnel_mode_audio_session_id, is_web_audio, options,
+      context);
   if (!audio_sink) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

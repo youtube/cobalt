@@ -467,14 +467,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       AudioRendererSinkAndroid::Options sink_options;
       sink_options.tunnel_mode_audio_session_id = tunnel_mode_audio_session_id;
-      sink_options.allow_audio_writing_on_pause = allow_audio_writing_on_pause;
       sink_options.enable_video_renderer_vsp_adjustment =
           enable_video_renderer_vsp_adjustment;
       sink_options.allow_flush_during_seek =
           allow_flush_audio_track_during_seek;
-      sink_options.pause_using_audio_track_state =
-          pause_using_audio_track_state;
       sink_options.enable_ndk_audio_pull_sink = enable_ndk_audio_pull_sink;
+      sink_options.audio_track_options.allow_audio_writing_on_pause =
+          allow_audio_writing_on_pause;
+      sink_options.audio_track_options.pause_using_audio_track_state =
+          pause_using_audio_track_state;
 
       auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
           creation_parameters.audio_stream_info(), sink_options);
