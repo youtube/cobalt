@@ -22,7 +22,6 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "build/buildflag.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
@@ -64,13 +63,11 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d_state.h"
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu.h"  // nogncheck
-#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
@@ -83,10 +80,8 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"  // nogncheck
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
@@ -119,7 +114,6 @@ class MemoryManagedPaintCanvas;
 
 namespace {
 
-#if !BUILDFLAG(IS_COBALT)
 wgpu::TextureFormat AsDawnType(const viz::SharedImageFormat& format) {
   // NOTE: Canvas2D can be only RGBA_8888, BGRA_8888, or F16.
   if (format == viz::SinglePlaneFormat::kRGBA_8888) {
@@ -132,7 +126,6 @@ wgpu::TextureFormat AsDawnType(const viz::SharedImageFormat& format) {
     return wgpu::TextureFormat::Undefined;
   }
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 bool IsContextProviderValid() {
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper =
@@ -174,12 +167,10 @@ void BaseRenderingContext2D::ResetInternal() {
   // it's okay for Oilpan to delete GPUTextures, since Dawn maintains its own
   // ownership graph of GPU resources, but in our case, destruction of the
   // GPUTexture will also result in destruction of the associated SharedImage.
-#if !BUILDFLAG(IS_COBALT)
   if (webgpu_access_texture_) {
     webgpu_access_texture_->destroy();
     webgpu_access_texture_ = nullptr;
   }
-#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 CanvasRenderingContext2DSettings* BaseRenderingContext2D::getContextAttributes()
@@ -745,9 +736,7 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
   visitor->Trace(dispatch_context_lost_event_timer_);
   visitor->Trace(dispatch_context_restored_event_timer_);
   visitor->Trace(try_restore_context_event_timer_);
-#if !BUILDFLAG(IS_COBALT)
   visitor->Trace(webgpu_access_texture_);
-#endif
   CanvasRenderingContext::Trace(visitor);
   Canvas2DRecorderContext::Trace(visitor);
 }
@@ -1334,7 +1323,6 @@ UniqueFontSelector* BaseRenderingContext2D::GetFontSelector() const {
   return nullptr;
 }
 
-#if !BUILDFLAG(IS_COBALT)
 V8GPUTextureFormat BaseRenderingContext2D::getTextureFormat() const {
   return FromDawnEnum(AsDawnType(GetSharedImageFormat()));
 }
@@ -1570,7 +1558,6 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   WillDraw(gfx::Rect(Width(), Height()),
            CanvasPerformanceMonitor::DrawType::kOther);
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 int BaseRenderingContext2D::LayerCount() const {
   return Canvas2DRecorderContext::LayerCount();
