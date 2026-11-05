@@ -1208,26 +1208,11 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-<<<<<<< HEAD
-  sources += [
-    "containers/span_rust.h",
-    "strings/string_view_rust.h",
-  ]
-=======
-  if (use_asan_backup_ref_ptr) {
-    # raw_ptr_asan_service.cc depends on:
-    deps += [ "//base/allocator/partition_allocator/src/partition_alloc" ]
-    if (use_asan_backup_ref_ptr_v2) {
-      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
-    }
-  }
-
   if (!(is_cobalt && is_partner_toolchain)) {
     sources += [
       "containers/span_rust.h",
       "strings/string_view_rust.h",
     ]
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Base provides conversions between CXX types and base types (e.g.
     # std::string_view).
@@ -1867,7 +1852,6 @@ component("base") {
     public_deps += [ "allocator/partition_allocator:allocator_shim" ]
   }
 
-<<<<<<< HEAD
   if (use_asan_backup_ref_ptr) {
     # To make `source_set("asan_raw_ptr_service")` only a part of `base`,
     # use `deps` to make only `base` depend on it. This causes a few
@@ -1883,7 +1867,8 @@ component("base") {
     if (use_asan_backup_ref_ptr_v2) {
       all_dependent_configs += [ ":asan_raw_ptr_service_v2_config" ]
     }
-=======
+  }
+
   if (is_cobalt && is_partner_toolchain) {
     sources -= [
       "logging/rust_logger/print_rust_log_ffi.cc",
@@ -1943,7 +1928,6 @@ component("base") {
 
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # Windows.
