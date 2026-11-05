@@ -754,11 +754,6 @@ Always run the pretty print utility on this file after editing:
     {Milestone} since the previous milestone.
   </summary>
   <token key="Milestone">
-    <variant name="ActivityOnDestroy"/>
-    <variant name="ActivityOnPause"/>
-    <variant name="ActivityOnResume"/>
-    <variant name="ActivityOnStart"/>
-    <variant name="ActivityOnStop"/>
     <variant name="ActivityWindowConfigured"/>
     <variant name="ApplicationAndroidInitialize"/>
     <variant name="DidFinishNavigation"/>
@@ -768,8 +763,13 @@ Always run the pretty print utility on this file after editing:
     <variant name="MainDelegatePostEarlyInitialization"/>
     <variant name="MainDelegatePreSandboxStartup"/>
     <variant name="PlatformErrorRaised"/>
+    <variant name="PostActivityOnCreate"/>
+    <variant name="PostActivityOnResume"/>
+    <variant name="PostActivityOnStart"/>
     <variant name="PostLibraryLoaderInit"/>
     <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreActivityOnResume"/>
+    <variant name="PreActivityOnStart"/>
     <variant name="PreCreateThreads"/>
     <variant name="PreLibraryLoaderInit"/>
     <variant name="PreStarboardBridgeInit"/>
