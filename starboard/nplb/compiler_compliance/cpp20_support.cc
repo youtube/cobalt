@@ -45,7 +45,7 @@ void test_erase_if() {
 void test_midpoint() {
   std::uint32_t a = std::numeric_limits<std::uint32_t>::max();
   std::uint32_t b = std::numeric_limits<std::uint32_t>::max() - 2;
-  std::midpoint(a, b);
+  std::uint32_t result = std::midpoint(a, b);
 }
 
 // Test designated initializers
