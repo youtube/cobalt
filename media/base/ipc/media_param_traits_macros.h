@@ -172,14 +172,6 @@ IPC_STRUCT_TRAITS_BEGIN(media::SubsampleEntry)
   IPC_STRUCT_TRAITS_MEMBER(cypher_bytes)
 IPC_STRUCT_TRAITS_END()
 
-<<<<<<< HEAD
-=======
-IPC_STRUCT_TRAITS_BEGIN(media::OverlayInfo)
-  IPC_STRUCT_TRAITS_MEMBER(routing_token)
-  IPC_STRUCT_TRAITS_MEMBER(is_fullscreen)
-  IPC_STRUCT_TRAITS_MEMBER(is_persistent_video)
-IPC_STRUCT_TRAITS_END()
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
   IPC_STRUCT_TRAITS_MEMBER(overlay_plane_id)
@@ -192,5 +184,4 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_
