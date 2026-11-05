@@ -168,19 +168,6 @@ public class StartupGuardTest {
   }
 
   @Test
-  public void setStartupMilestone_recordsMilestoneTimestamp() {
-    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(StartupGuard.DID_FINISH_NAVIGATION));
-
-    long before = SystemClock.elapsedRealtime();
-    mStartupGuard.setStartupMilestone(StartupGuard.DID_FINISH_NAVIGATION);
-    assertEquals(before, mStartupGuard.getMilestoneTimestampMs(StartupGuard.DID_FINISH_NAVIGATION));
-
-    // Out-of-range milestones never have a timestamp.
-    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(-1));
-    assertEquals(0L, mStartupGuard.getMilestoneTimestampMs(64));
-  }
-
-  @Test
   public void setStartupMilestone_stopsTimingAfterActivityDestroyed() {
     mStartupGuard.setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
     assertEquals(

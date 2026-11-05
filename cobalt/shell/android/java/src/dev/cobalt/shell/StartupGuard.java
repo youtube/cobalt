@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongArray;
 import org.chromium.base.metrics.RecordHistogram;
 
 /**
@@ -159,6 +158,9 @@ public class StartupGuard {
     "PlatformErrorRaised", // 37
   };
   public static final int MAX_LOGGED_MILESTONE = MILESTONE_NAMES.length - 1;
+  // Milestones are stored as bits of mStartupStatus, so at most Long.SIZE (64) exist, numbered
+  // 0-63. Logging to UMA is further limited to [MIN_LOGGED_MILESTONE, MAX_LOGGED_MILESTONE].
+  private static final int MAX_MILESTONES = Long.SIZE;
 
   /** Listener notified when startup milestones or armed state change. */
   public interface Observer {
@@ -174,8 +176,6 @@ public class StartupGuard {
   private final AtomicBoolean mIsArmed = new AtomicBoolean(false);
   // Origin for Cobalt.Startup.TimeToMilestone.*, on the SystemClock.elapsedRealtime() clock.
   private volatile long mStartupOriginMs = getProcessStartElapsedRealtime();
-  // SystemClock.elapsedRealtime() at which each milestone was first reached; 0 if not reached.
-  private final AtomicLongArray mMilestoneTimestampsMs = new AtomicLongArray(64);
   // Time-to-milestone samples describe a cold start only while the process is still in its first
   // Activity. Cleared once that Activity is destroyed or a second Activity is created in this
   // process, after which milestones reached for the first time are no longer startup events.
@@ -258,7 +258,7 @@ public class StartupGuard {
    * @param milestone The milestone to set, 0-indexed (0-63).
    */
   public void setStartupMilestone(@Milestone int milestone) {
-    if (milestone < 0 || milestone >= 64) {
+    if (milestone < 0 || milestone >= MAX_MILESTONES) {
       Log.e(TAG, "Invalid milestone: " + milestone);
       return;
     }
@@ -275,7 +275,6 @@ public class StartupGuard {
     }
 
     long now = SystemClock.elapsedRealtime();
-    mMilestoneTimestampsMs.set(milestone, now);
 
     Observer observer = mObserver;
     if (observer != null) {
@@ -312,17 +311,6 @@ public class StartupGuard {
   /** Returns the bitmask of milestones reached during startup. */
   public long getStartupStatus() {
     return mStartupStatus.get();
-  }
-
-  /**
-   * Returns the SystemClock.elapsedRealtime() at which {@code milestone} was first reached, or 0 if
-   * it has not been reached.
-   */
-  public long getMilestoneTimestampMs(@Milestone int milestone) {
-    if (milestone < 0 || milestone >= 64) {
-      return 0;
-    }
-    return mMilestoneTimestampsMs.get(milestone);
   }
 
   /** Returns the highest milestone reached during startup (0 if none reached). */
@@ -407,9 +395,6 @@ public class StartupGuard {
       mDiagnosisInfo.clear();
     }
     mStartupOriginMs = getProcessStartElapsedRealtime();
-    for (int i = 0; i < mMilestoneTimestampsMs.length(); i++) {
-      mMilestoneTimestampsMs.set(i, 0L);
-    }
     mIsStartupTimingActive.set(true);
     mPreCrashHook = null;
     mObserver = null;
