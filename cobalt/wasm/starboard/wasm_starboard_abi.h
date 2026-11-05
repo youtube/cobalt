@@ -34,8 +34,8 @@
 // video. Other violations of Starboard's API contract are the caller's
 // responsibility and may fail DCHECKs in debug builds.
 
-#ifndef COBALT_STARBOARD_WASM_WASM_STARBOARD_ABI_H_
-#define COBALT_STARBOARD_WASM_WASM_STARBOARD_ABI_H_
+#ifndef COBALT_WASM_STARBOARD_WASM_STARBOARD_ABI_H_
+#define COBALT_WASM_STARBOARD_WASM_STARBOARD_ABI_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -45,7 +45,8 @@
 #include "starboard/player.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 struct WasmSbMediaAudioStreamInfo {
   int32_t codec;
@@ -270,7 +271,8 @@ static_assert(kMatroskaBlockAdditional == 0);
 static_assert(SB_PLAYER_INITIAL_TICKET == 0);
 static_assert(kSbPlayerWriteDurationLocal == 500000);
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
-#endif  // COBALT_STARBOARD_WASM_WASM_STARBOARD_ABI_H_
+#endif  // COBALT_WASM_STARBOARD_WASM_STARBOARD_ABI_H_

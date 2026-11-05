@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/event_queue.h"
+#include "cobalt/wasm/starboard/event_queue.h"
 
 #include <vector>
 
@@ -26,7 +26,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 namespace {
 
 WasmSbEvent Event(uint32_t player, int32_t a) {
@@ -147,5 +148,6 @@ TEST_F(EventQueueTest, AcceptsPushesFromOtherThreads) {
 }
 
 }  // namespace
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt

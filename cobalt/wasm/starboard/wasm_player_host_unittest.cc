@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/wasm_player_host.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
 
 #include <string.h>
 
@@ -32,10 +32,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
-#include "cobalt/starboard_wasm/event_queue.h"
-#include "cobalt/starboard_wasm/guest_memory.h"
-#include "cobalt/starboard_wasm/surface_video_size.h"
-#include "cobalt/starboard_wasm/wasm_starboard_abi.h"
+#include "cobalt/wasm/starboard/event_queue.h"
+#include "cobalt/wasm/starboard/guest_memory.h"
+#include "cobalt/wasm/starboard/surface_video_size.h"
+#include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/mock_sbplayer_interface.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -45,7 +45,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 namespace {
 
 using ::testing::_;
@@ -898,5 +899,6 @@ TEST_F(WasmPlayerHostTest, QueueOutlivesContextDuringDestroy) {
 }
 
 }  // namespace
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt

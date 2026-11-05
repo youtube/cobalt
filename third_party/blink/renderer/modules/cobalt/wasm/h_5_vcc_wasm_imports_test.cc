@@ -18,7 +18,7 @@
 #include <optional>
 #include <string>
 
-#include "cobalt/starboard_wasm/wasm_player_host.h"
+#include "cobalt/wasm/starboard/wasm_player_host.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/player_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,7 +33,7 @@
 namespace blink {
 namespace {
 
-using cobalt::starboard_wasm::WasmPlayerHost;
+using cobalt::wasm::starboard::WasmPlayerHost;
 
 // The extension calls made on this thread, or nullopt for none.
 std::optional<size_t>& FeatureCount() {

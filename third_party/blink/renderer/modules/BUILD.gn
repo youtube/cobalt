@@ -852,7 +852,7 @@ source_set("unit_tests") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [ "cobalt/wasm/h_5_vcc_wasm_imports_test.cc" ]
-    deps += [ "//cobalt/starboard_wasm" ]
+    deps += [ "//cobalt/wasm/starboard" ]
   }
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.

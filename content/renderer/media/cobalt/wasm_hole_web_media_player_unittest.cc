@@ -22,7 +22,7 @@
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
 #include "cc/layers/layer.h"
-#include "cobalt/starboard_wasm/surface_video_size.h"
+#include "cobalt/wasm/starboard/surface_video_size.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/web_media_player_source.h"
@@ -184,24 +184,24 @@ TEST_F(WasmHoleWebMediaPlayerTest, ReportsFixedMediaState) {
 TEST_F(WasmHoleWebMediaPlayerTest, ReportsSurfaceVideoSize) {
   std::unique_ptr<blink::WebMediaPlayer> player = CreateLoadedPlayer();
   EXPECT_CALL(client_, SizeChanged());
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
   task_environment_.RunUntilIdle();
   EXPECT_EQ(player->NaturalSize(), gfx::Size(1080, 1920));
   testing::Mock::VerifyAndClearExpectations(&client_);
 
   EXPECT_CALL(client_, SizeChanged()).Times(0);
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size());
   player.reset();
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(640, 480));
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size(640, 480));
   task_environment_.RunUntilIdle();
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size());
 }
 
 TEST_F(WasmHoleWebMediaPlayerTest, StartsWithKnownSurfaceVideoSize) {
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
   std::unique_ptr<blink::WebMediaPlayer> player = CreateLoadedPlayer();
   EXPECT_EQ(player->NaturalSize(), gfx::Size(1080, 1920));
-  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
+  cobalt::wasm::starboard::SurfaceVideoSize::Set(token_, gfx::Size());
 }
 
 TEST_F(WasmHoleWebMediaPlayerTest, DestructionDetachesLayer) {

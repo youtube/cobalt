@@ -1,8 +1,8 @@
 include_rules = [
-  "+cobalt/starboard_wasm/event_queue.h",
-  "+cobalt/starboard_wasm/guest_memory.h",
-  "+cobalt/starboard_wasm/wasm_player_host.h",
-  "+cobalt/starboard_wasm/wasm_starboard_abi.h",
+  "+cobalt/wasm/starboard/event_queue.h",
+  "+cobalt/wasm/starboard/guest_memory.h",
+  "+cobalt/wasm/starboard/wasm_player_host.h",
+  "+cobalt/wasm/starboard/wasm_starboard_abi.h",
   "+v8/include",
 ]
 

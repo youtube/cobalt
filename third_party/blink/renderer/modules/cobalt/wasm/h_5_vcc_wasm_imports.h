@@ -30,11 +30,13 @@
 #include "v8/include/v8-persistent-handle.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 class EventQueue;
 class GuestMemory;
 class WasmPlayerHost;
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
 
 namespace blink {
@@ -78,9 +80,9 @@ class MODULES_EXPORT H5vccWasmImports final
   void setOnwake(EventListener* listener);
 
   // Null once the context is destroyed.
-  cobalt::starboard_wasm::WasmPlayerHost* host() const { return host_.get(); }
-  cobalt::starboard_wasm::EventQueue* events() const { return events_.get(); }
-  cobalt::starboard_wasm::GuestMemory Memory(v8::Isolate* isolate) const;
+  cobalt::wasm::starboard::WasmPlayerHost* host() const { return host_.get(); }
+  cobalt::wasm::starboard::EventQueue* events() const { return events_.get(); }
+  cobalt::wasm::starboard::GuestMemory Memory(v8::Isolate* isolate) const;
 
   void ContextDestroyed() override;
   void Trace(Visitor* visitor) const override;
@@ -90,8 +92,8 @@ class MODULES_EXPORT H5vccWasmImports final
   void DispatchWake();
 
   // Outlives `host_`, which posts events to it.
-  scoped_refptr<cobalt::starboard_wasm::EventQueue> events_;
-  std::unique_ptr<cobalt::starboard_wasm::WasmPlayerHost> host_;
+  scoped_refptr<cobalt::wasm::starboard::EventQueue> events_;
+  std::unique_ptr<cobalt::wasm::starboard::WasmPlayerHost> host_;
   v8::Global<v8::WasmMemoryObject> memory_;
   Member<H5vccWasmSurface> surface_;
   Member<H5vccWasmPlayer> player_;

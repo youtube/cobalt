@@ -23,5 +23,5 @@ blink_modules_sources("wasm") {
     "h_5_vcc_wasm_surface.cc",
     "h_5_vcc_wasm_surface.h",
   ]
-  deps = [ "//cobalt/starboard_wasm" ]
+  deps = [ "//cobalt/wasm/starboard" ]
 }

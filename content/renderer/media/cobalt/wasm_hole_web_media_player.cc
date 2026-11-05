@@ -31,7 +31,7 @@
 #include "base/unguessable_token.h"
 #include "cc/layers/video_frame_provider.h"
 #include "cc/layers/video_layer.h"
-#include "cobalt/starboard_wasm/surface_video_size.h"
+#include "cobalt/wasm/starboard/surface_video_size.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_transformation.h"
@@ -112,7 +112,7 @@ class WasmHoleWebMediaPlayer final : public blink::WebMediaPlayer {
         provider_(
             new HoleFrameProvider(overlay_plane_id),
             base::OnTaskRunnerDeleter(std::move(compositor_task_runner))) {
-    size_watch_ = cobalt::starboard_wasm::SurfaceVideoSize::Watch(
+    size_watch_ = cobalt::wasm::starboard::SurfaceVideoSize::Watch(
         overlay_plane_id,
         base::BindRepeating(&WasmHoleWebMediaPlayer::OnVideoSizeChanged,
                             weak_factory_.GetWeakPtr()));

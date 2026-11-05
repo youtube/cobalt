@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/starboard_wasm/guest_memory.h"
+#include "cobalt/wasm/starboard/guest_memory.h"
 
 #include <limits>
 
@@ -21,7 +21,8 @@
 #include "v8/include/v8-wasm.h"
 
 namespace cobalt {
-namespace starboard_wasm {
+namespace wasm {
+namespace starboard {
 
 GuestMemory::GuestMemory(v8::Isolate* isolate,
                          const v8::Global<v8::WasmMemoryObject>& memory)
@@ -97,5 +98,6 @@ bool GuestMemory::Load() {
   return base_ != nullptr;
 }
 
-}  // namespace starboard_wasm
+}  // namespace starboard
+}  // namespace wasm
 }  // namespace cobalt
