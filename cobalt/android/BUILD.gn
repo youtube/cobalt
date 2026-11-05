@@ -142,6 +142,14 @@ source_set("androidtv_flags") {
   ]
 }
 
+source_set("chrome_flags_jni_stubs") {
+  sources = [ "chrome_flags_jni_stubs.cc" ]
+  deps = [
+    "//base",
+    "//chrome/browser/flags:jni_headers",
+  ]
+}
+
 source_set("cobalt_process_state_summary_jni") {
   sources = [
     "cobalt_process_state_summary_jni.cc",
@@ -419,6 +427,16 @@ shared_library_with_jni("libchrobalt") {
     # //components/embedder_support/android:util_java, whose JNI natives are
     # in //components/embedder_support/android:util.
     "//components/embedder_support/android:util",
+
+    # Added in 149.7802: https://crrev.com/c/7763465 made
+    # //components/thin_webview/internal:internal_java depend on
+    # //components/browser_ui/modaldialog/android:java, which brings in the
+    # Java below. The real natives for //chrome/browser/flags would pull in
+    # //chrome/browser, so :chrome_flags_jni_stubs provides them instead.
+    ":chrome_flags_jni_stubs",
+    "//components/browser_ui/modaldialog/android",
+    "//components/browser_ui/notifications/android",
+    "//components/offline_items_collection/core",
   ]
 
   # Explicit dependency required for JNI registration to be able to

@@ -14,15 +14,11 @@ using ScopedJavaLocalFrame = jni_zero::ScopedJavaLocalFrame;
 template <typename T>
 using JavaRef = jni_zero::JavaRef<T>;
 template <typename T>
-using JavaObjectArrayReader = jni_zero::JavaObjectArrayReader<T>;
-template <typename T>
 using JavaParamRef = jni_zero::JavaParamRef<T>;
 template <typename T>
 using ScopedJavaLocalRef = jni_zero::ScopedJavaLocalRef<T>;
 template <typename T>
 using ScopedJavaGlobalRef = jni_zero::ScopedJavaGlobalRef<T>;
-template <typename T>
-using JavaObjectArrayReader = jni_zero::JavaObjectArrayReader<T>;
 
 }  // namespace android
 }  // namespace base

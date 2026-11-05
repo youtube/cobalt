@@ -57,16 +57,13 @@ struct ServiceWorkerContextSynchronousObserverList;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 class ServiceWorkerHidDelegateObserver;
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID)
-=======
-class ServiceWorkerUsbDelegateObserver;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
 class ServiceWorkerUsbDelegateObserver;
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
 // A smart pointer of `ServiceWorkerClient`.
 //
@@ -574,9 +571,10 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerHidDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
   // In the service worker case, WebUSB is only available in extension service
   // workers. Limit ServiceWorkerUsbDelegateObserver to platforms that support
   // extensions.
@@ -584,11 +582,8 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerUsbDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer);
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -707,16 +702,13 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer_;
-<<<<<<< HEAD
-#endif  // !BUILDFLAG(IS_ANDROID)
-=======
-  std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
+    !BUILDFLAG(IS_COBALT)
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
-#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
+        // !BUILDFLAG(IS_COBALT)
 
   base::ObserverList<TestVersionObserver> test_version_observers_;
 

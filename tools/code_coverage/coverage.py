@@ -818,7 +818,6 @@ def _ValidateCurrentPlatformIsSupported():
                                                    supported_platforms)
 
 
-<<<<<<< HEAD
 def _GetBuildArgsPath():
   """Returns the path to the args.gn file in the build directory.
 
@@ -831,7 +830,8 @@ def _GetBuildArgsPath():
                     BUILD_DIR)
     return None
   return build_args_path
-=======
+
+
 def _ProcessGnFile(file_path, args_dict, processed_files):
   """Recursively processes a .gn file and its imports."""
   if file_path in processed_files:
@@ -864,7 +864,6 @@ def _ProcessGnFile(file_path, args_dict, processed_files):
         key = key_value_pair[0].strip()
         value = key_value_pair[1].strip().strip('"')
         args_dict[key] = value
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 
 def _GetBuildArgs():
@@ -878,18 +877,9 @@ def _GetBuildArgs():
     return _BUILD_ARGS
 
   _BUILD_ARGS = {}
-<<<<<<< HEAD
   build_args_path = _GetBuildArgsPath()
   if not build_args_path:
     return _BUILD_ARGS
-
-  with open(build_args_path) as build_args_file:
-    build_args_lines = build_args_file.readlines()
-=======
-  build_args_path = os.path.join(BUILD_DIR, 'args.gn')
-  assert os.path.exists(build_args_path), ('"%s" is not a build directory, '
-                                           'missing args.gn file.' % BUILD_DIR)
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   processed_files = set()
   _ProcessGnFile(build_args_path, _BUILD_ARGS, processed_files)

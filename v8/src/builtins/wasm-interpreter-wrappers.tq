@@ -137,15 +137,35 @@ transitioning javascript builtin JSToWasmInterpreterWrapper(
   let paramBuffer: &intptr;
   let paramBufferSize: intptr;
 
-  // We have to estimate the size of the byte array such that it can store
-  // all converted parameters. The size is the memory needed for all parameters
-  // (param_count * sizeof(float64)). Because the parameters for the interpreter
-  // get passed on the stack. See Runtime_WasmRunInterpreter.
-  const kSlotSize: intptr = torque_internal::SizeOf<float64>();
-  // Two padding words between the different segments.
-  paramBufferSize = paramCount * kSlotSize;
-  const bufferOnCHeap = AllocateBuffer(paramBufferSize);
-  paramBuffer = torque_internal::unsafe::NewOffHeapReference(bufferOnCHeap);
+  // 10 here is an arbitrary number. The analysis of signatures of exported
+  // functions of big modules showed that most signatures have a low number of
+  // parameters. We pick a cutoff point where for most signatures the
+  // pre-allocated stack slots are sufficient without making these stack slots
+  // overly big. This mirrors the optimization in the compiler's
+  // JSToWasmWrapper, and is especially important under
+  // `--stress-incremental-marking`, where every cppgc allocation triggers an
+  // incremental marking step.
+  const kMaxOnStackParamCount = 10;
+  if (paramCount <= kMaxOnStackParamCount) {
+    // Performance optimization: pre-allocate a stack area with memory
+    // sufficient for up to `kMaxOnStackParamCount` parameters. The parameters
+    // for the interpreter get passed on the stack (see
+    // Runtime_WasmRunInterpreter), so the memory we have to reserve is the
+    // memory for `kMaxOnStackParamCount` 64-bit parameters.
+    const kSlotSize = torque_internal::SizeOf<float64>();
+    const bufferSize = kMaxOnStackParamCount * kSlotSize;
+    const stackSlots =
+        %RawDownCast<RawPtr<intptr>>(StackSlotPtr(bufferSize, kSlotSize));
+    paramBufferSize = Convert<intptr>(bufferSize);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(stackSlots);
+  } else {
+    // Fallback: allocate a byte array on the managed heap. The size is the
+    // memory needed for all parameters (param_count * sizeof(float64)).
+    const kSlotSize: intptr = torque_internal::SizeOf<float64>();
+    paramBufferSize = paramCount * kSlotSize;
+    const bufferOnCHeap = AllocateBuffer(paramBufferSize);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(bufferOnCHeap);
+  }
 
   let locationAllocator =
       LocationAllocatorForInterpreterParams(paramBuffer, paramBufferSize);

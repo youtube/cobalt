@@ -197,11 +197,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 
-  // Backs the cookie encryption provider handed to every NetworkContext. It is
-  // created without key providers, so the Encryptor falls back to the legacy
-  // OSCrypt path that Cobalt's cookie store already used.
-  // As of M142, the legacy code path is the synchronous OSCrypt one that is
-  // being deprecated.
+  // Backs the cookie encryption provider handed to every NetworkContext. On
+  // Linux it uses PosixKeyProvider, the same v10 key the removed sync OSCrypt
+  // backend used for Cobalt's cookie store.
   // Note that Android and tvOS do not use this at the moment.
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
   std::unique_ptr<CookieEncryptionProviderImpl> cookie_encryption_provider_;

@@ -176,8 +176,10 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/browser/web_ui_controller.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/public/browser/webid/federated_embedder_login_request.h"
 #include "content/public/browser/webid/identity_credential_source.h"
+#endif
 #include "content/public/browser/webui_config.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/common/content_client.h"
@@ -1338,18 +1340,13 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       is_overlay_content_(false),
       showing_context_menu_(false),
       prerender_host_registry_(std::make_unique<PrerenderHostRegistry>(*this)),
-      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create())
+      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-      ,
       fenced_frame_viewport_observer_(
-<<<<<<< HEAD
           std::make_unique<FencedFrameViewportObserver>(this)),
-      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
-=======
-          std::make_unique<FencedFrameViewportObserver>(this))
 #endif
+      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_))
 {
->>>>>>> parent of 022db26bfbf (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
@@ -2208,6 +2205,7 @@ void WebContentsImpl::DidCapturedSurfaceControl() {
   observers_.NotifyObservers(&WebContentsObserver::OnCapturedSurfaceControl);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void WebContentsImpl::OnFedCmFederatedLogin(
     webid::FederatedLoginResult result) {
   observers_.NotifyObservers(&WebContentsObserver::OnFedCmFederatedLogin,
@@ -2225,6 +2223,7 @@ void WebContentsImpl::OnFedCmFederatedLogin(
     embedder_login_request->OnFederatedResultReceived(result);
   }
 }
+#endif
 
 void WebContentsImpl::ResetAccessibility() {
   // Reset accessibility for all frames in this tree and inner trees, including
