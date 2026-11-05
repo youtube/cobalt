@@ -119,6 +119,19 @@ extern const base::Feature kForceVideoSplashScreen;
 // Locally: --enable-features=EnableCachedSplashFile
 BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 
+// Shows a video as the splash screen, played by an SbPlayer that Cobalt drives
+// directly instead of through a <video> element and Media Source Extensions in
+// the splash screen WebContents, whose page then only shows a video hole that
+// the punch-out video shows through. Plays the same video as
+// ForceVideoSplashScreen, i.e., the one that the WebApp cached, with
+// EnableCachedSplashFile, or the built-in one, and takes precedence over it.
+// Where the platform doesn't play VP9 or punch-out, the image shows instead, as
+// with ForceVideoSplashScreen without VP9. If the video can't be played this
+// way otherwise, e.g., where Starboard media isn't used, or fails before its
+// first frame, the main WebContents shows right away instead.
+// Locally: --enable-features=NativeVideoSplashScreen
+BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
