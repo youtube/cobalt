@@ -492,5 +492,82 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
   sink.reset();
 }
 
+TEST_F(AudioTrackAudioSinkTest, StallWithFullBufferRaisesCapabilityChanged) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  // The sink buffer is full, and the fake track never advances its playback
+  // head, simulating an AudioTrack that waits for more frames than the sink
+  // buffer can hold (b/573043984).
+  frames_in_buffer_ = 1024;
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  int elapsed_ms = 0;
+  while (!error_reported_ && elapsed_ms < 6000) {
+    usleep(10'000);
+    elapsed_ms += 10;
+  }
+
+  EXPECT_EQ(track_ptr->written_frames(), 1024);
+  EXPECT_TRUE(error_reported_);
+  EXPECT_TRUE(capability_changed_);
+  {
+    std::lock_guard<std::mutex> lock(error_mutex_);
+    EXPECT_EQ(error_msg_, "AudioTrack stalled with a full sink buffer");
+  }
+
+  sink.reset();
+}
+
+TEST_F(AudioTrackAudioSinkTest, FullBufferWithProgressDoesNotRaiseError) {
+  auto fake_track = std::make_unique<FakeAudioTrack>(
+      2, 48000, kSbMediaAudioSampleTypeFloat32);
+  FakeAudioTrack* track_ptr = fake_track.get();
+
+  AudioTrackAudioSinkType::Callbacks callbacks{
+      UpdateSourceStatusCB,
+      ConsumeFramesCB,
+      ErrorCB,
+  };
+
+  // The sink buffer stays full, but the fake track keeps consuming frames.
+  frames_in_buffer_ = 1024;
+  on_update_source_status_ = [track_ptr]() {
+    if (track_ptr->consumed_frames() < track_ptr->written_frames()) {
+      track_ptr->set_consumed_frames(track_ptr->consumed_frames() + 1);
+    }
+  };
+  auto sink = AudioTrackAudioSink::CreateForTesting(
+      2, 48000, kSbMediaAudioSampleTypeFloat32, frame_buffers_, 1024, 512,
+      callbacks, 0,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*allow_audio_writing_on_pause=*/false,
+      /*pause_using_audio_track_state=*/false, std::move(fake_track), this);
+
+  ASSERT_NE(sink, nullptr);
+
+  usleep(4'000'000);
+
+  EXPECT_GT(track_ptr->consumed_frames(), 0);
+  EXPECT_FALSE(error_reported_);
+
+  sink.reset();
+  on_update_source_status_ = nullptr;
+}
+
 }  // namespace
 }  // namespace starboard
