@@ -461,7 +461,6 @@ test("starboard_platform_tests") {
               "audio_renderer_sink_android_test.cc",
               "audio_track_audio_sink_type_test.cc",
               "drm_session_id_mapper_test.cc",
-              "features_extension_test.cc",
               "media_capabilities_cache_test.cc",
               "media_codec_decoder_test.cc",
               "media_codec_video_decoder_helpers_test.cc",

@@ -32,6 +32,9 @@ source_set("starboard_test") {
   testonly = true
 
   sources = [ "feature_list_test.cc" ]
+  if (is_android) {
+    sources += [ "features_extension_test.cc" ]
+  }
 
   deps = [
     ":feature_list",
