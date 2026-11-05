@@ -65,7 +65,7 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
     super(view);
     ViewCompat.setAccessibilityDelegate(view, this);
     // this.webContents = webContents;
-    this.mCobaltActivityRef = new WeakReference(cobaltActivity);
+    this.mCobaltActivityRef = new WeakReference<>(cobaltActivity);
   }
 
   @Override
