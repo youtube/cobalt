@@ -182,7 +182,7 @@ class MediaCodecBridge {
       mFormat = format;
     }
 
-    @CalledByNative("MediaFormatWrapper")
+    @CalledByNative
     private boolean formatHasCropValues() {
       return mFormat.containsKey(KEY_CROP_RIGHT)
           && mFormat.containsKey(KEY_CROP_LEFT)
@@ -190,7 +190,7 @@ class MediaCodecBridge {
           && mFormat.containsKey(KEY_CROP_TOP);
     }
 
-    @CalledByNative("MediaFormatWrapper")
+    @CalledByNative
     private int width() {
       if (formatHasCropValues()) {
         return mFormat.getInteger(KEY_CROP_RIGHT) - mFormat.getInteger(KEY_CROP_LEFT) + 1;
@@ -202,7 +202,7 @@ class MediaCodecBridge {
       return 0;
     }
 
-    @CalledByNative("MediaFormatWrapper")
+    @CalledByNative
     private int height() {
       if (formatHasCropValues()) {
         return mFormat.getInteger(KEY_CROP_BOTTOM) - mFormat.getInteger(KEY_CROP_TOP) + 1;
@@ -214,12 +214,12 @@ class MediaCodecBridge {
       return 0;
     }
 
-    @CalledByNative("MediaFormatWrapper")
+    @CalledByNative
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
-    @CalledByNative("MediaFormatWrapper")
+    @CalledByNative
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
     }
@@ -232,7 +232,7 @@ class MediaCodecBridge {
     public int colorTransfer;
     public ByteBuffer hdrStaticInfo;
 
-    @CalledByNative("ColorInfo")
+    @CalledByNative
     ColorInfo(
         int colorRange,
         int colorStandard,
@@ -274,18 +274,18 @@ class MediaCodecBridge {
     // Contains the error message when mMediaCodecBridge is null.
     private String mErrorMessage;
 
-    @CalledByNative("CreateMediaCodecBridgeResult")
+    @CalledByNative
     private CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
       mErrorMessage = "";
     }
 
-    @CalledByNative("CreateMediaCodecBridgeResult")
+    @CalledByNative
     private MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
-    @CalledByNative("CreateMediaCodecBridgeResult")
+    @CalledByNative
     private String errorMessage() {
       return mErrorMessage;
     }

@@ -383,12 +383,12 @@ public class MediaCodecUtil {
       mVideoCapabilities = mCodecCapabilities.getVideoCapabilities();
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public String getMimeType() {
       return mMimeType;
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public String getDecoderName() {
       return mDecoderName;
     }
@@ -397,17 +397,17 @@ public class MediaCodecUtil {
       return mCodecCapabilities;
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public MediaCodecInfo.AudioCapabilities getAudioCapabilities() {
       return mAudioCapabilities;
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public MediaCodecInfo.VideoCapabilities getVideoCapabilities() {
       return mVideoCapabilities;
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isSecureRequired() {
       // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
       // are then supposed to check if FEATURE_SecurePlayback is supported, and if it is and we
@@ -423,30 +423,30 @@ public class MediaCodecUtil {
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isSecureSupported() {
       return mCodecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isTunnelModeRequired() {
       return mCodecCapabilities.isFeatureRequired(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isTunnelModeSupported() {
       return mCodecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isSoftware() {
       return isSoftwareDecoder(mCodecInfo);
     }
 
-    @CalledByNative("CodecCapabilityInfo")
+    @CalledByNative
     public boolean isHdrCapable() {
       return isHdrCapableVideoDecoder(mMimeType, mCodecCapabilities);
     }
