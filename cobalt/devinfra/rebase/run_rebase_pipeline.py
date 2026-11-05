@@ -647,7 +647,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           "a build fix) but are not in the dependency closure of "
           f"{effective_target}, so the change was never compiled. They are "
           "put back to the autoroll commit; any conflict in them is left "
-          "for a human.\n\n"
+          "for following work.\n\n"
           "Files: " + ", ".join(restored))
 
   elapsed = time.time() - start_time
