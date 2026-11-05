@@ -6544,7 +6544,6 @@ void NavigationRequest::CommitErrorPage(
           previous_origin.GetTupleOrPrecursorTupleIfOpaque();
   if (!is_error_page_with_same_precursor) {
     commit_params_->force_new_document_sequence_number = true;
-<<<<<<< HEAD
   } else {
     // We only preserve the document sequence number for temporary errors that
     // could later be reloaded and succeed, which don't stay in the current
@@ -6552,24 +6551,7 @@ void NavigationRequest::CommitErrorPage(
     // and will not share the precursor, so they will always force a new
     // document sequence number.
     CHECK_NE(ComputeErrorPageProcess(), ErrorPageProcess::kCurrentProcess);
-=======
   }
-
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  // If the outermost main frame is performing an error navigation, capture the
-  // state of fenced frames rendered in the viewport before the entire FrameTree
-  // is torn down. We have to do this now, because the renderer will change the
-  // visibility of its frames after receiving the commit.
-  if (previous_rfh->IsOutermostMainFrame() && !IsSameDocument()) {
-    auto* monitor =
-        PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
-            previous_rfh->GetPage());
-    if (monitor) {
-      monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
-    }
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
-#endif
 
   PopulateDocumentTokenForCrossDocumentNavigation();
   // Use a separate cache shard, and no cookies, for error pages.
@@ -6729,25 +6711,6 @@ void NavigationRequest::CommitNavigation() {
     // We want to record this for the frame that we are navigating away from.
     old_frame_host->RecordNavigationSuddenTerminationHandlers();
   }
-<<<<<<< HEAD
-=======
-
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  // If the outermost main frame is being navigated, capture the state of fenced
-  // frames rendered in the viewport before the entire FrameTree is torn down.
-  // We have to do this now, because the renderer will change the visibility of
-  // its frames after receiving the commit.
-  if (old_frame_host->IsOutermostMainFrame() && !IsSameDocument()) {
-    auto* monitor =
-        PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
-            old_frame_host->GetPage());
-    if (monitor) {
-      monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
-    }
-  }
-#endif
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (IsServedFromBackForwardCache() || IsPrerenderedPageActivation()) {
     CommitPageActivation();
     return;
