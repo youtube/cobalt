@@ -82,7 +82,7 @@ class BidirectionalFitReuseAllocator : public UnderlyingReuseAllocator {
                                   FreeBlockIterator begin,
                                   FreeBlockIterator end,
                                   bool* allocate_from_front) override {
-    SB_DCHECK(allocate_from_front);
+    SB_CHECK(allocate_from_front);
 
     *allocate_from_front = size > small_allocation_threshold_;
     if (*allocate_from_front) {

@@ -511,7 +511,7 @@ void AudioRendererPcm::ConsumeFrames(int frames_consumed,
 
 void AudioRendererPcm::OnError(bool capability_changed,
                                const std::string& error_message) {
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   if (capability_changed) {
     error_cb_(kSbPlayerErrorCapabilityChanged, error_message);
   } else {
