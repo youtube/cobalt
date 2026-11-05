@@ -125,13 +125,6 @@ if (is_chromeos_device) {
   default_symbol_level = 2
 }
 
-# Cobalt needs to handle use_cxx17, which does not exist upstream.
-if (is_cobalt) {
-  if (use_cxx17) {
-    use_cxx23 = false
-  }
-}
-
 declare_args() {
   # How many symbols to include in the build. This affects the performance of
   # the build since the symbols are large and dealing with them is slow.
