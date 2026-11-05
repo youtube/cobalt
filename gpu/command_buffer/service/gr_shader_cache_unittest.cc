@@ -7,24 +7,21 @@
 #include <thread>
 
 #include "base/base64.h"
-<<<<<<< HEAD
 #include "base/functional/callback_helpers.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
 #include "base/memory_coordinator/test_memory_consumer_registry.h"
 #include "base/run_loop.h"
-=======
-#include "base/command_line.h"
-#include "base/memory/memory_pressure_listener_registry.h"
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
 #include <optional>
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
+#include "base/command_line.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gpu {
 namespace raster {
@@ -323,7 +320,6 @@ TEST_F(GrShaderCacheTest, MemoryPressure) {
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), kCacheLimit);
 }
 
-<<<<<<< HEAD
 TEST_F(GrShaderCacheTest, StatefulMemoryPressure) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(base::kStatefulMemoryPressure);
@@ -413,7 +409,6 @@ TEST_F(GrShaderCacheTest, ClampMemoryLimitAbove100Percent) {
   EXPECT_EQ(cache_.num_cache_entries(), 4u);
 }
 
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
                                         public testing::Test {
@@ -525,6 +520,5 @@ TEST_F(GrShaderCacheDeferredWritesTest, WritesImmediatelyWhenFeatureDisabled) {
 }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace raster
 }  // namespace gpu
