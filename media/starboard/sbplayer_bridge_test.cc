@@ -342,8 +342,56 @@ TEST_F(SbPlayerBridgeStatisticsTest, FrameTotalsContinueAcrossSuspendResume) {
   EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 17u);
 }
 
+// Returns the number of samples recorded in histogram |name|.
+size_t GetTotalCount(const base::HistogramTester& histogram_tester,
+                     const std::string& name) {
+  size_t count = 0;
+  for (const base::Bucket& bucket : histogram_tester.GetAllSamples(name)) {
+    count += bucket.count;
+  }
+  return count;
+}
+
+// Returns the number of samples recorded in histogram |name| and in its
+// ".Subsequent" variant. Which of the two a sample lands in depends on whether
+// an earlier test in the same process already created an SbPlayer.
+size_t GetTotalCountAcrossOccurrences(
+    const base::HistogramTester& histogram_tester,
+    const std::string& name) {
+  return GetTotalCount(histogram_tester, name) +
+         GetTotalCount(histogram_tester, name + ".Subsequent");
+}
+
+constexpr char kSbPlayerCreateHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
+constexpr char kSbPlayerCreateToInitializedHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+
+std::unique_ptr<SbPlayerBridge> CreateTestBridge(
+    MockSbPlayerInterface* sbplayer_interface,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    SbPlayerBridge::Host* host) {
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
+  return std::make_unique<SbPlayerBridge>(
+      sbplayer_interface, task_runner,
+      base::BindRepeating(
+          []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
+      AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
+      kSbDrmSystemInvalid, host,
+      /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      /*max_video_input_size=*/0, experimental_features
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*surface_view=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+}
+
 // Repeated kSbPlayerStateInitialized statuses for the same SbPlayer must only
-// record Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized once.
+// record Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized once, in the
+// same variant as the SbPlayerCreate() call that created the player.
 TEST(SbPlayerBridgeLatencyTest, RecordsCreateToInitializedOncePerPlayer) {
   base::test::TaskEnvironment task_environment;
   NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
@@ -356,34 +404,55 @@ TEST(SbPlayerBridgeLatencyTest, RecordsCreateToInitializedOncePerPlayer) {
   EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
       .WillOnce(DoAll(SaveArg<4>(&player_status_func), SaveArg<6>(&context),
                       Return(player)));
-  const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
-  auto bridge = std::make_unique<SbPlayerBridge>(
-      &mock_sbplayer_interface, task_environment.GetMainThreadTaskRunner(),
-      base::BindRepeating(
-          []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
-      AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
-      kSbDrmSystemInvalid, &host,
-      /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
-      /*max_video_capabilities=*/"",
-      /*max_video_resolution=*/"",
-      /*max_video_input_size=*/0, experimental_features
-#if BUILDFLAG(IS_ANDROID)
-      ,
-      /*surface_view=*/nullptr
-#endif  // BUILDFLAG(IS_ANDROID)
-  );
+  std::unique_ptr<SbPlayerBridge> bridge =
+      CreateTestBridge(&mock_sbplayer_interface,
+                       task_environment.GetMainThreadTaskRunner(), &host);
   ASSERT_TRUE(bridge->IsValid());
   ASSERT_TRUE(player_status_func);
-  histogram_tester.ExpectTotalCount("Cobalt.Media.LatencyTiming.SbPlayerCreate",
-                                    1);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
 
   for (int i = 0; i < 2; ++i) {
     player_status_func(player, context, kSbPlayerStateInitialized,
                        SB_PLAYER_INITIAL_TICKET);
     task_environment.RunUntilIdle();
   }
-  histogram_tester.ExpectTotalCount(
-      "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized", 1);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            1u);
+  // Both metrics for this player are recorded in the same variant.
+  EXPECT_EQ(
+      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram),
+      GetTotalCount(histogram_tester, kSbPlayerCreateToInitializedHistogram));
+}
+
+// Only the first SbPlayer creation in the process is recorded in the base
+// histogram; any later one is recorded in the ".Subsequent" variant.
+TEST(SbPlayerBridgeLatencyTest, RecordsLaterCreationsAsSubsequent) {
+  base::test::TaskEnvironment task_environment;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
+  FakeSbPlayerBridgeHost host;
+  base::HistogramTester histogram_tester;
+
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
+        .WillOnce(Return(reinterpret_cast<SbPlayer>(new MockSbPlayer())));
+    std::unique_ptr<SbPlayerBridge> bridge =
+        CreateTestBridge(&mock_sbplayer_interface,
+                         task_environment.GetMainThreadTaskRunner(), &host);
+    ASSERT_TRUE(bridge->IsValid());
+  }
+
+  // At most one creation can be the first in the process, so at least the
+  // second one is recorded as subsequent.
+  const size_t first_count =
+      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram);
+  EXPECT_LE(first_count, 1u);
+  EXPECT_EQ(
+      GetTotalCount(histogram_tester,
+                    std::string(kSbPlayerCreateHistogram) + ".Subsequent"),
+      2u - first_count);
 }
 
 }  // namespace

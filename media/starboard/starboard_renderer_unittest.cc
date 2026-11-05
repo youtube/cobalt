@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -59,6 +60,22 @@ constexpr char kSbPlayerCreateHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreate";
 constexpr char kSbPlayerCreateToInitializedHistogram[] =
     "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+
+// Returns the number of samples recorded in histogram |name| and in its
+// ".Subsequent" variant. Which of the two a sample lands in depends on whether
+// an earlier test in the same process already created an SbPlayer.
+size_t GetTotalCountAcrossOccurrences(
+    const base::HistogramTester& histogram_tester,
+    const std::string& name) {
+  size_t count = 0;
+  for (const std::string& histogram : {name, name + ".Subsequent"}) {
+    for (const base::Bucket& bucket :
+         histogram_tester.GetAllSamples(histogram)) {
+      count += bucket.count;
+    }
+  }
+  return count;
+}
 
 class StarboardRendererTest : public testing::Test {
  protected:
@@ -378,15 +395,23 @@ TEST_F(StarboardRendererTest, InitializeWithInvalidSbPlayer) {
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencies) {
   base::HistogramTester histogram_tester;
   SbPlayer player = InitializeWithAudioAndVideo();
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            0u);
 
   ASSERT_TRUE(player_status_cb_);
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 1);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            1u);
 }
 
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
@@ -404,8 +429,12 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatencyOnFailure) {
 
   // The failed SbPlayerCreate() call is still recorded, but a player that was
   // never created can't report kSbPlayerStateInitialized.
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            0u);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksPresenting) {
@@ -844,15 +873,23 @@ TEST_F(StarboardRendererTest,
 TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatenciesForUrlPlayer) {
   base::HistogramTester histogram_tester;
   SbPlayer player = InitializeUrlPlayer();
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 0);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            0u);
 
   ASSERT_TRUE(player_status_cb_);
   player_status_cb_(player, context_, kSbPlayerStateInitialized,
                     /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateHistogram, 1);
-  histogram_tester.ExpectTotalCount(kSbPlayerCreateToInitializedHistogram, 1);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(histogram_tester,
+                                           kSbPlayerCreateHistogram),
+            1u);
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram),
+            1u);
 }
 
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
