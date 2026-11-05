@@ -350,9 +350,9 @@ def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
   reads them, but they are not Ninja inputs of `target`), and so is DEPS
   (gclient sync reads it). Returns the restored paths.
 
-  base_sha must be the commit at the end of Phase 1, not the start of the
-  run: Phase 1 resolves conflicts in files the target does not build, and
-  restoring those to the start would bring the conflict markers back.
+  base_sha must be the commit the run started from (the autoroll commit).
+  If a file is not compiled by the target, it is restored to the autoroll
+  commit.
   """
 
   def run(cmd: List[str]) -> subprocess.CompletedProcess:
@@ -405,10 +405,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
     effective_target = "cobalt_apk"
 
   start_time = time.time()
-  # Files the agent changed but the target does not build are put back to
-  # this commit after Phase 4. It is moved to the end of Phase 1 below, so
-  # that conflicts resolved there stay resolved.
-  restore_sha = head_sha(args.repo_path)
+  # The autoroll commit the run starts from. If a file is not compiled by
+  # the target, it is restored to this commit after Phase 4.
+  autoroll_sha = head_sha(args.repo_path)
   log.info("=" * 80)
   log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
   if args.reasoning_engine_id:
@@ -596,7 +595,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
     if commit_files(args.repo_path, None,
                     "[AI] Checkpoint: Resolved Phase 1 merge conflicts"):
       log.info("  [OK] Created clean baseline checkpoint commit for Phase 1.")
-    restore_sha = head_sha(args.repo_path)
 
   # -------------------------------------------------------------------------
   # PHASE 2: Toolchain & Dependency Sync: gclient sync -D
@@ -629,8 +627,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
     log.info("=" * 80)
     if not run_phase("Phase 4", "Compiler Loop", autoninja_resolver):
       return 1
-    restored = restore_files_outside_build(args.repo_path, restore_sha, out_dir,
-                                           effective_target)
+    restored = restore_files_outside_build(args.repo_path, autoroll_sha,
+                                           out_dir, effective_target)
     if restored:
       log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
                len(restored), effective_target)
@@ -645,9 +643,11 @@ def run_pipeline(args: argparse.Namespace) -> int:
       commit_files(
           args.repo_path, restored,
           f"Revert agent edits to files {effective_target} does not build",
-          "These files were changed by a build fix but are not in the "
-          f"dependency closure of {effective_target}, so the change was "
-          "never compiled. They are put back to the end of Phase 1.\n\n"
+          "These files were changed by the agent (a conflict resolution or "
+          "a build fix) but are not in the dependency closure of "
+          f"{effective_target}, so the change was never compiled. They are "
+          "put back to the autoroll commit; any conflict in them is left "
+          "for following work.\n\n"
           "Files: " + ", ".join(restored))
 
   elapsed = time.time() - start_time
