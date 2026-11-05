@@ -11570,60 +11570,6 @@ void NavigationRequest::ResetViewTransitionState() {
   }
 }
 
-<<<<<<< HEAD
-=======
-bool NavigationRequest::IsDisabledEmbedderInitiatedFencedFrameNavigation() {
-  // The untrusted network access check only applies to embedder-initiated
-  // fenced frame root navigations. Note that
-  // `is_embedder_initiated_fenced_frame_navigation_` being true includes fenced
-  // frame and urn iframe embedder initiated navigations, so we need the
-  // additional `IsFencedFrameRoot` check.
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (frame_tree_node_->IsFencedFrameRoot() &&
-      is_embedder_initiated_fenced_frame_navigation_ &&
-      base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
-    const std::optional<FencedFrameProperties>&
-        embedder_fenced_frame_properties = GetParentFrameOrOuterDocument()
-                                               ->frame_tree_node()
-                                               ->GetFencedFrameProperties();
-    const std::optional<FencedFrameProperties>& target_fenced_frame_properties =
-        frame_tree_node_->GetFencedFrameProperties(
-            FencedFramePropertiesNodeSource::kFrameTreeRoot);
-
-    if (target_fenced_frame_properties.has_value() &&
-        target_fenced_frame_properties
-            ->HasDisabledNetworkForCurrentFrameTree() &&
-        embedder_fenced_frame_properties.has_value() &&
-        embedder_fenced_frame_properties
-            ->HasDisabledNetworkForCurrentFrameTree()) {
-      // Navigation should be aborted if:
-      // 1. The nested fenced frame has disabled the untrusted network access.
-      // 2. The embedder fenced frame has disabled the untrusted network access
-      // after the navigation starts.
-      //
-      // Note: The navigation is allowed if only embedder fenced frame has
-      // disabled the untrusted network access. This allows the fenced frame
-      // to navigate its nested fenced frame to a nested config while the parent
-      // fenced frame disables its own network.
-      //
-      // After top-level FF disables its network, the nested FF's navigation
-      // may not have committed yet. Top-level FF has no way of knowing when it
-      // is safe to disable network for nested FF (and it would be a privacy
-      // violation for it to know), so nested FF has to disable network for
-      // itself if it wants to get shared storage access.
-      //
-      // For top-level FF, it does not have shared storage access until all
-      // its descendants have also disabled network.
-      return true;
-    }
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-
-  return false;
-}
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 blink::RuntimeFeatureStateContext&
 NavigationRequest::GetMutableRuntimeFeatureStateContext() {
   // runtime_feature_state_context_ shouldn't be modified after READY_TO_COMMIT

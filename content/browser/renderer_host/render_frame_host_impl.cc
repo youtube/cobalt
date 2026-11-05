@@ -10658,6 +10658,10 @@ void RenderFrameHostImpl::CreateFencedFrame(
   // Fenced frames (after their first navigation) do not have opaque origins,
   // and this default-constructed FRS does not impact that.
   CHECK(initial_replicated_state.origin.opaque());
+#else
+  bad_message::ReceivedBadMessage(
+      GetProcess(), bad_message::RFH_FENCED_FRAME_MOJO_WHEN_DISABLED);
+#endif
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeacon into a separate
