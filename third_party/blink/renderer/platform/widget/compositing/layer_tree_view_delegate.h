@@ -9,12 +9,8 @@
 
 #include "base/functional/callback.h"
 #include "base/time/time.h"
-<<<<<<< HEAD
-#include "cc/trees/layer_tree_host_delegate.h"
-=======
 #include "build/build_config.h"
-#include "cc/trees/layer_tree_host_client.h"
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "cc/trees/layer_tree_host_delegate.h"
 #include "cc/trees/paint_holding_reason.h"
 
 namespace viz {
