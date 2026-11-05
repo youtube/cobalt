@@ -1104,9 +1104,8 @@ void StarboardRenderer::UpdateStatistics(
       statistics.video_bytes_decoded > 0 ||
       statistics.video_frames_decoded > 0 ||
       statistics.video_frames_dropped > 0) {
-    // TODO(b/375273093): Refine frame drops reporting, and double check
-    //                    whether we should report more statistics, and/or
-    //                    reduce the frequency of reporting.
+    // TODO(b/375273093): Report final statistics at end of stream, and double
+    // check whether we should change the reporting frequency.
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));

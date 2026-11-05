@@ -81,19 +81,6 @@ class ScopedVectorClearer {
   std::vector<T>& vec_;
 };
 
-// SbPlayerInfo frame counters are specified as totals since the creation of
-// the player, but some platforms reset them, e.g. on seek. Treats a decrease
-// as a reset to 0 and returns a total that never decreases.
-uint32_t ToMonotonicTotal(uint32_t sb_value,
-                          uint32_t* last_sb_value,
-                          uint32_t* offset) {
-  if (sb_value < *last_sb_value) {
-    *offset += *last_sb_value;
-  }
-  *last_sb_value = sb_value;
-  return *offset + sb_value;
-}
-
 bool TryRemoveBufferAt(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
                        uint64_t* total_bytes_decoded,
                        DecoderBuffer::Allocator::Handle handle,
@@ -616,10 +603,11 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  const PlayerInfo info = GetInfo();
-  cached_video_frames_decoded_ = info.statistics.total_video_frames_decoded;
-  cached_video_frames_dropped_ = info.statistics.total_video_frames_dropped;
-  preroll_timestamp_ = info.media_time;
+  // Also updates the frame counters with the final values from |player_|.
+  preroll_timestamp_ = GetInfo().media_time;
+  // The SbPlayer created on Resume() restarts its counters at 0.
+  video_frames_decoded_.OnPlayerDestroyed();
+  video_frames_dropped_.OnPlayerDestroyed();
 
   state_ = kSuspended;
 
@@ -1043,6 +1031,19 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
+uint32_t SbPlayerBridge::MonotonicCounter::Update(uint32_t sb_value) {
+  if (sb_value < last_) {
+    offset_ += last_;
+  }
+  last_ = sb_value;
+  return total();
+}
+
+void SbPlayerBridge::MonotonicCounter::OnPlayerDestroyed() {
+  offset_ += last_;
+  last_ = 0;
+}
+
 SbPlayerBridge::PlayerInfo SbPlayerBridge::GetInfo() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -1051,23 +1052,21 @@ SbPlayerBridge::PlayerInfo SbPlayerBridge::GetInfo() {
   info.statistics.total_video_bytes_decoded = total_video_bytes_decoded_;
 
   if (state_ == kSuspended) {
-    info.statistics.total_video_frames_decoded = cached_video_frames_decoded_;
-    info.statistics.total_video_frames_dropped = cached_video_frames_dropped_;
+    info.statistics.total_video_frames_decoded = video_frames_decoded_.total();
+    info.statistics.total_video_frames_dropped = video_frames_dropped_.total();
     info.media_time = preroll_timestamp_;
     return info;
   }
 
-  DCHECK(SbPlayerIsValid(player_));
+  CHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo sb_player_info = {};
   sbplayer_interface_->GetInfo(player_, &sb_player_info);
 
-  info.statistics.total_video_frames_decoded = ToMonotonicTotal(
-      static_cast<uint32_t>(sb_player_info.total_video_frames),
-      &last_sb_total_video_frames_, &video_frames_decoded_offset_);
-  info.statistics.total_video_frames_dropped = ToMonotonicTotal(
-      static_cast<uint32_t>(sb_player_info.dropped_video_frames),
-      &last_sb_dropped_video_frames_, &video_frames_dropped_offset_);
+  info.statistics.total_video_frames_decoded = video_frames_decoded_.Update(
+      static_cast<uint32_t>(sb_player_info.total_video_frames));
+  info.statistics.total_video_frames_dropped = video_frames_dropped_.Update(
+      static_cast<uint32_t>(sb_player_info.dropped_video_frames));
   info.media_time = base::Microseconds(sb_player_info.current_media_timestamp);
   if (sb_player_info.duration != SB_PLAYER_NO_DURATION) {
     info.duration = base::Microseconds(sb_player_info.duration);

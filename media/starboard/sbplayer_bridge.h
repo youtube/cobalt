@@ -195,6 +195,24 @@ class SbPlayerBridge {
   using DecodingBufferQueue = base::circular_deque<OptimizedDecodingBuffer>;
 
  private:
+  // Turns an SbPlayerInfo frame counter, which may reset (e.g. on seek on some
+  // platforms, or when SbPlayer is recreated on resume), into a total that
+  // never decreases.
+  class MonotonicCounter {
+   public:
+    // Updates the counter with the latest value from SbPlayerInfo. A decrease
+    // is treated as a reset to 0. Returns the updated total.
+    uint32_t Update(uint32_t sb_value);
+    // Call when the underlying SbPlayer is destroyed, as the counters of a
+    // newly created SbPlayer restart at 0.
+    void OnPlayerDestroyed();
+    uint32_t total() const { return offset_ + last_; }
+
+   private:
+    uint32_t last_ = 0;
+    uint32_t offset_ = 0;
+  };
+
   enum State {
     kPlaying,
     kSuspended,
@@ -352,14 +370,10 @@ class SbPlayerBridge {
 
   State state_ = kPlaying;
   SbPlayer player_;
-  uint32_t cached_video_frames_decoded_;
-  uint32_t cached_video_frames_dropped_;
-  // SbPlayerInfo frame counters as of the last GetInfo() call, and the offsets
-  // carried over from before SbPlayer reset them. See GetInfo().
-  uint32_t last_sb_total_video_frames_ = 0;
-  uint32_t last_sb_dropped_video_frames_ = 0;
-  uint32_t video_frames_decoded_offset_ = 0;
-  uint32_t video_frames_dropped_offset_ = 0;
+  // Video frame totals since the creation of this bridge. They also serve as
+  // the cached values while suspended. See GetInfo().
+  MonotonicCounter video_frames_decoded_;
+  MonotonicCounter video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
   uint64_t total_audio_bytes_decoded_ = 0;
   uint64_t total_video_bytes_decoded_ = 0;
