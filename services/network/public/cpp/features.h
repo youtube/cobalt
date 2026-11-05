@@ -446,10 +446,9 @@ BASE_DECLARE_FEATURE(kDelayInitialDohProbeTimeout);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kDelayInitialDohProbeTimeoutParam);
 
-<<<<<<< HEAD
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kRestrictForbiddenSecurityHeaders);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -467,7 +466,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 
