@@ -124,16 +124,10 @@ CreateContentBrowserURLLoaderThrottles(
     }
   }
 
-<<<<<<< HEAD
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (auto throttle = MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
           webid::SetIdpSigninStatus, browser_context->GetWeakPtr(),
           request.destination, frame_tree_node_id))) {
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (auto throttle = MaybeCreateIdentityUrlLoaderThrottle(
-          base::BindRepeating(webid::SetIdpSigninStatus, browser_context,
-                              request.destination, frame_tree_node_id))) {
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     throttles.push_back(std::move(throttle));
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
