@@ -198,6 +198,10 @@ class SbPlayerBridge {
   // Turns an SbPlayerInfo frame counter, which may reset (e.g. on seek on some
   // platforms, or when SbPlayer is recreated on resume), into a total that
   // never decreases.
+  //
+  // Instances are members of SbPlayerBridge and share its lifetime. They are
+  // only accessed on SbPlayerBridge's |task_runner_| sequence, so they are not
+  // thread-safe.
   class MonotonicCounter {
    public:
     // Updates the counter with the latest value from SbPlayerInfo. A decrease
