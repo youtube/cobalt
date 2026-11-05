@@ -725,13 +725,14 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-  sb_player_create_start_time_ = base::TimeTicks::Now();
+  const base::TimeTicks sb_player_create_start_time = base::TimeTicks::Now();
+  sb_player_create_start_time_ = sb_player_create_start_time;
   player_ = sbplayer_interface_->CreateUrlPlayer(
       url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
       &SbPlayerBridge::PlayerErrorCB, this);
   RecordSbPlayerCreateLatency(base::TimeTicks::Now() -
-                              sb_player_create_start_time_);
+                              sb_player_create_start_time);
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
@@ -835,14 +836,15 @@ void SbPlayerBridge::CreatePlayer() {
         &extension_features);
   }
 
-  sb_player_create_start_time_ = base::TimeTicks::Now();
+  const base::TimeTicks sb_player_create_start_time = base::TimeTicks::Now();
+  sb_player_create_start_time_ = sb_player_create_start_time;
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
   RecordSbPlayerCreateLatency(base::TimeTicks::Now() -
-                              sb_player_create_start_time_);
+                              sb_player_create_start_time);
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
