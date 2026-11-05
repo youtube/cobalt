@@ -727,6 +727,7 @@ void ShellContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         BrowserContext* browser_context,
         const std::optional<url::Origin>& request_initiator,
+        network::mojom::RequestDestination request_destination,
         NonNetworkURLLoaderFactoryMap* factories) {
   // Registers factories for kH5vccEmbeddedScheme used to load the main script
   // for Web Workers.
