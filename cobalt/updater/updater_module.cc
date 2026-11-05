@@ -375,7 +375,7 @@ void UpdaterModule::Update() {
   if (GetUpdateCheckCount() == 1) {
     // Update check ran once. The next check will be scheduled at a randomized
     // time between 1 and 24 hours.
-    kNextUpdateCheckHours = base::RandInt(1, 24);
+    kNextUpdateCheckHours = base::RandIntInclusive(1, 24);
   } else {
     // Update check ran at least twice. The next check will be scheduled in 24
     // hours.
