@@ -296,8 +296,8 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
          MemOperand(wrapper_buffer,
                     WasmInterpreterWrapperConstants::kWrapperBufferParamStart));
 
-  DEFINE_PINNED(function_index, w15);
-  __ Ldr(function_index,
+  DEFINE_PINNED(function_index, x15);
+  __ Ldr(function_index.W(),
          MemOperand(wrapper_buffer,
                     WasmInterpreterWrapperConstants::kWrapperBufferCallTarget));
   __ SmiTag(function_index);
