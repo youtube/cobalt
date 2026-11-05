@@ -15,10 +15,12 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/accessibility.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/shared/starboard/features_extension.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
@@ -47,6 +49,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     return starboard::GetAccessibilityApi();
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::GetFeaturesApi();
   }
   return nullptr;
 }

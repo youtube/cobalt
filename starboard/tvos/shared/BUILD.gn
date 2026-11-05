@@ -34,6 +34,8 @@ static_library("test_support") {
   ]
 
   sources = [
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
     "starboard_test_environment.h",
     "starboard_test_environment.mm",
     "test_runner.cc",
@@ -186,6 +188,7 @@ static_library("starboard_platform") {
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
+    "//starboard/shared/starboard:feature_list",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
@@ -202,7 +205,6 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
-    "//starboard/shared/starboard:feature_list",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
     "//third_party/libvpx",
