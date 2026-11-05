@@ -24,6 +24,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.Build.VERSION;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
@@ -225,7 +226,8 @@ public class AudioOutputManager {
   private static boolean isPassthroughEncoding(int encoding) {
     return encoding == AudioFormat.ENCODING_AC3
         || encoding == AudioFormat.ENCODING_E_AC3
-        || encoding == AudioFormat.ENCODING_E_AC3_JOC;
+        || encoding == AudioFormat.ENCODING_E_AC3_JOC
+        || encoding == 37 /*AudioFormat.ENCODING_IAMF_BASE_PROFILE_OPUS*/;
   }
 
   private static boolean hasActivePassthroughTrack(
@@ -322,6 +324,9 @@ public class AudioOutputManager {
           break;
         case AudioFormat.ENCODING_IEC61937:
           encodingsInString.append("IEC61937");
+          break;
+        case 37: /*AudioFormat.ENCODING_IAMF_BASE_PROFILE_OPUS*/
+          encodingsInString.append("IAMF_BASE_PROFILE_OPUS");
           break;
         case AudioFormat.ENCODING_INVALID:
           encodingsInString.append("INVALID");
@@ -629,6 +634,14 @@ public class AudioOutputManager {
         return AudioFormat.CHANNEL_OUT_STEREO;
       case 6:
         return AudioFormat.CHANNEL_OUT_5POINT1;
+      case 8:
+        return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+      case 10:
+        if (VERSION.SDK_INT >= 32) {
+          return AudioFormat.CHANNEL_OUT_7POINT1POINT2;
+        } else {
+          throw new RuntimeException("Unsupported channel count: " + channelCount);
+        }
       default:
         return AudioFormat.CHANNEL_INVALID;
     }

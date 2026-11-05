@@ -15,6 +15,8 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <utility>
 #include <vector>
 
@@ -39,6 +41,139 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
+
+// For IAMF, besides end of stream and AudioTrack being full, preroll is also
+// considered finished once this duration of audio has been written to
+// AudioTrack.  This allows playback to start when the upstream pushes less data
+// than what is needed to fill AudioTrack.
+constexpr int64_t kPrerollDurationUs = 300'000;  // 300ms
+
+// AudioTrack doesn't start playing until the written data reaches its start
+// threshold, which defaults to the whole buffer size.  For IAMF, the amount of
+// data to buffer before playing is already decided by preroll (see
+// |kPrerollDurationUs|), so lower the start threshold to let AudioTrack start
+// as soon as Play() is called.  For compressed formats, a frame is one byte.
+// AudioTrack.setStartThresholdInFrames() requires API level 31, which is always
+// available as IAMF passthrough is only enabled on Android 16 (API level 36)
+// or later (see player_components_factory.cc).
+constexpr int kIamfStartThresholdInFrames = 1;
+
+// Used only when num_samples_per_frame can't be parsed from the IAMF Codec
+// Config OBU. 960 is 20ms of Opus at 48kHz.
+constexpr int kIamfDefaultAudioFramesPerBuffer = 960;
+
+constexpr int kIamfObuTypeCodecConfig = 0;
+
+// Reads an IAMF leb128() value (at most 8 bytes) from |data| at |*offset|, and
+// advances |*offset| past it. Returns false on malformed or truncated input.
+bool ReadIamfLeb128(const uint8_t* data,
+                    int size,
+                    int* offset,
+                    uint64_t* value) {
+  constexpr int kMaxLeb128Bytes = 8;
+  *value = 0;
+  for (int i = 0; i < kMaxLeb128Bytes; ++i) {
+    if (*offset >= size) {
+      return false;
+    }
+    uint8_t byte = data[(*offset)++];
+    *value |= static_cast<uint64_t>(byte & 0x7f) << (i * 7);
+    if (!(byte & 0x80)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Returns num_samples_per_frame of the first Codec Config OBU found in |data|,
+// or 0 if there is none.  Every Audio Frame OBU in a temporal unit carries
+// num_samples_per_frame samples, so this is also the frame count of one
+// temporal unit (i.e. one input buffer).
+//
+// OBU syntax (IAMF spec section 3.2 and 3.6):
+//   obu_header: obu_type(5) | obu_redundant_copy(1) |
+//               obu_trimming_status_flag(1) | obu_extension_flag(1)
+//               obu_size                          leb128()
+//               [num_samples_to_trim_at_end       leb128()]  if trimming flag
+//               [num_samples_to_trim_at_start     leb128()]  if trimming flag
+//               [extension_header_size            leb128()]  if extension flag
+//               [extension_header_bytes           ...     ]  if extension flag
+//   codec_config_obu: codec_config_id             leb128()
+//                     codec_id                    4 bytes
+//                     num_samples_per_frame       leb128()
+//                     audio_roll_distance         2 bytes
+//                     decoder_config              ...
+int ParseIamfNumSamplesPerFrame(const uint8_t* data, int size) {
+  int offset = 0;
+  while (offset < size) {
+    const uint8_t header = data[offset++];
+    const int obu_type = header >> 3;
+    const bool trimming_flag = (header >> 1) & 1;
+    const bool extension_flag = header & 1;
+
+    uint64_t obu_size;
+    if (!ReadIamfLeb128(data, size, &offset, &obu_size) ||
+        obu_size > static_cast<uint64_t>(size - offset)) {
+      return 0;
+    }
+    // |obu_size| counts all bytes after the obu_size field itself.
+    const int obu_end = offset + static_cast<int>(obu_size);
+
+    if (obu_type == kIamfObuTypeCodecConfig) {
+      uint64_t value;
+      if (trimming_flag) {
+        if (!ReadIamfLeb128(data, obu_end, &offset, &value) ||
+            !ReadIamfLeb128(data, obu_end, &offset, &value)) {
+          return 0;
+        }
+      }
+      if (extension_flag) {
+        if (!ReadIamfLeb128(data, obu_end, &offset, &value) ||
+            value > static_cast<uint64_t>(obu_end - offset)) {
+          return 0;
+        }
+        offset += static_cast<int>(value);
+      }
+      uint64_t codec_config_id;
+      if (!ReadIamfLeb128(data, obu_end, &offset, &codec_config_id)) {
+        return 0;
+      }
+      constexpr int kCodecIdSize = 4;
+      if (obu_end - offset < kCodecIdSize) {
+        return 0;
+      }
+      offset += kCodecIdSize;
+      uint64_t num_samples_per_frame;
+      if (!ReadIamfLeb128(data, obu_end, &offset, &num_samples_per_frame) ||
+          num_samples_per_frame == 0 ||
+          num_samples_per_frame > static_cast<uint64_t>(INT32_MAX)) {
+        return 0;
+      }
+      return static_cast<int>(num_samples_per_frame);
+    }
+
+    offset = obu_end;
+  }
+  return 0;
+}
+
+constexpr int kIamfObuTypeSequenceHeader = 31;
+
+bool StartsWithIamfSequenceHeader(const uint8_t* data, int size) {
+  return size > 0 && (data[0] >> 3) == kIamfObuTypeSequenceHeader;
+}
+
+// Returns a copy of |audio| with |config| prepended to its data.
+DecodedAudio PrependIamfConfig(const DecodedAudio& audio,
+                               const std::vector<uint8_t>& config) {
+  const int config_size = static_cast<int>(config.size());
+  const int audio_size = static_cast<int>(audio.size_in_bytes());
+  DecodedAudio result(audio.channels(), audio.sample_type(), audio.timestamp(),
+                      config_size + audio_size);
+  memcpy(result.data(), config.data(), config_size);
+  memcpy(result.data() + config_size, audio.data(), audio_size);
+  return result;
+}
 
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
@@ -141,7 +276,8 @@ AudioRendererPassthrough::AudioRendererPassthrough(
   SB_CHECK(decoder_);
   SB_CHECK(audio_track_factory_);
   SB_CHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
-           audio_stream_info_.codec == kSbMediaAudioCodecEac3);
+           audio_stream_info_.codec == kSbMediaAudioCodecEac3 ||
+           audio_stream_info_.codec == kSbMediaAudioCodecIamf);
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
@@ -441,10 +577,21 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
     return;
   }
 
+  SbMediaAudioCodingType coding_type;
+  switch (audio_stream_info_.codec) {
+    case kSbMediaAudioCodecAc3:
+      coding_type = kSbMediaAudioCodingTypeAc3;
+      break;
+    case kSbMediaAudioCodecEac3:
+      coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
+      break;
+    default:
+      SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecIamf);
+      coding_type = kSbMediaAudioCodingTypeIamfBaseProfileOpus;
+      break;
+  }
   std::unique_ptr<AudioTrack> audio_track = audio_track_factory_(
-      audio_stream_info_.codec == kSbMediaAudioCodecAc3
-          ? kSbMediaAudioCodingTypeAc3
-          : kSbMediaAudioCodingTypeDolbyDigitalPlus,
+      coding_type,
       /*sample_type=*/std::nullopt,  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
@@ -460,6 +607,17 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
                            GetMediaAudioCodecName(audio_stream_info_.codec),
                            tunnel_mode_audio_session_id_ ? "true" : "false"));
     return;
+  }
+
+  if (audio_stream_info_.codec == kSbMediaAudioCodecIamf) {
+    const int start_threshold =
+        audio_track->SetStartThresholdInFrames(kIamfStartThresholdInFrames);
+    SB_LOG_IF(WARNING, start_threshold == 0)
+        << "Failed to set AudioTrack start threshold, it stays at "
+        << audio_track->GetStartThresholdInFrames() << " frames.";
+    SB_LOG_IF(INFO, start_threshold > 0)
+        << "Set AudioTrack start threshold to " << start_threshold
+        << " frames.";
   }
 
   {
@@ -532,6 +690,26 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       decoded_audio_writing_in_progress_ = std::move(decoded_audios_.front());
       decoded_audios_.pop();
       decoded_audio_writing_offset_ = 0;
+
+      // The IAMF descriptor OBUs are delivered out-of-band in
+      // |audio_specific_config|, but the HAL decoder expects them in-band.
+      // |total_frames_written_on_audio_track_thread_| is reset in Seek(), so
+      // this is the first buffer after AudioTrack creation or a seek (the
+      // AudioTrack is flushed on seek), where the descriptors are required.
+      const auto& config = audio_stream_info_.audio_specific_config;
+      if (audio_stream_info_.codec == kSbMediaAudioCodecIamf &&
+          total_frames_written_on_audio_track_thread_ == 0 &&
+          !decoded_audio_writing_in_progress_->is_end_of_stream() &&
+          !config.empty() &&
+          !StartsWithIamfSequenceHeader(
+              decoded_audio_writing_in_progress_->data(),
+              decoded_audio_writing_in_progress_->size_in_bytes())) {
+        decoded_audio_writing_in_progress_ =
+            PrependIamfConfig(*decoded_audio_writing_in_progress_, config);
+        SB_LOG(INFO) << "Prepended " << config.size()
+                     << " bytes of IAMF descriptors to the buffer at "
+                     << decoded_audio_writing_in_progress_->timestamp();
+      }
     }
   }
 
@@ -629,6 +807,21 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
     }
   }
 
+  // For IAMF, preroll without waiting for AudioTrack to be full, as the
+  // upstream may not push enough data to fill it.
+  if (audio_stream_info_.codec == kSbMediaAudioCodecIamf &&
+      !prerolled_.load()) {
+    const int64_t written_duration =
+        total_frames_written_on_audio_track_thread_ * 1'000'000LL /
+        audio_stream_info_.samples_per_second;
+    if (written_duration >= kPrerollDurationUs &&
+        !prerolled_.exchange(true)) {
+      SB_LOG(INFO) << "Prerolled with " << written_duration
+                   << " us of audio written to AudioTrack.";
+      prerolled_cb_();
+    }
+  }
+
   // EOS is handled on this thread instead of in GetCurrentMediaTime(), because
   // GetCurrentMediaTime() is not guaranteed to be called.
   if (stop_called_ && !end_of_stream_played_.load()) {
@@ -677,7 +870,29 @@ void AudioRendererPassthrough::OnDecoderOutput() {
     // UpdateStatusAndWriteData() from another thread only happens when there is
     // audio decoded, so it's thread-safe even if the code is not synchronized
     // using a lock.
-    if (frames_per_input_buffer_ == 0) {
+    if (audio_stream_info_.codec == kSbMediaAudioCodecIamf) {
+      // An IAMF input buffer is one temporal unit, which carries
+      // num_samples_per_frame (from the Codec Config OBU) samples.  This
+      // doesn't change during playback, so it's only parsed once.
+      if (frames_per_input_buffer_ == 0) {
+        const auto& config = audio_stream_info_.audio_specific_config;
+        frames_per_input_buffer_ = ParseIamfNumSamplesPerFrame(
+            config.data(), static_cast<int>(config.size()));
+        if (frames_per_input_buffer_ == 0) {
+          // The descriptors may also be delivered in-band.
+          frames_per_input_buffer_ = ParseIamfNumSamplesPerFrame(
+              decoded_audio->data(), decoded_audio->size_in_bytes());
+        }
+        if (frames_per_input_buffer_ == 0) {
+          SB_LOG(WARNING) << "Failed to parse num_samples_per_frame from IAMF "
+                             "Codec Config OBU, fallback to "
+                          << kIamfDefaultAudioFramesPerBuffer;
+          frames_per_input_buffer_ = kIamfDefaultAudioFramesPerBuffer;
+        }
+        SB_LOG(INFO) << "Got frames per input buffer "
+                     << frames_per_input_buffer_;
+      }
+    } else if (frames_per_input_buffer_ == 0) {
       frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
           decoded_audio->data(), decoded_audio->size_in_bytes());
       SB_LOG(INFO) << "Got frames per input buffer "
