@@ -528,16 +528,14 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
 
   void ClearMediaPlayer() { Media()->ClearMediaPlayer(); }
 
-<<<<<<< HEAD
   void SetMediaSourceAttachment(
       scoped_refptr<MediaSourceAttachment> attachment) {
     Media()->media_source_attachment_ = std::move(attachment);
   }
-=======
+
 #if BUILDFLAG(IS_COBALT)
   void ProgressEventTimerFired() { Media()->ProgressEventTimerFired(); }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // Helpers to call MediaPlayerObserver mojo methods and check their results.
@@ -2794,7 +2792,6 @@ TEST_P(HTMLMediaElementTest, AddTrackCrash) {
   }
 }
 
-<<<<<<< HEAD
 TEST_P(HTMLMediaElementTest, MediaShouldBeOpaque_MSE) {
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
   test::RunPendingTasks();
@@ -2833,7 +2830,6 @@ TEST_P(HTMLMediaElementTest, MediaShouldBeOpaque_NetworkState) {
   EXPECT_TRUE(MediaShouldBeOpaque());
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
@@ -2949,6 +2945,4 @@ TEST_P(HTMLMediaElementTest,
   EXPECT_TRUE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
 }
 #endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace blink
