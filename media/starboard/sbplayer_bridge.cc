@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,38 +82,40 @@ class ScopedVectorClearer {
   std::vector<T>& vec_;
 };
 
-bool TryRemoveBufferAt(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
-                       uint64_t* total_bytes_decoded,
-                       DecoderBuffer::Allocator::Handle handle,
-                       size_t index) {
+// Removes the buffer at |index| of |buffer_queue| if it has |handle|. Returns
+// the size of the removed buffer, or std::nullopt if it doesn't match.
+std::optional<uint64_t> TryRemoveBufferAt(
+    SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+    DecoderBuffer::Allocator::Handle handle,
+    size_t index) {
   if (buffer_queue->size() <= index ||
       (*buffer_queue)[index].handle != handle) {
-    return false;
+    return std::nullopt;
   }
-  *total_bytes_decoded += (*buffer_queue)[index].buffer->size();
+  const uint64_t size = (*buffer_queue)[index].buffer->size();
   if (index == 0) {
     buffer_queue->pop_front();
   } else {
     buffer_queue->erase(buffer_queue->begin() + index);
   }
-  return true;
+  return size;
 }
 
-bool TryRemoveBufferScan(SbPlayerBridge::DecodingBufferQueue* buffer_queue,
-                         uint64_t* total_bytes_decoded,
-                         DecoderBuffer::Allocator::Handle handle,
-                         size_t start_index) {
-  if (buffer_queue->size() <= start_index) {
-    return false;
-  }
+// Removes the first buffer with |handle| at or after |start_index| of
+// |buffer_queue|. Returns the size of the removed buffer, or std::nullopt if
+// none matches.
+std::optional<uint64_t> TryRemoveBufferScan(
+    SbPlayerBridge::DecodingBufferQueue* buffer_queue,
+    DecoderBuffer::Allocator::Handle handle,
+    size_t start_index) {
   for (size_t i = start_index; i < buffer_queue->size(); ++i) {
     if ((*buffer_queue)[i].handle == handle) {
-      *total_bytes_decoded += (*buffer_queue)[i].buffer->size();
+      const uint64_t size = (*buffer_queue)[i].buffer->size();
       buffer_queue->erase(buffer_queue->begin() + i);
-      return true;
+      return size;
     }
   }
-  return false;
+  return std::nullopt;
 }
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -1237,22 +1240,26 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
     // Check index 0 and 1 of audio and video queues first (empirical profile
     // confirms index 0 covers ~96% and index 1 covers ~4%, so both cover ~100%
     // of the cases).
-    if (TryRemoveBufferAt(&audio_decoding_buffers_, &total_audio_bytes_decoded_,
-                          handle, 0) ||
-        TryRemoveBufferAt(&video_decoding_buffers_, &total_video_bytes_decoded_,
-                          handle, 0) ||
-        TryRemoveBufferAt(&audio_decoding_buffers_, &total_audio_bytes_decoded_,
-                          handle, 1) ||
-        TryRemoveBufferAt(&video_decoding_buffers_, &total_video_bytes_decoded_,
-                          handle, 1)) {
-      return;
+    for (size_t index : {0u, 1u}) {
+      if (auto size =
+              TryRemoveBufferAt(&audio_decoding_buffers_, handle, index)) {
+        total_audio_bytes_decoded_ += *size;
+        return;
+      }
+      if (auto size =
+              TryRemoveBufferAt(&video_decoding_buffers_, handle, index)) {
+        total_video_bytes_decoded_ += *size;
+        return;
+      }
     }
 
     // Fallback scan for extreme exceptions (index >= 2)
-    if (TryRemoveBufferScan(&audio_decoding_buffers_,
-                            &total_audio_bytes_decoded_, handle, 2) ||
-        TryRemoveBufferScan(&video_decoding_buffers_,
-                            &total_video_bytes_decoded_, handle, 2)) {
+    if (auto size = TryRemoveBufferScan(&audio_decoding_buffers_, handle, 2)) {
+      total_audio_bytes_decoded_ += *size;
+      return;
+    }
+    if (auto size = TryRemoveBufferScan(&video_decoding_buffers_, handle, 2)) {
+      total_video_bytes_decoded_ += *size;
       return;
     }
 
