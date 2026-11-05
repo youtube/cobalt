@@ -185,8 +185,8 @@ CreateOutputFormatAdjustmentCallback(const AudioStreamInfo& audio_stream_info,
   return [output_channels, output_samples_per_second](SbMediaAudioSampleType*,
                                                       int* samples_per_second,
                                                       int* number_of_channels) {
-    SB_DCHECK(samples_per_second);
-    SB_DCHECK(number_of_channels);
+    SB_CHECK(samples_per_second);
+    SB_CHECK(number_of_channels);
     *samples_per_second = output_samples_per_second;
     *number_of_channels = output_channels;
   };

@@ -254,20 +254,6 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   InitializePlatformDependentFieldsTvOS();
 #endif
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  // Because we add Cobalt's user agent string to Crashpad before we actually
-  // start Cobalt, the command line won't be initialized when we first try to
-  // get the user agent string.
-  if (base::CommandLine::InitializedForCurrentProcess()) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    const char kUserAgentOsNameVersion[] = "user_agent_os_name_version";
-    if (command_line->HasSwitch(kUserAgentOsNameVersion)) {
-      set_os_name_and_version(
-          command_line->GetSwitchValueASCII(kUserAgentOsNameVersion));
-    }
-  }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 

@@ -65,7 +65,7 @@ inline bool IsWidevineL3(const char* key_system) {
 inline const char* SupportedAudioCodecToMimeType(
     const SbMediaAudioCodec audio_codec,
     bool* is_passthrough) {
-  SB_DCHECK(is_passthrough);
+  SB_CHECK(is_passthrough);
 
   *is_passthrough = false;
 
@@ -114,7 +114,7 @@ inline int GetAudioFormatSampleType(
   }
 
   SB_DCHECK_EQ(coding_type, kSbMediaAudioCodingTypePcm);
-  SB_DCHECK(sample_type);
+  SB_CHECK(sample_type);
 
   switch (sample_type.value()) {
     case kSbMediaAudioSampleTypeFloat32:

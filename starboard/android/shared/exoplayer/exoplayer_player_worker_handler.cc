@@ -191,11 +191,11 @@ void ExoPlayerPlayerWorkerHandler::Stop() {
 void ExoPlayerPlayerWorkerHandler::Update() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(bridge_->is_valid());
-  SB_DCHECK(get_player_state_cb_);
+  SB_CHECK(get_player_state_cb_);
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     ExoPlayerBridge::MediaInfo info = bridge_->GetMediaInfo();
-    SB_DCHECK(update_media_info_cb_);
+    SB_CHECK(update_media_info_cb_);
     update_media_info_cb_(info.media_time_usec, info.dropped_frames,
                           info.is_playing);
   }

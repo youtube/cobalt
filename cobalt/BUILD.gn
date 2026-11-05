@@ -264,13 +264,18 @@ source_set("common") {
     "app/app_event_delegate.h",
     "app/app_event_runner.cc",
     "app/app_event_runner.h",
-    "app/cobalt_crash_reporter_client.cc",
-    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
     "app/cobalt_switch_defaults.h",
   ]
+
+  if (!is_cobalt_hermetic_build) {
+    sources += [
+      "app/cobalt_crash_reporter_client.cc",
+      "app/cobalt_crash_reporter_client.h",
+    ]
+  }
 
   if (is_starboard) {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
@@ -471,6 +476,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_memory:low_memory_manager",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_native_stability:unit_tests",
+    "//cobalt/browser/h5vcc_platform_service",
+    "//cobalt/browser/h5vcc_platform_service/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
