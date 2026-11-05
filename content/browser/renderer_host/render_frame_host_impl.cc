@@ -3352,22 +3352,6 @@ bool RenderFrameHostImpl::IsNestedWithinFencedFrame() const {
   }
 }
 
-<<<<<<< HEAD
-=======
-bool RenderFrameHostImpl::IsUntrustedNetworkDisabled() const {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  return frame_tree_node_->GetFencedFrameProperties(
-             FencedFramePropertiesNodeSource::kFrameTreeRoot) &&
-         frame_tree_node_
-             ->GetFencedFrameProperties(
-                 FencedFramePropertiesNodeSource::kFrameTreeRoot)
-             ->HasDisabledNetworkForCurrentFrameTree();
-#else
-  return false;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::ForEachRenderFrameHostWithAction(
     base::FunctionRef<FrameIterationAction(RenderFrameHost*)> on_frame) {
   ForEachRenderFrameHostImplWithAction(
@@ -10265,30 +10249,6 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  // Fenced frames that have revoked network access can't open popups.
-  if (base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
-    const std::optional<FencedFrameProperties>&
-        initiator_fenced_frame_properties =
-            frame_tree_node()->GetFencedFrameProperties(
-                FencedFramePropertiesNodeSource::kFrameTreeRoot);
-    if (initiator_fenced_frame_properties.has_value() &&
-        initiator_fenced_frame_properties
-            ->HasDisabledNetworkForCurrentFrameTree()) {
-      AddMessageToConsole(
-          blink::mojom::ConsoleMessageLevel::kError,
-          "Popup creation is not allowed after the fenced frame's "
-          "network has been disabled.");
-      std::move(callback).Run(mojom::CreateNewWindowStatus::kBlocked, nullptr);
-      return;
-    }
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool no_javascript_access = false;
 
   // Filter out URLs to which navigation is disallowed from this context.
@@ -10623,12 +10583,7 @@ void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
       inner_root->frame_tree_node()->GetFencedFrameProperties(
           FencedFramePropertiesNodeSource::kFrameTreeRoot);
   fenced_frames_.erase(it);
-<<<<<<< HEAD
-=======
-  // An ancestor's network revocation status could've changed as a result of
-  GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
 #endif
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::TakeGuestOwnership(
@@ -10726,25 +10681,6 @@ void RenderFrameHostImpl::CreateFencedFrame(
   CHECK(initial_replicated_state.origin.opaque());
 <<<<<<< HEAD
 =======
-
-  // A fenced frame that is added to a frame tree whose network has already been
-  // revoked will never be able to navigate. For all intents and purposes, this
-  // fenced frame has its network revoked as well.
-  if (frame_tree_node_->GetFencedFrameProperties(
-          FencedFramePropertiesNodeSource::kFrameTreeRoot) &&
-      frame_tree_node_
-          ->GetFencedFrameProperties(
-              FencedFramePropertiesNodeSource::kFrameTreeRoot)
-          ->HasDisabledNetworkForCurrentFrameTree()) {
-    proxy_host->frame_tree_node()
-        ->GetFencedFrameProperties()
-        ->MarkDisabledNetworkForCurrentAndDescendantFrameTrees();
-  }
-#else
-  bad_message::ReceivedBadMessage(
-      GetProcess(), bad_message::RFH_FENCED_FRAME_MOJO_WHEN_DISABLED);
-#endif
-}
 
 void RenderFrameHostImpl::ForwardFencedFrameEventAndUserActivationToEmbedder(
     const std::string& event_type) {
@@ -11168,187 +11104,6 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-<<<<<<< HEAD
-=======
-void RenderFrameHostImpl::DisableUntrustedNetworkInFencedFrame(
-    DisableUntrustedNetworkInFencedFrameCallback callback) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (!blink::features::IsFencedFramesEnabled()) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received while FencedFrames "
-        "not enabled.");
-    return;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received while "
-        "FencedFramesLocalUnpartitionedDataAccess not enabled.");
-    return;
-  }
-
-  std::optional<FencedFrameProperties>& properties =
-      frame_tree_node_->GetFencedFrameProperties();
-
-  if (!properties.has_value() || !properties->can_disable_untrusted_network()) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received even though the API "
-        "that generated the fenced frame config does not support it.");
-    return;
-  }
-
-  if (!properties->mapped_url().has_value() ||
-      !frame_tree_node_->current_origin().IsSameOriginWith(url::Origin::Create(
-          properties->mapped_url()->GetValueIgnoringVisibility()))) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received from document that is "
-        "cross-origin to the mapped url from the fenced frame config, but this "
-        "should be checked by the renderer.");
-    return;
-  }
-
-  // Register the nonce in the network service's data structure to deny network
-  // access.
-  CHECK(properties->partition_nonce().has_value());
-  // TODO(crbug.com/41488151): Audit all existing transient IsolationInfo
-  // constructors to ensure that they are tagged with the relevant partition
-  // nonce.
-  GetStoragePartition()->RevokeNetworkForNoncesInNetworkContext(
-      {{properties->partition_nonce()->GetValueIgnoringVisibility(),
-        network::ConnectionAllowlists()},
-       {GetPage().credentialless_iframes_nonce(),
-        network::ConnectionAllowlists()}},
-      base::BindOnce(
-          &RenderFrameHostImpl::RevokeNetworkForNonceCallback,
-          weak_ptr_factory_.GetWeakPtr(),
-          properties->partition_nonce()->GetValueIgnoringVisibility(),
-          std::move(callback)));
-}
-
-void RenderFrameHostImpl::RevokeNetworkForNonceCallback(
-    base::UnguessableToken nonce,
-    DisableUntrustedNetworkInFencedFrameCallback callback) {
-  std::optional<FencedFrameProperties>& properties =
-      frame_tree_node_->GetFencedFrameProperties();
-  // If the revoked nonce no longer corresponds to an active fenced frame tree
-  // due to timing, do nothing.
-  // TODO(crbug.com/40615943): After enabling RenderDocument fully, this
-  // condition and the `nonce` argument to the callback can be removed.
-  if (!properties.has_value() || !properties->partition_nonce().has_value() ||
-      properties->partition_nonce()->GetValueIgnoringVisibility() != nonce) {
-    std::move(callback).Run();
-    return;
-  }
-
-  if (properties->HasDisabledNetworkForCurrentAndDescendantFrameTrees()) {
-    std::move(callback).Run();
-    return;
-  }
-
-  // Add the callback to the fenced frame root's document data. This is done
-  // since we need to check all of a fenced frame's descendants before we can
-  // determine if a fenced frame is ready for full network cutoff.
-  FencedDocumentData* fenced_document_data =
-      FencedDocumentData::GetOrCreateForCurrentDocument(GetMainFrame());
-  fenced_document_data->AddDisabledUntrustedNetworkCallback(
-      std::move(callback));
-
-  // We then need to recalculate the network revocation status of every frame in
-  // the frame tree, as an ancestor's revocation status could've changed as a
-  // result. Do not mark the network as having been disabled yet, as all
-  // subframes need to have their network disabled before this frame's network
-  // can be considered disabled.
-  properties->MarkDisabledNetworkForCurrentFrameTree();
-  GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
-#else
-  std::move(callback).Run();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
-void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  FrameTree::NodeRange node_range =
-      frame_tree()->NodesIncludingInnerTreeNodes();
-  std::vector<FrameTreeNode*> subframe_nodes(std::next(node_range.begin()),
-                                             node_range.end());
-  std::ranges::reverse(subframe_nodes);
-  std::set<FrameTreeNodeId> nodes_not_eligible_for_network_cutoff;
-  // This loop traverses up the frame tree, determining if each fenced frame
-  // root node meets the criteria for network cutoff. We look at the most deeply
-  // nested nodes first since each node's network cutoff status is reliant on
-  // the network cutoff status of all its descendant fenced frame trees.
-  for (auto it : subframe_nodes) {
-    // If this is not a fenced frame root, we only need to check if there is
-    // any ongoing navigation.
-    if (!it->IsFencedFrameRoot()) {
-      if (it->HasNavigation() &&
-          it->current_frame_host()->IsNestedWithinFencedFrame()) {
-        // If iframe has an ongoing navigation, any of its ancestor fenced
-        // frames cannot resolve the promise returned by the disable untrusted
-        // network call.
-        nodes_not_eligible_for_network_cutoff.insert(
-            it->current_frame_host()
-                ->GetMainFrame()
-                ->frame_tree_node()
-                ->frame_tree_node_id());
-      }
-      continue;
-    }
-
-    std::optional<FencedFrameProperties>& properties =
-        it->GetFencedFrameProperties(
-            FencedFramePropertiesNodeSource::kFrameTreeRoot);
-    CHECK(properties.has_value());
-
-    // Avoid redundant processing if network has already been disabled for this
-    // FrameTreeNode and it does not have ongoing navigation.
-    if (properties->HasDisabledNetworkForCurrentAndDescendantFrameTrees() &&
-        !it->HasNavigation()) {
-      continue;
-    }
-
-    // `can_disable_network` being true means:
-    // 1. All descendant fenced frames have network access revoked.
-    // 2. All descendant fenced frames do not have ongoing navigations.
-    bool can_disable_network = !nodes_not_eligible_for_network_cutoff.contains(
-        it->frame_tree_node_id());
-
-    bool network_cutoff_ready =
-        can_disable_network &&
-        properties->HasDisabledNetworkForCurrentFrameTree();
-
-    if (network_cutoff_ready) {
-      properties->MarkDisabledNetworkForCurrentAndDescendantFrameTrees();
-      if (FencedDocumentData* fenced_document_data =
-              FencedDocumentData::GetForCurrentDocument(
-                  it->current_frame_host())) {
-        // Run the relevant callbacks for this frame as well as any same-origin
-        // child iframe that might've called disableUntrustedNetwork() as well.
-        fenced_document_data->RunDisabledUntrustedNetworkCallbacks();
-      }
-    }
-
-    if ((!network_cutoff_ready || it->HasNavigation()) &&
-        it->GetParentOrOuterDocument() &&
-        it->GetParentOrOuterDocument()->IsNestedWithinFencedFrame()) {
-      // Check for ongoing navigations to prevent race conditions. If a parent
-      // fenced frame embeds a child nested fenced frame, and that child frame
-      // disables its network and then immediately is navigated by its parent,
-      // we can end up in a state where the parent thinks network is revoked for
-      // all its children, but network is still allowed in the child fenced
-      // frame.
-      nodes_not_eligible_for_network_cutoff.insert(
-          it->GetParentOrOuterDocument()
-              ->GetMainFrame()
-              ->frame_tree_node()
-              ->frame_tree_node_id());
-    }
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
   for (RenderFrameHostImpl* frame = this; frame; frame = frame->GetParent()) {
     if (frame->is_waiting_for_beforeunload_completion_) {
@@ -11358,53 +11113,6 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
   return nullptr;
 }
 
-<<<<<<< HEAD
-=======
-void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
-    const GURL& exempted_url,
-    ExemptUrlFromNetworkRevocationForTestingCallback callback) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  if (!blink::features::IsFencedFramesEnabled()) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received while "
-        "fenced frames not enabled.");
-    return;
-  }
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received while "
-        "FencedFramesLocalUnpartitionedDataAccess not enabled.");
-    return;
-  }
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kExemptUrlFromNetworkRevocationForTesting)) {
-    mojo::ReportBadMessage(
-        "DisableUntrustedNetworkInFencedFrame() received while "
-        "ExemptUrlFromNetworkRevocationForTesting not enabled.");
-    return;
-  }
-
-  std::optional<FencedFrameProperties>& properties =
-      frame_tree_node_->GetFencedFrameProperties();
-  if (!properties.has_value() || !properties->partition_nonce().has_value()) {
-    std::move(callback).Run();
-    return;
-  }
-  GetStoragePartition()
-      ->GetNetworkContext()
-      ->ExemptUrlFromNetworkRevocationForNonce(
-          exempted_url,
-          IsCredentialless()
-              ? GetPage().credentialless_iframes_nonce()
-              : properties->partition_nonce()->GetValueIgnoringVisibility(),
-          std::move(callback));
-#else
-  std::move(callback).Run();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::OnViewTransitionOptInChanged(
     blink::mojom::ViewTransitionSameOriginOptIn view_transition_opt_in) {
   ViewTransitionOptInState::GetOrCreateForCurrentDocument(this)
