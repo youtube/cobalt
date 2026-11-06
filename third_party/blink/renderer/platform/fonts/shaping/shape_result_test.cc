@@ -1203,4 +1203,27 @@ TEST_P(CaretOffsetForPositionTest, OffsetForPositions) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ShapeResultTest, LazyAllocateGlyphOffsets) {
+  ShapeResultRun::GlyphDataCollection glyphs(4);
+  EXPECT_FALSE(glyphs.HasNonZeroOffsets());
+  EXPECT_TRUE(glyphs.Offsets().empty());
+
+  // Setting a zero offset should not allocate the backing vector.
+  glyphs.SetOffsetAt(0, GlyphOffset());
+  EXPECT_FALSE(glyphs.HasNonZeroOffsets());
+
+  // Setting a non-zero offset allocates and populates the backing vector.
+  glyphs.SetOffsetAt(2, GlyphOffset(3.5f, -1.5f));
+  EXPECT_TRUE(glyphs.HasNonZeroOffsets());
+  ASSERT_EQ(4u, glyphs.Offsets().size());
+  EXPECT_EQ(GlyphOffset(3.5f, -1.5f), glyphs.Offsets()[2]);
+
+  // Copy constructor deep-copies the allocated offsets.
+  ShapeResultRun::GlyphDataCollection copy(glyphs);
+  EXPECT_TRUE(copy.HasNonZeroOffsets());
+  EXPECT_EQ(GlyphOffset(3.5f, -1.5f), copy.Offsets()[2]);
+}
+#endif
+
 }  // namespace blink
