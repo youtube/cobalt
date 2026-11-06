@@ -2795,7 +2795,7 @@ class CONTENT_EXPORT WebContentsImpl
   std::unique_ptr<FencedFrameViewportObserver> fenced_frame_viewport_observer_;
 #endif
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if BUILDFLAG(IS_ANDROID)
   bool supports_forward_transition_animation_ = true;
 #endif  // !BUILDFLAG(IS_ANDROID)

@@ -6567,7 +6567,7 @@ void NavigationRequest::CommitErrorPage(
     if (monitor) {
       monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
     }
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 #endif
 
@@ -6747,7 +6747,7 @@ void NavigationRequest::CommitNavigation() {
   }
 #endif
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (IsServedFromBackForwardCache() || IsPrerenderedPageActivation()) {
     CommitPageActivation();
     return;
@@ -11660,7 +11660,7 @@ bool NavigationRequest::IsDisabledEmbedderInitiatedFencedFrameNavigation() {
   return false;
 }
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 blink::RuntimeFeatureStateContext&
 NavigationRequest::GetMutableRuntimeFeatureStateContext() {
   // runtime_feature_state_context_ shouldn't be modified after READY_TO_COMMIT

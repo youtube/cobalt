@@ -1350,7 +1350,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
 #endif
       tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_))
 {
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);

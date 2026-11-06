@@ -3367,7 +3367,7 @@ bool RenderFrameHostImpl::IsUntrustedNetworkDisabled() const {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::ForEachRenderFrameHostWithAction(
     base::FunctionRef<FrameIterationAction(RenderFrameHost*)> on_frame) {
   ForEachRenderFrameHostImplWithAction(
@@ -5993,7 +5993,7 @@ void RenderFrameHostImpl::ResetChildren() {
   }
 #endif
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Remove child nodes from the tree, then delete them. This destruction
   // operation will notify observers. See https://crbug.com/612450 for
   // explanation why we don't just call the std::vector::clear method.
@@ -10288,7 +10288,7 @@ void RenderFrameHostImpl::CreateNewWindow(
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool no_javascript_access = false;
 
   // Filter out URLs to which navigation is disallowed from this context.
@@ -10628,7 +10628,7 @@ void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
   // An ancestor's network revocation status could've changed as a result of
   GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
 #endif
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::TakeGuestOwnership(
@@ -10805,7 +10805,7 @@ void RenderFrameHostImpl::ForwardFencedFrameEventAndUserActivationToEmbedder(
       ->GetAssociatedRemoteFrame()
       ->ForwardFencedFrameEventToEmbedder(event_type);
   RecordNotifyEventOutcome(blink::NotifyEventOutcome::kSuccess);
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeacon into a separate
@@ -11348,7 +11348,7 @@ void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
   for (RenderFrameHostImpl* frame = this; frame; frame = frame->GetParent()) {
     if (frame->is_waiting_for_beforeunload_completion_) {
@@ -11404,7 +11404,7 @@ void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::OnViewTransitionOptInChanged(
     blink::mojom::ViewTransitionSameOriginOptIn view_transition_opt_in) {
   ViewTransitionOptInState::GetOrCreateForCurrentDocument(this)
@@ -15075,7 +15075,7 @@ void RenderFrameHostImpl::BindModelContextHost(
 #if !BUILDFLAG(IS_ANDROID)
 =======
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));

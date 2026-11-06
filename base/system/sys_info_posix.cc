@@ -121,7 +121,7 @@ bool GetDiskSpaceInfo(const base::FilePath& path,
   return true;
 }
 
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of d086e80eb75 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void GetKernelVersionNumbers(int32_t* major_version,
                              int32_t* minor_version,
                              int32_t* bugfix_version) {
