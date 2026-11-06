@@ -209,6 +209,20 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
       egl_timestamp_client_ = nullptr;
   }
 
+#if BUILDFLAG(IS_COBALT)
+// https://crbug.com/854298 : disable GLFence on Android as they seem to cause
+// issues on some devices.
+#if !BUILDFLAG(IS_ANDROID)
+  gl_fence_supported_ = GLFence::IsSupported();
+#endif
+
+  gpu_timing_client_ = context->CreateGPUTimingClient();
+  if (!gpu_timing_client_ || !gpu_timing_client_->IsAvailable() ||
+      (gl_fence_supported_ &&
+       !gpu_timing_client_->AreTimestampQueriesPrecise())) {
+    gpu_timing_client_ = nullptr;
+  }
+#else
   gpu_timing_client_ = context->CreateGPUTimingClient();
   if (!gpu_timing_client_->IsAvailable())
     gpu_timing_client_ = nullptr;
@@ -218,6 +232,7 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
 #if !BUILDFLAG(IS_ANDROID)
   gl_fence_supported_ = GLFence::IsSupported();
 #endif
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void GLSurfacePresentationHelper::PreSwapBuffers(
@@ -225,7 +240,13 @@ void GLSurfacePresentationHelper::PreSwapBuffers(
     int frame_id) {
   if (egl_timestamp_client_) {
     pending_frames_.emplace_back(frame_id, std::move(callback));
+#if BUILDFLAG(IS_COBALT)
+  } else if (gpu_timing_client_ &&
+             (!gl_fence_supported_ ||
+              gpu_timing_client_->AreTimestampQueriesPrecise())) {
+#else
   } else if (gpu_timing_client_) {
+#endif  // BUILDFLAG(IS_COBALT)
     std::unique_ptr<GPUTimer> timer;
     timer = gpu_timing_client_->CreateGPUTimer(false /* prefer_elapsed_time */);
     timer->QueryTimeStamp();
@@ -328,10 +349,43 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
                                           &writes_done, &flags))
       break;
 
+#if BUILDFLAG(IS_COBALT)
+    if (frame.timer && gpu_timing_client_ &&
+        gpu_timing_client_->CheckAndResetTimerErrors()) {
+      uint32_t fallback_flags = 0;
+      auto fallback_ts = base::TimeTicks::Now();
+      if (!vsync_interval_.is_zero()) {
+        fallback_ts =
+            fallback_ts.SnappedToNextTick(vsync_timebase_, vsync_interval_);
+        fallback_flags = gfx::PresentationFeedback::kVSync;
+      }
+      gfx::PresentationFeedback fallback(fallback_ts, vsync_interval_,
+                                         fallback_flags);
+      while (!pending_frames_.empty() && pending_frames_.front().timer) {
+        Frame pending = std::move(pending_frames_.front());
+        pending_frames_.pop_front();
+        pending.timer->Destroy(true /* has_context */);
+        std::move(pending.callback)
+            .Run(pending.result == gfx::SwapResult::SWAP_ACK
+                     ? fallback
+                     : gfx::PresentationFeedback::Failure());
+      }
+      continue;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+
     gfx::PresentationFeedback feedback(timestamp, interval, flags);
     feedback.writes_done_timestamp = writes_done;
     frame_presentation_callback(feedback);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (gpu_timing_client_ && gl_fence_supported_ &&
+      !gpu_timing_client_->AreTimestampQueriesPrecise() &&
+      (pending_frames_.empty() || !pending_frames_.front().timer)) {
+    gpu_timing_client_ = nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (!pending_frames_.empty())
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
