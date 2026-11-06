@@ -1333,6 +1333,30 @@ PartitionRoot::~PartitionRoot() {
 
 void PartitionRoot::EnableThreadCacheIfSupported() {
 #if PA_CONFIG(THREAD_CACHE_SUPPORTED)
+#if PA_BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // Cobalt hermetic builds are compiled with `-femulated-tls`, so the first
+  // access to a `thread_local` on a thread calls `malloc()`. Since
+  // PartitionAlloc provides `malloc()`, `ThreadCache::Create()` below reenters
+  // this root. That is safe while only `thread_cache_construction_lock` is
+  // held: as `MaybeInitThreadCache()` describes, the reentrant allocation fails
+  // to acquire it and simply skips the thread cache. It is not safe while the
+  // global `lock_` is held, which deadlocks, or trips the reentrancy
+  // `PA_CHECK`. Take `lock_` only for the `with_thread_cache` check-and-set it
+  // actually protects. Every other platform keeps the ordering below.
+  {
+    ::partition_alloc::internal::ScopedGuard construction_guard{
+        thread_cache_construction_lock};
+
+    ThreadCache::Init(this);
+    // Create thread cache for this thread so that we can start using it right
+    // after.
+    ThreadCache::Create(this);
+  }
+
+  ::partition_alloc::internal::ScopedGuard guard{lock_};
+  PA_CHECK(!settings.with_thread_cache);
+  settings.with_thread_cache = true;
+#else
   ::partition_alloc::internal::ScopedGuard guard{lock_};
   PA_CHECK(!settings.with_thread_cache);
   // By the time we get there, there may be multiple threads created in the
@@ -1352,6 +1376,7 @@ void PartitionRoot::EnableThreadCacheIfSupported() {
   }
 
   settings.with_thread_cache = true;
+#endif  // PA_BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #endif  // PA_CONFIG(THREAD_CACHE_SUPPORTED)
 }
 
