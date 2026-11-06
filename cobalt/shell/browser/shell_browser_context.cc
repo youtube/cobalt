@@ -25,6 +25,7 @@
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/cobalt_permission_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -131,7 +132,10 @@ SSLHostStateDelegate* ShellBrowserContext::GetSSLHostStateDelegate() {
 
 PermissionControllerDelegate*
 ShellBrowserContext::GetPermissionControllerDelegate() {
-  return nullptr;
+  if (!permission_manager_) {
+    permission_manager_ = std::make_unique<CobaltPermissionManager>();
+  }
+  return permission_manager_.get();
 }
 
 ClientHintsControllerDelegate*
