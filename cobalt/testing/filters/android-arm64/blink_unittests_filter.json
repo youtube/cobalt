@@ -1,6 +1,8 @@
 {
-  "comment": "blink_unittests are currently not supported. They take too long to run. The suite should fully pass once support is implemented for it.",
-  "failing_tests": [
-    "*"
-  ]
+  "comment": "blink_unittests are currently not supported in full. They take too long to run. Only targeted Cobalt tests are enabled.",
+  "tests_to_run": [
+    "*HTMLMediaElementTest.ProgressEventTimerPerformsLayoutUpdateWhenFeatureDisabled*",
+    "*HTMLMediaElementTest.ProgressEventTimerSkipsLayoutUpdateWhenFeatureEnabled*"
+  ],
+  "failing_tests": []
 }
