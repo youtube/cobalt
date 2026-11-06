@@ -15,6 +15,7 @@
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -677,6 +678,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
   SB_DCHECK(decoded_audio);
 
+  int64_t end_time = std::numeric_limits<int64_t>::max();
   if (!decoded_audio->is_end_of_stream()) {
     SB_DCHECK_GT(decoded_audio->size_in_bytes(), 0);
     // We set |frames_per_input_buffer_| before adding first |decoded_audio|
@@ -694,9 +696,19 @@ void AudioRendererPassthrough::OnDecoderOutput() {
                 ParseAc3SyncframeAudioSampleCount(
                     decoded_audio->data(), decoded_audio->size_in_bytes()));
     }
+    end_time = decoded_audio->timestamp() +
+               AudioFramesToDuration(frames_per_input_buffer_,
+                                     audio_stream_info_.samples_per_second);
   }
 
   std::lock_guard scoped_lock(mutex_);
+
+  // Drop syncframes that end at or before the seek time. Passthrough sends them
+  // to the AudioTrack undecoded, so one that spans the seek time is kept whole.
+  if (end_time <= seek_to_time_) {
+    return;
+  }
+
   decoded_audios_.push(std::move(*decoded_audio));
 }
 
