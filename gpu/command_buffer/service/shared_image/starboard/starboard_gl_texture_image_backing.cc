@@ -64,8 +64,8 @@ class StarboardGLTextureBacking::
   ~GLTexturePassthroughStarboardImageRepresentation() override = default;
 
   const scoped_refptr<gles2::TexturePassthrough>& GetTexturePassthrough(
-      int plane_index) override {
-    CHECK_LT(static_cast<size_t>(plane_index), passthrough_textures_.size());
+      size_t plane_index) override {
+    CHECK_LT(plane_index, passthrough_textures_.size());
     return passthrough_textures_[plane_index];
   }
 
