@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/atomic_sequence_num.h"
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -138,7 +137,7 @@ class SbPlayerBridge {
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
-  void SetBounds(const gfx::Rect& rect);
+  void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
