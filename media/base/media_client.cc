@@ -24,13 +24,20 @@ MediaClient* GetMediaClient() {
 
 MediaClient::MediaClient() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!base::FeatureList::IsEnabled(kCobaltDisableDecoderBufferAllocator)) {
+  if (!base::FeatureList::IsEnabled(kCobaltDisableDecoderBufferAllocator) &&
+      !DecoderBuffer::Allocator::Get()) {
     DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
   }
 #endif
 }
 
-MediaClient::~MediaClient() = default;
+MediaClient::~MediaClient() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (DecoderBuffer::Allocator::Get() == &decoder_buffer_allocator_) {
+    DecoderBuffer::Allocator::Set(nullptr);
+  }
+#endif
+}
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
