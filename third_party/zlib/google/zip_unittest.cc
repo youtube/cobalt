@@ -29,6 +29,7 @@
 #include "base/test/bind.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -1045,6 +1046,11 @@ TEST_F(ZipTest, UnzipSymlinksRejectsDuplicateLink) {
 
 #endif  // defined(OS_POSIX)
 
+// b/561702947: Disabled for unused functionality from ICU.
+// Cobalt strips legacy non-UTF-8 character converter tables (.cnv, including
+// Shift_JIS) from icudtl.dat because Evergreen/Cobalt ZIP archive extraction
+// only uses UTF-8.
+#if !BUILDFLAG(IS_COBALT)
 // Tests that a ZIP archive containing SJIS-encoded file names can be correctly
 // extracted if the encoding is specified.
 TEST_F(ZipTest, UnzipSjis) {
@@ -1069,6 +1075,7 @@ TEST_F(ZipTest, UnzipSjis) {
                                      &contents));
   EXPECT_EQ("This file name is coded in Shift JIS in the archive.", contents);
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // Tests that a ZIP archive containing SJIS-encoded file names can be extracted
 // even if the encoding is not specified. In this case, file names are
