@@ -166,6 +166,12 @@ DrmOperationResult MediaDrmBridge::CreateSession(int ticket,
                                              j_init_data, j_mime));
 }
 
+DrmOperationResult MediaDrmBridge::CreateMediaCryptoSession() const {
+  JNIEnv* env = AttachCurrentThread();
+  return ToOperationResult(env, Java_MediaDrmBridge_createMediaCryptoSession(
+                                    env, j_media_drm_bridge_));
+}
+
 std::string MediaDrmBridge::GenerateProvisionRequest() const {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_provision_request =

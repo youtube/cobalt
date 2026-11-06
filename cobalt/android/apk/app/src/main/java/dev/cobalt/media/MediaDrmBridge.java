@@ -621,12 +621,20 @@ public class MediaDrmBridge {
     }
   }
 
-  private OperationResult createMediaCryptoSession() {
+  @CalledByNative
+  OperationResult createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
       return OperationResult.success();
     }
-    assert mMediaCrypto != null;
+    if (mMediaDrm == null) {
+      return OperationResult.operationFailed(
+          "createMediaCryptoSession() called when MediaDrm is null.");
+    }
+    if (mMediaCrypto == null) {
+      return OperationResult.operationFailed(
+          "createMediaCryptoSession() called when MediaCrypto is null.");
+    }
 
     byte[] mediaCryptoSession;
     try {
