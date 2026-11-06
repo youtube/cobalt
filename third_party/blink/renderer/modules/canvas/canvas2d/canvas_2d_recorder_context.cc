@@ -44,12 +44,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_object_objectarray_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_begin_layer_options.h"
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_2d_gpu_transfer_option.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_fill_rule.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"  // nogncheck
