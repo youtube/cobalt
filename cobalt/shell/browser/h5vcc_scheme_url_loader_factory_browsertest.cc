@@ -34,6 +34,29 @@
 
 namespace content {
 
+// Prepended to splash.html to record when the page closes itself, in
+// window.closedMs, from before the page's own script runs.
+constexpr char kRecordCloseScript[] =
+    "<script>window.closedMs = 0; window.close = () => { window.closedMs = "
+    "window.closedMs || performance.now(); };</script>";
+
+// Defines waitFor(condition, ms), which polls `condition` until it returns a
+// truthy value or `ms` have passed, and returns its last value, so that a
+// missing event fails the test fast instead of timing it out.
+constexpr char kWaitForScript[] = R"(
+  async function waitFor(condition, ms) {
+    const deadlineMs = performance.now() + ms;
+    let value;
+    while (!(value = condition()) && performance.now() < deadlineMs) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return value;
+  }
+)";
+
+// Served as splash.png to make it fail to decode.
+constexpr char kNotAnImage[] = "not an image";
+
 class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
  public:
   H5vccSchemeURLLoaderFactoryBrowserTest() {}
@@ -95,8 +118,9 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
             }
           }
 
-          // use checkImage as callback to avoid setting timeout
-          playSplashAnimation(null, checkImage);
+          // Calls checkImage once the image shows, or if it can't be shown, to
+          // avoid setting a timeout.
+          playSplashAnimation(null, checkImage, checkImage);
         });
       })();
     )";
@@ -136,8 +160,32 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
                               is_4k_supported ? "true" : "false");
   }
 
+  // Serves splash.html with kRecordCloseScript, so that tests learn when the
+  // page closes itself, without the page closing. Replacing window.close from
+  // the test once the page has loaded could miss it, as the page may close
+  // itself before, e.g., if it can't show its image.
+  void RecordSplashScreenClose() {
+    if (!test_resource_map_) {
+      test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+      LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+    }
+    auto splash_html = test_resource_map_->find("splash.html");
+    CHECK(splash_html != test_resource_map_->end());
+    recording_splash_html_ =
+        std::string(kRecordCloseScript) +
+        std::string(reinterpret_cast<const char*>(splash_html->second.data),
+                    splash_html->second.size);
+    splash_html->second = FileContents(
+        reinterpret_cast<const unsigned char*>(recording_splash_html_.data()),
+        static_cast<int>(recording_splash_html_.size()));
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
+        test_resource_map_.get());
+  }
+
  protected:
   std::unique_ptr<GeneratedResourceMap> test_resource_map_;
+  // splash.html with kRecordCloseScript, which `test_resource_map_` points to.
+  std::string recording_splash_html_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -430,6 +478,155 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   )";
   // Counted from the page's load instead, the page would close 500 ms sooner.
   EXPECT_GE(EvalJs(shell(), kScript).ExtractDouble(), 990);
+}
+
+// Shell starts the image splash screen at the page's first contentful paint,
+// which is its image. Like the test above, these run on Android too, as the
+// image is forced.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       ImageSplashFirstContentfulPaintIsItsImage) {
+  // The long timeout keeps the page from closing itself during the test.
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true&timeout=60000");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns whether the image showed at the page's first contentful paint.
+  constexpr char kScript[] = R"(
+    new Promise((resolve) => {
+      new PerformanceObserver((list, observer) => {
+        if (list.getEntriesByName('first-contentful-paint').length) {
+          observer.disconnect();
+          const style =
+              getComputedStyle(document.getElementById('placeholder'));
+          resolve(style.backgroundImage !== 'none' && style.opacity === '1');
+        }
+      }).observe({type: 'paint', buffered: true});
+    });
+  )";
+  EXPECT_EQ(true, EvalJs(shell(), kScript));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       ImageSplashWithoutImageHasNoContentfulPaint) {
+  // E.g., if the image can't be fetched.
+  test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+  LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+  test_resource_map_->erase("splash.png");
+  // The page then closes itself, which this records without closing it.
+  RecordSplashScreenClose();
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // The page paints its background, but neither that nor the transparent
+  // placeholder is contentful, so the splash screen doesn't start before the
+  // image shows. Without the image, the page closes itself right away instead
+  // of staying up until Shell switches.
+  const std::string script = std::string(kWaitForScript) + R"(
+    (async () => {
+      // Waits for the first paint, i.e., the background.
+      await new Promise((resolve) => {
+        new PerformanceObserver((list, observer) => {
+          if (list.getEntriesByName('first-paint').length) {
+            observer.disconnect();
+            resolve();
+          }
+        }).observe({type: 'paint', buffered: true});
+      });
+      // Then for the page to give up on its image.
+      const closedMs = await waitFor(() => window.closedMs, 5000);
+      await new Promise((resolve) => requestAnimationFrame(
+          () => requestAnimationFrame(resolve)));
+      return (closedMs ? 'closed' : 'open') + ',' +
+          performance.getEntriesByName('first-paint').length + ',' +
+          performance.getEntriesByName('first-contentful-paint').length;
+    })();
+  )";
+  EXPECT_EQ("closed,1,0", EvalJs(shell(), script));
+}
+
+// The image splash screen closes itself 1 s after its image shows, rather than
+// after it's fetched.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       ImageSplashClosesAfterImageShows) {
+  RecordSplashScreenClose();
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns how long after its first contentful paint the page closed itself,
+  // or -1 if it didn't.
+  const std::string script = std::string(kWaitForScript) + R"(
+    (async () => {
+      const paintMs = await new Promise((resolve) => {
+        new PerformanceObserver((list, observer) => {
+          const entry = list.getEntriesByName('first-contentful-paint')[0];
+          if (entry) {
+            observer.disconnect();
+            resolve(entry.startTime);
+          }
+        }).observe({type: 'paint', buffered: true});
+      });
+      const closedMs = await waitFor(() => window.closedMs, 5000);
+      return closedMs ? closedMs - paintMs : -1;
+    })();
+  )";
+  EXPECT_GE(EvalJs(shell(), script).ExtractDouble(), 990);
+}
+
+// With the timeout param, the image splash screen stays up until then, counted
+// from when its image shows, as Shell counts.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       ImageSplashTimeoutCountsFromImageShown) {
+  RecordSplashScreenClose();
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true&timeout=3000");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns how long after its first contentful paint the page closed itself,
+  // or -1 if it didn't.
+  const std::string script = std::string(kWaitForScript) + R"(
+    (async () => {
+      const paintMs = await new Promise((resolve) => {
+        new PerformanceObserver((list, observer) => {
+          const entry = list.getEntriesByName('first-contentful-paint')[0];
+          if (entry) {
+            observer.disconnect();
+            resolve(entry.startTime);
+          }
+        }).observe({type: 'paint', buffered: true});
+      });
+      const closedMs = await waitFor(() => window.closedMs, 8000);
+      return closedMs ? closedMs - paintMs : -1;
+    })();
+  )";
+  EXPECT_GE(EvalJs(shell(), script).ExtractDouble(), 2990);
+}
+
+// If the image can't be decoded, the page closes itself too, after the timeout
+// param if specified.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       ImageSplashClosesIfImageCantBeDecoded) {
+  test_resource_map_ = std::make_unique<GeneratedResourceMap>();
+  LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
+  (*test_resource_map_)["splash.png"] =
+      FileContents(reinterpret_cast<const unsigned char*>(kNotAnImage),
+                   static_cast<int>(sizeof(kNotAnImage) - 1));
+  RecordSplashScreenClose();
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true&timeout=3000");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns when the page closed itself, or -1 if it didn't. As nothing
+  // showed, the timeout counts from its load, or from its start if it gives up
+  // on its image before it has loaded.
+  const std::string script = std::string(kWaitForScript) + R"(
+    (async () => {
+      const closedMs = await waitFor(() => window.closedMs, 8000);
+      return closedMs ? closedMs : -1;
+    })();
+  )";
+  EXPECT_GE(EvalJs(shell(), script).ExtractDouble(), 2990);
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,

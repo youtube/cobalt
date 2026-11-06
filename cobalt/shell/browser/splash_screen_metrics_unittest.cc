@@ -55,6 +55,8 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
       /*has_splash_screen=*/true, /*is_visible=*/true);
   ASSERT_TRUE(metrics);
+  // So its first contentful paint is when its image shows.
+  metrics->OnSplashScreenShowsImage();
 
   AdvanceMs(100);
   metrics->MarkEvent(Event::kMainNavigationStart);  // t=100
@@ -63,7 +65,9 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   metrics->MarkEvent(Event::kSplashLoaded);  // t=300
   AdvanceMs(50);
   metrics->MarkEvent(Event::kSplashFirstPaint);  // t=350
-  AdvanceMs(150);
+  AdvanceMs(100);
+  metrics->MarkEvent(Event::kSplashFirstContentfulPaint);  // t=450
+  AdvanceMs(50);
   metrics->MarkEvent(Event::kMainCommit);  // t=500
   AdvanceMs(500);
   metrics->MarkEvent(Event::kMainLoaded);  // t=1000
@@ -74,7 +78,9 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashStart.Image", 100);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashLoaded.Image", 300);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashFirstPaint.Image", 350);
-  ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentShown.Image", 350);
+  // The image shows at the first contentful paint, not at the first visually
+  // non-empty paint, which may be the background alone.
+  ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentShown.Image", 450);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentEnded.Image", 1300);
   ExpectTimeMs("Cobalt.Startup.Timeline.MainNavigationStart.Image", 100);
   ExpectTimeMs("Cobalt.Startup.Timeline.MainCommit.Image", 500);
@@ -82,8 +88,8 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   ExpectTimeMs("Cobalt.Startup.Timeline.MainVisible.Image", 1300);
 
   ExpectTimeMs("Cobalt.SplashScreen.Time.PageLoad.Image", 200);
-  ExpectTimeMs("Cobalt.SplashScreen.Time.LoadedToContentShown.Image", 50);
-  ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 950);
+  ExpectTimeMs("Cobalt.SplashScreen.Time.LoadedToContentShown.Image", 150);
+  ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 850);
   ExpectTimeMs("Cobalt.SplashScreen.Time.MainLoadedToSwitch.Image", 300);
 
   histogram_tester_.ExpectUniqueSample(
@@ -344,7 +350,8 @@ TEST_F(SplashScreenMetricsTest, NoTimelineWithoutAppStartTime) {
       /*has_splash_screen=*/true, /*is_visible=*/true);
   ASSERT_TRUE(metrics);
 
-  metrics->MarkEvent(Event::kSplashFirstPaint);
+  metrics->OnSplashScreenShowsImage();
+  metrics->MarkEvent(Event::kSplashFirstContentfulPaint);
   AdvanceMs(100);
   metrics->OnSwitchedToMain(SwitchTrigger::kTimer);
 
@@ -352,6 +359,103 @@ TEST_F(SplashScreenMetricsTest, NoTimelineWithoutAppStartTime) {
   EXPECT_TRUE(
       histogram_tester_.GetTotalCountsForPrefix("Cobalt.Startup.").empty());
   ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 100);
+}
+
+// A video splash screen's page paints its video element before the video's
+// first frame. If the video never starts, the launch is recorded as an image
+// one, but that paint doesn't count as the content being shown.
+TEST_F(SplashScreenMetricsTest, VideoElementPaintIsNotContentShown) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  metrics->MarkEvent(Event::kSplashLoaded);  // t=0
+  AdvanceMs(100);
+  metrics->MarkEvent(Event::kSplashFirstContentfulPaint);  // t=100
+  AdvanceMs(3400);
+  metrics->OnSwitchedToMain(SwitchTrigger::kTimer);  // t=3500
+
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.Startup.Timeline.SplashContentShown.Image", 0);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.SplashScreen.Time.LoadedToContentShown.Image", 0);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 0);
+  // The rest of the launch is still recorded.
+  ExpectTimeMs("Cobalt.Startup.Timeline.SplashLoaded.Image", 0);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Image", SwitchTrigger::kTimer, 1);
+}
+
+// The wait is recorded under what it was for: here, the video, although the
+// video never started, so the launch is recorded as an image one.
+TEST_F(SplashScreenMetricsTest, ContentWaitResultRecordedForWaitedContent) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  metrics->MarkEvent(Event::kSplashLoaded);  // t=0
+  AdvanceMs(2000);
+  metrics->OnContentWaitEnded(
+      SplashScreenMetrics::SplashContent::kVideo,
+      SplashScreenMetrics::ContentWaitResult::kTimedOut);  // t=2000
+  // Only the first end of the wait counts.
+  metrics->OnContentWaitEnded(
+      SplashScreenMetrics::SplashContent::kImage,
+      SplashScreenMetrics::ContentWaitResult::kContentShown);
+  // Nothing is recorded until the switch.
+  EXPECT_TRUE(
+      histogram_tester_
+          .GetTotalCountsForPrefix("Cobalt.SplashScreen.ContentWaitResult.")
+          .empty());
+
+  AdvanceMs(1500);
+  metrics->OnSwitchedToMain(SwitchTrigger::kTimer);  // t=3500
+
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitResult.Video",
+      SplashScreenMetrics::ContentWaitResult::kTimedOut, 1);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.SplashScreen.ContentWaitResult.Image", 0);
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Image", SwitchTrigger::kTimer, 1);
+}
+
+TEST_F(SplashScreenMetricsTest, ContentWaitResultSwitchedBeforeContent) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  // E.g., the splash screen closed itself as it couldn't show its image, and
+  // the main WebContents had loaded.
+  metrics->MarkEvent(Event::kSplashLoaded);
+  metrics->OnContentWaitEnded(
+      SplashScreenMetrics::SplashContent::kImage,
+      SplashScreenMetrics::ContentWaitResult::kSwitchedBeforeContent);
+  metrics->OnSwitchedToMain(SwitchTrigger::kSplashClosed);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitResult.Image",
+      SplashScreenMetrics::ContentWaitResult::kSwitchedBeforeContent, 1);
+}
+
+TEST_F(SplashScreenMetricsTest, ContentWaitResultNotRecordedWithoutWait) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  // E.g., SplashScreenContentWait is disabled.
+  metrics->MarkEvent(Event::kSplashLoaded);
+  metrics->OnSwitchedToMain(SwitchTrigger::kTimer);
+  // Too late to be recorded anyway.
+  metrics->OnContentWaitEnded(
+      SplashScreenMetrics::SplashContent::kImage,
+      SplashScreenMetrics::ContentWaitResult::kTimedOut);
+
+  EXPECT_TRUE(
+      histogram_tester_
+          .GetTotalCountsForPrefix("Cobalt.SplashScreen.ContentWaitResult.")
+          .empty());
 }
 
 }  // namespace

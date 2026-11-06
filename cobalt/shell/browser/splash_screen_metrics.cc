@@ -51,6 +51,19 @@ const char* SwitchTriggerToString(SplashScreenMetrics::SwitchTrigger trigger) {
   NOTREACHED();
 }
 
+const char* ContentWaitResultToString(
+    SplashScreenMetrics::ContentWaitResult result) {
+  switch (result) {
+    case SplashScreenMetrics::ContentWaitResult::kContentShown:
+      return "ContentShown";
+    case SplashScreenMetrics::ContentWaitResult::kTimedOut:
+      return "TimedOut";
+    case SplashScreenMetrics::ContentWaitResult::kSwitchedBeforeContent:
+      return "SwitchedBeforeContent";
+  }
+  NOTREACHED();
+}
+
 void RecordTime(const std::string& name,
                 base::TimeDelta sample,
                 base::TimeDelta min,
@@ -58,6 +71,11 @@ void RecordTime(const std::string& name,
   VLOG(1) << "NativeSplash: " << name << ": " << sample.InMilliseconds()
           << "ms";
   base::UmaHistogramCustomTimes(name, sample, min, max, /*buckets=*/100);
+}
+
+void RecordBoolean(const std::string& name, bool sample) {
+  VLOG(1) << "NativeSplash: " << name << ": " << (sample ? "true" : "false");
+  base::UmaHistogramBoolean(name, sample);
 }
 
 // Records the time from the start of the launch to `time`, if both are known.
@@ -132,6 +150,17 @@ void SplashScreenMetrics::MarkEvent(Event event) {
   }
 }
 
+void SplashScreenMetrics::OnSplashScreenShowsImage() {
+  shows_image_ = true;
+}
+
+void SplashScreenMetrics::OnContentWaitEnded(SplashContent content,
+                                             ContentWaitResult result) {
+  if (!content_wait_.has_value()) {
+    content_wait_ = ContentWait{content, result};
+  }
+}
+
 void SplashScreenMetrics::Invalidate() {
   if (is_valid_ && !has_recorded_) {
     VLOG(1) << "NativeSplash: Not recording startup metrics for this launch.";
@@ -148,8 +177,13 @@ void SplashScreenMetrics::OnSwitchedToMain(SwitchTrigger trigger) {
 
   const std::string_view mode = GetMode();
   const bool is_video = mode == kVideoMode;
+  // Without its video, the page's first contentful paint is its image's only
+  // if the page shows its image. Otherwise, e.g., if its video didn't start,
+  // that paint is its video element's, and no content was shown.
   const base::TimeTicks content_shown =
-      GetTime(is_video ? Event::kSplashVideoStarted : Event::kSplashFirstPaint);
+      is_video ? GetTime(Event::kSplashVideoStarted)
+               : (shows_image_ ? GetTime(Event::kSplashFirstContentfulPaint)
+                               : base::TimeTicks());
   const base::TimeTicks content_ended =
       GetTime(is_video ? Event::kSplashVideoEnded : Event::kSplashClosed);
 
@@ -174,11 +208,20 @@ void SplashScreenMetrics::OnSwitchedToMain(SwitchTrigger trigger) {
                  mode);
 
   const bool content_ended_before_switch = !content_ended.is_null();
-  const std::string content_ended_name =
-      base::StrCat({kSplashScreenPrefix, "ContentEndedBeforeSwitch.", mode});
-  VLOG(1) << "NativeSplash: " << content_ended_name << ": "
-          << (content_ended_before_switch ? "true" : "false");
-  base::UmaHistogramBoolean(content_ended_name, content_ended_before_switch);
+  RecordBoolean(
+      base::StrCat({kSplashScreenPrefix, "ContentEndedBeforeSwitch.", mode}),
+      content_ended_before_switch);
+  // Only if the minimum duration waited for the content. Attributed to what it
+  // waited for, as the mode is Image when a video never started.
+  if (content_wait_.has_value()) {
+    const std::string content_wait_name = base::StrCat(
+        {kSplashScreenPrefix, "ContentWaitResult.",
+         content_wait_->content == SplashContent::kVideo ? kVideoMode
+                                                         : kImageMode});
+    VLOG(1) << "NativeSplash: " << content_wait_name << ": "
+            << ContentWaitResultToString(content_wait_->result);
+    base::UmaHistogramEnumeration(content_wait_name, content_wait_->result);
+  }
 
   const std::string trigger_name =
       base::StrCat({kSplashScreenPrefix, "SwitchTrigger.", mode});

@@ -50,6 +50,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="CobaltSplashScreenContentWaitResult">
+  <int value="0" label="Content shown"/>
+  <int value="1" label="Timed out"/>
+  <int value="2" label="Switched before the content showed"/>
+</enum>
+
 <enum name="CobaltSplashScreenSwitchTrigger">
   <int value="0" label="Minimum splash screen duration elapsed"/>
   <int value="1" label="Splash screen closed itself"/>

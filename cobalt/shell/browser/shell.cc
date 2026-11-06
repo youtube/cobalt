@@ -238,9 +238,16 @@ GURL GetSplashScreenURL() {
   return GURL(switches::kSplashScreenURL);
 }
 
-// How long the splash screen waits for its video to start playing before its
-// duration starts anyway, e.g., if the video can't play.
-constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
+// Returns how long after its page loads the splash screen waits for its image
+// to show, or its video to start playing, before its duration starts anyway,
+// e.g., if the image is painted late because the renderer is busy, or the video
+// doesn't start. If not positive, its duration starts when its page loads.
+base::TimeDelta GetMaxSplashContentDelay() {
+  return base::FeatureList::IsEnabled(
+             cobalt::features::kSplashScreenContentWait)
+             ? cobalt::features::kSplashScreenContentWaitMaxDelay.Get()
+             : base::TimeDelta();
+}
 
 // splash.html plays its video only if MediaSource.isTypeSupported() accepts
 // this type, and shows its image otherwise.
@@ -749,27 +756,42 @@ void Shell::LoadSplashScreenWebContents() {
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GetSplashScreenURL();
+    // The page loads before it shows anything, so the splash screen starts
+    // when its image shows, or its video starts playing, instead (see
+    // OnSplashScreenLoadComplete()), if that's observed and enabled.
+    max_splash_content_delay_ = GetMaxSplashContentDelay();
+    const bool wait_for_content = splash_screen_web_contents_observer_ &&
+                                  max_splash_content_delay_.is_positive();
+    if (wait_for_content) {
+      splash_screen_web_contents_observer_->set_on_first_contentful_paint(
+          base::BindRepeating(&Shell::OnSplashScreenFirstContentfulPaint,
+                              weak_factory_.GetWeakPtr()));
+    }
     if (!is_video_splash_screen_) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+      // So its first contentful paint is when its image shows.
+      if (splash_screen_metrics_) {
+        splash_screen_metrics_->OnSplashScreenShowsImage();
+      }
+      if (wait_for_content) {
+        splash_content_wait_ = SplashContentWait::kImagePaint;
+      }
     } else {
-      // The page loads before its video shows anything, so the splash screen
-      // starts when the video starts playing instead (see
-      // OnSplashScreenLoadComplete()), if it's observed.
-      if (splash_screen_web_contents_observer_) {
-        awaiting_splash_video_first_frame_ = true;
+      if (wait_for_content) {
+        splash_content_wait_ = SplashContentWait::kVideoFirstFrame;
         splash_screen_web_contents_observer_->set_on_video_started(
             base::BindRepeating(&Shell::OnSplashScreenVideoStarted,
                                 weak_factory_.GetWeakPtr()));
-        // Unless the page shows its image instead, e.g., without VP9. Asked
-        // off the UI thread, as that may block.
-        base::ThreadPool::PostTaskAndReplyWithResult(
-            FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
-            base::BindOnce(&CanSplashScreenPlayVideo,
-                           g_can_splash_screen_play_video_for_testing),
-            base::BindOnce(&Shell::OnSplashScreenVideoSupportChecked,
-                           weak_factory_.GetWeakPtr()));
       }
+      // Unless the page shows its image instead, e.g., without VP9. Asked off
+      // the UI thread, as that may block.
+      base::ThreadPool::PostTaskAndReplyWithResult(
+          FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+          base::BindOnce(&CanSplashScreenPlayVideo,
+                         g_can_splash_screen_play_video_for_testing),
+          base::BindOnce(&Shell::OnSplashScreenVideoSupportChecked,
+                         weak_factory_.GetWeakPtr()));
     }
     if (!splash_topic_.empty()) {
       splash_screen_url =
@@ -1373,6 +1395,14 @@ void Shell::SwitchToMainWebContents(
   if (!has_switched_to_main_frame_) {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
+    // There's no splash screen left to wait for, e.g., if it closed itself
+    // before its content showed. Otherwise, the end of the wait would schedule
+    // another switch, which hides the main WebContents of a video splash
+    // screen.
+    if (splash_content_wait_ != SplashContentWait::kNone) {
+      EndSplashContentWait(
+          SplashScreenMetrics::ContentWaitResult::kSwitchedBeforeContent);
+    }
     if (splash_screen_metrics_) {
       splash_screen_metrics_->OnSwitchedToMain(trigger);
     }
@@ -1396,16 +1426,18 @@ void Shell::SwitchToMainWebContents(
 
 void Shell::OnSplashScreenLoadComplete() {
   MarkStartupEvent(SplashScreenMetrics::Event::kSplashLoaded);
-  is_splash_screen_loaded_ = true;
-  if (awaiting_splash_video_first_frame_) {
-    // The page of a video loads before the video shows anything, so the splash
-    // screen starts when the video starts playing instead (see
-    // OnSplashScreenVideoStarted()), within a limit.
+  if (splash_content_wait_ != SplashContentWait::kNone) {
+    // The page loads before it shows anything, so the splash screen starts
+    // when its image shows, or its video starts playing, instead (see
+    // OnSplashScreenFirstContentfulPaint() and OnSplashScreenVideoStarted()),
+    // within a limit. Otherwise, e.g., if the image is painted while the main
+    // WebContents keeps the renderer busy, a fast main WebContents could cut it
+    // before it's seen.
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(&Shell::StartSplashScreenTimer,
+        base::BindOnce(&Shell::OnSplashScreenContentWaitTimedOut,
                        weak_factory_.GetWeakPtr()),
-        kMaxSplashVideoFirstFrameDelay);
+        max_splash_content_delay_);
     return;
   }
   StartSplashScreenTimer();
@@ -1422,26 +1454,69 @@ void Shell::StartSplashScreenTimer() {
   }
 }
 
+void Shell::EndSplashContentWait(
+    SplashScreenMetrics::ContentWaitResult result) {
+  if (splash_screen_metrics_) {
+    splash_screen_metrics_->OnContentWaitEnded(
+        splash_content_wait_ == SplashContentWait::kVideoFirstFrame
+            ? SplashScreenMetrics::SplashContent::kVideo
+            : SplashScreenMetrics::SplashContent::kImage,
+        result);
+  }
+  splash_content_wait_ = SplashContentWait::kNone;
+}
+
+void Shell::OnSplashScreenContentWaitTimedOut() {
+  if (splash_content_wait_ == SplashContentWait::kNone) {
+    return;
+  }
+  VLOG(1) << "NativeSplash: The splash screen content didn't show within "
+          << max_splash_content_delay_.InMilliseconds()
+          << "ms of its page loading, starting the splash screen anyway.";
+  EndSplashContentWait(SplashScreenMetrics::ContentWaitResult::kTimedOut);
+  StartSplashScreenTimer();
+}
+
+void Shell::OnSplashScreenFirstContentfulPaint() {
+  has_splash_first_contentful_paint_ = true;
+  // The page of a video paints before the video's first frame, so only an
+  // image starts the splash screen here.
+  if (splash_content_wait_ != SplashContentWait::kImagePaint) {
+    return;
+  }
+  VLOG(1) << "NativeSplash: The splash screen image shows.";
+  EndSplashContentWait(SplashScreenMetrics::ContentWaitResult::kContentShown);
+  StartSplashScreenTimer();
+}
+
 void Shell::OnSplashScreenVideoStarted() {
-  if (!awaiting_splash_video_first_frame_) {
+  if (splash_content_wait_ != SplashContentWait::kVideoFirstFrame) {
     return;
   }
   VLOG(1) << "NativeSplash: The splash screen video starts playing.";
-  awaiting_splash_video_first_frame_ = false;
+  EndSplashContentWait(SplashScreenMetrics::ContentWaitResult::kContentShown);
   StartSplashScreenTimer();
 }
 
 void Shell::OnSplashScreenVideoSupportChecked(bool can_play_video) {
-  if (can_play_video || !awaiting_splash_video_first_frame_) {
+  if (can_play_video) {
     return;
   }
   VLOG(1) << "NativeSplash: The splash screen shows its image, as it can't "
              "play its video.";
-  // Like the image splash screen, it starts when its page has loaded, which
-  // is usually after this.
-  awaiting_splash_video_first_frame_ = false;
-  if (is_splash_screen_loaded_) {
-    StartSplashScreenTimer();
+  // So its first contentful paint is when its image shows, rather than the
+  // paint of its video element.
+  if (splash_screen_metrics_) {
+    splash_screen_metrics_->OnSplashScreenShowsImage();
+  }
+  if (splash_content_wait_ != SplashContentWait::kVideoFirstFrame) {
+    return;
+  }
+  // Like the image splash screen, it starts when its image shows, which is
+  // usually after this.
+  splash_content_wait_ = SplashContentWait::kImagePaint;
+  if (has_splash_first_contentful_paint_) {
+    OnSplashScreenFirstContentfulPaint();
   }
 }
 
