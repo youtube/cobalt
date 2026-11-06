@@ -112,10 +112,10 @@ class StarboardRendererTest : public testing::Test {
 
     SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-        .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
-                        SaveArg<4>(&player_status_cb_),
-                        SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
-                        Return(player)));
+        .WillOnce(DoAll(
+            SaveArg<2>(&deallocate_sample_cb_), SaveArg<3>(&decoder_status_cb_),
+            SaveArg<4>(&player_status_cb_), SaveArg<5>(&player_error_cb_),
+            SaveArg<6>(&context_), Return(player)));
 
     if (encrypted) {
       EXPECT_CALL(set_cdm_cb_, Run(true));
@@ -131,6 +131,96 @@ class StarboardRendererTest : public testing::Test {
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
     return &decode_target_graphics_context_provider_;
+  }
+
+  // Moves `player` to the playing state: reports kSbPlayerStateInitialized,
+  // then calls StartPlayingFrom(), and records the seek ticket so later
+  // decoder status callbacks are accepted.
+  void StartPlayback(SbPlayer player) {
+    ASSERT_TRUE(player_status_cb_);
+    player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                      /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+    task_environment_.RunUntilIdle();
+
+    EXPECT_CALL(mock_sbplayer_interface_, Seek(player, base::TimeDelta(), _))
+        .WillOnce(SaveArg<2>(&seek_ticket_));
+    renderer_->StartPlayingFrom(base::TimeDelta());
+    task_environment_.RunUntilIdle();
+  }
+
+  // Has the renderer write one sample of `size` bytes of `type` to `player`,
+  // then has `player` deallocate it so SbPlayerBridge counts it as decoded.
+  // Requires InitializeWithAudioAndVideo(), which adds the audio stream at
+  // index 0 and the video stream at index 1, followed by StartPlayback().
+  void WriteAndDeallocateSample(SbPlayer player,
+                                DemuxerStream::Type type,
+                                size_t size) {
+    const bool is_audio = type == DemuxerStream::AUDIO;
+    const SbMediaType sb_type =
+        is_audio ? kSbMediaTypeAudio : kSbMediaTypeVideo;
+
+    DemuxerStream::ReadCB read_cb;
+    EXPECT_CALL(*streams_[is_audio ? 0 : 1], OnRead(_))
+        .WillOnce(
+            Invoke([&](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); }))
+        .RetiresOnSaturation();
+
+    const void* sample_buffer = nullptr;
+    EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(player, sb_type, _, _))
+        .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                             const SbPlayerSampleInfo* sample_infos,
+                             int number_of_sample_infos) {
+          ASSERT_EQ(number_of_sample_infos, 1);
+          EXPECT_EQ(sample_infos[0].buffer_size, static_cast<int>(size));
+          sample_buffer = sample_infos[0].buffer;
+        }))
+        .RetiresOnSaturation();
+
+    ASSERT_TRUE(decoder_status_cb_);
+    decoder_status_cb_(player, context_, sb_type,
+                       kSbPlayerDecoderStateNeedsData, seek_ticket_);
+    task_environment_.RunUntilIdle();
+
+    ASSERT_FALSE(read_cb.is_null());
+    scoped_refptr<DecoderBuffer> buffer =
+        DecoderBuffer::CopyFrom(std::vector<uint8_t>(size, 0xab));
+    buffer->set_timestamp(base::Milliseconds(next_sample_timestamp_ms_++));
+    std::move(read_cb).Run(DemuxerStream::kOk, {buffer});
+    task_environment_.RunUntilIdle();
+
+    ASSERT_NE(sample_buffer, nullptr);
+    ASSERT_TRUE(deallocate_sample_cb_);
+    deallocate_sample_cb_(player, context_, sample_buffer);
+    task_environment_.RunUntilIdle();
+  }
+
+  // Makes SbPlayerGetInfo() report `video_frames_decoded` and
+  // `video_frames_dropped` for `player`.
+  void SetPlayerInfo(SbPlayer player,
+                     int video_frames_decoded,
+                     int video_frames_dropped) {
+    EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+        .WillRepeatedly(Invoke([=](SbPlayer /*player*/, SbPlayerInfo* info) {
+          *info = SbPlayerInfo{};
+          info->total_video_frames = video_frames_decoded;
+          info->dropped_video_frames = video_frames_dropped;
+          info->playback_rate = 1.0;
+        }));
+  }
+
+  // Calls GetMediaTime(), which polls SbPlayerBridge and posts statistics
+  // updates, and returns all statistics updates received since the last call.
+  // Note that this verifies and clears all expectations on
+  // `renderer_client_`.
+  std::vector<PipelineStatistics> PollStatistics() {
+    std::vector<PipelineStatistics> stats;
+    EXPECT_CALL(renderer_client_, OnStatisticsUpdate(_))
+        .WillRepeatedly(
+            Invoke([&](const PipelineStatistics& s) { stats.push_back(s); }));
+    renderer_->GetMediaTime();
+    task_environment_.RunUntilIdle();
+    testing::Mock::VerifyAndClearExpectations(&renderer_client_);
+    return stats;
   }
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -169,6 +259,7 @@ class StarboardRendererTest : public testing::Test {
   StrictMock<MockSbPlayerInterface> mock_sbplayer_interface_;
   ScopedSbPlayerInterfaceForTesting scoped_sbplayer_interface_{
       &mock_sbplayer_interface_};
+  SbPlayerDeallocateSampleFunc deallocate_sample_cb_ = nullptr;
   SbPlayerDecoderStatusFunc decoder_status_cb_ = nullptr;
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
@@ -176,6 +267,8 @@ class StarboardRendererTest : public testing::Test {
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
   std::unique_ptr<StarboardRenderer> renderer_;
+  int next_sample_timestamp_ms_ = 0;
+  int seek_ticket_ = SB_PLAYER_INITIAL_TICKET;
 #if BUILDFLAG(IS_IOS_TVOS)
   std::optional<PipelineStatus> init_status_;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -393,6 +486,96 @@ TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeAfterBackwardSeek) {
   player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket);
   task_environment_.RunUntilIdle();
   EXPECT_EQ(renderer_->GetMediaTime(), base::Milliseconds(20500));
+}
+
+TEST_F(StarboardRendererTest, StatisticsReportBytesDecodedAsDeltas) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_NO_FATAL_FAILURE(StartPlayback(player));
+
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::AUDIO, 4));
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::VIDEO, 6));
+  SetPlayerInfo(player, /*video_frames_decoded=*/1, /*video_frames_dropped=*/0);
+  std::vector<PipelineStatistics> stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].audio_bytes_decoded, 4u);
+  EXPECT_EQ(stats[0].video_bytes_decoded, 6u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 1u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 0u);
+
+  // The second update must only contain what was decoded since the first one,
+  // as RendererClient accumulates the values it receives.
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::AUDIO, 8));
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::VIDEO, 10));
+  SetPlayerInfo(player, /*video_frames_decoded=*/2, /*video_frames_dropped=*/1);
+  stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].audio_bytes_decoded, 8u);
+  EXPECT_EQ(stats[0].video_bytes_decoded, 10u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 1u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 1u);
+}
+
+TEST_F(StarboardRendererTest, StatisticsReportedForAudioBytesOnlyChange) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_NO_FATAL_FAILURE(StartPlayback(player));
+
+  // No video frames are reported (e.g. audio-only playback), but bytes were
+  // decoded, so an update should still be sent.
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::AUDIO, 16));
+  SetPlayerInfo(player, /*video_frames_decoded=*/0, /*video_frames_dropped=*/0);
+  std::vector<PipelineStatistics> stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].audio_bytes_decoded, 16u);
+  EXPECT_EQ(stats[0].video_bytes_decoded, 0u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 0u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 0u);
+}
+
+TEST_F(StarboardRendererTest, StatisticsNotReportedWhenNothingChanges) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_NO_FATAL_FAILURE(StartPlayback(player));
+
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::AUDIO, 4));
+  ASSERT_NO_FATAL_FAILURE(
+      WriteAndDeallocateSample(player, DemuxerStream::VIDEO, 6));
+  SetPlayerInfo(player, /*video_frames_decoded=*/1, /*video_frames_dropped=*/0);
+  EXPECT_EQ(PollStatistics().size(), 1u);
+
+  // Nothing new was decoded or dropped, so no update should be sent.
+  EXPECT_TRUE(PollStatistics().empty());
+}
+
+TEST_F(StarboardRendererTest, StatisticsContinueAfterSbPlayerCounterReset) {
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_NO_FATAL_FAILURE(StartPlayback(player));
+
+  SetPlayerInfo(player, /*video_frames_decoded=*/10,
+                /*video_frames_dropped=*/3);
+  std::vector<PipelineStatistics> stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 10u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 3u);
+
+  // Some platforms reset the SbPlayer counters, e.g. on seek. Updates should
+  // continue from the reset instead of stalling until the old totals are
+  // exceeded.
+  SetPlayerInfo(player, /*video_frames_decoded=*/4, /*video_frames_dropped=*/1);
+  stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 4u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 1u);
+
+  SetPlayerInfo(player, /*video_frames_decoded=*/6, /*video_frames_dropped=*/1);
+  stats = PollStatistics();
+  ASSERT_EQ(stats.size(), 1u);
+  EXPECT_EQ(stats[0].video_frames_decoded, 2u);
+  EXPECT_EQ(stats[0].video_frames_dropped, 0u);
 }
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
