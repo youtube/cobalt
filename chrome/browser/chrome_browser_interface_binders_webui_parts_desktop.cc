@@ -530,15 +530,12 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
   RegisterWebUIControllerInterfaceBinder<::mojom::WebAppInternalsHandler,
                                          WebAppInternalsUI>(map);
-<<<<<<< HEAD
   if (base::FeatureList::IsEnabled(multistep_filter::kMultistepFilter)) {
     RegisterWebUIControllerInterfaceBinder<
         multistep_filter_internals::mojom::PageHandlerFactory,
         multistep_filter_internals::MultistepFilterInternalsUI>(map);
   }
-=======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
     RegisterWebUIControllerInterfaceBinder<
