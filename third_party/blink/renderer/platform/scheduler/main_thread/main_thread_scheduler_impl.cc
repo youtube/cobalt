@@ -958,6 +958,47 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
 }
 
 void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    const bool was_process_hidden =
+        main_thread_only().renderer_hidden_metadata.has_value();
+    if (hidden) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererHidden");
+      main_thread_only().renderer_hidden_metadata.emplace(
+          "MainThreadSchedulerImpl.RendererHidden", /* is_hidden */ 1,
+          base::SampleMetadataScope::kProcess);
+    } else {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererVisible");
+      main_thread_only().renderer_hidden_metadata.reset();
+    }
+    helper_.CheckOnValidThread();
+    main_thread_only().renderer_hidden = hidden;
+
+    if (helper_.IsShutdown()) {
+      return;
+    }
+    if (hidden && !was_process_hidden &&
+        main_thread_only().renderer_backgrounded) {
+      // Diverges from upstream: On Android, kLaunchingProcessIsBackgrounded
+      // initializes renderer_backgrounded=true before any PageScheduler exists,
+      // causing SetRendererBackgrounded(true) to short-circuit on cold-start
+      // into hidden state. Notify MemoryPurgeManager directly (no-op if its
+      // timer is already running from OnRendererBackgrounded).
+      memory_purge_manager_.SetRendererBackgrounded(true);
+      return;
+    }
+    // Diverges from upstream: Upstream SetRendererHidden() leaves backgrounding
+    // to multi-process RenderProcessHostImpl::UpdateProcessPriority(), which
+    // does not fire when Cobalt conceals in single-process mode with priority
+    // holds or freeze disabled. Synchronize background state with visibility.
+    SetRendererBackgrounded(hidden);
+    return;
+  }
+#endif
+
   if (hidden) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                  "MainThreadSchedulerImpl::OnRendererHidden");
@@ -978,6 +1019,17 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
 
   if (helper_.IsShutdown() ||
       main_thread_only().renderer_backgrounded == backgrounded) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(
+            features::kCobaltEnableBlinkMemoryPurgeManager) &&
+        !helper_.IsShutdown() && !backgrounded &&
+        !main_thread_only().renderer_hidden_metadata.has_value()) {
+      // Diverges from upstream: A mid-conceal priority boost may have set
+      // renderer_backgrounded=false while skipping MemoryPurgeManager; sync
+      // MemoryPurgeManager now that the renderer is visible again.
+      memory_purge_manager_.SetRendererBackgrounded(false);
+    }
+#endif
     return;
   }
   if (backgrounded) {
@@ -999,6 +1051,18 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
   UpdatePolicy();
 
   ParkableStringManager::Instance().SetRendererBackgrounded(backgrounded);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager) &&
+      !backgrounded &&
+      main_thread_only().renderer_hidden_metadata.has_value()) {
+    // Diverges from upstream: Let single-process priority boosts (e.g.
+    // background audio or service workers) un-throttle scheduler priority,
+    // while keeping MemoryPurgeManager's background purge timer armed until
+    // SetRendererHidden(false) clears renderer_hidden_metadata.
+    return;
+  }
+#endif
   memory_purge_manager_.SetRendererBackgrounded(backgrounded);
 }
 
@@ -2229,6 +2293,28 @@ void MainThreadSchedulerImpl::AddPageScheduler(
     CHECK(!page_scheduler->IsFrozen());
     memory_purge_manager_.OnPageCreated();
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager) &&
+      page_scheduler->IsOrdinary() &&
+      main_thread_only().renderer_hidden_metadata.has_value()) {
+    // Diverges from upstream: On cold-start hidden launch (`--preload` or
+    // Android TV background start), `SetRendererHidden(true)` runs before any
+    // ordinary `PageScheduler` exists, so `OnRendererBackgrounded()`
+    // early-returns on `total_page_count_ == 0` while later
+    // `SetRendererBackgrounded(true)` calls short-circuit. Start the background
+    // purge timer once the first ordinary page is registered while explicitly
+    // hidden.
+    const bool had_ordinary_page = std::ranges::any_of(
+        main_thread_only().page_schedulers,
+        [page_scheduler](const PageSchedulerImpl* existing) {
+          return existing != page_scheduler && existing->IsOrdinary();
+        });
+    if (!had_ordinary_page) {
+      memory_purge_manager_.SetRendererBackgrounded(true);
+    }
+  }
+#endif
 
   base::AutoLock lock(any_thread_lock_);
   any_thread().waiting_for_any_main_frame_contentful_paint =

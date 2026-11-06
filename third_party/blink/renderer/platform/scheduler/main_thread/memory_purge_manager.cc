@@ -44,7 +44,12 @@ const base::FeatureParam<base::TimeDelta> kMemoryPurgeInBackgroundMaxDelay{
 }  // namespace
 
 MemoryPurgeManager::MemoryPurgeManager(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    : cobalt_purge_enabled_(base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager))
+#endif
+{
   purge_timer_.SetTaskRunner(task_runner);
 }
 
@@ -104,6 +109,16 @@ void MemoryPurgeManager::OnPageResumed() {
 
   MaybeRunAllPagesFrozenCallback(were_all_frozen);
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_purge_enabled_ && !renderer_backgrounded_) {
+    // Diverges from upstream: Upstream only resets this latch in
+    // OnRendererForegrounded(). When single-process priority holds keep
+    // renderer_backgrounded_ false across freeze/resume cycles, reset it here
+    // so subsequent freezes can still purge.
+    did_purge_with_page_frozen_since_backgrounded_ = false;
+  }
+#endif
+
   if (!CanPurge()) {
     purge_timer_.Stop();
   }
@@ -128,6 +143,21 @@ void MemoryPurgeManager::SetRendererBackgrounded(bool backgrounded) {
 }
 
 void MemoryPurgeManager::OnRendererBackgrounded() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_purge_enabled_) {
+    // Diverges from upstream: Bypass upstream's !kPurgeEnabled check, which is
+    // hardcoded false on IS_ANDROID because Chrome relies on multi-process Java
+    // trimming in ChromeActivity that CobaltActivity does not have.
+    if (purge_disabled_for_testing_ || total_page_count_ == 0 ||
+        !base::FeatureList::IsEnabled(kMemoryPurgeInBackground)) {
+      return;
+    }
+    backgrounded_purge_pending_ = true;
+    RequestMemoryPurgeWithDelay(GetTimeToPurgeAfterBackgrounded());
+    return;
+  }
+#endif
+
   if (!kPurgeEnabled || purge_disabled_for_testing_) {
     return;
   }
@@ -148,6 +178,13 @@ void MemoryPurgeManager::OnRendererForegrounded() {
   backgrounded_purge_pending_ = false;
   did_purge_with_page_frozen_since_backgrounded_ = false;
   purge_timer_.Stop();
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_purge_enabled_) {
+    // Diverges from upstream: Clear any suppression set by a frozen purge so
+    // foregrounding always restores memory-pressure notifications.
+    base::MemoryPressureListener::SetNotificationsSuppressed(false);
+  }
+#endif
 }
 
 void MemoryPurgeManager::RecordAreAllPagesFrozenMetric(std::string_view name) {
@@ -191,6 +228,17 @@ void MemoryPurgeManager::SetOnAllPagesFrozenCallback(
 #endif
 
 bool MemoryPurgeManager::CanPurge() const {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_purge_enabled_) {
+    // Diverges from upstream: Allow purging whenever AreAllPagesFrozen() is
+    // true, even if single-process priority holds keep renderer_backgrounded_
+    // false.
+    return total_page_count_ > 0 &&
+           (backgrounded_purge_pending_ || AreAllPagesFrozen() ||
+            renderer_backgrounded_);
+  }
+#endif
+
   if (total_page_count_ == 0) {
     return false;
   }
@@ -222,6 +270,14 @@ bool MemoryPurgeManager::AreAllPagesFrozen() const {
 }
 
 base::TimeDelta MemoryPurgeManager::GetTimeToPurgeAfterBackgrounded() const {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_purge_enabled_) {
+    // Diverges from upstream: Use a configurable short delay (default 1s)
+    // instead of the 1-4m desktop timer so caches are reclaimed before Android
+    // TV LMK kills the backgrounded process.
+    return features::kCobaltBlinkMemoryPurgeDelay.Get();
+  }
+#endif
   return base::Seconds(base::RandInt(
       static_cast<int>(kMemoryPurgeInBackgroundMinDelay.Get().InSeconds()),
       static_cast<int>(kMemoryPurgeInBackgroundMaxDelay.Get().InSeconds())));
