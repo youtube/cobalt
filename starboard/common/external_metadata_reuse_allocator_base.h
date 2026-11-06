@@ -131,7 +131,8 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
                                      size_t conservative_decommit_blocks,
                                      bool aggressive_decommit_on_suspend,
                                      bool memset_on_reclaim,
-                                     bool mark_as_cold_on_reclaim);
+                                     bool mark_as_cold_on_reclaim,
+                                     bool enable_decommit_only_on_memory_pressure = false);
   ~ExternalMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -162,6 +163,12 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
 
   // Whether to decommit memory when the pool becomes idle.
   const bool enable_decommit_on_idle_;
+
+  // When true, idle blocks are tracked (retained/pending) when the pool becomes
+  // idle, like |enable_decommit_on_idle_|, but are never decommitted
+  // incrementally on allocation. They are released only by an explicit
+  // DecommitAllDecommitableBlocks() call (e.g. on memory pressure).
+  const bool enable_decommit_only_on_memory_pressure_;
 
   // How much has been allocated from us.
   size_t total_allocated_ = 0;

@@ -29,6 +29,9 @@ namespace starboard {
 
 namespace {
 
+// Number of allocations between attempts to decommit one pending idle block.
+constexpr int kDecommitCadence = 100;
+
 int ceil_power_2(int i) {
   SB_DCHECK_GE(i, 0);
 
@@ -196,7 +199,9 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
 
   AddAllocatedBlock(allocated_block);
-  TryToDecommitOneBlock(/*cadence=*/100);
+  if (enable_decommit_on_idle_) {
+    TryToDecommitOneBlock(kDecommitCadence);
+  }
 
   return user_address;
 }
@@ -220,7 +225,8 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       total_allocated_in_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
-      if (enable_decommit_on_idle_) {
+      if (enable_decommit_on_idle_ ||
+          enable_decommit_only_on_memory_pressure_) {
         ReclaimFallbackBlocks();
       } else {
         EnumerateFallbackAllocations(
@@ -375,7 +381,8 @@ bool EmbeddedMetadataReuseAllocatorBase::TryFree(void* memory) {
   total_allocated_in_bytes_ -= block.size();
   --total_allocated_blocks_;
 
-  if (enable_decommit_on_idle_ && total_allocated_in_bytes_ == 0) {
+  if ((enable_decommit_on_idle_ || enable_decommit_only_on_memory_pressure_) &&
+      total_allocated_in_bytes_ == 0) {
     free_blocks_.clear();
     ReclaimFallbackBlocks();
   }
@@ -410,7 +417,8 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
     size_t conservative_decommit_blocks,
     bool aggressive_decommit_on_suspend,
     bool memset_on_reclaim,
-    bool mark_as_cold_on_reclaim)
+    bool mark_as_cold_on_reclaim,
+    bool enable_decommit_only_on_memory_pressure)
     : ReuseAllocatorBase(fallback_allocator,
                          max_capacity,
                          retain_blocks,
@@ -419,7 +427,9 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
                          memset_on_reclaim,
                          mark_as_cold_on_reclaim),
       allocation_increment_(allocation_increment),
-      enable_decommit_on_idle_(enable_decommit_on_idle) {
+      enable_decommit_on_idle_(enable_decommit_on_idle),
+      enable_decommit_only_on_memory_pressure_(
+          enable_decommit_only_on_memory_pressure) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
     SB_DCHECK(iter != free_blocks_.end());

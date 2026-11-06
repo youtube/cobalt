@@ -48,8 +48,9 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
   }
 }
 
-void ReuseAllocatorBase::DecommitAllDecommitableBlocks() {
-  if (aggressive_decommit_on_suspend_) {
+void ReuseAllocatorBase::DecommitAllDecommitableBlocks(
+    bool include_retained_blocks) {
+  if (aggressive_decommit_on_suspend_ || include_retained_blocks) {
     // Aggressively decommit all idle blocks (including retained and
     // lazily-freed blocks) with MADV_DONTNEED (kAggressive). This
     // instantly drops the process RSS to prevent the OS Out-Of-Memory killer
