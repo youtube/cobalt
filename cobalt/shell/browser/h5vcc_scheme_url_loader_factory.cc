@@ -355,10 +355,7 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
-                         .GetURL()
-                         .spec()),
+    : splash_domain_(GetSplashDomain()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
       browser_context_(browser_context) {
@@ -399,6 +396,14 @@ bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
   }
   return base::FeatureList::IsEnabled(
       cobalt::features::kEnableCachedSplashFile);
+}
+
+// static
+std::string H5vccSchemeURLLoaderFactory::GetSplashDomain() {
+  return url::Origin::Create(
+             GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+      .GetURL()
+      .spec();
 }
 
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(

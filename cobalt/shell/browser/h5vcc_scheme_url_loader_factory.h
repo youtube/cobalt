@@ -83,6 +83,10 @@ class H5vccSchemeURLLoaderFactory final
   // kEnableCachedSplashFile, unless overridden for testing.
   static bool IsCachedSplashFileEnabled();
 
+  // The origin of the WebApp that caches the splash assets, unless overridden
+  // for testing.
+  static std::string GetSplashDomain();
+
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(
       const GeneratedResourceMap* resource_map_test);
