@@ -141,9 +141,7 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   display::ScreenInfo GetScreenInfo() const override;
   display::ScreenInfos GetScreenInfos() const override;
   virtual void ResetGestureDetection();
-<<<<<<< HEAD
   void SetShouldUseDefaultDeadlineOnResize(bool enable) override;
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   // Whether to prevent UpdateFrameBounds() from updating the reported view
   // bounds. This is required when displaying the native search bar, otherwise
@@ -151,7 +149,6 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // page will appear smaller.
   void SetAllowAutomaticViewBoundsUpdates(bool allowed) override {}
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // RenderWidgetHostViewInput implementation
   base::WeakPtr<input::RenderWidgetHostViewInput> GetInputWeakPtr() override;
