@@ -73,6 +73,10 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
 // line.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8OptimizeForSize);
 
+// When enabled, forces V8 to flush eligible bytecode/code (kForceFlush) during
+// CRITICAL memory pressure GCs.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8FlushCodeOnCriticalMemoryPressure);
+
 // When enabled, overrides the compositor skewport target times, which control
 // speculative pre-rastering of offscreen tiles. When disabled, the upstream
 // Chromium defaults apply (1.0 software raster / 0.2 GPU raster). Both params

@@ -407,6 +407,11 @@ void SetFeatureFlags() {
   if (initial_old_space_mb > 0) {
     SetV8FlagsFormatted("--initial-old-space-size=%i", initial_old_space_mb);
   }
+
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltV8FlushCodeOnCriticalMemoryPressure)) {
+    SetV8Flags("--flush-code-on-critical-memory-pressure");
+  }
 #endif
   SetV8FlagsIfOverridden(features::kV8IncrementalMarkingStartUserVisible,
                          "--incremental-marking-start-user-visible",
