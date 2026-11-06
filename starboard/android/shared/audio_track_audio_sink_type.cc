@@ -109,6 +109,16 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSinkType::Options& options) {
+  return os << "{allow_audio_writing_on_pause="
+            << ToString(options.allow_audio_writing_on_pause)
+            << ", pause_using_audio_track_state="
+            << ToString(options.pause_using_audio_track_state)
+            << ", restart_on_audio_threshold_growth="
+            << ToString(options.restart_on_audio_threshold_growth) << "}";
+}
+
 class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
   explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
@@ -218,7 +228,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(frame_buffer_);
   SB_CHECK(audio_track_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load();
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load()
+               << ", options=" << options;
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {

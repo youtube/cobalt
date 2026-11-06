@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -92,6 +93,9 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   AudioSinkMinRequiredFramesTester min_required_frames_tester_;
   bool has_remote_audio_output_ = false;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSinkType::Options& options);
 
 class AudioTrackAudioSink : public AudioSinkAndroid {
  public:
