@@ -164,7 +164,7 @@ template("evergreen_final_target") {
     # Generates the Evergreen manifest.json for the installation so that the
     # loader app and the updater report the Evergreen version that matches the
     # Cobalt LTS version being built, e.g. 7.10.2 for 27.lts.10. Development
-    # versions such as 27.master.0 have no Evergreen counterpart and get the
+    # versions such as 28.main.0 have no Evergreen counterpart and get the
     # default version 1.0.0, which is what the loader app and the updater
     # assume when no manifest is present.
     action("generate_${original_target_name}_manifest") {

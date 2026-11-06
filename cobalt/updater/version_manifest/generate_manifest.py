@@ -22,7 +22,7 @@ documented at go/cobalt-evergreen-versioning:
 where <RC> is the release candidate type and 2 denotes the "latest" package.
 For example, Cobalt 27.lts.10 maps to Evergreen 7.10.2.
 
-Non-LTS versions (e.g. 27.master.0) have no Evergreen counterpart, so the
+Non-LTS versions (e.g. 28.main.0) have no Evergreen counterpart, so the
 manifest is written with the default Evergreen version 1.0.0 instead. This is
 the version the loader app and the updater assume when no manifest is present,
 so development builds keep their existing behavior.
@@ -55,11 +55,11 @@ def cobalt_to_evergreen_version(cobalt_version):
   """Converts a Cobalt version string to an Evergreen version string.
 
   Args:
-    cobalt_version: The Cobalt version, e.g. '27.lts.10' or '27.master.0'.
+    cobalt_version: The Cobalt version, e.g. '27.lts.10' or '28.main.0'.
 
   Returns:
     The Evergreen version, e.g. '7.10.2' for '27.lts.10', or
-    DEFAULT_EVERGREEN_VERSION for non-LTS versions such as '27.master.0'.
+    DEFAULT_EVERGREEN_VERSION for non-LTS versions such as '28.main.0'.
 
   Raises:
     ValueError: If |cobalt_version| is an LTS version that predates Evergreen
@@ -69,7 +69,7 @@ def cobalt_to_evergreen_version(cobalt_version):
   if not match:
     # Evergreen packages are only released from LTS release branches, and the
     # Evergreen version encodes that LTS release (<MAJOR>.lts.<MINOR>). Other
-    # versions, such as 27.master.0 on the main branch, are never published as
+    # versions, such as 28.main.0 on the main branch, are never published as
     # Evergreen packages (their updater talks to the separate trunk Omaha app,
     # see Configurator::GetAppGuidHelper()), so there is no Evergreen version
     # to derive. Fall back to the default version, which is lower than any
@@ -106,7 +106,7 @@ def main(argv):
   parser.add_argument(
       '--cobalt-version',
       required=True,
-      help='The Cobalt version, e.g. 27.lts.10 or 27.master.0.')
+      help='The Cobalt version, e.g. 27.lts.10 or 28.main.0.')
   parser.add_argument(
       '--output', required=True, help='Path of the manifest.json to write.')
   args = parser.parse_args(argv)
