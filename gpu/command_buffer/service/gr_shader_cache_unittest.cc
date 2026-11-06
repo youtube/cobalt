@@ -7,15 +7,11 @@
 #include <thread>
 
 #include "base/base64.h"
-<<<<<<< HEAD
+#include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
 #include "base/memory_coordinator/test_memory_consumer_registry.h"
 #include "base/run_loop.h"
-=======
-#include "base/command_line.h"
-#include "base/memory/memory_pressure_listener_registry.h"
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -323,7 +319,6 @@ TEST_F(GrShaderCacheTest, MemoryPressure) {
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), kCacheLimit);
 }
 
-<<<<<<< HEAD
 TEST_F(GrShaderCacheTest, StatefulMemoryPressure) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(base::kStatefulMemoryPressure);
@@ -413,7 +408,6 @@ TEST_F(GrShaderCacheTest, ClampMemoryLimitAbove100Percent) {
   EXPECT_EQ(cache_.num_cache_entries(), 4u);
 }
 
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
                                         public testing::Test {
@@ -445,6 +439,8 @@ class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
         std::string(static_cast<const char*>(key.data()), key.size()));
   }
 
+  base::TestMemoryConsumerRegistry test_memory_consumer_registry_;
+  base::test::TaskEnvironment task_environment_;
   base::test::ScopedFeatureList feature_list_;
   std::unordered_map<std::string, std::string> disk_cache_;
   size_t num_disk_writes_ = 0u;
@@ -491,8 +487,12 @@ TEST_F(GrShaderCacheDeferredWritesTest, FlushesBeforeMemoryPressureEviction) {
   StoreAndLoad(*key, *shader);
   EXPECT_EQ(num_disk_writes_, 0u);
 
-  cache_->PurgeMemory(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  base::RunLoop run_loop;
+  test_memory_consumer_registry_.NotifyUpdateMemoryLimitAsync(
+      0, base::DoNothing());
+  test_memory_consumer_registry_.NotifyReleaseMemoryAsync(
+      run_loop.QuitClosure());
+  run_loop.Run();
   EXPECT_EQ(cache_->num_cache_entries(), 0u);
   EXPECT_EQ(num_disk_writes_, 1u);
   EXPECT_EQ(disk_cache_.count(EncodedKey(*key)), 1u);
@@ -524,7 +524,5 @@ TEST_F(GrShaderCacheDeferredWritesTest, WritesImmediatelyWhenFeatureDisabled) {
   EXPECT_EQ(num_disk_writes_, 1u);
 }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace raster
 }  // namespace gpu
