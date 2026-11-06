@@ -756,6 +756,28 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
                             timer->Elapsed());
       },
       std::move(start_time)));
+  // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
+  // broken-QUIC marks), which is otherwise written on a 60 s timer that a
+  // background kill does not honor. This lives here rather than in
+  // DispatchBlur() so that both the Activity (DispatchBlur) and the Starboard
+  // (AppEventRunner::DoBlur) lifecycle paths reach it; platform targeting is
+  // left to the Finch study.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltFlushHttpServerPropertiesOnPause)) {
+    FlushHttpServerProperties(base::BindOnce(
+        [](std::unique_ptr<base::ElapsedTimer> timer, bool flushed) {
+          UMA_HISTOGRAM_BOOLEAN(
+              "Cobalt.Storage.OnPause.HttpServerPropertiesFlushed", flushed);
+          // Only time real writes; a no-op flush would record ~0 ms and hide
+          // the tail.
+          if (flushed) {
+            UMA_HISTOGRAM_TIMES(
+                "Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration",
+                timer->Elapsed());
+          }
+        },
+        std::make_unique<base::ElapsedTimer>()));
+  }
 }
 
 void CobaltContentBrowserClient::DispatchBlur() {
@@ -809,23 +831,25 @@ void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
 #endif
 }
 
-void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
-    base::OnceClosure callback) {
+content::StoragePartition*
+CobaltContentBrowserClient::GetPrimaryStoragePartition() {
   if (!web_contents_observer_) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   auto* web_contents = web_contents_observer_->web_contents();
   if (!web_contents) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
   if (!rfh) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
-  auto* storage_partition = rfh->GetStoragePartition();
+  return rfh->GetStoragePartition();
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
   if (!storage_partition) {
     std::move(callback).Run();
     return;
@@ -839,6 +863,22 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   }
   // Flushes cookies; invokes callback upon SQLite commit completion.
   cookie_manager->FlushCookieStore(std::move(callback));
+}
+
+void CobaltContentBrowserClient::FlushHttpServerProperties(
+    base::OnceCallback<void(bool flushed)> callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
+  if (!storage_partition) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network::mojom::NetworkContext* network_context =
+      storage_partition->GetNetworkContext();
+  if (!network_context) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network_context->FlushHttpServerProperties(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

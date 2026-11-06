@@ -200,7 +200,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
       : playback_rate_changed_cb_(playback_rate_changed_cb) {}
 
   bool Render() {
-    SB_DCHECK(render_cb_);
+    SB_CHECK(render_cb_);
 
     rendered_ = false;
     render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
@@ -210,7 +210,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
  private:
   void SetPlaybackRate(double playback_rate) override {
-    SB_DCHECK(playback_rate_changed_cb_);
+    SB_CHECK(playback_rate_changed_cb_);
     playback_rate_changed_cb_(playback_rate);
   }
 
@@ -1019,7 +1019,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result,
     int number_of_pending_inputs) {
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
@@ -1057,7 +1057,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
     return;
   }
 
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
 
   // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
   //       handling of preroll and EOS for pure punchout decoders.
@@ -1067,7 +1067,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
     MediaCodec* media_codec_bridge) {
-  SB_DCHECK(media_codec_bridge);
+  SB_CHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   std::lock_guard lock(decode_target_mutex_);
@@ -1153,7 +1153,7 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
-  SB_DCHECK(video_frame_tracker_);
+  SB_CHECK(video_frame_tracker_);
 
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }

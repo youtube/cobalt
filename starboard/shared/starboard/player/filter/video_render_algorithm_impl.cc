@@ -40,7 +40,7 @@ void VideoRenderAlgorithmImpl::Render(
     return RenderWithCadence(media_time_provider, frames, draw_frame_cb);
   }
   SB_DCHECK(media_time_provider);
-  SB_DCHECK(frames);
+  SB_CHECK(frames);
 
   if (frames->empty() || frames->front()->is_end_of_stream()) {
     return;
@@ -147,7 +147,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     std::list<scoped_refptr<VideoFrame>>* frames,
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
   SB_DCHECK(media_time_provider);
-  SB_DCHECK(frames);
+  SB_CHECK(frames);
   SB_DCHECK(get_refresh_rate_fn_);
 
   if (frames->empty() || frames->front()->is_end_of_stream()) {

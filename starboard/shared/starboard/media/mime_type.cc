@@ -37,7 +37,7 @@ typedef std::vector<std::string> Strings;
 void ParseParamTypeAndValue(const std::string& name,
                             const std::string& value,
                             MimeType::Param* param) {
-  SB_DCHECK(param);
+  SB_CHECK(param);
 
   param->name = name;
   if (value.size() >= 2 && value[0] == '\"' && value.back() == '\"') {

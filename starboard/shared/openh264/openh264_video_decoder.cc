@@ -67,7 +67,7 @@ void OpenH264VideoDecoder::WriteInputBuffers(
   }
   if (!decoder_thread_) {
     decoder_thread_ = JobThread::Create("openh264_video_decoder");
-    SB_DCHECK(decoder_thread_);
+    SB_CHECK(decoder_thread_);
   }
   const auto& input_buffer = input_buffers[0];
   decoder_thread_->Schedule(
@@ -198,7 +198,7 @@ void OpenH264VideoDecoder::TeardownCodec() {
 void OpenH264VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_CHECK(input_buffer);
 
   if (input_buffer->video_sample_info().is_key_frame) {
     auto new_config =
@@ -217,7 +217,7 @@ void OpenH264VideoDecoder::DecodeOneBuffer(
       InitializeCodec();
     }
   }
-  SB_DCHECK(decoder_);
+  SB_CHECK(decoder_);
   unsigned char* decoded_frame[3];
   SBufferInfo buffer_info;
   buffer_info.uiInBsTimeStamp = input_buffer->timestamp();
@@ -291,7 +291,7 @@ void OpenH264VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
 
 void OpenH264VideoDecoder::FlushFrames() {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
-  SB_DCHECK(decoder_);
+  SB_CHECK(decoder_);
 
   int num_of_frames_in_buffer = 0;
   unsigned char* decoded_frame[3];

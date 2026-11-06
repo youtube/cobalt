@@ -38,6 +38,7 @@ namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
+class StoragePartition;
 class WebContents;
 }  // namespace content
 
@@ -184,6 +185,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Returns the StoragePartition of the primary main frame, or nullptr if there
+  // is no WebContents yet.
+  content::StoragePartition* GetPrimaryStoragePartition();
+
   // Flushes dirty cookies and localStorage when backgrounding/exiting.
   // Note: the completion callback is invoked when the cookie store flush
   // completes; localStorage flush runs asynchronously on the background DB
@@ -192,6 +197,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Triggers FlushCookiesAndLocalStorage and records
   // Cobalt.Storage.OnPause.FlushDuration.
   void FlushCookiesAndLocalStorageOnPause();
+  // Writes HttpServerProperties to disk now and runs |callback| once it has
+  // been committed; |flushed| is true if an update was pending. See
+  // features::kCobaltFlushHttpServerPropertiesOnPause.
+  void FlushHttpServerProperties(
+      base::OnceCallback<void(bool flushed)> callback);
   void DispatchBlur();
   void DispatchFocus();
 

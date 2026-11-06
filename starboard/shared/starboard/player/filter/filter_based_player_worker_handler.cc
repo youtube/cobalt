@@ -121,7 +121,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
-  SB_DCHECK(media_time_provider_);
+  SB_CHECK(media_time_provider_);
 
   if (audio_renderer_) {
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
