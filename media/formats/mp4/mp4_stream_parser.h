@@ -14,11 +14,8 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
-<<<<<<< HEAD
-#include "media/base/demuxer_stream.h"
-=======
 #include "build/build_config.h"
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser.h"
 #include "media/formats/common/offset_byte_queue.h"
