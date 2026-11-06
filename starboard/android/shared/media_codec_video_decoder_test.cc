@@ -58,6 +58,23 @@ const VideoStreamInfo kHdrVideoStreamInfo = [] {
   return info;
 }();
 
+const VideoStreamInfo kVp9VideoStreamInfo = [] {
+  VideoStreamInfo info = kDefaultVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecVp9;
+  return info;
+}();
+
+const VideoStreamInfo kAv1HdrVideoStreamInfo = [] {
+  VideoStreamInfo info = kHdrVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecAv1;
+  return info;
+}();
+
+// AV1 codec creation may be delayed until enough inputs are received to
+// estimate the fps (see MediaCapabilitiesCache::IsAv18kCappedAt30()). Writing
+// this many buffers ensures the codec is created either way.
+constexpr int kInputBuffersToCreateCodec = 3;
+
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
   void CreateDecoder(const std::string& max_video_capabilities = "",
@@ -130,6 +147,20 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
   FakeMediaCodec* GetFakeVideoCodec() {
     return fake_factory_ ? fake_factory_->last_created_video_codec() : nullptr;
+  }
+
+  // Returns |kInputBuffersToCreateCodec| consecutive key frames using
+  // |stream_info|, starting at |start_timestamp|.
+  InputBuffers CreateKeyFrames(int64_t start_timestamp,
+                               const VideoStreamInfo& stream_info) {
+    constexpr int64_t kFrameDurationUsec = 33'333;
+    InputBuffers input_buffers;
+    for (int i = 0; i < kInputBuffersToCreateCodec; ++i) {
+      input_buffers.push_back(CreateDummyVideoInputBuffer(
+          start_timestamp + i * kFrameDurationUsec, 1024, &stream_info,
+          /*is_key_frame=*/true));
+    }
+    return input_buffers;
   }
 
   void InitializeDecoder() {
@@ -412,6 +443,103 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
       100'000'000, 1024, &larger_sdr_info, /*is_key_frame=*/true)});
 
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
+  EXPECT_FALSE(error_called_);
+}
+
+struct CodecSwitchTestParam {
+  SbMediaVideoCodec from;
+  SbMediaVideoCodec to;
+  bool enable_flush_during_seek;
+};
+
+const char* CodecNameForTest(SbMediaVideoCodec codec) {
+  switch (codec) {
+    case kSbMediaVideoCodecAv1:
+      return "Av1";
+    case kSbMediaVideoCodecH264:
+      return "H264";
+    case kSbMediaVideoCodecVp9:
+      return "Vp9";
+    default:
+      return "Other";
+  }
+}
+
+std::vector<CodecSwitchTestParam> GetCodecSwitchTestParams() {
+  constexpr SbMediaVideoCodec kCodecs[] = {
+      kSbMediaVideoCodecAv1, kSbMediaVideoCodecH264, kSbMediaVideoCodecVp9};
+  std::vector<CodecSwitchTestParam> params;
+  for (SbMediaVideoCodec from : kCodecs) {
+    for (SbMediaVideoCodec to : kCodecs) {
+      if (from == to) {
+        continue;
+      }
+      params.push_back({from, to, /*enable_flush_during_seek=*/true});
+      params.push_back({from, to, /*enable_flush_during_seek=*/false});
+    }
+  }
+  return params;
+}
+
+class MediaCodecVideoDecoderCodecSwitchTest
+    : public MediaCodecVideoDecoderTest,
+      public ::testing::WithParamInterface<CodecSwitchTestParam> {};
+
+TEST_P(MediaCodecVideoDecoderCodecSwitchTest, SeekRebuildsCodec) {
+  const CodecSwitchTestParam& param = GetParam();
+  VideoStreamInfo from_info = kDefaultVideoStreamInfo;
+  from_info.codec = param.from;
+  VideoStreamInfo to_info = kDefaultVideoStreamInfo;
+  to_info.codec = param.to;
+
+  CreateDecoder(/*max_video_capabilities=*/"", &from_info,
+                /*experimental_features=*/{}, param.enable_flush_during_seek);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(CreateKeyFrames(0, from_info));
+  ASSERT_EQ(fake_factory_->last_video_codec(), param.from);
+  const int created = fake_factory_->video_codec_create_count();
+
+  // With flush enabled, Reset() keeps the codec and the codec switch is
+  // detected on the next input. Otherwise, Reset() tears down the codec and
+  // the next input recreates it.
+  decoder_->Reset();
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created);
+
+  decoder_->WriteInputBuffers(CreateKeyFrames(100'000'000, to_info));
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), param.to);
+  EXPECT_FALSE(error_called_);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllSupportedCodecs,
+    MediaCodecVideoDecoderCodecSwitchTest,
+    ::testing::ValuesIn(GetCodecSwitchTestParams()),
+    [](const ::testing::TestParamInfo<CodecSwitchTestParam>& info) {
+      return std::string(CodecNameForTest(info.param.from)) + "To" +
+             CodecNameForTest(info.param.to) +
+             (info.param.enable_flush_during_seek ? "WithFlush"
+                                                  : "WithoutFlush");
+    });
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekVp9SdrToAv1HdrRebuildsCodec) {
+  CreateDecoder(/*max_video_capabilities=*/"", &kVp9VideoStreamInfo,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(CreateKeyFrames(0, kVp9VideoStreamInfo));
+  const int created = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  decoder_->WriteInputBuffers(
+      CreateKeyFrames(100'000'000, kAv1HdrVideoStreamInfo));
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecAv1);
+  auto color_metadata = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(color_metadata.has_value());
+  EXPECT_EQ(color_metadata->transfer, kSbMediaTransferIdSmpteSt2084);
   EXPECT_FALSE(error_called_);
 }
 

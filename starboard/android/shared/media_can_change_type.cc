@@ -58,19 +58,6 @@ bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
     return false;
   }
 
-  // Reject cross-family video codec switches (e.g. VP9 -> AV1).
-  if (current_mime_info->has_video_info() &&
-      current_mime_info->video_info().codec !=
-          new_mime_info->video_info().codec) {
-    SB_DLOG(INFO) << "Cannot change video codec family from "
-                  << starboard::GetMediaVideoCodecName(
-                         current_mime_info->video_info().codec)
-                  << " to "
-                  << starboard::GetMediaVideoCodecName(
-                         new_mime_info->video_info().codec);
-    return false;
-  }
-
   // Reject cross-family audio codec switches (e.g. AAC -> AC-3), except
   // between AAC and Opus.
   if (current_mime_info->has_audio_info()) {
