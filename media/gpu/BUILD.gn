@@ -185,17 +185,11 @@ component("gpu") {
     libs += [
       "mediandk",
     ]
-<<<<<<< HEAD
-    deps += [ "//third_party/libgav1:libgav1_parser" ]
-=======
     # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
     if (!is_cobalt) {
       libs += [ "aaudio" ]
     }
-    deps += [
-      "//third_party/libgav1:libgav1_parser",
-    ]
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    deps += [ "//third_party/libgav1:libgav1_parser" ]
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan" ]
     }
