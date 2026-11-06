@@ -185,6 +185,12 @@ void FakeAudioTrack::set_start_threshold(int start_threshold) {
   start_threshold_ = start_threshold;
 }
 
+void FakeAudioTrack::simulate_track_recreation(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+  written_frames_ = 0;
+}
+
 void FakeAudioTrack::set_write_error(int error_code) {
   std::lock_guard lock(mutex_);
   write_error_code_ = error_code;

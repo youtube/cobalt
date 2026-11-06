@@ -411,9 +411,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+    const bool restart_on_audio_threshold_growth = FeatureList::IsEnabled(
+        features::kRestartPlaybackOnAudioThresholdGrowth);
 #else
     bool allow_flush_audio_track_during_seek =
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+    const bool restart_on_audio_threshold_growth = false;
 #endif
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
@@ -476,6 +479,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           allow_audio_writing_on_pause;
       sink_options.audio_track_options.pause_using_audio_track_state =
           pause_using_audio_track_state;
+      sink_options.audio_track_options.restart_on_audio_threshold_growth =
+          restart_on_audio_threshold_growth;
 
       auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
           creation_parameters.audio_stream_info(), sink_options);
