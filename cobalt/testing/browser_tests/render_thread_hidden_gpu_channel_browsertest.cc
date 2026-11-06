@@ -56,6 +56,9 @@ class RenderThreadHiddenGpuChannelBrowserTestBase
   RenderThreadHiddenGpuChannelBrowserTestBase() = default;
   ~RenderThreadHiddenGpuChannelBrowserTestBase() override = default;
 
+  // Forces single-process mode to match Cobalt's production architecture and
+  // allow posting tasks directly onto `RenderThreadImpl::current()` via
+  // `GetInProcessRendererThreadTaskRunnerForTesting()`.
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::ContentBrowserTest::SetUpCommandLine(command_line);
     if (!command_line->HasSwitch(switches::kSingleProcess)) {
@@ -64,6 +67,9 @@ class RenderThreadHiddenGpuChannelBrowserTestBase
   }
 
  protected:
+  // Performs a synchronous Mojo round-trip to the renderer so prior async
+  // lifecycle IPCs (`WasHidden()` / `WasShown()`) are guaranteed to have
+  // updated `RenderThreadImpl::RendererIsHidden()` before the next step runs.
   void FlushRendererProcessState() {
     base::RunLoop loop;
     auto* rph = static_cast<content::RenderProcessHostImpl*>(
@@ -72,6 +78,9 @@ class RenderThreadHiddenGpuChannelBrowserTestBase
     loop.Run();
   }
 
+  // Performs a synchronous Mojo round-trip to `GpuServiceImpl` so prior async
+  // GPU lifecycle calls (`RestoreGpuProcessOnUI()`) have completed on the GPU
+  // main thread before the renderer attempts sync channel establishment.
   void FlushGpuMainThread() {
     base::RunLoop loop;
     auto* gpu_host = content::GpuProcessHost::Get();
@@ -82,6 +91,10 @@ class RenderThreadHiddenGpuChannelBrowserTestBase
     loop.Run();
   }
 
+  // Simulates Cobalt's background suspend sequence: marks the renderer hidden,
+  // hides the UI compositor and purges unlocked Viz frames to release active
+  // surfaces, and runs `CleanupGpuProcessOnUI()` so `GpuServiceImpl` tears
+  // down `GLDisplayEGL` and defers incoming `EstablishGpuChannel` requests.
   void ConcealAndCleanupGpu() {
     shell()->web_contents()->WasHidden();
     FlushRendererProcessState();
@@ -104,6 +117,9 @@ class RenderThreadHiddenGpuChannelBrowserTestBase
     cleanup_loop.Run();
   }
 
+  // Simulates Cobalt's foreground resume sequence: restores `GpuServiceImpl`
+  // (`GLDisplayEGL` re-init and draining deferred channel requests), makes the
+  // UI compositor/window visible again, and marks the renderer shown.
   void RevealAndRestoreGpu() {
     content::RestoreGpuProcessOnUI();
     FlushGpuMainThread();
@@ -180,12 +196,11 @@ IN_PROC_BROWSER_TEST_F(RenderThreadHiddenGpuChannelBrowserTest,
 
   // Watchdog timer on Browser UI thread:
   // If the bug exists (RenderThreadImpl blocks on event.Wait()),
-  // the watchdog unblocks the deadlocked thread after 250ms by foregrounding
+  // the watchdog unblocks the deadlocked thread after 2s by foregrounding
   // the GPU service, allowing the test to fail fast rather than timing out.
   base::OneShotTimer watchdog;
   bool blocked_until_foregrounded = false;
-  watchdog.Start(FROM_HERE, base::Seconds(2),
-                 base::BindLambdaForTesting([&]() {
+  watchdog.Start(FROM_HERE, base::Seconds(2), base::BindLambdaForTesting([&]() {
                    blocked_until_foregrounded = true;
                    content::RestoreGpuProcessOnUI();
                  }));
