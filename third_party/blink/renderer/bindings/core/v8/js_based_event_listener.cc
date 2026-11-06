@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/js_based_event_listener.h"
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/binding_security.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
@@ -70,6 +71,14 @@ void JSBasedEventListener::Invoke(
   if (!event->CanBeDispatchedInWorld(GetWorld()))
     return;
 
+#if BUILDFLAG(IS_COBALT)
+  // Standard JSEventListeners (registered via addEventListener) always hold an
+  // already-compiled callback object (a function or an object with
+  // handleEvent). Only JSEventHandlers (such as inline onclick="..." content
+  // attributes) require lazy compilation of their script bodies via
+  // GetListenerObject().
+  if (!IsJSEventListener())
+#endif
   {
     v8::HandleScope handle_scope(isolate);
 
@@ -101,6 +110,47 @@ void JSBasedEventListener::Invoke(
   // |js_event|, a V8 wrapper object for |event|, must be created in the
   // relevant realm of the event target. The world must match the event
   // listener's world.
+#if BUILDFLAG(IS_COBALT)
+  // Step 6: Let |global| be listener callback’s associated Realm’s global
+  // object.
+  LocalDOMWindow* window = ToLocalDOMWindow(script_state_of_listener);
+
+  // In the common case where the event target and listener share the same
+  // ExecutionContext, bypass the expensive ToScriptState() context map lookup
+  // and redundant BindingSecurity checks (same-context access is trivially
+  // safe). This also directly provides the ScriptState needed to wrap the Event
+  // in the target's realm.
+  ScriptState* script_state_of_event_target = nullptr;
+  if (execution_context_of_event_target ==
+      ToExecutionContext(script_state_of_listener)) {
+    CHECK_EQ(script_state_of_listener->World().GetWorldId(),
+             GetWorld().GetWorldId());
+    script_state_of_event_target = script_state_of_listener;
+  } else {
+    script_state_of_event_target =
+        ToScriptState(execution_context_of_event_target, GetWorld());
+    if (!script_state_of_event_target) {
+      return;
+    }
+    CHECK_EQ(script_state_of_event_target->World().GetWorldId(),
+             GetWorld().GetWorldId());
+
+    // Check if the current context, which is set to the listener's relevant
+    // context by creating |listener_script_state_scope|, has access to the
+    // event target's relevant context before creating |js_event|. SecurityError
+    // is thrown if it doesn't have access.
+    if (!BindingSecurity::ShouldAllowAccessToV8Context(
+            script_state_of_listener, script_state_of_event_target)) {
+      LocalDOMWindow* target_window =
+          DynamicTo<LocalDOMWindow>(execution_context_of_event_target);
+      if (window && target_window) {
+        window->PrintErrorMessage(target_window->CrossDomainAccessErrorMessage(
+            window, DOMWindow::CrossDocumentAccessPolicy::kDisallowed));
+      }
+      return;
+    }
+  }
+#else
   ScriptState* script_state_of_event_target =
       ToScriptState(execution_context_of_event_target, GetWorld());
   if (!script_state_of_event_target) {
@@ -127,6 +177,7 @@ void JSBasedEventListener::Invoke(
     }
     return;
   }
+#endif
 
   v8::Local<v8::Value> js_event =
       ToV8Traits<Event>::ToV8(script_state_of_event_target, event);
