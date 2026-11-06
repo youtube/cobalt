@@ -251,6 +251,17 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
     "Media.SkipVideoFramesOver60Fps");
 
+// Number of times MediaCodecVideoDecoder re-attempts to create the platform
+// MediaCodec after a creation failure, which can be transient on devices whose
+// vendor HAL releases the previous codec instance asynchronously
+// (b/581989550). Inputs are buffered while a retry is pending. When set, this
+// takes precedence over the `RetryVideoCodecCreation` Starboard feature: a
+// positive value is the retry count and a negative value disables retries. 0 is
+// the "unset" sentinel and defers to the Starboard feature, which is disabled
+// by default.
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationRetryCount(
+    "Media.VideoCodecCreationRetryCount");
+
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");

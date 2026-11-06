@@ -32,6 +32,18 @@ class ExperimentalFeatures;
 bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
                                const std::string& max_video_capabilities);
 
+// Returns how many times MediaCodecVideoDecoder retries creating the platform
+// MediaCodec after a failure (b/581989550). The H5VCC setting
+// `Media.VideoCodecCreationRetryCount` in |features| takes precedence whenever
+// it is set: a positive value is the retry count and a negative value disables
+// retries. As 0 is the experiment framework's "unset" sentinel, it defers to
+// |feature_retry_count| like an absent setting does, as do values that are not
+// an int. |feature_retry_count| holds the `RetryCount` param of the
+// `RetryVideoCodecCreation` Starboard feature when that feature is enabled, and
+// std::nullopt otherwise. Returns 0 (retries disabled) when neither is set.
+int GetVideoCodecCreationRetryCount(const ExperimentalFeatures& features,
+                                    std::optional<int> feature_retry_count);
+
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,
     std::string_view param_name,

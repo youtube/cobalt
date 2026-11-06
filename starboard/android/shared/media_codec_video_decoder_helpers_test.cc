@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/shared/starboard/experimental_features.h"
@@ -60,6 +61,51 @@ TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
       features_without_sw_decoder, "width=1920; height=1080; framerate=30"));
   EXPECT_TRUE(IsSoftwareDecoderRequired(features_without_sw_decoder,
                                         "width=432; height=240; framerate=15"));
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest, GetVideoCodecCreationRetryCount) {
+  const auto h5vcc_setting = [](ExperimentalFeatures::Value value) {
+    return ExperimentalFeatures(ExperimentalFeatures::Map{
+        {std::string(kMediaVideoCodecCreationRetryCount.key()),
+         std::move(value)}});
+  };
+  const ExperimentalFeatures no_h5vcc_setting;
+
+  // Retries are disabled when neither the H5VCC setting nor the Starboard
+  // feature is set.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, std::nullopt), 0);
+
+  // The Starboard feature param applies when there is no H5VCC setting.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, 3), 3);
+
+  // The H5VCC setting applies when the Starboard feature is disabled.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(2)), std::nullopt),
+            2);
+
+  // The H5VCC setting takes precedence over the Starboard feature, and a
+  // negative value disables retries.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(5)), 3),
+            5);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(-1)), 3),
+            0);
+
+  // 0 is the H5VCC "unset" sentinel, so it defers to the Starboard feature.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(0)), 3),
+            3);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(0)), std::nullopt),
+            0);
+
+  // A setting of the wrong type is ignored.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(std::string("5")), 3),
+            3);
+
+  // A negative feature param disables retries.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, -1), 0);
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
