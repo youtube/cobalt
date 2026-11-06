@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -47,8 +48,9 @@ struct AndroidAssetDir {
 // Wraps an AssetManager directory descriptor in the DIR handle from
 // __wrap_opendir()/__wrap_fdopendir().
 DIR* MakeAssetDir(AssetManager* asset_manager, int fd) {
-  std::vector<std::string> entries;
-  if (!asset_manager->GetDirectoryEntries(fd, &entries)) {
+  std::optional<std::vector<std::string>> entries =
+      asset_manager->GetDirectoryEntries(fd);
+  if (!entries) {
     // fd stopped being an asset directory between the caller's check and
     // this point, so nothing to enumerate and nothing to close.
     errno = EBADF;
@@ -56,7 +58,7 @@ DIR* MakeAssetDir(AssetManager* asset_manager, int fd) {
   }
 
   AndroidAssetDir* retdir = new AndroidAssetDir();
-  retdir->entries = std::move(entries);
+  retdir->entries = std::move(*entries);
   retdir->index = 0;
   retdir->fd = fd;
   DIR* dir = reinterpret_cast<DIR*>(retdir);
