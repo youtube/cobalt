@@ -22,8 +22,6 @@
 #include "v8/include/v8-wasm.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 namespace {
 
 constexpr uint32_t kPageSize = 65536;
@@ -79,6 +77,4 @@ TEST_F(GuestMemoryTest, FailsWithoutMemory) {
 }
 
 }  // namespace
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

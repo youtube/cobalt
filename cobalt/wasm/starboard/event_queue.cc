@@ -20,8 +20,6 @@
 #include "base/location.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 EventQueue::EventQueue(scoped_refptr<base::SequencedTaskRunner> task_runner,
                        base::RepeatingClosure on_wake)
@@ -88,6 +86,4 @@ void EventQueue::RunWake() {
   }
 }
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

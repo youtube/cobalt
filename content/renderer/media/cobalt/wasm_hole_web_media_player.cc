@@ -112,7 +112,7 @@ class WasmHoleWebMediaPlayer final : public blink::WebMediaPlayer {
         provider_(
             new HoleFrameProvider(overlay_plane_id),
             base::OnTaskRunnerDeleter(std::move(compositor_task_runner))) {
-    size_watch_ = cobalt::wasm::starboard::SurfaceVideoSize::Watch(
+    size_watch_ = cobalt::SurfaceVideoSize::Watch(
         overlay_plane_id,
         base::BindRepeating(&WasmHoleWebMediaPlayer::OnVideoSizeChanged,
                             weak_factory_.GetWeakPtr()));

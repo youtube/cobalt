@@ -49,8 +49,6 @@
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 namespace {
 
@@ -949,6 +947,4 @@ void WasmPlayerHost::PlayerErrorCB(SbPlayer player,
   PushEvent(context, {kWasmSbEventPlayerError, 0, error, 0, 0});
 }
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

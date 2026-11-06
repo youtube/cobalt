@@ -26,8 +26,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 namespace {
 
 WasmSbEvent Event(uint32_t player, int32_t a) {
@@ -148,6 +146,4 @@ TEST_F(EventQueueTest, AcceptsPushesFromOtherThreads) {
 }
 
 }  // namespace
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

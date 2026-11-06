@@ -45,8 +45,6 @@
 #include "starboard/player.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 struct WasmSbMediaAudioStreamInfo {
   int32_t codec;
@@ -271,8 +269,6 @@ static_assert(kMatroskaBlockAdditional == 0);
 static_assert(SB_PLAYER_INITIAL_TICKET == 0);
 static_assert(kSbPlayerWriteDurationLocal == 500000);
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt
 
 #endif  // COBALT_WASM_STARBOARD_WASM_STARBOARD_ABI_H_

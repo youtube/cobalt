@@ -26,8 +26,6 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 namespace {
 
 class SurfaceVideoSizeTest : public testing::Test {
@@ -105,6 +103,4 @@ TEST_F(SurfaceVideoSizeTest, NotifiesOnWatchersSequence) {
 }
 
 }  // namespace
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

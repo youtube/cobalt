@@ -17,6 +17,16 @@
 // Inputs that would crash the process are rejected (false or 0) without
 // calling Starboard (see wasm_starboard_abi.h); the rest of Starboard's API
 // contract is the caller's to keep.
+//
+// This interface mirrors the Starboard API; it is not a renderer-level media
+// abstraction. Names, arguments, records and semantics are Starboard's, at
+// the SB_API_VERSION Cobalt is built with, so it changes when Starboard does.
+// The only additions are what a Wasm caller needs to reach Starboard at all:
+// guest-memory offsets for pointers (with the records as their wasm32 layout),
+// the event queue for callbacks, getErrorMessage() for the error callback's
+// string, and surfaces for placing punch-out video. Media policy (buffering,
+// seeking, codec switches) stays in the caller.
+//
 // See h_5_vcc_wasm_imports.idl.
 [
     Exposed=(Window,DedicatedWorker),

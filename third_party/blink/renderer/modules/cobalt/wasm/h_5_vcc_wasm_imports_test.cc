@@ -33,7 +33,7 @@
 namespace blink {
 namespace {
 
-using cobalt::wasm::starboard::WasmPlayerHost;
+using cobalt::WasmPlayerHost;
 
 // The extension calls made on this thread, or nullopt for none.
 std::optional<size_t>& FeatureCount() {

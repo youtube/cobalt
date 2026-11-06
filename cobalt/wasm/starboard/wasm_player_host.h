@@ -45,8 +45,6 @@ class SbPlayerInterface;
 }  // namespace media
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 class EventQueue;
 class GuestMemory;
@@ -220,8 +218,6 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
   base::WeakPtrFactory<WasmPlayerHost> weak_factory_{this};
 };
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt
 
 #endif  // COBALT_WASM_STARBOARD_WASM_PLAYER_HOST_H_
