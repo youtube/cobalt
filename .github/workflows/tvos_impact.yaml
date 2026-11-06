@@ -1,0 +1,160 @@
+# Checks if a PR can affect the tvOS build. This runs PR code (GN exec_script)
+# with a read-only token, so auto_label_kokoro.yaml applies the label from the
+# uploaded result.
+name: tvOS Impact
+
+# tvos.yaml looks up this run by name.
+run-name: tvOS Impact (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }} (${{ github.event.action }}))
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    branches:
+      - main
+      - staging
+      - autoroll-chromium/main-to-staging
+      - 'stack/**'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-tvos-impact:
+    if: github.event.pull_request.draft == false
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
+      options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
+      volumes:
+        - /runner-cache:/runner-cache
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
+    outputs:
+      affects_tvos: ${{ steps.analyze.outputs.affects_tvos }}
+    # Container jobs run steps with `sh` by default.
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            cobalt/build
+
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
+      # There's no tvOS golden workspace. The Linux one has a synced checkout
+      # with depot_tools and gn, which is enough for the tvOS `gn gen`.
+      - name: Prepare OverlayFS Workspace
+        uses: ./.github/actions/overlay_workspace
+        with:
+          path: cobalt
+          platform: linux-x64x11
+          use_gcloud: true
+
+      # Squash merges the PR onto the base branch, like main.yaml.
+      - name: Checkout
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.event.pull_request.head.sha }}
+          squash_merge: true
+          fetch_depth: 2
+          use_cache: true
+
+      - name: Set Up Depot Tools
+        uses: ./.github/actions/depot_tools
+        with:
+          platform: linux-x64x11
+          use_gcloud: true
+
+      - name: List Changed Files
+        working-directory: cobalt/src
+        run: git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
+
+      - name: Check tvOS Build Impact
+        id: analyze
+        working-directory: cobalt/src
+        env:
+          TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
+          # Changes that gn analyze can't see, e.g. the platform's
+          # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE.
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/(tvos|tvos_impact|auto_label_kokoro)\.yaml$)
+          HEADERS: \.(h|hh|hpp|inc|inl|def)$
+        run: |
+          files="${RUNNER_TEMP}/changed_files.txt"
+          if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${files}"; then
+            echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          out="${RUNNER_TEMP}/out"
+          wrapper="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
+          python3 cobalt/build/gn.py "${out}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${wrapper}"
+
+          # gn analyze only knows headers listed in BUILD.gn, so add includers.
+          for header in $(grep -E "${HEADERS}" "${files}"); do
+            git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' >> "${files}" || true
+          done
+
+          jq -nR --argjson targets "${TEST_TARGETS}" '{
+            files: [inputs | select(. != "") | "//" + .] | unique,
+            test_targets: [$targets[] | "//" + .],
+            additional_compile_targets: ["//cobalt:cobalt"]
+          }' < "${files}" > "${out}/analyze_in.json"
+          gn analyze "${out}" "${out}/analyze_in.json" "${out}/analyze_out.json" "${wrapper}"
+          cat "${out}/analyze_out.json"
+          status=$(jq -r .status "${out}/analyze_out.json")
+          echo "affects_tvos=$([[ "${status}" == "No dependency" ]] && echo false || echo true)" >> "${GITHUB_OUTPUT}"
+
+  # Always uploads the result, so auto_label_kokoro.yaml can find the PR.
+  report:
+    needs: analyze-tvos-impact
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write Result
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ANALYZE_RESULT: ${{ needs.analyze-tvos-impact.result }}
+          AFFECTS_TVOS: ${{ needs.analyze-tvos-impact.outputs.affects_tvos }}
+        run: |
+          mkdir -p tvos_impact
+          echo "${PR_NUMBER}" > tvos_impact/pr_number
+          # Empty if the analysis was skipped or failed.
+          [[ "${ANALYZE_RESULT}" == "success" ]] || AFFECTS_TVOS=""
+          echo "${AFFECTS_TVOS}" > tvos_impact/affects_tvos
+          cat tvos_impact/*
+
+      - name: Upload Result
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: tvos-impact
+          path: tvos_impact/
+          retention-days: 1

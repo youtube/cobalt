@@ -89,12 +89,23 @@ jobs:
           skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
           [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
 
-          # Wait up to 20 min for the Auto Label Kokoro run of this commit and
-          # event, which decides whether to add the kokoro:run label.
+          # Wait up to 20 min for the tvOS Impact run of this commit and event,
+          # then for the Auto Label Kokoro run that adds the kokoro:run label
+          # from its result.
+          impact='{}'
+          label='{}'
           for _ in {1..120}; do
-            run=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
-              --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
-            [[ "$(jq -r .status <<< "${run}")" == "completed" ]] && break
+            if [[ "$(jq -r .status <<< "${impact}")" != "completed" ]]; then
+              impact=$(gh api "repos/${REPO}/actions/workflows/tvos_impact.yaml/runs?event=pull_request&head_sha=${COMMIT_SHA}&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
+            fi
+            if [[ "$(jq -r .status <<< "${impact}")" == "completed" ]]; then
+              [[ "$(jq -r .conclusion <<< "${impact}")" == "cancelled" ]] && break
+              label_title="Auto Label Kokoro (tvOS Impact run $(jq -r .id <<< "${impact}"))"
+              label=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=workflow_run&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title == \"${label_title}\")][0] // {}" || echo '{}')
+              [[ "$(jq -r .status <<< "${label}")" == "completed" ]] && break
+            fi
             sleep 10
           done
 
@@ -108,11 +119,12 @@ jobs:
 
           # No build requested. Skip if Auto Label Kokoro decided so, or if this
           # commit is outdated. Otherwise it didn't finish: fail rather than skip.
-          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${run}")
+          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${label}")
+          [[ "$(jq -r .conclusion <<< "${impact}")" == "cancelled" ]] && conclusion=cancelled
           [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
           head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
           [[ "${conclusion}" == "cancelled" && -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
-          echo "::error::Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
+          echo "::error::tvOS Impact or Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
           exit 1
 
       - name: Poll GitHub Statuses API for Kokoro build
