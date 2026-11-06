@@ -20,6 +20,8 @@
 #include <libkern/OSByteOrder.h>
 
 #include "base/apple/foundation_util.h"
+#include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #import "starboard/tvos/shared/defines.h"
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -28,6 +30,7 @@
 static NSString* kAVSBDLStatusKeyPath = @"status";
 static NSString* kAVSBDLOutputObscuredKeyPath =
     @"outputObscuredDueToInsufficientExternalProtection";
+static NSString* kAVSBDLReadyForDisplayKeyPath = @"readyForDisplay";
 
 // From Apple doc and our experiments, frame rate 1 is the default value and
 // won't make tvOS change the refresh rate.
@@ -130,6 +133,42 @@ const size_t kCachedFramesLowWatermark = 16;
 const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
+// Encryption details are the same for every sample of a stream, so log them in
+// full for the first few samples and then only once in a while.
+const size_t kDetailedDrmLogCount = 5;
+const size_t kDrmLogInterval = 300;
+const size_t kPipelineLogInterval = 100;
+
+bool ShouldLogDrmSample(size_t count) {
+  return count <= kDetailedDrmLogCount || count % kDrmLogInterval == 0;
+}
+
+// Asks the layer how many of the frames we enqueued actually reached the
+// screen. The metrics are only readable from tvOS 17.4 on.
+void LogDisplayState(AVSampleBufferDisplayLayer* display_layer) {
+  if (@available(tvOS 17.4, *)) {
+    SB_LOG(ERROR) << "[AVSBDL] Layer is onscreen with a frame: "
+                  << (display_layer.readyForDisplay ? "yes" : "no")
+                  << ", needs a flush: "
+                  << (display_layer.requiresFlushToResumeDecoding ? "yes"
+                                                                  : "no");
+    [display_layer.sampleBufferRenderer
+        loadVideoPerformanceMetricsWithCompletionHandler:^(
+            AVVideoPerformanceMetrics* metrics) {
+          if (!metrics) {
+            SB_LOG(ERROR) << "[AVSBDL] The layer returned no display metrics.";
+            return;
+          }
+          SB_LOG(ERROR) << "[AVSBDL] The layer displayed "
+                        << metrics.totalNumberOfFrames << " frames, dropped "
+                        << metrics.numberOfDroppedFrames << ", corrupted "
+                        << metrics.numberOfCorruptedFrames
+                        << ", accumulated delay "
+                        << metrics.totalAccumulatedFrameDelay << "s";
+        }];
+  }
+}
+
 UIWindow* GetPlatformWindow() {
   // This function calls UIKit code that may only be invoked from the UI thread.
   SB_DCHECK(NSThread.isMainThread);
@@ -180,6 +219,12 @@ AVSBVideoRenderer::AVSBVideoRenderer(JobQueue* job_queue,
                    forKeyPath:kAVSBDLOutputObscuredKeyPath
                       options:0
                       context:nil];
+  if (@available(tvOS 17.4, *)) {
+    [display_layer_ addObserver:status_observer_
+                     forKeyPath:kAVSBDLReadyForDisplayKeyPath
+                        options:0
+                        context:nil];
+  }
 
   CFNotificationCenterRef center = CFNotificationCenterGetLocalCenter();
   CFNotificationCenterAddObserver(
@@ -188,6 +233,18 @@ AVSBVideoRenderer::AVSBVideoRenderer(JobQueue* job_queue,
           AVSampleBufferDisplayLayerFailedToDecodeNotification,
       (__bridge const void*)display_layer_,
       CFNotificationSuspensionBehaviorDrop);
+  CFNotificationCenterAddObserver(
+      center, this, &AVSBVideoRenderer::DisplayLayerNotificationCallback,
+      (__bridge CFStringRef)
+          AVSampleBufferDisplayLayerRequiresFlushToResumeDecodingDidChangeNotification,
+      (__bridge const void*)display_layer_,
+      CFNotificationSuspensionBehaviorDrop);
+
+  SB_LOG(ERROR) << "[AVSBDL] Display layer created, attached to a container: "
+                << (display_view_.superview != nil ? "yes" : "no")
+                << ", screen " << UIScreen.mainScreen.bounds.size.width << "x"
+                << UIScreen.mainScreen.bounds.size.height << " at scale "
+                << UIScreen.mainScreen.scale;
 
   // Notify tvOS the color range of current content.
   UpdatePreferredDisplayCriteria();
@@ -202,12 +259,21 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
       (__bridge CFStringRef)
           AVSampleBufferDisplayLayerFailedToDecodeNotification,
       (__bridge const void*)display_layer_);
+  CFNotificationCenterRemoveObserver(
+      center, this,
+      (__bridge CFStringRef)
+          AVSampleBufferDisplayLayerRequiresFlushToResumeDecodingDidChangeNotification,
+      (__bridge const void*)display_layer_);
 
   @autoreleasepool {
     [display_layer_ removeObserver:status_observer_
                         forKeyPath:kAVSBDLStatusKeyPath];
     [display_layer_ removeObserver:status_observer_
                         forKeyPath:kAVSBDLOutputObscuredKeyPath];
+    if (@available(tvOS 17.4, *)) {
+      [display_layer_ removeObserver:status_observer_
+                          forKeyPath:kAVSBDLReadyForDisplayKeyPath];
+    }
   }  // @autoreleasepool
   ObserverRegistry::UnregisterObserver(&observer_);
 
@@ -331,12 +397,26 @@ bool AVSBVideoRenderer::CanAcceptMoreData() const {
 void AVSBVideoRenderer::SetBounds(int z_index, const Rect& rect) {
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
+  bool bounds_changed = rect != last_bounds_ || z_index != last_z_index_;
+  last_bounds_ = rect;
+  last_z_index_ = z_index;
   onApplicationMainThread(^{
     float scale = [UIScreen mainScreen].scale;
     display_view.frame =
         CGRectMake(rect.x / scale, rect.y / scale, rect.size.width / scale,
                    rect.size.height / scale);
     display_layer.zPosition = z_index;
+
+    if (bounds_changed) {
+      SB_LOG(ERROR) << "[AVSBDL] Bounds set to " << rect.x << "," << rect.y
+                    << " " << rect.size.width << "x" << rect.size.height
+                    << ", z " << z_index << ". The view is "
+                    << display_view.frame.size.width << "x"
+                    << display_view.frame.size.height << ", hidden "
+                    << display_view.hidden << ", alpha " << display_view.alpha
+                    << ", in a container: "
+                    << (display_view.superview != nil ? "yes" : "no");
+    }
   });
 }
 
@@ -393,6 +473,13 @@ void AVSBVideoRenderer::DisplayLayerNotificationCallback(
     // The observer was already unregistered.
     return;
   }
+  if ([(__bridge NSString*)name
+          isEqualToString:
+              AVSampleBufferDisplayLayerRequiresFlushToResumeDecodingDidChangeNotification]) {
+    renderer->OnRequiresFlushToResumeDecodingChanged();
+    ObserverRegistry::UnlockObserver(lock_slot);
+    return;
+  }
   NSError* error = (__bridge NSError*)CFDictionaryGetValue(
       user_info,
       (void*)AVSampleBufferDisplayLayerFailedToDecodeNotificationErrorKey);
@@ -403,7 +490,7 @@ void AVSBVideoRenderer::DisplayLayerNotificationCallback(
 
 void AVSBVideoRenderer::ReportError(const std::string& message) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_LOG(ERROR) << message;
+  SB_LOG(ERROR) << "[AVSBDL] " << message;
   if (!error_occurred_) {
     error_occurred_ = true;
     error_cb_(kSbPlayerErrorDecode, message);
@@ -503,17 +590,37 @@ void AVSBVideoRenderer::OnSampleBufferBuilderOutput(
     // Attach content key and cryptor data to sample buffer.
     AVContentKey* content_key = drm_system_->GetContentKey(
         drm_info->identifier, drm_info->identifier_size);
+    total_encrypted_frames_++;
+    const std::string sample_description = avutil::DescribeDrmSampleInfo(
+        drm_info, sample_buffer->input_buffer()->size());
+
+    if (!content_key) {
+      // Decrypt() holds a sample back until its key arrives, so reaching this
+      // point means the two disagree about the key.
+      SB_LOG(ERROR) << "[AVSBDL] Video sample at pts "
+                    << sample_buffer->input_buffer()->timestamp()
+                    << " has no content key. " << sample_description;
+    }
     SB_DCHECK(content_key);
 
     NSError* error;
     BOOL result = AVSampleBufferAttachContentKey(
         sample_buffer->cm_sample_buffer(), content_key, &error);
     if (!result) {
+      SB_LOG(ERROR)
+          << "[AVSBDL] Attaching the content key to a video sample failed: "
+          << avutil::DescribeError(error) << ". " << sample_description;
       std::stringstream ss;
       ss << "Failed to attach content key.";
       avutil::AppendAVErrorDetails(error, &ss);
       ReportError(ss.str());
       return;
+    }
+
+    if (ShouldLogDrmSample(total_encrypted_frames_)) {
+      SB_LOG(ERROR) << "[AVSBDL] Video sample " << total_encrypted_frames_
+                    << " at pts " << sample_buffer->input_buffer()->timestamp()
+                    << " has a content key attached. " << sample_description;
     }
 
     static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
@@ -601,6 +708,19 @@ void AVSBVideoRenderer::EnqueueSampleBuffers() {
       [display_layer_ enqueueSampleBuffer:sample_buffer->cm_sample_buffer()];
       video_sample_buffers_.pop();
       buffers_to_enqueue--;
+    }
+
+    if (total_written_frames_ > 0 &&
+        total_written_frames_ % kPipelineLogInterval == 0) {
+      SB_LOG(ERROR) << "[AVSBDL] " << total_written_frames_
+                    << " frames written, " << total_dropped_frames_
+                    << " dropped, " << video_sample_buffers_.size()
+                    << " waiting, "
+                    << GetNumberOfCachedFrames() - video_sample_buffers_.size()
+                    << " in the layer, layer status " << display_layer_.status
+                    << ", media time " << media_time << ", error: "
+                    << avutil::DescribeError(display_layer_.error);
+      LogDisplayState(display_layer_);
     }
 
     UpdateCachedFramesWatermark();
@@ -715,10 +835,20 @@ void AVSBVideoRenderer::OnDecodeError(NSError* error) {
   ss << "AVSBDL decode failed (seek to " << seek_to_time_ << ", offset "
      << media_time_offset_ << "). ";
   avutil::AppendAVErrorDetails(error, &ss);
+  SB_LOG(ERROR) << "[AVSBDL] The display layer failed to decode a frame: "
+                << avutil::DescribeError(error) << ". " << total_written_frames_
+                << " frames written so far, " << total_encrypted_frames_
+                << " samples given a content key.";
   // Avoid to run any callback between ObserverRegistry::LockObserver
   // and ObserverRegistry::UnlockObserver. If AVSBVideoRenderer is destroyed
   // in the callback, it may cause dead lock.
   Schedule(std::bind(&AVSBVideoRenderer::ReportError, this, ss.str()));
+}
+
+void AVSBVideoRenderer::OnRequiresFlushToResumeDecodingChanged() {
+  SB_LOG(ERROR) << "[AVSBDL] The layer needs a flush before it decodes again: "
+                << (display_layer_.requiresFlushToResumeDecoding ? "yes" : "no")
+                << ". Nothing reaches the screen until it is flushed.";
 }
 
 void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
@@ -731,17 +861,32 @@ void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
   // Avoid to run any callback between ObserverRegistry::LockObserver
   // and ObserverRegistry::UnlockObserver. If AVSBVideoRenderer is destroyed
   // in the callback, it may cause dead lock.
-  if ([key_path isEqualToString:kAVSBDLStatusKeyPath] &&
-      display_layer_.status == AVQueuedSampleBufferRenderingStatusFailed) {
-    std::stringstream ss;
-    ss << "AVSBDL status failed (seek to " << seek_to_time_ << ", offset "
-       << media_time_offset_ << "). ";
-    avutil::AppendAVErrorDetails(display_layer_.error, &ss);
-    Schedule(std::bind(&AVSBVideoRenderer::ReportError, this, ss.str()));
+  if ([key_path isEqualToString:kAVSBDLStatusKeyPath]) {
+    SB_LOG(ERROR) << "[AVSBDL] Layer status is now " << display_layer_.status
+                  << ", error: " << avutil::DescribeError(display_layer_.error);
+    if (display_layer_.status == AVQueuedSampleBufferRenderingStatusFailed) {
+      std::stringstream ss;
+      ss << "AVSBDL status failed (seek to " << seek_to_time_ << ", offset "
+         << media_time_offset_ << "). ";
+      avutil::AppendAVErrorDetails(display_layer_.error, &ss);
+      Schedule(std::bind(&AVSBVideoRenderer::ReportError, this, ss.str()));
+    }
   }
-  if (drm_system_ && [key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
-    drm_system_->OnOutputObscuredChanged(
-        display_layer_.outputObscuredDueToInsufficientExternalProtection);
+  if ([key_path isEqualToString:kAVSBDLReadyForDisplayKeyPath]) {
+    if (@available(tvOS 17.4, *)) {
+      SB_LOG(ERROR) << "[AVSBDL] The layer has a frame ready to display: "
+                    << (display_layer_.readyForDisplay ? "yes" : "no");
+    }
+  }
+  if ([key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
+    BOOL obscured =
+        display_layer_.outputObscuredDueToInsufficientExternalProtection;
+    SB_LOG(ERROR) << "[AVSBDL] Output obscured due to insufficient external "
+                     "protection: "
+                  << (obscured ? "yes" : "no");
+    if (drm_system_) {
+      drm_system_->OnOutputObscuredChanged(obscured);
+    }
   }
   ObserverRegistry::UnlockObserver(lock_slot);
 }
