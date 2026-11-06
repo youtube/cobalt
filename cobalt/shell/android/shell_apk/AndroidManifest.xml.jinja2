@@ -1,4 +1,5 @@
 {% set enable_ad_id_permission = enable_ad_id_permission | default(True) %}
+{% set debuggable = debuggable | default('true') %}
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Copyright 2016 The Cobalt Authors. All Rights Reserved.
@@ -54,12 +55,12 @@
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
-            {# Always enable debuggable=true for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
-            android:debuggable="true"
+            android:debuggable="{{ debuggable }}"
             android:enableOnBackInvokedCallback="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
-        {# Always enable profileable for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
+        {% if debuggable == 'true' %}
         <profileable android:shell="true" android:enabled="true" />
+        {% endif %}
         {% block main_activity %}
         <activity android:name="dev.cobalt.app.MainActivity"
                   android:launchMode="singleTask"
@@ -71,7 +72,8 @@
             <meta-data android:name="cobalt.ENABLE_SPLASH_SCREEN" android:value="true"/>
             <meta-data android:name="cobalt.EVERGREEN_LITE" android:value="false"/>
             {# ENABLE_FEATURES accepts a semi-colon-separated list of Chromium features. #}
-            {# Always enable Perfetto tracing for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
+            {# Always enable Perfetto tracing for 1P CoAT development. Although this manifest is shared with 3P AOSP, this metadata is
+               only read by 1P CoAT (and does not affect production Kimono or 3P AOSP). #}
             <meta-data android:name="cobalt.ENABLE_FEATURES" android:value="EnablePerfettoSystemTracing"/>
             <meta-data android:name="android.app.lib_name" android:value="cobalt"/>
             <intent-filter>
