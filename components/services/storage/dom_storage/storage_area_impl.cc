@@ -168,6 +168,21 @@ void StorageAreaImpl::ScheduleImmediateCommit() {
   CommitChanges();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void StorageAreaImpl::ScheduleResyncCommitAfterDatabaseReopen() {
+  if (!database_ || map_state_ != MapState::LOADED_KEYS_AND_VALUES ||
+      (!has_committed_data_ && !commit_batch_)) {
+    return;
+  }
+  CreateCommitBatchIfNeeded();
+  commit_batch_->clear_all_first = true;
+  commit_batch_->changed_values.clear();
+  for (const auto& [key, _] : keys_values_map_) {
+    commit_batch_->changed_keys.insert(key);
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void StorageAreaImpl::OnMemoryDump(const std::string& name,
                                    base::trace_event::ProcessMemoryDump* pmd) {
   if (!IsMapLoaded())

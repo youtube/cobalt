@@ -1538,6 +1538,397 @@ TEST_F(LocalStorageImplStaleDeletionTest,
         "Cobalt.Storage.LocalStorage.CommitDuration", 0);
   }
 }
+
+TEST_F(
+    LocalStorageImplTest,
+    CobaltMissingCurrentFileRepairsAndPreservesDataWhenErrorRecoveryEnabled) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto key = StdStringToUint8Vector("persisted_key");
+  auto value = StdStringToUint8Vector("persisted_value");
+  DoTestPut(key, value);
+  ShutDownStorage();
+
+  base::FilePath db_path = storage_path()
+                               .Append(kLocalStoragePath)
+                               .AppendASCII(kLocalStorageLeveldbName);
+  // Compact the database so data lives in `.ldb` table files rather than only
+  // the `.log` write-ahead log, then delete `CURRENT`. Without `RepairDB()`,
+  // `OpenDB` with `create_if_missing = true` calls `NewDB()` and silently
+  // orphans/deletes existing `.ldb` files.
+  {
+    leveldb_env::ChromiumEnv env;
+    std::unique_ptr<leveldb::DB> db;
+    leveldb_env::Options options;
+    options.env = &env;
+    ASSERT_TRUE(leveldb_env::OpenDB(options, db_path.AsUTF8Unsafe(), &db).ok());
+    db->CompactRange(nullptr, nullptr);
+  }
+  ASSERT_TRUE(base::DeleteFile(db_path.AppendASCII("CURRENT")));
+  ASSERT_FALSE(base::PathExists(db_path.AppendASCII("CURRENT")));
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  std::vector<uint8_t> result;
+  EXPECT_TRUE(DoTestGet(key, &result));
+  EXPECT_EQ(value, result);
+  EXPECT_TRUE(base::PathExists(db_path.AppendASCII("CURRENT")));
+  EXPECT_FALSE(base::PathExists(db_path.AppendASCII("lost")));
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
+}
+
+TEST_F(LocalStorageImplTest,
+       CobaltMissingCurrentFileWipesDataWhenErrorRecoveryDisabled) {
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto key = StdStringToUint8Vector("persisted_key");
+  auto value = StdStringToUint8Vector("persisted_value");
+  DoTestPut(key, value);
+  ShutDownStorage();
+
+  base::FilePath db_path = storage_path()
+                               .Append(kLocalStoragePath)
+                               .AppendASCII(kLocalStorageLeveldbName);
+  {
+    leveldb_env::ChromiumEnv env;
+    std::unique_ptr<leveldb::DB> db;
+    leveldb_env::Options options;
+    options.env = &env;
+    ASSERT_TRUE(leveldb_env::OpenDB(options, db_path.AsUTF8Unsafe(), &db).ok());
+    db->CompactRange(nullptr, nullptr);
+  }
+  ASSERT_TRUE(base::DeleteFile(db_path.AppendASCII("CURRENT")));
+  ASSERT_FALSE(base::PathExists(db_path.AppendASCII("CURRENT")));
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  std::vector<uint8_t> result;
+  EXPECT_FALSE(DoTestGet(key, &result));
+  histograms.ExpectUniqueSample("Cobalt.LocalStorage.DatabaseOpenError",
+                                leveldb_env::LEVELDB_STATUS_CORRUPTION, 1);
+}
+
+TEST_F(LocalStorageImplTest,
+       CobaltMissingManifestRepairsAndPreservesDataWhenErrorRecoveryEnabled) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto key = StdStringToUint8Vector("manifest_key");
+  auto value = StdStringToUint8Vector("manifest_value");
+  DoTestPut(key, value);
+  ShutDownStorage();
+
+  base::FilePath db_path = storage_path()
+                               .Append(kLocalStoragePath)
+                               .AppendASCII(kLocalStorageLeveldbName);
+  base::FileEnumerator file_enum(db_path, true, base::FileEnumerator::FILES,
+                                 FILE_PATH_LITERAL("MANIFEST*"));
+  for (base::FilePath name = file_enum.Next(); !name.empty();
+       name = file_enum.Next()) {
+    ASSERT_TRUE(base::DeleteFile(name));
+  }
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  std::vector<uint8_t> result;
+  EXPECT_TRUE(DoTestGet(key, &result));
+  EXPECT_EQ(value, result);
+  EXPECT_FALSE(base::PathExists(db_path.AppendASCII("lost")));
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
+}
+
+TEST_F(LocalStorageImplTest,
+       CobaltMissingCurrentFilePreservesRewriteDBTempBackup) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto key = StdStringToUint8Vector("rewrite_key");
+  auto value = StdStringToUint8Vector("rewrite_value");
+  DoTestPut(key, value);
+  ShutDownStorage();
+
+  base::FilePath db_path = storage_path()
+                               .Append(kLocalStoragePath)
+                               .AppendASCII(kLocalStorageLeveldbName);
+  base::FilePath rebuild_backup_path = base::FilePath::FromUTF8Unsafe(
+      leveldb_env::DatabaseNameForRewriteDB(db_path.AsUTF8Unsafe()));
+  // Simulate a crash mid-way through `leveldb_env::RewriteDB()` after the
+  // intact backup DB was written to `leveldb__tmp_for_rebuild` and `DestroyDB`
+  // deleted `CURRENT` + data files from `leveldb` (leaving only `MANIFEST-*`).
+  // `TryOpenDB()` must NOT run `RepairDB()` on the partially deleted `leveldb`
+  // directory, or recreating `CURRENT` would cause `OpenDB()` to destroy the
+  // intact `leveldb__tmp_for_rebuild` backup!
+  ASSERT_TRUE(base::CopyDirectory(db_path, rebuild_backup_path,
+                                  /*recursive=*/true));
+  ASSERT_TRUE(base::DeleteFile(db_path.AppendASCII("CURRENT")));
+  base::FileEnumerator file_enum(db_path, false, base::FileEnumerator::FILES);
+  for (base::FilePath file = file_enum.Next(); !file.empty();
+       file = file_enum.Next()) {
+    if (file.MatchesExtension(FILE_PATH_LITERAL(".ldb")) ||
+        file.MatchesExtension(FILE_PATH_LITERAL(".log"))) {
+      ASSERT_TRUE(base::DeleteFile(file));
+    }
+  }
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  std::vector<uint8_t> result;
+  EXPECT_TRUE(DoTestGet(key, &result));
+  EXPECT_EQ(value, result);
+  EXPECT_FALSE(base::PathExists(rebuild_backup_path));
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
+}
+
+TEST_F(LocalStorageImplTest,
+       CobaltDiskFullOnOpenFallsBackToMemoryWithoutWipingDiskData) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto persisted_key = StdStringToUint8Vector("persisted_key");
+  auto persisted_value = StdStringToUint8Vector("persisted_value");
+  DoTestPut(persisted_key, persisted_value);
+  ShutDownStorage();
+
+  struct ScopedDBFactoryReset {
+    ~ScopedDBFactoryReset() { leveldb_env::SetDBFactoryForTesting({}); }
+  } reset_db_factory;
+
+  leveldb_env::SetDBFactoryForTesting(base::BindRepeating(
+      [](const leveldb_env::Options&, const std::string& name,
+         std::unique_ptr<leveldb::DB>*) {
+        return leveldb_env::MakeIOError(name, "No space left on device",
+                                        leveldb_env::kNewWritableFile,
+                                        base::File::FILE_ERROR_NO_SPACE);
+      }));
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  auto session_key = StdStringToUint8Vector("in_memory_key");
+  auto session_value = StdStringToUint8Vector("in_memory_value");
+  DoTestPut(session_key, session_value);
+  std::vector<uint8_t> result;
+  EXPECT_TRUE(DoTestGet(session_key, &result));
+  EXPECT_EQ(session_value, result);
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
+  // Shutting down in unbacked in-memory mode with non-empty areas must not
+  // dereference a null `database_` in `~StorageAreaHolder()`.
+  ShutDownStorage();
+
+  // Once disk space recovers, the original on-disk database is still intact.
+  leveldb_env::SetDBFactoryForTesting({});
+  InitializeStorage(storage_path());
+  EXPECT_TRUE(DoTestGet(persisted_key, &result));
+  EXPECT_EQ(persisted_value, result);
+}
+
+TEST_F(
+    LocalStorageImplTest,
+    CobaltTransientVersionReadIOErrorFallsBackToMemoryWithoutWipingDiskData) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto persisted_key = StdStringToUint8Vector("persisted_key");
+  auto persisted_value = StdStringToUint8Vector("persisted_value");
+  DoTestPut(persisted_key, persisted_value);
+  ShutDownStorage();
+
+  base::HistogramTester histograms;
+  InitializeStorage(storage_path());
+  context()->FailNextVersionReadForTesting();
+
+  auto session_key = StdStringToUint8Vector("session_key");
+  auto session_value = StdStringToUint8Vector("session_value");
+  DoTestPut(session_key, session_value);
+  std::vector<uint8_t> result;
+  EXPECT_TRUE(DoTestGet(session_key, &result));
+  EXPECT_EQ(session_value, result);
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseReadError", 0);
+  // Regression check: `~StorageAreaHolder()` must not crash when `database_`
+  // was reset by `OnGotDatabaseVersion()` and the area is non-empty!
+  ShutDownStorage();
+
+  // Reopening after the transient read I/O error clears recovers intact disk
+  // data.
+  InitializeStorage(storage_path());
+  EXPECT_TRUE(DoTestGet(persisted_key, &result));
+  EXPECT_EQ(persisted_value, result);
+}
+
+TEST_F(
+    LocalStorageImplTest,
+    CobaltTransientCommitIOErrorReopensInPlaceWithoutSeveringLiveAreaOrWipingDiskData) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto initial_key = StdStringToUint8Vector("initial_key");
+  auto initial_value = StdStringToUint8Vector("initial_value");
+  DoTestPut(initial_key, initial_value);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return GetDatabaseContents().size() == 4u; }));
+
+  std::vector<uint8_t> result;
+  ASSERT_TRUE(DoTestGet(initial_key, &result));
+  ASSERT_EQ(initial_value, result);
+
+  base::HistogramTester histograms;
+  const auto storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com");
+  mojo::Remote<blink::mojom::StorageArea> area;
+  context()->BindStorageArea(storage_key, area.BindNewPipeAndPassReceiver());
+  WaitForDatabaseOpen();
+
+  auto get_reopen_count = [&]() {
+    int reopen_count = 0;
+    base::RunLoop loop;
+    context()->GetDatabaseForTesting().PostTaskWithThisObject(
+        base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
+          reopen_count = db.reopen_count_for_testing();
+          loop.Quit();
+        }));
+    loop.Run();
+    return reopen_count;
+  };
+
+  {
+    base::RunLoop loop;
+    context()->GetDatabaseForTesting().PostTaskWithThisObject(
+        base::BindLambdaForTesting([&](DomStorageDatabase* db) {
+          db->MakeNextNCommitsFailForTesting(33);
+          loop.Quit();
+        }));
+    loop.Run();
+  }
+
+  auto transient_key = StdStringToUint8Vector("transient_key");
+  auto transient_val = StdStringToUint8Vector("transient_val");
+
+  // 10 consecutive commit errors (> old threshold of 8, <= optimized threshold
+  // of 32) must NOT trigger a database reopen or disconnect the live area.
+  for (int i = 0; i < 10; ++i) {
+    transient_val[0]++;
+    base::test::TestFuture<bool> put_future;
+    area->Put(transient_key, transient_val, std::nullopt, "source",
+              put_future.GetCallback());
+    EXPECT_TRUE(put_future.Take());
+    context()->FlushStorageKeyForTesting(storage_key);
+    RunUntilIdle();
+  }
+  EXPECT_EQ(0, get_reopen_count());
+  EXPECT_TRUE(area.is_connected());
+
+  // Continue failing commits past kCobaltOptimizedCommitErrorThreshold (32).
+  // The 33rd consecutive transient I/O error triggers an in-place ReopenDB().
+  for (int i = 10; i < 33; ++i) {
+    transient_val[0]++;
+    base::test::TestFuture<bool> put_future;
+    area->Put(transient_key, transient_val, std::nullopt, "source",
+              put_future.GetCallback());
+    EXPECT_TRUE(put_future.Take());
+    context()->FlushStorageKeyForTesting(storage_key);
+    RunUntilIdle();
+  }
+  EXPECT_TRUE(base::test::RunUntil([&]() { return get_reopen_count() == 1; }));
+  RunUntilIdle();
+
+  // Crucial SPA invariant: Blink's existing StorageArea Mojo pipe MUST remain
+  // connected, and subsequent writes on that same pipe MUST persist to disk!
+  ASSERT_TRUE(area.is_connected());
+  histograms.ExpectTotalCount("Cobalt.LocalStorage.DatabaseCommitError", 0);
+
+  auto post_recovery_key = StdStringToUint8Vector("post_recovery_key");
+  auto post_recovery_val = StdStringToUint8Vector("post_recovery_val");
+  {
+    base::test::TestFuture<bool> put_future;
+    area->Put(post_recovery_key, post_recovery_val, std::nullopt, "source",
+              put_future.GetCallback());
+    EXPECT_TRUE(put_future.Take());
+  }
+  area.reset();
+  ShutDownStorage();
+
+  // Reopen cold from disk and verify pre-outage (`initial_key`), mid-outage
+  // (`transient_key`), and post-reopen (`post_recovery_key`) writes all
+  // persisted to LevelDB!
+  InitializeStorage(storage_path());
+  EXPECT_TRUE(DoTestGet(initial_key, &result));
+  EXPECT_EQ(initial_value, result);
+  EXPECT_TRUE(DoTestGet(transient_key, &result));
+  EXPECT_EQ(transient_val, result);
+  EXPECT_TRUE(DoTestGet(post_recovery_key, &result));
+  EXPECT_EQ(post_recovery_val, result);
+}
+
+TEST_F(LocalStorageImplTest, CobaltCommitCorruptionWipesAndRecreatesDatabase) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  ResetStorage(storage_path());
+
+  auto initial_key = StdStringToUint8Vector("initial_key");
+  auto initial_value = StdStringToUint8Vector("initial_value");
+  DoTestPut(initial_key, initial_value);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return GetDatabaseContents().size() == 4u; }));
+
+  std::vector<uint8_t> result;
+  ASSERT_TRUE(DoTestGet(initial_key, &result));
+  ASSERT_EQ(initial_value, result);
+
+  base::HistogramTester histograms;
+  const auto storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com");
+  mojo::Remote<blink::mojom::StorageArea> area;
+  context()->BindStorageArea(storage_key, area.BindNewPipeAndPassReceiver());
+  WaitForDatabaseOpen();
+
+  std::optional<base::RunLoop> destruction_loop;
+  destruction_loop.emplace();
+  std::optional<base::RunLoop> reopen_loop;
+  reopen_loop.emplace();
+  context()->GetDatabaseForTesting().PostTaskWithThisObject(
+      base::BindLambdaForTesting([&](DomStorageDatabase* db) {
+        db->MakeAllCommitsFailWithCorruptionForTesting();
+        db->SetDestructionCallbackForTesting(
+            base::BindLambdaForTesting([&] { destruction_loop->Quit(); }));
+      }));
+  context()->SetDatabaseOpenCallbackForTesting(
+      base::BindLambdaForTesting([&] { reopen_loop->Quit(); }));
+
+  auto corrupt_key = StdStringToUint8Vector("corrupt_key");
+  auto corrupt_val = StdStringToUint8Vector("corrupt_val");
+  while (area.is_connected()) {
+    corrupt_val[0]++;
+    area->Put(corrupt_key, corrupt_val, std::nullopt, "source",
+              base::DoNothing());
+    area.FlushForTesting();
+    context()->FlushStorageKeyForTesting(storage_key);
+  }
+  area.reset();
+
+  destruction_loop->Run();
+  reopen_loop->Run();
+
+  histograms.ExpectUniqueSample(
+      "Cobalt.LocalStorage.DatabaseCommitError",
+      leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_CORRUPTION, 1);
+  EXPECT_FALSE(DoTestGet(initial_key, &result));
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage

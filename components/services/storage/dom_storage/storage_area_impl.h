@@ -170,6 +170,13 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // until the load has finished. If provided, |callback| is run only once the
   // commit is fully completed.
   void ScheduleImmediateCommit();
+#if BUILDFLAG(IS_COBALT)
+  // Re-queues all loaded in-memory key-value pairs for atomic persistence after
+  // the backing LevelDB handle is reopened in place following transient I/O
+  // commit failures, keeping live Blink StorageArea pipes synchronized with
+  // disk.
+  void ScheduleResyncCommitAfterDatabaseReopen();
+#endif
 
   // Clears the in-memory cache if currently no changes are pending. If there
   // are uncommitted changes this method does nothing.

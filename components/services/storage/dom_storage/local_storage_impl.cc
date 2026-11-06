@@ -46,6 +46,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "third_party/leveldatabase/env_chromium.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace storage {
@@ -87,6 +88,27 @@ const int64_t kCurrentLocalStorageSchemaVersion = 1;
 // After this many consecutive commit errors we'll throw away the entire
 // database.
 const int kCommitErrorThreshold = 8;
+#if BUILDFLAG(IS_COBALT)
+// Upstream uses 8 consecutive errors with a 5s commit debounce (~40s window).
+// Cobalt enables --enable-aggressive-domstorage-flushing (1s commit delay,
+// b/409608795), so 8 errors occur in just 8s during transient flash stalls.
+// Raising the threshold to 32 restores a ~32s tolerance window.
+const int kCobaltOptimizedCommitErrorThreshold = 32;
+
+// Returns true when OpenDB failed due to an environmental condition (disk full
+// or file lock contention) rather than database corruption, where calling
+// DestroyDB() would needlessly delete intact SST files on disk.
+bool IsNonDestructiveOpenFailure(const leveldb::Status& status) {
+  if (leveldb_env::IndicatesDiskFull(status)) {
+    return true;
+  }
+  leveldb_env::MethodID method = leveldb_env::kNumEntries;
+  base::File::Error error = base::File::FILE_OK;
+  return leveldb_env::ParseMethodAndError(status, &method, &error) !=
+             leveldb_env::NONE &&
+         method == leveldb_env::kLockFile;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
@@ -236,6 +258,11 @@ class LocalStorageImpl::StorageAreaHolder final
     if (storage_area()->empty()) {
       return;
     }
+#if BUILDFLAG(IS_COBALT)
+    if (!context_->database_) {
+      return;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     // We should not write last_accessed if the data will be purged.
     if (context_->origins_to_purge_on_shutdown_.find(storage_key_.origin()) !=
             context_->origins_to_purge_on_shutdown_.end() ||
@@ -678,6 +705,18 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
+    if (!in_memory_ &&
+        base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        IsNonDestructiveOpenFailure(status)) {
+      // Do not call DestroyDB() when OpenDB failed due to disk-full (ENOSPC)
+      // or file lock contention: the existing SST files on disk are not
+      // corrupt. Close the in-RAM AsyncDomStorageDatabase handle without
+      // deleting any files on disk and serve this session in memory.
+      database_.reset();
+      OnConnectionFinished();
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -688,6 +727,25 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
 
   // Verify DB schema version.
   if (database_) {
+#if BUILDFLAG(IS_COBALT)
+    const bool fail_version_read =
+        std::exchange(fail_next_version_read_for_testing_, false);
+    database_->RunDatabaseTask(
+        base::BindOnce(
+            [](const std::vector<uint8_t>& key, bool fail_version_read,
+               const DomStorageDatabase& db) {
+              if (fail_version_read) {
+                db.MakeNextGetFailWithIOErrorForTesting();
+              }
+              DomStorageDatabase::Value value;
+              leveldb::Status status = db.Get(key, &value);
+              return std::make_tuple(status, std::move(value));
+            },
+            std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end()),
+            fail_version_read),
+        base::BindOnce(&LocalStorageImpl::OnGotDatabaseVersion,
+                       weak_ptr_factory_.GetWeakPtr()));
+#else
     database_->RunDatabaseTask(
         base::BindOnce(
             [](const std::vector<uint8_t>& key, const DomStorageDatabase& db) {
@@ -698,6 +756,7 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
             std::vector<uint8_t>(kVersionKey.begin(), kVersionKey.end())),
         base::BindOnce(&LocalStorageImpl::OnGotDatabaseVersion,
                        weak_ptr_factory_.GetWeakPtr()));
+#endif
     return;
   }
 
@@ -730,6 +789,17 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
   } else {
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageErrorRecovery) &&
+        !status.IsCorruption()) {
+      // Do not wipe the on-disk database on a transient I/O error reading
+      // VERSION. `database_.reset()` only closes the in-RAM C++ handle/LOCK
+      // without deleting any files on disk (unlike DeleteAndRecreateDatabase);
+      // subsequent areas fall back to unbacked in-memory mode for this session.
+      database_.reset();
+      OnConnectionFinished();
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -934,7 +1004,11 @@ void LocalStorageImpl::OnGotStorageUsageForShutdown(
     }
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (!storage_keys_to_delete.empty() && database_) {
+#else
   if (!storage_keys_to_delete.empty()) {
+#endif
     DeleteStorageKeys(database_.get(), std::move(storage_keys_to_delete),
                       base::BindOnce(&LocalStorageImpl::OnStorageKeysDeleted,
                                      base::Unretained(this)));
@@ -977,8 +1051,18 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
   }
 
   commit_error_count_++;
+#if BUILDFLAG(IS_COBALT)
+  const bool error_recovery_enabled = base::FeatureList::IsEnabled(
+      base::features::kCobaltLocalStorageErrorRecovery);
+  const int commit_error_threshold = error_recovery_enabled
+                                         ? kCobaltOptimizedCommitErrorThreshold
+                                         : kCommitErrorThreshold;
+  if (commit_error_count_ > commit_error_threshold &&
+      connection_state_ != CONNECTION_SHUTDOWN) {
+#else
   if (commit_error_count_ > kCommitErrorThreshold &&
       connection_state_ != CONNECTION_SHUTDOWN) {
+#endif
     if (tried_to_recover_from_commit_errors_) {
       // We already tried to recover from a high commit error rate before, but
       // are still having problems: there isn't really anything left to try, so
@@ -991,6 +1075,19 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
+    if (error_recovery_enabled && !in_memory_ && !status.IsCorruption() &&
+        database_) {
+      // Reopen the underlying persistent `leveldb::DB` handle in place (same
+      // mechanism as `RewriteDB()`) to clear LevelDB's latched background sync
+      // error without calling `DestroyDB()` AND without calling
+      // `PurgeAllStorageAreas()`, which would sever Blink's `CachedStorageArea`
+      // Mojo pipes for the rest of a long-lived SPA session.
+      commit_error_count_ = 0;
+      database_->ReopenDB(
+          base::BindOnce(&LocalStorageImpl::OnDatabaseReopenedAfterCommitErrors,
+                         weak_ptr_factory_.GetWeakPtr()));
+      return;
+    }
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
@@ -998,6 +1095,29 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     DeleteAndRecreateDatabase();
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void LocalStorageImpl::OnDatabaseReopenedAfterCommitErrors(
+    leveldb::Status status) {
+  if (connection_state_ == CONNECTION_SHUTDOWN) {
+    return;
+  }
+  if (status.ok()) {
+    commit_error_count_ = 0;
+    database_initialized_ = false;
+    for (auto& [_, holder] : areas_) {
+      holder->storage_area()->ScheduleResyncCommitAfterDatabaseReopen();
+    }
+    return;
+  }
+  if (status.IsCorruption()) {
+    base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
+                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::LEVELDB_STATUS_MAX);
+    DeleteAndRecreateDatabase();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void LocalStorageImpl::DeleteStaleStorageAreas() {
   if (!database_) {

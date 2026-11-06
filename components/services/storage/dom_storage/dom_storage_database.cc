@@ -29,6 +29,7 @@
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/timer/elapsed_timer.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -98,6 +99,103 @@ leveldb::WriteOptions CreateSyncWriteOptions() {
   options.sync = true;
   return options;
 }
+
+// Returns true if the Local Storage LevelDB directory contains surviving table
+// (.ldb/.sst), log (.log), or manifest (MANIFEST-*) files, but lacks a valid
+// CURRENT pointer file and does not have an interrupted RewriteDB() backup
+// (`__tmp_for_rebuild`, which `leveldb_env::OpenDB()` restores atomically).
+// Without intervention, upstream `DB::Open(create_if_missing=true)` treats a
+// missing CURRENT as an empty DB, calls `NewDB()`, and deletes all existing SST
+// files in `RemoveObsoleteFiles()`, silently wiping user data.
+bool HasExistingLevelDBFilesWhenCurrentMissing(
+    const leveldb_env::Options& options,
+    const std::string& name) {
+  if (name.empty() || !options.env || leveldb_chrome::IsMemEnv(options.env)) {
+    return false;
+  }
+  base::FilePath db_path = base::FilePath::FromUTF8Unsafe(name);
+  const std::string db_path_utf8 = db_path.AsUTF8Unsafe();
+  if (db_path.BaseName() != base::FilePath(FILE_PATH_LITERAL("leveldb")) ||
+      options.env->FileExists(db_path.AppendASCII("CURRENT").AsUTF8Unsafe()) ||
+      !options.env->FileExists(db_path_utf8) ||
+      options.env->FileExists(
+          leveldb_env::DatabaseNameForRewriteDB(db_path_utf8))) {
+    return false;
+  }
+  std::vector<std::string> children;
+  if (!options.env->GetChildren(db_path_utf8, &children).ok()) {
+    return false;
+  }
+  for (const std::string& child : children) {
+    if (base::EndsWith(child, ".ldb") || base::EndsWith(child, ".sst") ||
+        base::EndsWith(child, ".log") || base::StartsWith(child, "MANIFEST-")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Removes the <dbname>/lost archive directory created by leveldb::RepairDB()
+// so converted .log and old MANIFEST files do not permanently leak USER_DATA
+// disk space.
+void RemoveRepairLostDirectory(const leveldb_env::Options& options,
+                               const std::string& name) {
+  if (name.empty() || !options.env) {
+    return;
+  }
+  const std::string lost_dir =
+      base::FilePath::FromUTF8Unsafe(name).AppendASCII("lost").AsUTF8Unsafe();
+  if (!options.env->FileExists(lost_dir)) {
+    return;
+  }
+  std::vector<std::string> children;
+  if (options.env->GetChildren(lost_dir, &children).ok()) {
+    for (const std::string& child : children) {
+      if (child != "." && child != "..") {
+        options.env->RemoveFile(
+            base::FilePath::FromUTF8Unsafe(lost_dir)
+                .Append(base::FilePath::FromUTF8Unsafe(child))
+                .AsUTF8Unsafe());
+      }
+    }
+  }
+  options.env->RemoveDir(lost_dir);
+}
+
+// Unlike DB::Open() and DestroyDB(), upstream leveldb::RepairDB() does not
+// acquire <dbname>/LOCK. Acquire LOCK before repairing and cleaning up `lost/`
+// so an active lock holder can never have its WAL or MANIFEST moved/deleted.
+leveldb::Status RepairDBWithLock(const leveldb_env::Options& options,
+                                 const std::string& name) {
+  if (name.empty() || !options.env) {
+    return leveldb::Status::InvalidArgument("Invalid DB options or name");
+  }
+  const std::string lock_path =
+      base::FilePath::FromUTF8Unsafe(name).AppendASCII("LOCK").AsUTF8Unsafe();
+  leveldb::FileLock* lock = nullptr;
+  leveldb::Status lock_status = options.env->LockFile(lock_path, &lock);
+  if (!lock_status.ok()) {
+    return lock_status;
+  }
+  leveldb::Status repair_status = leveldb::RepairDB(name, options);
+  RemoveRepairLostDirectory(options, name);
+  options.env->UnlockFile(lock);
+  return repair_status;
+}
+
+bool ShouldAttemptRepairOnOpenError(const leveldb::Status& status) {
+  if (status.ok() || leveldb_env::IndicatesDiskFull(status)) {
+    return false;
+  }
+  leveldb_env::MethodID method = leveldb_env::kNumEntries;
+  base::File::Error error = base::File::FILE_OK;
+  if (leveldb_env::ParseMethodAndError(status, &method, &error) !=
+          leveldb_env::NONE &&
+      method == leveldb_env::kLockFile) {
+    return false;
+  }
+  return true;
+}
 #endif
 
 std::unique_ptr<leveldb::DB> TryOpenDB(
@@ -106,7 +204,45 @@ std::unique_ptr<leveldb::DB> TryOpenDB(
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     DomStorageDatabase::StatusCallback callback) {
   std::unique_ptr<leveldb::DB> db;
+#if BUILDFLAG(IS_COBALT)
+  const bool is_local_storage_disk_db =
+      !name.empty() && options.env && !leveldb_chrome::IsMemEnv(options.env) &&
+      base::FilePath::FromUTF8Unsafe(name).BaseName() ==
+          base::FilePath(FILE_PATH_LITERAL("leveldb"));
+  const bool should_attempt_error_recovery =
+      is_local_storage_disk_db &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery);
+  bool attempted_repair = false;
+  if (is_local_storage_disk_db &&
+      HasExistingLevelDBFilesWhenCurrentMissing(options, name)) {
+    if (should_attempt_error_recovery) {
+      // Reconstruct MANIFEST and CURRENT from existing .ldb/.log metadata in
+      // place (without rewriting valid .ldb SST files) before OpenDB's
+      // create_if_missing=true calls NewDB() and RemoveObsoleteFiles() deletes
+      // all existing table files.
+      RepairDBWithLock(options, name);
+      attempted_repair = true;
+    } else {
+      // Without error recovery, OpenDB(create_if_missing=true) calls NewDB()
+      // and RemoveObsoleteFiles() deletes all existing .ldb tables while
+      // returning Status::OK(). Record DatabaseOpenError so this silent data
+      // wipe is observable in UMA.
+      base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
+                                    leveldb_env::LEVELDB_STATUS_CORRUPTION,
+                                    leveldb_env::LEVELDB_STATUS_MAX);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
+#if BUILDFLAG(IS_COBALT)
+  if (should_attempt_error_recovery && !attempted_repair &&
+      ShouldAttemptRepairOnOpenError(status)) {
+    if (RepairDBWithLock(options, name).ok()) {
+      status = leveldb_env::OpenDB(options, name, &db);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   callback_task_runner->PostTask(FROM_HERE,
                                  base::BindOnce(std::move(callback), status));
   return db;
@@ -324,6 +460,12 @@ DomStorageDatabase::Status DomStorageDatabase::Get(KeyView key,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_)
     return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  if (fail_next_get_with_io_error_for_testing_) {
+    fail_next_get_with_io_error_for_testing_ = false;
+    return Status::IOError("Simulated Read I/O Error");
+  }
+#endif
   std::string value;
   Status status = db_->Get(leveldb::ReadOptions(), MakeSlice(key), &value);
   *out_value = Value(value.begin(), value.end());
@@ -394,6 +536,15 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
     leveldb::WriteBatch* batch) const {
   if (!db_)
     return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  if (fail_commits_with_corruption_for_testing_) {
+    return Status::Corruption("Simulated Corruption");
+  }
+  if (remaining_commit_io_errors_for_testing_ > 0) {
+    --remaining_commit_io_errors_for_testing_;
+    return Status::IOError("Simulated Transient I/O Error");
+  }
+#endif
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
 #if BUILDFLAG(IS_COBALT)
@@ -428,6 +579,27 @@ DomStorageDatabase::Status DomStorageDatabase::RewriteDB() {
     db_.reset();
   return status;
 }
+
+#if BUILDFLAG(IS_COBALT)
+DomStorageDatabase::Status DomStorageDatabase::Reopen() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (env_ || name_.empty()) {
+    return Status::NotSupported("Cannot reopen in-memory database.");
+  }
+  ++reopen_count_for_testing_;
+  db_.reset();
+  Status status = leveldb_env::OpenDB(options_, name_, &db_);
+  if (is_local_storage_ &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery) &&
+      ShouldAttemptRepairOnOpenError(status)) {
+    if (RepairDBWithLock(options_, name_).ok()) {
+      status = leveldb_env::OpenDB(options_, name_, &db_);
+    }
+  }
+  return status;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool DomStorageDatabase::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
