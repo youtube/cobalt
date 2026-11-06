@@ -66,6 +66,15 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
   return true;
 }
 
+int GetVideoCodecCreationRetryCount(const ExperimentalFeatures& features,
+                                    std::optional<int> feature_retry_count) {
+  if (std::optional<int> h5vcc_retry_count =
+          features.Get(kMediaVideoCodecCreationRetryCount)) {
+    return std::max(0, *h5vcc_retry_count);
+  }
+  return std::max(0, feature_retry_count.value_or(0));
+}
+
 std::optional<Size> ParseMaxResolution(const std::string& max_video_param,
                                        std::string_view param_name,
                                        const Size& frame_size) {

@@ -65,13 +65,15 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
   // Creates the decoder without asserting success, so tests can exercise
   // creation failures. |codec_creation_failures| is the number of initial
-  // FakeMediaCodecFactory::CreateVideoMediaCodec() calls that fail.
+  // FakeMediaCodecFactory::CreateVideoMediaCodec() calls that fail, and
+  // |codec_creation_retry_count| is the decoder's retry budget.
   NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> TryCreateDecoder(
       const std::string& max_video_capabilities = "",
       const VideoStreamInfo* initial_stream_info = nullptr,
       ExperimentalFeatures experimental_features = {},
       bool enable_flush_during_seek = false,
-      int codec_creation_failures = 0) {
+      int codec_creation_failures = 0,
+      int codec_creation_retry_count = 0) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
     fake_factory_->set_video_codec_creation_failures_remaining(
@@ -88,6 +90,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
     pipeline_config.enable_flush_during_seek = enable_flush_during_seek;
+    pipeline_config.codec_creation_retry_count = codec_creation_retry_count;
     MediaCodecVideoDecoder::PlatformOptions platform_options;
 
     return MediaCodecVideoDecoder::CreateForTesting(
@@ -100,11 +103,12 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
                      const VideoStreamInfo* initial_stream_info = nullptr,
                      ExperimentalFeatures experimental_features = {},
                      bool enable_flush_during_seek = false,
-                     int codec_creation_failures = 0) {
-    auto result =
-        TryCreateDecoder(max_video_capabilities, initial_stream_info,
-                         std::move(experimental_features),
-                         enable_flush_during_seek, codec_creation_failures);
+                     int codec_creation_failures = 0,
+                     int codec_creation_retry_count = 0) {
+    auto result = TryCreateDecoder(
+        max_video_capabilities, initial_stream_info,
+        std::move(experimental_features), enable_flush_during_seek,
+        codec_creation_failures, codec_creation_retry_count);
 
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
@@ -122,10 +126,15 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         });
   }
 
-  ExperimentalFeatures RetryFeatures(int retry_count) {
-    return ExperimentalFeatures(ExperimentalFeatures::Map{
-        {std::string(kMediaVideoCodecCreationRetryCount.key()),
-         static_cast<int64_t>(retry_count)}});
+  // Creates a decoder with a retry budget of |codec_creation_retry_count|,
+  // whose first |codec_creation_failures| MediaCodec creations fail.
+  void CreateDecoderWithCodecCreationRetries(int codec_creation_retry_count,
+                                             int codec_creation_failures) {
+    CreateDecoder(/*max_video_capabilities=*/"",
+                  /*initial_stream_info=*/nullptr,
+                  /*experimental_features=*/{},
+                  /*enable_flush_during_seek=*/false, codec_creation_failures,
+                  codec_creation_retry_count);
   }
 
   // The test thread owns |job_queue_|, so delayed jobs (e.g. codec creation
@@ -528,10 +537,41 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
+       NegativeCodecCreationRetryCountDisablesRetries) {
+  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
+                                 /*initial_stream_info=*/nullptr,
+                                 /*experimental_features=*/{},
+                                 /*enable_flush_during_seek=*/false,
+                                 /*codec_creation_failures=*/1,
+                                 /*codec_creation_retry_count=*/-1);
+
+  EXPECT_FALSE(result);
+  fake_factory_ = nullptr;
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       H5vccRetryCountIsResolvedByFactoryNotByDecoder) {
+  // PlayerComponentsFactory combines the H5VCC setting with the Starboard
+  // feature and passes the result via PipelineConfig; the decoder itself must
+  // not apply the H5VCC setting a second time.
+  ExperimentalFeatures h5vcc_retries(ExperimentalFeatures::Map{
+      {std::string(kMediaVideoCodecCreationRetryCount.key()),
+       static_cast<int64_t>(3)}});
+  auto result = TryCreateDecoder(/*max_video_capabilities=*/"",
+                                 /*initial_stream_info=*/nullptr,
+                                 std::move(h5vcc_retries),
+                                 /*enable_flush_during_seek=*/false,
+                                 /*codec_creation_failures=*/1,
+                                 /*codec_creation_retry_count=*/0);
+
+  EXPECT_FALSE(result);
+  fake_factory_ = nullptr;
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
        CtorCodecCreationFailureIsRetriedAndInputsAreBuffered) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/1);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/1);
   ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
   ASSERT_EQ(GetFakeVideoCodec(), nullptr);
 
@@ -573,9 +613,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        CodecCreationRetriesExhaustedReportsDecodeError) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(2), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/10);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/2,
+                                        /*codec_creation_failures=*/10);
   InitializeDecoder();
 
   ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
@@ -593,9 +632,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        EndOfStreamDuringPendingCodecCreationRetryIsForwarded) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/1);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/1);
   InitializeDecoder();
 
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
@@ -622,9 +660,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        CodecCreationSucceedsAfterMultipleRetriesWithoutInput) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/2);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/2);
   InitializeDecoder();
   ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
 
@@ -645,9 +682,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        EndOfStreamWithoutInputCancelsPendingCodecCreationRetry) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/1);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/1);
 
   int eos_frame_count = 0;
   decoder_->Initialize(
@@ -671,9 +707,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest, HdrColorMetadataSurvivesCodecCreationRetry) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/1);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/1);
   InitializeDecoder();
 
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
@@ -694,9 +729,8 @@ TEST_F(MediaCodecVideoDecoderTest, HdrColorMetadataSurvivesCodecCreationRetry) {
 
 TEST_F(MediaCodecVideoDecoderTest,
        ResetDuringPendingCodecCreationRetryCancelsRetry) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(3), /*enable_flush_during_seek=*/false,
-                /*codec_creation_failures=*/1);
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/1);
   InitializeDecoder();
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
 
@@ -716,8 +750,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest, PostResetCodecCreationFailureIsRetried) {
-  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
-                RetryFeatures(1));
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/1,
+                                        /*codec_creation_failures=*/0);
   InitializeDecoder();
   decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
   ASSERT_EQ(fake_factory_->video_codec_create_count(), 1);
