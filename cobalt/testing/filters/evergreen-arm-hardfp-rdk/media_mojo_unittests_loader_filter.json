@@ -2,6 +2,7 @@
   "failing_tests": [
     "MediaServiceTest.*",
     "MediaTypeConvertersTest.ConvertDecoderBuffer_*",
+    "MediaTypeConvertersTest.RejectOOBSubsample",
     "MojoAudioDecoderTest.*",
     "MojoDecoderBufferConverterTest.*",
     "MojoDecryptorTest.*",

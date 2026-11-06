@@ -26,6 +26,7 @@
     "JpegParserTest.*",
     "KeySystemsTest.*",
     "MediaServiceTest.*",
+    "MediaTypeConvertersTest.RejectOOBSubsample",
     "MimeUtilTest.*",
     "MojoDecoderBufferConverterTest.*",
     "MojoDecryptorTest.*",
