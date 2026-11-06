@@ -289,8 +289,8 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
          MemOperand(wrapper_buffer,
                     WasmInterpreterWrapperConstants::kWrapperBufferParamStart));
 
-  DEFINE_PINNED(function_index, x15);
-  __ Ldr(function_index.W(),
+  DEFINE_PINNED(function_index, w15);
+  __ Ldr(function_index,
          MemOperand(wrapper_buffer,
                     WasmInterpreterWrapperConstants::kWrapperBufferCallTarget));
   __ SmiTag(function_index);
@@ -1013,7 +1013,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
-         Immediate(kSystemPointerSize));
+         Immediate(sizeof(int32_t)));
   __ jmp(&return_done);
 
   __ bind(&return_kWasmI32_not_smi);
