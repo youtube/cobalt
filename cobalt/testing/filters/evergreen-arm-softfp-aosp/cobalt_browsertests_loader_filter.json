@@ -49,6 +49,14 @@
     "EncryptedMediaTest.*",
     "MediaTest.*",
     "CustomMimeTypeBrowserTest.*",
+<<<<<<< HEAD
     "WebRtcGetUserMediaBrowserTest.*"
+=======
+    "WebRtcGetUserMediaBrowserTest.*",
+    "I18nBrowserTest.*",
+    "RepresentativeLanguages/I18nBrowserLanguageParamTest.*",
+    "RenderThreadHiddenGpuChannelBrowserTest.*",
+    "RenderThreadHiddenGpuChannelDefaultDisabledBrowserTest.*"
+>>>>>>> 76af6be1e (cobalt/gpu: Skip sync GPU channel establishment while renderer is hidden (#13847))
   ]
 }
