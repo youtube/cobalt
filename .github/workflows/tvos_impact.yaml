@@ -27,12 +27,44 @@ permissions:
   contents: read
 
 jobs:
-  analyze-tvos-impact:
+  # Changes that gn analyze can't see, e.g. the platform's
+  # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE, always
+  # count. Checking them first skips the checkout and gclient sync.
+  check-paths:
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      always_affects_tvos: ${{ steps.check.outputs.always_affects_tvos }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/(tvos|tvos_impact|auto_label_kokoro)\.yaml$)
+        run: |
+          files=$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[].filename')
+          echo "${files}"
+          # The API lists at most 3000 files.
+          if [[ "$(grep -c . <<< "${files}")" -lt "${CHANGED_FILES}" ]] || grep -qE "${ALWAYS_AFFECTS_TVOS}" <<< "${files}"; then
+            echo "always_affects_tvos=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "always_affects_tvos=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  analyze-tvos-impact:
+    needs: check-paths
+    if: needs.check-paths.outputs.always_affects_tvos == 'false'
     runs-on: [self-hosted, chrobalt-linux-runner]
     permissions:
       contents: read
     timeout-minutes: 20
+    # Keeps the run's conclusion success on timeout, so the label is applied.
+    continue-on-error: true
     container:
       image: ghcr.io/youtube/cobalt/linux:main
       options: --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=unconfined
@@ -76,15 +108,22 @@ jobs:
           platform: linux-x64x11
           use_gcloud: true
 
-      # Squash merges the PR onto the base branch, like main.yaml.
-      - name: Checkout
-        uses: ./.github/actions/checkout
-        with:
-          path: cobalt/src
-          ref: ${{ github.event.pull_request.head.sha }}
-          squash_merge: true
-          fetch_depth: 2
-          use_cache: true
+      # github.sha is the PR merge commit. Set Up Depot Tools syncs src to it
+      # if DEPS changed, so check it out instead of squash merging.
+      - name: Check Out PR Merge Commit
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          mkdir -p cobalt/src
+          cd cobalt/src
+          git config --global --add safe.directory "${PWD}"
+          if [[ ! -d .git ]]; then
+            git init -q
+            git remote add origin "${REPO_URL}"
+          fi
+          git fetch --no-tags --depth=2 --filter=blob:none origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+          git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
 
       - name: Set Up Depot Tools
         uses: ./.github/actions/depot_tools
@@ -92,26 +131,14 @@ jobs:
           platform: linux-x64x11
           use_gcloud: true
 
-      - name: List Changed Files
-        working-directory: cobalt/src
-        run: git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
-
       - name: Check tvOS Build Impact
         id: analyze
         working-directory: cobalt/src
         env:
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
-          # Changes that gn analyze can't see, e.g. the platform's
-          # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE.
-          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/(tvos|tvos_impact|auto_label_kokoro)\.yaml$)
           HEADERS: \.(h|hh|hpp|inc|inl|def)$
         run: |
           files="${RUNNER_TEMP}/changed_files.txt"
-          if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${files}"; then
-            echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
           out="${RUNNER_TEMP}/out"
           wrapper="--script-executable=${PWD}/cobalt/build/tvos_linux_script_wrapper.py"
           python3 cobalt/build/gn.py "${out}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${wrapper}"
@@ -131,9 +158,10 @@ jobs:
           status=$(jq -r .status "${out}/analyze_out.json")
           echo "affects_tvos=$([[ "${status}" == "No dependency" ]] && echo false || echo true)" >> "${GITHUB_OUTPUT}"
 
-  # Always uploads the result, so auto_label_kokoro.yaml can find the PR.
+  # Uploads the result unless the run is cancelled. auto_label_kokoro.yaml
+  # treats a missing result as a cancelled run.
   report:
-    needs: analyze-tvos-impact
+    needs: [check-paths, analyze-tvos-impact]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
@@ -142,13 +170,14 @@ jobs:
       - name: Write Result
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          ANALYZE_RESULT: ${{ needs.analyze-tvos-impact.result }}
+          ALWAYS_AFFECTS_TVOS: ${{ needs.check-paths.outputs.always_affects_tvos }}
           AFFECTS_TVOS: ${{ needs.analyze-tvos-impact.outputs.affects_tvos }}
         run: |
           mkdir -p tvos_impact
           echo "${PR_NUMBER}" > tvos_impact/pr_number
-          # Empty if the analysis was skipped or failed.
-          [[ "${ANALYZE_RESULT}" == "success" ]] || AFFECTS_TVOS=""
+          [[ "${ALWAYS_AFFECTS_TVOS}" == "true" ]] && AFFECTS_TVOS=true
+          # Empty if the analysis was skipped, failed, or timed out.
+          [[ "${AFFECTS_TVOS}" =~ ^(true|false)$ ]] || AFFECTS_TVOS=""
           echo "${AFFECTS_TVOS}" > tvos_impact/affects_tvos
           cat tvos_impact/*
 

@@ -27,18 +27,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if [[ "${RUN_CONCLUSION}" == "cancelled" ]]; then
-            echo "tvOS Impact run was cancelled."
-            exit 0
+          # A missing result means the tvOS Impact run was cancelled. Fail, so
+          # the tvOS check fails too, unless the PR has a newer commit.
+          dir="${RUNNER_TEMP}/tvos_impact"
+          if ! gh run download "${RUN_ID}" --repo "${REPO}" --name tvos-impact --dir "${dir}"; then
+            echo "::error::No result: tvOS Impact run ${RUN_ID} was cancelled."
+            exit 1
           fi
 
           # The result comes from a run of PR code. Only accept a PR whose
           # head is the analyzed commit, and treat anything but false as true.
-          dir="${RUNNER_TEMP}/tvos_impact"
-          gh run download "${RUN_ID}" --repo "${REPO}" --name tvos-impact --dir "${dir}"
           pr_number=$(head -c 32 "${dir}/pr_number" | tr -d '[:space:]')
           affects_tvos=$(head -c 32 "${dir}/affects_tvos" | tr -d '[:space:]')
           [[ "${pr_number}" =~ ^[0-9]+$ ]] || { echo "::error::Invalid PR number."; exit 1; }
