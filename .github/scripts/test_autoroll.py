@@ -62,6 +62,9 @@ Critical User Journeys (CUJs) Covered:
   Because the roll cursor remains stickied to the last full mode SHA, any older
   PRs labeled later are discovered and migrated even if newer PRs have already
   been merged. The AUTOROLL file SHA remains stickied to the last full mode SHA.
+- CUJ 14: Verbose CLI Flags (-v / --verbose)
+  Enables verbose logging (lib.VERBOSE=True), printing all executed git commands
+  via shlex.join to stderr.
 
 Integration Test Guidelines:
 - All integration tests MUST verify the branch state after the SUT finishes:
@@ -897,6 +900,89 @@ class TestAutorollIntegration(unittest.TestCase):
         out = lib.git('rev-parse', '--is-inside-work-tree')
       self.assertEqual(out.strip(), 'true')
       self.assertEqual(stderr_buf.getvalue(), '')
+    finally:
+      lib.VERBOSE = old_verbose
+
+  def test_cuj14_verbose_cli_flags(self):
+    """CUJ 14: Verbose CLI flags (-v / --verbose) enable stderr git logging."""
+    old_verbose = lib.VERBOSE
+    try:
+      self.init_target_branch('staging')
+      self.commit_file('a.txt', 'content a\n', 'Add feature A (#101)')
+
+      self.git('checkout', 'staging')
+      self.git('checkout', '-b', 'autoroll-main-to-staging')
+
+      # Run without verbose flag
+      lib.VERBOSE = False
+      exit_code, _, stderr = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '1',
+          '--existing-pr-sha',
+          '',
+          '--mode',
+          'full',
+      ])
+      self.assertEqual(exit_code, 0)
+      self.assertFalse(lib.VERBOSE)
+      self.assertNotIn('Running: git', stderr)
+
+      # Reset branch to staging
+      self.git('reset', '--hard', 'staging')
+
+      # Run with --verbose flag
+      lib.VERBOSE = False
+      exit_code, _, stderr = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '1',
+          '--existing-pr-sha',
+          '',
+          '--mode',
+          'full',
+          '--verbose',
+      ])
+      self.assertEqual(exit_code, 0)
+      self.assertTrue(lib.VERBOSE)
+      self.assertIn('Running: git', stderr)
+
+      # Reset branch to staging
+      self.git('reset', '--hard', 'staging')
+
+      # Run with -v flag
+      lib.VERBOSE = False
+      exit_code, _, stderr = self.run_autoroll([
+          '--source-branch',
+          'main',
+          '--target-branch',
+          'staging',
+          '--autoroll-file',
+          '.github/AUTOROLL',
+          '--max-commits',
+          '1',
+          '--existing-pr-sha',
+          '',
+          '--mode',
+          'full',
+          '-v',
+      ])
+      self.assertEqual(exit_code, 0)
+      self.assertTrue(lib.VERBOSE)
+      self.assertIn('Running: git', stderr)
+
+      # Verify clean working tree
+      self.assert_working_tree_clean()
     finally:
       lib.VERBOSE = old_verbose
 
