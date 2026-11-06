@@ -292,8 +292,11 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (updater_channel == "dogfood" || updater_channel == "dogfoodqa") {
     return kOmahaCobalt27DogfoodAppID;
   }
+  // Trunk builds use the "main" purpose token (e.g. 28.main.0); older trunk
+  // builds used "master" (e.g. 27.master.0).
   if (version.find(".lts.") == std::string::npos &&
-      version.find(".master.") != std::string::npos) {
+      (version.find(".main.") != std::string::npos ||
+       version.find(".master.") != std::string::npos)) {
     return kOmahaCobaltTrunkAppID;
   }
   std::string channel(updater_channel);

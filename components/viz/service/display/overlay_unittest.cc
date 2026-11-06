@@ -85,6 +85,14 @@
 #include "components/viz/service/display/overlay_strategy_underlay_cast.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"  // nogncheck
+#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
+
 #if BUILDFLAG(IS_APPLE)
 #include "components/viz/service/display/ca_layer_overlay.h"
 #endif
@@ -568,6 +576,17 @@ class UnderlayCastOverlayProcessor : public DefaultOverlayProcessor {
 };
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+class UnderlayStarboardOverlayProcessor : public DefaultOverlayProcessor {
+ public:
+  UnderlayStarboardOverlayProcessor() : DefaultOverlayProcessor() {
+    strategies_.push_back(
+        std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+  }
+};
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
+
 class ChangeThresholdOnTopOverlayProcessor : public DefaultOverlayProcessor {
  public:
   ChangeThresholdOnTopOverlayProcessor() {
@@ -940,6 +959,10 @@ using TransparentUnderlayTest =
 #if BUILDFLAG(ENABLE_CAST_OVERLAY_STRATEGY)
 using UnderlayCastTest = OverlayTest<UnderlayCastOverlayProcessor>;
 #endif
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+using UnderlayStarboardTest = OverlayTest<UnderlayStarboardOverlayProcessor>;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 using MultiOverlayTest = UseMultipleOverlaysTest<MultiOverlayProcessor>;
 using MultiUnderlayTest = UseMultipleOverlaysTest<MultiUnderlayProcessor>;
 using MultiSingleOnTopOverlayTest =
@@ -6911,6 +6934,84 @@ TEST_P(MultiUnderlayPromotedTest, UnderlaysBlendPrimaryPlane) {
 INSTANTIATE_TEST_SUITE_P(PromotedTrueFalse,
                          MultiUnderlayPromotedTest,
                          testing::Bool());
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+// Records the video holes reported by OverlayStrategyUnderlayStarboard, one
+// entry per SetVideoGeometries() call.
+class FakeVideoGeometrySetter
+    : public cobalt::media::mojom::VideoGeometrySetter {
+ public:
+  struct VideoHole {
+    base::UnguessableToken overlay_plane_id;
+    gfx::RectF rect_f;
+  };
+
+  // cobalt::media::mojom::VideoGeometrySetter implementation.
+  void SetVideoGeometries(
+      std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back)
+      override {
+    std::vector<VideoHole>& frame = frames_.emplace_back();
+    for (const auto& video_hole : front_to_back) {
+      frame.push_back({video_hole->overlay_plane_id, video_hole->rect_f});
+    }
+  }
+
+  const std::vector<std::vector<VideoHole>>& frames() const { return frames_; }
+
+ private:
+  std::vector<std::vector<VideoHole>> frames_;
+};
+
+TEST_F(UnderlayStarboardTest, ReportsAllVideoHolesOfAFrameFrontToBack) {
+  FakeVideoGeometrySetter fake_setter;
+  mojo::Receiver<cobalt::media::mojom::VideoGeometrySetter> setter_receiver(
+      &fake_setter);
+  GetVideoGeometrySetter().reset();
+  ConnectVideoGeometrySetter(setter_receiver.BindNewPipeAndPassRemote());
+  base::ScopedClosureRunner reset_video_geometry_setter(
+      base::BindOnce([] { GetVideoGeometrySetter().reset(); }));
+
+  auto pass = CreateRenderPass();
+  // |quad_list| is front-to-back: append secondary (front) quad first, then
+  // primary (back) quad second.
+  const base::UnguessableToken kSecondaryToken =
+      base::UnguessableToken::Create();
+  auto* secondary_quad = pass->CreateAndAppendDrawQuad<VideoHoleDrawQuad>();
+  secondary_quad->SetNew(pass->shared_quad_state_list.back(),
+                         kOverlayBottomRightRect, kOverlayBottomRightRect,
+                         kSecondaryToken);
+
+  const base::UnguessableToken kPrimaryToken = base::UnguessableToken::Create();
+  auto* primary_quad = pass->CreateAndAppendDrawQuad<VideoHoleDrawQuad>();
+  primary_quad->SetNew(pass->shared_quad_state_list.back(), kOverlayRect,
+                       kOverlayRect, kPrimaryToken);
+
+  OverlayCandidateList candidate_list;
+  OverlayProcessorInterface::FilterOperationsMap render_pass_filters;
+  OverlayProcessorInterface::FilterOperationsMap render_pass_backdrop_filters;
+  AggregatedRenderPassList pass_list;
+  pass_list.push_back(std::move(pass));
+  SurfaceDamageRectList surface_damage_rect_list;
+
+  overlay_processor_->ProcessForOverlays(
+      resource_provider(), &pass_list, GetIdentityColorMatrix(),
+      render_pass_filters, render_pass_backdrop_filters,
+      std::move(surface_damage_rect_list), nullptr, &candidate_list,
+      &damage_rect_, &content_bounds_);
+  GetVideoGeometrySetter().FlushForTesting();
+
+  // Both holes are reported in a single call, front-most first, so that the
+  // VideoGeometrySetter service can derive their stacking order.
+  ASSERT_EQ(fake_setter.frames().size(), 1u);
+  const auto& frame = fake_setter.frames()[0];
+  ASSERT_EQ(frame.size(), 2u);
+  EXPECT_EQ(frame[0].overlay_plane_id, kSecondaryToken);
+  EXPECT_EQ(frame[0].rect_f, gfx::RectF(kOverlayBottomRightRect));
+  EXPECT_EQ(frame[1].overlay_plane_id, kPrimaryToken);
+  EXPECT_EQ(frame[1].rect_f, gfx::RectF(kOverlayRect));
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 
 }  // namespace
 }  // namespace viz

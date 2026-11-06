@@ -23,7 +23,7 @@ _cobalt_version_defines =
 assert(_cobalt_version_defines != [],
        "COBALT_VERSION is not defined in //cobalt/version.h")
 
-# The Cobalt version string, e.g. "27.lts.10" or "27.master.0".
+# The Cobalt version string, e.g. "27.lts.10" or "28.main.0".
 cobalt_version = string_replace(string_replace(_cobalt_version_defines[0],
                                                "#define COBALT_VERSION \"",
                                                "",
