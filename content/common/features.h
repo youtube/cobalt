@@ -67,6 +67,13 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kCachedFirstRectAllowInvalidSelection);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCancelCompositionWhenWindowLosesFocus);
 #endif  // BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCDPScreenshotNewSurface);
+<<<<<<< ours
+=======
+#if BUILDFLAG(IS_COBALT)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipSyncGpuChannelWhenHidden);
+#endif  // BUILDFLAG(IS_COBALT)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeClipPathAnimation);
+>>>>>>> theirs
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCodeCacheDeletionWithoutFilter);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCopyFromSurfaceAlwaysCallCallback);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCriticalClientHint);
