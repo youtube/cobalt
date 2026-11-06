@@ -51,6 +51,11 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
     SbAudioSinkPrivate::ErrorFunc error;
   };
 
+  struct Options {
+    bool allow_audio_writing_on_pause = false;
+    bool pause_using_audio_track_state = false;
+  };
+
   SbAudioSink Create(
       int channels,
       int sampling_frequency_hz,
@@ -70,8 +75,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                      int64_t start_time,
                      std::optional<int> tunnel_mode_audio_session_id,
                      bool is_web_audio,
-                     bool allow_audio_writing_on_pause,
-                     bool pause_using_audio_track_state,
+                     const Options& options,
                      void* context);
 
   void TestMinRequiredFrames();
@@ -101,8 +105,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
-      bool allow_audio_writing_on_pause,
-      bool pause_using_audio_track_state,
+      const AudioTrackAudioSinkType::Options& options,
       void* context);
   static std::unique_ptr<AudioTrackAudioSink> CreateForTesting(
       int channels,
@@ -114,8 +117,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
       AudioTrackAudioSinkType::Callbacks callbacks,
       int64_t start_media_time,
       std::optional<int> tunnel_mode_audio_session_id,
-      bool allow_audio_writing_on_pause,
-      bool pause_using_audio_track_state,
+      const AudioTrackAudioSinkType::Options& options,
       std::unique_ptr<AudioTrack> fake_audio_track,
       void* context);
 
@@ -129,8 +131,7 @@ class AudioTrackAudioSink : public AudioSinkAndroid {
                       AudioTrackAudioSinkType::Callbacks callbacks,
                       int64_t start_media_time,
                       std::optional<int> tunnel_mode_audio_session_id,
-                      bool allow_audio_writing_on_pause,
-                      bool pause_using_audio_track_state,
+                      const AudioTrackAudioSinkType::Options& options,
                       std::unique_ptr<AudioTrack> audio_track,
                       void* context);
   ~AudioTrackAudioSink() override;
