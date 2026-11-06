@@ -75,6 +75,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kNumRasterThreads, "2"},
       // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
       {switches::kMaxHttpCacheSize, "26214400"},
+      // ATOM_PERF (PoC A4): Raise GPU discardable/transfer cache from 1 MB to
+      // 32 MB so decoded thumbnail textures stay cached across transitions.
+      {"force-gpu-mem-discardable-limit-mb", "32"},
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
