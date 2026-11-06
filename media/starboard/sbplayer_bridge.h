@@ -414,6 +414,12 @@ class SbPlayerBridge {
   base::Time first_audio_sample_time_{};
   base::Time first_video_sample_time_{};
   base::Time sb_player_state_presenting_time_{};
+  // When the Starboard call that creates the player (SbPlayerCreate() or
+  // SbUrlPlayerCreate()) was made. Used for latency UMA.
+  base::TimeTicks sb_player_create_start_time_{};
+  // Whether the last call that created the player was the first one in the
+  // process. Used for latency UMA.
+  bool is_first_sb_player_create_ = false;
 
 #if BUILDFLAG(IS_IOS_TVOS)
   const bool is_url_based_;
