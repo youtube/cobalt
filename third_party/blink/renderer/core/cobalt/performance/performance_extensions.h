@@ -62,6 +62,8 @@ class CORE_EXPORT PerformanceExtensions final {
   static ScriptPromise<IDLDouble> getAppStartupTimeStamp(ScriptState*,
                                                          const Performance&,
                                                          ExceptionState&);
+  static double measureCpuFramePrepTime(ScriptState*, const Performance&);
+  static double measurePaintDamage(ScriptState*, const Performance&);
 };
 
 }  // namespace blink
