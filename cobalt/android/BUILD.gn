@@ -419,6 +419,9 @@ android_apk("cobalt_apk") {
   shared_libraries = [ ":libchrobalt" ]
   srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
+  proguard_enabled = !is_java_debug
+  enable_proguard_checks = false
+  proguard_configs = [ "proguard.flags" ]
 }
 
 robolectric_binary("cobalt_coat_junit_tests") {
