@@ -134,8 +134,4 @@ Build all affected `.cc` and `.java` files using `autoninja`:
 autoninja -C {OUTPUT_DIR} ../../path/to/foo.cc^ ../../path/to/Foo.java^
 ```
 
-<<<<<<< HEAD
 *Note: Use the specified `OUTPUT_DIR` (typically `out/Default` or `out/Debug`).*
-=======
-*Note: Use the specified `OUTPUT_DIR` (typically `out/Default` or `out/Debug`).*
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
