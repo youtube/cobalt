@@ -19,6 +19,7 @@ config build = common.build {
           'build_id',
           'build_info.json',
           'lib_export/**/libchrobalt.so',
+          'lib_export/**/coat_java_sources.tar.gz',
         ]
       }
     },
