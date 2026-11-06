@@ -24,11 +24,13 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <mutex>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
@@ -162,6 +164,12 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
   return frame_size.width > max_video_size.width ||
          frame_size.height > max_video_size.height;
 }
+
+// How long a protected decode-to-texture player waits for a presenter, at
+// start and after the presenter goes away, before switching to punch-out. A
+// presenter re-attaching within this window (reload, recompile) keeps the
+// protected path.
+constexpr int64_t kProtectedPresenterGraceUsec = 2'000'000;
 
 }  // namespace
 
@@ -417,12 +425,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
+  RemoveProtectedPresenterObserver(this);
+  const bool fell_back_to_punch_out = fell_back_to_punch_out_;
   TeardownCodec();
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut ||
+             fell_back_to_punch_out) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
@@ -665,12 +676,26 @@ SbDecodeTarget MediaCodecVideoDecoder::GetCurrentDecodeTarget() {
   // We must take a lock here since this function can be called from a separate
   // thread.
   std::lock_guard lock(decode_target_mutex_);
+  if (fell_back_to_punch_out_) {
+    return kSbDecodeTargetInvalid;
+  }
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
       VideoSurfaceTextureBridge::UpdateTexImage(
           AttachCurrentThread(), decode_target_->surface_texture());
       UpdateDecodeTargetSizeAndContentRegion_Locked();
+      // Tell the embedder's GL (ANGLE) that the native binding changed and how
+      // large the new image is; otherwise ANGLE treats the external texture as
+      // incomplete and samples black.
+      if (decode_target_->uses_protected_hooks()) {
+        SbDecodeTargetInfo info = {};
+        decode_target_->GetInfo(&info);
+        NotifyProtectedDecodeTargetUpdated(
+            decode_target_->provider(), decode_target_->hooks_id(),
+            info.planes[0].texture, info.planes[0].width,
+            info.planes[0].height);
+      }
 
       if (!first_texture_received_) {
         first_texture_received_ = true;
@@ -777,6 +802,25 @@ void MediaCodecVideoDecoder::OnFrameAvailable() {
   has_new_texture_available_.store(true);
 }
 
+void MediaCodecVideoDecoder::ScheduleProtectedFallbackCheck(
+    int64_t delay_usec) {
+  if (!BelongsToCurrentThread()) {
+    Schedule(
+        [this, delay_usec] { ScheduleProtectedFallbackCheck(delay_usec); });
+    return;
+  }
+  // One pending check at a time, so each presenter release gets the full
+  // grace period.
+  RemoveJobByToken(&fallback_check_token_);
+  fallback_check_token_ = Schedule(
+      std::bind(&MediaCodecVideoDecoder::MaybeFallBackToPunchOut, this),
+      delay_usec);
+}
+
+void MediaCodecVideoDecoder::OnProtectedPresenterReleased() {
+  ScheduleProtectedFallbackCheck(kProtectedPresenterGraceUsec);
+}
+
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
@@ -836,14 +880,24 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       if (!decode_target_graphics_context_provider_) {
         return Failure("Invalid decode target graphics context provider.");
       }
-      scoped_refptr<DecodeTarget> decode_target =
-          DecodeTarget::Create(decode_target_graphics_context_provider_);
+      // Only DRM decoders take the protected path; the embedder makes the
+      // protected context current for them.
+      scoped_refptr<DecodeTarget> decode_target = DecodeTarget::Create(
+          decode_target_graphics_context_provider_, drm_system_ != nullptr);
       if (!SbDecodeTargetIsValid(decode_target.get())) {
         // Either the provider is unusable or the GLES context runner could
         // not run the creation closure (b/565889635). Fail the codec
         // initialization; the player reports a decode error and the web app
         // can retry.
         return Failure("Could not acquire a decode target from provider.");
+      }
+      // The provider runs creation on its GL context; if it could not make it
+      // current (e.g. a protected context lost while backgrounded) the target
+      // has no SurfaceTexture. Fail the codec rather than call into a null
+      // Java object.
+      if (!decode_target->surface_texture()) {
+        return Failure(
+            "Decode target has no SurfaceTexture (GL context lost).");
       }
       j_output_surface =
           jni_zero::ScopedJavaLocalRef<jobject>(env, decode_target->surface());
@@ -858,6 +912,10 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       // Chromium (GetCurrentDecodeTarget()) cannot delete the texture
       // prematurely during TeardownCodec().
       decode_target.swap(&decode_target_);
+      if (decode_target_->uses_protected_hooks()) {
+        AddProtectedPresenterObserver(this);
+        ScheduleProtectedFallbackCheck(kProtectedPresenterGraceUsec);
+      }
     } break;
     case kSbPlayerOutputModeInvalid: {
       SB_NOTREACHED();
@@ -936,10 +994,13 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
+  RemoveJobByToken(&fallback_check_token_);
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
     std::lock_guard lock(decode_target_mutex_);
+    // A re-initialized codec outputs to a new SurfaceTexture again.
+    fell_back_to_punch_out_ = false;
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
@@ -1301,6 +1362,57 @@ bool MediaCodecVideoDecoder::NeedsCodecTransition(
           stream_color.max_fall != color_metadata_->max_fall ||
           !Equal(stream_color.mastering_metadata,
                  color_metadata_->mastering_metadata));
+}
+
+void MediaCodecVideoDecoder::MaybeFallBackToPunchOut() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (fell_back_to_punch_out_ || !media_decoder_ ||
+      output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
+    return;
+  }
+  if (IsVideoWindowHeldByPresenter()) {
+    return;  // A protected presenter draws the frames.
+  }
+  bool first_texture_received;
+  {
+    std::lock_guard lock(decode_target_mutex_);
+    first_texture_received = first_texture_received_;
+  }
+  if (!first_texture_received) {
+    // Not before the first frame reached the renderer client: until then the
+    // compositor has no video hole frame, so punch-out would stay hidden.
+    ScheduleProtectedFallbackCheck(kProtectedPresenterGraceUsec);
+    return;
+  }
+  jni_zero::ScopedJavaLocalRef<jobject> surface = AcquireVideoSurface();
+  if (!surface) {
+    // E.g. while the app is in the background; retry until it is back.
+    SB_LOG_IF(WARNING, !logged_video_surface_unavailable_)
+        << "Protected decode-to-texture: no presenter, and the video surface "
+           "is unavailable; retrying.";
+    logged_video_surface_unavailable_ = true;
+    ScheduleProtectedFallbackCheck(kProtectedPresenterGraceUsec);
+    return;
+  }
+  logged_video_surface_unavailable_ = false;
+  if (!media_decoder_->media_codec()->SetOutputSurface(surface)) {
+    ReleaseVideoSurface();
+    // Nothing would draw the frames: fail the playback so that the player can
+    // recreate it, rather than play black video.
+    ReportError(kSbPlayerErrorDecode,
+                "Protected decode-to-texture: no presenter, and the codec "
+                "refused to switch to the punch-out video surface.");
+    return;
+  }
+  owns_video_surface_ = true;
+  {
+    std::lock_guard lock(decode_target_mutex_);
+    fell_back_to_punch_out_ = true;
+  }
+  // The window was fullscreen for the presenter; follow the hole again.
+  ReapplyVideoSurfaceBounds();
+  SB_LOG(INFO) << "Protected decode-to-texture: no presenter; switched the "
+                  "decoder output to the punch-out video surface.";
 }
 
 }  // namespace starboard

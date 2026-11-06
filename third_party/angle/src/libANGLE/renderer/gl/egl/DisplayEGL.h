@@ -117,16 +117,33 @@ class DisplayEGL : public DisplayGL
   private:
     const char *getEGLPath() const;
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: |isProtected| adds EGL_PROTECTED_CONTENT_EXT to the native context attributes
+    // (EGL_EXT_protected_content). A protected native context never shares with an unprotected one.
+    egl::Error initializeContext(EGLContext shareContext,
+                                 const egl::AttributeMap &eglAttributes,
+                                 EGLContext *outContext,
+                                 bool isProtected = false) const;
+#else
     egl::Error initializeContext(EGLContext shareContext,
                                  const egl::AttributeMap &eglAttributes,
                                  EGLContext *outContext) const;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     void generateExtensions(egl::DisplayExtensions *outExtensions) const override;
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    egl::Error createRenderer(EGLContext shareContext,
+                              bool makeNewContextCurrent,
+                              bool isExternalContext,
+                              std::shared_ptr<RendererEGL> *outRenderer,
+                              bool isProtected = false);
+#else
     egl::Error createRenderer(EGLContext shareContext,
                               bool makeNewContextCurrent,
                               bool isExternalContext,
                               std::shared_ptr<RendererEGL> *outRenderer);
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     egl::Error makeCurrentSurfaceless(gl::Context *context) override;
 
@@ -147,6 +164,12 @@ class DisplayEGL : public DisplayGL
 
     std::shared_ptr<RendererEGL> mRenderer;
     std::map<EGLAttrib, std::weak_ptr<RendererEGL>> mVirtualizationGroups;
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: renderers whose native context was created with EGL_PROTECTED_CONTENT_EXT, keyed
+    // like mVirtualizationGroups. Kept apart so a group id never mixes protected and unprotected
+    // native contexts.
+    std::map<EGLAttrib, std::weak_ptr<RendererEGL>> mProtectedVirtualizationGroups;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     FunctionsEGLDL *mEGL = nullptr;
     EGLConfig mConfig    = EGL_NO_CONFIG_KHR;

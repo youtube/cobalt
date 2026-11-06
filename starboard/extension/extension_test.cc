@@ -36,6 +36,7 @@
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_settings.h"
+#include "starboard/extension/protected_video_plane.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/extension/updater_notification.h"
 #include "starboard/extension/url_fetcher_observer.h"
@@ -436,6 +437,30 @@ TEST(ExtensionTest, PlayerSettings) {
   EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetMaxVideoResolutionForCurrentThread, nullptr);
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, ProtectedVideoPlane) {
+  typedef StarboardExtensionProtectedVideoPlaneApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionProtectedVideoPlaneName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->SetProtectedDecodeToTextureEnabled, nullptr);
+  EXPECT_NE(extension_api->AcquireVideoWindowForPresenter, nullptr);
+  EXPECT_NE(extension_api->ReleaseVideoWindowForPresenter, nullptr);
+  EXPECT_NE(extension_api->PrepareVideoWindowSurface, nullptr);
+  EXPECT_NE(extension_api->SetDecodeTargetTextureHooks, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

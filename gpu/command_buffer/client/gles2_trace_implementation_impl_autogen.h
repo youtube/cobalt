@@ -2622,4 +2622,10 @@ void GLES2TraceImplementation::PolygonOffsetClampEXT(GLfloat factor,
   gl_->PolygonOffsetClampEXT(factor, units, clamp);
 }
 
+void GLES2TraceImplementation::PresentProtectedFrameCOBALT() {
+  TRACE_EVENT_BINARY_EFFICIENT0("gpu",
+                                "GLES2Trace::PresentProtectedFrameCOBALT");
+  gl_->PresentProtectedFrameCOBALT();
+}
+
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_TRACE_IMPLEMENTATION_IMPL_AUTOGEN_H_

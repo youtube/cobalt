@@ -171,6 +171,11 @@ class MediaCodec {
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual bool Restart() = 0;
   virtual jint Flush() = 0;
+  // Redirects output to |surface| without recreating the codec. Returns false
+  // if unsupported or refused.
+  virtual bool SetOutputSurface(const jni_zero::JavaRef<jobject>& surface) {
+    return false;
+  }
   virtual std::optional<FrameSize> GetOutputSize() = 0;
   virtual std::optional<AudioOutputFormatResult> GetAudioOutputFormat() = 0;
 };

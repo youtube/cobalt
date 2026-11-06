@@ -403,5 +403,6 @@
 #define glClipControlEXT GLES2_GET_FUN(ClipControlEXT)
 #define glPolygonModeANGLE GLES2_GET_FUN(PolygonModeANGLE)
 #define glPolygonOffsetClampEXT GLES2_GET_FUN(PolygonOffsetClampEXT)
+#define glPresentProtectedFrameCOBALT GLES2_GET_FUN(PresentProtectedFrameCOBALT)
 
 #endif  // GPU_GLES2_GL2CHROMIUM_AUTOGEN_H_

@@ -686,6 +686,10 @@ test("gpu_unittests") {
     deps += [ "//starboard:starboard_headers_only" ]
   }
 
+  if (is_cobalt) {
+    sources += [ "command_buffer/service/cobalt_protected_commands_unittest.cc" ]
+  }
+
   deps += [ "//third_party/angle:translator" ]
 
   if (is_android) {

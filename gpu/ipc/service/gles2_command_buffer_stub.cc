@@ -15,6 +15,7 @@
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -51,6 +52,13 @@
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_factory.h"
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "starboard/extension/protected_video_plane.h"  // nogncheck
+#include "starboard/system.h"                            // nogncheck
+#include "ui/gl/android/scoped_a_native_window.h"
+#include "ui/gl/gl_display.h"
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "base/win/win_util.h"
 #endif
@@ -74,6 +82,87 @@ GLES2CommandBufferStub::GLES2CommandBufferStub(
 
 GLES2CommandBufferStub::~GLES2CommandBufferStub() = default;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+namespace {
+
+const StarboardExtensionProtectedVideoPlaneApi* GetProtectedVideoPlaneApi() {
+  static const auto* api =
+      static_cast<const StarboardExtensionProtectedVideoPlaneApi*>(
+          SbSystemGetExtension(kStarboardExtensionProtectedVideoPlaneName));
+  return api;
+}
+
+// The default framebuffer of a protected WebGL context: a protected EGL window
+// surface on the video plane's ANativeWindow. The window is held through the
+// Starboard extension so that no other producer connects to it meanwhile.
+class ProtectedVideoPlaneSurface : public gl::NativeViewGLSurfaceEGL {
+ public:
+  ProtectedVideoPlaneSurface(gl::GLDisplayEGL* display, ANativeWindow* window)
+      : gl::NativeViewGLSurfaceEGL(display,
+                                   gl::ScopedANativeWindow::Wrap(window),
+                                   nullptr),
+        held_window_(window) {
+    SetProtectedContent(true);
+  }
+
+ private:
+  // The window hold is released here rather than in Destroy(): Resize() and
+  // Recreate() call Destroy() and then create a new EGL surface on the same
+  // window, which must stay held meanwhile so that no decoder takes it.
+  ~ProtectedVideoPlaneSurface() override {
+    Destroy();
+    if (held_window_) {
+      // The decoder drops its surface while its context is still current, and
+      // ANGLE defers destroying a current surface until it is released. Release
+      // the hold from a later task, after the decoder has released its context,
+      // so that the native surface is gone before another producer connects.
+      void* window = held_window_.ExtractAsDangling();
+      auto release = [](void* window) {
+        GetProtectedVideoPlaneApi()->ReleaseVideoWindowForPresenter(window);
+      };
+      // During GPU thread shutdown the task would be dropped; release now
+      // rather than leak the hold on the video plane.
+      if (!base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+              FROM_HERE, base::BindOnce(release, window))) {
+        release(window);
+      }
+    }
+  }
+
+  raw_ptr<ANativeWindow> held_window_;
+};
+
+scoped_refptr<gl::GLSurface> CreateProtectedVideoPlaneSurface(
+    gl::GLDisplay* display) {
+  const auto* api = GetProtectedVideoPlaneApi();
+  if (!api) {
+    LOG(ERROR) << "Protected WebGL: ProtectedVideoPlane extension missing.";
+    return nullptr;
+  }
+  auto* window =
+      static_cast<ANativeWindow*>(api->AcquireVideoWindowForPresenter());
+  if (!window) {
+    LOG(ERROR) << "Protected WebGL: video window unavailable.";
+    return nullptr;
+  }
+  auto surface = base::MakeRefCounted<ProtectedVideoPlaneSurface>(
+      display->GetAs<gl::GLDisplayEGL>(), window);
+  if (!surface->Initialize(gl::GLSurfaceFormat())) {
+    LOG(ERROR) << "Protected WebGL: protected window surface creation failed.";
+    surface->Destroy();
+    return nullptr;
+  }
+  VLOG(1) << "Protected WebGL: presenting on the video plane, "
+            << surface->GetSize().ToString();
+  if (api->version >= 2 && api->PrepareVideoWindowSurface) {
+    api->PrepareVideoWindowSurface(window);
+  }
+  return surface;
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
 gpu::ContextResult GLES2CommandBufferStub::Initialize(
     CommandBufferStub* share_command_buffer_stub,
     const mojom::CreateCommandBufferParams& init_params,
@@ -84,6 +173,19 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   GpuChannelManager* manager = channel_->gpu_channel_manager();
   DCHECK(manager);
   memory_tracker_ = CreateMemoryTracker();
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected context shares no objects with other contexts, which
+  // could otherwise read back what it drew.
+  if (share_command_buffer_stub &&
+      (init_params.attribs.protected_content ||
+       share_command_buffer_stub->protected_content())) {
+    LOG(ERROR) << "ContextResult::kFatalFailure: a protected context cannot "
+                  "share objects with another context";
+    return gpu::ContextResult::kFatalFailure;
+  }
+  protected_content_ = init_params.attribs.protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   if (share_command_buffer_stub) {
     context_group_ =
@@ -180,6 +282,19 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   gl::GLSurface* default_surface = manager->default_offscreen_surface();
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID)
+  if (init_params.attribs.protected_content) {
+    if (!context_group_->use_passthrough_cmd_decoder() ||
+        !display->IsInitialized()) {
+      LOG(ERROR) << "Protected WebGL needs the passthrough decoder.";
+      return gpu::ContextResult::kFatalFailure;
+    }
+    surface_ = CreateProtectedVideoPlaneSurface(display);
+    if (!surface_) {
+      return gpu::ContextResult::kFatalFailure;
+    }
+  } else
+#endif  // BUILDFLAG(IS_ANDROID)
   if (default_surface && default_surface->GetGLDisplay() == display) {
     surface_ = default_surface;
   } else if (display && display->IsInitialized()) {
@@ -308,9 +423,16 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   }
 
   // Initialize the decoder with either the view or pbuffer GLContext.
-  auto result = gles2_decoder_->Initialize(
-      surface_, context, /*offscreen=*/true, gpu::gles2::DisallowedFeatures(),
-      init_params.attribs);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected context renders straight into its window surface:
+  // framebuffer 0 is the video plane, not an emulated back buffer.
+  const bool offscreen = !init_params.attribs.protected_content;
+#else
+  const bool offscreen = true;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  auto result = gles2_decoder_->Initialize(surface_, context, offscreen,
+                                           gpu::gles2::DisallowedFeatures(),
+                                           init_params.attribs);
   if (result != gpu::ContextResult::kSuccess) {
     DLOG(ERROR) << "Failed to initialize decoder.";
     return result;

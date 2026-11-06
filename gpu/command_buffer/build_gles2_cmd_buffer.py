@@ -3639,6 +3639,14 @@ _FUNCTION_INFO = {
     'extension': True,
     'trace_level': 1,
   },
+  # Cobalt: presents the protected window surface of an onscreen protected
+  # WebGL context (Android). A no-op for every other context.
+  'PresentProtectedFrameCOBALT': {
+    'decoder_func': 'DoPresentProtectedFrameCOBALT',
+    'unit_test': False,
+    'extension': True,
+    'trace_level': 1,
+  },
   'GetQueryivEXT': {
     'type': 'NoCommand',
     'gl_test_func': 'glGetQueryiv',

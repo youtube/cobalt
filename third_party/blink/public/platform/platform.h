@@ -491,6 +491,11 @@ class BLINK_PLATFORM_EXPORT Platform {
     // context.
     bool enable_raster_interface = false;
     bool support_grcontext = false;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
+    // Cobalt: a protected (EGL_PROTECTED_CONTENT_EXT) WebGL context.
+    bool protected_content = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   };
   struct GraphicsInfo {
     unsigned vendor_id = 0;

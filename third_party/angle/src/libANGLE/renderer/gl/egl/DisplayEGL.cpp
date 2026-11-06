@@ -114,10 +114,24 @@ const char *DisplayEGL::getEGLPath() const
 #endif
 }
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
+                                         const egl::AttributeMap &eglAttributes,
+                                         EGLContext *outContext,
+                                         bool isProtected) const
+{
+    ASSERT(!isProtected || shareContext == EGL_NO_CONTEXT);
+    if (isProtected && !mEGL->hasExtension("EGL_EXT_protected_content"))
+    {
+        return egl::Error(EGL_BAD_ATTRIBUTE, "EGL_EXT_protected_content is not supported");
+    }
+#else
 egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
                                          const egl::AttributeMap &eglAttributes,
                                          EGLContext *outContext) const
 {
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+
     const gl::Version eglVersion(static_cast<uint8_t>(mEGL->majorVersion),
                                  static_cast<uint8_t>(mEGL->minorVersion));
 
@@ -179,8 +193,17 @@ egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
         contextAttribLists.push_back(std::move(fallbackAttribs));
     }
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    for (egl::AttributeMap attribs : contextAttribLists)
+    {
+        if (isProtected)
+        {
+            attribs.insert(EGL_PROTECTED_CONTENT_EXT, EGL_TRUE);
+        }
+#else
     for (const egl::AttributeMap &attribs : contextAttribLists)
     {
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
         // If robustness is supported, try to create a context with robustness enabled. If it fails,
         // fall back to creating a context without the robustness parameters. We've seen devices
         // that expose the robustness extensions but fail to create robust contexts.
@@ -499,8 +522,58 @@ ContextImpl *DisplayEGL::createContext(const gl::State &state,
         attribs.get(EGL_CONTEXT_VIRTUALIZATION_GROUP_ANGLE, EGL_DONT_CARE);
     bool globalTextureShareGroup =
         attribs.get(EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE, EGL_FALSE) == EGL_TRUE;
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    bool isProtected = attribs.get(EGL_PROTECTED_CONTENT_EXT, EGL_FALSE) == EGL_TRUE;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     std::shared_ptr<RendererEGL> renderer = mRenderer;
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    if (isProtected)
+    {
+        // Cobalt: a protected native context is created with no native share context: Android
+        // rejects (or leaves undefined) sharing between protected and unprotected native contexts,
+        // and the point is that nothing unprotected can name objects in it. Contexts in the same
+        // virtualization group share one protected native context, which is how the Starboard
+        // decode-to-texture context and protected WebGL contexts see the same native textures.
+        if (usingExternalContext)
+        {
+            ERR() << "External contexts cannot be protected.";
+            return nullptr;
+        }
+        if (virtualizationGroup != EGL_DONT_CARE)
+        {
+            renderer = mProtectedVirtualizationGroups[virtualizationGroup].lock();
+            // A lost native context stays cached while any context of the group is alive (e.g.
+            // the decode-to-texture context after the app was backgrounded); never hand it to a
+            // new context, which would be born lost.
+            if (renderer && renderer->hasBeenReset())
+            {
+                WARN() << "Protected virtualization group " << virtualizationGroup
+                       << " lost its native context; creating a new one.";
+                renderer.reset();
+            }
+        }
+        else
+        {
+            renderer.reset();
+        }
+        if (!renderer)
+        {
+            egl::Error error =
+                createRenderer(EGL_NO_CONTEXT, false, false, &renderer, /*isProtected=*/true);
+            if (error.isError())
+            {
+                ERR() << "Failed to create a protected renderer: " << error.getMessage();
+                return nullptr;
+            }
+            if (virtualizationGroup != EGL_DONT_CARE)
+            {
+                mProtectedVirtualizationGroups[virtualizationGroup] = renderer;
+            }
+        }
+    }
+    else
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     if (usingExternalContext)
     {
         ASSERT(!shareContext);
@@ -911,6 +984,13 @@ void DisplayEGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
 
     outExtensions->contextVirtualizationANGLE = true;
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // EGL_EXT_protected_content: protected native contexts, window/pbuffer surfaces and images.
+    // Protected contexts also need surfaceless support (see createRenderer).
+    outExtensions->protectedContentEXT =
+        mSupportsSurfaceless && mEGL->hasExtension("EGL_EXT_protected_content");
+
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     DisplayGL::generateExtensions(outExtensions);
 }
 
@@ -934,12 +1014,30 @@ egl::Error DisplayEGL::makeCurrentSurfaceless(gl::Context *context)
     return egl::NoError();
 }
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+egl::Error DisplayEGL::createRenderer(EGLContext shareContext,
+                                      bool makeNewContextCurrent,
+                                      bool isExternalContext,
+                                      std::shared_ptr<RendererEGL> *outRenderer,
+                                      bool isProtected)
+{
+    EGLContext context = EGL_NO_CONTEXT;
+
+    // Cobalt: the mock pbuffer is unprotected, and a protected context cannot be made current
+    // on it.
+    if (isProtected && !mSupportsSurfaceless)
+    {
+        return egl::Error(EGL_BAD_MATCH,
+                          "Protected contexts require EGL_KHR_surfaceless_context");
+    }
+#else
 egl::Error DisplayEGL::createRenderer(EGLContext shareContext,
                                       bool makeNewContextCurrent,
                                       bool isExternalContext,
                                       std::shared_ptr<RendererEGL> *outRenderer)
 {
     EGLContext context = EGL_NO_CONTEXT;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // If isExternalContext is true, the external context is current, so we don't need to make the
     // mMockPbuffer current.
@@ -954,7 +1052,11 @@ egl::Error DisplayEGL::createRenderer(EGLContext shareContext,
     }
     else
     {
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+        ANGLE_TRY(initializeContext(shareContext, mDisplayAttributes, &context, isProtected));
+#else
         ANGLE_TRY(initializeContext(shareContext, mDisplayAttributes, &context));
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
         if (mEGL->makeCurrent(mMockPbuffer, context) == EGL_FALSE)
         {
             std::ostringstream err;

@@ -341,6 +341,14 @@ target(link_target_type, "gles2_sources") {
     deps += [ "//starboard:starboard_headers_only" ]
   }
 
+  if (is_cobalt) {
+    # Cobalt: the commands protected WebGL contexts may run.
+    sources += [
+      "cobalt_protected_commands.cc",
+      "cobalt_protected_commands.h",
+    ]
+  }
+
   if (use_dawn) {
     deps += [ "//gpu/webgpu:common" ]
     sources += [

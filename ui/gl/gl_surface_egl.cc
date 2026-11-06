@@ -398,6 +398,13 @@ bool NativeViewGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
     egl_window_attributes.push_back(EGL_GL_COLORSPACE_LINEAR_KHR);
   }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (protected_content_) {
+    egl_window_attributes.push_back(EGL_PROTECTED_CONTENT_EXT);
+    egl_window_attributes.push_back(EGL_TRUE);
+  }
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   egl_window_attributes.push_back(EGL_NONE);
   // Create a surface for the native window.
   surface_ = eglCreateWindowSurface(display_->GetDisplay(), GetConfig(),

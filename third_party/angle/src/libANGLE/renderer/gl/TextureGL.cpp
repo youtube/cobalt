@@ -1106,6 +1106,15 @@ angle::Result TextureGL::setStorage(const gl::Context *context,
         nativegl::GetTexStorageFormat(functions, features, internalFormat);
 
     stateManager->bindTexture(getType(), mTextureID);
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: protected immutable storage (see Texture::setStorage). Must be set before the
+    // storage is allocated.
+    if (mState.hasProtectedContent() && functions->hasGLESExtension("GL_EXT_protected_textures"))
+    {
+        ANGLE_GL_TRY(context, functions->texParameteri(ToGLenum(getType()),
+                                                       GL_TEXTURE_PROTECTED_EXT, GL_TRUE));
+    }
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     if (nativegl::UseTexImage2D(getType()))
     {
         ASSERT(size.depth == 1);

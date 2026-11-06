@@ -205,6 +205,10 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
              const gfx::Rect& rect,
              cc::PaintFlags& flags) override;
   scoped_refptr<media::VideoFrame> GetCurrentFrameThenUpdate() override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  scoped_refptr<media::VideoFrame> GetCurrentProtectedFrameThenUpdate()
+      override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::optional<media::VideoFrame::ID> CurrentFrameId() const override;
   media::PaintCanvasVideoRenderer* GetPaintCanvasVideoRenderer() override;
 

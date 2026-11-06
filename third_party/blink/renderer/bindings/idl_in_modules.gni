@@ -1295,6 +1295,12 @@ if (is_cobalt && use_starboard_media && target_os_is_android) {
     "//third_party/blink/renderer/modules/webgl/cobalt/cobalt_video_texture_transform.idl",
   ]
 }
+if (is_cobalt && target_os_is_android) {
+  static_idl_files_in_modules += [
+    "//third_party/blink/renderer/modules/webgl/cobalt/cobalt_canvas_context_creation_attributes_module.idl",
+    "//third_party/blink/renderer/modules/webgl/cobalt/cobalt_webgl_context_attributes.idl",
+  ]
+}
 
 if (is_cobalt) {
   static_idl_files_in_modules += get_path_info(

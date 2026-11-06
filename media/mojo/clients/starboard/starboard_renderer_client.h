@@ -197,6 +197,13 @@ class MEDIA_EXPORT StarboardRendererClient
   bool overlay_info_requested_ = false;
 #endif  // BUILDFLAG(IS_ANDROID)
   scoped_refptr<VideoFrame> next_video_frame_;
+  // Whether a GetCurrentVideoFrame() request is in flight. Media thread only.
+  bool get_current_video_frame_pending_ = false;
+  // What the compositor gets instead of protected frames. Media thread only.
+  scoped_refptr<VideoFrame> protected_hole_frame_;
+  // Whether this player offers protected frames to the sink, for protected
+  // WebGL (kCobaltProtectedWebGL in decode-to-texture mode). Media thread only.
+  bool protected_frame_source_ = false;
 
   mutable base::Lock lock_;
   bool is_mojo_renderer_initialized_ GUARDED_BY(lock_) = false;

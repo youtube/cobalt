@@ -5591,4 +5591,14 @@ TEST_F(GLES2FormatTest, PolygonOffsetClampEXT) {
   CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
 }
 
+TEST_F(GLES2FormatTest, PresentProtectedFrameCOBALT) {
+  cmds::PresentProtectedFrameCOBALT& cmd =
+      *GetBufferAs<cmds::PresentProtectedFrameCOBALT>();
+  void* next_cmd = cmd.Set(&cmd);
+  EXPECT_EQ(static_cast<uint32_t>(cmds::PresentProtectedFrameCOBALT::kCmdId),
+            cmd.header.command);
+  EXPECT_EQ(sizeof(cmd), cmd.header.size * 4u);
+  CheckBytesWrittenMatchesExpectedSize(next_cmd, sizeof(cmd));
+}
+
 #endif  // GPU_COMMAND_BUFFER_COMMON_GLES2_CMD_FORMAT_TEST_AUTOGEN_H_

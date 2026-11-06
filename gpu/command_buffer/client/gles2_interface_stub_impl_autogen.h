@@ -1236,4 +1236,5 @@ void GLES2InterfaceStub::PolygonModeANGLE(GLenum /* face */,
 void GLES2InterfaceStub::PolygonOffsetClampEXT(GLfloat /* factor */,
                                                GLfloat /* units */,
                                                GLfloat /* clamp */) {}
+void GLES2InterfaceStub::PresentProtectedFrameCOBALT() {}
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_INTERFACE_STUB_IMPL_AUTOGEN_H_

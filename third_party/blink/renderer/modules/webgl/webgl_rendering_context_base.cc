@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/bit_cast.h"
@@ -265,6 +266,74 @@ WebGLRenderingContextBaseMap& ForciblyEvictedContexts() {
   }
   return holder_persistent->Value();
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+// Cobalt: the extensions a protected context exposes. Extensions that are not
+// listed, including ones added upstream, stay hidden until reviewed. Left out
+// on purpose: EXT_disjoint_timer_query(_webgl2), whose timers would let a
+// shader encode protected texels in its running time, and
+// WEBGL_shader_pixel_local_storage, whose commands the GPU process refuses.
+bool IsExtensionAllowedInProtectedContext(std::string_view name) {
+  static constexpr std::string_view kAllowed[] = {
+      "ANGLE_instanced_arrays",
+      "COBALT_video_texture_transform",
+      "EXT_blend_minmax",
+      "EXT_clip_control",
+      "EXT_color_buffer_float",
+      "EXT_color_buffer_half_float",
+      "EXT_conservative_depth",
+      "EXT_depth_clamp",
+      "EXT_float_blend",
+      "EXT_frag_depth",
+      "EXT_polygon_offset_clamp",
+      "EXT_render_snorm",
+      "EXT_shader_texture_lod",
+      "EXT_sRGB",
+      "EXT_texture_compression_bptc",
+      "EXT_texture_compression_rgtc",
+      "EXT_texture_filter_anisotropic",
+      "EXT_texture_mirror_clamp_to_edge",
+      "EXT_texture_norm16",
+      "KHR_parallel_shader_compile",
+      "NV_shader_noperspective_interpolation",
+      "OES_draw_buffers_indexed",
+      "OES_EGL_image_external",
+      "OES_element_index_uint",
+      "OES_fbo_render_mipmap",
+      "OES_sample_variables",
+      "OES_shader_multisample_interpolation",
+      "OES_standard_derivatives",
+      "OES_texture_float",
+      "OES_texture_float_linear",
+      "OES_texture_half_float",
+      "OES_texture_half_float_linear",
+      "OES_vertex_array_object",
+      "OVR_multiview2",
+      "WEBGL_blend_func_extended",
+      "WEBGL_clip_cull_distance",
+      "WEBGL_color_buffer_float",
+      "WEBGL_compressed_texture_astc",
+      "WEBGL_compressed_texture_etc",
+      "WEBGL_compressed_texture_etc1",
+      "WEBGL_compressed_texture_pvrtc",
+      "WEBGL_compressed_texture_s3tc",
+      "WEBGL_compressed_texture_s3tc_srgb",
+      "WEBGL_debug_renderer_info",
+      "WEBGL_debug_shaders",
+      "WEBGL_depth_texture",
+      "WEBGL_draw_buffers",
+      "WEBGL_draw_instanced_base_vertex_base_instance",
+      "WEBGL_lose_context",
+      "WEBGL_multi_draw",
+      "WEBGL_multi_draw_instanced_base_vertex_base_instance",
+      "WEBGL_polygon_mode",
+      "WEBGL_provoking_vertex",
+      "WEBGL_render_shared_exponent",
+      "WEBGL_stencil_texturing",
+  };
+  return base::Contains(kAllowed, name);
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -1378,12 +1447,26 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
       want_depth_buffer, want_stencil_buffer, want_antialiasing, desynchronized,
       preserve, web_gl_version, chromium_image_usage,
       drawing_buffer_color_space_,
-      PowerPreferenceToGpuPreference(attrs.power_preference));
+      PowerPreferenceToGpuPreference(attrs.power_preference)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+          ,
+      attrs.cobalt_protected_content
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  );
 }
 
 void WebGLRenderingContextBase::InitializeNewContext() {
   DCHECK(!isContextLost());
   DCHECK(GetDrawingBuffer());
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected context samples decrypted video. Tainting its origin
+  // makes every readback and propagation API (toDataURL, toBlob,
+  // captureStream, drawImage, ...) throw a SecurityError.
+  if (CreationAttributes().cobalt_protected_content) {
+    Host()->SetOriginTainted();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   marked_canvas_dirty_ = false;
   must_paint_to_canvas_ = false;
@@ -1711,6 +1794,17 @@ bool WebGLRenderingContextBase::PushFrameWithCopy() {
 }
 
 void WebGLRenderingContextBase::FinalizeFrame(FlushReason) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: whatever this task drew into the protected default framebuffer
+  // goes to the video plane.
+  if (GetDrawingBuffer() && GetDrawingBuffer()->IsCobaltProtectedContent()) {
+    if (marked_canvas_dirty_ && !isContextLost()) {
+      GetDrawingBuffer()->PresentCobaltProtectedFrame();
+    }
+    marked_canvas_dirty_ = false;
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   if (Host()->LowLatencyEnabled()) {
     // PaintRenderingResultsToCanvas will export drawing buffer if the resource
     // provider is single buffered.  Otherwise it will copy the drawing buffer.
@@ -3466,6 +3560,12 @@ bool WebGLRenderingContextBase::ExtensionSupportedAndAllowed(
     return false;
   if (disabled_extensions_.Contains(String(tracker->ExtensionName())))
     return false;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (CreationAttributes().cobalt_protected_content &&
+      !IsExtensionAllowedInProtectedContext(tracker->ExtensionName())) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   return true;
 }
 
@@ -4884,6 +4984,15 @@ bool WebGLRenderingContextBase::ValidateReadBufferAndGetInfo(
       return false;
     }
   } else {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    if (CreationAttributes().cobalt_protected_content) {
+      // The default framebuffer is the protected window surface; copying it
+      // into a client texture would read protected pixels back.
+      SynthesizeGLError(GL_INVALID_OPERATION, function_name,
+                        "protected content cannot be read back");
+      return false;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
     if (read_buffer_of_default_framebuffer_ == GL_NONE) {
       DCHECK(IsWebGL2());
       SynthesizeGLError(GL_INVALID_OPERATION, function_name,
@@ -5033,6 +5142,14 @@ void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
                                                  int64_t offset) {
   if (isContextLost())
     return;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: WebGL's readPixels() ignores origin tainting.
+  if (CreationAttributes().cobalt_protected_content) {
+    SynthesizeGLError(GL_INVALID_OPERATION, "readPixels",
+                      "protected content cannot be read back");
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Due to WebGL's same-origin restrictions, it is not possible to
   // taint the origin using the WebGL API.
   DCHECK(Host()->OriginClean());
