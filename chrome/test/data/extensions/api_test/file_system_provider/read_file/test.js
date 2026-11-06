@@ -187,7 +187,8 @@ function setUpFileSystem(openedFilesLimit, callback) {
     options.openedFilesLimit = openedFilesLimit;
   }
   // TODO(mtomasz): Rather than clearing out opened files tests should wait for
-  // all files to be closed before unmounting the file system. crbug.com/40551846
+  // all files to be closed before unmounting the file system.
+  // crbug.com/40551846
   for (const k of Object.keys(testUtil.openedFiles)) {
     delete testUtil.openedFiles[k];
   }
@@ -242,7 +243,9 @@ function runTests() {
     // there is at most as many opened files at once as permitted per limit.
     function readFileWithOpenedFilesLimitSuccess() {
       setUpFileSystem(2 /* two files */, chrome.test.callbackPass(function() {
-        let initAllReadsPromise;
+        // Disable eslint. It doesn't recognize that this variable is declared
+        // here and assigned below.
+        let initAllReadsPromise;  // eslint-disable-line prefer-const
 
         // Set a breakpoint on reading a file, and continue once another file
         // is queued.

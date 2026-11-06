@@ -89,7 +89,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/create_test_environment.h"
@@ -977,8 +976,7 @@ class P2PTransportChannelTestBase : public ::testing::Test {
                     const ReceivedIpPacket& packet) {
     std::list<std::string>& packets = GetPacketList(transport);
     packets.push_front(
-        std::string(reinterpret_cast<const char*>(packet.payload().data()),
-                    packet.payload().size()));
+        std::string(packet.payload().begin(), packet.payload().end()));
   }
 
   void OnRoleConflict(IceTransportInternal* channel) {
@@ -3597,8 +3595,7 @@ class P2PTransportChannelPingTest : public ::testing::Test {
     msg.AddFingerprint();
     ByteBufferWriter buf;
     msg.Write(&buf);
-    conn->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
-        reinterpret_cast<const char*>(buf.Data()), buf.Length(), TimeMicros()));
+    conn->OnReadPacket(ReceivedIpPacket(buf.DataView(), SocketAddress()));
   }
 
   void ReceivePingOnConnection(Connection* conn,

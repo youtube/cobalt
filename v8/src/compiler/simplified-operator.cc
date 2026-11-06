@@ -1038,6 +1038,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckedUint32ToInt32, 1, 1)              \
   V(CheckedUint32ToTaggedSigned, 1, 1)       \
   V(CheckedUint64ToInt32, 1, 1)              \
+  V(CheckedInt32ToUint64, 1, 1)              \
   V(CheckedUint64ToInt64, 1, 1)              \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 

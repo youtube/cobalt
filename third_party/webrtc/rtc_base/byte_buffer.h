@@ -21,6 +21,7 @@
 #include "absl/strings/string_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
+#include "rtc_base/span_helpers.h"
 
 // Reads/Writes from/to buffer using network byte order (big endian)
 namespace webrtc {
@@ -49,7 +50,7 @@ class ByteBufferWriterT {
   // when the underlying type changes to uint8_t.
   // TODO(bugs.webrtc.org/15665): Delete when users are converted.
   absl::string_view DataAsStringView() const {
-    return absl::string_view(reinterpret_cast<const char*>(Data()), Length());
+    return AsStringView(DataView());
   }
   const char* DataAsCharPointer() const {
     return reinterpret_cast<const char*>(Data());
@@ -206,6 +207,5 @@ class ByteBufferReader {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // RTC_BASE_BYTE_BUFFER_H_

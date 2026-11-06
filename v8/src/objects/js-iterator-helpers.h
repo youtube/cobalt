@@ -76,6 +76,8 @@ V8_OBJECT class JSIteratorHelper : public JSObject {
 
   void JSIteratorHelperPrintHeader(std::ostream& os, const char* helper_name);
 
+  DECL_VERIFIER(JSIteratorHelper)
+
  public:
   // SmiTagged<JSIteratorHelperState>.
   TaggedMember<Smi> state_;
@@ -94,6 +96,8 @@ V8_OBJECT class JSIteratorHelperSimple : public JSIteratorHelper {
 
   void JSIteratorHelperSimplePrintHeader(std::ostream& os,
                                          const char* helper_name);
+
+  DECL_VERIFIER(JSIteratorHelperSimple)
 
  public:
   TaggedMember<JSReceiver> underlying_iterator_object_;
@@ -214,7 +218,7 @@ V8_OBJECT class JSIteratorConcatHelper final : public JSIteratorHelperSimple {
 } V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.zip and Iterator.zipKeyed.
-V8_OBJECT class JSIteratorZipHelper final : public JSIteratorHelper {
+V8_OBJECT class JSIteratorZipHelper : public JSIteratorHelper {
  public:
   inline Tagged<FixedArray> underlying_iterators() const;
   inline void set_underlying_iterators(
@@ -230,6 +234,9 @@ V8_OBJECT class JSIteratorZipHelper final : public JSIteratorHelper {
   inline void set_padding(Tagged<FixedArray> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  void JSIteratorZipHelperPrintHeader(std::ostream& os,
+                                      const char* helper_name);
+
   DECL_PRINTER(JSIteratorZipHelper)
   DECL_VERIFIER(JSIteratorZipHelper)
 
@@ -239,6 +246,19 @@ V8_OBJECT class JSIteratorZipHelper final : public JSIteratorHelper {
   TaggedMember<Smi> mode_;
   TaggedMember<Smi> active_count_;
   TaggedMember<FixedArray> padding_;
+} V8_OBJECT_END;
+
+V8_OBJECT class JSIteratorZipKeyedHelper final : public JSIteratorZipHelper {
+ public:
+  inline Tagged<FixedArray> keys() const;
+  inline void set_keys(Tagged<FixedArray> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(JSIteratorZipKeyedHelper)
+  DECL_VERIFIER(JSIteratorZipKeyedHelper)
+
+ public:
+  TaggedMember<FixedArray> keys_;
 } V8_OBJECT_END;
 
 }  // namespace internal

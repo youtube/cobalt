@@ -97,15 +97,13 @@ Connection* TestPort::CreateConnection(const Candidate& remote_candidate,
   conn->set_use_candidate_attr(true);
   return conn;
 }
-int TestPort::SendTo(const void* data,
-                     size_t size,
+int TestPort::SendTo(std::span<const uint8_t> data,
                      const SocketAddress& /* addr */,
                      const AsyncSocketPacketOptions& /* options */,
                      bool payload) {
   if (!payload) {
     auto msg = std::make_unique<IceMessage>();
-    auto buf = std::make_unique<BufferT<uint8_t>>(
-        static_cast<const char*>(data), size);
+    auto buf = std::make_unique<BufferT<uint8_t>>(data);
     ByteBufferReader read_buf(*buf);
     if (!msg->Read(&read_buf)) {
       return -1;
@@ -113,8 +111,9 @@ int TestPort::SendTo(const void* data,
     last_stun_buf_ = std::move(buf);
     last_stun_msg_ = std::move(msg);
   }
-  return static_cast<int>(size);
+  return static_cast<int>(data.size());
 }
+
 int TestPort::SetOption(Socket::Option /* opt */, int /* value */) {
   return 0;
 }

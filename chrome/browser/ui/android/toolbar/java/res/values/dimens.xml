@@ -6,8 +6,6 @@ found in the LICENSE file.
 -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <dimen name="toolbar_tab_count_text_size_1_digit">11dp</dimen>
-    <dimen name="toolbar_tab_count_text_size_2_digit">9dp</dimen>
 
     <!-- Tab Strip Dimensions -->
     <dimen name="tab_strip_height">0dp</dimen>
@@ -42,8 +40,8 @@ found in the LICENSE file.
 
     <dimen name="menu_badge_translation_y">6dp</dimen>
 
-    <!-- Bottom controls dimensions -->
-    <dimen name="bottom_controls_height">@dimen/min_touch_target_size</dimen>
+    <!-- Tab group UI dimensions -->
+    <dimen name="tab_group_ui_height">@dimen/min_touch_target_size</dimen>
 
     <!-- Custom Menu dimensions -->
     <dimen name="tab_switcher_menu_width">256dp</dimen>

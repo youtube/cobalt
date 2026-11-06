@@ -36,14 +36,17 @@ use crate::{
         ProtocolVersion, //
     },
     connection::{
-        Client,
-        Server,
         TlsConnectionBuilder,
         methods::HasTlsConnectionMethod, //
     },
     context::methods::HasTlsContextMethod,
     errors::Error,
     has_duplicates, //
+};
+
+pub use crate::connection::{
+    Client,
+    Server, //
 };
 
 mod credentials;
@@ -348,6 +351,20 @@ where
         unsafe {
             // Safety: the validity of the handle `self.0` is witnessed by `self`.
             bssl_sys::SSL_CTX_set_quiet_shutdown(self.ptr(), if quiet { 1 } else { 0 });
+        }
+        self
+    }
+
+    /// Set whether only the SHA-256 hash of the peer's certificate should be saved in the session.
+    ///
+    /// This can save memory, ticket size and session cache space.
+    pub fn with_retain_only_sha256_of_client_certs(&mut self, enable: bool) -> &mut Self {
+        unsafe {
+            // Safety: the validity of the handle `self.ptr` is witnessed by `self`.
+            bssl_sys::SSL_CTX_set_retain_only_sha256_of_client_certs(
+                self.ptr(),
+                if enable { 1 } else { 0 },
+            );
         }
         self
     }

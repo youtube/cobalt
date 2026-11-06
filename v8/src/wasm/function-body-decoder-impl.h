@@ -320,6 +320,18 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
           return {kWasmBottom, 0};
         }
         return {HeapType::from_code(code, is_shared), length};
+      case kWaitqueueRefCode:
+      case kNoWaitqueueCode: {
+        if (!VALIDATE(enabled.has_shared())) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', enable with "
+              "--experimental-wasm-shared",
+              HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
+        }
+        return {HeapType::from_code(code, is_shared), length};
+      }
       case kExactCode: {
         if (!VALIDATE(enabled.has_custom_descriptors())) {
           DecodeError<ValidationTag>(decoder, pc,
@@ -415,6 +427,18 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
               : ValueType::Ref(HeapType::from_code(code, SharedFlag::kNo));
       return {type, 1};
     }
+    case kWaitqueueRefCode:
+    case kNoWaitqueueCode: {
+      if (!VALIDATE(enabled.has_shared())) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid value type '%sref', enable with "
+            "--experimental-wasm-shared",
+            HeapType::from_code(code, SharedFlag::kNo).name().c_str());
+        return {kWasmBottom, 0};
+      }
+      return {ValueType::Ref(HeapType::from_code(code, SharedFlag::kNo)), 1};
+    }
     case kContRefCode:
     case kNoContCode:
       if (!VALIDATE(enabled.has_wasmfx())) {
@@ -466,7 +490,6 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kI8Code:
     case kI16Code:
     case kF16Code:
-    case kWaitQueueCode:
     case kExactCode:
       // Fall through to the error reporting below.
       break;
@@ -1441,7 +1464,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const IndexImmediate& data_segment, const Value& offset,                   \
     const Value& length, Value* result)                                        \
   F(RefI31, const Value& input, Value* result)                                 \
-  F(StringConst, const StringConstImmediate& imm, Value* result)
+  F(StringConst, const StringConstImmediate& imm, Value* result)               \
+  F(WaitqueueNew, Value* result)
 
 #define INTERFACE_NON_CONSTANT_FUNCTIONS(F) /*       force 80 columns       */ \
   /* Control: */                                                               \
@@ -1576,9 +1600,10 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& expected_value, const Value& new_value,                       \
     AtomicMemoryOrder order, Value* result)                                    \
   F(StructWait, const Value& struct_obj, const FieldImmediate& imm,            \
-    const Value& expected_value, const Value& timeout_ns, Value* result)       \
-  F(StructNotify, const Value& struct_obj, const FieldImmediate& imm,          \
-    const Value& max_waiters, Value* result)                                   \
+    const Value& waitqueue, const Value& expected_value,                       \
+    const Value& timeout_ns, Value* result)                                    \
+  F(WaitqueueNotify, const Value& waitqueue, const Value& max_waiters,         \
+    Value* result)                                                             \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, bool is_signed, Value* result)                         \
   F(ArrayAtomicGet, const Value& array_obj, const ArrayIndexImmediate& imm,    \
@@ -2839,6 +2864,8 @@ class WasmDecoder : public Decoder {
             return length + 1;
           }
           case kExprPause:
+          case kExprWaitqueueNew:
+          case kExprWaitqueueNotify:
             return length;
           case kExprStructAtomicGet:
           case kExprStructAtomicGetS:
@@ -2858,8 +2885,7 @@ class WasmDecoder : public Decoder {
             (ios.Field(field), ...);
             return length + memory_order.length + field.length;
           }
-          case kExprStructWait:
-          case kExprStructNotify: {
+          case kExprStructWait: {
             FieldImmediate field(decoder, pc + length, validate);
             (ios.Field(field), ...);
             return length + field.length;
@@ -5247,7 +5273,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL2(kNumericPrefix, Numeric);
     DECODE_IMPL2(kAsmJsPrefix, AsmJs);
     DECODE_IMPL_CONST2(kSimdPrefix, Simd);
-    DECODE_IMPL2(kAtomicPrefix, Atomic);
+    DECODE_IMPL_CONST2(kAtomicPrefix, Atomic);
     DECODE_IMPL_CONST2(kGCPrefix, GC);
 #define SIMPLE_PROTOTYPE_CASE(name, ...) DECODE_IMPL(name);
     FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
@@ -5898,7 +5924,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, field)) return 0;
         ValueType field_type =
             field.struct_imm.struct_type->field(field.field_imm.index);
-        if (!VALIDATE(field_type != kWasmI8 && field_type != kWasmI16)) {
+        if (!VALIDATE(!field_type.is_packed())) {
           this->DecodeError(
               "struct.get: Field %d of type %d has type %s. Use struct.get_s "
               "or struct.get_u instead.",
@@ -5920,7 +5946,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, field)) return 0;
         ValueType field_type =
             field.struct_imm.struct_type->field(field.field_imm.index);
-        if (!VALIDATE(field_type == kWasmI8 || field_type == kWasmI16)) {
+        if (!VALIDATE(field_type.is_packed())) {
           this->DecodeError(
               "%s: Field %d of type %d has type %s. Use struct.get instead.",
               WasmOpcodes::OpcodeName(opcode), field.field_imm.index,
@@ -6134,7 +6160,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType element_type = imm.array_type->element_type();
-        if (!VALIDATE(element_type == kWasmI8 || element_type == kWasmI16)) {
+        if (!VALIDATE(element_type.is_packed())) {
           this->DecodeError(
               "%s: Array type %d has type %s. Use array.get instead.",
               WasmOpcodes::OpcodeName(opcode), imm.index.index,
@@ -6153,7 +6179,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ArrayIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType element_type = imm.array_type->element_type();
-        if (!VALIDATE(element_type != kWasmI8 && element_type != kWasmI16)) {
+        if (!VALIDATE(!element_type.is_packed())) {
           this->DecodeError(
               "array.get: Array type %d has type %s. Use array.get_s or "
               "array.get_u instead.",
@@ -7194,6 +7220,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError("invalid atomic opcode: 0x%x", opcode);
       return 0;
     }
+    if constexpr (decoding_mode == kConstantExpression) {
+      // Currently, only waitqueue.new is allowed in constant expressions.
+      if (opcode != kExprWaitqueueNew) {
+        this->DecodeError("opcode %s is not allowed in constant expressions",
+                          this->SafeOpcodeNameAt(this->pc()));
+        return 0;
+      }
+    }
 
     MachineType memtype;
     switch (opcode) {
@@ -7245,7 +7279,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType field_type =
             field.struct_imm.struct_type->field(field.field_imm.index);
-        if (!VALIDATE(field_type == kWasmI8 || field_type == kWasmI16)) {
+        if (!VALIDATE(field_type.is_packed())) {
           this->DecodeError(
               "%s: Field %d of type %d has type %s. Use struct.atomic.get "
               "instead.",
@@ -7282,7 +7316,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType field_type =
             field.struct_imm.struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
-                      field_type == kWasmWaitQueue ||
                       (field_type.is_ref() &&
                        (IsSubtypeOf(field_type, kWasmAnyRef, this->module_) ||
                         IsSubtypeOf(field_type, kWasmSharedAnyRef,
@@ -7330,7 +7363,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType field_type = struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI8 || field_type == kWasmI16 ||
                       field_type == kWasmI32 || field_type == kWasmI64 ||
-                      field_type == kWasmWaitQueue ||
                       (field_type.is_ref() &&
                        (IsSubtypeOf(field_type, kWasmAnyRef, this->module_) ||
                         IsSubtypeOf(field_type, kWasmSharedAnyRef,
@@ -7380,7 +7412,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType field_type = struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
-                      field_type == kWasmWaitQueue ||
                       (opcode == kExprStructAtomicExchange &&
                        IsSubtypeOf(field_type.AsNonShared(), kWasmAnyRef,
                                    this->module_)))) {
@@ -7421,7 +7452,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType field_type = struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
-                      field_type == kWasmWaitQueue ||
                       IsSubtypeOf(field_type.AsNonShared(), kWasmEqRef,
                                   this->module_))) {
           this->DecodeError("%s: Field %d of type %d has invalid type %s ",
@@ -7440,6 +7470,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length + field.length + memory_order.length;
       }
       case kExprStructWait: {
+        // TODO(475455008): Implement other field types.
         CHECK_PROTOTYPE_OPCODE(shared);
         NON_CONST_ONLY
         FieldImmediate field(this, this->pc_ + opcode_length, validate);
@@ -7448,46 +7479,38 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         const StructType* struct_type = field.struct_imm.struct_type;
         ValueType field_type = struct_type->field(field.field_imm.index);
-        if (field_type != kWasmWaitQueue) {
+        if (field_type != kWasmI32) {
           this->DecodeError(
-              "%s: Field %d of type %d must be of type waitqueue, found %s "
+              "%s: Field %d of type %d must be of type i32, found %s "
               "instead",
               WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
               field.field_imm.index, field_type.name().c_str());
           return 0;
         }
 
-        auto [struct_obj, expected_value, timeout_ns] =
-            Pop(ValueType::RefNull(field.struct_imm.heap_type()), kWasmI32,
-                kWasmI64);
+        auto [struct_obj, waitqueue, expected_value, timeout_ns] =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()),
+                kWasmWaitqueueRef, kWasmI32, kWasmI64);
         Value* result = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructWait, struct_obj, field,
-                                           expected_value, timeout_ns, result);
+                                           waitqueue, expected_value,
+                                           timeout_ns, result);
         return opcode_length + field.length;
       }
-      case kExprStructNotify: {
+      case kExprWaitqueueNotify: {
         CHECK_PROTOTYPE_OPCODE(shared);
         NON_CONST_ONLY
-        FieldImmediate field(this, this->pc_ + opcode_length, validate);
-        if (!this->Validate(this->pc_ + opcode_length, field)) {
-          return 0;
-        }
-        const StructType* struct_type = field.struct_imm.struct_type;
-        ValueType field_type = struct_type->field(field.field_imm.index);
-        if (field_type != kWasmWaitQueue) {
-          this->DecodeError(
-              "%s: Field %d of type %d must be of type waitqueue, found %s "
-              "instead",
-              WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
-              field.field_imm.index, field_type.name().c_str());
-          return 0;
-        }
-        auto [struct_obj, max_waiters] =
-            Pop(ValueType::RefNull(field.struct_imm.heap_type()), kWasmI32);
+        auto [waitqueue, max_waiters] = Pop(kWasmWaitqueueRef, kWasmI32);
         Value* result = Push(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNotify, struct_obj, field,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(WaitqueueNotify, waitqueue,
                                            max_waiters, result);
-        return opcode_length + field.length;
+        return opcode_length;
+      }
+      case kExprWaitqueueNew: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        Value* result = Push(kWasmWaitqueueRef.AsNonNull());
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(WaitqueueNew, result);
+        return opcode_length;
       }
       case kExprArrayAtomicGet: {
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7503,7 +7526,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType element_type = imm.array_type->element_type();
         if (!VALIDATE(element_type == kWasmI32 || element_type == kWasmI64 ||
-                      element_type == kWasmWaitQueue ||
                       (element_type.is_ref() &&
                        (IsSubtypeOf(element_type, kWasmAnyRef, this->module_) ||
                         IsSubtypeOf(element_type, kWasmSharedAnyRef,
@@ -7540,7 +7562,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         ValueType element_type = imm.array_type->element_type();
-        if (!VALIDATE(element_type == kWasmI8 || element_type == kWasmI16)) {
+        if (!VALIDATE(element_type.is_packed())) {
           this->DecodeError(
               "%s: Array type %d has type %s. Use array.atomic.get instead.",
               WasmOpcodes::OpcodeName(opcode), imm.index.index,
@@ -7575,7 +7597,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         ValueType element_type = imm.array_type->element_type();
         if (!VALIDATE(element_type == kWasmI8 || element_type == kWasmI16 ||
                       element_type == kWasmI32 || element_type == kWasmI64 ||
-                      element_type == kWasmWaitQueue ||
                       (element_type.is_ref() &&
                        (IsSubtypeOf(element_type, kWasmAnyRef, this->module_) ||
                         IsSubtypeOf(element_type, kWasmSharedAnyRef,
@@ -7854,7 +7875,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
         auto [a_lo, a_hi, b_lo, b_hi] =
             Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);

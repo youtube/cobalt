@@ -90,19 +90,20 @@ void BasicBlockProfilerData::CopyFromJSHeap(
   for (uint32_t i = 0; i < counts_len; ++i) {
     counts_.push_back(counts->get(i));
   }
-  Tagged<FixedInt32Array> block_ids(js_heap_data->block_ids());
+  Tagged<FixedInt32Array> block_ids =
+      Cast<FixedInt32Array>(js_heap_data->block_ids());
   const uint32_t blocks_ids_len = block_ids->length().value();
   for (uint32_t i = 0; i < blocks_ids_len; ++i) {
     block_ids_.push_back(block_ids->get(i));
   }
   Tagged<PodArray<std::pair<int32_t, int32_t>>> branches =
-      js_heap_data->branches();
+      Cast<PodArray<std::pair<int32_t, int32_t>>>(js_heap_data->branches());
   const uint32_t branches_len = branches->length().value();
   for (uint32_t i = 0; i < branches_len; ++i) {
     branches_.push_back(branches->get(i));
   }
   CHECK_EQ(block_ids_.size(), counts_.size());
-  hash_ = js_heap_data->hash();
+  hash_ = js_heap_data->hash().value();
 }
 
 DirectHandle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
@@ -146,7 +147,9 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
   const uint32_t list_length = list->ulength().value();
   for (uint32_t i = 0; i < list_length; ++i) {
     DirectHandle<FixedUInt32Array> counts(
-        Cast<OnHeapBasicBlockProfilerData>(list->get(i))->counts(), isolate);
+        Cast<FixedUInt32Array>(
+            Cast<OnHeapBasicBlockProfilerData>(list->get(i))->counts()),
+        isolate);
     const uint32_t counts_len = counts->length().value();
     for (uint32_t j = 0; j < counts_len; ++j) {
       counts->set(j, 0);

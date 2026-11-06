@@ -502,3 +502,45 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
   assertEquals(final_size, worker.getMessage());
 })();
+
+(function TestPostMessageFixedSABWidening() {
+  print(arguments.callee.name);
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function({data: {expectedLen, sab}}) {
+      assertTrue(
+          sab.byteLength === expectedLen,
+          'Incorrect byteLength: expected ' + expectedLen + ', got ' +
+              sab.byteLength);
+      assertTrue(sab.growable === false, 'Buffer should not be growable');
+
+      try {
+        new Uint8Array(sab, expectedLen, 1);
+        assertTrue(
+            false,
+            'Unexpectedly able to access grown pages via fixed-length SAB clone');
+      } catch (e) {
+        // Expected: RangeError
+        assertTrue(e instanceof RangeError, 'Expected RangeError, got ' + e);
+      }
+      postMessage('OK');
+    };
+  }
+
+  let worker =
+      new Worker(workerCode, {type: 'function', arguments: [workerHelpers]});
+
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
+  let fixedSAB = memory.buffer;
+  let originalLen = fixedSAB.byteLength;
+  assertEquals(kPageSize, originalLen);
+
+  // Trigger https://crbug.com/506366496 by growing the underlying memory before
+  // sending the SAB.
+  memory.grow(1);
+  assertEquals(2 * kPageSize, memory.buffer.byteLength);
+
+  worker.postMessage({expectedLen: originalLen, sab: fixedSAB});
+  assertEquals('OK', worker.getMessage());
+  worker.terminate();
+})();

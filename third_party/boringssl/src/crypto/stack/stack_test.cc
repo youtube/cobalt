@@ -555,11 +555,28 @@ TEST(StackTest, IsSorted) {
   sk_TEST_INT_sort(sk.get());
   EXPECT_TRUE(sk_TEST_INT_is_sorted(sk.get()));
 
+  // After changing one element, it is no longer sorted.
+  value = TEST_INT_new(10);
+  ASSERT_TRUE(value);
+  TEST_INT_free(sk_TEST_INT_value(sk.get(), 0));
+  sk_TEST_INT_set(sk.get(), 0, value.release());
+  EXPECT_FALSE(sk_TEST_INT_is_sorted(sk.get()));
+
+  sk_TEST_INT_sort(sk.get());
+  EXPECT_TRUE(sk_TEST_INT_is_sorted(sk.get()));
+
   // But, starting from one element, switching the comparison function preserves
   // the sorted bit.
   TEST_INT_free(sk_TEST_INT_pop(sk.get()));
   EXPECT_TRUE(sk_TEST_INT_is_sorted(sk.get()));
+
   sk_TEST_INT_set_cmp_func(sk.get(), compare);
+  EXPECT_TRUE(sk_TEST_INT_is_sorted(sk.get()));
+
+  value = TEST_INT_new(100);
+  ASSERT_TRUE(value);
+  TEST_INT_free(sk_TEST_INT_value(sk.get(), 0));
+  sk_TEST_INT_set(sk.get(), 0, value.release());
   EXPECT_TRUE(sk_TEST_INT_is_sorted(sk.get()));
 
   // Without a comparison function, the list cannot be sorted.

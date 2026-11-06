@@ -117,9 +117,15 @@ BASE_DECLARE_FEATURE(kGlicActorTransientTasks);
 extern const base::FeatureParam<bool> kGlicActorTransientTasksForceTransient;
 
 BASE_DECLARE_FEATURE(kGlicActorEnableScriptTools);
+extern const base::FeatureParam<base::TimeDelta>
+    kActorScriptToolExecutionTimeout;
+extern const base::FeatureParam<base::TimeDelta>
+    kActorScriptToolCrossDocumentTimeout;
 
 BASE_DECLARE_FEATURE(kActorScriptToolDelayObservation);
 extern const base::FeatureParam<int> kActorScriptToolDelayObservationMillis;
+
+BASE_DECLARE_FEATURE(kGlicActorTabObservationController);
 
 }  // namespace actor
 

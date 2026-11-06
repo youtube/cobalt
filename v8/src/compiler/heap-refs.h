@@ -36,6 +36,7 @@ class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
 class Tuple2;
+class GlobalDictionary;
 template <typename>
 class Signature;
 
@@ -275,6 +276,8 @@ template <>
 struct ref_traits<OrderedNameDictionary> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<SwissNameDictionary> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<GlobalDictionary> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<InterceptorInfo> : public ref_traits<HeapObject> {};
 template <>

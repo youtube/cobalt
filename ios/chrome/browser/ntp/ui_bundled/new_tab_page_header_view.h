@@ -8,28 +8,24 @@
 #import <UIKit/UIKit.h>
 
 @class GradientView;
-@class TabGroupIndicatorView;
-@protocol NewTabPageShortcutsHandler;
-@class OmniboxContainerView;
 @class NewTabPageColorPalette;
+@protocol NewTabPageShortcutsHandler;
+@protocol NewTabPageHeaderCommands;
+@protocol NewTabPageControllerDelegate;
+@class OmniboxContainerView;
 enum class SearchEngineLogoState;
+@class TabGroupIndicatorView;
 
 // Header view for the NTP. The header view contains all views that are
 // displayed above the list of most visited sites, which includes the
 // primary toolbar, doodle, and fake omnibox.
 @interface NewTabPageHeaderView : UIView
 
-// Initializes the view with the Lens button new badge status.
-- (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
-    NS_DESIGNATED_INITIALIZER;
-- (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
-- (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
-
 // Returns the toolbar view.
 @property(nonatomic, readonly) UIView* toolBarView;
 
 // The Identity Disc showing the current user's avatar on NTP.
-@property(nonatomic, strong) UIView* identityDiscView;
+@property(nonatomic, strong) UIButton* identityDiscButton;
 
 // The entrypoint for the Home customization menu.
 @property(nonatomic, strong) UIButton* customizationMenuButton;
@@ -48,6 +44,15 @@ enum class SearchEngineLogoState;
 @property(nonatomic, strong) UIView* cancelButton;
 // Fake omnibox, used for animations. Hidden by default.
 @property(nonatomic, strong) OmniboxContainerView* omnibox;
+
+// The container for the fake omnibox.
+@property(nonatomic, strong) UIView* fakeOmniboxContainer;
+
+// The accessibility button for the fake omnibox.
+@property(nonatomic, strong) UIButton* accessibilityButton;
+
+// The fake tap button used in split toolbar mode.
+@property(nonatomic, strong) UIButton* fakeTapButton;
 
 @property(nonatomic, strong)
     NSLayoutConstraint* fakeLocationBarLeadingConstraint;
@@ -72,8 +77,21 @@ enum class SearchEngineLogoState;
 // Handles the actions for the NTP shortcuts, like Lens or voice search.
 @property(nonatomic, weak) id<NewTabPageShortcutsHandler> NTPShortcutsHandler;
 
+// Handler for dispatched commands.
+@property(nonatomic, weak) id<NewTabPageHeaderCommands> commandHandler;
+
+// Delegate for toolbar actions.
+@property(nonatomic, weak) id<NewTabPageControllerDelegate> toolbarDelegate;
+
 // The logo state.
 @property(nonatomic, assign) SearchEngineLogoState logoState;
+
+// Initializes the view with the Lens button new badge status.
+- (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
+    NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
+- (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
 
 // Adds the separator to the searchField. Must be called after the searchField
 // is added as a subview.
@@ -82,6 +100,9 @@ enum class SearchEngineLogoState;
 // Adds the `toolbarView` to the view implementing this protocol.
 // Can only be added once.
 - (void)addToolbarView:(UIView*)toolbarView;
+
+// Sets up the subviews (fake omnibox, tap view) after properties are set.
+- (void)setupSubviews;
 
 // Returns the progress of the search field position along
 // `ntp_header::kAnimationDistance` as the offset changes.
@@ -98,9 +119,6 @@ enum class SearchEngineLogoState;
                      forOffset:(CGFloat)offset
                    screenWidth:(CGFloat)screenWidth
                 safeAreaInsets:(UIEdgeInsets)safeAreaInsets;
-
-// Adds views necessary to customize the NTP search box.
-- (void)addViewsToSearchField:(UIView*)searchField;
 
 // Configures the current default search engine logo.
 - (void)setDefaultSearchEngineLogo:(UIImage*)logo;
@@ -135,6 +153,9 @@ enum class SearchEngineLogoState;
 
 // Whether the current session is eligible for fusebox.
 - (void)setFuseboxEligible:(BOOL)eligible;
+
+// Sets whether the omnibox is pinned to the bottom position.
+- (void)setOmniboxPositionIsBottom:(BOOL)isBottomOmnibox;
 
 // Whether to show the plus button.
 - (BOOL)shouldShowPlusButton;

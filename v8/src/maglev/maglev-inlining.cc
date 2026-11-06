@@ -373,7 +373,7 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
 }
 
 CodeTracer* MaglevInliner::GetCodeTracer() const {
-  return graph_->broker()->local_isolate()->AsIsolate()->GetCodeTracer();
+  return graph_->broker()->isolate()->GetCodeTracer();
 }
 
 void MaglevInliner::PrintMaglevGraph(

@@ -172,6 +172,8 @@ IPC_STRUCT_TRAITS_BEGIN(media::SubsampleEntry)
   IPC_STRUCT_TRAITS_MEMBER(cypher_bytes)
 IPC_STRUCT_TRAITS_END()
 
+<<<<<<< HEAD
+=======
 IPC_STRUCT_TRAITS_BEGIN(media::OverlayInfo)
   IPC_STRUCT_TRAITS_MEMBER(routing_token)
   IPC_STRUCT_TRAITS_MEMBER(is_fullscreen)
@@ -190,4 +192,5 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_

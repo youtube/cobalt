@@ -88,6 +88,9 @@ struct RTC_EXPORT NetworkRouteChange {
   // The TargetRateConstraints are set here so they can be changed synchronously
   // when network route changes.
   TargetRateConstraints constraints;
+  // If true, the change is significant enough to warrant a reset of the
+  // bandwidth estimator.
+  bool restart_bwe = true;
 };
 
 struct RTC_EXPORT PacedPacketInfo {

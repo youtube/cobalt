@@ -51,6 +51,7 @@ import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Restriction;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
 import org.chromium.chrome.browser.customtabs.CustomTabActivityTestRule;
@@ -74,7 +75,6 @@ import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.I
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.SearchType;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.ActivityTestUtils;
@@ -322,9 +322,9 @@ public class SearchActivityTest {
         // Set some text in the search box, then continue startup.
         mOmnibox.requestFocus();
 
-        verify(mAutocompleteController, never()).start(any(), anyInt(), anyBoolean());
+        verify(mAutocompleteController, never()).start(any(), any(), anyInt(), anyBoolean());
         verify(mAutocompleteController, never()).startPrefetch(any(), any());
-        verify(mAutocompleteController, never()).startZeroSuggest(any());
+        verify(mAutocompleteController, never()).startZeroSuggest(any(), any());
 
         ThreadUtils.runOnUiThreadBlocking(mTestDelegate.onSearchEngineFinalizedCallback.bind(true));
 
@@ -336,7 +336,7 @@ public class SearchActivityTest {
 
         // Omnibox suggestions should be requested now.
         var captor = ArgumentCaptor.forClass(AutocompleteInput.class);
-        verify(mAutocompleteController).startZeroSuggest(captor.capture());
+        verify(mAutocompleteController).startZeroSuggest(any(), captor.capture());
         Assert.assertEquals("", captor.getValue().getUserText());
         Assert.assertEquals(
                 PageClassification.ANDROID_SEARCH_WIDGET_VALUE,

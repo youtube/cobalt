@@ -339,9 +339,9 @@ template <typename T>
 void WriteBarrier::ForProtectedPointer(HeapObjectLayout* host,
                                        TaggedMemberBase* slot, Tagged<T> value,
                                        WriteBarrierMode mode) {
-  // Only a host in trusted space may hold a ProtectedTaggedMember. Callers
-  // reach this overload via TaggedMember<T, TrustedSpaceCompressionScheme>,
-  // which already implies trusted space, but DCHECK to catch misuse.
+  // Only a host in trusted space may hold a ProtectedTaggedMember (i.e. a
+  // TaggedMember<T, TrustedSpaceCompressionScheme>). The type already implies
+  // trusted space, but DCHECK to catch misuse.
   DCHECK(TrustedHeapLayout::InTrustedSpace(Tagged(host)));
   Tagged<HeapObject> value_object;
   if (!value.GetHeapObject(&value_object)) {

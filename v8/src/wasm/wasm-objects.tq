@@ -69,7 +69,8 @@ extern class WasmImportData extends TrustedObject {
 extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
     WasmImportData): WasmTrustedInstanceData|Smi;
 
-class WasmFastApiCallData extends HeapObject {
+@cppObjectLayoutDefinition
+extern class WasmFastApiCallData extends HeapObject {
   signature: HeapObject;
   callback_data: Object;
   cached_map: Weak<Map>|Null;
@@ -334,12 +335,12 @@ extern class WasmArray extends WasmObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
-class WasmStringViewIter extends HeapObject {
+@cppObjectLayoutDefinition
+extern class WasmStringViewIter extends HeapObject {
   string: String;
   offset: uint32;  // Index into string.
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 @cppObjectLayoutDefinition

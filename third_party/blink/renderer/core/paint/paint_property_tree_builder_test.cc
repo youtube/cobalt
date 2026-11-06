@@ -5,12 +5,16 @@
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder_test.h"
 
 #include "base/compiler_specific.h"
+<<<<<<< HEAD
+#include "cc/test/fake_layer_tree_host_delegate.h"
+=======
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cc/test/fake_layer_tree_host_client.h"
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/blink/public/common/features.h"
 #endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "cc/trees/effect_node.h"
 #include "cc/trees/scroll_node.h"
 #include "cc/trees/transform_node.h"

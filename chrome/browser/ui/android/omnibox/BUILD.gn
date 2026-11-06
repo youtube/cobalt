@@ -81,10 +81,12 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/omnibox/fusebox/FuseboxTabUtils.java",
     "java/src/org/chromium/chrome/browser/omnibox/fusebox/FuseboxViewBinder.java",
     "java/src/org/chromium/chrome/browser/omnibox/fusebox/FuseboxViewHolder.java",
+    "java/src/org/chromium/chrome/browser/omnibox/fusebox/SuggestedTabInfo.java",
     "java/src/org/chromium/chrome/browser/omnibox/geo/GeolocationHeader.java",
     "java/src/org/chromium/chrome/browser/omnibox/geo/GeolocationTracker.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/PageInfoIphController.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/PermissionStatusHandler.java",
+    "java/src/org/chromium/chrome/browser/omnibox/status/SiteControlsIphController.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/StatusIconView.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java",
@@ -224,6 +226,7 @@ android_library("java") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/tabwindow:java",
+    "//chrome/browser/ui/android/appmenu:java",
     "//chrome/browser/ui/android/default_browser_promo:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/android/extensions:java",
@@ -235,6 +238,7 @@ android_library("java") {
     "//chrome/browser/ui/android/page_info:java",
     "//chrome/browser/ui/android/searchactivityutils:java",
     "//chrome/browser/ui/android/theme:java",
+    "//chrome/browser/ui/android/toolbar:optional_button_java",
     "//chrome/browser/ui/android/toolbar:variation_utils_java",
     "//chrome/browser/ui/messages/android:java",
     "//chrome/browser/url_constants/android:java",
@@ -328,6 +332,7 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/chrome/browser/omnibox/OmniboxPrerender.java",
     "java/src/org/chromium/chrome/browser/omnibox/OmniboxViewUtil.java",
     "java/src/org/chromium/chrome/browser/omnibox/fusebox/ComposeboxQueryControllerBridge.java",
+    "java/src/org/chromium/chrome/browser/omnibox/fusebox/SuggestedTabInfo.java",
     "java/src/org/chromium/chrome/browser/omnibox/geo/GeolocationHeader.java",
     "java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteController.java",
   ]
@@ -341,6 +346,7 @@ android_resources("java_resources") {
     "java/res/drawable/action_button_foreground_selector.xml",
     "java/res/drawable/create_image_24dp.xml",
     "java/res/drawable/fusebox_attachment_divider.xml",
+    "java/res/drawable/fusebox_horizontal_attachment_background.xml",
     "java/res/drawable/fusebox_popup_bg_tinted.xml",
     "java/res/drawable/fusebox_popup_bg_tinted_on_dark_bg.xml",
     "java/res/drawable/ic_add_round_20dp_with_inset.xml",
@@ -500,6 +506,7 @@ robolectric_library("junit") {
     "java/src/org/chromium/chrome/browser/omnibox/fusebox/FuseboxViewBinderUnitTest.java",
     "java/src/org/chromium/chrome/browser/omnibox/geo/GeolocationHeaderUnitTest.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/PageInfoIphControllerUnitTest.java",
+    "java/src/org/chromium/chrome/browser/omnibox/status/SiteControlsIphControllerUnitTest.java",
     "java/src/org/chromium/chrome/browser/omnibox/status/StatusMediatorUnitTest.java",
     "java/src/org/chromium/chrome/browser/omnibox/styles/OmniboxImageSupplierUnitTest.java",
     "java/src/org/chromium/chrome/browser/omnibox/styles/OmniboxResourceProviderTest.java",
@@ -597,6 +604,7 @@ robolectric_library("junit") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/tabwindow:java",
+    "//chrome/browser/ui/android/appmenu:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/android/extensions:java",
     "//chrome/browser/ui/android/favicon:java",
@@ -674,5 +682,5 @@ robolectric_library("junit") {
     "//url:gurl_java",
     "//url:gurl_junit_test_support",
   ]
-  resources_package = "org.chromium.chrome.browser.omnibox.test"
+  resources_package = "org.chromium.chrome.browser.omnibox"
 }

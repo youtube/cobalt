@@ -26,6 +26,12 @@ import org.chromium.ui.animation.AnimationHandler;
 /** Helper class for showing placeholders while resizing the Web View in the Tab Bottom Sheet. */
 @NullMarked
 public class WebViewResizingHelper {
+    /** Token to unlock/release a requested resize. */
+    @FunctionalInterface
+    public interface ResizeLock {
+        void unlock();
+    }
+
     private static final int RESIZING_ANIMATION_DURATION_MS = 150;
 
     private final AnimationHandler mAnimationHandler = new AnimationHandler();
@@ -34,12 +40,15 @@ public class WebViewResizingHelper {
     private final FrameLayout mResizingContainer;
     private final View mResizingPlaceholder;
     private @Nullable ThinWebView mThinWebView;
+    private final View mExpandedContentGroup;
 
     /**
-     * @param context The context for the view.
+     * @param containerView The root view for the co-browse content.
+     * @param backgroundColor The background color used for the placeholder.
      */
-    public WebViewResizingHelper(Context context, @ColorInt int backgroundColor) {
-        mContext = context;
+    public WebViewResizingHelper(View containerView, @ColorInt int backgroundColor) {
+        mContext = containerView.getContext();
+        mExpandedContentGroup = containerView.findViewById(R.id.expanded_content_group);
 
         mResizingContainer = new FrameLayout(mContext);
         mResizingPlaceholder =
@@ -48,9 +57,9 @@ public class WebViewResizingHelper {
         mResizingContainer.addView(mResizingPlaceholder);
         mResizingPlaceholder.setVisibility(View.GONE);
 
-        ColorDrawable border = new ColorDrawable();
-        border.setColor(backgroundColor);
-        mResizingPlaceholder.setBackground(border);
+        ColorDrawable background = new ColorDrawable();
+        background.setColor(backgroundColor);
+        mResizingPlaceholder.setBackground(background);
     }
 
     /** Resets the helper to its initial state. */
@@ -79,17 +88,33 @@ public class WebViewResizingHelper {
         return mResizingContainer;
     }
 
-    /**
-     * Sets whether the web view is resizing. If true, the placeholder will be shown. If false, the
-     * placeholder will be hidden.
-     */
-    public void setIsResizing(boolean isResizing) {
-        if (mThinWebView == null) return;
+    /** Requests resizing mode and shows the placeholder. */
+    public @Nullable ResizeLock requestResize() {
+        if (mThinWebView == null) return null;
 
-        if (isResizing) {
-            enableResizingMode();
-        } else {
-            disableResizingMode();
+        enableResizingMode();
+        return this::disableResizingMode;
+    }
+
+    /** Sets the sheet to flexible height. */
+    public void setToFlexibleHeight() {
+        ViewGroup.LayoutParams sheetContentParams = mExpandedContentGroup.getLayoutParams();
+        if (sheetContentParams.height != ViewGroup.LayoutParams.MATCH_PARENT) {
+            sheetContentParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            mExpandedContentGroup.setLayoutParams(sheetContentParams);
+        }
+    }
+
+    /**
+     * Sets the sheet to fixed height.
+     *
+     * @param height The height to set.
+     */
+    public void setToFixedHeight(int height) {
+        ViewGroup.LayoutParams sheetContentParams = mExpandedContentGroup.getLayoutParams();
+        if (sheetContentParams.height != height) {
+            sheetContentParams.height = height;
+            mExpandedContentGroup.setLayoutParams(sheetContentParams);
         }
     }
 

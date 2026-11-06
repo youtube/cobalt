@@ -37,68 +37,22 @@ class NativeContext;
 class IsCompiledScope;
 class StackTraceInfo;
 class SwissNameDictionary;
+class GlobalDictionary;
 class ElementsAccessor;
 class Undefined;
 class Null;
 
 #include "torque-generated/src/objects/js-objects-tq.inc"
 
-// Temporary mirror of JSReceiver for subclasses with the new layout. Holds
-// the single `properties_or_hash` field. Byte-compatible with the legacy
-// JSReceiver so existing subclasses and GC machinery continue to work while
-// the tree migrates. Will be renamed to JSReceiver at the final collapse.
-V8_OBJECT class JSReceiverLayout : public HeapObjectLayout {
- public:
-  // Back-compat offset constants, mirrored from the legacy JSReceiver class.
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kPropertiesOrHashOffset;
-  static const int kHeaderSize;
-
-  // Delegate trampolines into the legacy JSReceiver class. These let ported
-  // subclasses and their callers keep using method-call syntax without
-  // threading Cast<JSReceiver>(...) through every callsite during migration.
-  // TODO(jgruber): Remove once JSReceiver is collapsed into JSReceiverLayout.
-  DECL_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
-  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
-  inline void SetProperties(Tagged<HeapObject> properties);
-  DECL_GETTER(HasFastProperties, bool)
-  DECL_GETTER(property_array, Tagged<PropertyArray>)
-  DECL_GETTER(property_dictionary, Tagged<NameDictionary>)
-  DECL_GETTER(property_dictionary_swiss, Tagged<SwissNameDictionary>)
-  inline void initialize_properties(Isolate* isolate);
-  inline Tagged<Object> GetIdentityHash();
-  inline Tagged<Smi> GetOrCreateIdentityHash(Isolate* isolate);
-  inline std::optional<Tagged<NativeContext>> GetCreationContext() const;
-  inline MaybeDirectHandle<NativeContext> GetCreationContext(
-      Isolate* isolate) const;
-
-  V8_WARN_UNUSED_RESULT static inline Maybe<bool> OrdinaryDefineOwnProperty(
-      Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Object> key,
-      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
-  V8_WARN_UNUSED_RESULT static inline Maybe<bool>
-  IsCompatiblePropertyDescriptor(Isolate* isolate, bool extensible,
-                                 PropertyDescriptor* desc,
-                                 PropertyDescriptor* current,
-                                 DirectHandle<Name> property_name,
-                                 Maybe<ShouldThrow> should_throw);
-  V8_WARN_UNUSED_RESULT static inline Maybe<bool> GetOwnPropertyDescriptor(
-      Isolate* isolate, DirectHandle<JSReceiver> object,
-      DirectHandle<Object> key, PropertyDescriptor* desc);
-
- public:
-  TaggedMember<UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray, Smi>>
-      properties_or_hash_;
-} V8_OBJECT_END;
-
-inline constexpr int JSReceiverLayout::kPropertiesOrHashOffset =
-    offsetof(JSReceiverLayout, properties_or_hash_);
-inline constexpr int JSReceiverLayout::kHeaderSize = sizeof(JSReceiverLayout);
-
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
+V8_OBJECT class JSReceiver : public HeapObjectLayout {
  public:
+  using Properties =
+      UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
+  using PropertiesOrHash = UnionOf<SwissNameDictionary, FixedArrayBase,
+                                   PropertyArray, Smi, GlobalDictionary>;
+
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
 
@@ -119,7 +73,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
   // empty_fixed_array(), the hash will be maintained in this case as well.
-  void SetProperties(Tagged<HeapObject> properties);
+  void SetProperties(Tagged<Properties> properties);
 
   // There are five possible values for the properties offset.
   // 1) EmptyFixedArray/EmptyPropertyDictionary - This is the standard
@@ -138,8 +92,15 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
-  DECL_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
-  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
+  inline Tagged<PropertiesOrHash> raw_properties_or_hash() const;
+  inline void set_raw_properties_or_hash(
+      Tagged<PropertiesOrHash> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<PropertiesOrHash> raw_properties_or_hash(
+      RelaxedLoadTag tag) const;
+  inline void set_raw_properties_or_hash(
+      Tagged<PropertiesOrHash> value, RelaxedStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void initialize_properties(Isolate* isolate);
 
@@ -410,24 +371,21 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // TC39 "Dynamic Code Brand Checks"
   bool IsCodeLike(Isolate* isolate) const;
 
- private:
-  // Hide generated accessors; custom accessors are called
-  // "raw_properties_or_hash".
-  DECL_ACCESSORS(properties_or_hash, Tagged<Object>)
+  DECL_VERIFIER(JSReceiver)
 
-  TQ_OBJECT_CONSTRUCTORS(JSReceiver)
-};
+ public:
+  TaggedMember<PropertiesOrHash> properties_or_hash_;
+} V8_OBJECT_END;
 
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-V8_OBJECT class JSObject : public JSReceiverLayout {
+V8_OBJECT class JSObject : public JSReceiver {
  public:
   // Back-compat offset/size constants. Defined out-of-line below so they
   // can use sizeof(JSObject) / offsetof(JSObject, ...) once the class is
-  // complete (the in-class static_asserts against JSReceiver::kHeaderSize
-  // still work via the declarations here).
+  // complete.
   static const int kElementsOffset;
   static const int kEndOfStrongFieldsOffset;
   static const int kHeaderSize;
@@ -436,53 +394,6 @@ V8_OBJECT class JSObject : public JSReceiverLayout {
   // Mirror the JSReceiver::IntegrityLevel type alias so method signatures
   // that take `IntegrityLevel` parameters can be declared on JSObject.
   using IntegrityLevel = JSReceiver::IntegrityLevel;
-
-  // Static forwarders for JSReceiver-level APIs. `using JSReceiver::Foo` is
-  // not viable: JSReceiver is a sibling legacy class, not a base of the
-  // V8_OBJECT JSObject (which extends JSReceiverLayout). The forwarders keep
-  // existing JSObject::Foo(...) call sites compiling after the collapse.
-  // TODO(jgruber): Remove once JSReceiver is collapsed into JSReceiverLayout
-  // and JSObject inherits from the merged JSReceiver directly.
-  template <typename... Args>
-  static auto GetProperty(Args&&... args) {
-    return JSReceiver::GetProperty(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto GetElement(Args&&... args) {
-    return JSReceiver::GetElement(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto GetDataProperty(Args&&... args) {
-    return JSReceiver::GetDataProperty(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto GetPrototype(Args&&... args) {
-    return JSReceiver::GetPrototype(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto OwnPropertyKeys(Args&&... args) {
-    return JSReceiver::OwnPropertyKeys(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto HasProperty(Args&&... args) {
-    return JSReceiver::HasProperty(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto SetIntegrityLevel(Args&&... args) {
-    return JSReceiver::SetIntegrityLevel(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto GetOwnPropertyDescriptor(Args&&... args) {
-    return JSReceiver::GetOwnPropertyDescriptor(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto GetPropertyAttributes(Args&&... args) {
-    return JSReceiver::GetPropertyAttributes(std::forward<Args>(args)...);
-  }
-  template <typename... Args>
-  static auto DeleteProperty(Args&&... args) {
-    return JSReceiver::DeleteProperty(std::forward<Args>(args)...);
-  }
 
   static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
@@ -1153,7 +1064,7 @@ inline constexpr int JSObject::kMaxJSApiObjectEmbedderFields =
      kCppHeapPointerSlotSize) /
     kEmbedderDataSlotSize;
 
-static_assert(JSObject::kElementsOffset == sizeof(JSReceiverLayout));
+static_assert(JSObject::kElementsOffset == sizeof(JSReceiver));
 static_assert(JSObject::kHeaderSize == Internals::kJSObjectHeaderSize);
 static_assert(JSObject::kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
@@ -1229,13 +1140,6 @@ V8_OBJECT class JSSpecialObject : public JSCustomElementsObject {
 inline constexpr int JSSpecialObject::kCppHeapWrappableOffset =
     offsetof(JSSpecialObject, cpp_heap_wrappable_);
 inline constexpr int JSSpecialObject::kHeaderSize = sizeof(JSSpecialObject);
-
-// Byte-for-byte layout compatibility between the legacy JSReceiver class and
-// its Layout mirror. The migration relies on subclasses extending either
-// hierarchy landing at the same physical offsets.
-static_assert(JSReceiverLayout::kPropertiesOrHashOffset ==
-              JSReceiver::kPropertiesOrHashOffset);
-static_assert(JSReceiverLayout::kHeaderSize == JSReceiver::kHeaderSize);
 
 // The set of tags that a JSExternalObject's value may carry. Any user-
 // facing v8::External pointer maps to a tag in [kFirstExternalTypeTag,

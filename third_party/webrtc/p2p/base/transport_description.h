@@ -96,6 +96,7 @@ struct IceParameters {
 
 constexpr auto* ICE_OPTION_TRICKLE = "trickle";
 constexpr auto* ICE_OPTION_RENOMINATION = "renomination";
+constexpr auto* ICE_OPTION_GOOG_SPED_V1 = "goog-sped-v1";
 
 std::optional<ConnectionRole> StringToConnectionRole(
     absl::string_view role_str);

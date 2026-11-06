@@ -13,6 +13,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
 
 namespace glic {
 
@@ -101,6 +102,49 @@ void ShowInstanceTask::Start(base::OnceClosure done_callback) {
   std::move(done_callback).Run();
 }
 
+MaybeInitializeHiddenClientTask::MaybeInitializeHiddenClientTask(
+    GlicInstanceImpl* instance,
+    mojom::InvocationSource invocation_source,
+    mojom::FreOverride fre_override)
+    : instance_(instance),
+      invocation_source_(invocation_source),
+      fre_override_(fre_override) {}
+
+MaybeInitializeHiddenClientTask::~MaybeInitializeHiddenClientTask() = default;
+
+// This task has no effect if the instance is not hidden.
+void MaybeInitializeHiddenClientTask::Start(base::OnceClosure done_callback) {
+  if (!instance_->HasActiveEmbedder()) {
+    instance_->MaybeInitializeHiddenClient(invocation_source_, fre_override_);
+    if (content::WebContents* ui_contents =
+            instance_->host().webui_contents()) {
+      ui_contents->WasShown();
+    }
+    if (content::WebContents* client_contents =
+            instance_->host().web_client_contents()) {
+      client_contents->WasShown();
+    }
+    forced_shown_ = true;
+  }
+  std::move(done_callback).Run();
+}
+
+void MaybeInitializeHiddenClientTask::OnSequenceCompleted(bool success) {
+  // Only revert to hidden if we forced it to be shown and there is still no
+  // active embedder. This prevents overriding the state if an active embedder
+  // was created while the task was running (as this code is async).
+  if (forced_shown_ && !instance_->HasActiveEmbedder()) {
+    if (content::WebContents* ui_contents =
+            instance_->host().webui_contents()) {
+      ui_contents->WasHidden();
+    }
+    if (content::WebContents* client_contents =
+            instance_->host().web_client_contents()) {
+      client_contents->WasHidden();
+    }
+  }
+}
+
 WaitForClientConnectedTask::WaitForClientConnectedTask(Host* host)
     : host_(host) {
   observation_.Observe(host_);
@@ -123,14 +167,20 @@ void WaitForClientConnectedTask::WebClientConnected() {
   }
 }
 
-NotifyIsInvokingTask::NotifyIsInvokingTask(Host* host, bool is_invoking)
-    : host_(host), is_invoking_(is_invoking) {}
+NotifyIsInvokingTask::NotifyIsInvokingTask(Host* host) : host_(host) {}
 
 NotifyIsInvokingTask::~NotifyIsInvokingTask() = default;
 
 void NotifyIsInvokingTask::Start(base::OnceClosure done_callback) {
-  host_->NotifyIsInvoking(is_invoking_);
+  did_start_ = true;
+  host_->NotifyIsInvoking(true);
   std::move(done_callback).Run();
+}
+
+void NotifyIsInvokingTask::OnSequenceCompleted(bool success) {
+  if (did_start_) {
+    host_->NotifyIsInvoking(false);
+  }
 }
 
 PostCallbackTask::PostCallbackTask(base::OnceClosure callback)

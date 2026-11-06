@@ -1341,12 +1341,16 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       showing_context_menu_(false),
       prerender_host_registry_(std::make_unique<PrerenderHostRegistry>(*this)),
       compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()),
+<<<<<<< HEAD
+      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
+=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       fenced_frame_viewport_observer_(
           std::make_unique<FencedFrameViewportObserver>(this)),
 #endif
       tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_))
 {
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
@@ -6449,7 +6453,9 @@ void WebContentsImpl::MoveCaret(const gfx::Point& extent) {
 
 base::UnguessableToken WebContentsImpl::GetCompositorFrameSinkGroupingId()
     const {
-  return compositor_frame_sink_grouping_id_;
+  const WebContentsImpl* root =
+      const_cast<WebContentsImpl*>(this)->GetOutermostWebContents();
+  return root->compositor_frame_sink_grouping_id_;
 }
 
 void WebContentsImpl::AdjustSelectionByCharacterOffset(
@@ -12328,9 +12334,8 @@ gfx::mojom::DelegatedInkPointRenderer* WebContentsImpl::GetDelegatedInkRenderer(
       return nullptr;
     }
 
-    TRACE_EVENT_INSTANT0("delegated_ink_trails",
-                         "Binding mojo interface for delegated ink points.",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("delegated_ink_trails",
+                        "Binding mojo interface for delegated ink points.");
     compositor->SetDelegatedInkPointRenderer(
         delegated_ink_point_renderer_.BindNewPipeAndPassReceiver());
     delegated_ink_point_renderer_.reset_on_disconnect();

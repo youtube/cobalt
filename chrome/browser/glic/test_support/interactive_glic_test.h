@@ -46,11 +46,11 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/common/chrome_features.h"
@@ -439,8 +439,7 @@ class InteractiveGlicTestMixin : public T {
         Api::Do([this]() {
           GetInstanceCoordinator().Toggle(
               /*browser=*/nullptr, true, mojom::InvocationSource::kOsButton,
-              /*prompt_suggestion=*/std::nullopt,
-              /*auto_send=*/false,
+              /*deprecated_prompt_suggestion=*/std::nullopt,
               /*conversation_id=*/std::nullopt);
         }),
         WaitForAndInstrumentGlic(instrument_mode), WaitForGlicOpen());
@@ -470,10 +469,10 @@ class InteractiveGlicTestMixin : public T {
         return Api::PressButton(element_id);
       case GlicWindowMode::kDetached:
         return Api::Do([this, invocation_source] {
-          instance_coordinator().Toggle(browser(), false, invocation_source,
-                                        /*prompt_suggestion=*/std::nullopt,
-                                        /*auto_send=*/false,
-                                        /*conversation_id=*/std::nullopt);
+          instance_coordinator().Toggle(
+              browser(), false, invocation_source,
+              /*deprecated_prompt_suggestion=*/std::nullopt,
+              /*conversation_id=*/std::nullopt);
         });
     }
   }
@@ -701,8 +700,10 @@ class InteractiveGlicTestMixin : public T {
           if (!GetGlicInstance()) {
             return GlicWindowMode::kAttached;
           }
-          return GetGlicInstance()->IsAttached() ? GlicWindowMode::kAttached
-                                                 : GlicWindowMode::kDetached;
+          return GetGlicInstance()->GetPanelState().kind ==
+                         mojom::PanelStateKind::kAttached
+                     ? GlicWindowMode::kAttached
+                     : GlicWindowMode::kDetached;
         },
         mode, "CheckControllerWidgetMode");
   }

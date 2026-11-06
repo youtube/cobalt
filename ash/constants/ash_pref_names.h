@@ -1752,10 +1752,13 @@ inline constexpr char kLocalAuthFactorsComplexity[] =
 inline constexpr char kAllowedLocalAuthFactors[] =
     "ash.local_auth_factors.enabled_factors";
 
-// Tracks the complexity level the user last satisfied to determine if they need
-// to be prompted by the LocalAuthFactorsComplexity policy.
-inline constexpr char kLocalAuthFactorsVerifiedComplexity[] =
-    "ash.local_auth_factors.verified_complexity";
+// Tracks the complexity level the user last satisfied for their password.
+inline constexpr char kLocalPasswordVerifiedComplexity[] =
+    "ash.local_auth_factors.password_verified_complexity";
+
+// Tracks the complexity level the user last satisfied for their PIN.
+inline constexpr char kLocalPinVerifiedComplexity[] =
+    "ash.local_auth_factors.pin_verified_complexity";
 
 // Dictionary prefs in local state that keeps information about detachable
 // bases - for example the last used base per user.
@@ -3864,6 +3867,17 @@ inline constexpr char kSkyVaultMigrationScheduledStartTime[] =
 // The time at which the SkyVault local files upload actually started.
 inline constexpr char kSkyVaultMigrationStartTime[] =
     "skyvault.migration_start_time";
+
+//-----------------------------------------------------------------------------
+// OEM customization related Prefs
+//-----------------------------------------------------------------------------
+
+// Customized wallpaper URL, which is already downloaded and scaled.
+// The URL from this preference must never be fetched. It is compared to the
+// URL from customization document to check if wallpaper URL has changed
+// since wallpaper was cached.
+inline constexpr char kCustomizationDefaultWallpaperURL[] =
+    "customization.default_wallpaper_url";
 
 // NOTE: New prefs should start with the "ash." prefix. Existing prefs moved
 // into this file should not be renamed, since they may be synced.

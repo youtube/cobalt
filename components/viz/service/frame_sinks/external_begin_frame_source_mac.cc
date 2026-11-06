@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/power_monitor/power_monitor.h"
 #include "base/rand_util.h"
 #include "base/trace_event/trace_event.h"
 
@@ -71,6 +72,10 @@ ExternalBeginFrameSourceMac::ExternalBeginFrameSourceMac(
   VLOG(kOutputLevel) << "ExternalBeginFrameSourceMac(" << this << ")"
                      << "::ExternalBeginFrameSourceMac() ID:" << display_id;
 
+  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+    base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
+  }
+
   if (display_id == display::kInvalidDisplayId) {
     RecordDisplayLinkCreateStatus(DisplayLinkResult::kFailedInvalidDisplayId);
     DLOG(ERROR)
@@ -84,6 +89,9 @@ ExternalBeginFrameSourceMac::ExternalBeginFrameSourceMac(
 ExternalBeginFrameSourceMac::~ExternalBeginFrameSourceMac() {
   VLOG(kOutputLevel) << "ExternalBeginFrameSourceMac(" << this << ")"
                      << "::~ExternalBeginFrameSourceMac() ID:" << display_id_;
+  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+    base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
+  }
 }
 
 void ExternalBeginFrameSourceMac::CreateDelayBasedTimeSourceIfNeeded() {
@@ -114,12 +122,6 @@ void ExternalBeginFrameSourceMac::UpdateVSyncDisplay() {
     return;
   }
 
-  // Invalidate the display id first to force an update later in
-  // ImageTransportSurfaceOverlayMacEGL of this output surface.
-  // ImageTransportSurfaceOverlayMacEGL does not output an displaylink
-  // error or record the displaylink histogram.
-  output_surface_->SetVSyncDisplayID(display::kInvalidDisplayId);
-
   SetVSyncDisplayID(display_id_, /*force_update=*/true);
 }
 
@@ -133,7 +135,7 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
   }
 
   // Forward the |display_id| to output surface for frame presentation.
-  output_surface_->SetVSyncDisplayID(display_id);
+  output_surface_->SetVSyncDisplayID(display_id, force_update);
 
   // Remove the current callback from display_link_mac_ or from the timer.
   if (needs_begin_frames_) {
@@ -201,6 +203,20 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
   }
 }
 
+void ExternalBeginFrameSourceMac::RefreshRateChangedOnSameDisplay() {
+  if (!ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+    return;
+  }
+
+  // Forward the notification to output surface for frame presentation.
+  output_surface_->RefreshRateChangedOnSameDisplay();
+
+  if (display_link_mac_ &&
+      !display_link_mac_->NotifyEventAndCheckValidity(display_id_)) {
+    // Recreate a new one.
+    SetVSyncDisplayID(display_id_, /*force_update=*/true);
+  }
+}
 void ExternalBeginFrameSourceMac::StartBeginFrame() {
   if (display_link_mac_) {
     DCHECK(!vsync_callback_mac_);
@@ -265,10 +281,9 @@ void ExternalBeginFrameSourceMac::OnDisplayLinkCallback(
   }
 
   if (vsyncs_to_skip_ > 0) {
-    TRACE_EVENT_INSTANT0(
+    TRACE_EVENT_INSTANT(
         "viz",
-        "ExternalBeginFrameSourceMac::OnDisplayLinkCallback - skip_vsync",
-        TRACE_EVENT_SCOPE_THREAD);
+        "ExternalBeginFrameSourceMac::OnDisplayLinkCallback - skip_vsync");
     vsyncs_to_skip_--;
     return;
   }
@@ -493,4 +508,11 @@ ExternalBeginFrameSourceMac::GetSupportedFrameIntervals(
   return supported_intervals;
 }
 
+void ExternalBeginFrameSourceMac::OnResume() {
+  if (display_link_mac_ &&
+      !display_link_mac_->NotifyEventAndCheckValidity(display_id_)) {
+    // Recreate a new one.
+    SetVSyncDisplayID(display_id_, /*force_update=*/true);
+  }
+}
 }  // namespace viz

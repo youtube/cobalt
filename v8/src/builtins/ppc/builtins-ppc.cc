@@ -2017,8 +2017,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Dispatch to the target bytecode.
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ lbzx(ip, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
+  __ lbzx(scratch, MemOperand(kInterpreterBytecodeArrayRegister,
+                              kInterpreterBytecodeOffsetRegister));
   __ ShiftLeftU64(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ LoadU64(kJavaScriptCallCodeStartRegister,
              MemOperand(kInterpreterDispatchTableRegister, scratch));
@@ -2754,8 +2754,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset), r0);
-  __ Lwz(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)), SetRC, r0);
-  __ beq(&no_bound_arguments, cr0);
+  __ LoadU32(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)), r0);
+  __ CmpU32(r7, Operand(0), r0);
+  __ beq(&no_bound_arguments);
   {
     // ----------- S t a t e -------------
     //  -- r3 : the number of arguments
@@ -3208,7 +3209,7 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     if (!is_return) {
       __ Move(kCArgRegs[2], sp);
       __ Move(kCArgRegs[3], fp);
-      __ GetLabelAddress(kCArgRegs[4], saved_pc);
+      __ GetLabelAddress(kCArgRegs[4], saved_pc, r0);
     }
     __ Move(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(fn, num_args);
@@ -3718,7 +3719,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], sp);
     __ Move(kCArgRegs[2], fp);
-    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ GetLabelAddress(kCArgRegs[3], &resume, r0);
     __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 8);
   }
   Register target_stack = r4;
@@ -3777,7 +3778,7 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], sp);
     __ Move(kCArgRegs[2], fp);
-    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ GetLabelAddress(kCArgRegs[3], &resume, r0);
     __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
   }
 
@@ -4915,8 +4916,7 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
-  UseScratchRegisterScope temps(masm);
-  Register temp2 = temps.Acquire();
+  // Callers (e.g. RegExpMacroAssemblerPPC) pass the C function address in ip.
   // Place the return address on the stack, making the call
   // GC safe. The RegExp backend also relies on this.
   __ mflr(r0);
@@ -4926,11 +4926,11 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX/PPC64BE Linux use a function descriptor;
     __ LoadU64(ToRegister(ABI_TOC_REGISTER),
-               MemOperand(temp2, kSystemPointerSize));
-    __ LoadU64(temp2, MemOperand(temp2, 0));  // Instruction address
+               MemOperand(ip, kSystemPointerSize));
+    __ LoadU64(ip, MemOperand(ip, 0));  // Instruction address
   }
 
-  __ Call(temp2);  // Call the C++ function.
+  __ Call(ip);  // Call the C++ function.
   __ LoadU64(r0,
              MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
   __ mtlr(r0);

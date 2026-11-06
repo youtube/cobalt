@@ -27,7 +27,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/trace_event_analyzer.h"
+#include "base/test/tracing/trace_event_analyzer.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -49,10 +49,10 @@
 #include "chrome/browser/sessions/session_service_test_helper.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
@@ -3831,7 +3831,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
 
   auto waiter2 = CreatePageLoadMetricsTestWaiter("waiter2");
   waiter2->AddPageExpectation(TimingField::kFirstContentfulPaint);
-  waiter1->AddPageExpectation(TimingField::kLargestContentfulPaint);
+  waiter2->AddPageExpectation(TimingField::kLargestContentfulPaint);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kUrl2));
   waiter2->Wait();
 

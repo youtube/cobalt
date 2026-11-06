@@ -1592,6 +1592,7 @@ static void TestExternalPointerWrapping() {
                    "foo(), true")
             ->BooleanValue(isolate));
 
+  expected_ptr = nullptr;
   delete ptr;
 }
 
@@ -1600,6 +1601,7 @@ THREADED_TEST(ExternalWrap) {
   int* ptr = new int;
   expected_ptr = ptr;
   TestExternalPointerWrapping();
+  expected_ptr = nullptr;
   delete ptr;
 
   // Check stack allocated object.
@@ -17361,6 +17363,7 @@ TEST(PromiseHook) {
   CHECK_EQ(promise_hook_data->promise_hook_count, 5);
 
   delete promise_hook_data;
+  promise_hook_data = nullptr;
   isolate->SetPromiseHook(nullptr);
 }
 
@@ -22631,7 +22634,7 @@ TEST(EscapableHandleScope) {
 }
 
 static void SetterWhichExpectsThisAndHolderToDiffer(
-    Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+    Local<Name>, Local<Value>, const v8::PropertyCallbackInfo<Boolean>& info) {
   // Writes through prototypes do not trigger interceptor setter callback.
   UNREACHABLE();
 }
@@ -26950,7 +26953,7 @@ void ContextCheckGetter(Local<Name> name,
 }
 
 void ContextCheckSetter(Local<Name> name, Local<Value>,
-                        const v8::PropertyCallbackInfo<void>& info) {
+                        const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CheckContexts(info.GetIsolate());
 }

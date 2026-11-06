@@ -283,7 +283,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2251809247798634662">Yeni Gizli pencere</translation>
 <translation id="2253927598983295051"><ph name="APP_NAME" /> ile neyin paylaşılacağını seçin</translation>
 <translation id="2261570557291037252">Uygulama hakkında daha fazla bilgi</translation>
-<translation id="2270544918551255912">Geri gitmek için kenardan kaydırın</translation>
 <translation id="2276696007612801991">Şifrelerinizi kontrol etmek için Google hesabınızda oturum açın</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, Seçili gizli sekme</translation>
 <translation id="2286841657746966508">Fatura adresi</translation>
@@ -555,7 +554,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="3439276997620616816">Son sekmeleriniz burada gösterilir</translation>
 <translation id="3443221991560634068">Geçerli sayfayı yeniden yükler</translation>
 <translation id="3444179773590444986">Sitelerdeki koyu temayla ilgili geri bildirim paylaşmak ister misiniz?</translation>
-<translation id="3448874648066942074">Yapay zeka ile sayfanın özetini çıkarın</translation>
 <translation id="3452832259067974318">Gizliliğinizi korumak için Chrome, bu alanda şifrenizi otomatik olarak doldurmayacaktır.</translation>
 <translation id="3474624961160222204"><ph name="NAME" /> olarak devam et</translation>
 <translation id="3478363558367712427">Arama motorunuzu seçebilirsiniz</translation>
@@ -855,7 +853,6 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="4698757800236023795">Etkin (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Önbelleğe alınan resimler ve dosyalar</translation>
 <translation id="4710167854527459075">Yeniden eskiye sırala</translation>
-<translation id="4718044610319080485">Yapay zeka asistanını başlatır</translation>
 <translation id="4719927025381752090">Çevirmeyi öner</translation>
 <translation id="4720556299488643018">Abonelikten çık</translation>
 <translation id="4732120983431207637">Yığın Açma Aracı</translation>
@@ -1661,7 +1658,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7914399737746719723">Uygulama yüklendi</translation>
 <translation id="7917574899775263813">Son sekmeye gidin</translation>
 <translation id="7919123827536834358">Şu dilleri otomatik olarak çevir</translation>
-<translation id="7921782882718083488">Bu sayfanın özetini çıkarın</translation>
 <translation id="7926975587469166629">Kart için takma ad</translation>
 <translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome, bildirimleri kötüye kullanan veya son zamanlarda ziyaret etmediğiniz sitelerin izinlerini otomatik olarak kaldırır</translation>
@@ -1825,7 +1821,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="8538291624121505885"><ph name="TAB_TITLE" />, Birden Çok Seçili Sabit Pencere İçinde Pencere Sekmesi</translation>
 <translation id="8540136935098276800">Doğru biçimli bir URL girin</translation>
 <translation id="854522910157234410">Şu sayfayı aç:</translation>
-<translation id="8547466829003330976">PDF'i yapay zeka ile inceleyin</translation>
 <translation id="8551513938758868521">Chrome'dan ayrıldığınızda Gizli sekmeler kilitlensin</translation>
 <translation id="8559961053328923750">Chrome, reklam performansını ölçmek için sitelerin tarayıcı aracılığıyla paylaşabileceği toplam veri miktarını sınırlar</translation>
 <translation id="8559990750235505898">Diğer dillerdeki sayfaları çevirmeyi öner</translation>

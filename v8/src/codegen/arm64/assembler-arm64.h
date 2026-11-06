@@ -3536,9 +3536,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #endif
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // If a veneer is emitted for a branch instruction, that instruction must be
   // removed from the associated label's link chain so that the assembler does
   // not later attempt (likely unsuccessfully) to patch it to branch directly to

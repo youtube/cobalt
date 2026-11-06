@@ -10,7 +10,6 @@
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPath.h"
 #include "include/private/base/SkTDArray.h"
-#include "src/base/SkVx.h"
 #include "src/core/SkGeometry.h"
 #include "src/gpu/graphite/sparse_strips/SparseStripsTypes.h"
 
@@ -53,14 +52,13 @@ class Polyline;
  *    *where* to divide it. Using the inverse integral of the parabolic approximation, we map the
  *    `N` evenly spaced parabolic steps *back* into the curve's parametric space (`t`).
  *
- * 3. Culling and Winding:
- *    All out-of-viewport curves are simplified into straight lines. We simplify instead of cull
- *    because curves to the left of the viewport may still contribute winding for left-to-right
- *    scanline renderers (sparse strips). This simplification avoids subdvision and reduces the
- *    number of tiles generated downstream, while preserving the winding the curve would have
- *    contributed otherwise. Theoretically, curves entirely above, below, or to the right of the
- *    viewport could be completely culled, but to reduce branching, we fold them into the
- *    simplification case.
+ * 3. Culling, Simplification, and Winding:
+ *    Curves completely above, below, or to the right of the viewport are culled, producing no
+ *    lines. Curves to the left of the viewport are simplified instead of culled because they may
+ *    still contribute winding for left-to-right scanline renderers (sparse strips). Curves that
+ *    are sufficiently similar to lines are also simplified instead of subdivided. This
+ *    simplification avoids subdivision and reduces the number of tiles generated downstream,
+ *    while preserving the winding the curve would have otherwise contributed.
  *
  * 4. Lowering Conics:
  *    Conics (rational quadratics) are degree-reduced to standard quadratics using
@@ -162,14 +160,15 @@ private:
     void processPathsScalar(const SkPath& path, const SkMatrix& ctm, float width, float height,
                             Polyline* polyline);
 
-    void flattenQuadSimd();
+    void flattenQuadSimd(const SkPoint pts[3], Polyline* polyline);
     void flattenQuadScalar(const SkPoint pts[3], Polyline* polyline);
     uint32_t flattenCubicScalar(const SkPoint pts[4]);
 
-    void evalCubicsSimd();
+    void evalCubicsSimd(const SkPoint pts[4], uint32_t numQuads);
     void estimateLinesFromQuadSimd();
-    void outputLinesFromQuadSimd();
-    uint32_t flattenCubicSimd();
+    void outputLinesFromQuadSimd(uint32_t quadIdx, float x0, float dx, uint32_t numSegments,
+                                 uint32_t startIdx);
+    uint32_t flattenCubicSimd(const SkPoint pts[4]);
 
     CubicFlattenCtx fContext;
     SkAutoConicToQuads fConicToQuad;

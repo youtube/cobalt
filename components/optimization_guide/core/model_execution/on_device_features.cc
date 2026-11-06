@@ -173,13 +173,13 @@ std::string ToUseCaseName(mojom::OnDeviceFeature feature) {
     case mojom::OnDeviceFeature::kPermissionsAi:
       return "permissions_ai";
     case mojom::OnDeviceFeature::kWritingAssistanceApi:
-      return "writer_assistance_api";
+      return "writing_assistance_api";
     case mojom::OnDeviceFeature::kProofreaderApi:
       return "proofreader_api";
     case mojom::OnDeviceFeature::kOnDeviceSpeechRecognition:
       return "speech_recognition";
     case mojom::OnDeviceFeature::kSpeechRecognitionSmallExpertModel:
-      return "speech_recognition_tinygemma";
+      return "speech_recognition_small_expert_model";
     case mojom::OnDeviceFeature::kClassifier:
       return "classifier_api";
   }

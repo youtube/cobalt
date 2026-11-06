@@ -2564,13 +2564,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
+      // We only need a write barrier if the CAS was successful (i.e., the
+      // value was actually written). Compare the result with the expected
+      // value to determine if the CAS succeeded.
       Register object = i.InputRegister(0);
       Operand offset = i.InputOperand(1);
       Register new_value = i.InputRegister(3);
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, new_value, RecordWriteMode::kValueIsAny,
           DetermineStubCallMode());
+      __ Branch(ool->exit(), ne, i.OutputRegister(0),
+                Operand(i.InputRegister(2)));
       __ JumpIfSmi(new_value, ool->exit());
+
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
@@ -2637,13 +2643,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWithWriteBarrier: {
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       if (v8_flags.disable_write_barriers) break;
+
       // Emit the write barrier.
+      // We only need a write barrier if the CAS was successful (i.e., the
+      // value was actually written). Compare the result with the expected
+      // value to determine if the CAS succeeded.
       Register object = i.InputRegister(0);
       Operand offset = i.InputOperand(1);
       Register new_value = i.InputRegister(3);
       RecordWriteMode mode = RecordWriteMode::kValueIsAny;
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, new_value, mode, DetermineStubCallMode());
+      __ Branch(ool->exit(), ne, i.OutputRegister(0),
+                Operand(i.InputRegister(2)));
       __ JumpIfSmi(new_value, ool->exit());
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());

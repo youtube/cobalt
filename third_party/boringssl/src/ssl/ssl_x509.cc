@@ -866,14 +866,14 @@ void SSL_set_client_CA_list(SSL *ssl, STACK_OF(X509_NAME) *name_list) {
     return;
   }
   ssl->ctx->x509_method->ssl_flush_cached_client_CA(ssl->config.get());
-  set_client_CA_list(&ssl->config->client_CA, name_list, ssl->ctx->pool);
+  set_client_CA_list(&ssl->config->client_CA, name_list, ssl->ctx->pool.get());
   sk_X509_NAME_pop_free(name_list, X509_NAME_free);
 }
 
 void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *name_list) {
   check_ssl_ctx_x509_method(ctx);
   ctx->x509_method->ssl_ctx_flush_cached_client_CA(ctx);
-  set_client_CA_list(&ctx->client_CA, name_list, ctx->pool);
+  set_client_CA_list(&ctx->client_CA, name_list, ctx->pool.get());
   sk_X509_NAME_pop_free(name_list, X509_NAME_free);
 }
 
@@ -988,7 +988,7 @@ int SSL_add_client_CA(SSL *ssl, X509 *x509) {
   if (!ssl->config) {
     return 0;
   }
-  if (!add_client_CA(&ssl->config->client_CA, x509, ssl->ctx->pool)) {
+  if (!add_client_CA(&ssl->config->client_CA, x509, ssl->ctx->pool.get())) {
     return 0;
   }
 
@@ -998,7 +998,7 @@ int SSL_add_client_CA(SSL *ssl, X509 *x509) {
 
 int SSL_CTX_add_client_CA(SSL_CTX *ctx, X509 *x509) {
   check_ssl_ctx_x509_method(ctx);
-  if (!add_client_CA(&ctx->client_CA, x509, ctx->pool)) {
+  if (!add_client_CA(&ctx->client_CA, x509, ctx->pool.get())) {
     return 0;
   }
 

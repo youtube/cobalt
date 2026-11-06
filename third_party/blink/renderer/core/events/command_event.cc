@@ -31,29 +31,17 @@ CommandEvent::CommandEvent(const AtomicString& type,
     : Event(type,
             Bubbles::kNo,
             Cancelable::kYes,
-            RuntimeEnabledFeatures::CommandEventNotComposedEnabled()
-                ? ComposedMode::kScoped
-                : ComposedMode::kComposed),
+            ComposedMode::kScoped),
       source_(source) {
   command_ = command;
 }
 
 Element* CommandEvent::source() const {
-  auto* current = currentTarget();
   Element* source = source_.Get();
   if (!source) {
     return nullptr;
   }
-
-  if (RuntimeEnabledFeatures::ImprovedSourceRetargetingEnabled()) {
-    return Retarget(source);
-  }
-
-  if (current) {
-    return &current->ToNode()->GetTreeScope().Retarget(*source);
-  }
-  DCHECK_EQ(eventPhase(), Event::PhaseType::kNone);
-  return source;
+  return Retarget(source);
 }
 
 void CommandEvent::Trace(Visitor* visitor) const {

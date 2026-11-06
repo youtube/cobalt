@@ -1857,6 +1857,72 @@ INSTANTIATE_TEST_SUITE_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
                                  ValuesIn(kTrialsVariants),
                                  ValuesIn(kTrialsVariants)));
 
+struct SpedV1TestConfig {
+  bool caller_enabled;
+  bool callee_enabled;
+};
+
+class SdpNegotiationGoogSpedV1Test
+    : public DataChannelIntegrationTestUnifiedPlan,
+      public ::testing::WithParamInterface<SpedV1TestConfig> {};
+
+TEST_P(SdpNegotiationGoogSpedV1Test, VerifySdp) {
+  const auto& param = GetParam();
+  SetFieldTrials(
+      "Caller", param.caller_enabled ? "WebRTC-IceHandshakeDtls/Enabled/" : "");
+  SetFieldTrials(
+      "Callee", param.callee_enabled ? "WebRTC-IceHandshakeDtls/Enabled/" : "");
+
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+
+  std::unique_ptr<SessionDescriptionInterface> offer;
+  caller()->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        offer = sdp->Clone();
+      });
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  callee()->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        answer = sdp->Clone();
+      });
+
+  caller()->CreateAndSetAndSignalOffer();
+
+  ASSERT_THAT(offer, NotNull());
+  std::string offer_sdp;
+  offer->ToString(&offer_sdp);
+
+  if (param.caller_enabled) {
+    EXPECT_THAT(offer_sdp, testing::HasSubstr(ICE_OPTION_GOOG_SPED_V1));
+  } else {
+    EXPECT_THAT(offer_sdp,
+                testing::Not(testing::HasSubstr(ICE_OPTION_GOOG_SPED_V1)));
+  }
+
+  ASSERT_THAT(WaitUntil([&] { return answer.get() != nullptr; }, IsTrue()),
+              IsRtcOk());
+
+  std::string answer_sdp;
+  answer->ToString(&answer_sdp);
+
+  if (param.callee_enabled && param.caller_enabled) {
+    EXPECT_THAT(answer_sdp, testing::HasSubstr(ICE_OPTION_GOOG_SPED_V1));
+  } else {
+    EXPECT_THAT(answer_sdp,
+                testing::Not(testing::HasSubstr(ICE_OPTION_GOOG_SPED_V1)));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(SdpNegotiationGoogSpedV1Test,
+                         SdpNegotiationGoogSpedV1Test,
+                         testing::Values(SpedV1TestConfig{false, false},
+                                         SpedV1TestConfig{false, true},
+                                         SpedV1TestConfig{true, false},
+                                         SpedV1TestConfig{true, true}));
+
 TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
        DtlsRestartOneCalleAtATime) {
   if (auto msg = CheckSupported()) {

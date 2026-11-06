@@ -442,6 +442,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest,
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest, ExpandOnHoverOnLinkDrag) {
+  // Activate the browser window.
+  browser()->window()->Show();
+  browser()->window()->Activate();
+
   // Set up collapsed vertical tab strip with expand on hover enabled.
   VerticalTabStripRegionView* view = region_view();
   tabs::VerticalTabStripStateController::From(browser())
@@ -453,6 +457,12 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest, ExpandOnHoverOnLinkDrag) {
         ->IsCollapsed();
   }));
 
+  // Force expansion using a lock, since IsFrameActive() is flaky during tests.
+  auto lock = view->GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepExpanded);
+
+  // Verify that the tab strip enters the expand on hover state.
+  ASSERT_TRUE(view->is_expanded_on_hover());
+
   // Simulate a drag update by calling HandleDragUpdate directly.
   BrowserRootView::DropIndex index;
   index.index = 0;
@@ -460,9 +470,11 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest, ExpandOnHoverOnLinkDrag) {
       BrowserRootView::DropIndex::RelativeToIndex::kInsertBeforeIndex;
   view->HandleDragUpdate(index);
 
-  // Verify that the tab strip enters the expand on hover state.
-  ASSERT_TRUE(
-      base::test::RunUntil([&]() { return view->is_expanded_on_hover(); }));
+  // Release the force expansion lock.
+  lock.reset();
+
+  // It should stay expanded because the drag is still active.
+  ASSERT_TRUE(view->is_expanded_on_hover());
 
   // Simulate drag exit.
   view->HandleDragExited();

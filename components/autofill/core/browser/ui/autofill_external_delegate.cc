@@ -29,6 +29,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/zip.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
@@ -243,7 +244,10 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kOpenGemini:
       return false;
   }
 }
@@ -500,7 +504,7 @@ void AutofillExternalDelegate::OnSuggestionsShown(
   at_memory_controller_.OnPopupShown(trigger_source_,
                                      CreateUpdateSuggestionsCallback());
 
-  manager_->DidShowSuggestions(suggestions, query_form_,
+  manager_->DidShowSuggestions(suggestions, query_form_.global_id(),
                                query_field_.global_id(),
                                CreateUpdateSuggestionsCallback());
 }
@@ -615,6 +619,9 @@ void AutofillExternalDelegate::DidSelectSuggestion(
       manager_->DelegateSelectToPasswordManager(suggestion, query_field_);
       break;
     case SuggestionType::kAllLoyaltyCardsEntry:
+    case SuggestionType::kAtMemoryInactivityNudge:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kOpenGemini:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
     case SuggestionType::kComposeNeverShowOnThisSiteAgain:
@@ -832,11 +839,24 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
                                   GetTriggerSource(), /*blocked_fields=*/{});
       break;
     }
+    case SuggestionType::kAtMemoryInactivityNudge:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+      manager_->driver().RendererShouldTriggerSuggestions(
+          query_field_.global_id(), AutofillSuggestionTriggerSource::kAtMemory);
+      break;
     case SuggestionType::kAtMemorySearchResult:
       at_memory_controller_.FillOrPreviewSearchResult(
           mojom::ActionPersistence::kFill, query_form_, query_field_,
           suggestion);
       break;
+    case SuggestionType::kOpenGemini:
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      manager_->client().OpenGeminiInSidebar(
+          suggestion.GetPayload<Suggestion::OpenGeminiPayload>().prompt);
+      break;
+#else
+      NOTREACHED();
+#endif
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       manager_->DelegateAcceptToPasswordManager(suggestion, metadata,
                                                 query_field_);
@@ -975,7 +995,10 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kOpenGemini:
       return false;
   }
 }

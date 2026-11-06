@@ -392,7 +392,8 @@ class TestVideoEncoderFactoryWrapper final {
     // VP9 profile2 is not implemented at this moment.
     VideoEncoderFactory::CodecSupport support =
         builtin_video_encoder_factory_->QueryCodecSupport(
-            SdpVideoFormat(video_codec_string), scalability_mode_string);
+            SdpVideoFormat(video_codec_string), scalability_mode_string,
+            /*resolution=*/std::nullopt);
     return support.is_supported;
   }
 

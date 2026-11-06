@@ -1104,6 +1104,47 @@ class V8_NODISCARD IsBaselineCompiledScope {
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);
 
+V8_OBJECT class OnHeapBasicBlockProfilerData : public HeapObjectLayout {
+ public:
+  inline Tagged<ByteArray> block_ids() const;
+  inline void set_block_ids(Tagged<ByteArray> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<ByteArray> counts() const;
+  inline void set_counts(Tagged<ByteArray> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<ByteArray> branches() const;
+  inline void set_branches(Tagged<ByteArray> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<String> name() const;
+  inline void set_name(Tagged<String> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<String> schedule() const;
+  inline void set_schedule(Tagged<String> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<String> code() const;
+  inline void set_code(Tagged<String> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Smi> hash() const;
+  inline void set_hash(Tagged<Smi> value);
+
+  DECL_PRINTER(OnHeapBasicBlockProfilerData)
+  DECL_VERIFIER(OnHeapBasicBlockProfilerData)
+
+  class BodyDescriptor;
+
+  static constexpr int SizeFor() {
+    return sizeof(OnHeapBasicBlockProfilerData);
+  }
+
+  TaggedMember<ByteArray> block_ids_;
+  TaggedMember<ByteArray> counts_;
+  TaggedMember<ByteArray> branches_;
+  TaggedMember<String> name_;
+  TaggedMember<String> schedule_;
+  TaggedMember<String> code_;
+  TaggedMember<Smi> hash_;
+} V8_OBJECT_END;
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

@@ -10,10 +10,12 @@ import android.widget.FrameLayout;
 import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsContentDelegate;
@@ -51,13 +53,21 @@ public class BottomBarContainerCoordinator
             Callback<Boolean> requestLayerUpdateCallback,
             ActionRegistry actionRegistry,
             NullableObservableSupplier<Tab> tabSupplier,
-            ThemeColorProvider themeColorProvider) {
+            ThemeColorProvider themeColorProvider,
+            NonNullObservableSupplier<Boolean> homepageEnabledSupplier,
+            NullableObservableSupplier<Profile> profileSupplier) {
         mBottomBarContainer = bottomBarContainer;
         mRequestLayerUpdateCallback = requestLayerUpdateCallback;
 
         mBottomBarCoordinator =
                 new BottomBarCoordinator(
-                        bottomBarContainer, actionRegistry, themeColorProvider, tabSupplier, this);
+                        bottomBarContainer,
+                        actionRegistry,
+                        themeColorProvider,
+                        tabSupplier,
+                        homepageEnabledSupplier,
+                        this,
+                        profileSupplier);
     }
 
     @Override
@@ -90,7 +100,7 @@ public class BottomBarContainerCoordinator
 
     @Override
     public @Nullable @ColorInt Integer getBackgroundColor() {
-        return null;
+        return mBottomBarCoordinator.getBackgroundColor();
     }
 
     /** Returns the bottom bar. */

@@ -61,12 +61,13 @@ class TestPort : public Port {
 
   Connection* CreateConnection(const Candidate& remote_candidate,
                                CandidateOrigin origin) override;
-  int SendTo(const void* data,
-             size_t size,
+  int SendTo(std::span<const uint8_t> data,
              const SocketAddress& addr,
              const AsyncSocketPacketOptions& options,
              bool payload) override;
+
   int SetOption(Socket::Option opt, int value) override;
+
   int GetOption(Socket::Option opt, int* value) override;
   int GetError() override;
   void Reset();

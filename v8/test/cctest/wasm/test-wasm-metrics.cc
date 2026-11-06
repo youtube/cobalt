@@ -12,6 +12,7 @@
 #include "src/objects/managed.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"

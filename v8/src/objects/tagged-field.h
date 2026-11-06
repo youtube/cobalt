@@ -21,15 +21,12 @@ namespace v8::internal {
 template <typename T, typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedMember;
 
-// Distinct marker type so that `ProtectedTaggedMember<T>::WriteBarrier`
-// always routes through `WriteBarrier::ForProtectedPointer`. Without the
-// sandbox `TrustedSpaceCompressionScheme` aliases `V8HeapCompressionScheme`,
-// so we cannot distinguish protected-pointer fields via the scheme alone.
-struct ProtectedPointerCompressionScheme : TrustedSpaceCompressionScheme {};
-
+// A `TaggedMember` whose host lives in trusted space and whose value is
+// another trusted object. These slots are always integrity-protected and
+// require the dedicated `WriteBarrier::ForProtectedPointer` to record
+// TRUSTED_TO_SHARED_TRUSTED remembered-set entries.
 template <typename T>
-using ProtectedTaggedMember =
-    TaggedMember<T, ProtectedPointerCompressionScheme>;
+using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
 
 // Base class for all TaggedMember<T> classes.
 // TODO(leszeks): Merge with TaggedImpl.

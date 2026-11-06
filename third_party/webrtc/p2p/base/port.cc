@@ -49,6 +49,7 @@
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/span_helpers.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
@@ -382,12 +383,11 @@ void Port::AddOrReplaceConnection(Connection* conn) {
 void Port::OnReadPacket(const ReceivedIpPacket& packet, ProtocolType proto) {
   RTC_DCHECK_RUN_ON(thread_);
 
-  const char* data = reinterpret_cast<const char*>(packet.payload().data());
-  size_t size = packet.payload().size();
   const SocketAddress& addr = packet.source_address();
+  std::span<const uint8_t> data = packet.payload();
   // If the user has enabled port packets, just hand this over.
   if (enable_port_packets_) {
-    NotifyReadPacket(this, data, size, addr);
+    NotifyReadPacket(this, data, addr);
     return;
   }
 
@@ -395,7 +395,7 @@ void Port::OnReadPacket(const ReceivedIpPacket& packet, ProtocolType proto) {
   // send back a proper binding response.
   std::unique_ptr<IceMessage> msg;
   std::string remote_username;
-  if (!GetStunMessage(data, size, addr, &msg, &remote_username)) {
+  if (!GetStunMessage(data, addr, &msg, &remote_username)) {
     RTC_LOG(LS_ERROR) << ToString()
                       << ": Received non-STUN packet from unknown address: "
                       << addr.ToSensitiveString();
@@ -449,8 +449,7 @@ void Port::AddPrflxCandidate(const Candidate& local) {
   candidates_.push_back(local);
 }
 
-bool Port::GetStunMessage(const char* data,
-                          size_t size,
+bool Port::GetStunMessage(std::span<const uint8_t> data,
                           const SocketAddress& addr,
                           std::unique_ptr<IceMessage>* out_msg,
                           std::string* out_username) {
@@ -467,15 +466,15 @@ bool Port::GetStunMessage(const char* data,
   // Except GOOG_PING_REQUEST/RESPONSE that does not send fingerprint.
   int types[] = {GOOG_PING_REQUEST, GOOG_PING_RESPONSE,
                  GOOG_PING_ERROR_RESPONSE};
-  if (!StunMessage::IsStunMethod(types, data, size) &&
-      !StunMessage::ValidateFingerprint(data, size)) {
+  if (!StunMessage::IsStunMethod(types, data) &&
+      !StunMessage::ValidateFingerprint(data)) {
     return false;
   }
 
   // Parse the request message.  If the packet is not a complete and correct
   // STUN message, then ignore it.
   std::unique_ptr<IceMessage> stun_msg(new IceMessage());
-  ByteBufferReader buf(std::span(reinterpret_cast<const uint8_t*>(data), size));
+  ByteBufferReader buf(data);
   if (!stun_msg->Read(&buf) || (buf.Length() > 0)) {
     return false;
   }
@@ -800,7 +799,7 @@ void Port::SendBindingErrorResponse(StunMessage* message,
   AsyncSocketPacketOptions options(StunDscpValue());
   options.info_signaled_after_sent.packet_type =
       PacketType::kIceConnectivityCheckResponse;
-  SendTo(buf.Data(), buf.Length(), addr, options, false);
+  SendTo(buf.DataView(), addr, options, false);
   RTC_LOG(LS_INFO) << ToString() << ": Sending STUN "
                    << StunMethodToString(response.type())
                    << ": reason=" << reason << " to "
@@ -838,7 +837,7 @@ void Port::SendUnknownAttributesErrorResponse(
   AsyncSocketPacketOptions options(StunDscpValue());
   options.info_signaled_after_sent.packet_type =
       PacketType::kIceConnectivityCheckResponse;
-  SendTo(buf.Data(), buf.Length(), addr, options, false);
+  SendTo(buf.DataView(), addr, options, false);
   RTC_LOG(LS_ERROR) << ToString() << ": Sending STUN binding error: reason="
                     << STUN_ERROR_UNKNOWN_ATTRIBUTE << " to "
                     << addr.ToSensitiveString();
@@ -1115,29 +1114,35 @@ void Port::NotifyUnknownAddress(PortInterface* port,
   unknown_address_callbacks_.Send(port, address, proto, msg, rf, port_muxed);
 }
 
-[[deprecated]] void Port::SubscribeReadPacket(
+// deprecated
+void Port::SubscribeReadPacket(
     absl::AnyInvocable<
         void(PortInterface*, const char*, size_t, const SocketAddress&)>
         callback) {
-  read_packet_callbacks_.AddReceiver(std::move(callback));
+  SubscribeReadPacket(
+      nullptr, [cb = std::move(callback)](PortInterface* port,
+                                          std::span<const uint8_t> data,
+                                          const SocketAddress& addr) mutable {
+        cb(port, AsCharSpan(data).data(), data.size(), addr);
+      });
 }
 
 void Port::SubscribeReadPacket(
     const void* tag,
-    absl::AnyInvocable<
-        void(PortInterface*, const char*, size_t, const SocketAddress&)>
-        callback) {
+    absl::AnyInvocable<void(PortInterface*,
+                            std::span<const uint8_t>,
+                            const SocketAddress&)> callback) {
   read_packet_callbacks_.AddReceiver(tag, std::move(callback));
 }
 
 void Port::NotifyReadPacket(PortInterface* port,
-                            const char* data,
-                            size_t size,
+                            std::span<const uint8_t> data,
                             const SocketAddress& remote_address) {
-  read_packet_callbacks_.Send(port, data, size, remote_address);
+  read_packet_callbacks_.Send(port, data, remote_address);
 }
 
 [[deprecated]] void Port::SubscribeSentPacket(
+
     absl::AnyInvocable<void(const SentPacketInfo&)> callback) {
   sent_packet_callbacks_.AddReceiver(std::move(callback));
 }

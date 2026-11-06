@@ -18,12 +18,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <utility>
+
 #include <openssl/bn.h>
 #include <openssl/bytestring.h>
 #include <openssl/conf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/obj.h>
+#include <openssl/stack.h>
 #include <openssl/x509.h>
 
 #include "../conf/internal.h"
@@ -35,10 +38,10 @@ using namespace bssl;
 
 static char *strip_spaces(char *name);
 static int sk_strcmp(const char *const *a, const char *const *b);
-static STACK_OF(OPENSSL_STRING) *get_email(const X509_NAME *name,
-                                           const GENERAL_NAMES *gens);
+static UniquePtr<STACK_OF(OPENSSL_STRING)> get_email(const X509_NAME *name,
+                                                     const GENERAL_NAMES *gens);
 static void str_free(OPENSSL_STRING str);
-static int append_ia5(STACK_OF(OPENSSL_STRING) **sk,
+static int append_ia5(UniquePtr<STACK_OF(OPENSSL_STRING)> *sk,
                       const ASN1_IA5STRING *email);
 
 static int ipv4_from_asc(uint8_t v4[4], const char *in);
@@ -507,60 +510,43 @@ static int sk_strcmp(const char *const *a, const char *const *b) {
 }
 
 STACK_OF(OPENSSL_STRING) *X509_get1_email(const X509 *x) {
-  GENERAL_NAMES *gens;
-  STACK_OF(OPENSSL_STRING) *ret;
-
-  gens = reinterpret_cast<GENERAL_NAMES *>(
-      X509_get_ext_d2i(x, NID_subject_alt_name, nullptr, nullptr));
-  ret = get_email(X509_get_subject_name(x), gens);
-  sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
-  return ret;
+  UniquePtr<GENERAL_NAMES> gens(reinterpret_cast<GENERAL_NAMES *>(
+      X509_get_ext_d2i(x, NID_subject_alt_name, nullptr, nullptr)));
+  return get_email(X509_get_subject_name(x), gens.get()).release();
 }
 
 STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(const X509 *x) {
-  AUTHORITY_INFO_ACCESS *info;
-  STACK_OF(OPENSSL_STRING) *ret = nullptr;
-  size_t i;
-
-  info = reinterpret_cast<AUTHORITY_INFO_ACCESS *>(
-      X509_get_ext_d2i(x, NID_info_access, nullptr, nullptr));
+  UniquePtr<AUTHORITY_INFO_ACCESS> info(
+      reinterpret_cast<AUTHORITY_INFO_ACCESS *>(
+          X509_get_ext_d2i(x, NID_info_access, nullptr, nullptr)));
   if (!info) {
     return nullptr;
   }
-  for (i = 0; i < sk_ACCESS_DESCRIPTION_num(info); i++) {
-    ACCESS_DESCRIPTION *ad = sk_ACCESS_DESCRIPTION_value(info, i);
+  UniquePtr<STACK_OF(OPENSSL_STRING)> ret;
+  for (const ACCESS_DESCRIPTION *ad : info.get()) {
     if (OBJ_obj2nid(ad->method) == NID_ad_OCSP) {
       if (ad->location->type == GEN_URI) {
         if (!append_ia5(&ret, ad->location->d.uniformResourceIdentifier)) {
-          break;
+          return nullptr;
         }
       }
     }
   }
-  AUTHORITY_INFO_ACCESS_free(info);
-  return ret;
+  sk_OPENSSL_STRING_sort_and_dedup(ret.get(), str_free);
+  return ret.release();
 }
 
 STACK_OF(OPENSSL_STRING) *X509_REQ_get1_email(const X509_REQ *x) {
-  GENERAL_NAMES *gens;
-  STACK_OF(X509_EXTENSION) *exts;
-  STACK_OF(OPENSSL_STRING) *ret;
-
-  exts = X509_REQ_get_extensions(x);
-  gens = reinterpret_cast<GENERAL_NAMES *>(
-      X509V3_get_d2i(exts, NID_subject_alt_name, nullptr, nullptr));
-  ret = get_email(X509_REQ_get_subject_name(x), gens);
-  sk_GENERAL_NAME_pop_free(gens, GENERAL_NAME_free);
-  sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
-  return ret;
+  UniquePtr<STACK_OF(X509_EXTENSION)> exts(X509_REQ_get_extensions(x));
+  UniquePtr<GENERAL_NAMES> gens(reinterpret_cast<GENERAL_NAMES *>(
+      X509V3_get_d2i(exts.get(), NID_subject_alt_name, nullptr, nullptr)));
+  return get_email(X509_REQ_get_subject_name(x), gens.get()).release();
 }
 
-static STACK_OF(OPENSSL_STRING) *get_email(const X509_NAME *name,
-                                           const GENERAL_NAMES *gens) {
-  STACK_OF(OPENSSL_STRING) *ret = nullptr;
-  // Now add any email address(es) to STACK
+static UniquePtr<STACK_OF(OPENSSL_STRING)> get_email(
+    const X509_NAME *name, const GENERAL_NAMES *gens) {
+  UniquePtr<STACK_OF(OPENSSL_STRING)> ret;
   int i = -1;
-  // First supplied X509_NAME
   while ((i = X509_NAME_get_index_by_NID(name, NID_pkcs9_emailAddress, i)) >=
          0) {
     const X509_NAME_ENTRY *ne = X509_NAME_get_entry(name, i);
@@ -569,21 +555,18 @@ static STACK_OF(OPENSSL_STRING) *get_email(const X509_NAME *name,
       return nullptr;
     }
   }
-  for (size_t j = 0; j < sk_GENERAL_NAME_num(gens); j++) {
-    const GENERAL_NAME *gen = sk_GENERAL_NAME_value(gens, j);
-    if (gen->type != GEN_EMAIL) {
-      continue;
-    }
-    if (!append_ia5(&ret, gen->d.ia5)) {
+  for (const GENERAL_NAME *gen : gens) {
+    if (gen->type == GEN_EMAIL && !append_ia5(&ret, gen->d.ia5)) {
       return nullptr;
     }
   }
+  sk_OPENSSL_STRING_sort_and_dedup(ret.get(), str_free);
   return ret;
 }
 
 static void str_free(OPENSSL_STRING str) { OPENSSL_free(str); }
 
-static int append_ia5(STACK_OF(OPENSSL_STRING) **sk,
+static int append_ia5(UniquePtr<STACK_OF(OPENSSL_STRING)> *sk,
                       const ASN1_IA5STRING *email) {
   // First some sanity checks
   if (email->type != V_ASN1_IA5STRING) {
@@ -598,37 +581,19 @@ static int append_ia5(STACK_OF(OPENSSL_STRING) **sk,
     return 1;
   }
 
-  char *emtmp = nullptr;
   if (!*sk) {
-    *sk = sk_OPENSSL_STRING_new(sk_strcmp);
+    sk->reset(sk_OPENSSL_STRING_new(sk_strcmp));
   }
   if (!*sk) {
-    goto err;
+    return 0;
   }
 
-  emtmp = OPENSSL_strndup((char *)email->data, email->length);
-  if (emtmp == nullptr) {
-    goto err;
-  }
-
-  // Don't add duplicates
-  sk_OPENSSL_STRING_sort(*sk);
-  if (sk_OPENSSL_STRING_find(*sk, nullptr, emtmp)) {
-    OPENSSL_free(emtmp);
-    return 1;
-  }
-  if (!sk_OPENSSL_STRING_push(*sk, emtmp)) {
-    goto err;
+  UniquePtr<char> emtmp(
+      OPENSSL_strndup((const char *)email->data, email->length));
+  if (emtmp == nullptr || !PushToStack(sk->get(), std::move(emtmp))) {
+    return 0;
   }
   return 1;
-
-err:
-  // TODO(davidben): Fix the error-handling in this file. It currently relies
-  // on |append_ia5| leaving |*sk| at NULL on error.
-  OPENSSL_free(emtmp);
-  X509_email_free(*sk);
-  *sk = nullptr;
-  return 0;
 }
 
 void X509_email_free(STACK_OF(OPENSSL_STRING) *sk) {

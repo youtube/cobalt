@@ -17,7 +17,7 @@
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/primary_account_change_event.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -59,8 +59,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
       : web_client_(std::make_unique<web::FakeWebClient>()),
         task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
     feature_list_.InitWithFeatures(
-        {kPageActionMenu, kPageContextExtractorRefactored, kGeminiRefactoredFRE,
-         kGeminiCopresence},
+        {kPageActionMenu, kPageContextExtractorRefactored, kGeminiCopresence},
         {});
     static_cast<web::FakeWebClient*>(web_client_.Get())
         ->SetJavaScriptFeatures(
@@ -96,9 +95,9 @@ class GeminiBrowserAgentTest : public PlatformTest {
         std::make_unique<web::FakeWebState>();
     web_state_ = web_state.get();
     web_state->SetBrowserState(profile_);
-    BwgTabHelper::CreateForWebState(web_state.get());
+    GeminiTabHelper::CreateForWebState(web_state.get());
     WebViewProxyTabHelper::CreateForWebState(web_state.get());
-    bwg_tab_helper_ = BwgTabHelper::FromWebState(web_state.get());
+    gemini_tab_helper_ = GeminiTabHelper::FromWebState(web_state.get());
 
     SnapshotTabHelper::CreateForWebState(web_state.get());
     SnapshotSourceTabHelper::CreateForWebState(web_state.get());
@@ -144,7 +143,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
     web_state_ = nullptr;
     profile_ = nullptr;
     gemini_browser_agent_ = nullptr;
-    bwg_tab_helper_ = nullptr;
+    gemini_tab_helper_ = nullptr;
     optimization_guide_service_ = nullptr;
     mock_settings_handler_ = nullptr;
     mock_bwg_handler_ = nullptr;
@@ -201,7 +200,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
   TestProfileManagerIOS profile_manager_;
   raw_ptr<TestProfileIOS> profile_;
   raw_ptr<GeminiBrowserAgent> gemini_browser_agent_;
-  raw_ptr<BwgTabHelper> bwg_tab_helper_;
+  raw_ptr<GeminiTabHelper> gemini_tab_helper_;
   raw_ptr<OptimizationGuideService> optimization_guide_service_;
   raw_ptr<web::FakeWebState> web_state_;
   raw_ptr<web::FakeWebFrame> fake_main_frame_;
@@ -266,18 +265,6 @@ TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentStartGeminiFlow) {
   [mock_delegate verify];
 }
 
-TEST_F(GeminiBrowserAgentTest,
-       TestGeminiBrowserAgentPresentFloatyWithPendingContext) {
-  UIViewController* base_view_controller = [[UIViewController alloc] init];
-  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
-      std::make_unique<optimization_guide::proto::PageContext>();
-
-  gemini_browser_agent_->PresentFloatyWithPendingContext(
-      base_view_controller, std::move(page_context),
-      [[GeminiStartupState alloc]
-          initWithEntryPoint:gemini::EntryPoint::Promo]);
-}
-
 // Tests that switching active web states handles observations correctly.
 TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
   base::test::ScopedFeatureList scoped_feature_list;
@@ -295,9 +282,9 @@ TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
   std::unique_ptr<web::FakeWebState> web_state1 =
       std::make_unique<web::FakeWebState>();
   web_state1->SetBrowserState(profile_);
-  BwgTabHelper::CreateForWebState(web_state1.get());
+  GeminiTabHelper::CreateForWebState(web_state1.get());
   WebViewProxyTabHelper::CreateForWebState(web_state1.get());
-  BwgTabHelper* helper1 = BwgTabHelper::FromWebState(web_state1.get());
+  GeminiTabHelper* helper1 = GeminiTabHelper::FromWebState(web_state1.get());
 
   scoped_browser->GetWebStateList()->InsertWebState(
       std::move(web_state1),
@@ -309,9 +296,9 @@ TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
   std::unique_ptr<web::FakeWebState> web_state2 =
       std::make_unique<web::FakeWebState>();
   web_state2->SetBrowserState(profile_);
-  BwgTabHelper::CreateForWebState(web_state2.get());
+  GeminiTabHelper::CreateForWebState(web_state2.get());
   WebViewProxyTabHelper::CreateForWebState(web_state2.get());
-  BwgTabHelper* helper2 = BwgTabHelper::FromWebState(web_state2.get());
+  GeminiTabHelper* helper2 = GeminiTabHelper::FromWebState(web_state2.get());
 
   // Switch to new web state.
   scoped_browser->GetWebStateList()->InsertWebState(

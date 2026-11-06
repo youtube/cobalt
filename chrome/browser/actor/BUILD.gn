@@ -33,6 +33,7 @@ source_set("actor") {
     "enterprise_policy_checker.h",
     "execution_engine.h",
     "site_policy.h",
+    "tab_observation_controller.h",
     "tools/attempt_form_filling_tool_request.h",
     "tools/attempt_login_tool_request.h",
     "tools/attempt_otp_filling_tool_request.h",
@@ -71,6 +72,7 @@ source_set("actor") {
     "//components/download/content/public",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/page_content_annotations/content/browser",
     "//components/page_content_annotations/content/mojom",
     "//components/password_manager/core/browser/actor_login:common",
     "//components/policy/core/browser",
@@ -118,6 +120,7 @@ source_set("impl") {
     "aggregated_journal_serializer.cc",
     "execution_engine.cc",
     "site_policy.cc",
+    "tab_observation_controller.cc",
     "tools/attempt_form_filling_tool.cc",
     "tools/attempt_form_filling_tool.h",
     "tools/attempt_form_filling_tool_metrics.cc",
@@ -188,8 +191,8 @@ source_set("impl") {
     "//chrome/browser/signin",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui",
-    "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//components/affiliations/core/browser:affiliations",
@@ -384,7 +387,10 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [ "actor_keyed_service_browsertest.cc" ]
+  sources = [
+    "actor_keyed_service_browsertest.cc",
+    "actor_util_browsertest.cc",
+  ]
   deps = [
     ":actor",
     ":impl",
@@ -437,6 +443,7 @@ source_set("browser_tests") {
       "execution_engine_browsertest.cc",
       "execution_engine_origin_gating_browsertest.cc",
       "site_policy_browsertest.cc",
+      "tab_observation_controller_browsertest.cc",
       "tools/action_tracker_for_metrics_browsertest.cc",
       "tools/attempt_form_filling_tool_browsertest.cc",
       "tools/attempt_login_tool_browsertest.cc",
@@ -460,6 +467,7 @@ source_set("browser_tests") {
       "tools/tab_management_tool_browsertest.cc",
       "tools/tool_agnostic_browsertest.cc",
       "tools/type_tool_browsertest.cc",
+      "tools/uaf_regression_browsertest.cc",
       "tools/wait_tool_browsertest.cc",
       "tools/window_management_tool_browsertest.cc",
     ]

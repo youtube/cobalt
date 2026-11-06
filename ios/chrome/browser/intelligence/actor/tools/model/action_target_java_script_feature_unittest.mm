@@ -12,7 +12,7 @@
 #import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
 #import "components/autofill/ios/form_util/child_frame_registrar.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
-#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/test/ios_chrome_test_with_web_state.h"
 #import "ios/web/common/features.h"
@@ -85,15 +85,16 @@ TEST_F(ActionTargetJavaScriptFeatureTest, JsReturnsUnexpectedType) {
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
+  EXPECT_EQ(result.error().internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 }
 
 TEST_F(ActionTargetJavaScriptFeatureTest, JsReturnsError) {
@@ -103,7 +104,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, JsReturnsError) {
                                          base::SysUTF8ToNSString(R"(
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
-            return {success: false, message: 'Custom JS Error'};
+            return {resultCode: 1, message: 'Custom JS Error'};
           }
         ); true;
       )"),
@@ -113,16 +114,16 @@ TEST_F(ActionTargetJavaScriptFeatureTest, JsReturnsError) {
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution);
-  EXPECT_EQ(result.error().message, "Custom JS Error");
+  EXPECT_EQ(result.error().code(),
+            mojom::ActionResultCode::kCoordinatesOutOfBounds);
+  EXPECT_EQ(result.error().message().value(), "Custom JS Error");
 }
 
 TEST_F(ActionTargetJavaScriptFeatureTest, TargetsMainFrame_Success) {
@@ -134,7 +135,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetsMainFrame_Success) {
                                          base::SysUTF8ToNSString(R"(
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
-            return {success: true};
+            return {resultCode: 0};
           }
         ); true;
       )"),
@@ -143,7 +144,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetsMainFrame_Success) {
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
@@ -167,7 +168,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
             return {
-              'success': true,
+              'resultCode': 0,
               'childFrame': {
                 'remoteFrameToken': '%s'
               }
@@ -181,22 +182,23 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       first_call;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             first_call.GetCallback());
 
   auto result = first_call.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
+  EXPECT_EQ(result.error().internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 
   web::test::ExecuteJavaScriptForFeature(web_state(),
                                          base::SysUTF8ToNSString(R"(
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
             return {
-              'success': true,
+              'resultCode': 0,
               'childFrame': {
                 'frameX': 10.0,
                 'frameY': 10.0
@@ -209,15 +211,16 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
   target = CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       second_call;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             second_call.GetCallback());
 
   result = second_call.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
+  EXPECT_EQ(result.error().internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 }
 
 TEST_F(ActionTargetJavaScriptFeatureTest,
@@ -236,7 +239,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
             return {
-              'success': true,
+              'resultCode': 0,
               'childFrame': {
                 'remoteFrameToken': '%s',
                 'frameX': 10.0,
@@ -253,15 +256,14 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kActorTargetFrameNotRegistered);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 TEST_F(ActionTargetJavaScriptFeatureTest, TargetsIframe_FrameIdNotRegistered) {
@@ -285,7 +287,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetsIframe_FrameIdNotRegistered) {
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
             return {
-              'success': true,
+              'resultCode': 0,
               'childFrame': {
                 'remoteFrameToken': '%s',
                 'frameX': 10.0,
@@ -302,15 +304,14 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetsIframe_FrameIdNotRegistered) {
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kActorTargetFrameNotFoundById);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 TEST_F(ActionTargetJavaScriptFeatureTest, TargetIframe_ByCoordinate_Success) {
@@ -357,7 +358,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetIframe_ByCoordinate_Success) {
         __gCrWeb.getRegisteredApi('action_target').addFunction(
           'resolveTargetIframe', function() {
             return {
-              'success': true,
+              'resultCode': 0,
               'childFrame': {
                 'remoteFrameToken': '%s',
                 'frameX': 10.0,
@@ -374,7 +375,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, TargetIframe_ByCoordinate_Success) {
       CreateTargetWithCoordinates(/*x=*/kIframeSize / 2, /*y=*/kIframeSize / 2);
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
@@ -424,7 +425,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest,
       CreateTargetWithDocumentIdentifier(remote_token.ToString());
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(web_state(), main_frame, target,
                             future.GetCallback());
@@ -442,7 +443,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, MaxDepthExceeded) {
       CreateTargetWithCoordinates();
 
   base::test::TestFuture<base::expected<
-      ActionTargetJavaScriptFeature::TargetFrameResult, ActorToolError>>
+      ActionTargetJavaScriptFeature::TargetFrameResult, ToolExecutionResult>>
       future;
   feature()->GetTargetFrame(
       web_state(), main_frame, target, future.GetCallback(),
@@ -450,8 +451,7 @@ TEST_F(ActionTargetJavaScriptFeatureTest, MaxDepthExceeded) {
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().code,
-            ActorToolErrorCode::kActorTargetMaxDepthExceeded);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kToolTimeout);
 }
 
 }  // namespace

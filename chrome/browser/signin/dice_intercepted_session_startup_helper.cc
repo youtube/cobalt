@@ -13,8 +13,8 @@
 #include "base/time/time.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/signin/public/base/multilogin_parameters.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -74,7 +74,8 @@ void DiceInterceptedSessionStartupHelper::Startup(base::OnceClosure callback) {
         &DiceInterceptedSessionStartupHelper::MoveTab, base::Unretained(this)));
     // Adding accounts to the cookies can be an expensive operation. In
     // particular the ExternalCCResult fetch may time out after multiple seconds
-    // (see kExternalCCResultTimeoutSeconds and https://crbug.com/40532442#c37).
+    // (see kExternalCCResultTimeoutSeconds and
+    // https://crbug.com/40532442#comment38).
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, on_cookie_update_timeout_.callback(), base::Seconds(12));
 

@@ -103,7 +103,7 @@ class LatencyInfoSwapPromiseMonitor;
 class LayerContext;
 class LayerImpl;
 class LayerTreeFrameSink;
-class LayerTreeHostImplClient;
+class LayerTreeHostImplDelegate;
 class LayerTreeImpl;
 class PaintWorkletLayerPainter;
 class MemoryHistory;
@@ -229,24 +229,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   }
 
   virtual void WillSendBeginMainFrame() {}
-  virtual void BeginMainFrameAborted(
-      CommitEarlyOutReason reason,
-      std::vector<std::unique_ptr<SwapPromise>> swap_promises,
-      const viz::BeginFrameArgs& args,
-      bool next_bmf,
-      bool scroll_and_viewport_changes_synced);
-  virtual void ReadyToCommit(
-      bool scroll_and_viewport_changes_synced,
-      const BeginMainFrameMetrics* begin_main_frame_metrics,
-      bool commit_timeout);
-  virtual void BeginCommit(int source_frame_number,
-                           BeginMainFrameTraceId trace_id);
-  virtual void FinishCommit(CommitState& commit_state,
-                            const ThreadUnsafeCommitState& unsafe_state);
-  virtual void CommitComplete();
   virtual void UpdateAnimationState(bool start_ready_animations);
-  void PullLayerTreeHostPropertiesFrom(const CommitState&);
-  void RecordGpuRasterizationHistogram();
   bool Mutate(base::TimeTicks monotonic_time);
   void ActivateAnimations();
   void Animate();
@@ -358,8 +341,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Analogous to a commit, this function is used to create a sync tree and
   // add impl-side invalidations to it.
   // virtual for testing.
-  virtual void InvalidateContentOnImplSide();
-  virtual void InvalidateLayerTreeFrameSink(bool needs_redraw);
 
   void SetTreeLayerScrollOffsetMutated(ElementId element_id,
                                        LayerTreeImpl* tree,
@@ -444,16 +425,16 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Evict all textures by enforcing a memory policy with an allocation of 0.
   void EvictTexturesForTesting();
 
-  // When blocking, this prevents client_->NotifyReadyToActivate() from being
-  // called. When disabled, it calls client_->NotifyReadyToActivate()
+  // When blocking, this prevents delegate_->NotifyReadyToActivate() from being
+  // called. When disabled, it calls delegate_->NotifyReadyToActivate()
   // immediately if any notifications had been blocked while blocking and
   // notify_if_blocked is true.
   virtual void BlockNotifyReadyToActivateForTesting(
       bool block,
       bool notify_if_blocked = true);
 
-  // Prevents notifying the |client_| when an impl side invalidation request is
-  // made. When unblocked, the disabled request will immediately be called.
+  // Prevents notifying the |delegate_| when an impl side invalidation request
+  // is made. When unblocked, the disabled request will immediately be called.
   virtual void BlockImplSideInvalidationRequestsForTesting(bool block);
 
   // Resets all of the trees to an empty state.
@@ -577,7 +558,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   ImageDecodeCache* GetImageDecodeCache() const;
 
   uint32_t next_frame_token() const;
-  void set_next_frame_token_from_client(uint32_t frame_token);
 
   // Buffers `callback` until a relevant presentation feedback arrives, at which
   // point the callback will be posted to run on the main thread. A presentation
@@ -627,11 +607,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   const viz::LocalSurfaceId& target_local_surface_id() const {
     return target_local_surface_id_;
   }
-  void set_current_local_surface_id_from_client(
-      const viz::LocalSurfaceId& local_surface_id_from_client) {
-    DCHECK(settings().trees_in_viz_in_viz_process);
-    current_local_surface_id_from_client_ = local_surface_id_from_client;
-  }
 
   LayerTreeImpl* active_tree() { return active_tree_.get(); }
   const LayerTreeImpl* active_tree() const { return active_tree_.get(); }
@@ -643,7 +618,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   LayerTreeImpl* sync_tree() const {
     return CommitsToActiveTree() ? active_tree_.get() : pending_tree_.get();
   }
-  virtual void CreatePendingTree();
   virtual void ActivateSyncTree();
 
   // Shortcuts to layers/nodes on the active tree.
@@ -704,7 +678,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void SetDebugState(const LayerTreeDebugState& new_debug_state);
   const LayerTreeDebugState& debug_state() const { return debug_state_; }
 
-  void SetTreePriority(TreePriority priority);
   TreePriority GetTreePriority() const;
 
   // TODO(mithro): Remove this methods which exposes the internal
@@ -724,11 +697,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   virtual void CreateUIResource(UIResourceId uid,
                                 const UIResourceBitmap& bitmap);
-  virtual void CreateUIResourceFromImportedResource(UIResourceId uid,
-                                                    viz::ResourceId resource_id,
-                                                    const gfx::Size& size,
-                                                    bool is_opaque);
-
   // Deletes a UI resource.  May safely be called more than once.
   virtual void DeleteUIResource(UIResourceId uid);
   // Evict all UI resources. This differs from ClearUIResources in that this
@@ -833,7 +801,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void SetRenderFrameObserver(
       std::unique_ptr<RenderFrameMetadataObserver> observer);
 
-  void SetActiveURL(const GURL& url, ukm::SourceId source_id);
 
   // Notifies FrameTrackers, impl side callbacks that the compsitor frame
   // was presented.
@@ -880,7 +847,9 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void SetDownsampleMetricsForTesting(bool value) {
     downsample_metrics_ = value;
   }
-  const LayerTreeHostImplClient* client_for_testing() const { return client_; }
+  const LayerTreeHostImplDelegate* delegate_for_testing() const {
+    return delegate_;
+  }
 
   void SetViewTransitionContentRect(
       uint32_t sequence_id,
@@ -895,21 +864,14 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void ElasticOverscrollAnimationFinished(ElementId finished_id);
 
-  void set_send_frame_token_to_embedder(bool send_frame_token_to_embedder) {
-    send_frame_token_to_embedder_ = send_frame_token_to_embedder;
-  }
   bool send_frame_token_to_embedder() const {
     return send_frame_token_to_embedder_;
-  }
-  void set_is_handling_interaction_from_client(bool is_handling_interaction) {
-    DCHECK(settings().trees_in_viz_in_viz_process);
-    is_handling_interaction_from_client_ = is_handling_interaction;
   }
 
  protected:
   LayerTreeHostImpl(
       const LayerTreeSettings& settings,
-      LayerTreeHostImplClient* client,
+      LayerTreeHostImplDelegate* delegate,
       TaskRunnerProvider* task_runner_provider,
       RenderingStatsInstrumentation* rendering_stats_instrumentation,
       TaskGraphRunner* task_graph_runner,
@@ -934,13 +896,13 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Removes empty or orphan RenderPasses from the frame.
   static void RemoveRenderPasses(FrameData* frame);
 
-  const raw_ptr<LayerTreeHostImplClient> client_;
+  const raw_ptr<LayerTreeHostImplDelegate> delegate_;
   const raw_ptr<LayerTreeHostSchedulingClient> scheduling_client_;
   const raw_ptr<TaskRunnerProvider> task_runner_provider_;
 
   BeginFrameTracker current_begin_frame_tracker_;
 
- private:
+ protected:
   // Holds image decode cache instance. It can either be a shared cache or
   // a cache create by this instance. Which is used depends on the settings.
   class ImageDecodeCacheHolder;

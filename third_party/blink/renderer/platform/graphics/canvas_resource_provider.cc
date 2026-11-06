@@ -189,6 +189,8 @@ bool Canvas2DResourceProviderBitmap::WritePixelsForCanvas2D(
 
 BASE_FEATURE(kCanvas2DAutoFlushParams, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAppendCpuUsages, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, unused resources (ready to be recycled) are reclaimed after a
 // delay.
 BASE_FEATURE(kCanvas2DReclaimUnusedResources,
@@ -257,52 +259,6 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
                                    .RasterContextProvider())) {
   if (context_provider_wrapper_) {
     context_provider_wrapper_->AddObserver(this);
-
-    if (auto* sii = context_provider_wrapper_->ContextProvider()
-                        .SharedImageInterface()) {
-      // These SharedImages are both read and written by the raster interface
-      // (both occur, for example, when copying canvas resources between
-      // canvases). Additionally, these SharedImages can be put into
-      // AcceleratedStaticBitmapImages (via Bitmap()) that are then copied into
-      // GL textures by WebGL (via
-      // AcceleratedStaticBitmapImage::CopyToTexture()).
-      shared_image_usage_flags = shared_image_usage_flags |
-                                 gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-                                 gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-                                 gpu::SHARED_IMAGE_USAGE_GLES2_READ;
-      // Add WEBGPU_READ usage to allow importing into WebGPU without a copy.
-      if (base::FeatureList::IsEnabled(kCanvasResourceIsWebGPUCompatible)) {
-        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_WEBGPU_READ;
-      }
-
-      std::optional<gfx::BufferUsage> buffer_usage = std::nullopt;
-      if (!is_accelerated_) {
-        // Ideally we should add SHARED_IMAGE_USAGE_CPU_WRITE_ONLY to the shared
-        // image usage flag here since mailbox will be used for CPU writes by
-        // the client. But doing that stops us from using CompoundImagebacking
-        // as many backings do not support SHARED_IMAGE_USAGE_CPU_WRITE_ONLY.
-        // TODO(https://crbug.com/40280504): Add that usage flag back here once
-        // the issue is resolved.
-        buffer_usage = gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
-      }
-
-      gpu::ImageInfo image_info(size, format, shared_image_usage_flags,
-                                color_space, kTopLeft_GrSurfaceOrigin,
-                                alpha_type, buffer_usage, is_software_);
-
-      std::optional<base::TimeDelta> expiration_time =
-          (base::FeatureList::IsEnabled(kCanvas2DReclaimUnusedResources))
-              ? std::make_optional(kUnusedResourceExpirationTime)
-              : std::nullopt;
-      bool is_single_buffered = shared_image_usage_flags.Has(
-          gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
-
-      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
-          image_info, sii,
-          is_accelerated_ ? "CanvasResourceRaster" : "CanvasResourceRasterGmb",
-          is_single_buffered ? 0 : kMaxRecycledCanvasResources,
-          expiration_time);
-    }
   }
 
   if (raster_context_provider_) {
@@ -331,16 +287,6 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
               : nullptr) {
   if (shared_image_interface_provider_) {
     shared_image_interface_provider_->AddGpuChannelLostObserver(this);
-
-    if (auto* sii = shared_image_interface_provider_->SharedImageInterface()) {
-      gpu::ImageInfo image_info(
-          size, format, gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, color_space,
-          kTopLeft_GrSurfaceOrigin, alpha_type, /*buffer_usage=*/std::nullopt,
-          is_software_);
-      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
-          image_info, sii, "CanvasResourceSharedImage",
-          kMaxRecycledCanvasResources);
-    }
   }
 }
 
@@ -1006,7 +952,12 @@ void CanvasNon2DResourceProviderSharedImage::EndExternalWrite(
 }
 
 gpu::SharedImageUsageSet
-CanvasResourceProviderSharedImage::GetSharedImageUsageFlags() const {
+Canvas2DResourceProviderSharedImage::GetSharedImageUsageFlags() const {
+  return image_pool_->GetImageInfo().usage;
+}
+
+gpu::SharedImageUsageSet
+CanvasNon2DResourceProviderSharedImage::GetSharedImageUsageFlags() const {
   return image_pool_->GetImageInfo().usage;
 }
 
@@ -2193,6 +2144,59 @@ Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
     }
   }
 
+  if (context_provider_wrapper_) {
+    if (auto* sii = context_provider_wrapper_->ContextProvider()
+                        .SharedImageInterface()) {
+      // These SharedImages are both read and written by the raster interface
+      // (both occur, for example, when copying canvas resources between
+      // canvases). Additionally, these SharedImages can be put into
+      // AcceleratedStaticBitmapImages (via Bitmap()) that are then copied into
+      // GL textures by WebGL (via
+      // AcceleratedStaticBitmapImage::CopyToTexture()).
+      shared_image_usage_flags = shared_image_usage_flags |
+                                 gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                                 gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+                                 gpu::SHARED_IMAGE_USAGE_GLES2_READ;
+      // Add WEBGPU_READ usage to allow importing into WebGPU without a copy.
+      if (base::FeatureList::IsEnabled(kCanvasResourceIsWebGPUCompatible)) {
+        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_WEBGPU_READ;
+      }
+
+      std::optional<gfx::BufferUsage> buffer_usage = std::nullopt;
+      if (!is_accelerated_) {
+        // Ideally we should add SHARED_IMAGE_USAGE_CPU_WRITE_ONLY to the shared
+        // image usage flag here since mailbox will be used for CPU writes by
+        // the client. But doing that stops us from using CompoundImagebacking
+        // as many backings do not support SHARED_IMAGE_USAGE_CPU_WRITE_ONLY.
+        // TODO(https://crbug.com/40280504): Add that usage flag back here once
+        // the issue is resolved.
+        buffer_usage = gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
+        if (base::FeatureList::IsEnabled(kAppendCpuUsages)) {
+          shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_CPU_READ |
+                                      gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+        }
+      }
+
+      gpu::ImageInfo image_info(size, format, shared_image_usage_flags,
+                                color_space, kTopLeft_GrSurfaceOrigin,
+                                alpha_type, buffer_usage,
+                                /*is_software=*/false);
+
+      std::optional<base::TimeDelta> expiration_time =
+          (base::FeatureList::IsEnabled(kCanvas2DReclaimUnusedResources))
+              ? std::make_optional(kUnusedResourceExpirationTime)
+              : std::nullopt;
+      bool is_single_buffered = shared_image_usage_flags.Has(
+          gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
+
+      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+          image_info, sii,
+          is_accelerated_ ? "CanvasResourceRaster" : "CanvasResourceRasterGmb",
+          is_single_buffered ? 0 : kMaxRecycledCanvasResources,
+          expiration_time);
+    }
+  }
+
   resource_ = NewOrRecycledResource();
   GetFlushForImageListener()->AddObserver(this);
 
@@ -2216,6 +2220,17 @@ Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
                                         delegate) {
   recorder_for_canvas_2d_ =
       std::make_unique<MemoryManagedPaintRecorder>(Size(), this);
+  if (shared_image_interface_provider_) {
+    if (auto* sii = shared_image_interface_provider_->SharedImageInterface()) {
+      gpu::ImageInfo image_info(
+          size, format, gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, color_space,
+          kTopLeft_GrSurfaceOrigin, alpha_type, /*buffer_usage=*/std::nullopt,
+          /*is_software=*/true);
+      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+          image_info, sii, "CanvasResourceSharedImage",
+          kMaxRecycledCanvasResources);
+    }
+  }
 }
 
 Canvas2DResourceProviderSharedImage::~Canvas2DResourceProviderSharedImage() {
@@ -2273,6 +2288,59 @@ CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
     }
   }
 
+  if (context_provider_wrapper_) {
+    if (auto* sii = context_provider_wrapper_->ContextProvider()
+                        .SharedImageInterface()) {
+      // These SharedImages are both read and written by the raster interface
+      // (both occur, for example, when copying canvas resources between
+      // canvases). Additionally, these SharedImages can be put into
+      // AcceleratedStaticBitmapImages (via Bitmap()) that are then copied into
+      // GL textures by WebGL (via
+      // AcceleratedStaticBitmapImage::CopyToTexture()).
+      shared_image_usage_flags = shared_image_usage_flags |
+                                 gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                                 gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+                                 gpu::SHARED_IMAGE_USAGE_GLES2_READ;
+      // Add WEBGPU_READ usage to allow importing into WebGPU without a copy.
+      if (base::FeatureList::IsEnabled(kCanvasResourceIsWebGPUCompatible)) {
+        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_WEBGPU_READ;
+      }
+
+      std::optional<gfx::BufferUsage> buffer_usage = std::nullopt;
+      if (!is_accelerated_) {
+        // Ideally we should add SHARED_IMAGE_USAGE_CPU_WRITE_ONLY to the shared
+        // image usage flag here since mailbox will be used for CPU writes by
+        // the client. But doing that stops us from using CompoundImagebacking
+        // as many backings do not support SHARED_IMAGE_USAGE_CPU_WRITE_ONLY.
+        // TODO(https://crbug.com/40280504): Add that usage flag back here once
+        // the issue is resolved.
+        buffer_usage = gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
+        if (base::FeatureList::IsEnabled(kAppendCpuUsages)) {
+          shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_CPU_READ |
+                                      gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+        }
+      }
+
+      gpu::ImageInfo image_info(size, format, shared_image_usage_flags,
+                                color_space, kTopLeft_GrSurfaceOrigin,
+                                alpha_type, buffer_usage,
+                                /*is_software=*/false);
+
+      std::optional<base::TimeDelta> expiration_time =
+          (base::FeatureList::IsEnabled(kCanvas2DReclaimUnusedResources))
+              ? std::make_optional(kUnusedResourceExpirationTime)
+              : std::nullopt;
+      bool is_single_buffered = shared_image_usage_flags.Has(
+          gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
+
+      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+          image_info, sii,
+          is_accelerated_ ? "CanvasResourceRaster" : "CanvasResourceRasterGmb",
+          is_single_buffered ? 0 : kMaxRecycledCanvasResources,
+          expiration_time);
+    }
+  }
+
   resource_ = NewOrRecycledResource();
   GetFlushForImageListener()->AddObserver(this);
 
@@ -2296,7 +2364,19 @@ CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
                                         delegate),
       recorder_for_external_draws_(
           std::make_unique<MemoryManagedPaintRecorder>(Size(),
-                                                       /*client=*/nullptr)) {}
+                                                       /*client=*/nullptr)) {
+  if (shared_image_interface_provider_) {
+    if (auto* sii = shared_image_interface_provider_->SharedImageInterface()) {
+      gpu::ImageInfo image_info(
+          size, format, gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, color_space,
+          kTopLeft_GrSurfaceOrigin, alpha_type, /*buffer_usage=*/std::nullopt,
+          /*is_software=*/true);
+      image_pool_ = gpu::SharedImagePool<CanvasResourceSharedImage>::Create(
+          image_info, sii, "CanvasResourceSharedImage",
+          kMaxRecycledCanvasResources);
+    }
+  }
+}
 
 CanvasNon2DResourceProviderSharedImage::
     ~CanvasNon2DResourceProviderSharedImage() {

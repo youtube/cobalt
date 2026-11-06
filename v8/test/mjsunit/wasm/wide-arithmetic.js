@@ -121,6 +121,19 @@ function testAdd128() {
     [0n, 16n],
     add128(0xffffffffffffff00n, 5n, 0x0000000000000100n, 10n)
   );
+  assertEquals(
+    [0x6666666688888888n, -0x5555555533333334n],
+    add128(
+      0x1111111122222222n,
+      0x3333333344444444n,
+      0x5555555566666666n,
+      0x7777777788888888n
+    )
+  );
+  assertEquals(
+    [1n, 4n],
+    add128(0xffffffffffffffffn, 1n, 2n, 2n)
+  );
 
   let view = new DataView(instance.exports.memory.buffer);
   view.setBigInt64(0, 3n, true);

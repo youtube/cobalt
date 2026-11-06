@@ -1886,11 +1886,42 @@ class RepresentationSelector {
         return;
       }
 
-      // => AdditiveSafeIntegerAdd/Sub
-      VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
-                    MachineRepresentation::kWord64,
-                    type_cache_->kAdditiveSafeIntegerFeedback);
-      if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
+      // The Word64 path is only profitable when at least one operand is
+      // statically in the AdditiveSafeInteger range; otherwise the
+      // CheckedSafeIntAsWord64 input conversion (range check + deopt) is
+      // more expensive than a Float64 add. Use the static (pre-RETYPE)
+      // type so the decision is consistent across PROPAGATE/RETYPE/LOWER.
+      Type lhs_type = NodeProperties::GetType(node->InputAt(0));
+      Type rhs_type = NodeProperties::GetType(node->InputAt(1));
+      if (lhs_type.Is(type_cache_->kAdditiveSafeInteger) ||
+          rhs_type.Is(type_cache_->kAdditiveSafeInteger)) {
+        // => AdditiveSafeIntegerAdd/Sub
+        VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
+                      MachineRepresentation::kWord64,
+                      type_cache_->kAdditiveSafeIntegerFeedback);
+        if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
+        return;
+      }
+
+      // Inputs aren't statically in the safe-int range, so a Word64 lowering
+      // would be dominated by CheckedSafeIntAsWord64's range check. Lower to
+      // Float64Add instead — but the input UseInfo must keep
+      // check_safe_integer=true to stay compatible with the Word32-checked
+      // and Word64-checked sub-paths above (PROPAGATE may revisit this node
+      // as the truncation generalizes, and the per-input truncation lattice
+      // requires check_safe_integer to monotonically rise). Representation
+      // change only consults TypeCheckKind, so emitting the standard
+      // CheckedNumberOrOddballAsFloat64 conversion plus a ck=true marker
+      // does not change codegen.
+      VisitBinop<T>(node,
+                    UseInfo(MachineRepresentation::kFloat64,
+                            Truncation::Any(kDistinguishZeros,
+                                            /*check_safe_integer=*/true),
+                            TypeCheckKind::kNumberOrOddball, FeedbackSource()),
+                    MachineRepresentation::kFloat64, Type::Number());
+      if (lower<T>()) {
+        ChangeToPureOp(node, Float64Op(node));
+      }
       return;
     }
 
@@ -1907,8 +1938,13 @@ class RepresentationSelector {
   template <Phase T>
   void VisitSpeculativeNumberModulus(Node* node, Truncation truncation,
                                      SimplifiedLowering* lowering) {
+    // Int32Mod/Uint32Mod silently return 0 for mod-by-zero. That is fine for
+    // a plain word32 truncation (NaN | 0 == 0), but NOT when the caller
+    // requested a safe-integer check: such a caller expects to see NaN so it
+    // can deopt. Gate the integer shortcut on !check_safe_integer() when the
+    // trigger is the truncation alone.
     if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
-        (truncation.IsUsedAsWord32() ||
+        ((truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) ||
          NodeProperties::GetType(node).Is(Type::Unsigned32()))) {
       // => unsigned Uint32Mod
       VisitWord32TruncatingBinop<T>(node);
@@ -1916,7 +1952,7 @@ class RepresentationSelector {
       return;
     }
     if (BothInputsAre(node, Type::Signed32OrMinusZeroOrNaN()) &&
-        (truncation.IsUsedAsWord32() ||
+        ((truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) ||
          NodeProperties::GetType(node).Is(Type::Signed32()))) {
       // => signed Int32Mod
       VisitWord32TruncatingBinop<T>(node);
@@ -1960,7 +1996,7 @@ class RepresentationSelector {
           CheckedUseInfoAsWord32FromHint(hint, truncation.identify_zeros());
       UseInfo const rhs_use =
           CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
-      if (truncation.IsUsedAsWord32()) {
+      if (truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) {
         VisitBinop<T>(node, lhs_use, rhs_use, MachineRepresentation::kWord32);
         if (lower<T>()) DeferReplacement(node, lowering->Int32Mod(node));
       } else if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN())) {
@@ -1987,7 +2023,7 @@ class RepresentationSelector {
 
     if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
         TypeOf(node->InputAt(1)).Is(Type::Unsigned32()) &&
-        (truncation.IsUsedAsWord32() ||
+        ((truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) ||
          NodeProperties::GetType(node).Is(Type::Unsigned32()))) {
       VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32, Type::Number());
@@ -1996,7 +2032,7 @@ class RepresentationSelector {
     }
     if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
         TypeOf(node->InputAt(1)).Is(Type::Signed32()) &&
-        (truncation.IsUsedAsWord32() ||
+        ((truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) ||
          NodeProperties::GetType(node).Is(Type::Signed32()))) {
       VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32, Type::Number());
@@ -3014,7 +3050,14 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberDivide: {
-        if (BothInputsAreUnsigned32(node) && truncation.IsUsedAsWord32()) {
+        // Int32Div/Uint32Div silently return 0 for div-by-zero (instead of
+        // producing ±Infinity/NaN). That is fine for a plain word32
+        // truncation, but NOT when the caller requested a safe-integer
+        // check: such a caller expects to see the non-integer result so it
+        // can deopt. Gate the integer shortcut on !check_safe_integer() when
+        // the trigger is the truncation alone.
+        if (BothInputsAreUnsigned32(node) && truncation.IsUsedAsWord32() &&
+            !truncation.check_safe_integer()) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop<T>(node);
           if (lower<T>()) DeferReplacement(node, lowering->Uint32Div(node));
@@ -3027,7 +3070,7 @@ class RepresentationSelector {
             if (lower<T>()) DeferReplacement(node, lowering->Int32Div(node));
             return;
           }
-          if (truncation.IsUsedAsWord32()) {
+          if (truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) {
             // => signed Int32Div
             VisitWord32TruncatingBinop<T>(node);
             if (lower<T>()) DeferReplacement(node, lowering->Int32Div(node));
@@ -3064,7 +3107,7 @@ class RepresentationSelector {
         if (hint == NumberOperationHint::kSignedSmall ||
             hint == NumberOperationHint::kSignedSmallInputs) {
           // If the result is truncated, we only need to check the inputs.
-          if (truncation.IsUsedAsWord32()) {
+          if (truncation.IsUsedAsWord32() && !truncation.check_safe_integer()) {
             VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
                           MachineRepresentation::kWord32);
             if (lower<T>()) DeferReplacement(node, lowering->Int32Div(node));
@@ -3086,9 +3129,13 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberDivide: {
+        // See SpeculativeNumberDivide: Int32Div/Uint32Div map div-by-zero to
+        // 0, losing ±Infinity/NaN, which is only acceptable for a plain
+        // word32 truncation — not when a safe-integer check is required.
         if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
             TypeOf(node->InputAt(1)).Is(Type::Unsigned32()) &&
-            (truncation.IsUsedAsWord32() ||
+            ((truncation.IsUsedAsWord32() &&
+              !truncation.check_safe_integer()) ||
              TypeOf(node).Is(Type::Unsigned32()))) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop<T>(node);
@@ -3097,7 +3144,8 @@ class RepresentationSelector {
         }
         if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
             TypeOf(node->InputAt(1)).Is(Type::Signed32()) &&
-            (truncation.IsUsedAsWord32() ||
+            ((truncation.IsUsedAsWord32() &&
+              !truncation.check_safe_integer()) ||
              TypeOf(node).Is(Type::Signed32()))) {
           // => signed Int32Div
           VisitWord32TruncatingBinop<T>(node);
@@ -3122,9 +3170,15 @@ class RepresentationSelector {
       case IrOpcode::kNumberModulus: {
         Type const lhs_type = TypeOf(node->InputAt(0));
         Type const rhs_type = TypeOf(node->InputAt(1));
+        // Int32Mod/Uint32Mod silently return 0 for mod-by-zero. That is fine
+        // for a plain word32 truncation (NaN | 0 == 0), but NOT when the
+        // caller requested a safe-integer check: such a caller expects to see
+        // NaN so it can deopt. Gate the integer shortcut on
+        // !check_safe_integer() when the trigger is the truncation alone.
         if ((lhs_type.Is(Type::Unsigned32OrMinusZeroOrNaN()) &&
              rhs_type.Is(Type::Unsigned32OrMinusZeroOrNaN())) &&
-            (truncation.IsUsedAsWord32() ||
+            ((truncation.IsUsedAsWord32() &&
+              !truncation.check_safe_integer()) ||
              TypeOf(node).Is(Type::Unsigned32()))) {
           // => unsigned Uint32Mod
           VisitWord32TruncatingBinop<T>(node);
@@ -3133,7 +3187,9 @@ class RepresentationSelector {
         }
         if ((lhs_type.Is(Type::Signed32OrMinusZeroOrNaN()) &&
              rhs_type.Is(Type::Signed32OrMinusZeroOrNaN())) &&
-            (truncation.IsUsedAsWord32() || TypeOf(node).Is(Type::Signed32()) ||
+            ((truncation.IsUsedAsWord32() &&
+              !truncation.check_safe_integer()) ||
+             TypeOf(node).Is(Type::Signed32()) ||
              (truncation.IdentifiesZeroAndMinusZero() &&
               TypeOf(node).Is(Type::Signed32OrMinusZero())))) {
           // => signed Int32Mod

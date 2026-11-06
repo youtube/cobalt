@@ -7,8 +7,10 @@ import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_toast/cr_toast.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
+import '//resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import './card.js';
 import './error_page.js';
+import './carousel.js';
 
 import type {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
@@ -17,18 +19,14 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './discover_skills_page.css.js';
 import {getHtml} from './discover_skills_page.html.js';
-import type {Skill} from './skill.mojom-webui.js';
+import type {Skill, TopicInfo} from './skill.mojom-webui.js';
 import {SkillsDialogType} from './skill.mojom-webui.js';
 import {SkillsManagementAction, SkillsManagementPage} from './skill_metrics.mojom-webui.js';
+import type {BrowseSkillsInitialState} from './skills.mojom-webui.js';
 import {SkillsPageBrowserProxy} from './skills_page_browser_proxy.js';
 
-
-// The category name for top skills.
-const kTopPickCategoryString: string = 'Top Pick';
 // The default category name for all skills.
-const kAllCategoriesString: string = 'All';
-// The category name for partner skills.
-const kPartnerCategoryString: string = 'Partner picks';
+const kAllCategoriesString: string = loadTimeData.getString('all');
 
 export interface DiscoverSkillsPageElement {
   $: {
@@ -55,11 +53,14 @@ export class DiscoverSkillsPageElement extends CrLitElement {
       searchTerm_: {type: String},
       selectedCategory_: {type: String},
       is1PSkillSaving_: {type: Boolean},
+      topicHeaders_: {type: Object},
     };
   }
 
   /* key: category, value: skill */
   protected accessor skills_: Map<string, Skill[]> = new Map();
+  // Subheader categories.
+  protected accessor topicHeaders_: Set<TopicInfo> = new Set();
   // Skills that are pending removal and can't be saved.
   protected skillsPendingRemoval_: Set<string> = new Set();
   protected accessor selectedCategory_: string = '';
@@ -72,12 +73,12 @@ export class DiscoverSkillsPageElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.proxy_.handler.getInitial1PSkills().then(({skillMap}) => {
-      this.update1PMap_(skillMap);
+    this.proxy_.handler.getInitial1PSkills().then(({initialState}) => {
+      this.update1PSkills_(initialState);
     });
     this.listenerIds_ = [
-      this.proxy_.callbackRouter.update1PMap.addListener(
-          this.update1PMap_.bind(this)),
+      this.proxy_.callbackRouter.update1PSkills.addListener(
+          this.update1PSkills_.bind(this)),
     ];
     // Listen for save button clicks.
     this.eventTracker_.add(
@@ -115,11 +116,12 @@ export class DiscoverSkillsPageElement extends CrLitElement {
     return this.is1PSkillSaving_ || this.skillsPendingRemoval_.has(skill.id);
   }
 
-  protected update1PMap_(skillMap: {[key: string]: Skill[]}) {
+  protected update1PSkills_(state: BrowseSkillsInitialState) {
     // Getting a new set of 1p skills, so we can remove any prior skills that
     // were pending removal.
     this.skillsPendingRemoval_ = new Set();
-    this.skills_ = new Map(Object.entries(skillMap));
+    this.skills_ = new Map(Object.entries(state.skillMap));
+    this.topicHeaders_ = new Set(state.topicsInfoList);
     const otherCategories = this.getOtherCategories_();
     this.selectedCategory_ =
         otherCategories.length > 0 ? otherCategories[0]! : '';
@@ -141,9 +143,6 @@ export class DiscoverSkillsPageElement extends CrLitElement {
         return 'skills:lightbulb';
       case 'Writing':
         return 'skills:write';
-      // TODO(b/503394871): Remove this category for 149.
-      case 'Partner picks':
-        return 'skills:verified';
       default:
         return 'cr:add';
     }
@@ -187,18 +186,11 @@ export class DiscoverSkillsPageElement extends CrLitElement {
         this.getOtherCategories_().length === 0 && this.searchTerm_.length > 0;
   }
 
-  protected topSkills_(): Skill[] {
-    return this.filter_(this.skills_.get(kTopPickCategoryString) || []);
-  }
-
-  // TODO(b/503394871): Refactor this section to be dynamic and implement a
-  // carousel for 149.
-  protected partnerSkills_(): Skill[] {
-    if (!loadTimeData.getBoolean('isPartnerPicksEnabled')) {
+  protected skillsByTopic_(topic: string): Skill[] {
+    if (!loadTimeData.getBoolean('isSubheadersEnabled')) {
       return [];
     }
-    return this.filter_(this.skills_.get(kPartnerCategoryString) || [])
-        .slice(0, 3);
+    return this.filter_(this.skills_.get(topic) || []);
   }
 
   protected getSelectedSkills_(): Skill[] {
@@ -214,19 +206,13 @@ export class DiscoverSkillsPageElement extends CrLitElement {
     return this.filter_(allSkills);
   }
 
-  // Gets all categories that are not tagged top skills.
+  // Gets all categories that are not already displayed within a subheader.
   protected getOtherCategories_(): string[] {
+    const topicCategoryNames =
+        new Set(Array.from(this.topicHeaders_).map(info => info.categoryName));
     const filteredOtherCategories =
-        Array.from(this.skills_.keys()).filter(category => {
-          if (category === kTopPickCategoryString) {
-            return false;
-          }
-          if (category === kPartnerCategoryString &&
-              !loadTimeData.getBoolean('isPartnerPicksEnabled')) {
-            return false;
-          }
-          return true;
-        });
+        Array.from(this.skills_.keys())
+            .filter(category => !topicCategoryNames.has(category));
 
     if (filteredOtherCategories.length === 0) {
       return [];

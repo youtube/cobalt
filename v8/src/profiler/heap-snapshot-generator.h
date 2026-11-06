@@ -609,7 +609,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
       Tagged<Object> child, const char* name_format_string = nullptr,
       int field_offset = -1);
 
-  void SetUserGlobalReference(Tagged<Object> user_global);
   void SetRootGcRootsReference();
   void SetGcRootsReference(Root root);
   void SetGcSubrootReference(Root root, const char* description, bool is_weak,
@@ -824,7 +823,6 @@ class HeapSnapshotJSONSerializer {
   void SerializeTraceNode(AllocationTraceNode* node);
   void SerializeTraceNodeInfos();
   void SerializeSamples();
-  void SerializeString(const unsigned char* s);
   void SerializeStrings();
   void SerializeLocation(const EntrySourceLocation& location);
   void SerializeLocations();

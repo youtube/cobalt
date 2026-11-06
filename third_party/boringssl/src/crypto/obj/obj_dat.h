@@ -16,7 +16,7 @@
 
 
 BSSL_NAMESPACE_BEGIN
-#define NUM_NID 971
+#define NUM_NID 973
 
 static const uint8_t kObjectData[] = {
     /* NID_rsadsi */
@@ -8800,6 +8800,8 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
     {"id-ml-dsa-87", "ML-DSA-87", NID_ML_DSA_87, 9, &kObjectData[6223], 0},
     {"id-alg-ml-kem-768", "ML-KEM-768", NID_ML_KEM_768, 9, &kObjectData[6232],
      0},
+    {NULL, NULL, NID_undef, 0, NULL, 0},
+    {"X-Wing", "X-Wing", NID_X_Wing, 0, NULL, 0},
 };
 
 static const uint16_t kNIDsInShortNameOrder[] = {
@@ -8996,6 +8998,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
     16 /* ST */,
     143 /* SXNetID */,
     458 /* UID */,
+    972 /* X-Wing */,
     948 /* X25519 */,
     964 /* X25519Kyber768Draft00 */,
     965 /* X25519MLKEM768 */,
@@ -9878,6 +9881,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
     129 /* TLS Web Server Authentication */,
     133 /* Time Stamping */,
     375 /* Trust Root */,
+    972 /* X-Wing */,
     948 /* X25519 */,
     964 /* X25519Kyber768Draft00 */,
     965 /* X25519MLKEM768 */,

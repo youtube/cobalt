@@ -289,10 +289,6 @@ class JsepTransportController final {
       RTC_RUN_ON(network_thread_);
 
   // Always called via a blocking call from the signaling thread.
-  bool NeedsIceRestart_n(absl::string_view mid) const
-      RTC_RUN_ON(network_thread_);
-
-  // Always called via a blocking call from the signaling thread.
   bool RemoveRemoteCandidate_n(const IceCandidate* candidate)
       RTC_RUN_ON(network_thread_);
 

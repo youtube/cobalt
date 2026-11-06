@@ -22,13 +22,13 @@
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/webauthn/context_menu_helper.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/autofill_feedback_data.h"
@@ -269,7 +269,8 @@ void AutofillContextMenuManager::ExecuteCommand(int command_id) {
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS) {
     // This function also records metrics.
     NavigateToManagePasswordsPage(
-        chrome::FindBrowserWithTab(web_contents),
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents),
         password_manager::ManagePasswordsReferrer::kPasswordContextMenu);
     return;
   }
@@ -327,6 +328,14 @@ void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
   ContentAutofillDriver* autofill_driver =
       ContentAutofillDriver::GetForRenderFrameHost(rfh);
   if (!autofill_driver || !autofill_driver->CanShowAutofillUi()) {
+    return;
+  }
+
+  if (autofill_driver->GetAutofillManager()
+          .client()
+          .GetAccessibilityAnnotatorEnablementState() ==
+      accessibility_annotator::RemoteAnnotatorEnablementState::
+          kDisabledNotEligible) {
     return;
   }
 
@@ -514,7 +523,8 @@ void AutofillContextMenuManager::ExecuteAutofillFeedbackCommand(
   // The cast is safe since the context menu is only available on Desktop.
   auto& client = static_cast<ContentAutofillClient&>(manager.client());
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithTab(&client.GetWebContents());
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          &client.GetWebContents());
   chrome::ShowFeedbackPage(
       browser, feedback::kFeedbackSourceAutofillContextMenu,
       /*description_template=*/std::string(),

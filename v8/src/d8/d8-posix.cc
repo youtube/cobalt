@@ -492,23 +492,6 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(accumulator);
 }
 
-void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  Isolate* isolate = info.GetIsolate();
-  if (info.Length() != 1) {
-    isolate->ThrowError("chdir() takes one argument");
-    return;
-  }
-  String::Utf8Value directory(isolate, info[0]);
-  if (*directory == nullptr) {
-    isolate->ThrowError("os.chdir(): String conversion of argument failed.");
-    return;
-  }
-  if (chdir(*directory) != 0) {
-    isolate->ThrowError(v8_strerror(isolate, errno));
-    return;
-  }
-}
 
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -750,8 +733,7 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   if (options.enable_os_system) {
     os_templ->Set(isolate, "system", FunctionTemplate::New(isolate, System));
   }
-  os_templ->Set(isolate, "chdir",
-                FunctionTemplate::New(isolate, ChangeDirectory));
+
   os_templ->Set(isolate, "setenv",
                 FunctionTemplate::New(isolate, SetEnvironment));
   os_templ->Set(isolate, "unsetenv",
@@ -761,6 +743,36 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
                 FunctionTemplate::New(isolate, MakeDirectory));
   os_templ->Set(isolate, "rmdir",
                 FunctionTemplate::New(isolate, RemoveDirectory));
+}
+
+void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1) {
+    isolate->ThrowError("exists() takes one argument");
+    return;
+  }
+  String::Utf8Value file_name(isolate, info[0]);
+  if (*file_name == nullptr) {
+    isolate->ThrowError(
+        "d8.file.exists(): String conversion of argument failed.");
+    return;
+  }
+
+  struct stat stat_buf;
+  bool exists = (stat(*file_name, &stat_buf) == 0);
+
+  info.GetReturnValue().Set(v8::Boolean::New(isolate, exists));
+}
+
+bool Shell::ChangeWorkingDirectory(const std::string& path, bool print_error) {
+  bool success = chdir(path.c_str()) == 0;
+
+  if (!success && print_error) {
+    fprintf(stderr, "Failed to change directory to %s: %s\n", path.c_str(),
+            strerror(errno));
+  }
+  return success;
 }
 
 }  // namespace v8

@@ -45,9 +45,9 @@
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/startup/bad_flags_prompt.h"
 #include "chrome/browser/ui/tab_helpers.h"
 #include "components/android_autofill/browser/android_autofill_client.h"
@@ -728,6 +728,10 @@ base::WeakPtr<tabs::TabInterface> TabAndroid::GetWeakPtr() {
 
 content::WebContents* TabAndroid::GetContents() const {
   return web_contents_.get();
+}
+
+Profile* TabAndroid::GetProfile() const {
+  return profile();
 }
 
 void TabAndroid::Close() {

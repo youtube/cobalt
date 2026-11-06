@@ -667,20 +667,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   int CallCFunction(
       ExternalReference function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       ExternalReference function, int num_reg_arguments,
       int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_reg_arguments, int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
 
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
@@ -736,7 +736,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
-  void GetLabelAddress(Register dst, Label* target);
+  void GetLabelAddress(Register dst, Label* target, Register scratch);
 
   // Load the builtin given by the Smi in |builtin_index| into |target|.
   void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);

@@ -681,6 +681,7 @@ ci.builder(
     ),
     targets = targets.bundle(
         targets = [
+            "perfetto_diff_tests_bundle",
             "perfetto_gtests",
         ],
         additional_compile_targets = [
@@ -1318,6 +1319,13 @@ ci.builder(
             # if/when the full resources are delivered.
             "very_limited_capacity_bot",
         ],
+        per_test_modifications = {
+            "interactive_ui_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 5,
+                ),
+            ),
+        },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.RELEASE,
@@ -1396,6 +1404,9 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.interactive_ui_tests_mutter.filter",
                 ],
+                swarming = targets.swarming(
+                    shards = 5,
+                ),
             ),
         },
     ),

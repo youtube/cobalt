@@ -1449,15 +1449,6 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
   }
 }
 
-void Assembler::patch_pc_address(Register dst, int pc_offset,
-                                 int return_address_offset) {
-  DCHECK(is_int16(return_address_offset));
-  Assembler patching_assembler(
-      AssemblerOptions{},
-      ExternalAssemblerBuffer(buffer_start_ + pc_offset, kInstrSize + kGap));
-  patching_assembler.addi(dst, dst, Operand(return_address_offset));
-}
-
 void Assembler::mov_label_offset(Register dst, Label* label) {
   int position = link(label);
   if (label->is_bound()) {
@@ -2068,12 +2059,9 @@ void Assembler::GrowBuffer(int needed) {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
   int space = buffer_space() + (new_size - old_size);
   new_size += (space < needed) ? needed - space : 0;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
   if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }

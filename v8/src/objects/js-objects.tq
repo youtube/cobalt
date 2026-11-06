@@ -5,6 +5,7 @@
 // JSReceiver corresponds to objects in the JS sense.
 @abstract
 @highestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSReceiver extends HeapObject {
   properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
 }

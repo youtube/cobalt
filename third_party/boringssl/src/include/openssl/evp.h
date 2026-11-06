@@ -118,6 +118,7 @@ OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_copy_public(const EVP_PKEY *pkey);
 #define EVP_PKEY_ML_DSA_87 NID_ML_DSA_87
 #define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
+#define EVP_PKEY_XWING NID_X_Wing
 
 // EVP_PKEY_id returns the type of |pkey|, which is one of the |EVP_PKEY_*|
 // values above. These type values generally correspond to the algorithm OID,
@@ -197,6 +198,12 @@ OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_dsa_87(void);
 // the command-line tool.
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_kem_768(void);
 OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_ml_kem_1024(void);
+
+// EVP_pkey_xwing implements the hybrid key encapsulation mechanism (KEM) known
+// as X-Wing or MLKEM768-X25519, defined in
+// draft-irtf-cfrg-concrete-hybrid-kems. Its private key representation is the
+// "seed" form. It does not have public and private key encodings for X.509.
+OPENSSL_EXPORT const EVP_PKEY_ALG *EVP_pkey_xwing(void);
 
 // EVP_pkey_dsa implements DSA keys, encoded as in RFC 3279, Section 2.3.2. The
 // |EVP_PKEY_id| value is |EVP_PKEY_DSA|. This |EVP_PKEY_ALG| accepts all DSA
@@ -1156,6 +1163,10 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_dh_pad(EVP_PKEY_CTX *ctx, int pad);
 OPENSSL_EXPORT const EVP_KEM *EVP_kem_ml_kem_768(void);
 OPENSSL_EXPORT const EVP_KEM *EVP_kem_ml_kem_1024(void);
 
+// EVP_kem_xwing implements the hybrid KEM known as X-Wing or MLKEM768-X25519,
+// defined in draft-irtf-cfrg-concrete-hybrid-kems.
+OPENSSL_EXPORT const EVP_KEM *EVP_kem_xwing(void);
+
 // TODO(crbug.com/449751916): Add more supported KEMs.
 
 // EVP_KEM_ciphertext_len returns the fixed length, in bytes, of a ciphertext
@@ -1182,12 +1193,10 @@ OPENSSL_EXPORT int EVP_KEM_encap(const EVP_KEM *kem, uint8_t *out_ciphertext,
 // secret of length |secret_len| into |*out_secret|. |key| must be a private key
 // of the type expected by |kem|. |secret_len| must match the output of
 // |EVP_KEM_secret_len| when called with |kem|. This function returns one on
-// success or zero on failure. If |ciphertext| is invalid (but of the correct
-// length), this will return one and fill |out_secret| with a key that will
-// always be the same for the same |ciphertext| and |key|, but which appears to
-// be random unless one has access to the private |key|. Any subsequent
-// symmetric encryption using |*out_secret| must use an authenticated encryption
-// scheme in order to discover the decapsulation failure.
+// success or zero on failure. If |ciphertext| has been corrupted, the function
+// may fail or it may output a shared secret that appears to be random. Any
+// subsequent symmetric encryption using |*out_secret| must use an authenticated
+// encryption scheme in order to discover the decapsulation failure.
 OPENSSL_EXPORT int EVP_KEM_decap(const EVP_KEM *kem, uint8_t *out_secret,
                                  size_t secret_len, const uint8_t *ciphertext,
                                  size_t ciphertext_len, const EVP_PKEY *key);

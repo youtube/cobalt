@@ -4712,8 +4712,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // V(ITERATOR_FUNCTION, concat, Concat, CONCAT, 0, kDontAdapt)
 
     // TODO(nikolaos, 465357675): Once the --js-joint-iteration flag is removed,
-    // add the following line to the above macro:
+    // add the following lines to the above macro:
     // V(ITERATOR_FUNCTION, zip, Zip, ZIP, 1, kDontAdapt)
+    // V(ITERATOR_FUNCTION, zipKeyed, ZipKeyed, ZIP_KEYED, 1, kDontAdapt)
 
     ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 
@@ -5624,16 +5625,30 @@ void Genesis::InitializeGlobal_js_joint_iteration() {
       native_context()->initial_iterator_helper_prototype(), isolate_);
   auto iterator_function =
       direct_handle(native_context()->initial_iterator_function(), isolate_);
-  DirectHandle<Map> map =
-      isolate_->factory()->NewContextfulMapForCurrentContext(
-          JS_ITERATOR_ZIP_HELPER_TYPE, sizeof(JSIteratorZipHelper),
-          TERMINAL_FAST_ELEMENTS_KIND, 0);
-  Map::SetPrototype(isolate(), map, iterator_helper_prototype);
-  map->SetConstructor(*iterator_function);
-  native_context()->set_iterator_zip_helper_map(*map);
-  LOG(isolate_, MapDetails(*map));
-  SimpleInstallFunction(isolate_, iterator_function, "zip",
-                        Builtin::kIteratorZip, 1, kDontAdapt);
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_ZIP_HELPER_TYPE, sizeof(JSIteratorZipHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_zip_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate_, iterator_function, "zip",
+                          Builtin::kIteratorZip, 1, kDontAdapt);
+  }
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_ZIP_KEYED_HELPER_TYPE, sizeof(JSIteratorZipKeyedHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_zip_keyed_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate_, iterator_function, "zipKeyed",
+                          Builtin::kIteratorZipKeyed, 1, kDontAdapt);
+  }
 }
 
 void Genesis::InitializeGlobal_js_upsert() {

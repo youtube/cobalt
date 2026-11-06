@@ -41,6 +41,7 @@ namespace searchbox_internal {
 // Internal constants for icon resource paths shared by SearchboxHandler and its
 // subclasses.
 extern const char* kSearchSparkIconResourceName;
+extern const char* kReplyRotated180IconResourceName;
 }  // namespace searchbox_internal
 
 // Base class for browser-side handlers that handle bi-directional communication
@@ -159,14 +160,12 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void ShouldShowDriveDisclaimer(
       ShouldShowDriveDisclaimerCallback callback) override;
   void OnDriveDisclaimerAccepted() override;
+  void OnDriveUploadClicked() override {}
   void GetPageClassification(GetPageClassificationCallback callback) override;
 
   // Stores `callback` to be run when the page remote is bound and ready to
   // receive calls. Runs `callback` immediately if the remote is already bound.
   void set_page_is_bound_callback_for_testing(base::OnceClosure callback);
-
-  DECLARE_FEATURE(kVoiceSearchCoherence);
-  static const base::FeatureParam<bool> kVoiceSearchRecordingAnimation;
 
  protected:
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, AutocompleteController_Start);

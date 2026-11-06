@@ -107,6 +107,7 @@ void VrpFlagsImpl::EnsureAllocated() {
 
   read_flag_ = std::make_unique<ReadFlag>();
   read_flag_->prefix = base::UnguessableToken::Create();
+  read_flag_->flag = base::UnguessableToken::Create();
 
   arbitrary_value_ = base::RandUint64();
   const size_t kSizes[] = {4096, 16384, 65536, 262144, 1048576};
@@ -114,7 +115,7 @@ void VrpFlagsImpl::EnsureAllocated() {
     auto allocation =
         base::HeapArray<uint64_t>::WithSize(size / sizeof(uint64_t));
     // Pick a random offset that is not at the start.
-    size_t offset = base::RandInt(1, (size / sizeof(uint64_t)) - 1);
+    size_t offset = base::RandIntInclusive(1, (size / sizeof(uint64_t)) - 1);
     // SAFETY - Keep the pointer for later, the allocation outlives uses
     // of the pointer, and this is only reachable in --vrp-flags mode.
     UNSAFE_BUFFERS(uint64_t* address = &allocation.data()[offset]);

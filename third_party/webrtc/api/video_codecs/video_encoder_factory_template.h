@@ -19,6 +19,7 @@
 
 #include "absl/algorithm/container.h"
 #include "api/environment/environment.h"
+#include "api/video/resolution.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_encoder.h"
@@ -50,6 +51,7 @@ namespace webrtc {
 template <typename... Ts>
 class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
  public:
+  using VideoEncoderFactory::QueryCodecSupport;
   std::vector<SdpVideoFormat> GetSupportedFormats() const override {
     return GetSupportedFormatsInternal<Ts...>();
   }
@@ -70,8 +72,10 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
 
   CodecSupport QueryCodecSupport(
       const SdpVideoFormat& format,
-      std::optional<std::string> scalability_mode) const override {
-    return QueryCodecSupportInternal<Ts...>(format, scalability_mode);
+      std::optional<std::string> scalability_mode,
+      std::optional<Resolution> resolution) const override {
+    return QueryCodecSupportInternal<Ts...>(format, scalability_mode,
+                                            resolution);
   }
 
  private:
@@ -130,13 +134,15 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
   template <typename V, typename... Vs>
   CodecSupport QueryCodecSupportInternal(
       const SdpVideoFormat& format,
-      const std::optional<std::string>& scalability_mode) const {
+      const std::optional<std::string>& scalability_mode,
+      const std::optional<Resolution>& resolution) const {
     if (IsFormatInList(format, V::SupportedFormats())) {
       return {.is_supported = IsScalabilityModeSupported<V>(scalability_mode)};
     }
 
     if constexpr (sizeof...(Vs) > 0) {
-      return QueryCodecSupportInternal<Vs...>(format, scalability_mode);
+      return QueryCodecSupportInternal<Vs...>(format, scalability_mode,
+                                              resolution);
     }
 
     return {.is_supported = false};

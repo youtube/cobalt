@@ -971,6 +971,7 @@ extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 
 extern runtime ReThrowWithMessage(
     Context, JSAny, TheHole|JSMessageObject): never;
+extern runtime ReThrow(implicit context: Context)(JSAny): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
@@ -2068,6 +2069,9 @@ extern transitioning runtime CreateDataProperty(
 
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): void;
+
+extern transitioning runtime GetOwnPropertyKeys(
+    implicit context: Context)(JSReceiver, Smi): JSArray;
 
 namespace runtime {
 extern runtime GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;

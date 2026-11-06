@@ -165,16 +165,17 @@ const v8::HeapGraphNode* GetRootChild(const v8::HeapSnapshot* snapshot,
 }
 
 const v8::HeapGraphNode* GetNativeContext(const v8::HeapSnapshot* snapshot) {
-  // The 0th-child is (GC Roots), 1st is the user root.
-  const v8::HeapGraphNode* native_context =
-      snapshot->GetRoot()->GetChild(1)->GetToNode();
-
-  std::string expected_name_prefix = "system / NativeContext";
-  std::string native_context_node_name = GetName(native_context);
-  CHECK_EQ(expected_name_prefix,
-           native_context_node_name.substr(0, expected_name_prefix.length()));
-
-  return native_context;
+  for (int i = 0; i < snapshot->GetNodesCount(); ++i) {
+    const v8::HeapGraphNode* node = snapshot->GetNode(i);
+    std::string expected_name_prefix = "system / NativeContext";
+    std::string node_name = GetName(node);
+    if (node_name.substr(0, expected_name_prefix.length()) ==
+        expected_name_prefix) {
+      return node;
+    }
+  }
+  CHECK(false);
+  return nullptr;
 }
 
 const v8::HeapGraphNode* GetGlobalObject(const v8::HeapSnapshot* snapshot,
@@ -1393,11 +1394,20 @@ TEST(HeapSnapshotJSONSerialization) {
   // Get the string index using the path:
   //   <root> -> <native_context>.<global_object>.b.x.s
   v8::Local<v8::Value> string_obj_pos_val = CompileRun(
+      "var name_offset = meta.node_fields.indexOf('name');\n"
+      "var native_context_pos = -1;\n"
+      "for (var i = 0; i < parsed.nodes.length; i += node_fields_count) {\n"
+      "  var name = parsed.strings[parsed.nodes[i + name_offset]];\n"
+      "  if (name && name.indexOf('system / NativeContext') === 0) {\n"
+      "    native_context_pos = i;\n"
+      "    break;\n"
+      "  }\n"
+      "}\n"
       "GetChildPosByProperty(\n"
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
       "      GetChildPosByProperty("
-      "        parsed.edges[1 * edge_fields_count + edge_to_node_offset],"
+      "        native_context_pos,"
       "        \"global_object\", internal_type),\n"
       "      \"b\", property_type),\n"
       "    \"x\", property_type),"

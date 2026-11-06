@@ -4492,7 +4492,7 @@ void SdpOfferAnswerHandler::UpdateTransceiverChannel(
           content.mid(), pc_->call_ptr(), pc_->configuration()->media_config,
           pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
           video_options(), video_bitrate_allocator_factory_.get(),
-          [&](absl::string_view mid) {
+          [mid = content.mid(), this]() {
             RTC_DCHECK_RUN_ON(network_thread());
             return transport_controller_n()->GetRtpTransport(mid);
           },
@@ -5833,7 +5833,7 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
         voice->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
         pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
         video_options(), video_bitrate_allocator_factory_.get(),
-        [&](absl::string_view mid) {
+        [mid = voice->mid(), this]() {
           RTC_DCHECK_RUN_ON(network_thread());
           return transport_controller_n()->GetRtpTransport(mid);
         },
@@ -5847,7 +5847,7 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
         video->mid(), pc_->call_ptr(), pc_->configuration()->media_config,
         pc_->SrtpRequired(), pc_->GetCryptoOptions(), audio_options(),
         video_options(), video_bitrate_allocator_factory_.get(),
-        [&](absl::string_view mid) {
+        [mid = video->mid(), this]() {
           RTC_DCHECK_RUN_ON(network_thread());
           return transport_controller_n()->GetRtpTransport(mid);
         },

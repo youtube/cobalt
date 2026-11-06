@@ -46,9 +46,9 @@
 #include "chrome/browser/ui/views/tabs/dragging/drag_session_data.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_target.h"
+#include "chrome/browser/ui/views/tabs/dragging/window_finder.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
-#include "chrome/browser/ui/views/tabs/dragging/window_finder.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
@@ -1370,11 +1370,13 @@ void TabDragController::AttachToNewContext(
       const WebContents* web_contents = tab->get()->tab->GetContents();
       // If it's a tab - we add it to the tabstrip.
       int add_types = AddTabTypes::ADD_NONE;
-      TabDragData& tab_data = *std::find_if(
-          drag_data_.tab_drag_data_.begin(), drag_data_.tab_drag_data_.end(),
-          [web_contents](TabDragData& tab_data) {
-            return web_contents == tab_data.contents;
-          });
+      auto it = std::find_if(drag_data_.tab_drag_data_.begin(),
+                             drag_data_.tab_drag_data_.end(),
+                             [web_contents](TabDragData& tab_data) {
+                               return web_contents == tab_data.contents;
+                             });
+      CHECK(it != drag_data_.tab_drag_data_.end());
+      TabDragData& tab_data = *it;
       if (tab_data.pinned) {
         add_types |= AddTabTypes::ADD_PINNED;
       }
@@ -1488,13 +1490,15 @@ TabDragController::Detach(ReleaseCapture release_capture) {
   }
 
   std::vector<int> dragged_indices;
-
-  // TODO(crbug.com/435178910) Remove this usage of ListSelectionModel.
-  for (int dragged_index : attached_model->selection_model()
-                               .GetListSelectionModel()
-                               .selected_indices()) {
-    dragged_indices.push_back(dragged_index);
+  for (const auto& data : drag_data_.tab_drag_data_) {
+    if (data.contents) {
+      const int index = attached_model->GetIndexOfWebContents(data.contents);
+      if (index != TabStripModel::kNoTab) {
+        dragged_indices.push_back(index);
+      }
+    }
   }
+  std::ranges::sort(dragged_indices);
   const std::vector<tab_groups::TabGroupId> groups_to_move =
       attached_model->GetGroupsDestroyedFromRemovingIndices(dragged_indices);
 
@@ -1694,9 +1698,14 @@ TabDragController::Liveness TabDragController::RunMoveLoop(
 
   move_loop_widget_ = GetAttachedBrowserWidget();
   DCHECK(move_loop_widget_);
+#if !BUILDFLAG(IS_CHROMEOS)
+  // In ChromeOS, `SetBounds` is not used to avoid accidentally moving the
+  // window to a different display. `drag_offset` is used to calculate initial
+  // location in ToplevelWindowEventHandler.
+  // TODO(crbug.com/508016410): Verify if this is necessary and remove it.
   move_loop_widget_->SetBounds(
       gfx::Rect(point_in_screen - drag_offset, move_loop_widget_->GetSize()));
-
+#endif  //! BUILDFLAG(IS_CHROMEOS)
   // RunMoveLoop can be called reentrantly from within another RunMoveLoop,
   // in which case the observation is already established.
   widget_observation_.Reset();
@@ -2104,15 +2113,15 @@ void TabDragController::RevertTabAt(size_t drag_index) {
   CHECK_NE(from_index, TabStripModel::kNoTab);
   int target_index = tab_data.source_model_index.value();
 
-  bool using_relative_group_index = false;
-  if (tab_data.tab_group_data.has_value()) {
-    // If the tab is going back to its original group, use the relative index
-    // to ensure it lands in a valid position within the group's current range.
+  if (tab_data.tab_group_data.has_value() &&
+      attached_context_ != source_context_) {
+    // If the tab is going back to its original group in a different context,
+    // use the relative index to ensure it lands in a valid position within
+    // the group's current range.
     const TabGroup* group =
         source_context_->GetTabStripModel()->group_model()->GetTabGroup(
             existing_group.value());
     if (group) {
-      using_relative_group_index = true;
       target_index =
           group->ListTabs().start() + tab_data.tab_group_data->index_in_group;
     }
@@ -2137,17 +2146,10 @@ void TabDragController::RevertTabAt(size_t drag_index) {
     // unreverted tabs will later be reverted to the right of the target
     // index, so we skip those indices.
     if (target_index > from_index) {
-      if (using_relative_group_index) {
-        // If the target index is relative to the group, then the calculation
-        // needs to exclude the tab being reverted too, since the group will
-        // be shifted back as a result of the move.
-        --target_index;
-      } else {
-        for (size_t i = drag_index + 1; i < drag_data_.tab_drag_data_.size();
-             ++i) {
-          if (drag_data_.tab_drag_data_[i].contents) {
-            ++target_index;
-          }
+      for (size_t i = drag_index + 1; i < drag_data_.tab_drag_data_.size();
+           ++i) {
+        if (drag_data_.tab_drag_data_[i].contents) {
+          ++target_index;
         }
       }
     }
@@ -2185,6 +2187,16 @@ void TabDragController::RevertSplitAt(size_t drag_index) {
   if (attached_context_ != source_context_) {
     // The Split was inserted into another TabDragContext. We need to
     // put it back into the original one.
+    if (tab_data.tab_group_data.has_value()) {
+      const TabGroup* group =
+          source_context_->GetTabStripModel()->group_model()->GetTabGroup(
+              tab_data.tab_group_data->group_id);
+      if (group) {
+        target_index =
+            group->ListTabs().start() + tab_data.tab_group_data->index_in_group;
+      }
+    }
+
     std::unique_ptr<DetachedTabCollection> detached_split =
         attached_context_->GetTabStripModel()->DetachSplitTabForInsertion(
             split_id);
@@ -2584,13 +2596,6 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
                 /* trusted_source=*/true, gfx::Rect(), from_browser->profile(),
                 /* user_gesture=*/true)
           : from_browser->create_params();
-
-  if (auto* controller =
-          tabs::VerticalTabStripStateController::From(from_browser)) {
-    create_params.vertical_tab_strip_collapsed = controller->IsCollapsed();
-    create_params.vertical_tab_strip_uncollapsed_width =
-        controller->GetUncollapsedWidth();
-  }
 
   // Web app windows have their own initial size independent of the source
   // browser window.

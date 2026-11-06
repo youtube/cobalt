@@ -3329,6 +3329,11 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
         data += F6F7Instruction(data);
         break;
 
+      case 0x2C:
+        AppendToBuffer("subb al,0x%x", Imm8_U(data + 1));
+        data += 2;
+        break;
+
       case 0x3C:
         AppendToBuffer("cmpb al,0x%x", Imm8(data + 1));
         data += 2;

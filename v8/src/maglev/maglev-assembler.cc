@@ -86,7 +86,7 @@ void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
     // The field is in the property array, first load it from there.
     AssertNotSmi(load_source_object);
     LoadTaggedField(load_source, load_source_object,
-                    JSReceiver::kPropertiesOrHashOffset);
+                    offsetof(JSReceiver, properties_or_hash_));
   }
   AssertNotSmi(load_source);
   LoadTaggedField(result, load_source, field_index.offset());

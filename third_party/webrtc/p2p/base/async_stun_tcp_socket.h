@@ -32,6 +32,9 @@ class AsyncStunTCPSocket : public AsyncTCPSocketBase {
   AsyncStunTCPSocket(const AsyncStunTCPSocket&) = delete;
   AsyncStunTCPSocket& operator=(const AsyncStunTCPSocket&) = delete;
 
+  using AsyncPacketSocket::Send;
+  using AsyncPacketSocket::SendTo;
+
   int Send(const void* pv,
            size_t cb,
            const AsyncSocketPacketOptions& options) override;

@@ -54,25 +54,19 @@ static int64_t JNI_FeedSurfaceRendererBridge_Init(
     int32_t stream_kind,
     int64_t native_feed_reliability_logging_bridge) {
   return reinterpret_cast<intptr_t>(new FeedSurfaceRendererBridge(
-      j_this, profile, stream_kind, std::string(),
+      j_this, profile, stream_kind,
       reinterpret_cast<FeedReliabilityLoggingBridge*>(
-          native_feed_reliability_logging_bridge),
-      (int)SingleWebFeedEntryPoint::kOther));
+          native_feed_reliability_logging_bridge)));
 }
 
 FeedSurfaceRendererBridge::FeedSurfaceRendererBridge(
     const JavaRef<jobject>& j_this,
     Profile* profile,
     int32_t stream_kind,
-    std::string web_feed_id,
-    FeedReliabilityLoggingBridge* reliability_logging_bridge,
-    int32_t feed_entry_point)
+    FeedReliabilityLoggingBridge* reliability_logging_bridge)
     : feed_stream_api_(nullptr),
       reliability_logging_bridge_(reliability_logging_bridge) {
   java_ref_.Reset(j_this);
-
-  auto single_web_feed_entry_point =
-      static_cast<SingleWebFeedEntryPoint>(feed_entry_point);
 
   feed_stream_api_ = GetFeedApi(profile);
   if (!feed_stream_api_) {
@@ -80,9 +74,7 @@ FeedSurfaceRendererBridge::FeedSurfaceRendererBridge(
   }
 
   surface_id_ = feed_stream_api_->CreateSurface(
-      StreamType(static_cast<StreamKind>(stream_kind), std::move(web_feed_id),
-                 single_web_feed_entry_point),
-      single_web_feed_entry_point);
+      StreamType(static_cast<StreamKind>(stream_kind)));
 }
 
 FeedSurfaceRendererBridge::~FeedSurfaceRendererBridge() {

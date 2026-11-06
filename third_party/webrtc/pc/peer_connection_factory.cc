@@ -191,6 +191,10 @@ scoped_refptr<AudioSourceInterface> PeerConnectionFactory::CreateAudioSource(
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(worker_thread());
+  if (!file) {
+    RTC_LOG(LS_ERROR) << "Cannot start AEC dump with null file pointer.";
+    return false;
+  }
   if (media_engine_ref_) {
     RTC_LOG(LS_WARNING) << "Replacing ongoing AEC dump.";
   } else {

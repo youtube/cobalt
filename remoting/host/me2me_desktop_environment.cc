@@ -17,6 +17,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "remoting/host/action_executor.h"
+#include "remoting/host/audio_injector.h"
 #include "remoting/host/base/desktop_environment_options.h"
 #include "remoting/host/base/screen_controls.h"
 #include "remoting/host/basic_desktop_environment.h"
@@ -117,6 +118,11 @@ std::string Me2MeDesktopEnvironment::GetCapabilities() const {
   if (desktop_environment_options().enable_remote_webauthn()) {
     capabilities += " ";
     capabilities += protocol::kRemoteWebAuthnCapability;
+  }
+
+  if (AudioInjector::IsSupported()) {
+    capabilities += " ";
+    capabilities += protocol::kMicrophoneRemotingCapability;
   }
 
 #if BUILDFLAG(IS_LINUX) && defined(REMOTING_USE_X11)

@@ -85,6 +85,8 @@ V8_EXPORT_PRIVATE uint64_t word64_rol_wrapper(uint64_t input, uint32_t shift);
 
 V8_EXPORT_PRIVATE uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift);
 
+V8_EXPORT_PRIVATE void wasm_int128_add_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);

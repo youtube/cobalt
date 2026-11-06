@@ -155,6 +155,7 @@ rtc_library("builtin_video_encoder_factory") {
     "../../media:rtc_simulcast_encoder_adapter",
     "../../rtc_base/system:rtc_export",
     "../environment",
+    "../video:resolution",
   ]
 }
 
@@ -168,6 +169,7 @@ rtc_source_set("video_encoder_factory_template") {
     ":video_codecs_api",
     "../../modules/video_coding/svc:scalability_mode_util",
     "../environment",
+    "../video:resolution",
     "//third_party/abseil-cpp/absl/algorithm:container",
   ]
 }

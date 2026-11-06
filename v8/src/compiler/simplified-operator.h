@@ -1104,6 +1104,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                         const FeedbackSource& feedback);
   const Operator* CheckedFloat64ToUint64(CheckForMinusZeroMode,
                                          const FeedbackSource& feedback);
+  const Operator* CheckedInt32ToUint64(const FeedbackSource& feedback);
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Div();
   const Operator* CheckedInt32Mod();

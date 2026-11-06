@@ -157,6 +157,9 @@ class V8_BASE_EXPORT OS {
   // part of V8::Initialize, at which point this function can probably be
   // merged into OS::Initialize.
   static void EnsureWin32MemoryAPILoaded();
+
+  // Convert utf-8 encoded string to utf-16 encoded.
+  static std::wstring ConvertUtf8StringToUtf16(const char* str);
 #endif
 
   // Check whether CET shadow stack is enabled.

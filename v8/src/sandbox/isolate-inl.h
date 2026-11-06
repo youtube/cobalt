@@ -8,7 +8,7 @@
 #include "src/sandbox/isolate.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/sandbox/external-pointer-table-inl.h"

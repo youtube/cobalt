@@ -32,6 +32,12 @@ class SyncService;
 // Cancels any outstanding work and dismisses an alert view (if shown).
 - (void)interrupt;
 
+// Starts the reauthentication flow for `identity`.
+- (void)reauthIdentity:(id<SystemIdentity>)identity
+               browser:(Browser*)browser
+        viewController:(UIViewController*)viewController
+           accessPoint:(signin_metrics::AccessPoint)accessPoint;
+
 // Fetches the list of data types with unsync data in the primary account.
 // `-[id<AuthenticationFlowPerformerDelegate>
 // didFetchUnsyncedDataWithUnsyncedDataTypes:]` is called once the data are
@@ -61,6 +67,14 @@ class SyncService;
 // Fetches the managed status for `identity`.
 - (void)fetchManagedStatus:(ProfileIOS*)profile
                forIdentity:(id<SystemIdentity>)identity;
+
+// Fetches the can_sign_in_to_chrome capability before sign-in.
+- (void)fetchCanSigninToChromeCapability:(id<SystemIdentity>)identity;
+
+// Shows the Age Mismatch dialog.
+- (void)showAgeMismatchDialogForIdentity:(id<SystemIdentity>)identity
+                          viewController:(UIViewController*)viewController
+                                 browser:(Browser*)browser;
 
 // Fetches the profile separation policies for the account linked to `identity`.
 - (void)fetchProfileSeparationPolicies:(ProfileIOS*)profile

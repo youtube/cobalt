@@ -1383,9 +1383,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;

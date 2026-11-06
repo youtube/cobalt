@@ -44,6 +44,7 @@
 #include "rtc_base/openssl_adapter.h"
 #include "rtc_base/openssl_digest.h"
 #include "rtc_base/openssl_utility.h"
+#include "rtc_base/span_helpers.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -218,8 +219,8 @@ int stream_read(BIO* b, char* out, int outl) {
   BIO_clear_retry_flags(b);
   size_t read;
   int error;
-  StreamResult result = stream->Read(
-      std::span(reinterpret_cast<uint8_t*>(out), outl), read, error);
+  StreamResult result =
+      stream->Read(AsWritableUint8Span(std::span(out, outl)), read, error);
   if (result == SR_SUCCESS) {
     return checked_cast<int>(read);
   } else if (result == SR_BLOCK) {
@@ -236,8 +237,8 @@ int stream_write(BIO* b, const char* in, int inl) {
   BIO_clear_retry_flags(b);
   size_t written;
   int error;
-  StreamResult result = stream->Write(
-      std::span(reinterpret_cast<const uint8_t*>(in), inl), written, error);
+  StreamResult result =
+      stream->Write(AsUint8Span(std::span(in, inl)), written, error);
   if (result == SR_SUCCESS) {
     return checked_cast<int>(written);
   } else if (result == SR_BLOCK) {

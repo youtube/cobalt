@@ -15,10 +15,10 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_observer.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -54,30 +54,53 @@ class BubbleDelegateImpl
   BubbleDelegateImpl& operator=(const BubbleDelegateImpl&) = delete;
   ~BubbleDelegateImpl() override = default;
 
-  bool HasBubble() override { return GetBubbleCoordinator().GetBubble(); }
+  bool HasBubble() override {
+    auto* coordinator = GetBubbleCoordinator();
+    return coordinator && coordinator->GetBubble();
+  }
 
-  void ShowBubble(
-      ToolbarButtonProvider* toolbar_button_provider,
-      content::WebContents* web_contents,
-      content_settings::CookieControlsController* controller) override {
-    return GetBubbleCoordinator().ShowBubble(toolbar_button_provider,
-                                             web_contents, controller);
+  void ShowBubble(ToolbarButtonProvider* toolbar_button_provider,
+                  content::WebContents* web_contents) override {
+    auto* coordinator = GetBubbleCoordinator();
+    if (!coordinator) {
+      return;
+    }
+    auto* bwi = tab_interface_->GetBrowserWindowInterface();
+    if (!bwi) {
+      return;
+    }
+    return coordinator->ShowBubble(
+        toolbar_button_provider, web_contents,
+        bwi->GetFeatures().cookie_controls_controller());
   }
 
   base::CallbackListSubscription RegisterBubbleClosingCallback(
       base::RepeatingClosure callback) override {
-    return GetBubbleCoordinator().RegisterBubbleClosingCallback(
-        std::move(callback));
+    auto* coordinator = GetBubbleCoordinator();
+    if (!coordinator) {
+      return base::CallbackListSubscription();
+    }
+    return coordinator->RegisterBubbleClosingCallback(std::move(callback));
+  }
+
+  content_settings::CookieControlsController* GetController() override {
+    auto* bwi = tab_interface_->GetBrowserWindowInterface();
+    if (!bwi) {
+      return nullptr;
+    }
+    return bwi->GetFeatures().cookie_controls_controller();
   }
 
  private:
-  CookieControlsBubbleCoordinator& GetBubbleCoordinator() {
+  CookieControlsBubbleCoordinator* GetBubbleCoordinator() {
     auto* const bwi = tab_interface_->GetBrowserWindowInterface();
-    CHECK(bwi);
+    if (!bwi) {
+      return nullptr;
+    }
     CookieControlsBubbleCoordinator* const coordinator =
         CookieControlsBubbleCoordinator::From(bwi);
     CHECK(coordinator);
-    return *coordinator;
+    return coordinator;
   }
 
   const raw_ref<tabs::TabInterface> tab_interface_;
@@ -105,14 +128,6 @@ CookieControlsPageActionController::CookieControlsPageActionController(
     : PageActionObserver(kActionShowCookieControls),
       tab_(tab_interface),
       page_action_controller_(page_action_controller),
-      cookie_controls_controller_(
-          std::make_unique<content_settings::CookieControlsController>(
-              CookieSettingsFactory::GetForProfile(&profile),
-              profile.IsOffTheRecord() ? CookieSettingsFactory::GetForProfile(
-                                             profile.GetOriginalProfile())
-                                       : nullptr,
-              HostContentSettingsMapFactory::GetForProfile(&profile),
-              profile.IsIncognitoProfile())),
       bubble_delegate_(std::make_unique<BubbleDelegateImpl>(tab_interface)),
       scoped_unowned_user_data_(tab_interface.GetUnownedUserDataHost(), *this) {
   CHECK(IsPageActionMigrated(PageActionIconType::kCookieControls));
@@ -129,48 +144,79 @@ CookieControlsPageActionController* CookieControlsPageActionController::From(
 }
 
 void CookieControlsPageActionController::Init() {
-  controller_observation_.Observe(cookie_controls_controller_.get());
-
   // These will get updated naturally.
   icon_status_.controls_state = CookieControlsState::kHidden;
   icon_status_.icon_visible = false;
   icon_status_.should_highlight = false;
 
-  cookie_controls_controller_->Update(tab_->GetContents());
+  did_activate_subscription_ = tab_->RegisterDidActivate(
+      base::BindRepeating(&CookieControlsPageActionController::OnDidActivate,
+                          base::Unretained(this)));
+
+  will_deactivate_subscription_ = tab_->RegisterWillDeactivate(
+      base::BindRepeating(&CookieControlsPageActionController::OnWillDeactivate,
+                          base::Unretained(this)));
 
   will_discard_contents_subscription_ =
       tab_->RegisterWillDiscardContents(base::BindRepeating(
-          [](content_settings::CookieControlsController& cookies_controller,
-             tabs::TabInterface* tab, content::WebContents* old_contents,
-             content::WebContents* new_contents) {
-            if (new_contents) {
-              cookies_controller.Update(new_contents);
-            }
-          },
-          std::ref(*cookie_controls_controller_)));
-
-  tab_deactivation_subscription_ =
-      tab_->RegisterWillDeactivate(base::BindRepeating(
-          [](content_settings::CookieControlsController& cookies_controller,
-             tabs::TabInterface* tab) {
-            cookies_controller.OnBubbleCloseTriggered();
-          },
-          std::ref(*cookie_controls_controller_)));
+          &CookieControlsPageActionController::OnWillDiscardContents,
+          base::Unretained(this)));
 
   tab_will_detach_subscription_ = tab_->RegisterWillDetach(base::BindRepeating(
-      [](content_settings::CookieControlsController& cookies_controller,
+      [](CookieControlsPageActionController* controller,
          tabs::TabInterface* tab,
          tabs::TabInterface::DetachReason detach_reason) {
         if (tab->IsActivated()) {
-          cookies_controller.OnBubbleCloseTriggered();
+          controller->OnWillDeactivate(tab);
         }
       },
-      std::ref(*cookie_controls_controller_)));
+      base::Unretained(this)));
 
   bubble_will_close_subscription_ =
       bubble_delegate_->RegisterBubbleClosingCallback(base::BindRepeating(
           &CookieControlsPageActionController::OnBubbleClosed,
           base::Unretained(this)));
+
+  if (tab_->IsActivated()) {
+    OnDidActivate(&*tab_);
+  }
+}
+
+void CookieControlsPageActionController::OnDidActivate(
+    tabs::TabInterface* tab) {
+  content_settings::CookieControlsController* controller =
+      bubble_delegate_->GetController();
+  if (!controller) {
+    return;
+  }
+  if (!controller_observation_.IsObserving()) {
+    controller_observation_.Observe(controller);
+  }
+  controller->Update(tab_->GetContents());
+}
+
+void CookieControlsPageActionController::OnWillDeactivate(
+    tabs::TabInterface* tab) {
+  content_settings::CookieControlsController* controller =
+      bubble_delegate_->GetController();
+  if (controller) {
+    controller->OnBubbleCloseTriggered();
+  }
+  controller_observation_.Reset();
+  iph_activity_.reset();
+}
+
+void CookieControlsPageActionController::OnWillDiscardContents(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  if (tab->IsActivated()) {
+    content_settings::CookieControlsController* controller =
+        bubble_delegate_->GetController();
+    if (controller) {
+      controller->Update(new_contents);
+    }
+  }
 }
 
 void CookieControlsPageActionController::OnPageActionChipShown(
@@ -337,8 +383,7 @@ void CookieControlsPageActionController::ExecutePageAction(
         feature_engagement::kIPHCookieControlsFeature,
         FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   }
-  bubble_delegate_->ShowBubble(toolbar_button_provider, tab_->GetContents(),
-                               cookie_controls_controller_.get());
+  bubble_delegate_->ShowBubble(toolbar_button_provider, tab_->GetContents());
 
   RecordOpenedAction(icon_status_.icon_visible, icon_status_.controls_state);
 }

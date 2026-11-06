@@ -47,6 +47,8 @@ protected:
 
     PrecompileColorFilter() : PrecompileBase(Type::kColorFilter) {}
     ~PrecompileColorFilter() override;
+
+    virtual bool isAlphaUnchanged(int /*desiredCombination*/) const = 0;
 };
 
 //--------------------------------------------------------------------------------------------------

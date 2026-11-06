@@ -81,6 +81,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/sort-state.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string-set-inl.h"
@@ -98,6 +99,10 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

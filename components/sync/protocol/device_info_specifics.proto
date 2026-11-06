@@ -129,8 +129,12 @@ message FeatureSpecificFields {
   repeated SyncEnums.MobilePromoOnDesktopPromoType
       desktop_to_ios_promo_receiving_types = 5;
 
-  // Tracks whether the device has been opted into experimental triggering.
-  optional bool glic_experimental_triggering_opted_in = 6;
+  reserved 6;
+  reserved "glic_experimental_triggering_opted_in";
+
+  // Tracks the experimental triggering state for Glic on the device.
+  optional SyncEnums.GlicExperimentalTriggeringState
+      glic_experimental_triggering_state = 7;
 }
 
 // Device specific information for Sharing feature. Used to send end-to-end
@@ -163,6 +167,8 @@ message SharingSpecificFields {
     OPTIMIZATION_GUIDE_PUSH_NOTIFICATION = 9;
     // Supports receiving notifications about new OneTimeTokens in the backend.
     ONE_TIME_TOKEN_BACKEND_NOTIFICATION = 10;
+    // Supports experimental triggering.
+    GLIC_EXPERIMENTAL_TRIGGERING = 11;
   }
   // LINT.ThenChange(/components/sync_device_info/device_info.h:SharingFeature)
 

@@ -29,6 +29,9 @@ using AsanDeathTest = ::testing::Test;
 // code 1; both Fuzzilli and ClusterFuzz rely on this exit code for proper
 // reporting.
 TEST_F(AsanDeathTest, FuzzilliCrashExitsNonZero) {
+  // The use-after-free in this test is intentional to verify ASAN behavior.
+  START_IGNORE_LIFETIME_SAFETY_WARNINGS()
+
   EXPECT_EXIT(
       {
         auto* vec = new std::vector<int>(4);  // NOLINT
@@ -37,6 +40,8 @@ TEST_F(AsanDeathTest, FuzzilliCrashExitsNonZero) {
       },
       ASAN_EXPECTED_DEATH_STATUS,
       "ERROR: AddressSanitizer: heap-use-after-free");
+
+  END_IGNORE_LIFETIME_SAFETY_WARNINGS()
 }
 
 #endif  // V8_USE_ADDRESS_SANITIZER

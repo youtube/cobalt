@@ -196,7 +196,6 @@ ClassDeclaration :
 
 ClassAnnotation :
   @doNotGenerateCppClass
-  @generateBodyDescriptor
   @generatePrint
   @abstract
   @export
@@ -275,11 +274,7 @@ class JSProxy : public JSReceiver {
 }
 ```
 
-`@generateBodyDescriptor` causes Torque to emit a class `BodyDescriptor` within the generated class, which represents how the garbage collector should visit the object. Otherwise the C++ code must either define its own object visitation, or use one of the existing patterns (for example, inheriting from `Struct` and including the class in `STRUCT_LIST` means that the class is expected to contain only tagged values).
-
-If the `@generatePrint` annotation is added, then the generator will implement a C++ function that prints the field values as defined by the Torque layout. Using the JSProxy example, the signature would be `void TorqueGeneratedJSProxy<JSProxy, JSReceiver>::JSProxyPrint(std::ostream& os)`, which can be inherited by `JSProxy`.
-
-The Torque compiler also generates verification code for all `extern` classes, unless the class opts out with the `@noVerifier` annotation. For example, the JSProxy class definition above will generate a C++ method `void TorqueGeneratedClassVerifiers::JSProxyVerify(JSProxy o, Isolate* isolate)` which verifies that its fields are valid according to the Torque type definition. It will also generate a corresponding function on the generated class, `TorqueGeneratedJSProxy<JSProxy, JSReceiver>::JSProxyVerify`, which calls the static function from `TorqueGeneratedClassVerifiers`. If you want to add extra verification for a class (such as a range of acceptable values on a number, or a requirement that field `foo` is true if field `bar` is non-null, etc.), then add a `DECL_VERIFIER(JSProxy)` to the C++ class (which hides the inherited `JSProxyVerify`) and implement it in `src/objects-debug.cc`. The first step of any such custom verifier should be to call the generated verifier, such as `TorqueGeneratedClassVerifiers::JSProxyVerify(*this, isolate);`. (To run those verifiers before and after every GC, build with `v8_enable_verify_heap = true` and run with `--verify-heap`.)
+Printers and verifiers for these classes are hand-written in `src/diagnostics/objects-printer.cc` and `src/diagnostics/objects-debug.cc`. (To run the verifiers before and after every GC, build with `v8_enable_verify_heap = true` and run with `--verify-heap`.)
 
 `@abstract` indicates that the class itself is not instantiated, and does not have its own instance type: the instance types that logically belong to the class are the instance types of the derived classes.
 

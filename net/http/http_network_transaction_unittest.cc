@@ -770,7 +770,7 @@ class CaptureGroupIdTransportSocketPool : public TransportClientSocketPool {
       const CommonConnectJobParams* common_connect_job_params)
       : TransportClientSocketPool(/*max_sockets=*/0,
                                   /*max_sockets_per_group=*/0,
-                                  SocketPoolAdditionalCapacity::Create(),
+                                  SocketPoolAdditionalCapacity::CreateEmpty(),
                                   base::TimeDelta(),
                                   ProxyChain::Direct(),
                                   /*is_for_websockets=*/false,
@@ -19445,7 +19445,7 @@ TEST_P(HttpNetworkTransactionTest, MultiRoundAuth) {
   auto transport_pool = std::make_unique<TransportClientSocketPool>(
       kMaxSocketsPerPool,   // Max sockets for pool
       kMaxSocketsPerGroup,  // Max sockets per group
-      SocketPoolAdditionalCapacity::Create(),
+      SocketPoolAdditionalCapacity::Create(kMaxSocketsPerPool),
       /*unused_idle_socket_timeout=*/base::Seconds(10), ProxyChain::Direct(),
       /*is_for_websockets=*/false, &common_connect_job_params);
   auto* transport_pool_ptr = transport_pool.get();
@@ -28402,8 +28402,13 @@ TEST_P(HttpNetworkTransactionTest, EarlyHintsWithAltSvcHeader) {
             alternative_service_info_vector[0].alternative_service().host);
 }
 
-// If the proxy is not direct, we should see no additional capacity offered.
+// Verify the expected values for normal/websocket pools that are
+// direct/proxied.
 TEST_P(HttpNetworkTransactionTest, ProxyAdditionalCapacity) {
+  ClientSocketPoolManager::set_socket_soft_cap_per_pool_for_test(
+      HttpNetworkSession::SocketPoolType::kNormal, 256);
+  ClientSocketPoolManager::set_socket_soft_cap_per_pool_for_test(
+      HttpNetworkSession::SocketPoolType::kWebSocket, 256);
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeatureWithParameters(
       features::kTcpSocketPoolLimitRandomization,
@@ -28411,10 +28416,6 @@ TEST_P(HttpNetworkTransactionTest, ProxyAdditionalCapacity) {
           {
               "TcpSocketPoolLimitRandomizationBase",
               "0.1",
-          },
-          {
-              "TcpSocketPoolLimitRandomizationCapacity",
-              "2",
           },
           {
               "TcpSocketPoolLimitRandomizationMinimum",
@@ -28425,33 +28426,48 @@ TEST_P(HttpNetworkTransactionTest, ProxyAdditionalCapacity) {
               "0.4",
           },
       });
-  std::unique_ptr<HttpNetworkSession> session = CreateSession(&session_deps_);
-  EXPECT_EQ(session
-                ->GetSocketPool(HttpNetworkSession::SocketPoolType::kNormal,
-                                ProxyChain::Direct())
-                ->AdditionalCapacityForTest(),
-            SocketPoolAdditionalCapacity::CreateForTest(0.1, 2, 0.3, 0.4));
-  EXPECT_EQ(session
-                ->GetSocketPool(HttpNetworkSession::SocketPoolType::kWebSocket,
-                                ProxyChain::Direct())
-                ->AdditionalCapacityForTest(),
-            SocketPoolAdditionalCapacity::CreateForTest(0.1, 2, 0.3, 0.4));
-  EXPECT_EQ(session
-                ->GetSocketPool(
-                    HttpNetworkSession::SocketPoolType::kNormal,
-                    ProxyChain(ProxyServer::SCHEME_HTTPS,
-                               SameProxyWithDifferentSchemesProxyResolver::
-                                   ProxyHostPortPair()))
-                ->AdditionalCapacityForTest(),
-            SocketPoolAdditionalCapacity::CreateEmpty());
-  EXPECT_EQ(session
-                ->GetSocketPool(
-                    HttpNetworkSession::SocketPoolType::kWebSocket,
-                    ProxyChain(ProxyServer::SCHEME_HTTPS,
-                               SameProxyWithDifferentSchemesProxyResolver::
-                                   ProxyHostPortPair()))
-                ->AdditionalCapacityForTest(),
-            SocketPoolAdditionalCapacity::CreateEmpty());
+  SocketPoolAdditionalCapacity empty_pool =
+      SocketPoolAdditionalCapacity::CreateEmpty();
+  SocketPoolAdditionalCapacity real_poll_256 =
+      SocketPoolAdditionalCapacity::CreateForTest(
+          /*base=*/0.1, /*capacity=*/256, /*minimum=*/0.3, /*noise=*/0.4);
+  SocketPoolAdditionalCapacity real_poll_128 =
+      SocketPoolAdditionalCapacity::CreateForTest(
+          /*base=*/0.1, /*capacity=*/128, /*minimum=*/0.3, /*noise=*/0.4);
+  for (bool proxy_pool_randomization : {true, false}) {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatureState(
+        features::kTcpSocketPoolLimitRandomizationForProxy,
+        proxy_pool_randomization);
+    std::unique_ptr<HttpNetworkSession> session = CreateSession(&session_deps_);
+    EXPECT_EQ(session
+                  ->GetSocketPool(HttpNetworkSession::SocketPoolType::kNormal,
+                                  ProxyChain::Direct())
+                  ->AdditionalCapacityForTest(),
+              real_poll_256);
+    EXPECT_EQ(
+        session
+            ->GetSocketPool(HttpNetworkSession::SocketPoolType::kWebSocket,
+                            ProxyChain::Direct())
+            ->AdditionalCapacityForTest(),
+        real_poll_256);
+    EXPECT_EQ(session
+                  ->GetSocketPool(
+                      HttpNetworkSession::SocketPoolType::kNormal,
+                      ProxyChain(ProxyServer::SCHEME_HTTPS,
+                                 SameProxyWithDifferentSchemesProxyResolver::
+                                     ProxyHostPortPair()))
+                  ->AdditionalCapacityForTest(),
+              proxy_pool_randomization ? real_poll_128 : empty_pool);
+    EXPECT_EQ(session
+                  ->GetSocketPool(
+                      HttpNetworkSession::SocketPoolType::kWebSocket,
+                      ProxyChain(ProxyServer::SCHEME_HTTPS,
+                                 SameProxyWithDifferentSchemesProxyResolver::
+                                     ProxyHostPortPair()))
+                  ->AdditionalCapacityForTest(),
+              proxy_pool_randomization ? real_poll_128 : empty_pool);
+  }
 }
 
 }  // namespace net

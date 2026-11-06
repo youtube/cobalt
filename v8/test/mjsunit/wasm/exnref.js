@@ -671,3 +671,30 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   assertThrows(instance.exports.call_import);
   assertThrows(instance.exports.export);
 })();
+
+(function TestSmiExnrefAsNonNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImport("m", "throw", makeSig([], []));
+  builder.addFunction("crash", makeSig([], []))
+      .addBody([
+          kExprBlock, kExnRefCode,
+              kExprTryTable, kWasmVoid, 1,
+                  kCatchAllRef, 0,
+                  kExprCallFunction, 0,
+              kExprEnd,
+              kExprReturn,
+          kExprEnd,
+          kExprRefAsNonNull,
+          kExprThrowRef,
+      ])
+      .exportAs("crash");
+
+  let instance = builder.instantiate({m: {throw: () => { throw 42; }}});
+  try {
+    instance.exports.crash();
+    assertUnreachable();
+  } catch (e) {
+    assertEquals(42, e);
+  }
+})();

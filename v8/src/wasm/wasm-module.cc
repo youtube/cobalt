@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
 #include "src/wasm/canonical-types.h"
@@ -182,8 +183,10 @@ int AsmJsOffsetInformation::GetSourcePosition(int declared_func_index,
   auto it =
       std::lower_bound(function_offsets.begin(), function_offsets.end(),
                        AsmJsOffsetEntry{byte_offset, 0, 0}, byte_offset_less);
-  DCHECK_NE(function_offsets.end(), it);
-  DCHECK_EQ(byte_offset, it->byte_offset);
+  // The byte_offset is untrusted (from the sandbox heap) and could be
+  // corrupted. Ensure it maps to a valid entry to prevent OOB reads.
+  SBXCHECK_NE(function_offsets.end(), it);
+  SBXCHECK_EQ(byte_offset, it->byte_offset);
   return is_at_number_conversion ? it->source_position_number_conversion
                                  : it->source_position_call;
 }

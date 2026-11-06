@@ -98,7 +98,10 @@ public class SideUiCoordinatorImplTest {
         // Initialize the SideUiCoordinator under test.
         mCoordinator =
                 new SideUiCoordinatorImpl(
-                        mStartAnchorContainerStub, mEndAnchorContainerStub, mTopMarginSupplier);
+                        mSideUiParent,
+                        mStartAnchorContainerStub,
+                        mEndAnchorContainerStub,
+                        mTopMarginSupplier);
     }
 
     @Test
@@ -147,7 +150,9 @@ public class SideUiCoordinatorImplTest {
         clearInvocations(mSideUiObserver);
 
         int width = 100;
-        mCoordinator.requestUpdateContainer(new SideUiContainerProperties(AnchorSide.START, width));
+        mCoordinator.requestUpdateContainer(
+                new SideUiContainerProperties(AnchorSide.START, width),
+                /* suppressAnimations= */ true);
 
         // Verify observers notified.
         SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(width, /* endContainerWidth= */ 0);
@@ -165,7 +170,9 @@ public class SideUiCoordinatorImplTest {
         clearInvocations(mSideUiObserver);
 
         int width = 200;
-        mCoordinator.requestUpdateContainer(new SideUiContainerProperties(AnchorSide.END, width));
+        mCoordinator.requestUpdateContainer(
+                new SideUiContainerProperties(AnchorSide.END, width),
+                /* suppressAnimations= */ true);
 
         // Verify observers notified.
         SideUiSpecs expectedSideUiSpecs = new SideUiSpecs(/* startContainerWidth= */ 0, width);
@@ -182,12 +189,14 @@ public class SideUiCoordinatorImplTest {
 
         // First attach.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.START, /* width= */ 100));
+                new SideUiContainerProperties(AnchorSide.START, /* width= */ 100),
+                /* suppressAnimations= */ true);
         assertEquals(mStartAnchorContainer, mSideUiContainerView.getParent());
 
         // Then update to width 0.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.START, /* width= */ 0));
+                new SideUiContainerProperties(AnchorSide.START, /* width= */ 0),
+                /* suppressAnimations= */ true);
         assertNull(mSideUiContainerView.getParent());
         assertEquals(0, getSideUiContainerViewWidth());
     }
@@ -198,12 +207,14 @@ public class SideUiCoordinatorImplTest {
 
         // Start at START.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.START, /* width= */ 100));
+                new SideUiContainerProperties(AnchorSide.START, /* width= */ 100),
+                /* suppressAnimations= */ true);
         assertEquals(mStartAnchorContainer, mSideUiContainerView.getParent());
 
         // Switch to END.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.END, /* width= */ 200));
+                new SideUiContainerProperties(AnchorSide.END, /* width= */ 200),
+                /* suppressAnimations= */ true);
         assertEquals(mEndAnchorContainer, mSideUiContainerView.getParent());
     }
 
@@ -219,19 +230,22 @@ public class SideUiCoordinatorImplTest {
 
         // Start at START.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.START, /* width= */ 10));
+                new SideUiContainerProperties(AnchorSide.START, /* width= */ 10),
+                /* suppressAnimations= */ true);
         assertEquals(unexpectedStart, View.VISIBLE, mStartAnchorContainer.getVisibility());
         assertEquals(unexpectedEnd, View.GONE, mEndAnchorContainer.getVisibility());
 
         // Switch to END.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.END, /* width= */ 90));
+                new SideUiContainerProperties(AnchorSide.END, /* width= */ 90),
+                /* suppressAnimations= */ true);
         assertEquals(unexpectedStart, View.GONE, mStartAnchorContainer.getVisibility());
         assertEquals(unexpectedEnd, View.VISIBLE, mEndAnchorContainer.getVisibility());
 
         // Detach.
         mCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(AnchorSide.END, /* width= */ 0));
+                new SideUiContainerProperties(AnchorSide.END, /* width= */ 0),
+                /* suppressAnimations= */ true);
         assertEquals(unexpectedStart, View.GONE, mStartAnchorContainer.getVisibility());
         assertEquals(unexpectedEnd, View.GONE, mEndAnchorContainer.getVisibility());
     }

@@ -36,8 +36,6 @@
 #include "src/sandbox/isolate.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/strings/unicode-inl.h"
-#include "src/torque/runtime-macro-shims.h"
-#include "src/torque/runtime-support.h"
 #include "src/utils/utils.h"
 #include "third_party/simdutf/simdutf.h"
 

@@ -231,12 +231,6 @@ BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
 // Returns true if the refactored page context extractor is enabled.
 bool IsPageContextExtractorRefactoredEnabled();
 
-// Feature flag to enable the refactored FRE flow (Gemini architecture).
-BASE_DECLARE_FEATURE(kGeminiRefactoredFRE);
-
-// Returns true if the Gemini refactored FRE is enabled.
-bool IsGeminiRefactoredFREEnabled();
-
 // Feature flag to enable the updated eligibility checks for Gemini.
 BASE_DECLARE_FEATURE(kGeminiUpdatedEligibility);
 
@@ -311,6 +305,9 @@ bool IsGeminiDynamicSettingsEnabled();
 // Feature flag for Actor tools.
 BASE_DECLARE_FEATURE(kActorTools);
 bool IsActorEnabled();
+extern const char kActorToolsPageStabilityParam[];
+bool IsPageStabilityEnabled();
+base::TimeDelta GetActorObservationDelayTimeout();
 
 // Returns true if the specified tool is disabled via the "DisabledTools"
 // feature parameter of the `kActorTools` feature.
@@ -400,6 +397,12 @@ BASE_DECLARE_FEATURE(kGeminiMultiTabContext);
 // Returns true if the GeminiMultiTabContext feature is enabled.
 bool IsGeminiMultiTabContextEnabled();
 
+// Enables the GeminiScreenContextMigration feature.
+BASE_DECLARE_FEATURE(kGeminiScreenContextMigration);
+
+// Returns true if the GeminiScreenContextMigration feature is enabled.
+bool IsGeminiScreenContextMigrationEnabled();
+
 // Feature flag to control the App Store In-App Events feature. Enables a
 // user to tap the promo within the iOS App Store and invoke the Gemini FRE
 // after navigating to a Gemini related web page through an external action.
@@ -407,5 +410,12 @@ BASE_DECLARE_FEATURE(kAppStoreInAppEvents);
 
 // Returns true if the App Store In-App Events feature is enabled.
 bool IsAppStoreInAppEventsEnabled();
+
+// Feature flag controlling the generalized Gemini entry flow outside of the
+// Page Action Menu.
+BASE_DECLARE_FEATURE(kGeneralizedGeminiEntryFlow);
+
+// Returns true if the generalized Gemini entry flow is enabled.
+bool IsGeneralizedGeminiEntryFlowEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

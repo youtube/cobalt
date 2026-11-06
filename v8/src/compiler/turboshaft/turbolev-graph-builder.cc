@@ -63,6 +63,11 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-cell.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -5374,22 +5379,24 @@ class GraphBuildingNodeProcessor {
     SetMap(node, Float64ToUint8Clamped(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckedNumberToUint8Clamped* node,
-                                const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(
+      maglev::CheckedNumberOrOddballToUint8Clamped* node,
+      const maglev::ProcessingState& state) {
     ScopedVar<Word32, AssemblerT> result(this);
     V<Object> value = Map(node->ValueInput());
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     IF (__ IsSmi(value)) {
       result = Int32ToUint8Clamped(__ UntagSmi(V<Smi>::Cast(value)));
     } ELSE {
-      V<i::Map> map = __ LoadMapField(value);
-      __ DeoptimizeIfNot(
-          __ TaggedEqual(map,
-                         __ HeapConstant(local_factory_->heap_number_map())),
-          frame_state, DeoptimizeReason::kNotAHeapNumber,
-          node->eager_deopt_info()->feedback_to_update());
-      result = Float64ToUint8Clamped(
-          __ LoadHeapNumberValue(V<HeapNumber>::Cast(value)));
+      V<Float64> double_value =
+          V<Float64>::Cast(__ ConvertJSPrimitiveToUntaggedOrDeopt(
+              value, frame_state,
+              ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+                  kNumberOrOddball,
+              ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
+              CheckForMinusZeroMode::kDontCheckForMinusZero,
+              node->eager_deopt_info()->feedback_to_update()));
+      result = Float64ToUint8Clamped(double_value);
     }
     RETURN_IF_UNREACHABLE();
     SetMap(node, result);

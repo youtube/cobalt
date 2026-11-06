@@ -11,12 +11,9 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/map-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
-#include "src/torque/runtime-macro-shims.h"
-#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -201,11 +198,6 @@ void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
   if (*bigger != *derived) {
     info->set_derived_maps(*bigger, kReleaseStore);
   }
-}
-
-bool PrototypeInfo::IsPrototypeInfoFast(Tagged<Object> object) {
-  bool is_proto_info = IsPrototypeInfo(object);
-  return is_proto_info;
 }
 
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,

@@ -95,7 +95,7 @@
 #include "src/utils/utils-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -2113,13 +2113,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     Tagged<PreparseData> data = UncheckedCast<PreparseData>(*this);
     return PreparseData::SizeFor(data->data_length(), data->children_length());
   }
-#define MAKE_TORQUE_SIZE_FOR(TYPE, TypeName)                \
-  if (instance_type == TYPE) {                              \
-    return UncheckedCast<TypeName>(*this)->AllocatedSize(); \
-  }
-  TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
-#undef MAKE_TORQUE_SIZE_FOR
-
   if (instance_type == INSTRUCTION_STREAM_TYPE) {
     return UncheckedCast<InstructionStream>(*this)->Size();
   }

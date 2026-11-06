@@ -28,9 +28,6 @@ class Zone;
 
 namespace wasm {
 
-constexpr int kWaitQueueSizeLog2 = kTaggedSize == 4 ? 3 : 4;
-constexpr int kWaitQueueManagedOffset = kTaggedSize == 4 ? 4 : 8;
-
 // Format: kind, log2Size, code, machineType, shortName, typeName
 #define FOREACH_NUMERIC_VALUE_TYPE(V)    \
   V(I32, 2, I32, Int32, 'i', "i32")      \
@@ -40,8 +37,7 @@ constexpr int kWaitQueueManagedOffset = kTaggedSize == 4 ? 4 : 8;
   V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")      \
-  V(F16, 1, F16, Float16, 'p', "f16")    \
-  V(WaitQueue, kWaitQueueSizeLog2, WaitQueue, Int32, 'w', "waitqueue")
+  V(F16, 1, F16, Float16, 'p', "f16")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
@@ -174,6 +170,7 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
   V(NoExn, NoExn, REF, "noexn")                                                \
   V(NoExtern, NoExtern, REF, "noextern")                                       \
   V(NoFunc, NoFunc, REF | FUNC, "nofunc")                                      \
+  V(NoWaitqueue, NoWaitqueue, REF, "nowaitqueue")                              \
   V(None, None, REF, "none")
 
 #define FOREACH_TOP_TYPE(V) /*                                force 80 cols */ \
@@ -182,7 +179,8 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
   V(Extern, ExternRef, REF, "extern")                                          \
   V(Exn, ExnRef, REF, "exn")                                                   \
   /* WasmFX aka Core Stack Switching. */                                       \
-  V(Cont, ContRef, REF | CONT, "cont")
+  V(Cont, ContRef, REF | CONT, "cont")                                         \
+  V(Waitqueue, WaitqueueRef, REF, "waitqueue")
 
 #define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
   FOREACH_NONE_TYPE(V)                                                         \
@@ -452,8 +450,7 @@ class ValueTypeBase {
   constexpr bool is_packed() const {
     return bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
            bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
-           bit_field_ == static_cast<uint32_t>(NumericKind::kF16) ||
-           bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue);
+           bit_field_ == static_cast<uint32_t>(NumericKind::kF16);
   }
   constexpr bool is_reference_to(GenericKind type) const {
     return is_abstract_ref() && generic_kind() == type;
@@ -636,8 +633,6 @@ class ValueTypeBase {
         return ValueTypeBase(NumericKind::kI16);
       case kF16:
         return ValueTypeBase(NumericKind::kF16);
-      case kWaitQueue:
-        return ValueTypeBase(NumericKind::kWaitQueue);
       case kVoid:
         return ValueTypeBase(GenericKind::kVoid, kNonNullable, SharedFlag::kNo);
       case kRef:
@@ -671,8 +666,6 @@ class ValueTypeBase {
           return kI16;
         case NumericKind::kF16:
           return kF16;
-        case NumericKind::kWaitQueue:
-          return kWaitQueue;
       }
       UNREACHABLE();
     }
@@ -886,8 +879,7 @@ class ValueType : public ValueTypeBase {
 
   constexpr ValueType Unpacked() const {
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
-        bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
-        bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue)) {
+        bit_field_ == static_cast<uint32_t>(NumericKind::kI16)) {
       return Primitive(NumericKind::kI32);
     }
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kF16)) {
@@ -1129,7 +1121,7 @@ constexpr MachineType machine_type(ValueKind kind) {
 }
 
 constexpr bool is_packed(ValueKind kind) {
-  return kind == kI8 || kind == kI16 || kind == kF16 || kind == kWaitQueue;
+  return kind == kI8 || kind == kI16 || kind == kF16;
 }
 constexpr ValueKind unpacked(ValueKind kind) {
   return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
@@ -1155,7 +1147,6 @@ constexpr IndependentValueType kWasmS128{NumericKind::kS128};
 constexpr IndependentValueType kWasmI8{NumericKind::kI8};
 constexpr IndependentValueType kWasmI16{NumericKind::kI16};
 constexpr IndependentValueType kWasmF16{NumericKind::kF16};
-constexpr IndependentValueType kWasmWaitQueue{NumericKind::kWaitQueue};
 constexpr IndependentHeapType kWasmVoid{GenericKind::kVoid, kNonNullable};
 // The abstract top type (super type of all other types).
 constexpr IndependentHeapType kWasmTop{GenericKind::kTop};
@@ -1178,6 +1169,12 @@ constexpr IndependentHeapType kWasmI31Ref{GenericKind::kI31};
 constexpr IndependentHeapType kWasmRefI31{GenericKind::kI31, kNonNullable};
 constexpr IndependentHeapType kWasmStructRef{GenericKind::kStruct};
 constexpr IndependentHeapType kWasmArrayRef{GenericKind::kArray};
+// Exceptionally, the default waitqueue type is shared, because unshared
+// waitqueues do not exist.
+constexpr IndependentHeapType kWasmWaitqueueRef{GenericKind::kWaitqueue,
+                                                kNullable, SharedFlag::kYes};
+constexpr IndependentHeapType kWasmNullWaitqueueRef{
+    GenericKind::kNoWaitqueue, kNullable, SharedFlag::kYes};
 constexpr IndependentHeapType kWasmStringRef{GenericKind::kString};
 constexpr IndependentHeapType kWasmRefString{GenericKind::kString,
                                              kNonNullable};
@@ -1303,8 +1300,6 @@ class LoadType {
         return is_signed ? kI32Load16S : kI32Load16U;
       case kF16:
         return kF32LoadF16;
-      case kWaitQueue:
-        return kI32Load;
       case kVoid:
       case kRef:
       case kRefNull:
@@ -1397,8 +1392,6 @@ class StoreType {
         return kI32Store16;
       case kF16:
         return kF32StoreF16;
-      case kWaitQueue:
-        return kI32Store;
       case kVoid:
       case kRef:
       case kRefNull:

@@ -276,7 +276,11 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
   }
-  return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
+  int rounded_size = RoundUp(estimated_size, 4 * KB);
+  if (rounded_size > Assembler::kMaximalBufferSize) {
+    V8::FatalProcessOutOfMemory(nullptr, "BaselineCompiler::AllocateBuffer");
+  }
+  return NewAssemblerBuffer(rounded_size);
 }
 }  // namespace
 

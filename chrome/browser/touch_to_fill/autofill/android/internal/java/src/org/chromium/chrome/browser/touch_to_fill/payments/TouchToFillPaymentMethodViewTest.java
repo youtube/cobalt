@@ -89,8 +89,6 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TEXT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TOS_FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TOS_HEADER;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_NUMBER;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.MERCHANT_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.NON_TRANSFORMING_LOYALTY_CARD_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ProgressIconProperties.PROGRESS_CONTENT_DESCRIPTION_ID;
@@ -163,6 +161,7 @@ import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMeth
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ErrorDescriptionProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TosFooterProperties;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -450,7 +449,7 @@ public class TouchToFillPaymentMethodViewTest {
     private static final String BNPL_AI_TERMS =
             "Content from the checkout page is shared with Google to offer these options. Payment"
                     + " plans are subject to eligibility. To hide pay later options, go to payment"
-                    + " settings";
+                    + " settings.";
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -2419,8 +2418,7 @@ public class TouchToFillPaymentMethodViewTest {
     private static PropertyModel createLoyaltyCardModel(
             LoyaltyCard loyaltyCard, Runnable runnable) {
         return new PropertyModel.Builder(NON_TRANSFORMING_LOYALTY_CARD_KEYS)
-                .with(LOYALTY_CARD_NUMBER, loyaltyCard.getLoyaltyCardNumber())
-                .with(MERCHANT_NAME, loyaltyCard.getMerchantName())
+                .with(LoyaltyCardProperties.LOYALTY_CARD, loyaltyCard)
                 .with(ON_LOYALTY_CARD_CLICK_ACTION, runnable)
                 .build();
     }

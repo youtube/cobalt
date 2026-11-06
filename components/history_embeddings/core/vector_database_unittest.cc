@@ -13,7 +13,6 @@
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
-#include "base/rand_util.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "components/history_embeddings/proto/history_embeddings.pb.h"
@@ -28,20 +27,10 @@ using passage_embeddings::Embedding;
 
 namespace {
 
-PassageEmbedding RandomEmbedding() {
-  std::vector<float> random_vector(3, 0.0f);
-  for (float& v : random_vector) {
-    v = base::RandFloat();
-  }
-  Embedding embedding(std::move(random_vector));
-  embedding.Normalize();
-  return {.embedding = std::move(embedding), .word_count = 10};
-}
-
 PassageEmbedding DeterministicEmbedding(float value) {
-  Embedding embedding({1.0f, value, 0.0f});
-  embedding.Normalize();
-  return {.embedding = std::move(embedding), .word_count = 10};
+  return {
+      .embedding = Embedding(Embedding::Normalize({1.0f, value, 0.0f}).value()),
+      .word_count = 10};
 }
 
 }  // namespace
@@ -85,13 +74,8 @@ TEST(HistoryEmbeddingsVectorDatabaseTest, EraseNonAsciiCharacters) {
 }
 
 TEST(HistoryEmbeddingsVectorDatabaseTest, EmbeddingOperations) {
-  Embedding a({1, 1, 1});
-  EXPECT_FLOAT_EQ(a.Magnitude(), std::sqrt(3));
-  a.Normalize();
-  EXPECT_FLOAT_EQ(a.Magnitude(), 1.0f);
-
-  Embedding b({2, 2, 2});
-  b.Normalize();
+  Embedding a({1, 0, 0});
+  Embedding b({1, 0, 0});
   EXPECT_FLOAT_EQ(a.ScoreWith(b), 1.0f);
 
   // Verify more similar embeddings have higher scores.
@@ -290,12 +274,12 @@ TEST(HistoryEmbeddingsVectorDatabaseTest, SearchCanBeHaltedEarly) {
   for (size_t i = 0; i < 3; i++) {
     UrlData url_data(i + 1, i + 1, base::Time::Now());
     for (size_t j = 0; j < 3; j++) {
-      url_data.passages.add_passages("a random passage");
-      url_data.passage_embeddings.push_back(RandomEmbedding());
+      url_data.passages.add_passages("a deterministic passage");
+      url_data.passage_embeddings.push_back(DeterministicEmbedding(i * 3 + j));
     }
     database.AddUrlData(url_data);
   }
-  Embedding query = RandomEmbedding().embedding;
+  Embedding query = DeterministicEmbedding(0).embedding;
   SearchParams search_params;
 
   // An ordinary search with full results:
@@ -332,12 +316,12 @@ TEST(HistoryEmbeddingsVectorDatabaseTest, TimeRangeNarrowsSearchResult) {
   for (size_t i = 0; i < 3; i++) {
     UrlData url_data(i + 1, i + 1, now + base::Minutes(i));
     for (size_t j = 0; j < 3; j++) {
-      url_data.passages.add_passages("some random passage");
-      url_data.passage_embeddings.push_back(RandomEmbedding());
+      url_data.passages.add_passages("some deterministic passage");
+      url_data.passage_embeddings.push_back(DeterministicEmbedding(i * 3 + j));
     }
     database.AddUrlData(url_data);
   }
-  Embedding query = RandomEmbedding().embedding;
+  Embedding query = DeterministicEmbedding(0).embedding;
   SearchParams search_params;
 
   // An ordinary search with full results:
@@ -403,12 +387,12 @@ TEST(HistoryEmbeddingsVectorDatabaseTest, DISABLED_ManyVectorsAreFastEnough) {
     // Times 3 embeddings each, on average.
     for (size_t j = 0; j < 3; j++) {
       url_data.passages.add_passages("one of many passages");
-      url_data.passage_embeddings.push_back(RandomEmbedding());
+      url_data.passage_embeddings.push_back(DeterministicEmbedding(i * 3 + j));
       count++;
     }
     database.AddUrlData(url_data);
   }
-  Embedding query = RandomEmbedding().embedding;
+  Embedding query = DeterministicEmbedding(0).embedding;
   base::ElapsedTimer timer;
 
   // Since inner loop atomic checks can impact performance, simulate that here.

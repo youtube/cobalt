@@ -269,7 +269,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                         JSFunctionWithoutPrototype::kMinSize);
 
   // Initialize the rest of the function.
-  StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(result, offsetof(JSObject, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSObject::kElementsOffset,
                        RootIndex::kEmptyFixedArray);
@@ -496,7 +496,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
         CAST(LoadJSFunctionPrototypeOrInitialMap(regexp_function));
     StoreMapNoWriteBarrier(new_object, initial_map);
     // Initialize JSReceiver fields.
-    StoreObjectFieldRoot(new_object, JSReceiver::kPropertiesOrHashOffset,
+    StoreObjectFieldRoot(new_object, offsetof(JSReceiver, properties_or_hash_),
                          RootIndex::kEmptyFixedArray);
     // Initialize JSObject fields.
     StoreObjectFieldRoot(new_object, JSObject::kElementsOffset,
@@ -695,8 +695,8 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     Comment("Initialize Literal Copy");
     // Initialize Object fields.
     StoreMapNoWriteBarrier(copy, boilerplate_map);
-    StoreObjectFieldNoWriteBarrier(copy, JSObject::kPropertiesOrHashOffset,
-                                   var_properties.value());
+    StoreObjectFieldNoWriteBarrier(
+        copy, offsetof(JSObject, properties_or_hash_), var_properties.value());
     StoreObjectFieldNoWriteBarrier(copy, JSObject::kElementsOffset,
                                    var_elements.value());
   }

@@ -38,6 +38,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.omnibox.LocationBarLayout;
@@ -46,7 +48,6 @@ import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.carousel.BaseCarouselSuggestionView;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -206,6 +207,7 @@ public class MostVisitedTilesTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/508677323")
     public void keyboardNavigation_highlightingNextTileUpdatesUrlBarText()
             throws InterruptedException {
         // Skip past the 'what-you-typed' suggestion.
@@ -226,6 +228,7 @@ public class MostVisitedTilesTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/508677323")
     public void keyboardNavigation_highlightingPreviousTileUpdatesUrlBarText()
             throws InterruptedException {
         // Skip past the 'what-you-typed' suggestion.

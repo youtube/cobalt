@@ -73,9 +73,13 @@ class DemandedBytes {
     }
   }
 
+  static DemandedBytes LowFromTotalBytes(uint8_t total_bytes) {
+    return Low(std::bit_ceil(total_bytes));
+  }
+
   static DemandedBytes LowFromLane(uint8_t bytes_per_lane, uint8_t lane_index) {
     uint8_t total_bytes = bytes_per_lane * (lane_index + 1);
-    return Low(std::bit_ceil(total_bytes));
+    return LowFromTotalBytes(total_bytes);
   }
 
   static DemandedBytes LowFromMaxShuffleIndex(uint8_t index) {
@@ -228,6 +232,20 @@ class WasmShuffleAnalyzer {
     const Simd128ShuffleOp& even_shfop;
     const Simd128ShuffleOp& odd_shfop;
   };
+
+  struct ShuffleToShift {
+    const Simd128ShuffleOp* shuffle;
+    uint8_t begin_index;
+    uint8_t end_index;
+  };
+
+  struct ShuffleToReadShifted {
+    const Simd128ShuffleOp* shuffle;
+    uint8_t begin_index;
+    uint8_t end_index;
+    uint8_t shuffle_in_begin;
+  };
+
   void ProcessShuffleOfLoads(const Simd128ShuffleOp& shfop, const LoadOp& left,
                              const LoadOp& right);
   bool CouldLoadPair(const LoadOp& load0, const LoadOp& load1) const;
@@ -270,7 +288,8 @@ class WasmShuffleAnalyzer {
   bool ShouldReduce() const {
     return !demanded_byte_analysis_.demanded_bytes().empty() ||
            !deinterleave_load_candidates_.empty() ||
-           !load_lane_candidates_.empty();
+           !load_lane_candidates_.empty() ||
+           !shuffles_to_read_shifted_.empty() || !shuffles_to_shift_.empty();
   }
 
   const DemandedByteAnalysis::DemandedByteMap& ops_to_reduce() const {
@@ -283,48 +302,7 @@ class WasmShuffleAnalyzer {
         return bytes;
       }
     }
-    return DemandedBytes::Low(kSimd128Size);
-  }
-
-  // Is only the top half (bytes 8...15) of the result of shuffle required?
-  // If so shuffle will need to be modified so that it writes the designed data
-  // into the low half bytes instead.
-  bool ShouldRewriteShuffleToLow(const Simd128ShuffleOp* shuffle) const {
-    for (auto shift_shuffle : shift_shuffles_) {
-      if (shift_shuffle == shuffle) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-#ifdef DEBUG
-  bool ShouldRewriteShuffleToLow(OpIndex op) const {
-    return ShouldRewriteShuffleToLow(
-        &input_graph().Get(op).Cast<Simd128ShuffleOp>());
-  }
-#endif
-
-  // Is the low half (bytes 0...7) result of shuffle coming exclusively from
-  // the high half of one of its operands.
-  bool DoesShuffleIntoLowHalf(const Simd128ShuffleOp* shuffle) const {
-    for (auto half_shuffle : low_half_shuffles_) {
-      if (half_shuffle == shuffle) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Is the high half (bytes: 8...15) result of shuffle coming exclusively from
-  // the high half of its operands.
-  bool DoesShuffleIntoHighHalf(const Simd128ShuffleOp* shuffle) const {
-    for (auto half_shuffle : high_half_shuffles_) {
-      if (half_shuffle == shuffle) {
-        return true;
-      }
-    }
-    return false;
+    return DemandedBytes::All();
   }
 
   void AddLoadLaneCandidate(const LoadOp* load,
@@ -350,6 +328,15 @@ class WasmShuffleAnalyzer {
     load_lanes_[replace] = load_lane;
   }
 
+  const SmallZoneVector<ShuffleToShift, 8>& shuffles_to_shift() const {
+    return shuffles_to_shift_;
+  }
+
+  const SmallZoneVector<ShuffleToReadShifted, 8> shuffles_to_read_shifted()
+      const {
+    return shuffles_to_read_shifted_;
+  }
+
   const Graph& input_graph() const { return input_graph_; }
 
  private:
@@ -371,9 +358,9 @@ class WasmShuffleAnalyzer {
   Zone* phase_zone_;
   const Graph& input_graph_;
   DemandedByteAnalysis demanded_byte_analysis_{phase_zone_, input_graph_};
-  SmallShuffleVector shift_shuffles_{phase_zone_};
-  SmallShuffleVector low_half_shuffles_{phase_zone_};
-  SmallShuffleVector high_half_shuffles_{phase_zone_};
+  SmallZoneVector<ShuffleToShift, 8> shuffles_to_shift_{phase_zone_};
+  SmallZoneVector<ShuffleToReadShifted, 8> shuffles_to_read_shifted_{
+      phase_zone_};
   ZoneUnorderedMap<const LoadOp*, const Simd128ReplaceLaneOp*>
       load_lane_candidates_{phase_zone_};
   ZoneUnorderedMap<const Simd128ReplaceLaneOp*, OpIndex> load_lanes_{
@@ -546,9 +533,6 @@ class WasmShuffleReducer : public Next {
 
     auto og_left = __ MapToNewGraph(shuffle.left());
     auto og_right = __ MapToNewGraph(shuffle.right());
-    std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
-    std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
-              shuffle_bytes.begin());
 #if V8_TARGET_ARCH_ARM64
     if (auto maybe_deinterleaved_load = IsDeinterleaveLoadShuffle(&shuffle)) {
       DCHECK(v8_flags.experimental_wasm_deinterleave_loads);
@@ -559,108 +543,57 @@ class WasmShuffleReducer : public Next {
     }
 #endif  // V8_TARGET_ARCH_ARM64
 
-    constexpr size_t half_bytes = kSimd128Size / 2;
+    std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
+    std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
+              shuffle_bytes.begin());
+    DemandedBytes demanded_bytes = analyzer_->GetDemandedBytes(&shuffle);
+    bool emit_new_shuffle = !demanded_bytes.IsLow(kSimd128Size);
 
-    bool does_shuffle_into_low_half =
-        analyzer_->DoesShuffleIntoLowHalf(&shuffle);
-    bool does_shuffle_into_high_half =
-        analyzer_->DoesShuffleIntoHighHalf(&shuffle);
-
-    // Shuffles to adjust because one, or both, of their inputs have been
-    // narrowed.
-    if (does_shuffle_into_low_half && does_shuffle_into_high_half) {
-      DCHECK(analyzer_->ShouldRewriteShuffleToLow(shuffle.left()));
-      DCHECK(analyzer_->ShouldRewriteShuffleToLow(shuffle.right()));
-      // We have a shuffle where both inputs have been reduced and shifted, so
-      // something like this:
-      // |--------|--------|---a1---|---b3---|  shf0 = (a, b)
-      //
-      // |--------|--------|---c2---|---d4---|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      //
-      // Is being changed into this:
-      // |---a1---|---b3---|--------|--------|  shf0 = (a, b)
-      //
-      // |---c2---|---d4---|--------|--------|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      std::transform(shuffle_bytes.begin(), shuffle_bytes.end(),
-                     shuffle_bytes.begin(),
-                     [](uint8_t byte) { return byte - half_bytes; });
-    } else if (does_shuffle_into_low_half) {
-      DCHECK(analyzer_->ShouldRewriteShuffleToLow(shuffle.left()) ||
-             analyzer_->ShouldRewriteShuffleToLow(shuffle.right()));
-      DCHECK_NE(analyzer_->ShouldRewriteShuffleToLow(shuffle.left()),
-                analyzer_->ShouldRewriteShuffleToLow(shuffle.right()));
-      // We have a shuffle where both inputs have been reduced and one has
-      // been shifted, so something like this:
-      // |--------|--------|---a1---|---b3---|  shf0 = (a, b)
-      //
-      // |---c2---|---d4---|--------|--------|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      //
-      // Is being changed into this:
-      // |---a1---|---b3---|--------|--------|  shf0 = (a, b)
-      //
-      // |---c2---|---d4---|--------|--------|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      //
-      // Original shf2 lane-wise shuffle: [2, 3, 4, 5]
-      // Needs to be converted to: [0, 1, 4, 5]
-      std::transform(shuffle_bytes.begin(), shuffle_bytes.begin() + half_bytes,
-                     shuffle_bytes.begin(),
-                     [](uint8_t byte) { return byte - half_bytes; });
-    } else if (does_shuffle_into_high_half) {
-      DCHECK(analyzer_->ShouldRewriteShuffleToLow(shuffle.left()) ||
-             analyzer_->ShouldRewriteShuffleToLow(shuffle.right()));
-      DCHECK_NE(analyzer_->ShouldRewriteShuffleToLow(shuffle.left()),
-                analyzer_->ShouldRewriteShuffleToLow(shuffle.right()));
-      // We have a shuffle where both inputs have been reduced and one has
-      // been shifted, so something like this:
-      // |---a1---|---b3---|--------|--------|  shf0 = (a, b)
-      //
-      // |--------|--------|---c2---|---d4---|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      //
-      // Is being changed into this:
-      // |---a1---|---b3---|--------|--------|  shf0 = (a, b)
-      //
-      // |---c2---|---d4---|--------|--------|  shf1 = (c, d)
-      //
-      // |---a1---|---b3---|---c2---|---d4---|  shf2 = (shf0, shf1)
-      std::transform(shuffle_bytes.begin() + half_bytes, shuffle_bytes.end(),
-                     shuffle_bytes.begin() + half_bytes,
-                     [](uint8_t byte) { return byte - half_bytes; });
-    }
-
-    if (does_shuffle_into_low_half || does_shuffle_into_high_half) {
-      return __ Simd128Shuffle(og_left, og_right,
-                               Simd128ShuffleOp::Kind::kI8x16,
-                               shuffle_bytes.data());
-    }
-
-    // Shuffles to narrow.
-    DemandedBytes demanded = analyzer_->GetDemandedBytes(&shuffle);
-    if (!demanded.IsAll()) {
-      if (analyzer_->ShouldRewriteShuffleToLow(&shuffle)) {
-        DCHECK(demanded.IsLow(kSimd128HalfSize));
-        // Take the top half of the shuffle bytes and these will now write
-        // those values into the low half of the result instead.
-        std::copy(shuffle.shuffle + half_bytes, shuffle.shuffle + kSimd128Size,
+    // For 'shifted' shuffles, the ones that are operands to other shuffles,
+    // we move the demanded elements into the LSBs.
+    for (const auto& shuffle_to_shift : analyzer_->shuffles_to_shift()) {
+      if (shuffle_to_shift.shuffle == &shuffle) {
+        const uint8_t begin_index = shuffle_to_shift.begin_index;
+        const uint8_t end_index = shuffle_to_shift.end_index;
+        DCHECK(begin_index <= kSimd128Size);
+        DCHECK(end_index <= kSimd128Size);
+        DCHECK_LT(begin_index, end_index);
+        std::copy(shuffle.shuffle + begin_index, shuffle.shuffle + end_index,
                   shuffle_bytes.begin());
-      } else {
-        // Just truncate the lower half.
-        std::copy(shuffle.shuffle, shuffle.shuffle + half_bytes,
-                  shuffle_bytes.begin());
+        emit_new_shuffle = true;
       }
+    }
 
-      return __ Simd128Shuffle(og_left, og_right, demanded.GetShuffleKind(),
+    // For the shuffles that have shifted shuffles as operands, we need to
+    // update the shuffle to read from the LSBs.
+    for (const auto& shuffle_to_read_shifted :
+         analyzer_->shuffles_to_read_shifted()) {
+      if (shuffle_to_read_shifted.shuffle == &shuffle) {
+        const uint8_t begin_index = shuffle_to_read_shifted.begin_index;
+        const uint8_t end_index = shuffle_to_read_shifted.end_index;
+        const uint8_t shuffle_in_begin =
+            shuffle_to_read_shifted.shuffle_in_begin;
+        DCHECK(begin_index <= kSimd128Size);
+        DCHECK(end_index <= kSimd128Size);
+        DCHECK_LT(begin_index, end_index);
+
+        uint8_t base =
+            shuffle.shuffle[begin_index] >= kSimd128Size ? kSimd128Size : 0;
+        for (uint8_t i = begin_index; i < end_index; ++i) {
+          uint8_t original = shuffle.shuffle[i];
+          DCHECK_GE(original, shuffle_in_begin);
+          shuffle_bytes[i] = base + (original - shuffle_in_begin);
+        }
+        emit_new_shuffle = true;
+      }
+    }
+
+    if (emit_new_shuffle) {
+      return __ Simd128Shuffle(og_left, og_right,
+                               demanded_bytes.GetShuffleKind(),
                                shuffle_bytes.data());
     }
+
     goto no_change;
   }
 };

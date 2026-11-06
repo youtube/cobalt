@@ -39,7 +39,7 @@ FakeLayerTreeHostImpl::FakeLayerTreeHostImpl(
     scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner)
     : ClientLayerTreeHostImpl(
           settings,
-          &client_,
+          &delegate_,
           task_runner_provider,
           &stats_instrumentation_,
           task_graph_runner,
@@ -64,7 +64,7 @@ FakeLayerTreeHostImpl::~FakeLayerTreeHostImpl() {
 }
 
 void FakeLayerTreeHostImpl::CreatePendingTree() {
-  LayerTreeHostImpl::CreatePendingTree();
+  ClientLayerTreeHostImpl::CreatePendingTree();
   float arbitrary_large_page_scale = 100000.f;
   pending_tree()->PushPageScaleFromMainThread(
       1.f, 1.f / arbitrary_large_page_scale, arbitrary_large_page_scale);

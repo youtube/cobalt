@@ -128,7 +128,7 @@ BASE_DECLARE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAtMemory);
 COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillAutosuggestNudge);
+BASE_DECLARE_FEATURE(kAutofillAtMemoryInactivityNudge);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport);
 COMPONENT_EXPORT(AUTOFILL)
@@ -145,8 +145,6 @@ COMPONENT_EXPORT(AUTOFILL) BASE_DECLARE_FEATURE(kAutofillDisableAddressImport);
 COMPONENT_EXPORT(AUTOFILL) BASE_DECLARE_FEATURE(kAutofillDisableFilling);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillDisallowMoreHyphenLikeLabels);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillDisambiguateContradictingFieldTypes);
 COMPONENT_EXPORT(AUTOFILL) BASE_DECLARE_FEATURE(kAutofillEnableAblationStudy);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE_PARAM(bool,
@@ -190,6 +188,8 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE_PARAM(int,
                            kAutofillEnableCacheForRegexMatchingCacheSizeParam);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillEnableDeduplicationOnBackgroundThread);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableExpirationDateImprovements);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableGermanTransliteration);
@@ -197,14 +197,6 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableImportOfUnchangedValuesForCountryAndState);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableImportWhenMultiplePhoneNumbers);
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillEnableKeyboardAccessoryChipRedesign);
-#endif  // BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kAutofillEnableKeyboardAccessoryChipWidthAdjustment);
-#endif  // BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillEnableNonAffiliatedLoyaltyCardsFilling);
 COMPONENT_EXPORT(AUTOFILL)
@@ -308,6 +300,8 @@ BASE_DECLARE_FEATURE(kAutofillReplaceCachedWebElementsByRendererIds);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillReplaceFormElementObserver);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillRestrictOtpToSameTldPlusOne);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillServerExperimentalSignatures);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillServerQueryPredictionsEarly);
@@ -370,19 +364,7 @@ BASE_DECLARE_FEATURE(kManageTravelPerceptionSurvey);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kManageYourSavedInfoPerceptionSurvey);
 COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressAcceptedFirstTimeCreateSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressDeclinedFirstTimeCreateSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressFilledPlusAddressViaManualFallbackSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressUserCreatedMultiplePlusAddressesSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressUserCreatedPlusAddressViaManualFallbackSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressUserDidChooseEmailOverPlusAddressSurvey);
-COMPONENT_EXPORT(AUTOFILL)
-BASE_DECLARE_FEATURE(kPlusAddressUserDidChoosePlusAddressOverEmailSurvey);
+BASE_DECLARE_FEATURE(kShowAutocompleteAtMemoryButton);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kShowSugesstionsOnAlreadyAutofilledUnrecognized);
 COMPONENT_EXPORT(AUTOFILL)

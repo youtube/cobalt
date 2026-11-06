@@ -153,6 +153,54 @@ TEST(CBSTest, GetUntilFirst) {
   EXPECT_EQ(CBS_len(&data), sizeof(kData) - 2);
 }
 
+TEST(CBSTest, GetUntilFirstOf) {
+  static const uint8_t kData[] = {0, 'a', 'b', 'c', 0, 'a', 'b', 'c'};
+  CBS data;
+  CBS_init(&data, kData, sizeof(kData));
+
+  CBS prefix;
+  EXPECT_FALSE(CBS_get_until_first_of(&data, &prefix, "A"));
+  EXPECT_EQ(CBS_data(&data), kData);
+  EXPECT_EQ(CBS_len(&data), sizeof(kData));
+
+  ASSERT_TRUE(CBS_get_until_first_of(&data, &prefix, "Abc"));
+  EXPECT_EQ(CBS_data(&prefix), kData);
+  EXPECT_EQ(CBS_len(&prefix), 2u);
+  EXPECT_EQ(CBS_data(&data), kData + 2);
+  EXPECT_EQ(CBS_len(&data), sizeof(kData) - 2);
+}
+
+TEST(CBSTest, GetUntilFirstNotOf) {
+  {
+    static const uint8_t kData[] = {'a', 'b', 'c', 'd', 'a', 'b', 'c'};
+    CBS data;
+    CBS_init(&data, kData, sizeof(kData));
+
+    CBS prefix;
+    EXPECT_FALSE(CBS_get_until_first_not_of(&data, &prefix, "abcd"));
+    EXPECT_EQ(CBS_data(&data), kData);
+    EXPECT_EQ(CBS_len(&data), sizeof(kData));
+
+    ASSERT_TRUE(CBS_get_until_first_not_of(&data, &prefix, "abcD"));
+    EXPECT_EQ(CBS_data(&prefix), kData);
+    EXPECT_EQ(CBS_len(&prefix), 3u);
+    EXPECT_EQ(CBS_data(&data), kData + 3);
+    EXPECT_EQ(CBS_len(&data), sizeof(kData) - 3);
+  }
+  {
+    static const uint8_t kData[] = {'a', 'b', 'c', 0, 'a', 'b', 'c'};
+    CBS data;
+    CBS_init(&data, kData, sizeof(kData));
+
+    CBS prefix;
+    EXPECT_TRUE(CBS_get_until_first_not_of(&data, &prefix, "abcd"));
+    EXPECT_EQ(CBS_data(&prefix), kData);
+    EXPECT_EQ(CBS_len(&prefix), 3u);
+    EXPECT_EQ(CBS_data(&data), kData + 3);
+    EXPECT_EQ(CBS_len(&data), sizeof(kData) - 3);
+  }
+}
+
 TEST(CBSTest, GetASN1) {
   static const uint8_t kData1[] = {0x30, 2, 1, 2};
   static const uint8_t kData2[] = {0x30, 3, 1, 2};

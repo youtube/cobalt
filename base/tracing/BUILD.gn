@@ -33,6 +33,14 @@ generate_wrapper("perfetto_diff_tests") {
       "$_protos_path/perfetto/trace/android/winscope.descriptor"
   _rebased_winscope_extensions_descriptor =
       rebase_path(_winscope_extensions_descriptor, root_build_dir)
+  _gpu_extensions_descriptor =
+      "$_protos_path/perfetto/trace/gpu/gpu_track_event.descriptor"
+  _rebased_gpu_extensions_descriptor =
+      rebase_path(_gpu_extensions_descriptor, root_build_dir)
+  _gpu_interned_data_extensions_descriptor =
+      "$_protos_path/perfetto/trace/gpu/gpu_interned_data.descriptor"
+  _rebased_gpu_interned_data_extensions_descriptor =
+      rebase_path(_gpu_interned_data_extensions_descriptor, root_build_dir)
   _trace_summary_descriptor =
       "$_protos_path/perfetto/trace_summary/trace_summary.descriptor"
   _rebased_trace_summary_descriptor =
@@ -66,6 +74,10 @@ generate_wrapper("perfetto_diff_tests") {
     "@WrappedPath($_rebased_chrome_track_event_descriptor)",
     "--winscope-extensions-descriptor",
     "@WrappedPath($_rebased_winscope_extensions_descriptor)",
+    "--gpu-extensions-descriptor",
+    "@WrappedPath($_rebased_gpu_extensions_descriptor)",
+    "--gpu-interned-data-extensions",
+    "@WrappedPath($_rebased_gpu_interned_data_extensions_descriptor)",
     "--summary-descriptor",
     "@WrappedPath($_rebased_trace_summary_descriptor)",
     "--script",
@@ -80,11 +92,14 @@ generate_wrapper("perfetto_diff_tests") {
     "//third_party/perfetto/protos/perfetto/trace:descriptor",
     "//third_party/perfetto/protos/perfetto/trace:test_extensions_descriptor",
     "//third_party/perfetto/protos/perfetto/trace/android:winscope_descriptor",
+    "//third_party/perfetto/protos/perfetto/trace/gpu:gpu_interned_data_descriptor",
+    "//third_party/perfetto/protos/perfetto/trace/gpu:gpu_track_event_descriptor",
     "//third_party/perfetto/protos/perfetto/trace_summary:descriptor",
     "//third_party/perfetto/src/trace_processor:trace_processor_shell",
   ]
 
   data = [
+    "//third_party/perfetto/test/trace_processor/",
     "//third_party/perfetto/tools/diff_test_trace_processor.py",
     "//third_party/perfetto/python/generators/diff_tests/",
     "//base/tracing/",
@@ -95,6 +110,8 @@ generate_wrapper("perfetto_diff_tests") {
     _all_webview_metrics_descriptor,
     _chrome_track_event_descriptor,
     _winscope_extensions_descriptor,
+    _gpu_extensions_descriptor,
+    _gpu_interned_data_extensions_descriptor,
     _trace_summary_descriptor,
   ]
 }

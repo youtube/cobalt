@@ -21,7 +21,6 @@
 #include "src/objects/prototype-info.h"
 #include "src/roots/roots.h"
 #include "torque-generated/bit-fields.h"
-#include "torque-generated/visitor-lists.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -96,6 +95,7 @@ enum InstanceType : uint16_t;
   V(MegaDomHandler)                   \
   V(NativeContext)                    \
   V(Oddball)                          \
+  V(OnHeapBasicBlockProfilerData)     \
   V(PreparseData)                     \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
@@ -110,6 +110,7 @@ enum InstanceType : uint16_t;
   V(SmallOrderedHashMap)              \
   V(SmallOrderedHashSet)              \
   V(SmallOrderedNameDictionary)       \
+  V(SortState)                        \
   V(SourceTextModule)                 \
   V(Struct)                           \
   V(SwissNameDictionary)              \
@@ -129,16 +130,14 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmSuspendingObject)    \
   IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmFastApiCallData)     \
   IF_WASM(V, WasmStackObject)         \
+  IF_WASM(V, WasmStringViewIter)      \
   IF_WASM(V, WasmTableObject)         \
   IF_WASM(V, WasmTagObject)           \
   IF_WASM(V, WasmTypeInfo)            \
   V(WeakCell)                         \
   SIMPLE_HEAP_OBJECT_LIST1(V)
-
-#define TORQUE_VISITOR_ID_LIST(V)     \
-  TORQUE_DATA_ONLY_VISITOR_ID_LIST(V) \
-  TORQUE_POINTER_VISITOR_ID_LIST(V)
 
 #define TRUSTED_VISITOR_ID_LIST(V) CONCRETE_TRUSTED_OBJECT_TYPE_LIST1(V)
 
@@ -150,10 +149,8 @@ enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
   // clang-format off
   DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-  TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   kDataOnlyVisitorIdCount,
   POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-  TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   TRUSTED_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   kVisitorIdCount
 // clang-format on
@@ -213,7 +210,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 //      |          |   - is_undetectable (bit 4)                     |
 //      |          |   - is_access_check_needed (bit 5)              |
 //      |          |   - is_constructor (bit 6)                      |
-//      |          |   - TBD (bit 7)                                 |
+//      |          |   - is_extended_map (bit 7)                     |
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field2]                                    |
 //      |          |   - new_target_is_base (bit 0)                  |
@@ -436,6 +433,10 @@ V8_OBJECT class Map : public HeapObjectLayout {
   // map.
   int ComputeMinObjectSlack(Isolate* isolate);
   inline int InstanceSizeFromSlack(int slack) const;
+
+  // Tells whether the Map represents a meta Map or extended Map (which
+  // has more fields than a normal Map) as opposed to regular Map.
+  DECL_BOOLEAN_ACCESSORS(is_extended_map)
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -991,8 +992,43 @@ V8_OBJECT class Map : public HeapObjectLayout {
   case TYPE:                        \
     return RootIndex::k##Name##Map;
       STRUCT_LIST(MAKE_CASE)
-      TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
+      case DESCRIPTOR_ARRAY_TYPE:
+        return RootIndex::kDescriptorArrayMap;
+      case STRONG_DESCRIPTOR_ARRAY_TYPE:
+        return RootIndex::kStrongDescriptorArrayMap;
+      case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
+        return RootIndex::kOnHeapBasicBlockProfilerDataMap;
+      case TURBOFAN_BITSET_TYPE_TYPE:
+        return RootIndex::kTurbofanBitsetTypeMap;
+      case TURBOFAN_UNION_TYPE_TYPE:
+        return RootIndex::kTurbofanUnionTypeMap;
+      case TURBOFAN_RANGE_TYPE_TYPE:
+        return RootIndex::kTurbofanRangeTypeMap;
+      case TURBOFAN_HEAP_CONSTANT_TYPE_TYPE:
+        return RootIndex::kTurbofanHeapConstantTypeMap;
+      case TURBOFAN_OTHER_NUMBER_CONSTANT_TYPE_TYPE:
+        return RootIndex::kTurbofanOtherNumberConstantTypeMap;
+      case TURBOSHAFT_WORD32_RANGE_TYPE_TYPE:
+        return RootIndex::kTurboshaftWord32RangeTypeMap;
+      case TURBOSHAFT_WORD32_SET_TYPE_TYPE:
+        return RootIndex::kTurboshaftWord32SetTypeMap;
+      case TURBOSHAFT_WORD64_RANGE_TYPE_TYPE:
+        return RootIndex::kTurboshaftWord64RangeTypeMap;
+      case TURBOSHAFT_WORD64_SET_TYPE_TYPE:
+        return RootIndex::kTurboshaftWord64SetTypeMap;
+      case TURBOSHAFT_FLOAT64_RANGE_TYPE_TYPE:
+        return RootIndex::kTurboshaftFloat64RangeTypeMap;
+      case TURBOSHAFT_FLOAT64_SET_TYPE_TYPE:
+        return RootIndex::kTurboshaftFloat64SetTypeMap;
+      case SORT_STATE_TYPE:
+        return RootIndex::kSortStateMap;
+#if V8_ENABLE_WEBASSEMBLY
+      case WASM_FAST_API_CALL_DATA_TYPE:
+        return RootIndex::kWasmFastApiCallDataMap;
+      case WASM_STRING_VIEW_ITER_TYPE:
+        return RootIndex::kWasmStringViewIterMap;
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         break;
     }
@@ -1274,6 +1310,66 @@ inline constexpr int Map::kSize = sizeof(Map);
 
 static_assert(Map::kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
+// Base class for Maps with extra fields. Subclasses must be defined with
+// @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
+V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
+ public:
+  // Bit positions for |bit_field_ex|.
+  struct BitsEx {
+    DEFINE_TORQUE_GENERATED_EXTENDED_MAP_BIT_FIELDS()
+  };
+
+  inline uint8_t bit_field_ex() const;
+  inline void set_bit_field_ex(uint8_t value);
+
+  inline uint8_t relaxed_bit_field_ex() const;
+  inline void set_relaxed_bit_field_ex(uint8_t value);
+
+  inline ExtendedMapKind map_kind() const;
+  inline uint8_t map_size_in_words() const;
+  inline int map_size() const;
+
+  inline void set_map_kind_and_size(ExtendedMapKind kind, int size_in_bytes);
+
+ public:
+  static const int kMinimumSize;
+  static const int kStartOfStrongExtendedFieldsOffset;
+
+  std::atomic<uint8_t> bit_field_ex_;
+  // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
+} V8_OBJECT_END;
+
+constexpr int ExtendedMapSizeForKind(ExtendedMapKind kind);
+
+// Defined out-of-line because offsetof / sizeof on ExtendedMap cannot appear
+// inside ExtendedMap's own class body.
+inline constexpr int ExtendedMap::kMinimumSize =
+    RoundUp(sizeof(ExtendedMap), kTaggedSize);
+inline constexpr int ExtendedMap::kStartOfStrongExtendedFieldsOffset =
+    kMinimumSize;
+
+// Extended map for interceptor objects, it caches named and indexed
+// InterceptorInfo objects in the Map for faster access.
+V8_OBJECT class JSInterceptorMap : public ExtendedMap {
+ public:
+  inline Tagged<InterceptorInfo> named_interceptor() const;
+  inline void set_named_interceptor(
+      Tagged<InterceptorInfo> interceptor_info,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<InterceptorInfo> indexed_interceptor() const;
+  inline void set_indexed_interceptor(
+      Tagged<InterceptorInfo> interceptor_info,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline void clear_extended_padding();
+
+ public:
+  uint8_t extended_padding_[kTaggedSize - 1];
+  TaggedMember<InterceptorInfo> named_interceptor_;
+  TaggedMember<InterceptorInfo> indexed_interceptor_;
+} V8_OBJECT_END;
+
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
@@ -1308,7 +1404,9 @@ class NormalizedMapCache : public WeakFixedArray {
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
-inline bool IsMetaMapMap(Tagged<Map> map);
+inline bool IsMetaMap(Tagged<Map> map);
+inline bool IsExtendedMap(Tagged<Map> map);
+inline bool IsJSInterceptorMap(Tagged<Map> map);
 inline bool IsNullMap(Tagged<Map> map);
 inline bool IsUndefinedMap(Tagged<Map> map);
 inline bool IsBooleanMap(Tagged<Map> map);

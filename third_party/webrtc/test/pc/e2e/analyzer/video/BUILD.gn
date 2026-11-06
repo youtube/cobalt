@@ -161,6 +161,7 @@ rtc_library("quality_analyzing_video_encoder") {
     "../../../../../api/environment",
     "../../../../../api/test/pclf:media_configuration",
     "../../../../../api/video:encoded_image",
+    "../../../../../api/video:resolution",
     "../../../../../api/video:video_bitrate_allocation",
     "../../../../../api/video:video_codec_constants",
     "../../../../../api/video:video_frame",

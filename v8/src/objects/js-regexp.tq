@@ -97,7 +97,6 @@ operator '.source' macro RegExpSource(regexp: JSRegExp): String {
 extern class JSRegExpConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 
-@doNotGenerateCppClass
 extern shape JSRegExpResult extends JSArray {
   // In-object properties:
   // The below fields are externally exposed.
@@ -110,12 +109,10 @@ extern shape JSRegExpResult extends JSArray {
   regexp_last_index: Smi;
 }
 
-@doNotGenerateCppClass
 extern shape JSRegExpResultWithIndices extends JSRegExpResult {
   indices: JSAny;
 }
 
-@doNotGenerateCppClass
 extern shape JSRegExpResultIndices extends JSArray {
   // In-object properties:
   // The groups field is externally exposed.

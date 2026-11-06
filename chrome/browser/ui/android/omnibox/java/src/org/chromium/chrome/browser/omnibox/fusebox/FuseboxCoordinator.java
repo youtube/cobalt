@@ -22,7 +22,6 @@ import androidx.asynclayoutinflater.view.AsyncLayoutInflater;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -74,6 +73,16 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         int EXPANDED = 2;
     }
 
+    @IntDef({FuseboxLayoutMode.SEPARATED, FuseboxLayoutMode.POPOVER})
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE_USE)
+    public @interface FuseboxLayoutMode {
+        // The Fusebox UI is separated from associated suggestions.
+        int SEPARATED = 1;
+        // The Fusebox UI is intermingled with associated suggestions in a single popover window.
+        int POPOVER = 2;
+    }
+
     private @Nullable FuseboxViewHolder mViewHolder;
     private @Nullable PropertyModel mModel;
     private final Context mContext;
@@ -87,6 +96,9 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     private TemplateUrlService mTemplateUrlService;
     private final SettableNonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier =
             ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
+    private final SettableNonNullObservableSupplier<@FuseboxLayoutMode Integer>
+            mFuseboxLayoutModeSupplier =
+                    ObservableSuppliers.createNonNull(FuseboxLayoutMode.SEPARATED);
     private final SnackbarManager mSnackbarManager;
     private @Nullable ViewportRectProvider mViewportRectProvider;
     private @Nullable FuseboxMetrics mMetrics;
@@ -238,6 +250,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         assumeNonNull(mViewHolder),
                         mTabModelSelectorSupplier,
                         mFuseboxStateSupplier,
+                        mFuseboxLayoutModeSupplier,
                         mSnackbarManager,
                         Clipboard.getInstance(),
                         mScrimManager,
@@ -303,8 +316,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         // We can't do inclusive check due to missing `isPhone()` case in `DeviceInfo`.
         // Additionally these values may change at runtime, e.g. if the user starts Chrome on phone
         // and moves to Android Auto.
-        boolean isSupportedDeviceType =
-                !DeviceInfo.isAutomotive() && !DeviceInfo.isXr() && !DeviceInfo.isTV();
+        boolean isSupportedDeviceType = OmniboxFeatures.isFuseboxSupportedDeviceType();
         boolean isSupportedPageClass =
                 switch (session.getAutocompleteInput().getRawPageClassification()) {
                     // LINT.IfChange(FuseboxSupportedPageClassifications)
@@ -381,9 +393,6 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         if (mViewHolder == null || mViewHolder.addButton == null) return;
         mViewHolder.addButton.requestFocus();
         mViewHolder.addButton.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
-        if (mMediator != null) {
-            mMediator.hidePopup();
-        }
     }
 
     @Initializer
@@ -417,11 +426,25 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     }
 
     /**
+     * Hides the popup if it is showing.
+     *
+     * @return Whether the popup was hidden.
+     */
+    public boolean handleHidePopup() {
+        return mMediator != null && mMediator.handleHidePopup();
+    }
+
+    /**
      * Registers a callback notified when the compactness of the fusebox changes. This callback will
      * only fire if the compact mode variant is enabled and the compactness state changes.
      */
     public NonNullObservableSupplier<@FuseboxState Integer> getFuseboxStateSupplier() {
         return mFuseboxStateSupplier;
+    }
+
+    /** Registers a callback notified when the layout mode of the fusebox changes. */
+    public NonNullObservableSupplier<@FuseboxLayoutMode Integer> getFuseboxLayoutModeSupplier() {
+        return mFuseboxLayoutModeSupplier;
     }
 
     /**

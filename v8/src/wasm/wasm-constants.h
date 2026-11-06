@@ -58,11 +58,13 @@ enum ValueTypeCode : uint8_t {
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
-  kWaitQueueCode = 0x5c,        // -0x24, packed type.
+  // The following two are tentative, waiting for spec finalization.
+  kWaitqueueRefCode = 0x5c,  // -0x24
+  kNoWaitqueueCode = 0x5b,   // -0x25
 
   // For decoding, we build an array for all heap types with these bounds:
-  kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
-  kLastHeapTypeCode = kNoContCode,            // Highest assigned code.
+  kFirstHeapTypeCode = kNoWaitqueueCode,  // Lowest assigned code.
+  kLastHeapTypeCode = kNoContCode,        // Highest assigned code.
 };
 
 // Binary encoding of type definitions.
@@ -246,7 +248,9 @@ constexpr int kMaxPolymorphism = 4;
 
 // A struct field beyond this limit needs an explicit null check (trapping null
 // access not guaranteed to behave properly).
+// LINT.IfChange(WasmMaxFieldIndexImplicitNullCheck)
 constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
+// LINT.ThenChange(/test/mjsunit/wasm/large-struct.js:WasmMaxFieldIndexImplicitNullCheck)
 
 // Compilation-hints proposal: This optimization-priority value signifies that
 // the function is only executed once, thus we only compile it eagerly with the
@@ -259,6 +263,15 @@ constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif
+
+enum CWasmEntryParameters {
+  kCodeEntry,
+  kObjectRef,
+  kArgumentsBuffer,
+  kCEntryFp,
+  // marker:
+  kNumParameters
+};
 
 }  // namespace wasm
 }  // namespace internal

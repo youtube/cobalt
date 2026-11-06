@@ -118,6 +118,7 @@
 #include "src/compiler/turboshaft/wasm-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/turboshaft/wasm-turboshaft-compiler.h"
+#include "src/compiler/turboshaft/wasm-wrappers.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-gc-lowering.h"
@@ -1747,8 +1748,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
   turboshaft_data_.InitializeGraphComponent(
       nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
-  BuildWasmWrapper(&turboshaft_data_, turboshaft_data_.graph(), sig_,
-                   wrapper_info_);
+  turboshaft::BuildWasmWrapper(&turboshaft_data_, turboshaft_data_.graph(),
+                               sig_, wrapper_info_);
   CodeTracer* code_tracer = nullptr;
   if (info_.trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -2880,8 +2881,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     turboshaft_data.SetIsWasmWrapper(sig);
     turboshaft_data.InitializeGraphComponent(
         nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
-    BuildWasmWrapper(&turboshaft_data, turboshaft_data.graph(), sig,
-                     wrapper_info, callable);
+    turboshaft::BuildWasmWrapper(&turboshaft_data, turboshaft_data.graph(), sig,
+                                 wrapper_info, callable);
     CodeTracer* code_tracer = nullptr;
     if (info.trace_turbo_json() || info.trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,

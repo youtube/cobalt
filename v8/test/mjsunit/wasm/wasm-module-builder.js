@@ -123,9 +123,6 @@ let kWasmS128 = 0x7b;
 let kWasmI8 = 0x78;
 let kWasmI16 = 0x77;
 let kWasmF16 = 0x76;
-// TODO(manoskouk): The spec now defines this as 0x68 which is the same as
-// kWasmContRef. Fix when spec adjusts.
-let kWasmWaitQueue = 0x5c;
 
 // These are defined as negative integers to distinguish them from positive type
 // indices.
@@ -146,6 +143,8 @@ let kWasmStringRef = -0x19;
 let kWasmStringViewWtf8 = -0x1a;
 let kWasmStringViewWtf16 = -0x20;
 let kWasmStringViewIter = -0x1f;
+let kWasmWaitqueueRef = -0x24;
+let kWasmNullWaitqueueRef = -0x25;
 const kWasmContRef = -0x18;
 const kWasmNullContRef = -0x0b;
 
@@ -168,6 +167,8 @@ let kStringRefCode = kWasmStringRef & kLeb128Mask;
 let kStringViewWtf8Code = kWasmStringViewWtf8 & kLeb128Mask;
 let kStringViewWtf16Code = kWasmStringViewWtf16 & kLeb128Mask;
 let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
+let kWaitqueueRefCode = kWasmWaitqueueRef & kLeb128Mask;
+let kNullWaitqueueRefCode = kWasmNullWaitqueueRef & kLeb128Mask;
 const kContRefCode = kWasmContRef & kLeb128Mask;
 const kNullContRefCode = kWasmNullContRef & kLeb128Mask;
 
@@ -748,7 +749,8 @@ const kExprPause = 0x04;
 // TODO(manoskouk): These are just placeholders, adjust them when the spec
 // defines them.
 const kExprStructWait = 0x05;
-const kExprStructNotify = 0x06;
+const kExprWaitqueueNotify = 0x06;
+const kExprWaitqueueNew = 0x07;
 const kExprStructAtomicGet = 0x5c;
 const kExprStructAtomicGetS = 0x5d;
 const kExprStructAtomicGetU = 0x5e;

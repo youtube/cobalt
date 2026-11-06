@@ -20,7 +20,7 @@ class KeyAccumulator;
 #include "torque-generated/src/objects/js-proxy-tq.inc"
 
 // The JSProxy describes ECMAScript Harmony proxies
-V8_OBJECT class JSProxy : public JSReceiverLayout {
+V8_OBJECT class JSProxy : public JSReceiver {
  public:
   inline Tagged<UnionOf<JSReceiver, Null>> target() const;
   inline void set_target(Tagged<UnionOf<JSReceiver, Null>> value,

@@ -530,7 +530,8 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
     TNode<Map> map = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::ITERATOR_RESULT_MAP_INDEX));
     StoreMapNoWriteBarrier(iter_result, map);
-    StoreObjectFieldRoot(iter_result, JSIteratorResult::kPropertiesOrHashOffset,
+    StoreObjectFieldRoot(iter_result,
+                         offsetof(JSIteratorResult, properties_or_hash_),
                          RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(iter_result, JSIteratorResult::kElementsOffset,
                          RootIndex::kEmptyFixedArray);

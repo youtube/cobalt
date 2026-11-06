@@ -730,17 +730,10 @@ OPENSSL_EXPORT uint32_t SSL_clear_mode(SSL *ssl, uint32_t mode);
 // modes enabled for |ssl|.
 OPENSSL_EXPORT uint32_t SSL_get_mode(const SSL *ssl);
 
-// SSL_CTX_set0_buffer_pool sets a |CRYPTO_BUFFER_POOL| that will be used to
+// SSL_CTX_set1_buffer_pool sets a |CRYPTO_BUFFER_POOL| that will be used to
 // store certificates. This can allow multiple connections to share
 // certificates and thus save memory.
-//
-// |ctx| does not take ownership of |pool|. The caller must ensure that |pool|
-// outlives |ctx|, as well as any |SSL| objects referencing |ctx|. (|SSL|
-// objects will increment an |SSL_CTX|'s reference count.) It is not necessary
-// for |pool| to outlive any |CRYPTO_BUFFER|s derived from it, so there is no
-// lifetime constraint on |X509| or |SSL_SESSION| objects created from the
-// connection.
-OPENSSL_EXPORT void SSL_CTX_set0_buffer_pool(SSL_CTX *ctx,
+OPENSSL_EXPORT void SSL_CTX_set1_buffer_pool(SSL_CTX *ctx,
                                              CRYPTO_BUFFER_POOL *pool);
 
 
@@ -6235,6 +6228,19 @@ OPENSSL_EXPORT int SSL_check_private_key(const SSL *ssl);
 // As BoringSSL does not implement this API, we return zero to report that the
 // security levels mechanism is not used.
 OPENSSL_EXPORT int SSL_CTX_get_security_level(const SSL_CTX *ctx);
+
+// SSL_CTX_set0_buffer_pool calls |SSL_CTX_set1_buffer_pool|. Use
+// |SSL_CTX_set1_buffer_pool| instead.
+//
+// WARNING: Despite being named set0, this function does not adopt the caller's
+// reference to |pool| and instead increments its own reference like a set1
+// function. Historically, |CRYPTO_BUFFER_POOL| was not reference-counted and
+// this function saved a non-owning pointer, expecting the caller to maintain a
+// lifetime relationship between the two objects. Now that pools are
+// reference-counted, the compatible behavior is to treat it as set0 rather than
+// ownership-transfering.
+OPENSSL_EXPORT void SSL_CTX_set0_buffer_pool(SSL_CTX *ctx,
+                                             CRYPTO_BUFFER_POOL *pool);
 
 
 // Compliance policy configurations

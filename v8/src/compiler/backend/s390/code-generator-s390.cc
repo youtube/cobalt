@@ -2711,7 +2711,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if constexpr (COMPRESS_POINTERS_BOOL) {
         __ CmpAndSwap(output, new_val, MemOperand(addr));
         __ LoadU32(output, output);
-        __ AddS64(output, output, kPtrComprCageBaseRegister);
+        __ lay(output, MemOperand(output, kPtrComprCageBaseRegister));
       } else {
         __ CmpAndSwap64(output, new_val, MemOperand(addr));
       }
@@ -2721,7 +2721,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, op, r1, ip, new_val, RecordWriteMode::kValueIsAny,
           DetermineStubCallMode(), &unwinding_info_writer_);
+      __ bne(ool->exit());
       __ JumpIfSmi(new_val, ool->exit());
+
       __ CheckPageFlag(object, r1,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());

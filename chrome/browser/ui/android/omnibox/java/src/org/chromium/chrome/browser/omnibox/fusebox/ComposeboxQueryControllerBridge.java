@@ -11,8 +11,10 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -24,6 +26,8 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -50,6 +54,8 @@ public class ComposeboxQueryControllerBridge {
     private @Nullable ContextUploadObserver mContextUploadObserver;
     private final SettableMonotonicObservableSupplier<InputState> mInputStateSupplier =
             ObservableSuppliers.createMonotonic();
+    private final SettableNonNullObservableSupplier<List<SuggestedTabInfo>> mSuggestedTabsSupplier =
+            ObservableSuppliers.createNonNull(List.of());
 
     private ComposeboxQueryControllerBridge() {}
 
@@ -134,34 +140,35 @@ public class ComposeboxQueryControllerBridge {
      * Uploads the given tab, adding it to the current session. If the upload can't be performed,
      * null is returned.
      */
-    @Nullable String addTabContext(Tab tab) {
+    @Nullable String addTabContext(Tab tab, boolean isSuggestedTab) {
         if (tab.getWebContents() == null) return null;
         return ComposeboxQueryControllerBridgeJni.get()
-                .addTabContext(mNativeInstance, tab.getWebContents());
+                .addTabContext(mNativeInstance, tab.getWebContents(), isSuggestedTab);
     }
 
     /**
      * Uploads the given tab, adding it to the current session. If the upload can't be performed,
      * null is returned.
      */
-    @Nullable String addTabContextFromCache(long tabId) {
+    @Nullable String addTabContextFromCache(long tabId, boolean isSuggestedTab) {
         return ComposeboxQueryControllerBridgeJni.get()
-                .addTabContextFromCache(mNativeInstance, tabId);
+                .addTabContextFromCache(mNativeInstance, tabId, isSuggestedTab);
     }
 
-    public void getAimUrl(GURL url, Callback<GURL> callback) {
-        ComposeboxQueryControllerBridgeJni.get().getAimUrl(mNativeInstance, url, callback);
-    }
-
-    public void getImageGenerationUrl(GURL url, Callback<GURL> callback) {
+    public void getAimUrl(GURL url, String queryText, Callback<GURL> callback) {
         ComposeboxQueryControllerBridgeJni.get()
-                .getImageGenerationUrl(mNativeInstance, url, callback);
+                .getAimUrl(mNativeInstance, url, queryText, callback);
     }
 
-    public void getAimUrlFromInputState(GURL url, Callback<GURL> callback) {
+    public void getImageGenerationUrl(GURL url, String queryText, Callback<GURL> callback) {
+        ComposeboxQueryControllerBridgeJni.get()
+                .getImageGenerationUrl(mNativeInstance, url, queryText, callback);
+    }
+
+    public void getAimUrlFromInputState(GURL url, String queryText, Callback<GURL> callback) {
         assert OmniboxFeatures.sShowModelPicker.getValue();
         ComposeboxQueryControllerBridgeJni.get()
-                .getAimUrlFromInputState(mNativeInstance, url, callback);
+                .getAimUrlFromInputState(mNativeInstance, url, queryText, callback);
     }
 
     /** Remove the given file from the current session. */
@@ -219,6 +226,11 @@ public class ComposeboxQueryControllerBridge {
         return mInputStateSupplier;
     }
 
+    /** Returns an observable supplier for the suggested tab info from the backend. */
+    public NonNullObservableSupplier<List<SuggestedTabInfo>> getSuggestedTabsSupplier() {
+        return mSuggestedTabsSupplier;
+    }
+
     public static void setInstanceForTesting(@Nullable ComposeboxQueryControllerBridge instance) {
         sInstanceForTesting = Optional.ofNullable(instance);
         ResettersForTesting.register(ComposeboxQueryControllerBridge::resetInstanceForTesting);
@@ -232,6 +244,11 @@ public class ComposeboxQueryControllerBridge {
     @CalledByNative
     private void onInputStateChanged(InputState inputState) {
         mInputStateSupplier.set(inputState);
+    }
+
+    @CalledByNative
+    private void onSuggestedTabsUpdated(SuggestedTabInfo[] suggestedTabs) {
+        mSuggestedTabsSupplier.set(Arrays.asList(suggestedTabs));
     }
 
     @NativeMethods
@@ -257,24 +274,28 @@ public class ComposeboxQueryControllerBridge {
 
         @Nullable String addTabContext(
                 long nativeComposeboxQueryControllerBridge,
-                @JniType("content::WebContents*") WebContents webContents);
+                @JniType("content::WebContents*") WebContents webContents,
+                boolean isSuggestedTab);
 
         @Nullable String addTabContextFromCache(
-                long nativeComposeboxQueryControllerBridge, long tabId);
+                long nativeComposeboxQueryControllerBridge, long tabId, boolean isSuggestedTab);
 
         void getAimUrl(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
+                @JniType("std::string") String queryText,
                 Callback<GURL> callback);
 
         void getImageGenerationUrl(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
+                @JniType("std::string") String queryText,
                 Callback<GURL> callback);
 
         void getAimUrlFromInputState(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
+                @JniType("std::string") String queryText,
                 Callback<GURL> callback);
 
         void removeAttachment(

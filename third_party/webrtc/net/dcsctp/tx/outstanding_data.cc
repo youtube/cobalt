@@ -276,6 +276,10 @@ bool OutstandingData::NackItem(UnwrappedTSN tsn,
                                bool retransmit_now,
                                bool do_fast_retransmit) {
   Item& item = GetItem(tsn);
+  // Ignore NACKs for chunks that have already been acknowledged.
+  if (item.is_acked()) {
+    return false;
+  }
   bool was_outstanding = item.is_outstanding();
 
   Item::NackAction action = item.Nack(retransmit_now);

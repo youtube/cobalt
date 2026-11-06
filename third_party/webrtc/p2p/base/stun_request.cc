@@ -55,7 +55,7 @@ const int STUN_MAX_RTO = 8000;  // milliseconds, or 5 doublings
 
 StunRequestManager::StunRequestManager(
     TaskQueueBase* thread,
-    std::function<void(const void*, size_t, StunRequest*)> send_packet)
+    std::function<void(std::span<const uint8_t>, StunRequest*)> send_packet)
     : thread_(thread), send_packet_(std::move(send_packet)) {}
 
 StunRequestManager::~StunRequestManager() = default;
@@ -244,11 +244,10 @@ void StunRequestManager::OnRequestTimedOut(StunRequest* request) {
   requests_.erase(request->id());
 }
 
-void StunRequestManager::SendPacket(const void* data,
-                                    size_t size,
+void StunRequestManager::SendPacket(std::span<const uint8_t> data,
                                     StunRequest* request) {
   RTC_DCHECK_EQ(this, request->manager());
-  send_packet_(data, size, request);
+  send_packet_(data, request);
 }
 
 StunRequest::StunRequest(const Environment& env, StunRequestManager& manager)
@@ -302,7 +301,7 @@ void StunRequest::SendInternal() {
 
   ByteBufferWriter buf;
   msg_->Write(&buf);
-  manager_.SendPacket(buf.Data(), buf.Length(), this);
+  manager_.SendPacket(buf.DataView(), this);
 
   OnSent();
   SendDelayed(TimeDelta::Millis(resend_delay()));

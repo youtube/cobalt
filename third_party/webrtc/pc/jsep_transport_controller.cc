@@ -283,13 +283,6 @@ bool JsepTransportController::NeedsIceRestart(
   return false;
 }
 
-bool JsepTransportController::NeedsIceRestart_n(
-    absl::string_view transport_name) const {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  const JsepTransport* transport = GetJsepTransportByName(transport_name);
-  return transport ? transport->needs_ice_restart() : false;
-}
-
 std::optional<SSLRole> JsepTransportController::GetDtlsRole(
     absl::string_view mid) const {
   if (signaling_thread_->IsCurrent()) {

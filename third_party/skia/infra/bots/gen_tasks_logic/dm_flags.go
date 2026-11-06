@@ -641,17 +641,13 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 			}
 		}
 
-		// ANGLE bot *only* runs the angle ES3 configs
+		// ANGLE task *only* runs the angle ES3 configs
 		if b.ExtraConfig("ANGLE") {
 			if b.MatchOs("Win") {
 				configs = []string{"angle_d3d11_es3"}
 				if sampleCount > 0 {
 					configs = append(configs, fmt.Sprintf("angle_d3d11_es3_msaa%d", sampleCount))
-					configs = append(configs, fmt.Sprintf("angle_d3d11_es3_dmsaa"))
-				}
-				if b.Model("NUC5i7RYH") {
-					// skbug.com/40038570
-					skip(ALL, "test", ALL, "ProcessorCloneTest")
+					configs = append(configs, "angle_d3d11_es3_dmsaa")
 				}
 				if b.MatchGpu("Intel") {
 					// Debug-ANGLE-All on Intel frequently timeout, and the FilterResult test suite
@@ -660,6 +656,9 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 					// running these if they are the source of long 'dm' time on Xe hardware given
 					// many other tasks are executing them.
 					skip(ALL, "test", ALL, "FilterResult")
+				}
+				if b.MatchGpu("GTX1660", "QuadroP400", "RTX3060") { // all nVidia GPUs
+					skip(ALL, "test", ALL, "SkSLReturnsValueOnEveryPathES3_Ganesh")
 				}
 			} else if b.MatchOs("Mac") {
 				configs = []string{"angle_mtl_es3"}
@@ -1597,12 +1596,7 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 		match = append(match, "~BlurMaskBiggerThanDest")
 	}
 
-	if b.GPU("IntelIris6100") && b.ExtraConfig("ANGLE") && !b.Debug() {
-		// skbug.com/40038570
-		match = append(match, "~^ProcessorOptimizationValidationTest$")
-	}
-
-	if b.GPU("IntelIris6100", "IntelHD4400") && b.ExtraConfig("ANGLE") {
+	if b.GPU("IntelHD4400") && b.ExtraConfig("ANGLE") {
 		// skbug.com/40038077
 		skip("angle_d3d9_es2", "gm", ALL, "lighting")
 	}

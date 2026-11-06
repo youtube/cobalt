@@ -9,6 +9,7 @@
 #include "src/base/platform/time.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/wasm/canonical-types.h"

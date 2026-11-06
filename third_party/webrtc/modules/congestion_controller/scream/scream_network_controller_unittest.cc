@@ -10,6 +10,8 @@
 
 #include "modules/congestion_controller/scream/scream_network_controller.h"
 
+#include <utility>
+
 #include "api/environment/environment.h"
 #include "api/transport/network_control.h"
 #include "api/transport/network_types.h"
@@ -157,6 +159,83 @@ TEST(ScreamControllerTest, TargetRateRampsUptoTargetConstraints) {
       scream_controller.OnTransportPacketsFeedback(feedback);
   ASSERT_TRUE(update.target_rate.has_value());
   EXPECT_EQ(update.target_rate->target_rate, DataRate::KilobitsPerSec(200));
+}
+
+void TestRouteChangeWithoutBweRestart(
+    TimeDelta initial_queue_delay,
+    TimeDelta queue_delay_after_route_change) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  NetworkControllerConfig config(env);
+  config.constraints.starting_rate = DataRate::KilobitsPerSec(100);
+  config.constraints.max_data_rate = DataRate::KilobitsPerSec(3000);
+  ScreamNetworkController scream_controller(config);
+  scream_controller.OnNetworkAvailability(
+      {.at_time = clock.CurrentTime(), .network_available = true});
+
+  CcFeedbackGenerator::Config initial_config;
+  initial_config.network_config.queue_delay_ms = initial_queue_delay.ms();
+  initial_config.network_config.link_capacity = DataRate::KilobitsPerSec(2000);
+  CcFeedbackGenerator feedback_generator(std::move(initial_config));
+
+  DataRate target_rate = DataRate::KilobitsPerSec(100);
+  for (int i = 0; i < 100; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            target_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
+    NetworkControlUpdate update =
+        scream_controller.OnTransportPacketsFeedback(feedback);
+    if (update.target_rate.has_value()) {
+      target_rate = update.target_rate->target_rate;
+    }
+  }
+  EXPECT_GT(target_rate, DataRate::KilobitsPerSec(1500));
+
+  NetworkRouteChange route_change;
+  route_change.at_time = clock.CurrentTime();
+  route_change.restart_bwe = false;
+  route_change.constraints = config.constraints;
+  scream_controller.OnNetworkRouteChange(route_change);
+
+  CcFeedbackGenerator::Config new_config;
+  new_config.network_config.queue_delay_ms =
+      queue_delay_after_route_change.ms();
+  new_config.network_config.link_capacity = DataRate::KilobitsPerSec(2000);
+  CcFeedbackGenerator new_generator(std::move(new_config));
+
+  NetworkControlUpdate update_new_rtt;
+  int target_rate_update_counter = 0;
+  for (int i = 0; i < 20; ++i) {
+    TransportPacketsFeedback feedback_new_rtt =
+        new_generator.ProcessUntilNextFeedback(
+            target_rate, clock, [&](const SentPacket& packet) {
+              scream_controller.OnSentPacket(packet);
+            });
+    update_new_rtt =
+        scream_controller.OnTransportPacketsFeedback(feedback_new_rtt);
+    if (update_new_rtt.target_rate.has_value()) {
+      ++target_rate_update_counter;
+      EXPECT_GT(update_new_rtt.target_rate->target_rate,
+                DataRate::KilobitsPerSec(500));
+    }
+  }
+  ASSERT_GE(target_rate_update_counter, 5);
+}
+
+TEST(ScreamControllerTest,
+     RouteChangeWithoutBweRestartHigherRttDoesNotResetStartingRate) {
+  TestRouteChangeWithoutBweRestart(
+      /*initial_queue_delay=*/TimeDelta::Millis(10),
+      /*queue_delay_after_route_change=*/TimeDelta::Millis(100));
+}
+
+TEST(ScreamControllerTest,
+     RouteChangeWithoutBweRestartLowerRttDoesNotResetStartingRate) {
+  TestRouteChangeWithoutBweRestart(
+      /*initial_queue_delay=*/TimeDelta::Millis(50),
+      /*queue_delay_after_route_change=*/TimeDelta::Millis(10));
 }
 
 TEST(ScreamControllerTest, TargetRateLimitedByRemoteBitrateReport) {

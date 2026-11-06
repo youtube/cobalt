@@ -125,7 +125,6 @@ Si estableces la política con el valor "1" (DisabledForBrowser), se impedirá q
 
 Nota: Obtén más información sobre las políticas de mitigación de procesos (https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies).</translation>
 <translation id="1068801725746725727">Habilitar la recepción de encuestas de Navegación segura</translation>
-<translation id="1069651607236021905">Forzar la prioridad en primer plano para orígenes específicos</translation>
 <translation id="107045325503547419">Depender del proceso de lanzamiento de la función.</translation>
 <translation id="1073983258515362346">Envía información sobre la luz de fondo del dispositivo.
 
@@ -3345,6 +3344,7 @@ Si la inhabilitas o no la estableces, nunca se mostrará el menú de accesibilid
 <translation id="3127816006382989270">Permite el acceso a una lista de URLs en el modo Incógnito.</translation>
 <translation id="3128072319047570212">Configuración de keygen</translation>
 <translation id="3131703464330936425">No permitir el roaming de datos móviles</translation>
+<translation id="3131928857191083710">Configuración del tamaño del grupo de sockets</translation>
 <translation id="3135820765957090754">Si habilitas esta configuración, los usuarios podrán sincronizar los ajustes de la red Wi-Fi entre sus dispositivos con <ph name="PRODUCT_OS_NAME" /> y un teléfono Android conectado. Para poder sincronizar los ajustes de la red Wi-Fi, los usuarios deben habilitar esta función de forma explícita completando un flujo de configuración.
 
       Si inhabilitas esta configuración, los usuarios no podrán sincronizar los ajustes de la red Wi-Fi.
@@ -5502,17 +5502,6 @@ Para obtener información detallada sobre los patrones de URL válidos, consulta
           para los procesos.
           </translation>
 <translation id="4578265298946081589">No reiniciar el sistema cuando el usuario salga de su cuenta</translation>
-<translation id="4580711645933054901">Esta política te permite especificar una lista de patrones de URL. El contenido web en segundo plano que coincida con estos patrones se ejecutará con prioridad de primer plano.
-
-Si habilitas la política <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" />, se ignorará esta lista, ya que todas las pestañas se forzarán a tener prioridad de primer plano.
-
-Si inhabilitas o no estableces <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" />, solo se forzará el contenido que coincida con los patrones de esta lista.
-
-Para obtener información detallada sobre los patrones válidos de <ph name="URL_LABEL" />, consulta https://support.google.com/chrome/a?p=url_blocklist_filter_format.
-
-Esta política solo establece coincidencias basadas en el origen; por lo tanto, se ignoran todas las rutas de acceso o los parámetros de consulta que se incluyan en el patrón. Se admiten esquemas, hosts y puertos.
-
-Si esta lista está vacía o no se establece, no se forzará ningún contenido en segundo plano a la prioridad de primer plano.</translation>
 <translation id="4581507927311097234">El período sin intervención del usuario después del cual se apaga la pantalla (en milisegundos).</translation>
 <translation id="4582027661281685066">Lista de patrones de URL. Las solicitudes iniciadas en sitios web entregados por orígenes coincidentes no están sujetas a verificaciones del <ph name="PRIVATE_NETWORK_ACCESS" />.
 

@@ -381,7 +381,6 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
       case kVoid:
       case kTop:
       case kBottom:
-      case kWaitQueue:
         UNREACHABLE();
     }
   }

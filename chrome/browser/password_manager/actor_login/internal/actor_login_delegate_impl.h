@@ -76,6 +76,11 @@ class ActorLoginDelegateImpl
   void WebContentsDestroyed() override;
   void PrimaryPageChanged(content::Page& page) override;
 
+#if defined(UNIT_TEST)
+  // TODO(crbug.com/508169237): Utilize `WebContentsTester` instead.
+  ActorLoginSiwgController* siwg_controller() { return siwg_controller_.get(); }
+#endif
+
  private:
   friend class content::WebContentsUserData<ActorLoginDelegateImpl>;
 
@@ -99,6 +104,8 @@ class ActorLoginDelegateImpl
   void OnAttemptLoginCompleted(
       base::expected<LoginStatusResult, ActorLoginError> result);
 
+  void OnFederatedLoginCompletedPostButtonClick(bool success);
+
   // Called when `OnAttemptLoginCompleted` is invoked with a result for
   // a federated credential login.
   void ProcessFederatedResult(
@@ -111,8 +118,6 @@ class ActorLoginDelegateImpl
 
   void OnActorTaskStateChanged(actor::ActorTask& task);
 
-  void OnActionSequenceEnded(bool success);
-
   bool ShouldCleanUpConflictingPermissions(
       const password_manager::PasswordForm& form) const;
 
@@ -120,7 +125,7 @@ class ActorLoginDelegateImpl
   // If the login attempt was performed with a password credential,
   // `signon_realm`, is used to identify it, so that we don't clean the
   // permission granted after disambiguation.
-  void ClearConflictingPermissions(std::optional<std::string> signon_realm);
+  void ClearConflictingPermissions();
 
   // Reset any pending state from a previous invocation. Most fields are reset
   // when the corresponding request finishes, or the login succeeds or failed.
@@ -139,7 +144,6 @@ class ActorLoginDelegateImpl
   LoginStatusResultOrErrorReply pending_attempt_login_done_callback_;
 
   base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate_;
-  base::CallbackListSubscription action_sequence_subscription_;
 
   // Helper for `GetCredentials`. Scoped to one `GetCredentials` request.
   std::unique_ptr<ActorLoginGetCredentialsHelper> get_credentials_helper_;

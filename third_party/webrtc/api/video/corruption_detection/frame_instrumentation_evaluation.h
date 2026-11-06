@@ -46,6 +46,7 @@ class FrameInstrumentationEvaluation {
   virtual void OnInstrumentedFrame(FrameInstrumentationData data,
                                    const VideoFrame& frame,
                                    VideoContentType frame_type) = 0;
+  virtual void OnSkippedInstrumentedFrame(FrameInstrumentationData data) = 0;
 
  protected:
   FrameInstrumentationEvaluation() = default;

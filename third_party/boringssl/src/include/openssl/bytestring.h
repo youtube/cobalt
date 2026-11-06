@@ -161,6 +161,20 @@ OPENSSL_EXPORT int CBS_get_u24_length_prefixed(CBS *cbs, CBS *out);
 // one. Otherwise, it returns zero and leaves |cbs| unmodified.
 OPENSSL_EXPORT int CBS_get_until_first(CBS *cbs, CBS *out, uint8_t c);
 
+// CBS_get_until_first_of finds the first byte in |cbs| matching one of the
+// characters in |chars|, which is a NUL-terminated C string. If found, it sets
+// |*out| to the text before the match, advances |cbs| over it, and returns one.
+// Otherwise, it returns zero and leaves |cbs| unmodified.
+OPENSSL_EXPORT int CBS_get_until_first_of(CBS *cbs, CBS *out,
+                                          const char *chars);
+
+// CBS_get_until_first_not_of finds the first byte in |cbs| that does not match
+// any of the characters in |chars|, which is a NUL-terminated C string. If
+// found, it sets |*out| to the text before the match, advances |cbs| over it,
+// and returns one. Otherwise, it returns zero and leaves |cbs| unmodified.
+OPENSSL_EXPORT int CBS_get_until_first_not_of(CBS *cbs, CBS *out,
+                                              const char *chars);
+
 // CBS_get_u64_decimal reads a decimal integer from |cbs| and writes it to
 // |*out|. It stops reading at the end of the string, or the first non-digit
 // character. It returns one on success and zero on error. This function behaves

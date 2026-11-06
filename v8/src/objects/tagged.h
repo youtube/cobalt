@@ -184,20 +184,10 @@ using StrongTaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 using WeakTaggedBase = TaggedImpl<HeapObjectReferenceType::WEAK, Address>;
 
 // Types which provide both a legacy Foo as well as a new-style FooLayout class.
-#define LAYOUT_TYPES(V) \
-  V(HeapObject)         \
-  V(JSReceiver)
+#define LAYOUT_TYPES(V) V(HeapObject)
 
 // Forward declarations for is_subtype.
 class Struct;
-class JSReceiverLayout;
-class JSReceiver;
-class JSObject;
-class JSObjectWithEmbedderSlots;
-class JSAPIObjectWithEmbedderSlots;
-class JSCustomElementsObject;
-class JSSpecialObject;
-class JSFunctionOrBoundFunctionOrWrappedFunction;
 class FixedArrayBase;
 class FixedArray;
 class FixedDoubleArray;
@@ -321,8 +311,8 @@ consteval bool is_subtype_helper() {
     // FixedArrayBase Hierarchy Collapse
     return is_same_v<D, FixedArray> || is_same_v<D, FixedDoubleArray> ||
            is_same_v<D, ByteArray> || is_same_v<D, NameDictionary> ||
-           is_same_v<D, NumberDictionary> || is_same_v<D, OrderedHashMap> ||
-           is_same_v<D, OrderedHashSet> ||
+           is_same_v<D, NumberDictionary> || is_same_v<D, GlobalDictionary> ||
+           is_same_v<D, OrderedHashMap> || is_same_v<D, OrderedHashSet> ||
            is_same_v<D, OrderedNameDictionary> ||
            is_same_v<D, ScriptContextTable> || is_same_v<D, ArrayList> ||
            is_same_v<D, SloppyArgumentsElements>;
@@ -335,163 +325,6 @@ consteval bool is_subtype_helper() {
     return is_base_of_v<Base, Derived>;
   }
 }
-}  // namespace detail
-
-namespace detail {
-template <typename Derived, typename Base, typename Enabled = void>
-struct is_simple_subtype;
-template <typename Derived, typename Base, typename Enabled = void>
-struct is_complex_subtype;
-}  // namespace detail
-
-namespace detail {
-// `is_simple_subtype<Derived, Base>::value` is true when Derived is a simple
-// subtype of Base according to our object hierarchy, in a way that doesn't
-// require object definitions (in particular, we don't need to known anything
-// about C++ base classes). False, in this case, doesn't mean "not a subtype",
-// it just means "not a _simple_ subtype".
-template <typename Derived, typename Base, typename Enabled>
-struct is_simple_subtype : public std::false_type {};
-template <typename Derived, typename Base>
-static constexpr bool is_simple_subtype_v =
-    is_simple_subtype<Derived, Base>::value;
-
-template <typename T>
-struct is_simple_subtype<T, T> : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<Smi, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<TaggedIndex, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<FieldType, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<HeapObject, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<HeapObjectLayout, Object> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<T, Weak<T>> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<Weak<T>, Weak<T>> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<ClearedWeakValue, Weak<T>> : public std::true_type {};
-
-// Special case to match Torque's idea of Object/MaybeObject against the C++
-// one.
-// TODO(leszeks): Clean up what types torque and C++ consider to be unions of
-// other types.
-template <>
-struct is_simple_subtype<MaybeObject, Union<Smi, HeapObject, Weak<HeapObject>>>
-    : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Union<Smi, HeapObject>>
-    : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Union<Smi, HeapObject, Weak<HeapObject>>>
-    : public std::true_type {};
-// Torque reorders some types in the Union, so include this ordering explicitly.
-template <>
-struct is_simple_subtype<Object, Union<HeapObject, Smi, Weak<HeapObject>>>
-    : public std::true_type {};
-
-// Specializations of is_simple_subtype for Union, which allows for trivial
-// subtype checks of Unions without recursing into the full is_subtype trait,
-// which might require object definitions.
-//
-// A couple of redundant looking specializations are necessary to disambiguate
-// specializations when there are two Unions.
-template <typename Derived, typename... BaseTs>
-struct is_simple_subtype<Derived, Union<BaseTs...>>
-    : public std::disjunction<is_simple_subtype<Derived, BaseTs>...> {};
-template <typename... DerivedTs, typename Base>
-struct is_simple_subtype<Union<DerivedTs...>, Base>
-    : public std::conjunction<is_simple_subtype<DerivedTs, Base>...> {};
-template <typename... DerivedTs, typename... BaseTs>
-struct is_simple_subtype<Union<DerivedTs...>, Union<BaseTs...>>
-    : public std::conjunction<
-          is_simple_subtype<DerivedTs, Union<BaseTs...>>...> {};
-template <typename... Ts>
-struct is_simple_subtype<Union<Ts...>, Union<Ts...>> : public std::true_type {};
-
-// Field type is a de-facto union so check it like one.
-template <typename T>
-struct is_simple_subtype<FieldType, T>
-    : public is_simple_subtype<Union<Smi, HeapObject>, T> {};
-template <>
-struct is_simple_subtype<FieldType, FieldType> : public std::true_type {};
-
-// TODO(jgruber): Clean up this artificial FixedArrayBase hierarchy. Only types
-// that can be used as elements should be in it.
-// TODO(jgruber): Replace FixedArrayBase with a union type, once they exist.
-#define DEF_FIXED_ARRAY_SUBTYPE(Subtype)                                      \
-  template <>                                                                 \
-  struct is_simple_subtype<Subtype, FixedArrayBase> : public std::true_type { \
-  };
-DEF_FIXED_ARRAY_SUBTYPE(FixedArray)
-DEF_FIXED_ARRAY_SUBTYPE(FixedDoubleArray)
-DEF_FIXED_ARRAY_SUBTYPE(ByteArray)
-DEF_FIXED_ARRAY_SUBTYPE(NameDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(NumberDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedHashMap)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedHashSet)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedNameDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(ScriptContextTable)
-DEF_FIXED_ARRAY_SUBTYPE(ArrayList)
-DEF_FIXED_ARRAY_SUBTYPE(SloppyArgumentsElements)
-#undef DEF_FIXED_ARRAY_SUBTYPE
-
-// `is_complex_subtype<Derived, Base>::value` is true when Derived is a
-// non-simple subtype of Base according to our object hierarchy, in a way that
-// might require object definitions or recursion into is_subtype (in particular,
-// we do need to know about C++ base classes).
-//
-// This doesn't check the simple cases, so should not be used directly, but
-// only via is_subtype.
-template <typename Derived, typename Base, typename Enabled>
-struct is_complex_subtype : public std::is_base_of<Base, Derived> {};
-template <typename Derived, typename Base>
-static constexpr bool is_complex_subtype_v =
-    is_complex_subtype<Derived, Base>::value;
-
-template <typename Derived>
-struct is_complex_subtype<
-    Derived, Object,
-    std::enable_if_t<std::conjunction_v<std::negation<is_union<Derived>>,
-                                        is_subtype<Derived, HeapObject>>>>
-    : public std::true_type {};
-template <typename Derived>
-struct is_complex_subtype<Derived, HeapObject,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<HeapObject, Derived>,
-                              std::is_base_of<HeapObjectLayout, Derived>>>>
-    : public std::true_type {};
-
-class JSReceiverLayout;
-template <typename Derived>
-struct is_complex_subtype<Derived, JSReceiver,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<JSReceiver, Derived>,
-                              std::is_base_of<JSReceiverLayout, Derived>>>>
-    : public std::true_type {};
-
-template <typename Derived, typename... BaseTs>
-struct is_complex_subtype<Derived, Union<BaseTs...>>
-    : public std::disjunction<is_subtype<Derived, BaseTs>...> {};
-template <typename... DerivedTs, typename Base>
-struct is_complex_subtype<Union<DerivedTs...>, Base>
-    : public std::conjunction<is_subtype<DerivedTs, Base>...> {};
-template <typename... DerivedTs, typename... BaseTs>
-struct is_complex_subtype<Union<DerivedTs...>, Union<BaseTs...>>
-    : public std::conjunction<is_subtype<DerivedTs, Union<BaseTs...>>...> {};
-template <typename Derived, typename Base>
-struct is_complex_subtype<
-    Derived, Weak<Base>,
-    std::enable_if_t<!is_union_v<Derived> && !is_weak_v<Derived>>>
-    : public is_subtype<Derived, Base> {};
-template <typename Derived, typename Base>
-struct is_complex_subtype<Weak<Derived>, Weak<Base>>
-    : public is_subtype<Derived, Base> {};
 }  // namespace detail
 
 static_assert(is_subtype_v<Smi, Object>);

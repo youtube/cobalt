@@ -9,7 +9,6 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -499,8 +498,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   EXPECT_EQ(observer.value_changed_count(), 2);
 
   edit_model()->SetPopupSelection(OmniboxPopupSelection(1));
-  EXPECT_EQ(observer.selected_children_changed_count(), 2);
-  EXPECT_EQ(observer.selection_changed_count(), 2);
+  EXPECT_EQ(observer.selected_children_changed_count(), 3);
+  EXPECT_EQ(observer.selection_changed_count(), 3);
   EXPECT_EQ(observer.active_descendant_changed_count(), 2);
   EXPECT_EQ(observer.value_changed_count(), 3);
   EXPECT_TRUE(contains(observer.omnibox_value(), "2 of 3"));
@@ -519,8 +518,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   EXPECT_TRUE(contains(ax_name, "location from history"));
 
   edit_model()->SetPopupSelection(OmniboxPopupSelection(2));
-  EXPECT_EQ(observer.selected_children_changed_count(), 3);
-  EXPECT_EQ(observer.selection_changed_count(), 3);
+  EXPECT_EQ(observer.selected_children_changed_count(), 5);
+  EXPECT_EQ(observer.selection_changed_count(), 5);
   EXPECT_EQ(observer.active_descendant_changed_count(), 3);
   EXPECT_EQ(observer.value_changed_count(), 4);
   EXPECT_TRUE(contains(observer.omnibox_value(), "3 of 3"));
@@ -637,8 +636,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   popup_view()->UpdatePopupAppearance();
 
   edit_model()->SetPopupSelection(OmniboxPopupSelection(1));
-  EXPECT_EQ(observer.selected_children_changed_count(), 2);
-  EXPECT_EQ(observer.selection_changed_count(), 2);
+  EXPECT_EQ(observer.selected_children_changed_count(), 3);
+  EXPECT_EQ(observer.selection_changed_count(), 3);
   EXPECT_EQ(observer.active_descendant_changed_count(), 2);
   EXPECT_EQ(observer.value_changed_count(), 2);
   EXPECT_TRUE(contains(observer.omnibox_value(), "The Foo Of All Bars"));
@@ -658,8 +657,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   edit_model()->SetPopupSelection(
       OmniboxPopupSelection(1, OmniboxPopupSelection::FOCUSED_BUTTON_ACTION));
   EXPECT_TRUE(contains(observer.omnibox_value(), "Tab switch button"));
-  EXPECT_EQ(observer.selected_children_changed_count(), 3);
-  EXPECT_EQ(observer.selection_changed_count(), 3);
+  EXPECT_EQ(observer.selected_children_changed_count(), 6);
+  EXPECT_EQ(observer.selection_changed_count(), 5);
   EXPECT_EQ(observer.value_changed_count(), 3);
   EXPECT_TRUE(contains(observer.omnibox_value(), "press Enter to switch"));
   EXPECT_FALSE(contains(observer.omnibox_value(), "2 of 2"));
@@ -675,8 +674,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   edit_model()->SetPopupSelection(
       OmniboxPopupSelection(1, OmniboxPopupSelection::NORMAL));
   EXPECT_TRUE(contains(observer.omnibox_value(), "The Foo Of All Bars"));
-  EXPECT_EQ(observer.selected_children_changed_count(), 4);
-  EXPECT_EQ(observer.selection_changed_count(), 4);
+  EXPECT_EQ(observer.selected_children_changed_count(), 8);
+  EXPECT_EQ(observer.selection_changed_count(), 7);
   EXPECT_EQ(observer.value_changed_count(), 4);
   EXPECT_TRUE(contains(observer.omnibox_value(), "press Tab then Enter"));
   EXPECT_TRUE(contains(observer.omnibox_value(), "2 of 2"));
@@ -734,15 +733,15 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
 
   // This is equivalent of the user arrowing down in the omnibox.
   edit_model()->SetPopupSelection(OmniboxPopupSelection(1));
-  EXPECT_EQ(observer.selected_children_changed_count(), 1);
-  EXPECT_EQ(observer.selection_changed_count(), 1);
+  EXPECT_EQ(observer.selected_children_changed_count(), 2);
+  EXPECT_EQ(observer.selection_changed_count(), 2);
   EXPECT_EQ(observer.value_changed_count(), 1);
   EXPECT_EQ(observer.active_descendant_changed_count(), 1);
 
   // This is equivalent of the user arrowing up in the omnibox.
   edit_model()->SetPopupSelection(OmniboxPopupSelection(0));
-  EXPECT_EQ(observer.selected_children_changed_count(), 2);
-  EXPECT_EQ(observer.selection_changed_count(), 2);
+  EXPECT_EQ(observer.selected_children_changed_count(), 4);
+  EXPECT_EQ(observer.selection_changed_count(), 4);
   EXPECT_EQ(observer.value_changed_count(), 2);
   EXPECT_EQ(observer.active_descendant_changed_count(), 2);
 
@@ -942,7 +941,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
 }
 
 IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
-                       AccesibilityAttributePopupForId) {
+                       AccessibilityAttributePopupForId) {
   CreatePopupForTestQuery();
   popup_view()->UpdatePopupAppearance();
   edit_model()->SetPopupSelection(OmniboxPopupSelection(0));

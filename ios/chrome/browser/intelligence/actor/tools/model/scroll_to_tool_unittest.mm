@@ -13,7 +13,7 @@
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/scroll_tool_java_script_feature.h"
-#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -47,23 +47,21 @@ TEST_F(ScrollToToolTest, Create_MissingTabId) {
   optimization_guide::proto::Action action;
   action.mutable_scroll_to()->mutable_target()->set_content_node_id(123);
 
-  base::expected<std::unique_ptr<ScrollToTool>, ActorToolError> result =
+  base::expected<std::unique_ptr<ScrollToTool>, ToolExecutionResult> result =
       ScrollToTool::Create(action.scroll_to(), profile_.get());
 
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kCreationMissingRequiredFields,
-            result.error().code);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 TEST_F(ScrollToToolTest, Create_NoWebStateForTabId) {
   optimization_guide::proto::Action action;
   action.mutable_scroll_to()->set_tab_id(1);
 
-  base::expected<std::unique_ptr<ScrollToTool>, ActorToolError> result =
+  base::expected<std::unique_ptr<ScrollToTool>, ToolExecutionResult> result =
       ScrollToTool::Create(action.scroll_to(), profile_.get());
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kCreationTargetTabNotFound,
-            result.error().code);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kTabWentAway);
 }
 
 TEST_F(ScrollToToolTest, Create_MissingTarget) {
@@ -77,12 +75,57 @@ TEST_F(ScrollToToolTest, Create_MissingTarget) {
 
   action.mutable_scroll_to()->set_tab_id(tab_id);
 
-  base::expected<std::unique_ptr<ScrollToTool>, ActorToolError> result =
+  base::expected<std::unique_ptr<ScrollToTool>, ToolExecutionResult> result =
       ScrollToTool::Create(action.scroll_to(), profile_.get());
 
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kCreationMissingRequiredFields,
-            result.error().code);
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
+}
+
+TEST_F(ScrollToToolTest, Create_NodeIdWithoutDocumentIdentifier_Invalid) {
+  optimization_guide::proto::Action action;
+  auto web_state = std::make_unique<web::FakeWebState>();
+  web_state->SetBrowserState(profile_.get());
+  int tab_id = web_state->GetUniqueIdentifier().identifier();
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  action.mutable_scroll_to()->set_tab_id(tab_id);
+
+  auto* target = action.mutable_scroll_to()->mutable_target();
+  target->set_content_node_id(123);
+  // Omit document_identifier
+
+  base::expected<std::unique_ptr<ScrollToTool>, ToolExecutionResult> result =
+      ScrollToTool::Create(action.scroll_to(), profile_.get());
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
+}
+
+TEST_F(ScrollToToolTest, Create_BothTargetingTypes_Invalid) {
+  optimization_guide::proto::Action action;
+  auto web_state = std::make_unique<web::FakeWebState>();
+  web_state->SetBrowserState(profile_.get());
+  int tab_id = web_state->GetUniqueIdentifier().identifier();
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  action.mutable_scroll_to()->set_tab_id(tab_id);
+
+  auto* target = action.mutable_scroll_to()->mutable_target();
+  target->mutable_coordinate()->set_x(50);
+  target->mutable_coordinate()->set_y(50);
+  target->set_content_node_id(123);
+  target->mutable_document_identifier()->set_serialized_token("dummy");
+
+  base::expected<std::unique_ptr<ScrollToTool>, ToolExecutionResult> result =
+      ScrollToTool::Create(action.scroll_to(), profile_.get());
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().code(), mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 TEST_F(ScrollToToolTest, Execute_WebStateDestroyed_ReturnsError) {
@@ -110,9 +153,8 @@ TEST_F(ScrollToToolTest, Execute_WebStateDestroyed_ReturnsError) {
   tool->Execute(future.GetCallback());
 
   ToolExecutionResult result = future.Get();
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kExecutionMissingDependencies,
-            result.error().code);
+  EXPECT_FALSE(result.IsOk());
+  EXPECT_EQ(result.code(), mojom::ActionResultCode::kTabWentAway);
 }
 
 TEST_F(ScrollToToolTest, Execute_NoWebFramesManager_ReturnsError) {
@@ -142,9 +184,8 @@ TEST_F(ScrollToToolTest, Execute_NoWebFramesManager_ReturnsError) {
   tool->Execute(future.GetCallback());
 
   ToolExecutionResult result = future.Get();
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kExecutionMissingDependencies,
-            result.error().code);
+  EXPECT_FALSE(result.IsOk());
+  EXPECT_EQ(result.code(), mojom::ActionResultCode::kFrameWentAway);
 }
 
 TEST_F(ScrollToToolTest, Execute_NoMainFrame_ReturnsError) {
@@ -183,9 +224,8 @@ TEST_F(ScrollToToolTest, Execute_NoMainFrame_ReturnsError) {
   tool->Execute(future.GetCallback());
 
   ToolExecutionResult result = future.Get();
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(ActorToolErrorCode::kExecutionMissingDependencies,
-            result.error().code);
+  EXPECT_FALSE(result.IsOk());
+  EXPECT_EQ(result.code(), mojom::ActionResultCode::kFrameWentAway);
 }
 
 }  // namespace actor

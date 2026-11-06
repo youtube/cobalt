@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -305,12 +306,10 @@ TEST_F(TCPPortTest, SignalSentPacket) {
 
   SentPacketCounter client_counter(client.get());
   SentPacketCounter server_counter(server.get());
-  static const char kData[] = "hello";
+  static constexpr uint8_t kData[] = {'h', 'e', 'l', 'l', 'o', '\0'};
   for (int i = 0; i < 10; ++i) {
-    client_conn->Send(&kData, sizeof(kData),
-                      webrtc::AsyncSocketPacketOptions());
-    server_conn->Send(&kData, sizeof(kData),
-                      webrtc::AsyncSocketPacketOptions());
+    client_conn->Send(kData, webrtc::AsyncSocketPacketOptions());
+    server_conn->Send(kData, webrtc::AsyncSocketPacketOptions());
   }
   EXPECT_THAT(
       webrtc::WaitUntil([&] { return client_counter.sent_packets(); }, Eq(10),
@@ -363,9 +362,8 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
       webrtc::IsRtcOk());
 
   SentPacketCounter client_counter(client.get());
-  static const char kData[] = "hello";
-  int result = client_conn->Send(&kData, sizeof(kData),
-                                 webrtc::AsyncSocketPacketOptions());
+  static constexpr uint8_t kData[] = {'h', 'e', 'l', 'l', 'o', '\0'};
+  int result = client_conn->Send(kData, webrtc::AsyncSocketPacketOptions());
   EXPECT_EQ(result, 6);
 
   // Deleting the server port should break the current connection.
@@ -383,8 +381,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
 
   // Sending a packet from the client will trigger a reconnect attempt but the
   // packet will be discarded.
-  result = client_conn->Send(&kData, sizeof(kData),
-                             webrtc::AsyncSocketPacketOptions());
+  result = client_conn->Send(kData, webrtc::AsyncSocketPacketOptions());
   EXPECT_EQ(result, SOCKET_ERROR);
   ASSERT_THAT(
       webrtc::WaitUntil([&] { return client_conn->connected(); }, IsTrue(),
@@ -394,8 +391,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
   EXPECT_TRUE(client_conn->writable());
   for (int i = 0; i < 10; ++i) {
     // All sent packets still fail to send.
-    EXPECT_EQ(client_conn->Send(&kData, sizeof(kData),
-                                webrtc::AsyncSocketPacketOptions()),
+    EXPECT_EQ(client_conn->Send(kData, webrtc::AsyncSocketPacketOptions()),
               SOCKET_ERROR);
   }
   // And are not reported as sent.
@@ -436,9 +432,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
   // After the Stun Ping response has been received, packets can be sent again
   // and SignalSentPacket should be invoked.
   for (int i = 0; i < 5; ++i) {
-    EXPECT_EQ(client_conn->Send(&kData, sizeof(kData),
-                                webrtc::AsyncSocketPacketOptions()),
-              6);
+    EXPECT_EQ(client_conn->Send(kData, webrtc::AsyncSocketPacketOptions()), 6);
   }
   EXPECT_THAT(webrtc::WaitUntil(
                   [&] { return client_counter.sent_packets(); }, Eq(2 + 5),

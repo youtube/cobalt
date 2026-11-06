@@ -22,6 +22,8 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -29,6 +31,7 @@
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/wasm/wasm-disassembler.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -1346,6 +1349,16 @@ PostponeInterruptsScope::PostponeInterruptsScope(v8::Isolate* isolate)
                                          i::StackGuard::API_INTERRUPT)) {}
 
 PostponeInterruptsScope::~PostponeInterruptsScope() = default;
+
+DisallowGarbageCollectionScope::DisallowGarbageCollectionScope() {
+  new (internal_) i::DisallowGarbageCollectionInRelease();
+}
+
+DisallowGarbageCollectionScope::~DisallowGarbageCollectionScope() {
+  using i::DisallowGarbageCollectionInRelease;
+  reinterpret_cast<DisallowGarbageCollectionInRelease*>(internal_)
+      ->~DisallowGarbageCollectionInRelease();
+}
 
 DisableBreakScope::DisableBreakScope(v8::Isolate* isolate)
     : scope_(std::make_unique<i::DisableBreak>(

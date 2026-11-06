@@ -325,11 +325,10 @@ Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
-                                                     Tagged<HeapObject> object,
-                                                     int32_t offset,
-                                                     int32_t expected_value,
-                                                     int64_t rel_timeout_ns) {
+Tagged<Object> FutexEmulation::WaitWasmManagedObject(
+    Isolate* isolate, Tagged<HeapObject> object, int32_t offset,
+    Tagged<Managed<FutexManagedObjectWaitList>> waitqueue,
+    int32_t expected_value, int64_t rel_timeout_ns) {
   VMState<ATOMICS_WAIT> state(isolate);
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
@@ -344,11 +343,7 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
     timeout_time = current_time + rel_timeout;
   }
 
-  // TODO(manoskouk): Do we need an atomic load here?
-  Tagged<Managed<FutexManagedObjectWaitList>> managed =
-      Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
-          object, offset + wasm::kWaitQueueManagedOffset));
-  Managed<FutexManagedObjectWaitList>::Ptr wait_list = managed->ptr();
+  Managed<FutexManagedObjectWaitList>::Ptr wait_list = waitqueue->ptr();
   NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
 
   int32_t loaded_control_value =
@@ -752,16 +747,12 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-int FutexEmulation::Wake(Address raw_object, int32_t offset,
-                         uint32_t num_waiters_to_wake) {
+int FutexEmulation::Wake(Address raw_waitqueue, uint32_t num_waiters_to_wake) {
   DisallowGarbageCollection no_gc;
   int num_waiters_woken = 0;
 
-  // TODO(manoskouk): Do we need an atomic load here?
-  Tagged<Managed<FutexManagedObjectWaitList>> managed =
-      Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
-          Cast<HeapObject>(Tagged<Object>(raw_object)),
-          offset + wasm::kWaitQueueManagedOffset));
+  auto managed =
+      Cast<Managed<FutexManagedObjectWaitList>>(Tagged<Object>(raw_waitqueue));
   Managed<FutexManagedObjectWaitList>::Ptr wait_list = managed->ptr();
 
   NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());

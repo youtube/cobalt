@@ -653,6 +653,31 @@ Factory::NewTurbofanOtherNumberConstantType(double constant,
   return result;
 }
 
+Handle<OnHeapBasicBlockProfilerData> Factory::NewOnHeapBasicBlockProfilerData(
+    DirectHandle<FixedInt32Array> block_ids,
+    DirectHandle<FixedUInt32Array> counts,
+    DirectHandle<PodArray<std::pair<int32_t, int32_t>>> branches,
+    DirectHandle<String> name, DirectHandle<String> schedule,
+    DirectHandle<String> code, int hash, AllocationType allocation) {
+  Handle<OnHeapBasicBlockProfilerData> result(
+      Cast<OnHeapBasicBlockProfilerData>(AllocateRawWithImmortalMap(
+          sizeof(OnHeapBasicBlockProfilerData), allocation,
+          *on_heap_basic_block_profiler_data_map())),
+      isolate());
+  DisallowGarbageCollection no_gc;
+  WriteBarrierMode mode = allocation == AllocationType::kYoung
+                              ? SKIP_WRITE_BARRIER
+                              : UPDATE_WRITE_BARRIER;
+  result->set_block_ids(*block_ids, mode);
+  result->set_counts(*counts, mode);
+  result->set_branches(*branches, mode);
+  result->set_name(*name, mode);
+  result->set_schedule(*schedule, mode);
+  result->set_code(*code, mode);
+  result->set_hash(Smi::FromInt(hash));
+  return result;
+}
+
 DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);
@@ -1615,7 +1640,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   // The native context does not exist yet, so create the map as contextless
   // for now.
   DirectHandle<Map> contextful_meta_map =
-      NewContextlessMap(MAP_TYPE, Map::kSize);
+      NewContextlessMap(MAP_TYPE, kVariableSizeSentinel);
   contextful_meta_map->set_map(isolate(), *contextful_meta_map);
 
   DirectHandle<Map> context_map = NewMapWithMetaMap(
@@ -2653,8 +2678,8 @@ Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
 
 template <typename MetaMapProviderFunc>
 Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
-                                InstanceType type, int instance_size,
-                                ElementsKind elements_kind,
+                                int map_size, InstanceType type,
+                                int instance_size, ElementsKind elements_kind,
                                 int inobject_properties,
                                 AllocationType allocation_type) {
   static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
@@ -2668,7 +2693,7 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
          allocation_type == AllocationType::kSharedMap);
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-          Map::kSize, allocation_type);
+          map_size, allocation_type);
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate());
   result->set_map_after_allocation(isolate(), meta_map_provider());
@@ -2743,8 +2768,9 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
 }
 
 Handle<Map> Factory::NewMap(DirectHandle<HeapObject> meta_map_holder,
-                            InstanceType type, int instance_size,
-                            ElementsKind elements_kind, int inobject_properties,
+                            int map_size, InstanceType instance_type,
+                            int instance_size, ElementsKind elements_kind,
+                            int inobject_properties,
                             AllocationType allocation_type) {
   auto meta_map_provider = [meta_map_holder] {
     // Tie new map to the same native context as given |meta_map_holder| object.
@@ -2753,13 +2779,13 @@ Handle<Map> Factory::NewMap(DirectHandle<HeapObject> meta_map_holder,
     return meta_map;
   };
   Handle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, map_size, instance_type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
   return map;
 }
 
 DirectHandle<Map> Factory::NewMapWithMetaMap(DirectHandle<Map> meta_map,
-                                             InstanceType type,
+                                             int map_size, InstanceType type,
                                              int instance_size,
                                              ElementsKind elements_kind,
                                              int inobject_properties,
@@ -2770,8 +2796,27 @@ DirectHandle<Map> Factory::NewMapWithMetaMap(DirectHandle<Map> meta_map,
     return *meta_map;
   };
   DirectHandle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, map_size, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
+  return map;
+}
+
+DirectHandle<ExtendedMap> Factory::NewExtendedMapWithMetaMap(
+    DirectHandle<Map> meta_map, ExtendedMapKind kind, InstanceType type,
+    int instance_size, ElementsKind elements_kind, int inobject_properties,
+    AllocationType allocation_type) {
+  DCHECK_EQ(*meta_map, meta_map->map());
+  int map_size = ExtendedMapSizeForKind(kind);
+  DCHECK_GE(map_size, ExtendedMap::kMinimumSize);
+  auto meta_map_provider = [meta_map] {
+    // Use given meta map.
+    return *meta_map;
+  };
+  DirectHandle<ExtendedMap> map = UncheckedCast<ExtendedMap>(
+      NewMapImpl(meta_map_provider, map_size, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type));
+  map->set_is_extended_map(true);
+  map->set_map_kind_and_size(kind, map_size);
   return map;
 }
 
@@ -2788,8 +2833,8 @@ DirectHandle<Map> Factory::NewContextfulMap(
     return meta_map;
   };
   DirectHandle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, Map::kSize, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
   return map;
 }
 
@@ -2807,8 +2852,8 @@ DirectHandle<Map> Factory::NewContextfulMap(
     return native_context->meta_map();
   };
   DirectHandle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, Map::kSize, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
   return map;
 }
 
@@ -2822,8 +2867,8 @@ Handle<Map> Factory::NewContextfulMapForCurrentContext(
     return isolate()->raw_native_context()->meta_map();
   };
   Handle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, Map::kSize, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
   return map;
 }
 
@@ -2841,8 +2886,8 @@ Handle<Map> Factory::NewContextlessMap(InstanceType type, int instance_size,
     return ReadOnlyRoots(isolate()).meta_map();
   };
   Handle<Map> map =
-      NewMapImpl(meta_map_provider, type, instance_size, elements_kind,
-                 inobject_properties, allocation_type);
+      NewMapImpl(meta_map_provider, Map::kSize, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type);
   return map;
 }
 
@@ -2942,7 +2987,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       DirectHandle<PropertyArray> prop =
           CopyArrayWithMap(direct_handle(properties, isolate()),
                            direct_handle(properties->map(), isolate()));
-      clone->set_raw_properties_or_hash(*prop, kRelaxedStore);
+      clone->set_raw_properties_or_hash(
+          UncheckedCast<JSReceiver::PropertiesOrHash>(*prop), kRelaxedStore);
     }
   } else {
     DirectHandle<Object> copied_properties;
@@ -2954,7 +3000,9 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       copied_properties =
           CopyFixedArray(handle(source->property_dictionary(), isolate()));
     }
-    clone->set_raw_properties_or_hash(*copied_properties, kRelaxedStore);
+    clone->set_raw_properties_or_hash(
+        UncheckedCast<JSReceiver::PropertiesOrHash>(*copied_properties),
+        kRelaxedStore);
   }
   return clone;
 }
@@ -3475,13 +3523,15 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
 void Factory::InitializeJSObjectFromMap(
     Tagged<Map> map, Tagged<JSObject> obj,
-    std::optional<Tagged<Object>> maybe_properties,
+    std::optional<Tagged<JSReceiver::PropertiesOrHash>> maybe_properties,
     NewJSObjectType new_js_object_type) {
   DisallowGarbageCollection no_gc;
   if (!maybe_properties.has_value()) {
     obj->set_raw_properties_or_hash(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   } else {
-    obj->set_raw_properties_or_hash(maybe_properties.value(), kRelaxedStore);
+    obj->set_raw_properties_or_hash(
+        UncheckedCast<JSReceiver::PropertiesOrHash>(maybe_properties.value()),
+        kRelaxedStore);
   }
   obj->initialize_elements();
   // TODO(1240798): Initialize the object's body using valid initial values
@@ -3571,7 +3621,9 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
   }
   Handle<JSObject> js_object =
       NewJSObjectFromMap(map, allocation, allocation_site, new_js_object_type);
-  js_object->set_raw_properties_or_hash(*object_properties, kRelaxedStore);
+  js_object->set_raw_properties_or_hash(
+      UncheckedCast<JSReceiver::PropertiesOrHash>(*object_properties),
+      kRelaxedStore);
   return js_object;
 }
 
@@ -3593,7 +3645,8 @@ DirectHandle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
   DCHECK(object_map->is_dictionary_map());
   DirectHandle<JSObject> object =
       NewJSObjectFromMap(object_map, AllocationType::kYoung);
-  object->set_raw_properties_or_hash(*properties);
+  object->set_raw_properties_or_hash(
+      UncheckedCast<JSReceiver::PropertiesOrHash>(*properties));
   if (*elements != read_only_roots().empty_fixed_array()) {
     DCHECK(IsNumberDictionary(*elements));
     object_map = JSObject::GetElementsTransitionMap(isolate(), object,
@@ -4284,8 +4337,10 @@ void Factory::ReinitializeJSGlobalProxy(DirectHandle<JSGlobalProxy> object,
   raw->set_map(isolate(), *map, kReleaseStore);
 
   // Reinitialize the object from the constructor map.
-  InitializeJSObjectFromMap(*map, raw, {*raw_properties_or_hash},
-                            NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
+  InitializeJSObjectFromMap(
+      *map, raw,
+      {UncheckedCast<JSReceiver::PropertiesOrHash>(*raw_properties_or_hash)},
+      NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
   // Ensure that the object and constructor belongs to the same native context.
   DCHECK_EQ(object->map()->map(), constructor->map()->map());
 }

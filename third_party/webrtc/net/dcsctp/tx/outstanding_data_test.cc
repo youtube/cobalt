@@ -747,5 +747,30 @@ TEST_F(OutstandingDataTest, NackBetweenAckBlocksDoesNotAccessOutOfBounds) {
                   /*is_in_fast_recovery=*/false);
 }
 
+TEST_F(OutstandingDataTest, HandlesSacksWithOutOfBoundsTsns) {
+  // Send chunks with TSNs 10, 11, 12, 13, 14, 15, 16
+  for (int i = 0; i < 7; ++i) {
+    buf_.Insert(kMessageId, gen_.Ordered({1}, ""), kNow);
+  }
+
+  // This NACKs TSN 11, 13, 15 (1st miss indication)
+  SackChunk::GapAckBlock sack1[] = {{2, 2},   // TSN 12
+                                    {4, 4},   // TSN 14
+                                    {6, 6}};  // TSN 16
+  buf_.HandleSack(unwrapper_.Unwrap(TSN(10)), sack1,
+                  /*is_in_fast_recovery=*/false);
+  EXPECT_EQ(buf_.unacked_items(), 3u);  // 11, 13, 15
+
+  // The gap between block1-end (12) and block2-start (1011) causes
+  // NackBetweenAckBlocks to loop TSN 13..1010, but only TSN 13..16 are valid.
+  SackChunk::GapAckBlock sack2[] = {{1, 1},          // TSN 12
+                                    {1000, 60000}};  // TSN 1011..60011
+
+  buf_.HandleSack(unwrapper_.Unwrap(TSN(11)), sack2,
+                  /*is_in_fast_recovery=*/true);
+  // Packet 11 has been acknowledged.
+  EXPECT_EQ(buf_.unacked_items(), 2u);  // 13, 15
+}
+
 }  // namespace
 }  // namespace dcsctp

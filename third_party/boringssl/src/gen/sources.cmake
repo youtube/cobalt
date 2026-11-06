@@ -413,6 +413,7 @@ set(
   crypto/evp/p_mlkem.cc
   crypto/evp/p_rsa.cc
   crypto/evp/p_x25519.cc
+  crypto/evp/p_xwing.cc
   crypto/evp/pbkdf.cc
   crypto/evp/print.cc
   crypto/evp/scrypt.cc
@@ -903,6 +904,7 @@ set(
   crypto/evp/test/rsa_tests.txt
   crypto/evp/test/scrypt_tests.txt
   crypto/evp/test/x25519_tests.txt
+  crypto/evp/test/xwing_tests.txt
   crypto/fipsmodule/aes/aes_tests.txt
   crypto/fipsmodule/bn/test/exp_tests.txt
   crypto/fipsmodule/bn/test/gcd_tests.txt

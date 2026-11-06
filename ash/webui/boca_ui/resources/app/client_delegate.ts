@@ -139,9 +139,6 @@ export class ClientDelegateFactory {
   private clientDelegateImpl: ClientApiDelegate;
   constructor(pageHandler: PageHandlerRemote) {
     this.clientDelegateImpl = {
-      authenticateWebview: async () => {
-        return (await pageHandler.authenticateWebview()).success;
-      },
       getWindowsTabsList: async () => {
         const result = await pageHandler.getWindowsTabsList();
         return result.windowList.map((window: Window) => {
@@ -340,9 +337,6 @@ export class ClientDelegateFactory {
         return (await pageHandler.setSitePermission(
                     url, permission.valueOf(), setting.valueOf()))
             .success;
-      },
-      closeTab: async (tabId: number) => {
-        return (await pageHandler.closeTab(tabId)).success;
       },
       openFeedbackDialog: async () => {
         await pageHandler.openFeedbackDialog();

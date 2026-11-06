@@ -3234,18 +3234,15 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // that its new location is not in any of the remembered sets.
   Address new_header_end = new_start + 2 * kTaggedSize;
   if (clear_recorded_slots == ClearRecordedSlots::kYes) {
-    MutablePage* page = MutablePage::FromHeapObject(isolate(), object);
 #if DEBUG
     // Left trimming cannot happen during incremental marking
+    MutablePage* page = MutablePage::FromHeapObject(isolate(), object);
+    CHECK_NULL(page->slot_set<OLD_TO_OLD>());
     RememberedSet<OLD_TO_OLD>::CheckNoneInRange(page, new_start,
                                                 new_header_end);
 #endif  // DEBUG
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, new_start, new_header_end,
-                                           SlotSet::KEEP_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
-        page, new_start, new_header_end, SlotSet::KEEP_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_SHARED>::RemoveRange(page, new_start, new_header_end,
-                                              SlotSet::KEEP_EMPTY_BUCKETS);
+    ClearRecordedSlotRange(new_start, new_header_end,
+                           SlotClearingMode::kUnconditional);
   } else {
     VerifyNoNeedToClearSlots(new_start, new_header_end);
   }
@@ -6717,7 +6714,8 @@ void Heap::VerifySkippedIndirectWriteBarrier(Address object) {
 #endif  // V8_VERIFY_WRITE_BARRIERS
 }
 
-void Heap::ClearRecordedSlotRange(Address start, Address end) {
+void Heap::ClearRecordedSlotRange(Address start, Address end,
+                                  SlotClearingMode mode) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
   DCHECK(!chunk->IsLargePage());
@@ -6732,7 +6730,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
            page->owner_identity() == TRUSTED_SPACE ||
            page->owner_identity() == SHARED_SPACE);
 
-    if (!page->SweepingDone()) {
+    if (mode == SlotClearingMode::kUnconditional || !page->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(

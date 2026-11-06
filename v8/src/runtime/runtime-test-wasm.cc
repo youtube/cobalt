@@ -13,6 +13,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/trap-handler/trap-handler.h"

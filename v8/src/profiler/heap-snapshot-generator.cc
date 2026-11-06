@@ -26,21 +26,21 @@
 #include "src/objects/cell-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/instance-type.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/js-objects.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/objects/map.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
@@ -56,7 +56,7 @@
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
 #include "src/wasm/wasm-engine-globals.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal {
@@ -1060,7 +1060,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     }
   } else if (InstanceTypeChecker::IsSymbol(instance_type)) {
     if (Cast<Symbol>(object)->is_any_private())
-      return AddEntry(object, HeapEntry::kHidden, "private symbol");
+      return AddEntry(object, HeapEntry::kSymbol, "private symbol");
     else
       return AddEntry(object, HeapEntry::kSymbol, "symbol");
 
@@ -1095,7 +1095,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (it != native_context_tag_map_.end() && it->second.tag) {
       name = names_->GetFormatted("%s / %s", name, it->second.tag);
     }
-    return AddEntry(object, HeapEntry::kHidden, name);
+    return AddEntry(object, HeapEntry::kNative, name);
 
   } else if (InstanceTypeChecker::IsContext(instance_type)) {
     Tagged<Context> context = Cast<Context>(object);
@@ -1111,7 +1111,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
   } else if (InstanceTypeChecker::IsOddball(instance_type)) {
     Tagged<String> name = Cast<Oddball>(object)->to_string();
-    return AddEntry(object, HeapEntry::kHidden, names_->GetName(name));
+    return AddEntry(object, HeapEntry::kNative, names_->GetName(name));
   } else if (InstanceTypeChecker::IsCppHeapExternalObject(instance_type)) {
     return AddEntry(object, HeapEntry::kObject, "system / CppHeapExternal");
   }
@@ -1152,7 +1152,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       name = names_->GetFormatted("system / Foreign (%s)", tag_name);
     }
 
-    return AddEntry(object.address(), HeapEntry::kHidden, name, size);
+    return AddEntry(object.address(), HeapEntry::kNative, name, size);
   }
 
   return AddEntry(object, GetSystemEntryType(object),
@@ -1168,11 +1168,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object,
 
 HeapEntry* V8HeapExplorer::AddEntry(Address address, HeapEntry::Type type,
                                     const char* name, size_t size) {
-  if (type == HeapEntry::kHidden &&
-      (snapshot_->expose_internals() ||
-       v8_flags.heap_profiler_show_hidden_objects)) {
-    type = HeapEntry::kNative;
-  }
+  DCHECK_NE(type, HeapEntry::kHidden);
   SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(
       address, static_cast<unsigned int>(size));
   unsigned trace_node_id = 0;
@@ -1226,9 +1222,6 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     UNREACHABLE();
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
-
-    case HOLE_TYPE:
-      return "system / Hole";
   }
 
   // Avoid undefined behavior for enum values not handled by the exhaustive
@@ -1281,7 +1274,7 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
     return HeapEntry::kObjectShape;
   }
 
-  return HeapEntry::kHidden;
+  return HeapEntry::kNative;
 }
 
 void V8HeapExplorer::PopulateLineEnds() {
@@ -1659,7 +1652,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
 
   TagObject(js_obj->raw_properties_or_hash(), "(object properties)");
   SetInternalReference(entry, "properties", js_obj->raw_properties_or_hash(),
-                       JSObject::kPropertiesOrHashOffset);
+                       offsetof(JSObject, properties_or_hash_));
 
   TagObject(js_obj->elements(), "(object elements)");
   SetInternalReference(entry, "elements", js_obj->elements(),
@@ -2556,8 +2549,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
       case wasm::kF16:
       case wasm::kF32:
       case wasm::kF64:
-      case wasm::kS128:
-      case wasm::kWaitQueue: {
+      case wasm::kS128: {
         if (!snapshot_->capture_numeric_value()) continue;
         std::string value_string = obj->GetFieldValue(i).to_string();
         const char* value_name = names_->GetCopy(value_string.c_str());
@@ -3051,13 +3043,6 @@ void V8HeapExplorer::SetRootGcRootsReference() {
       HeapGraphEdge::kElement, snapshot_->gc_roots(), generator_);
 }
 
-void V8HeapExplorer::SetUserGlobalReference(Tagged<Object> child_obj) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  DCHECK_NOT_NULL(child_entry);
-  snapshot_->root()->SetNamedAutoIndexReference(
-      HeapGraphEdge::kShortcut, nullptr, child_entry, names_, generator_);
-}
-
 void V8HeapExplorer::SetGcRootsReference(Root root) {
   snapshot_->gc_roots()->SetIndexedAutoIndexReference(
       HeapGraphEdge::kElement, snapshot_->gc_subroot(root), generator_);
@@ -3086,24 +3071,6 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
     snapshot_->gc_subroot(root)->SetNamedAutoIndexReference(
         edge_type, description, child_entry, names_, generator_);
   }
-
-  // For full heap snapshots we do not emit user roots but rather rely on
-  // regular GC roots to retain objects.
-  if (snapshot_->expose_internals()) return;
-
-  // Add a shortcut to JS global object reference at snapshot root.
-  // That allows the user to easily find global objects. They are
-  // also used as starting points in distance calculations.
-  if (is_weak) return;
-  if (!IsNativeContext(child_heap_obj)) {
-    return;
-  }
-
-  Tagged<NativeContext> native_context = Cast<NativeContext>(child_heap_obj);
-
-  if (!user_roots_.insert(native_context).second) return;
-
-  SetUserGlobalReference(native_context);
 }
 
 const char* V8HeapExplorer::GetStrongGcSubrootName(Tagged<HeapObject> object) {
@@ -3941,15 +3908,6 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddNumber(snapshot_->extra_native_bytes());
 }
 
-static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
-  static const char hex_chars[] = "0123456789ABCDEF";
-  w->AddString("\\u");
-  w->AddCharacter(hex_chars[(u >> 12) & 0xF]);
-  w->AddCharacter(hex_chars[(u >> 8) & 0xF]);
-  w->AddCharacter(hex_chars[(u >> 4) & 0xF]);
-  w->AddCharacter(hex_chars[u & 0xF]);
-}
-
 void HeapSnapshotJSONSerializer::SerializeTraceTree() {
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
   if (!tracker) return;
@@ -4017,55 +3975,6 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
   }
 }
 
-void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
-  writer_->AddCharacter('\"');
-  for (; *s != '\0'; ++s) {
-    switch (*s) {
-      case '\b':
-        writer_->AddString("\\b");
-        continue;
-      case '\f':
-        writer_->AddString("\\f");
-        continue;
-      case '\n':
-        writer_->AddString("\\n");
-        continue;
-      case '\r':
-        writer_->AddString("\\r");
-        continue;
-      case '\t':
-        writer_->AddString("\\t");
-        continue;
-      case '\"':
-      case '\\':
-        writer_->AddCharacter('\\');
-        writer_->AddCharacter(*s);
-        continue;
-      default:
-        if (*s > 31 && *s < 128) {
-          writer_->AddCharacter(*s);
-        } else if (*s <= 31) {
-          // Special character with no dedicated literal.
-          WriteUChar(writer_, *s);
-        } else {
-          // Convert UTF-8 into \u UTF-16 literal.
-          size_t length = 1, cursor = 0;
-          for (; length <= 4 && *(s + length) != '\0'; ++length) {
-          }
-          unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
-          if (c != unibrow::Utf8::kBadChar) {
-            WriteUChar(writer_, c);
-            DCHECK_NE(cursor, 0);
-            s += cursor - 1;
-          } else {
-            writer_->AddCharacter('?');
-          }
-        }
-    }
-  }
-  writer_->AddCharacter('\"');
-}
-
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   auto sorted_strings =
       base::OwnedVector<const unsigned char*>::NewForOverwrite(
@@ -4078,7 +3987,7 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
   writer_->AddString("\"<dummy>\"");
   for (size_t i = 1; i < sorted_strings.size(); ++i) {
     writer_->AddCharacter(',');
-    SerializeString(sorted_strings[i]);
+    writer_->AddJsonEscapedString(sorted_strings[i]);
     if (writer_->aborted()) return;
   }
 }

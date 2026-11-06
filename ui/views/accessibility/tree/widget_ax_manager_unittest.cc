@@ -7,14 +7,21 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/accessibility/ax_event_generator.h"
+#include "ui/accessibility/ax_tree_manager.h"
 #include "ui/accessibility/platform/ax_platform_for_test.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/views/accessibility/ax_virtual_view.h"
 #include "ui/views/accessibility/tree/widget_ax_manager_test_api.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -40,6 +47,16 @@ class WidgetAXManagerTest : public test::WidgetTest {
 
   Widget* widget() { return widget_.get(); }
   WidgetAXManager* manager() { return widget_->ax_manager(); }
+
+  View* AddFocusableView() { return AddFocusableView(widget()->GetRootView()); }
+
+  View* AddFocusableView(View* parent) {
+    auto* view = parent->AddChildView(std::make_unique<View>());
+    view->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+    view->GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
+    view->GetViewAccessibility().SetName("Focusable test view");
+    return view;
+  }
 
  private:
   WidgetAutoclosePtr widget_;
@@ -162,6 +179,24 @@ TEST_F(WidgetAXManagerTest, InitEnablesWhenMultipleAXModeFlagsSet) {
   EXPECT_GT(api.ax_tree_manager()->ax_tree()->size(), 1);
 }
 
+TEST_F(WidgetAXManagerTest, InitWithAXModeOnTracksFocusAfterWidgetCreated) {
+  ui::ScopedAXModeSetter enable_accessibility(ui::AXMode::kNativeAPIs);
+  WidgetAutoclosePtr widget(CreateTopLevelPlatformWidget());
+  WidgetAXManager* manager = widget->ax_manager();
+
+  ASSERT_TRUE(manager->is_enabled());
+
+  View* view = widget->GetRootView()->AddChildView(std::make_unique<View>());
+  view->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  view->GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
+
+  widget->Show();
+  view->RequestFocus();
+
+  EXPECT_EQ(manager->GetFocusedNodeId(),
+            view->GetViewAccessibility().GetUniqueId());
+}
+
 TEST_F(WidgetAXManagerTest, Init_DoesNotInitAXTreeManagerForNonTopLevel) {
   std::unique_ptr<Widget> child_widget =
       base::WrapUnique(CreateChildNativeWidgetWithParent(
@@ -238,6 +273,29 @@ TEST_F(WidgetAXManagerTest, InitParamsCreatesParentRelationship) {
 
   child_api.TearDown();
 
+  child_widget->CloseNow();
+  child_widget.reset();
+}
+
+TEST_F(WidgetAXManagerTest, ChildWidgetSerializedTreeDataIncludesParentTreeId) {
+  ui::ScopedAXModeSetter enable_accessibility(ui::AXMode::kNativeAPIs);
+  WidgetAutoclosePtr parent(CreateTopLevelPlatformWidget());
+  WidgetAXManagerTestApi parent_api(parent->ax_manager());
+  ASSERT_TRUE(parent->ax_manager()->is_enabled());
+
+  std::unique_ptr<Widget> child_widget =
+      base::WrapUnique(CreateChildNativeWidgetWithParent(
+          parent.get(), Widget::InitParams::CLIENT_OWNS_WIDGET));
+  WidgetAXManager* child_manager = child_widget->ax_manager();
+  WidgetAXManagerTestApi child_api(child_manager);
+  ASSERT_TRUE(child_manager->is_enabled());
+  ASSERT_NE(child_api.ax_tree_manager(), nullptr);
+
+  EXPECT_EQ(child_api.parent_ax_tree_id(), parent_api.ax_tree_id());
+  EXPECT_EQ(child_api.ax_tree_manager()->GetTreeData().parent_tree_id,
+            parent_api.ax_tree_id());
+
+  child_api.TearDown();
   child_widget->CloseNow();
   child_widget.reset();
 }
@@ -869,10 +927,8 @@ TEST_F(WidgetAXManagerTest, FocusTracking_TracksFocusedView) {
   WidgetAXManagerTestApi api(manager());
   api.Enable();
 
-  auto* v1 = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  v1->SetFocusBehavior(View::FocusBehavior::ALWAYS);
-  auto* v2 = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  v2->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  auto* v1 = AddFocusableView();
+  auto* v2 = AddFocusableView();
 
   api.WaitForNextSerialization();
 
@@ -893,8 +949,7 @@ TEST_F(WidgetAXManagerTest, FocusTracking_ClearsFocusOnBlur) {
   WidgetAXManagerTestApi api(manager());
   api.Enable();
 
-  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  auto* v = AddFocusableView();
 
   api.WaitForNextSerialization();
 
@@ -910,8 +965,7 @@ TEST_F(WidgetAXManagerTest, FocusTracking_SchedulesPendingUpdate) {
   WidgetAXManagerTestApi api(manager());
   api.Enable();
 
-  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  auto* v = AddFocusableView();
 
   api.WaitForNextSerialization();
   ASSERT_FALSE(api.processing_update_posted());
@@ -925,8 +979,7 @@ TEST_F(WidgetAXManagerTest, FocusTracking_DoesNotResolveActiveDescendant) {
   WidgetAXManagerTestApi api(manager());
   api.Enable();
 
-  auto* parent = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  parent->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  auto* parent = AddFocusableView();
   auto* child = parent->AddChildView(std::make_unique<View>());
 
   api.WaitForNextSerialization();
@@ -948,8 +1001,7 @@ TEST_F(WidgetAXManagerTest, FocusTracking_HandlesManagerDestruction) {
   WidgetAXManagerTestApi api(manager());
   api.Enable();
 
-  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
-  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  auto* v = AddFocusableView();
 
   api.WaitForNextSerialization();
 
@@ -961,6 +1013,222 @@ TEST_F(WidgetAXManagerTest, FocusTracking_HandlesManagerDestruction) {
   // directly, then verify focused_node_id_ is cleared.
   manager()->OnFocusManagerDestroying(widget()->GetFocusManager());
   EXPECT_EQ(manager()->GetFocusedNodeId(), ui::kInvalidAXNodeID);
+}
+
+TEST_F(WidgetAXManagerTest, FocusTracking_FocusIdInTreeData) {
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v = AddFocusableView();
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+  v->RequestFocus();
+  api.WaitForNextSerialization();
+
+  // Find the update that contains tree data with the focus_id.
+  bool found_focus_id = false;
+  const ui::AXNodeID expected_id =
+      static_cast<ui::AXNodeID>(v->GetViewAccessibility().GetUniqueId());
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data && update.tree_data.focus_id == expected_id) {
+      found_focus_id = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_focus_id);
+}
+
+TEST_F(WidgetAXManagerTest, FocusTracking_FocusIdUpdatesOnFocusChange) {
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v1 = AddFocusableView();
+  auto* v2 = AddFocusableView();
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+
+  // Focus v1.
+  v1->RequestFocus();
+  api.WaitForNextSerialization();
+
+  const ui::AXNodeID v1_id =
+      static_cast<ui::AXNodeID>(v1->GetViewAccessibility().GetUniqueId());
+  bool found_v1 = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data && update.tree_data.focus_id == v1_id) {
+      found_v1 = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_v1);
+
+  // Move focus to v2.
+  v2->RequestFocus();
+  api.WaitForNextSerialization();
+
+  const ui::AXNodeID v2_id =
+      static_cast<ui::AXNodeID>(v2->GetViewAccessibility().GetUniqueId());
+  bool found_v2 = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data && update.tree_data.focus_id == v2_id) {
+      found_v2 = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_v2);
+}
+
+TEST_F(WidgetAXManagerTest, TextSelection_PopulatesTreeData) {
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
+  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  v->GetViewAccessibility().SetRole(ax::mojom::Role::kTextField);
+  v->GetViewAccessibility().SetTextSelStart(2);
+  v->GetViewAccessibility().SetTextSelEnd(5);
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+  v->RequestFocus();
+  api.WaitForNextSerialization();
+
+  const ui::AXNodeID v_id =
+      static_cast<ui::AXNodeID>(v->GetViewAccessibility().GetUniqueId());
+  bool found_selection = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data &&
+        update.tree_data.sel_anchor_object_id == v_id &&
+        update.tree_data.sel_focus_object_id == v_id &&
+        !update.tree_data.sel_is_backward &&
+        update.tree_data.sel_anchor_offset == 2 &&
+        update.tree_data.sel_focus_offset == 5) {
+      found_selection = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_selection);
+}
+
+TEST_F(WidgetAXManagerTest, TextSelection_PopulatesBackwardTreeData) {
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
+  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  v->GetViewAccessibility().SetRole(ax::mojom::Role::kTextField);
+  v->GetViewAccessibility().SetName(u"Selection text field");
+  v->GetViewAccessibility().SetTextSelStart(5);
+  v->GetViewAccessibility().SetTextSelEnd(2);
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+  v->RequestFocus();
+  api.WaitForNextSerialization();
+
+  const ui::AXNodeID v_id =
+      static_cast<ui::AXNodeID>(v->GetViewAccessibility().GetUniqueId());
+  bool found_selection = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data && update.tree_data.sel_anchor_object_id == v_id &&
+        update.tree_data.sel_focus_object_id == v_id &&
+        update.tree_data.sel_is_backward &&
+        update.tree_data.sel_anchor_offset == 5 &&
+        update.tree_data.sel_focus_offset == 2) {
+      found_selection = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_selection);
+}
+
+TEST_F(WidgetAXManagerTest, TextSelection_NotPopulatedWhenNoSelAttributes) {
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
+  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+  v->RequestFocus();
+  api.WaitForNextSerialization();
+
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data) {
+      EXPECT_EQ(update.tree_data.sel_anchor_object_id, ui::kInvalidAXNodeID);
+      EXPECT_EQ(update.tree_data.sel_focus_object_id, ui::kInvalidAXNodeID);
+    }
+  }
+}
+
+TEST_F(WidgetAXManagerTest,
+       TextSelection_FiresTextfieldSelectionEventForViews) {
+  enum class FiredEvent {
+    kFocus,
+    kDocumentSelectionChanged,
+    kTextSelectionChanged,
+  };
+
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* v = widget()->GetRootView()->AddChildView(std::make_unique<View>());
+  v->SetFocusBehavior(View::FocusBehavior::ALWAYS);
+  v->GetViewAccessibility().SetRole(ax::mojom::Role::kTextField);
+  v->GetViewAccessibility().SetName(u"Selection text field");
+  v->GetViewAccessibility().SetTextSelStart(0);
+  v->GetViewAccessibility().SetTextSelEnd(0);
+  api.WaitForNextSerialization();
+
+  std::vector<FiredEvent> fired_events;
+  ui::AXTreeManager::SetFocusChangeCallbackForTesting(base::BindRepeating(
+      [](std::vector<FiredEvent>* fired_events) {
+        fired_events->push_back(FiredEvent::kFocus);
+      },
+      &fired_events));
+  base::ScopedClosureRunner reset_focus_callback(base::BindOnce(
+      []() { ui::AXTreeManager::SetFocusChangeCallbackForTesting({}); }));
+
+  api.ax_tree_manager()->SetGeneratedEventCallbackForTesting(
+      base::BindRepeating(
+          [](std::vector<FiredEvent>* fired_events,
+             ui::BrowserAccessibilityManager*,
+             ui::AXEventGenerator::Event event_type, ui::AXNodeID) {
+            if (event_type ==
+                ui::AXEventGenerator::Event::DOCUMENT_SELECTION_CHANGED) {
+              fired_events->push_back(FiredEvent::kDocumentSelectionChanged);
+            } else if (event_type ==
+                       ui::AXEventGenerator::Event::TEXT_SELECTION_CHANGED) {
+              fired_events->push_back(FiredEvent::kTextSelectionChanged);
+            }
+          },
+          &fired_events));
+
+  widget()->Show();
+  v->RequestFocus();
+  api.WaitForNextSerialization();
+  EXPECT_EQ(fired_events,
+            (std::vector<FiredEvent>{FiredEvent::kFocus,
+                                     FiredEvent::kTextSelectionChanged}));
+
+  fired_events.clear();
+  v->GetViewAccessibility().SetTextSelStart(2);
+  v->GetViewAccessibility().SetTextSelEnd(5);
+  api.WaitForNextSerialization();
+  EXPECT_EQ(fired_events,
+            (std::vector<FiredEvent>{FiredEvent::kTextSelectionChanged}));
+
+  widget()->GetFocusManager()->ClearFocus();
+  api.WaitForNextSerialization();
+
+  fired_events.clear();
+  v->GetViewAccessibility().SetTextSelStart(1);
+  v->GetViewAccessibility().SetTextSelEnd(1);
+  api.WaitForNextSerialization();
+  EXPECT_TRUE(fired_events.empty());
 }
 
 }  // namespace views::test

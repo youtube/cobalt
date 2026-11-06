@@ -1155,7 +1155,8 @@ ErrorUtils::StackPropertyLookupResult ErrorUtils::GetErrorStackProperty(
 // static
 MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
     Isolate* isolate, DirectHandle<JSObject> maybe_error_object) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+              perfetto::StaticString(__func__));
 
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);

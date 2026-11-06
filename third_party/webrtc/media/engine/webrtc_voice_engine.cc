@@ -781,6 +781,7 @@ WebRtcVoiceEngine::GetRtpHeaderExtensions(
 
 bool WebRtcVoiceEngine::StartAecDump(FileWrapper file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  RTC_DCHECK(file.is_open());
 
   AudioProcessing* ap = apm();
   if (!ap) {

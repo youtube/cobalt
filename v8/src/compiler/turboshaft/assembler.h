@@ -3807,6 +3807,29 @@ class AssemblerOpInterface : public Next {
              Descriptor::kEffects));
   }
 
+  // Abstracts over calling a builtin from Wasm code. In the Wasm pipeline, it
+  // calls through the Wasm jump table (since builtins may be too far away for a
+  // relative branch on arm64, for example). In the JS pipeline (when inlining
+  // Wasm-into-JS), there is no Wasm jump table, so it dispatches to
+  // CallBuiltin, which emits a direct call to the builtin's code object loaded
+  // as a heap constant.
+  template <typename Descriptor>
+  detail::index_type_for_t<typename Descriptor::results_t> CallWasmBuiltin(
+      const typename Descriptor::arguments_t& args) {
+    const bool is_wasm_in_js_inlining = !Asm().data()->is_wasm();
+    if (is_wasm_in_js_inlining) {
+      // We are in the JS pipeline. Wasm nodes are compiled within the JS
+      // compiler, so there is no Wasm jump table. We use regular builtin
+      // calls instead.
+      Isolate* isolate = Asm().data()->isolate();
+      DCHECK_NOT_NULL(isolate);
+      return CallBuiltin<Descriptor>(isolate, args);
+    } else {
+      // Wasm pipeline: go through the jump table.
+      return WasmCallBuiltinThroughJumptable<Descriptor>(args);
+    }
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Desc>
@@ -5128,12 +5151,13 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeCast(object, rtt, config, frame_state);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared) {
-    return ReduceIfReachableAnyConvertExtern(input, is_shared);
+  V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared,
+                             bool is_nullable) {
+    return ReduceIfReachableAnyConvertExtern(input, is_shared, is_nullable);
   }
 
-  V<Object> ExternConvertAny(V<Object> input) {
-    return ReduceIfReachableExternConvertAny(input);
+  V<Object> ExternConvertAny(V<Object> input, bool is_nullable) {
+    return ReduceIfReachableExternConvertAny(input, is_nullable);
   }
 
   template <typename T>
@@ -5263,7 +5287,6 @@ class AssemblerOpInterface : public Next {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kI32:
-      case wasm::kWaitQueue:
         return __ Word32Constant(int32_t{0});
       case wasm::kI64:
         return __ Word64Constant(int64_t{0});
@@ -5299,7 +5322,8 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
   }
 
-  V<WasmFuncRef> WasmRefFunc(V<Object> wasm_instance, uint32_t function_index) {
+  V<WasmFuncRef> WasmRefFunc(V<WasmTrustedInstanceData> wasm_instance,
+                             uint32_t function_index) {
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }
 

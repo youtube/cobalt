@@ -21,14 +21,18 @@
 #include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments.h"
+#include "src/objects/bytecode-array-inl.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/js-regexp-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
-#include "src/objects/string.h"
 
 namespace v8 {
 
@@ -2608,15 +2612,15 @@ void TranslatedState::InitializeJSObjectAt(
   // Fill the property array field.
   {
     DirectHandle<Object> properties = GetValueAndAdvance(frame, value_index);
-    WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
+    WRITE_FIELD(*object_storage, offsetof(JSObject, properties_or_hash_),
                 *properties);
-    WRITE_BARRIER(*object_storage, JSObject::kPropertiesOrHashOffset,
+    WRITE_BARRIER(*object_storage, offsetof(JSObject, properties_or_hash_),
                   *properties);
   }
 
   // For all the other fields we first look at the fixed array and check the
   // marker to see if we store an unboxed double.
-  DCHECK_EQ(kTaggedSize, JSObject::kPropertiesOrHashOffset);
+  DCHECK_EQ(kTaggedSize, offsetof(JSObject, properties_or_hash_));
   for (int i = 2; i < children_count; i++) {
     slot = GetResolvedSlotAndAdvance(frame, value_index);
     // Read out the marker and ensure the field is consistent with

@@ -8,6 +8,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"

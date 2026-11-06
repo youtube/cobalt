@@ -4,7 +4,8 @@
 
 #include "src/api/api-inl.h"
 #include "src/objects/backing-store.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/manually-externalized-buffer.h"

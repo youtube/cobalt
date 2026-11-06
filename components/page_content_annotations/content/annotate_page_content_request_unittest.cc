@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -17,6 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -28,6 +30,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/page.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_navigation_handle.h"
@@ -36,6 +39,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace page_content_annotations {
 
@@ -49,15 +53,20 @@ class TestPageContentExtractionService : public PageContentExtractionService {
                                      &mock_tracker_) {}
   ~TestPageContentExtractionService() override = default;
 
-  void OnPageContentExtracted(
-      content::Page& page,
-      scoped_refptr<const RefCountedAnnotatedPageContent>
-          annotated_page_content,
-      const std::vector<uint8_t>& screenshot_data,
-      std::optional<int> tab_id) override {
-    last_extracted_content_ = ExtractedPageContentResult(
-        std::move(annotated_page_content), base::Time::Now(), false, screenshot_data);
+  void OnPageContentExtracted(content::Page& page,
+                              PageContent page_content,
+                              const std::vector<uint8_t>& screenshot_data,
+                              std::optional<int> tab_id) override {
     extraction_count_++;
+    if (RefCountedPDFTextPtr pdf_text_ptr =
+            GetPDFTextPtrFromPageContent(page_content)) {
+      last_extracted_pdf_text_ = pdf_text_ptr->data;
+    } else {
+      last_extracted_content_ = ExtractedPageContentResult(
+          GetAnnotatedPageContentPtrFromPageContent(std::move(page_content)),
+          base::Time::Now(), false, screenshot_data);
+    }
+
     if (quit_closure_) {
       std::move(quit_closure_).Run();
     }
@@ -68,6 +77,9 @@ class TestPageContentExtractionService : public PageContentExtractionService {
       const {
     return last_extracted_content_;
   }
+  const std::optional<std::string>& last_extracted_pdf_text() const {
+    return last_extracted_pdf_text_;
+  }
 
   void SetQuitClosure(base::OnceClosure quit_closure) {
     quit_closure_ = std::move(quit_closure);
@@ -76,6 +88,7 @@ class TestPageContentExtractionService : public PageContentExtractionService {
  private:
   int extraction_count_ = 0;
   std::optional<ExtractedPageContentResult> last_extracted_content_;
+  std::optional<std::string> last_extracted_pdf_text_;
   feature_engagement::test::MockTracker mock_tracker_;
   base::OnceClosure quit_closure_;
 };
@@ -140,11 +153,14 @@ class AnnotatePageContentRequestTest
 
   std::unique_ptr<content::MockNavigationHandle> CreateHandle(
       bool committed,
-      bool is_same_document) {
+      bool is_same_document,
+      bool should_update_history = true) {
     std::unique_ptr<content::MockNavigationHandle> handle =
         std::make_unique<content::MockNavigationHandle>(GURL(), main_rfh());
     handle->set_has_committed(committed);
     handle->set_is_same_document(is_same_document);
+    ON_CALL(*handle, ShouldUpdateHistory())
+        .WillByDefault(testing::Return(should_update_history));
     return handle;
   }
 
@@ -157,13 +173,23 @@ class AnnotatePageContentRequestTest
 
   void SimulatePageLoad(const GURL& url = GURL("https://example.com/")) {
     SimulateNavigation(url);
-    request_->OnFirstContentfulPaintInPrimaryMainFrame();
+    TriggerOnFirstContentfulPaintInPrimaryMainFrame();
   }
 
   void WaitForExtraction() {
     base::RunLoop run_loop;
     extraction_service_->SetQuitClosure(run_loop.QuitClosure());
     run_loop.Run();
+  }
+
+  void TriggerPrimaryPageChanged(content::Page& page) {
+    request_->PrimaryPageChanged(page);
+  }
+
+  void TriggerDidStopLoading() { request_->DidStopLoading(); }
+
+  void TriggerOnFirstContentfulPaintInPrimaryMainFrame() {
+    request_->OnFirstContentfulPaintInPrimaryMainFrame();
   }
 
   TestPageContentExtractionService& extraction_service() {
@@ -301,6 +327,23 @@ TEST_F(AnnotatePageContentRequestTest, ResetOnNewNavigation) {
 
   // New navigation.
   SimulatePageLoad(GURL("https://example.com/2"));
+  WaitForExtraction();
+
+  EXPECT_EQ(extraction_service().extraction_count(), 2);
+}
+
+TEST_F(AnnotatePageContentRequestTest, SameDocumentNavigation) {
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+  WaitForExtraction();
+
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
+
+  // Simulate a same-document navigation by navigating to a fragment.
+  SimulateNavigation(GURL("https://example.com/#fragment"));
+
+  // Same-document navigations don't wait for load or FCP.
   WaitForExtraction();
 
   EXPECT_EQ(extraction_service().extraction_count(), 2);
@@ -500,38 +543,42 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC) {
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_Batching) {
   SetTriggeringMode("on_load");
 
-  SimulatePageLoad();
-  WaitForExtraction();
-
-  EXPECT_EQ(extraction_service().extraction_count(), 1);
-
-  // Create another request with an async fetcher to test batching.
+  // Override the request with an async fetcher to test batching.
   FetchPageContextResultCallback saved_callback;
-  auto async_request = AnnotatedPageContentRequest::CreateForTesting(
+  base::RunLoop run_loop;
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+  AnnotatedPageContentRequest::CreateForWebContents(
       web_contents(), extraction_service(),
       base::BindRepeating(
-          [](FetchPageContextResultCallback* saved, content::WebContents&,
+          [](FetchPageContextResultCallback* saved,
+             base::RepeatingClosure quit_closure, content::WebContents&,
              const FetchPageContextOptions&,
              std::unique_ptr<FetchPageProgressListener>,
              FetchPageContextResultCallback callback) {
             *saved = std::move(callback);
+            quit_closure.Run();
           },
-          &saved_callback),
+          &saved_callback, run_loop.QuitClosure()),
       base::BindRepeating([](content::WebContents* web_contents) {
         return std::make_optional(reinterpret_cast<int64_t>(web_contents));
       }));
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
+
+  SimulatePageLoad();
+  run_loop.Run();
 
   base::test::TestFuture<std::optional<ExtractedPageContentResult>> future1;
   base::test::TestFuture<std::optional<ExtractedPageContentResult>> future2;
 
-  async_request->RefreshExtractedPageContentAndEligibilityForPage(
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
       future1.GetCallback());
-  async_request->RefreshExtractedPageContentAndEligibilityForPage(
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
       future2.GetCallback());
 
   // The request is now running, but has not completed.
   EXPECT_TRUE(saved_callback);
-  EXPECT_EQ(extraction_service().extraction_count(), 1);
+  EXPECT_EQ(extraction_service().extraction_count(), 0);
 
   // Complete the async call.
   auto page_content =
@@ -543,7 +590,7 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC_Batching) {
 
   EXPECT_TRUE(future1.Get().has_value());
   EXPECT_TRUE(future2.Get().has_value());
-  EXPECT_EQ(extraction_service().extraction_count(), 2);
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
 }
 
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_PdfShortCircuit) {
@@ -587,8 +634,11 @@ TEST_F(AnnotatePageContentRequestTest,
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_ExtractionFailure) {
   // Ensures extraction is enabled for this class.
   SetTriggeringMode("on_load");
-  // Create a request with a failing fetcher.
-  auto failing_request = AnnotatedPageContentRequest::CreateForTesting(
+
+  // Override the request with a failing fetcher.
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+  AnnotatedPageContentRequest::CreateForWebContents(
       web_contents(), extraction_service(),
       base::BindRepeating([](content::WebContents&,
                              const FetchPageContextOptions&,
@@ -601,37 +651,48 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC_ExtractionFailure) {
       base::BindRepeating([](content::WebContents* web_contents) {
         return std::make_optional(reinterpret_cast<int64_t>(web_contents));
       }));
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
+
+  SimulatePageLoad();
 
   base::test::TestFuture<std::optional<ExtractedPageContentResult>>
       refresh_future;
-  failing_request->RefreshExtractedPageContentAndEligibilityForPage(
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
       refresh_future.GetCallback());
-
   EXPECT_FALSE(refresh_future.Get().has_value());
 }
 
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_NavigationWhileRunning) {
   // Ensures extraction is enabled for this class.
   SetTriggeringMode("on_load");
-  // Create a request with an async fetcher (saves the callback).
+  // Override the request with an async fetcher.
   FetchPageContextResultCallback saved_callback;
-  auto async_request = AnnotatedPageContentRequest::CreateForTesting(
+  base::RunLoop run_loop;
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+  AnnotatedPageContentRequest::CreateForWebContents(
       web_contents(), extraction_service(),
       base::BindRepeating(
-          [](FetchPageContextResultCallback* saved, content::WebContents&,
+          [](FetchPageContextResultCallback* saved,
+             base::RepeatingClosure quit_closure, content::WebContents&,
              const FetchPageContextOptions&,
              std::unique_ptr<FetchPageProgressListener>,
              FetchPageContextResultCallback callback) {
             *saved = std::move(callback);
+            quit_closure.Run();
           },
-          &saved_callback),
+          &saved_callback, run_loop.QuitClosure()),
       base::BindRepeating([](content::WebContents* web_contents) {
         return std::make_optional(reinterpret_cast<int64_t>(web_contents));
       }));
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
+
+  SimulatePageLoad();
+  run_loop.Run();
 
   base::test::TestFuture<std::optional<ExtractedPageContentResult>>
       refresh_future;
-  async_request->RefreshExtractedPageContentAndEligibilityForPage(
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
       refresh_future.GetCallback());
 
   // Extraction should be scheduled now.
@@ -759,6 +820,288 @@ TEST_F(AnnotatePageContentRequestTest, GetAsync_OnPdfPages) {
 
   EXPECT_TRUE(eligibility_future.IsReady());
   EXPECT_FALSE(eligibility_future.Get().has_value());
+}
+
+// TODO(b/487632737): Implement PDF text extraction and update this test.
+TEST_F(AnnotatePageContentRequestTest, OnPageContextFetchedPDFTextExtraction) {
+  // This test simulates a PDF text extraction. The actual PDF text extraction
+  // has not been implemented.
+  SetTriggeringMode("on_load");
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAnnotatedPageContentPDFTextExtraction);
+
+  // Create a request for PDF. The request simulates a reception of PDF text
+  // extraction result.
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+
+  AnnotatedPageContentRequest::CreateForWebContents(
+      web_contents(), extraction_service(),
+      base::BindRepeating([](content::WebContents&,
+                             const FetchPageContextOptions&,
+                             std::unique_ptr<FetchPageProgressListener>,
+                             FetchPageContextResultCallback callback) {
+        auto result = std::make_unique<FetchPageContextResult>();
+        PdfResult pdf_result{
+            /*origin=*/url::Origin::Create(GURL("https://example.com")),
+            /*text=*/"Sample PDF text"};
+        result->pdf_result = std::move(pdf_result);
+        std::move(callback).Run(std::move(result));
+      }),
+      base::BindRepeating([](content::WebContents* web_contents) {
+        return std::make_optional(reinterpret_cast<int64_t>(web_contents));
+      }));
+
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
+
+  SimulatePageLoad();
+
+  // Trigger the callback that directly notifies
+  // `AnnotatedPageContentRequest::OnPageContextFetched` with a `PdfResult`.
+  // TODO(b/487632737): Once PDF extraction is implemented, this method should
+  // not trigger PDF text extraction. This should be replaced by a navigation to
+  // a PDF document, which triggers the extraction.
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>>
+      refresh_future;
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
+      refresh_future.GetCallback());
+
+  std::optional<ExtractedPageContentResult> result = refresh_future.Get();
+  EXPECT_FALSE(result.has_value());
+
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
+  EXPECT_EQ(extraction_service().last_extracted_pdf_text(), "Sample PDF text");
+}
+
+TEST_F(AnnotatePageContentRequestTest, Metrics_OnLoadTrigger) {
+  base::HistogramTester histogram_tester;
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+  WaitForExtraction();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "ExtractionLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "StabilityLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnLoad, 1);
+}
+
+TEST_F(AnnotatePageContentRequestTest, Metrics_OnHiddenTrigger) {
+  base::HistogramTester histogram_tester;
+  SetTriggeringMode("on_hidden");
+
+  SimulatePageLoad();
+
+  // Hide the page to trigger extraction.
+  web_contents()->WasHidden();
+  WaitForExtraction();
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnHidden, 1);
+
+  // AutomaticOnLoad latency metrics should not be logged for OnHidden.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "ExtractionLatency",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "StabilityLatency",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
+      0);
+}
+
+TEST_F(AnnotatePageContentRequestTest, Metrics_OnDemandTrigger) {
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+  WaitForExtraction();
+
+  base::HistogramTester histogram_tester;
+
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>> future;
+  request_->RefreshExtractedPageContentAndEligibilityForPage(
+      future.GetCallback());
+
+  EXPECT_TRUE(future.Get().has_value());
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnDemand, 1);
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.OnDemand.Latency", 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.Success", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.IsPDF", false, 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.OnDemand.StateAtRequest2", 4,
+      1);  // 4 corresponds to Lifecycle::kExtracted
+}
+
+TEST_F(AnnotatePageContentRequestTest, Metrics_CacheHit) {
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+
+  base::HistogramTester histogram_tester;
+
+  // Miss case: before extraction completes.
+  std::optional<ExtractedPageContentResult> result =
+      request_->GetCachedContentAndEligibility();
+  EXPECT_FALSE(result.has_value());
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", false, 1);
+
+  WaitForExtraction();
+
+  // Hit case: after extraction.
+  result = request_->GetCachedContentAndEligibility();
+  EXPECT_TRUE(result.has_value());
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", true, 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", 2);
+}
+
+TEST_F(AnnotatePageContentRequestTest, Metrics_CacheHit_Async) {
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+
+  base::HistogramTester histogram_tester;
+
+  // Miss case: before extraction completes.
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>> future;
+  request_->GetCachedContentAndEligibilityAsync(future.GetCallback());
+
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", false, 1);
+
+  WaitForExtraction();
+
+  EXPECT_TRUE(future.Get().has_value());
+
+  // Hit case: after extraction, requesting again should hit immediately.
+  base::test::TestFuture<std::optional<ExtractedPageContentResult>> future2;
+  request_->GetCachedContentAndEligibilityAsync(future2.GetCallback());
+
+  EXPECT_TRUE(future2.Get().has_value());
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", true, 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.IsCacheHit", 2);
+}
+
+TEST_F(AnnotatePageContentRequestTest,
+       Metrics_OnLoadAndHiddenTrigger_LoadWhileHidden) {
+  base::HistogramTester histogram_tester;
+  SetTriggeringMode("on_load_and_hidden");
+
+  // Tab starts completely hidden.
+  web_contents()->WasHidden();
+
+  SimulatePageLoad();
+  WaitForExtraction();
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnHidden, 1);
+}
+
+TEST_F(AnnotatePageContentRequestTest,
+       Metrics_OnLoadAndHiddenTrigger_HideBeforeFCP) {
+  base::HistogramTester histogram_tester;
+  SetTriggeringMode("on_load_and_hidden");
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com/"), web_contents());
+  navigation->Start();
+  navigation->Commit();
+
+  // Hide the tab after loading stopped, but before FCP.
+  TriggerDidStopLoading();
+  web_contents()->WasHidden();
+  TriggerOnFirstContentfulPaintInPrimaryMainFrame();
+
+  WaitForExtraction();
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnHidden, 1);
+}
+
+TEST_F(AnnotatePageContentRequestTest,
+       Metrics_OnLoadTrigger_SameDocumentNavigation) {
+  base::HistogramTester histogram_tester;
+  SetTriggeringMode("on_load");
+
+  SimulatePageLoad();
+  WaitForExtraction();
+
+  EXPECT_EQ(extraction_service().extraction_count(), 1);
+
+  // Latency metrics should've been recorded.
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnLoad, 1);
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "StabilityLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "ExtractionLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
+      1);
+
+  // Simulate a same-document navigation.
+  auto same_doc_nav = content::NavigationSimulator::CreateRendererInitiated(
+      GURL("https://example.com/#test"), web_contents()->GetPrimaryMainFrame());
+
+  // Forces ShouldUpdateHistory() to be true.
+  same_doc_nav->SetTransition(ui::PAGE_TRANSITION_LINK);
+  same_doc_nav->CommitSameDocument();
+  WaitForExtraction();
+
+  EXPECT_EQ(extraction_service().extraction_count(), 2);
+
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentExtraction.TriggerSource",
+      AnnotatedPageContentRequest::TriggerSource::kOnLoad, 2);
+
+  // We do not expect new latency metrics to be recorded as the navigation was
+  // same-document.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "StabilityLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad."
+      "ExtractionLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentExtraction.AutomaticOnLoad.OverallLatency",
+      1);
 }
 
 }  // namespace page_content_annotations

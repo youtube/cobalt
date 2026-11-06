@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include <openssl/base.h>
 #include <openssl/pool.h>
 
 #include "internal.h"
@@ -125,6 +126,9 @@ TEST(PoolTest, Pooled) {
   UniquePtr<CRYPTO_BUFFER> buf7(
       CRYPTO_BUFFER_new(kData1, sizeof(kData1), pool.get()));
   EXPECT_EQ(buf7.get(), buf6.get());
+
+  // Pools are reference-counted.
+  UniquePtr<CRYPTO_BUFFER_POOL> pool2 = UpRef(pool);
 }
 
 // Buffers are allowed to outlive pools.

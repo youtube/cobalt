@@ -26,6 +26,7 @@ source_set("profile") {
     "//ios/chrome/app/application_delegate:startup_information",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_observer",
+    "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/profile",
   ]
 }
@@ -192,6 +193,7 @@ source_set("first_run_profile_agent") {
     "//ios/chrome/browser/first_run/coordinator",
     "//ios/chrome/browser/first_run/coordinator:first_run_provider",
     "//ios/chrome/browser/first_run/guided_tour/coordinator",
+    "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/safari_data_import/public",
     "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
@@ -437,6 +439,7 @@ source_set("unit_tests") {
     ":test_utils",
     "//base/test:test_support",
     "//components/feature_engagement/public",
+    "//components/feature_engagement/test:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/sync_preferences:features",

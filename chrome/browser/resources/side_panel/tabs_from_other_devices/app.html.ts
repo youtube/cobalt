@@ -5,16 +5,28 @@
 import {getFaviconForPageURL} from '//resources/js/icon.js';
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
-import type {TabsFromOtherDevicesAppElement} from './app.js';
+import type {TabInfo, TabsFromOtherDevicesAppElement} from './app.js';
+
+// TODO(crbug.com/488242420): Implement pixel tests to cover this UI, including
+// "no screenshots", "screenshots", "screenshot but load failed" cases.
 
 export function getHtml(this: TabsFromOtherDevicesAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="container">
+  <cr-toolbar-search-field id="search-input"
+      label="$i18n{searchPrompt}"
+      @search-changed="${this.onSearchChanged_}"
+      ?hidden="${this.syncedDevices_.length === 0}">
+  </cr-toolbar-search-field>
+
   ${this.syncedDevices_.length === 0 ?
       html`<div class="empty-message">$i18n{noSyncedResults}</div>` : ''}
 
-  ${this.syncedDevices_.length > 0 ?
+  ${this.searchQuery_ && this.getFilteredTabs_().length === 0 ?
+      html`<div class="empty-message">$i18n{noSearchResults}</div>` : ''}
+
+  ${this.syncedDevices_.length > 0 && !this.searchQuery_ ?
       html`
     <div id="picker-container">
       <cr-button id="picker-button" @click="${this.onDeviceSelectClick_}">
@@ -32,35 +44,43 @@ export function getHtml(this: TabsFromOtherDevicesAppElement) {
     </div>
   ` : ''}
 
-  <div id="devices">
-    ${this.syncedDevices_
-        .filter(device => device.tag === this.selectedDeviceTag_)
-        .map(device => html`
-        <div class="tabs">
-          ${device.windows.map(
-          window => window.tabs.map(
-            tab => html`
-            <div class="tab" @click="${this.onTabClick_}"
-                  @auxclick="${this.onTabAuxclick_}"
-                  data-session-tag="${device.tag}"
-                  data-tab-id="${tab.sessionId}">
-              <div class="tab-favicon-container">
-                <div class="tab-favicon"
-                      style="background-image:
-                            ${getFaviconForPageURL(tab.url, true)}">
-                </div>
-              </div>
-              <div class="tab-info">
-                <span class="tab-title">${tab.title}</span>
-                <div class="tab-details">
-                  <span class="tab-url">${this.getHostname_(tab.url)}</span>
-                  <span class="tab-timestamp-separator">&bull;</span>
-                  <span class="tab-timestamp">${tab.timestampDisplayStr}</span>
-                </div>
-              </div>
+  <div id="tabs" class="${this.showScreenshots_ ? 'grid' : ''}">
+    ${this.getFilteredTabs_().map((tab: TabInfo) => html`
+      <div class="tab ${this.showScreenshots_ ? 'grid' : ''}"
+          @click="${this.onTabClick_}"
+          @auxclick="${this.onTabAuxclick_}"
+          data-session-tag="${tab.sessionTag}"
+          data-tab-id="${tab.sessionId}">
+        <div class="tab-header">
+          <div class="tab-favicon-container">
+            <div class="tab-favicon"
+                  style="background-image:
+                        ${getFaviconForPageURL(tab.url, true)}">
             </div>
-          `))}
+          </div>
+          <div class="tab-info">
+            <span class="tab-title">${tab.title}</span>
+            ${!this.showScreenshots_ ? html`
+              <div class="tab-details">
+                <span class="tab-url">${this.getHostname_(tab.url)}</span>
+                <span class="tab-timestamp-separator">&bull;</span>
+                <span class="tab-timestamp">${tab.timestampDisplayStr}</span>
+              </div>
+            ` : ''}
+          </div>
         </div>
+        ${this.showScreenshots_ ? html`
+          ${tab.screenshotUrl &&
+              !this.screenshotLoadFailed_(tab.sessionTag, tab.sessionId) ? html`
+            <img class="tab-screenshot" src="${tab.screenshotUrl}"
+                @error="${this.onScreenshotError_}"
+                data-session-tag="${tab.sessionTag}"
+                data-tab-id="${tab.sessionId}">
+          ` : html`
+            <div class="tab-screenshot fallback"></div>
+          `}
+        ` : ''}
+      </div>
     `)}
   </div>
 </div>

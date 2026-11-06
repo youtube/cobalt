@@ -124,7 +124,7 @@ void VCMTiming::set_playout_delay(const VideoPlayoutDelay& playout_delay) {
   timings_.max_playout_delay = playout_delay.max();
 }
 
-void VCMTiming::SetJitterDelay(TimeDelta minimum_delay) {
+void VCMTiming::SetMinimumDelay(TimeDelta minimum_delay) {
   MutexLock lock(&mutex_);
   if (minimum_delay != timings_.minimum_delay) {
     timings_.minimum_delay = minimum_delay;
@@ -163,32 +163,25 @@ void VCMTiming::StopDecodeTimer(TimeDelta decode_time, Timestamp now) {
       TimeDelta::Millis(decode_time_filter_->GetPercentileMs());
 }
 
-void VCMTiming::IncomingTimestamp(uint32_t rtp_timestamp, Timestamp now) {
+void VCMTiming::OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now) {
   MutexLock lock(&mutex_);
   ts_extrapolator_->Update(now, rtp_timestamp);
 }
 
-Timestamp VCMTiming::RenderTime(uint32_t frame_timestamp, Timestamp now) const {
+Timestamp VCMTiming::RenderTime(uint32_t rtp_timestamp, Timestamp now) const {
   MutexLock lock(&mutex_);
   if (timings_.UseLowLatencyRendering()) {
     // Render as soon as possible or with low-latency renderer algorithm.
     return Timestamp::Zero();
   }
-  // Note that TimestampExtrapolator::ExtrapolateLocalTime is not a const
-  // method; it mutates the object's wraparound state.
   std::optional<Timestamp> local_time =
-      ts_extrapolator_->ExtrapolateLocalTime(frame_timestamp);
+      ts_extrapolator_->ExtrapolateLocalTime(rtp_timestamp);
   if (!local_time.has_value()) {
     return now;
   }
-  Timestamp estimated_complete_time = *local_time;
-
-  // Make sure the actual delay stays in the range of `min_playout_delay`
-  // and `max_playout_delay`.
-  TimeDelta actual_delay =
-      std::clamp(timings_.current_delay, timings_.min_playout_delay,
-                 timings_.max_playout_delay);
-  return estimated_complete_time + actual_delay;
+  return *local_time + std::clamp(timings_.current_delay,
+                                  timings_.min_playout_delay,
+                                  timings_.max_playout_delay);
 }
 
 void VCMTiming::SetLastDecodeScheduledTimestamp(

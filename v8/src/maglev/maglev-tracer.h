@@ -6,20 +6,15 @@
 #define V8_MAGLEV_MAGLEV_TRACER_H_
 
 #include <iomanip>
-#include <iostream>
 #include <ostream>
 #include <string>
-#include <version>
-
-#ifdef __cpp_lib_syncbuf
-#include <syncstream>
-#endif
 
 #include "src/compiler/heap-refs.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
+#include "src/utils/ostreams.h"
 
 namespace v8::internal::maglev {
 
@@ -116,7 +111,7 @@ class Tracer {
 
 class TraceLogger {
  public:
-  explicit TraceLogger(const Tracer& tracer) : tracer_(tracer), os_(std::cout) {
+  explicit TraceLogger(const Tracer& tracer) : tracer_(tracer) {
     os_ << tracer.cached_prefix_;
   }
 
@@ -210,13 +205,10 @@ class TraceLogger {
 
  private:
   const Tracer& tracer_;
-#ifdef __cpp_lib_syncbuf
-  std::osyncstream os_;
-#else
-  // std::osyncstream is NOT available.
-  // Falling back to interleaving IO.
-  std::ostream& os_;
-#endif
+  // StdoutStream holds a recursive mutex for its lifetime, which serializes
+  // output from concurrent compilation threads (e.g. turbolev) so that a
+  // full TRACE block is emitted atomically.
+  StdoutStream os_;
 };
 
 #define TRACE_IMPL(flag, tracer, ...)                                         \

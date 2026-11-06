@@ -23,6 +23,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/message_digest.h"
 #include "rtc_base/rtc_certificate.h"
+#include "rtc_base/span_helpers.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/string_encode.h"
@@ -73,8 +74,7 @@ std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateUniqueFromRfc4572(
     return nullptr;
 
   return std::make_unique<SSLFingerprint>(
-      algorithm,
-      std::span<const uint8_t>(reinterpret_cast<uint8_t*>(value), value_len));
+      algorithm, AsUint8Span(std::span(value, value_len)));
 }
 
 std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateFromCertificate(

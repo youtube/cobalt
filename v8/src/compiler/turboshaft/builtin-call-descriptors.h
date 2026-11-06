@@ -1040,17 +1040,6 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanAllocate();
   };
 
-  struct WasmAllocateWaitQueue : public Descriptor<WasmAllocateWaitQueue> {
-    static constexpr auto kFunction = Builtin::kWasmAllocateWaitQueue;
-    using arguments_t = std::tuple<V<WasmStruct>, V<Word32>>;
-    using results_t = std::tuple<V<WasmStruct>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanAllocate();
-  };
-
   struct WasmGetOwnProperty : public Descriptor<WasmGetOwnProperty> {
     static constexpr auto kFunction = Builtin::kWasmGetOwnProperty;
     using arguments_t = std::tuple<V<Object>, V<Symbol>>;
@@ -1326,14 +1315,25 @@ struct BuiltinCallDescriptor {
 
   struct WasmManagedObjectWait : public Descriptor<WasmManagedObjectWait> {
     static constexpr auto kFunction = Builtin::kWasmManagedObjectWait;
-    using arguments_t =
-        std::tuple<V<HeapObject>, V<Word32>, V<Word32>, V<BigInt>>;
+    using arguments_t = std::tuple<V<HeapObject>, V<Word32>, V<Word32>,
+                                   V<HeapObject>, V<BigInt>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct WasmWaitqueueNew : public Descriptor<WasmWaitqueueNew> {
+    static constexpr auto kFunction = Builtin::kWasmWaitqueueNew;
+    using arguments_t = std::tuple<>;
+    using results_t = std::tuple<V<HeapObject>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanAllocate();
   };
 
   struct WasmFunctionTableGet : public Descriptor<WasmFunctionTableGet> {

@@ -126,4 +126,5 @@ private:
 }  // namespace
 
 DEF_BENCH(return (new FlattenBench<skgpu::graphite::FlattenMode::kScalar>());)
+DEF_BENCH(return (new FlattenBench<skgpu::graphite::FlattenMode::kSimd>());)
 DEF_BENCH(return (new GrLegacyBench());)

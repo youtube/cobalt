@@ -60,50 +60,57 @@ class TestVideoEncoderFactory : public VideoEncoderFactory {
 
 TEST(VideoEncoderFactoryTest, QueryCodecSupportNoScalabilityMode) {
   TestVideoEncoderFactory factory({SdpVideoFormat("VP8")});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), std::nullopt),
+  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), std::nullopt,
+                                        std::nullopt),
               SupportIs(kSupported));
 }
 
 TEST(VideoEncoderFactoryTest, QueryCodecSupportUnsupportedFormat) {
   TestVideoEncoderFactory factory({SdpVideoFormat("VP8")});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("H264"), std::nullopt),
+  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("H264"), std::nullopt,
+                                        std::nullopt),
               SupportIs(kUnsupported));
 }
 
 TEST(VideoEncoderFactoryTest,
      QueryCodecSupportWithScalabilityModeAndEmptyModeList) {
   TestVideoEncoderFactory factory({SdpVideoFormat("VP8")});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L1T2"),
-              SupportIs(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L1T2", std::nullopt),
+      SupportIs(kUnsupported));
 }
 
 TEST(VideoEncoderFactoryTest, QueryCodecSupportWithMatchingScalabilityMode) {
   SdpVideoFormat format("VP8", {}, {ScalabilityMode::kL1T2});
   TestVideoEncoderFactory factory({format});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L1T2"),
-              SupportIs(kSupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L1T2", std::nullopt),
+      SupportIs(kSupported));
 }
 
 TEST(VideoEncoderFactoryTest, QueryCodecSupportWithNonMatchingScalabilityMode) {
   SdpVideoFormat format("VP8", {}, {ScalabilityMode::kL1T2});
   TestVideoEncoderFactory factory({format});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L3T3"),
-              SupportIs(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat("VP8"), "L3T3", std::nullopt),
+      SupportIs(kUnsupported));
 }
 
 TEST(VideoEncoderFactoryTest, QueryCodecSupportWithInvalidScalabilityMode) {
   SdpVideoFormat format("VP8", {}, {ScalabilityMode::kL1T2});
   TestVideoEncoderFactory factory({format});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("VP8"), "INVALID"),
-              SupportIs(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat("VP8"), "INVALID", std::nullopt),
+      SupportIs(kUnsupported));
 }
 
 TEST(VideoEncoderFactoryTest,
      QueryCodecSupportScalabilityModeUnsupportedFormat) {
   SdpVideoFormat format("VP8", {}, {ScalabilityMode::kL1T2});
   TestVideoEncoderFactory factory({format});
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat("H264"), "L1T2"),
-              SupportIs(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat("H264"), "L1T2", std::nullopt),
+      SupportIs(kUnsupported));
 }
 
 TEST(VideoEncoderFactoryTest,
@@ -115,10 +122,12 @@ TEST(VideoEncoderFactoryTest,
   TestVideoEncoderFactory factory({vp9_profile0, vp9_profile2});
 
   EXPECT_THAT(factory.QueryCodecSupport(
-                  SdpVideoFormat("VP9", {{kVP9FmtpProfileId, "0"}}), "L3T3"),
+                  SdpVideoFormat("VP9", {{kVP9FmtpProfileId, "0"}}), "L3T3",
+                  std::nullopt),
               SupportIs(kSupported));
   EXPECT_THAT(factory.QueryCodecSupport(
-                  SdpVideoFormat("VP9", {{kVP9FmtpProfileId, "2"}}), "L3T3"),
+                  SdpVideoFormat("VP9", {{kVP9FmtpProfileId, "2"}}), "L3T3",
+                  std::nullopt),
               SupportIs(kUnsupported));
 }
 

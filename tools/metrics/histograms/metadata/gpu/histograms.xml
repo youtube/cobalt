@@ -1412,16 +1412,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GPU.MultiGpu.AMD" enum="AMDDeviceId"
-    expires_after="2023-01-01">
-  <owner>zmo@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    AMD device IDs from multi-gpu devices. Recorded when GPU process launches
-    and sends GPUInfo to browser process.
-  </summary>
-</histogram>
-
 <histogram name="GPU.MultiGpu.Nvidia" enum="NvidiaDeviceId"
     expires_after="2023-04-16">
   <owner>zmo@chromium.org</owner>
@@ -1534,6 +1524,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     Time it takes in gpu::GpuPersistentCache::StoreData (only when it is ready).
     Recorded only for clients that support high-resolution clocks.
+  </summary>
+  <token key="GpuPersistentCacheType" variants="GpuPersistentCacheType"/>
+</histogram>
+
+<histogram
+    name="GPU.PersistentCache.{GpuPersistentCacheType}.VkPipelineCache.LoadedSize"
+    units="KB" expires_after="2027-04-30">
+  <owner>kylechar@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the size of the serialized VkPipelineCache that is loaded from the
+    cache.
   </summary>
   <token key="GpuPersistentCacheType" variants="GpuPersistentCacheType"/>
 </histogram>
@@ -1806,14 +1808,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GPU.Vulkan.PipelineCache.vkCreateGraphicsPipelines"
-    units="microseconds" expires_after="2026-09-06">
-  <owner>vasilyt@chromium.org</owner>
+<histogram name="GPU.Vulkan.SkiaContext.vkCreateGraphicsPipelinesUS"
+    units="microseconds" expires_after="2027-05-01">
+  <owner>hitawala@chromium.org</owner>
+  <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
-    Duration of vkCreateGraphicsPipelines call. Recorded every time Skia creates
-    graphics pipeline. Only reported for platforms supporting high resolution
-    clocks.
+    Duration of vkCreateGraphicsPipelines call. Recorded every time
+    Ganesh-Vulkan or Graphite-Dawn on Skia context creates graphics pipeline.
+    Only reported for platforms supporting high resolution clocks.
   </summary>
 </histogram>
 
@@ -2107,7 +2110,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Exo.Buffer.SharedImageFormat"
-    enum="SharedImageFormatUMA" expires_after="2026-06-01">
+    enum="SharedImageFormatUMA" expires_after="2026-09-01">
   <owner>hitawala@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

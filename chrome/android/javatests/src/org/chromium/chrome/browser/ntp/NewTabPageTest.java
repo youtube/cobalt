@@ -62,10 +62,12 @@ import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Matchers;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.UrlUtils;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
 import org.chromium.chrome.browser.feed.FeedActionDelegate;
 import org.chromium.chrome.browser.feed.FeedReliabilityLogger;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.logo.LogoBridge;
 import org.chromium.chrome.browser.logo.LogoBridgeJni;
@@ -83,7 +85,6 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
@@ -183,6 +184,7 @@ public class NewTabPageTest {
     @Before
     public void setUp() throws Exception {
         ComposeplateUtils.setIsEnabledForTesting(true);
+        OmniboxFeatures.sCompactFusebox.setForTesting(true);
         mActivityTestRule.startOnBlankPage();
         TemplateUrlService originalService =
                 ThreadUtils.runOnUiThreadBlocking(
@@ -220,6 +222,11 @@ public class NewTabPageTest {
     // Disable sign-in to suppress sync promo, as it's unrelated to this render test.
     @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
     public void testRender_FocusFakeBox() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mNtp.getNewTabPageCoordinator()
+                                .getNtpSearchBoxForTesting()
+                                .setIsFuseboxEligible(false));
         ScrimManager scrimManager =
                 mActivityTestRule.getActivity().getRootUiCoordinatorForTesting().getScrimManager();
         scrimManager.disableAnimationForTesting(true);
@@ -227,6 +234,27 @@ public class NewTabPageTest {
         View view = mNtp.getView().findViewById(R.id.search_box);
         ChromeRenderTestRule.sanitize(view);
         mRenderTestRule.render(view, "focus_fake_box_v3");
+        scrimManager.disableAnimationForTesting(false);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"NewTabPage", "FeedNewTabPage", "RenderTest"})
+    // Disable sign-in to suppress sync promo, as it's unrelated to this render test.
+    @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
+    public void testRender_FocusFakeBox_withPlusButton() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mNtp.getNewTabPageCoordinator()
+                                .getNtpSearchBoxForTesting()
+                                .setIsFuseboxEligible(true));
+        ScrimManager scrimManager =
+                mActivityTestRule.getActivity().getRootUiCoordinatorForTesting().getScrimManager();
+        scrimManager.disableAnimationForTesting(true);
+        onView(withId(R.id.search_box)).perform(click());
+        View view = mNtp.getView().findViewById(R.id.search_box);
+        ChromeRenderTestRule.sanitize(view);
+        mRenderTestRule.render(view, "focus_fake_box_with_plus_button");
         scrimManager.disableAnimationForTesting(false);
     }
 
@@ -297,6 +325,19 @@ public class NewTabPageTest {
         mOmnibox.typeText(UrlConstants.VERSION_URL, false);
         mOmnibox.checkSuggestionsShown();
         mOmnibox.sendKey(KeyEvent.KEYCODE_ENTER);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"NewTabPage"})
+    @DisabledTest(message = "https://crbug.com/507770942")
+    public void testClickPlusButtonOnFakebox() {
+        View plusButton = mNtp.getView().findViewById(R.id.search_box_plus_button);
+        Assert.assertNotNull(plusButton);
+
+        TouchCommon.singleClickView(plusButton);
+
+        mOmnibox.checkFocus(true);
     }
 
     /** Tests clicking on a most visited item. */
@@ -453,7 +494,47 @@ public class NewTabPageTest {
     @Test
     @SmallTest
     @Feature({"NewTabPage", "FeedNewTabPage"})
-    public void testSetSearchProviderInfo() throws Throwable {
+    @EnableFeatures({ChromeFeatureList.LOGO_VIEW_REFACTOR})
+    public void testSetSearchProviderInfo_logoViewRefactorFlagEnabled() throws Throwable {
+        ThreadUtils.runOnUiThreadBlocking(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        NewTabPageCoordinator ntpCoordinator = mNtp.getNewTabPageCoordinator();
+                        View logoContainerView =
+                                mNtp.getLayout().findViewById(R.id.logo_container_view);
+                        Assert.assertEquals(View.VISIBLE, logoContainerView.getVisibility());
+
+                        ntpCoordinator.setSearchProviderInfo(
+                                /* hasLogo= */ false, /* isGoogle= */ true);
+                        // Mock to notify the template URL service observer.
+                        when(mTemplateUrlService.doesDefaultSearchEngineHaveLogo())
+                                .thenReturn(false);
+                        when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
+                        ntpCoordinator
+                                .getLogoCoordinatorForTesting()
+                                .onTemplateURLServiceChangedForTesting();
+                        Assert.assertEquals(View.GONE, logoContainerView.getVisibility());
+
+                        ntpCoordinator.setSearchProviderInfo(
+                                /* hasLogo= */ true, /* isGoogle= */ true);
+                        // Mock to notify the template URL service observer.
+                        when(mTemplateUrlService.doesDefaultSearchEngineHaveLogo())
+                                .thenReturn(true);
+                        ntpCoordinator
+                                .getLogoCoordinatorForTesting()
+                                .onTemplateURLServiceChangedForTesting();
+                        Assert.assertEquals(View.VISIBLE, logoContainerView.getVisibility());
+                    }
+                });
+    }
+
+    /** Tests setting whether the search provider has a logo when LogoViewRefactor is disabled. */
+    @Test
+    @SmallTest
+    @Feature({"NewTabPage", "FeedNewTabPage"})
+    @DisableFeatures({ChromeFeatureList.LOGO_VIEW_REFACTOR})
+    public void testSetSearchProviderInfo_logoViewRefactorFlagDisabled() throws Throwable {
         ThreadUtils.runOnUiThreadBlocking(
                 new Runnable() {
                     @Override
@@ -555,6 +636,7 @@ public class NewTabPageTest {
                             .focusSearchBox(
                                     /* beginVoiceSearch= */ false,
                                     AutocompleteRequestType.SEARCH,
+                                    /* showFuseboxPopup= */ false,
                                     /* pastedText= */ "");
                 });
     }
@@ -571,6 +653,7 @@ public class NewTabPageTest {
                             .focusSearchBox(
                                     /* beginVoiceSearch= */ true,
                                     AutocompleteRequestType.SEARCH,
+                                    /* showFuseboxPopup= */ false,
                                     /* pastedText= */ "");
                 });
     }

@@ -74,6 +74,8 @@
 #include "components/webauthn/core/browser/remote_validation.h"
 #include "content/browser/about_url_loader_factory.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
+#include "content/browser/back_forward_cache/back_forward_cache_disable.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/file_backed_blob_factory_frame_impl.h"
 #if !BUILDFLAG(IS_COBALT)
@@ -136,8 +138,6 @@
 #include "content/browser/process_lock.h"
 #include "content/browser/push_messaging/push_messaging_manager.h"
 #include "content/browser/renderer_host/agent_scheduling_group_host.h"
-#include "content/browser/renderer_host/back_forward_cache_disable.h"
-#include "content/browser/renderer_host/back_forward_cache_impl.h"
 #include "content/browser/renderer_host/clipboard_host_impl.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/renderer_host/cookie_utils.h"
@@ -149,6 +149,7 @@
 #include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/renderer_host/media/peer_connection_tracker_host.h"
 #include "content/browser/renderer_host/mixed_content_checker.h"
+#include "content/browser/renderer_host/model_context_user_data.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/browser/renderer_host/navigation_metrics_utils.h"
@@ -167,6 +168,7 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
+#include "content/browser/renderer_host/text_input_manager.h"
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
 #include "content/browser/sandboxed_opaque_origin_creator.h"
 #include "content/browser/scoped_active_url.h"
@@ -336,7 +338,10 @@
 #include "ui/accessibility/ax_updates_and_events.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/clipboard/clipboard_metadata.h"
+#include "ui/base/ime/mojom/text_input_state.mojom.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/ime/text_input_flags.h"
+#include "ui/base/ime/text_input_type.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
@@ -2597,45 +2602,6 @@ SiteInstanceImpl* RenderFrameHostImpl::GetSourceSiteInstanceFromFrameToken(
   return nullptr;
 }
 
-// static
-std::optional<bool> RenderFrameHostImpl::GetIsUntrustedNetworkDisabled(
-    const blink::LocalFrameToken* frame_token,
-    int initiator_process_id,
-    StoragePartitionImpl* storage_partition) {
-  CHECK(storage_partition);
-
-  if (!frame_token) {
-    return std::nullopt;
-  }
-
-  // Get the value directly from the RenderFrameHost if it's still alive.
-  RenderFrameHostImpl* initiator_rfh =
-      RenderFrameHostImpl::FromFrameToken(initiator_process_id, *frame_token);
-  if (initiator_rfh) {
-    return initiator_rfh->IsUntrustedNetworkDisabled();
-  }
-
-  // Otherwise get it from the NavigationStateKeepAlive stored in
-  // `storage_partition`.
-  NavigationStateKeepAlive* navigation_state =
-      storage_partition->GetNavigationStateKeepAlive(*frame_token);
-  if (navigation_state) {
-    // We're not aware of specific cases inside fenced frames where a navigation
-    // can occur that results in a NavigationStateKeepAlive outliving the
-    // associated RFH. For iframes, a top-level navigation from a form submit is
-    // what is typically used to test this case. However, in fenced frames,
-    // top-level (_unfencedTop) form submits are explicitly disallowed (target
-    // _blank is still allowed, but will not result in this code path being
-    // exercised). If we hit this point, log it so that we can learn more about
-    // cases that result in this code path being executed.
-    base::debug::DumpWithoutCrashing();
-    return navigation_state->is_untrusted_network_disabled();
-  }
-
-  // There is no untrusted network status for the given `frame_token`.
-  return std::nullopt;
-}
-
 RenderFrameHostImpl::RenderFrameHostImpl(
     SiteInstance* site_instance,
     scoped_refptr<RenderViewHostImpl> render_view_host,
@@ -3386,6 +3352,8 @@ bool RenderFrameHostImpl::IsNestedWithinFencedFrame() const {
   }
 }
 
+<<<<<<< HEAD
+=======
 bool RenderFrameHostImpl::IsUntrustedNetworkDisabled() const {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return frame_tree_node_->GetFencedFrameProperties(
@@ -3399,6 +3367,7 @@ bool RenderFrameHostImpl::IsUntrustedNetworkDisabled() const {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::ForEachRenderFrameHostWithAction(
     base::FunctionRef<FrameIterationAction(RenderFrameHost*)> on_frame) {
   ForEachRenderFrameHostImplWithAction(
@@ -6004,6 +5973,8 @@ void RenderFrameHostImpl::ResetChildren() {
   TRACE_EVENT("navigation", "RenderFrameHostImpl::ResetChildren",
               ChromeTrackEvent::kRenderFrameHost, this);
   base::ScopedUmaHistogramTimer histogram_timer("Navigation.ResetChildren");
+<<<<<<< HEAD
+=======
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If the outermost main frame is tearing down its FrameTree state, then we
@@ -6022,6 +5993,7 @@ void RenderFrameHostImpl::ResetChildren() {
   }
 #endif
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Remove child nodes from the tree, then delete them. This destruction
   // operation will notify observers. See https://crbug.com/612450 for
   // explanation why we don't just call the std::vector::clear method.
@@ -6468,16 +6440,15 @@ void RenderFrameHostImpl::DidCommitPageActivation(
   // the navigation commit to be able to check that it didn't change, as
   // NavigationRequest will be destroyed by that point.
   blink::mojom::FrameReplicationState prerender_main_frame_replication_state;
-  // Copy the prerendering trigger type and the embbeder histogram suffix for
-  // metrics before NavigationRequest is destroyed.
+  // Copy the prerendering trigger type and the histogram suffix for metrics
+  // before NavigationRequest is destroyed.
   PreloadingTriggerType prerender_trigger_type;
-  std::string prerender_embedder_histogram_suffix;
+  std::string prerender_histogram_suffix;
   if (is_prerender_page_activation) {
     prerender_main_frame_replication_state =
         owned_request->prerender_main_frame_replication_state();
     prerender_trigger_type = owned_request->GetPrerenderTriggerType();
-    prerender_embedder_histogram_suffix =
-        owned_request->GetPrerenderEmbedderHistogramSuffix();
+    prerender_histogram_suffix = owned_request->GetPrerenderHistogramSuffix();
   }
 
 #if DCHECK_IS_ON()
@@ -6550,7 +6521,7 @@ void RenderFrameHostImpl::DidCommitPageActivation(
     // Record metric to check navigation time with prerender activation.
     base::TimeDelta delta = base::TimeTicks::Now() - navigation_start;
     RecordPrerenderActivationTime(delta, prerender_trigger_type,
-                                  prerender_embedder_histogram_suffix);
+                                  prerender_histogram_suffix);
 
     // We haven't sent any updates to the proxies during prerendering
     // activation, so we need to ensure that the new frame replication being
@@ -8848,6 +8819,17 @@ void RenderFrameHostImpl::GoToEntryAtOffset(
     return;
   }
 
+  // Only active and prerendered documents are allowed to start navigation in
+  // their frame.
+  if (lifecycle_state() != LifecycleStateImpl::kPrerendering) {
+    // If this is reached in case the RenderFrameHost is in BackForwardCache
+    // evict the document from BackForwardCache.
+    if (IsInactiveAndDisallowActivation(
+            DisallowActivationReasonId::kBeginNavigation)) {
+      return;
+    }
+  }
+
   // All frames are allowed to navigate the global history.
   if (delegate_->IsAllowedToGoToEntryAtOffset(offset)) {
     frame_tree_->controller().GoToOffsetFromRenderer(
@@ -8871,6 +8853,18 @@ void RenderFrameHostImpl::NavigateToNavigationApiKey(
           frame_tree_->root()->navigation_request(), has_user_gesture)) {
     return;
   }
+
+  // Only active and prerendered documents are allowed to start navigation in
+  // their frame.
+  if (lifecycle_state() != LifecycleStateImpl::kPrerendering) {
+    // If this is reached in case the RenderFrameHost is in BackForwardCache
+    // evict the document from BackForwardCache.
+    if (IsInactiveAndDisallowActivation(
+            DisallowActivationReasonId::kBeginNavigation)) {
+      return;
+    }
+  }
+
   frame_tree_->controller().NavigateToNavigationApiKey(this, task_id, key,
                                                        actual_navigation_start);
 }
@@ -9500,6 +9494,24 @@ void RenderFrameHostImpl::TextSelectionChanged(const std::u16string& text,
         selected_text = text_view.substr(relative_start, length);
       }
     }
+  }
+
+  // Don't broadcast password selections.
+  bool is_password = false;
+  if (auto* view = GetView()) {
+    if (auto* text_input_manager = view->GetTextInputManager()) {
+      if (const ui::mojom::TextInputState* state =
+              text_input_manager->GetTextInputState()) {
+        is_password =
+            state->type == ui::TEXT_INPUT_TYPE_PASSWORD ||
+            (state->flags & ui::TEXT_INPUT_FLAG_HAS_BEEN_PASSWORD) ||
+            (state->flags & ui::TEXT_INPUT_FLAG_HAS_BEEN_CUSTOM_PASSWORD);
+      }
+    }
+  }
+
+  if (is_password) {
+    selected_text = std::u16string_view();
   }
 
   delegate_->TextSelectionChanged(this, selected_text);
@@ -10253,6 +10265,8 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
+<<<<<<< HEAD
+=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Fenced frames that have revoked network access can't open popups.
   if (base::FeatureList::IsEnabled(
@@ -10274,6 +10288,7 @@ void RenderFrameHostImpl::CreateNewWindow(
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool no_javascript_access = false;
 
   // Filter out URLs to which navigation is disallowed from this context.
@@ -10607,21 +10622,13 @@ void RenderFrameHostImpl::DestroyFencedFrame(FencedFrame& fenced_frame) {
   std::optional<FencedFrameProperties> root_properties =
       inner_root->frame_tree_node()->GetFencedFrameProperties(
           FencedFramePropertiesNodeSource::kFrameTreeRoot);
-  if (root_properties.has_value() &&
-      root_properties->HasDisabledNetworkForCurrentFrameTree()) {
-    // When a fenced frame is removed, any nonces used to revoke the frame's
-    // network access no longer need to be tracked.
-    StoragePartitionImpl* storage_partition = inner_root->GetStoragePartition();
-    storage_partition->ClearNoncesInNetworkContextAfterDelay({
-        root_properties->partition_nonce()->GetValueIgnoringVisibility(),
-        inner_root->GetPage().credentialless_iframes_nonce(),
-    });
-  }
-
   fenced_frames_.erase(it);
+<<<<<<< HEAD
+=======
   // An ancestor's network revocation status could've changed as a result of
   GetOutermostMainFrame()->CalculateUntrustedNetworkStatus();
 #endif
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void RenderFrameHostImpl::TakeGuestOwnership(
@@ -10717,6 +10724,8 @@ void RenderFrameHostImpl::CreateFencedFrame(
   // Fenced frames (after their first navigation) do not have opaque origins,
   // and this default-constructed FRS does not impact that.
   CHECK(initial_replicated_state.origin.opaque());
+<<<<<<< HEAD
+=======
 
   // A fenced frame that is added to a frame tree whose network has already been
   // revoked will never be able to navigate. For all intents and purposes, this
@@ -10796,6 +10805,7 @@ void RenderFrameHostImpl::ForwardFencedFrameEventAndUserActivationToEmbedder(
       ->GetAssociatedRemoteFrame()
       ->ForwardFencedFrameEventToEmbedder(event_type);
   RecordNotifyEventOutcome(blink::NotifyEventOutcome::kSuccess);
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 // TODO(crbug.com/40250533): Move SendFencedFrameReportingBeacon into a separate
@@ -11058,17 +11068,6 @@ void RenderFrameHostImpl::SendFencedFrameReportingBeaconInternal(
   blink::mojom::ConsoleMessageLevel console_message_level =
       blink::mojom::ConsoleMessageLevel::kError;
 
-  auto properties = frame_tree_node()->GetFencedFrameProperties(
-      FencedFramePropertiesNodeSource::kFrameTreeRoot);
-  if (properties.has_value() &&
-      properties->HasDisabledNetworkForCurrentFrameTree()) {
-    error_message =
-        "Cannot send fenced frame event-level reports after "
-        "calling window.fence.disableUntrustedNetwork().";
-    AddMessageToConsole(console_message_level, error_message);
-    return;
-  }
-
   if (!frame_tree_node_->GetFencedFrameProperties()
            ->fenced_frame_reporter()
            ->SendReport(event_variant, destination,
@@ -11169,6 +11168,8 @@ void RenderFrameHostImpl::SetFencedFrameAutomaticBeaconReportEventData(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+<<<<<<< HEAD
+=======
 void RenderFrameHostImpl::DisableUntrustedNetworkInFencedFrame(
     DisableUntrustedNetworkInFencedFrameCallback callback) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -11347,6 +11348,7 @@ void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
   for (RenderFrameHostImpl* frame = this; frame; frame = frame->GetParent()) {
     if (frame->is_waiting_for_beforeunload_completion_) {
@@ -11356,6 +11358,8 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
   return nullptr;
 }
 
+<<<<<<< HEAD
+=======
 void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
     const GURL& exempted_url,
     ExemptUrlFromNetworkRevocationForTestingCallback callback) {
@@ -11400,6 +11404,7 @@ void RenderFrameHostImpl::ExemptUrlFromNetworkRevocationForTesting(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::OnViewTransitionOptInChanged(
     blink::mojom::ViewTransitionSameOriginOptIn view_transition_opt_in) {
   ViewTransitionOptInState::GetOrCreateForCurrentDocument(this)
@@ -11435,8 +11440,7 @@ void RenderFrameHostImpl::IssueKeepAliveHandle(
   GetStoragePartition()->RegisterKeepAliveHandle(
       std::move(receiver),
       base::WrapUnique(new NavigationStateKeepAlive(
-          GetFrameToken(), policy_container_host(), GetSiteInstance(),
-          IsUntrustedNetworkDisabled())));
+          GetFrameToken(), policy_container_host(), GetSiteInstance())));
 }
 
 void RenderFrameHostImpl::NotifyStorageAccessed(
@@ -15062,7 +15066,16 @@ void RenderFrameHostImpl::BindSerialService(
 }
 #endif
 
+<<<<<<< HEAD
+void RenderFrameHostImpl::BindModelContextHost(
+    mojo::PendingReceiver<blink::mojom::ModelContextHost> receiver) {
+  ModelContextUserData::Bind(this, std::move(receiver));
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+=======
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
@@ -16106,10 +16119,25 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
       features::IsEnforceSameDocumentOriginInvariantsEnabled()) {
     if (params->insecure_request_policy !=
         frame_tree_node_->current_replication_state().insecure_request_policy) {
-      bad_message::ReceivedBadMessage(
-          GetProcess(),
-          bad_message::RFH_SAME_DOC_INSECURE_REQUEST_POLICY_CHANGE);
-      return false;
+      // Log crash keys to diagnose the mismatch direction.
+      SCOPED_CRASH_KEY_NUMBER(
+          "SameDocIRP", "renderer_policy",
+          static_cast<int>(params->insecure_request_policy));
+      SCOPED_CRASH_KEY_NUMBER(
+          "SameDocIRP", "browser_policy",
+          static_cast<int>(frame_tree_node_->current_replication_state()
+                               .insecure_request_policy));
+      SCOPED_CRASH_KEY_BOOL("SameDocIRP", "is_main_frame", !GetParent());
+      SCOPED_CRASH_KEY_NUMBER("SameDocIRP", "lifecycle",
+                              static_cast<int>(lifecycle_state()));
+      SCOPED_CRASH_KEY_STRING256("SameDocIRP", "url", params->url.spec());
+      SCOPED_CRASH_KEY_STRING256("SameDocIRP", "origin",
+                                 GetLastCommittedOrigin().GetDebugString());
+      // TODO(crbug.com/40580002): Collect data on the mismatch before
+      // enforcing. The root cause is not yet identified — keeping as
+      // DumpWithoutCrashing to gather crash reports without killing the
+      // renderer.
+      base::debug::DumpWithoutCrashing();
     }
 
     if (params->insecure_navigations_set !=

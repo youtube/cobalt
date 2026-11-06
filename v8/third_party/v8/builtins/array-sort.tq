@@ -13,69 +13,38 @@
 //
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
-namespace array {
+#include 'src/objects/sort-state.h'
 
-class SortState extends HeapObject {
-  transitioning macro Compare(implicit context: Context)(x: JSAny,
-                              y: JSAny): Number {
-    if (this.userCmpFn != Undefined) {
-      return SortCompareUserFn(context, this.userCmpFn, x, y);
-    } else {
-      return SortCompareDefault(context, this.userCmpFn, x, y);
-    }
-  }
+extern macro SortStateMapConstant(): Map;
 
-  macro CheckAccessor(implicit context: Context)(): void labels Bailout {
-    if (!IsFastJSArray(this.receiver, context)) goto Bailout;
-
-    const elementsKind: ElementsKind = this.receiver.map.elements_kind;
-    if (IsDoubleElementsKind(elementsKind)) {
-      if (!CanUseSameAccessor<FastDoubleElements>(
-              context, this.receiver, this.initialReceiverMap,
-              this.initialReceiverLength)) {
-        goto Bailout;
-      }
-    } else if (IsFastSmiElementsKind(elementsKind)) {
-      if (!CanUseSameAccessor<FastSmiElements>(
-              context, this.receiver, this.initialReceiverMap,
-              this.initialReceiverLength)) {
-        goto Bailout;
-      }
-    } else {
-      if (!CanUseSameAccessor<FastObjectElements>(
-              context, this.receiver, this.initialReceiverMap,
-              this.initialReceiverLength)) {
-        goto Bailout;
-      }
-    }
-  }
-
-  macro ResetToGenericAccessor(_isToSorted: constexpr bool): void {
-    this.isResetToGeneric = True;
-  }
-
+// SortState lives in the default Torque namespace (rather than 'array' below)
+// because extern classes that participate in 'new' allocation expressions
+// must be declared there. The free macros that operate on SortState remain
+// in 'array'.
+@cppObjectLayoutDefinition
+extern class SortState extends HeapObject {
   // The receiver of the Array.p.sort call.
   receiver: JSReceiver;
 
   // The initial map and length of the receiver. After calling into JS, these
   // are reloaded and checked. If they changed we bail to the baseline
   // GenericElementsAccessor.
-  initialReceiverMap: Map;
-  initialReceiverLength: Number;
+  initial_receiver_map: Map;
+  initial_receiver_length: Number;
 
   // If the user provided a comparison function, it is stored here.
-  userCmpFn: Undefined|Callable;
+  user_cmp_fn: Undefined|Callable;
 
-  isResetToGeneric: Boolean;
+  is_reset_to_generic: Boolean;
 
   // This controls when we get *into* galloping mode. It's initialized to
   // kMinGallop. mergeLow and mergeHigh tend to nudge it higher for random
   // data, and lower for highly structured data.
-  minGallop: Smi;
+  min_gallop: Smi;
 
-  // A stack of sortState.pendingRunsSize pending runs yet to be merged.
-  // Run #i starts at sortState.pendingRuns[2 * i] and extends for
-  // sortState.pendingRuns[2 * i + 1] elements:
+  // A stack of sortState.pending_runs_size pending runs yet to be merged.
+  // Run #i starts at sortState.pending_runs[2 * i] and extends for
+  // sortState.pending_runs[2 * i + 1] elements:
   //
   //   [..., base (i-1), length (i-1), base i, length i]
   //
@@ -83,28 +52,71 @@ class SortState extends HeapObject {
   //
   //   base of run #i + length of run #i == base of run #i + 1
   //
-  pendingRunsSize: Smi;
-  pendingRuns: FixedArray;
-  pendingPowers: FixedArray;
+  pending_runs_size: Smi;
+  pending_runs: FixedArray;
+  pending_powers: FixedArray;
 
   // This is a copy of the original array/object that needs sorting.
-  // workArray is never exposed to user-code, and as such cannot change
+  // work_array is never exposed to user-code, and as such cannot change
   // shape and won't be left-trimmed.
-  workArray: FixedArray;
+  work_array: FixedArray;
 
   // Pointer to the temporary array.
-  tempArray: FixedArray;
+  temp_array: FixedArray;
 
-  // The initialReceiverLength converted and clamped to Smi.
-  sortLength: Smi;
+  // The initial_receiver_length converted and clamped to Smi.
+  sort_length: Smi;
 
   // The number of undefined that need to be inserted after sorting
-  // when the elements are copied back from the workArray to the receiver.
-  numberOfUndefined: Smi;
+  // when the elements are copied back from the work_array to the receiver.
+  number_of_undefined: Smi;
 }
+
+namespace array {
 
 type FastSmiElements extends ElementsKind;
 type FastObjectElements extends ElementsKind;
+
+transitioning macro Compare(
+    implicit context: Context)(sortState: SortState, x: JSAny,
+    y: JSAny): Number {
+  if (sortState.user_cmp_fn != Undefined) {
+    return SortCompareUserFn(context, sortState.user_cmp_fn, x, y);
+  } else {
+    return SortCompareDefault(context, sortState.user_cmp_fn, x, y);
+  }
+}
+
+macro CheckAccessor(
+    implicit context: Context)(sortState: SortState): void labels Bailout {
+  if (!IsFastJSArray(sortState.receiver, context)) goto Bailout;
+
+  const elementsKind: ElementsKind = sortState.receiver.map.elements_kind;
+  if (IsDoubleElementsKind(elementsKind)) {
+    if (!CanUseSameAccessor<FastDoubleElements>(
+            context, sortState.receiver, sortState.initial_receiver_map,
+            sortState.initial_receiver_length)) {
+      goto Bailout;
+    }
+  } else if (IsFastSmiElementsKind(elementsKind)) {
+    if (!CanUseSameAccessor<FastSmiElements>(
+            context, sortState.receiver, sortState.initial_receiver_map,
+            sortState.initial_receiver_length)) {
+      goto Bailout;
+    }
+  } else {
+    if (!CanUseSameAccessor<FastObjectElements>(
+            context, sortState.receiver, sortState.initial_receiver_map,
+            sortState.initial_receiver_length)) {
+      goto Bailout;
+    }
+  }
+}
+
+macro ResetToGenericAccessor(
+    sortState: SortState, _isToSorted: constexpr bool): void {
+  sortState.is_reset_to_generic = True;
+}
 
 // With the pre-processing step in Torque, the exact number of elements
 // to sort is unknown at the time the sort state is created.
@@ -164,21 +176,22 @@ transitioning macro NewSortState(
       CalculateWorkArrayLength(receiver, initialReceiverLength);
 
   return new SortState{
+    map: SortStateMapConstant(),
     receiver,
-    initialReceiverMap: map,
-    initialReceiverLength,
-    userCmpFn: comparefn,
-    isResetToGeneric: False,
-    minGallop: kMinGallopWins,
-    pendingRunsSize: 0,
+    initial_receiver_map: map,
+    initial_receiver_length: initialReceiverLength,
+    user_cmp_fn: comparefn,
+    is_reset_to_generic: False,
+    min_gallop: kMinGallopWins,
+    pending_runs_size: 0,
     // This temporary array is not used for the BinaryInsertionSort used on
     // small arrays
-    pendingRuns: kEmptyFixedArray,
-    pendingPowers: kEmptyFixedArray,
-    workArray: AllocateZeroedFixedArray(workArrayLength),
-    tempArray: kEmptyFixedArray,
-    sortLength: 0,
-    numberOfUndefined: 0
+    pending_runs: kEmptyFixedArray,
+    pending_powers: kEmptyFixedArray,
+    work_array: AllocateZeroedFixedArray(workArrayLength),
+    temp_array: kEmptyFixedArray,
+    sort_length: 0,
+    number_of_undefined: 0
   };
 }
 
@@ -393,7 +406,7 @@ CanUseSameAccessor<GenericElementsAccessor>(
 // Re-loading the stack-size is done in a few places. The small macro allows
 // for easier invariant checks at all use sites.
 macro GetPendingRunsSize(sortState: SortState): Smi {
-  const stackSize: Smi = sortState.pendingRunsSize;
+  const stackSize: Smi = sortState.pending_runs_size;
   dcheck(stackSize >= 0);
   return stackSize;
 }
@@ -495,12 +508,12 @@ macro PushRun(
   dcheck(GetPendingRunsSize(sortState) < kMaxMergePending);
 
   const stackSize: Smi = GetPendingRunsSize(sortState);
-  const pendingRuns: FixedArray = sortState.pendingRuns;
+  const pendingRuns: FixedArray = sortState.pending_runs;
 
   SetPendingRunBase(pendingRuns, stackSize, base);
   SetPendingRunLength(pendingRuns, stackSize, length);
 
-  sortState.pendingRunsSize = stackSize + 1;
+  sortState.pending_runs_size = stackSize + 1;
 }
 
 // Returns the temporary array and makes sure that it is big enough.
@@ -511,14 +524,14 @@ macro GetTempArray(
   const minSize: intptr =
       Convert<intptr>(SmiMax(kSortStateTempSize, requestedSize));
 
-  const currentSize: intptr = sortState.tempArray.length_intptr;
+  const currentSize: intptr = sortState.temp_array.length_intptr;
   if (currentSize >= minSize) {
-    return sortState.tempArray;
+    return sortState.temp_array;
   }
 
   const tempArray: FixedArray = AllocateZeroedFixedArray(minSize);
 
-  sortState.tempArray = tempArray;
+  sortState.temp_array = tempArray;
   return tempArray;
 }
 
@@ -573,7 +586,7 @@ transitioning macro BinaryInsertionSort(
     high: Smi): void {
   dcheck(low <= startArg && startArg <= high);
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
 
   let start: Smi = low == startArg ? (startArg + 1) : startArg;
 
@@ -593,7 +606,7 @@ transitioning macro BinaryInsertionSort(
     while (left < right) {
       const mid: Smi = left + ((right - left) >> 1);
       const order =
-          sortState.Compare(pivot, UnsafeCast<JSAny>(workArray.objects[mid]));
+          Compare(sortState, pivot, UnsafeCast<JSAny>(workArray.objects[mid]));
 
       if (order < 0) {
         right = mid;
@@ -639,7 +652,7 @@ transitioning macro CountAndMakeRun(
     high: Smi): Smi {
   dcheck(lowArg < high);
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
 
   const low: Smi = lowArg + 1;
   if (low == high) return 1;
@@ -648,7 +661,7 @@ transitioning macro CountAndMakeRun(
 
   const elementLow = UnsafeCast<JSAny>(workArray.objects[low]);
   const elementLowPred = UnsafeCast<JSAny>(workArray.objects[low - 1]);
-  let order = sortState.Compare(elementLow, elementLowPred);
+  let order = Compare(sortState, elementLow, elementLowPred);
 
   // TODO(szuend): Replace with "order < 0" once Torque supports it.
   //               Currently the operator<(Number, Number) has return type
@@ -658,7 +671,7 @@ transitioning macro CountAndMakeRun(
   let previousElement: JSAny = elementLow;
   for (let idx: Smi = low + 1; idx < high; ++idx) {
     const currentElement = UnsafeCast<JSAny>(workArray.objects[idx]);
-    order = sortState.Compare(currentElement, previousElement);
+    order = Compare(sortState, currentElement, previousElement);
 
     if (isDescending) {
       if (order >= 0) break;
@@ -701,9 +714,9 @@ transitioning builtin MergeAt(
   dcheck(i >= 0);
   dcheck(i == stackSize - 2 || i == stackSize - 3);
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
 
-  const pendingRuns: FixedArray = sortState.pendingRuns;
+  const pendingRuns: FixedArray = sortState.pending_runs;
   let baseA: Smi = GetPendingRunBase(pendingRuns, i);
   let lengthA: Smi = GetPendingRunLength(pendingRuns, i);
   const baseB: Smi = GetPendingRunBase(pendingRuns, i + 1);
@@ -721,7 +734,7 @@ transitioning builtin MergeAt(
     SetPendingRunBase(pendingRuns, i + 1, base);
     SetPendingRunLength(pendingRuns, i + 1, length);
   }
-  sortState.pendingRunsSize = stackSize - 1;
+  sortState.pending_runs_size = stackSize - 1;
 
   // Where does b start in a? Elements in a before that can be ignored,
   // because they are already in place.
@@ -779,7 +792,7 @@ transitioning builtin GallopLeft(
   let offset: Smi = 1;
 
   const baseHintElement = UnsafeCast<JSAny>(array.objects[base + hint]);
-  let order = sortState.Compare(baseHintElement, key);
+  let order = Compare(sortState, baseHintElement, key);
 
   if (order < 0) {
     // a[base + hint] < key: gallop right, until
@@ -790,7 +803,7 @@ transitioning builtin GallopLeft(
     while (offset < maxOfs) {
       const offsetElement =
           UnsafeCast<JSAny>(array.objects[base + hint + offset]);
-      order = sortState.Compare(offsetElement, key);
+      order = Compare(sortState, offsetElement, key);
 
       // a[base + hint + offset] >= key? Break.
       if (order >= 0) break;
@@ -817,7 +830,7 @@ transitioning builtin GallopLeft(
     while (offset < maxOfs) {
       const offsetElement =
           UnsafeCast<JSAny>(array.objects[base + hint - offset]);
-      order = sortState.Compare(offsetElement, key);
+      order = Compare(sortState, offsetElement, key);
 
       if (order < 0) break;
 
@@ -846,7 +859,7 @@ transitioning builtin GallopLeft(
   while (lastOfs < offset) {
     const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
-    order = sortState.Compare(UnsafeCast<JSAny>(array.objects[base + m]), key);
+    order = Compare(sortState, UnsafeCast<JSAny>(array.objects[base + m]), key);
 
     if (order < 0) {
       lastOfs = m + 1;  // a[base + m] < key.
@@ -879,7 +892,7 @@ transitioning builtin GallopRight(
   let offset: Smi = 1;
 
   const baseHintElement = UnsafeCast<JSAny>(array.objects[base + hint]);
-  let order = sortState.Compare(key, baseHintElement);
+  let order = Compare(sortState, key, baseHintElement);
 
   if (order < 0) {
     // key < a[base + hint]: gallop left, until
@@ -890,7 +903,7 @@ transitioning builtin GallopRight(
     while (offset < maxOfs) {
       const offsetElement =
           UnsafeCast<JSAny>(array.objects[base + hint - offset]);
-      order = sortState.Compare(key, offsetElement);
+      order = Compare(sortState, key, offsetElement);
 
       if (order >= 0) break;
 
@@ -916,7 +929,7 @@ transitioning builtin GallopRight(
     while (offset < maxOfs) {
       const offsetElement =
           UnsafeCast<JSAny>(array.objects[base + hint + offset]);
-      order = sortState.Compare(key, offsetElement);
+      order = Compare(sortState, key, offsetElement);
 
       // a[base + hint + ofs] <= key.
       if (order < 0) break;
@@ -944,7 +957,7 @@ transitioning builtin GallopRight(
   while (lastOfs < offset) {
     const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
 
-    order = sortState.Compare(key, UnsafeCast<JSAny>(array.objects[base + m]));
+    order = Compare(sortState, key, UnsafeCast<JSAny>(array.objects[base + m]));
 
     if (order < 0) {
       offset = m;  // key < a[base + m].
@@ -974,7 +987,7 @@ transitioning macro MergeLow(
   let lengthA: Smi = lengthAArg;
   let lengthB: Smi = lengthBArg;
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
   const tempArray: FixedArray = GetTempArray(sortState, lengthA);
   Copy(workArray, baseA, tempArray, 0, lengthA);
 
@@ -988,7 +1001,7 @@ transitioning macro MergeLow(
     if (--lengthB == 0) goto Succeed;
     if (lengthA == 1) goto CopyB;
 
-    let minGallop: Smi = sortState.minGallop;
+    let minGallop: Smi = sortState.min_gallop;
     // TODO(szuend): Replace with something that does not have a runtime
     //               overhead as soon as its available in Torque.
     while (Int32TrueConstant()) {
@@ -1002,8 +1015,8 @@ transitioning macro MergeLow(
       while (Int32TrueConstant()) {
         dcheck(lengthA > 1 && lengthB > 0);
 
-        const order = sortState.Compare(
-            UnsafeCast<JSAny>(workArray.objects[cursorB]),
+        const order = Compare(
+            sortState, UnsafeCast<JSAny>(workArray.objects[cursorB]),
             UnsafeCast<JSAny>(tempArray.objects[cursorTemp]));
 
         if (order < 0) {
@@ -1038,7 +1051,7 @@ transitioning macro MergeLow(
         dcheck(lengthA > 1 && lengthB > 0);
 
         minGallop = SmiMax(1, minGallop - 1);
-        sortState.minGallop = minGallop;
+        sortState.min_gallop = minGallop;
 
         nofWinsA = GallopRight(
             tempArray, UnsafeCast<JSAny>(workArray.objects[cursorB]),
@@ -1077,7 +1090,7 @@ transitioning macro MergeLow(
         if (--lengthA == 1) goto CopyB;
       }
       ++minGallop;  // Penalize it for leaving galloping mode
-      sortState.minGallop = minGallop;
+      sortState.min_gallop = minGallop;
     }
   } label Succeed {
     if (lengthA > 0) {
@@ -1105,7 +1118,7 @@ transitioning macro MergeHigh(
   let lengthA: Smi = lengthAArg;
   let lengthB: Smi = lengthBArg;
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
   const tempArray: FixedArray = GetTempArray(sortState, lengthB);
   Copy(workArray, baseB, tempArray, 0, lengthB);
 
@@ -1120,7 +1133,7 @@ transitioning macro MergeHigh(
     if (--lengthA == 0) goto Succeed;
     if (lengthB == 1) goto CopyA;
 
-    let minGallop: Smi = sortState.minGallop;
+    let minGallop: Smi = sortState.min_gallop;
     // TODO(szuend): Replace with something that does not have a runtime
     //               overhead as soon as its available in Torque.
     while (Int32TrueConstant()) {
@@ -1134,8 +1147,8 @@ transitioning macro MergeHigh(
       while (Int32TrueConstant()) {
         dcheck(lengthA > 0 && lengthB > 1);
 
-        const order = sortState.Compare(
-            UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
+        const order = Compare(
+            sortState, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]),
             UnsafeCast<JSAny>(workArray.objects[cursorA]));
 
         if (order < 0) {
@@ -1171,7 +1184,7 @@ transitioning macro MergeHigh(
         dcheck(lengthA > 0 && lengthB > 1);
 
         minGallop = SmiMax(1, minGallop - 1);
-        sortState.minGallop = minGallop;
+        sortState.min_gallop = minGallop;
 
         let k: Smi = GallopRight(
             workArray, UnsafeCast<JSAny>(tempArray.objects[cursorTemp]), baseA,
@@ -1212,7 +1225,7 @@ transitioning macro MergeHigh(
         if (--lengthA == 0) goto Succeed;
       }
       ++minGallop;
-      sortState.minGallop = minGallop;
+      sortState.min_gallop = minGallop;
     }
   } label Succeed {
     if (lengthB > 0) {
@@ -1249,9 +1262,9 @@ transitioning macro ArrayPowerSortImpl(
   if (length < 2) return;
   let remaining: Smi = length;
 
-  sortState.pendingRuns =
+  sortState.pending_runs =
       AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
-  sortState.pendingPowers =
+  sortState.pending_powers =
       AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
 
   // Port of CPython's minrun_next(): produces balanced run lengths that sum
@@ -1294,8 +1307,8 @@ transitioning macro ArrayPowerSortImpl(
     if (stackSize == 0) {
       PushRun(sortState, low, currentRunLength);
     } else {
-      const pendingRuns = sortState.pendingRuns;
-      const pendingPowers = sortState.pendingPowers;
+      const pendingRuns = sortState.pending_runs;
+      const pendingPowers = sortState.pending_powers;
 
       const prevRunBase = GetPendingRunBase(pendingRuns, stackSize - 1);
       const prevRunLen = GetPendingRunLength(pendingRuns, stackSize - 1);
@@ -1322,7 +1335,7 @@ transitioning macro ArrayPowerSortImpl(
   // Reload the stack size because MergeAt might change it.
   while (GetPendingRunsSize(sortState) > 1) {
     let n: Smi = GetPendingRunsSize(sortState) - 2;
-    const pendingRuns: FixedArray = sortState.pendingRuns;
+    const pendingRuns: FixedArray = sortState.pending_runs;
 
     if (n > 0 &&
         GetPendingRunLength(pendingRuns, n - 1) <
@@ -1333,32 +1346,32 @@ transitioning macro ArrayPowerSortImpl(
   }
 
   dcheck(GetPendingRunsSize(sortState) == 1);
-  dcheck(GetPendingRunLength(sortState.pendingRuns, 0) == length);
+  dcheck(GetPendingRunLength(sortState.pending_runs, 0) == length);
 }
 
 transitioning macro CompactReceiverElementsIntoWorkArray(
     implicit context: Context, sortState: SortState)(
     isToSorted: constexpr bool): Smi {
   let growableWorkArray = growable_fixed_array::GrowableFixedArray{
-    array: sortState.workArray,
-    capacity: Convert<intptr>(sortState.workArray.length),
+    array: sortState.work_array,
+    capacity: Convert<intptr>(sortState.work_array.length),
     length: 0
   };
 
   // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
   //               https://crbug.com/v8/7970.
-  const receiverLength: Number = sortState.initialReceiverLength;
+  const receiverLength: Number = sortState.initial_receiver_length;
   dcheck(IsNumberNormalized(receiverLength));
 
   const sortLength: Smi = TaggedIsSmi(receiverLength) ?
       UnsafeCast<Smi>(receiverLength) :
       Convert<PositiveSmi>(kSmiMax) otherwise unreachable;
 
-  // Move all non-undefined elements into {sortState.workArray}, holes
+  // Move all non-undefined elements into {sortState.work_array}, holes
   // are ignored.
   let numberOfUndefined: Smi = 0;
 
-  if ((sortState.isResetToGeneric == False) &&
+  if ((sortState.is_reset_to_generic == False) &&
       Is<FastJSArray>(sortState.receiver)) {
     const fastArray = UnsafeCast<FastJSArray>(sortState.receiver);
     const elementsKind: ElementsKind = fastArray.map.elements_kind;
@@ -1433,9 +1446,9 @@ transitioning macro CompactReceiverElementsIntoWorkArray(
   }
 
   // Reset the workArray on the frameState, as it may have grown.
-  sortState.workArray = growableWorkArray.array;
-  sortState.sortLength = sortLength;
-  sortState.numberOfUndefined = numberOfUndefined;
+  sortState.work_array = growableWorkArray.array;
+  sortState.sort_length = sortLength;
+  sortState.number_of_undefined = numberOfUndefined;
 
   return Convert<Smi>(growableWorkArray.length);
 }
@@ -1445,7 +1458,7 @@ transitioning macro CopyWorkArrayToReceiver(
     numberOfNonUndefined: Smi): void {
   let storeFn: builtin(Context, SortState, Smi, JSAny) => Smi;
   try {
-    if (sortState.isResetToGeneric == True) goto Slow;
+    if (sortState.is_reset_to_generic == True) goto Slow;
     Cast<FastJSArray>(sortState.receiver) otherwise Slow;
 
     const elementsKind: ElementsKind = sortState.receiver.map.elements_kind;
@@ -1460,36 +1473,36 @@ transitioning macro CopyWorkArrayToReceiver(
     storeFn = Store<GenericElementsAccessor>;
   }
 
-  const workArray = sortState.workArray;
+  const workArray = sortState.work_array;
 
   dcheck(Convert<intptr>(numberOfNonUndefined) <= workArray.length_intptr);
   dcheck(
-      numberOfNonUndefined + sortState.numberOfUndefined <=
-      sortState.sortLength);
+      numberOfNonUndefined + sortState.number_of_undefined <=
+      sortState.sort_length);
 
   // Writing the elements back is a 3 step process:
   //   1. Copy the sorted elements from the workarray to the receiver.
   //   2. Add {nOfUndefined} undefineds to the receiver.
   //   3. Depending on the backing store either delete properties or
-  //      set them to the TheHole up to {sortState.sortLength}.
+  //      set them to the TheHole up to {sortState.sort_length}.
   let index: Smi = 0;
   for (; index < numberOfNonUndefined; ++index) {
     storeFn(
         context, sortState, index, UnsafeCast<JSAny>(workArray.objects[index]));
   }
 
-  const end: Smi = sortState.sortLength;
+  const end: Smi = sortState.sort_length;
   if (index == end) return;
 
   const numberOfUndefinedEnd: Smi =
-      sortState.numberOfUndefined + numberOfNonUndefined;
+      sortState.number_of_undefined + numberOfNonUndefined;
   for (; index < numberOfUndefinedEnd; ++index) {
     storeFn(context, sortState, index, Undefined);
   }
 
   let deleteFn: builtin(Context, SortState, Smi) => Smi;
   try {
-    if (sortState.isResetToGeneric == True) goto Slow;
+    if (sortState.is_reset_to_generic == True) goto Slow;
     Cast<FastJSArray>(sortState.receiver) otherwise Slow;
 
     const elementsKind: ElementsKind = sortState.receiver.map.elements_kind;
@@ -1525,9 +1538,9 @@ transitioning builtin ArrayPowerSort(context: Context, sortState: SortState):
   try {
     // The comparison function or toString might have changed the
     // receiver, if that is the case, we switch to the slow path.
-    sortState.CheckAccessor() otherwise Slow;
+    CheckAccessor(sortState) otherwise Slow;
   } label Slow deferred {
-    sortState.ResetToGenericAccessor(isToSorted);
+    ResetToGenericAccessor(sortState, isToSorted);
   }
 
   CopyWorkArrayToReceiver(numberOfNonUndefined);

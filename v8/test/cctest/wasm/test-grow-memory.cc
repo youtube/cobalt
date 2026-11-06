@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/manually-externalized-buffer.h"
 #include "test/common/wasm/flag-utils.h"

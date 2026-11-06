@@ -1804,8 +1804,8 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToUint8Clamped(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToUint8Clamped(
-    CheckedNumberToUint8Clamped* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToUint8Clamped(
+    CheckedNumberOrOddballToUint8Clamped* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2282,13 +2282,6 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Multiply(
 ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyOverflownBits(
     Int32MultiplyOverflownBits* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitInt32Divide(
-    Int32Divide* node, const ProcessingState& state) {
-  // TODO(victorgomes): TryFoldInt32Operation can emit a CheckInt32Condition
-  // which needs an eager deopt point. We need to propagate this information
   return ProcessResult::kContinue;
 }
 
@@ -3128,6 +3121,7 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
 #define UNREACHABLE_NODES(X) \
   X(ConstantGapMove)         \
   X(GapMove)                 \
+  X(Int32Divide)             \
   X(VirtualObject)
 
 #define UNREACHEABLE_VISITOR(Node)                                          \

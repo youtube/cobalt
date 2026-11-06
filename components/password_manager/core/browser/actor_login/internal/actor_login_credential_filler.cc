@@ -146,9 +146,7 @@ void ActorLoginCredentialFiller::AttemptLogin(
   // no signin form on the page and filling being disallowed.
   if (!client_->IsFillingEnabled(origin_.GetURL())) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_FILLING_NOT_ALLOWED);
-    // TODO(crbug.com/460687566): add kFillingNotAllowed to the proto and change
-    // this outcome.
-    BuildAttemptLoginOutcome(AttemptLoginOutcomeMqls::kUnspecified);
+    BuildAttemptLoginOutcome(AttemptLoginOutcomeMqls::kFillingNotAllowed);
     std::move(callback_).Run(
         base::unexpected(ActorLoginError::kFillingNotAllowed));
     return;
@@ -179,6 +177,14 @@ void ActorLoginCredentialFiller::AttemptLogin(
             Logger::STRING_ACTOR_LOGIN_PRIMARY_MAIN_FRAME_ORIGIN_CHANGED);
   BuildAttemptLoginOutcome(AttemptLoginOutcomeMqls::kInvalidCredential);
   std::move(callback_).Run(LoginStatusResult::kErrorInvalidCredential);
+}
+
+void ActorLoginCredentialFiller::OnPrimaryPageChanged() {
+  login_form_finder_.reset();
+  device_authenticator_.reset();
+  BuildAttemptLoginOutcome(
+      AttemptLoginOutcomeMqls::kFillingInterruptedByPageChange);
+  std::move(callback_).Run(LoginStatusResult::kErrorPageChangedDuringFilling);
 }
 
 void ActorLoginCredentialFiller::OnAffiliationsReceived(
@@ -291,9 +297,7 @@ void ActorLoginCredentialFiller::AttemptReauth(base::OnceClosure on_reauth_cb) {
       GetLogger(client_);
   LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_WAITING_FOR_REAUTH);
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginReauthTaskRefocus) &&
-      !is_task_in_focus_.Run()) {
+  if (!is_task_in_focus_.Run()) {
     BuildAttemptLoginOutcome(AttemptLoginOutcomeMqls::kReauthRequired);
     std::move(callback_).Run(LoginStatusResult::kErrorDeviceReauthRequired);
     return;
@@ -315,8 +319,7 @@ const PasswordForm* ActorLoginCredentialFiller::GetMatchingStoredCredential(
       continue;
     }
     if (stored_credential_form.username_value == credential_.username &&
-        ActorLoginFormFinder::GetSourceSiteOrAppFromUrl(
-            stored_credential_form.url) == credential_.source_site_or_app) {
+        stored_credential_form.signon_realm == credential_.signon_realm) {
       matching_stored_credential = &stored_credential_form;
       break;
     }

@@ -24,7 +24,6 @@ bitfield struct DescriptorArrayFlags extends uint32 {
 }
 
 @cppObjectLayoutDefinition
-@generateUniqueMap
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
@@ -41,5 +40,4 @@ extern class DescriptorArray extends HeapObject {
 
 // A descriptor array where all values are held strongly.
 @cppObjectLayoutDefinition
-@generateUniqueMap
 extern class StrongDescriptorArray extends DescriptorArray {}

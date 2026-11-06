@@ -16,7 +16,6 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
-#include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
@@ -37,10 +36,17 @@
 #include "src/ic/call-optimization.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/utils/utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -123,6 +129,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                       TNode<Object> arg2, TNode<Object> arg3);
 
   // Javascript operators.
+  TNode<Object> JSCall2(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        FrameState frame_state);
   TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
                         TNode<Object> arg0, TNode<Object> arg1,
                         TNode<Object> arg2, FrameState frame_state);
@@ -449,6 +458,10 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                             const bool has_stability_dependency,
                                             ElementsKind kind,
                                             SharedFunctionInfoRef shared);
+  TNode<Object> ReduceArrayPrototypeSort(MapInference* inference,
+                                         const bool has_stability_dependency,
+                                         ElementsKind kind,
+                                         SharedFunctionInfoRef shared);
   TNode<Object> ReduceArrayPrototypeReduce(MapInference* inference,
                                            const bool has_stability_dependency,
                                            ElementsKind kind,
@@ -677,7 +690,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     base::SmallVector<Node*, kInlineSize> inputs(value_input_count +
                                                  kEffectAndControl);
     int cursor = 0;
-    inputs[cursor++] = n.receiver();
+    inputs[cursor++] = receiver_;
 
     // TODO(turbofan): Consider refactoring CFunctionInfo to distinguish
     // between receiver and arguments, simplifying this (and related) spots.
@@ -856,6 +869,24 @@ TNode<Object> JSCallReducerAssembler::Call4(
 
   return TNode<Object>::UncheckedCast(Call(desc, HeapConstant(callable.code()),
                                            arg0, arg1, arg2, arg3, context));
+}
+
+TNode<Object> JSCallReducerAssembler::JSCall2(TNode<Object> function,
+                                              TNode<Object> this_arg,
+                                              TNode<Object> arg0,
+                                              TNode<Object> arg1,
+                                              FrameState frame_state) {
+  JSCallNode n(node_ptr());
+  CallParameters const& p = n.Parameters();
+  return MayThrow(_ {
+    return AddNode<Object>(graph()->NewNode(
+        javascript()->Call(JSCallNode::ArityForArgc(2), p.frequency(),
+                           p.feedback(), ConvertReceiverMode::kAny,
+                           p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        function, this_arg, arg0, arg1, n.feedback_vector(), ContextInput(),
+        frame_state, effect(), control()));
+  });
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
@@ -1593,6 +1624,42 @@ TNode<Number> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypePush(
 
 namespace {
 
+// ---- Array.prototype.sort inline insertion sort
+// --------------------------------
+
+struct SortFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+  TNode<Object> receiver;
+  TNode<Object> comparefn;
+};
+
+// Deopt frame states for the inlined sort.  The sort operates on a temp
+// array copy so the receiver is unmodified — just restart the generic sort.
+FrameState SortNoopEagerFrameState(const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtin::kArraySortNoopEagerDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
+}
+
+FrameState SortNoopLazyFrameState(const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtin::kArraySortNoopLazyDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
+}
+
+// ---- Array.prototype.forEach
+// --------------------------------------------------
+
 struct ForEachFrameStateParams {
   JSGraph* jsgraph;
   SharedFunctionInfoRef shared;
@@ -1670,6 +1737,239 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
   });
 
   return UndefinedConstant();
+}
+
+TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, SharedFunctionInfoRef shared) {
+  // Inline a small insertion sort directly into the Turbofan graph.
+  //
+  // Fast path (length <= kMaxInlineSortLength):
+  //   1. Copy receiver's elements into a temporary FixedArray.
+  //   2. Insertion-sort the temp array, calling comparefn for each comparison.
+  //   3. Copy sorted elements back into the receiver.
+  //   Using a temp array matches the spec's SortIndexedProperties snapshot
+  //   semantics: comparefn side effects on the receiver do not affect the
+  //   sort order and are overwritten by the copy-back.
+  //
+  // Slow path (length > kMaxInlineSortLength):
+  //   Call Array.prototype.sort with kDisallowSpeculation to prevent
+  //   re-reduction.
+  //
+  // On any deopt the kArraySortNoopLazy/EagerDeoptContinuation builtins
+  // restart the generic sort (the receiver is unmodified since the sort
+  // operates on a temp copy).
+  static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
+
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = TargetInput();
+  TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
+  TNode<Object> comparefn = ArgumentOrUndefined(0);
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  SortFrameStateParams frame_state_params{
+      jsgraph(),         shared,   context,  target,
+      outer_frame_state, receiver, comparefn};
+
+  // Branch: fast path vs slow path.
+  auto slow_label = MakeDeferredLabel();
+  auto done_label = MakeLabel();
+
+  // length > kMaxInlineSortSize → slow path.
+  GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
+         &slow_label);
+
+  // Fast path: inline insertion sort on a temporary FixedArray.
+  {
+    // Allocate a temporary FixedArray of kMaxInlineSortSize.  We always
+    // allocate the max size so that the allocation is constant-sized.
+    MapRef fixed_array_map = broker()->fixed_array_map();
+    AllocationBuilder ab(jsgraph(), broker(), effect(), control());
+    CHECK(ab.CanAllocateArray(kMaxInlineSortSize, fixed_array_map));
+    ab.AllocateArray(kMaxInlineSortSize, fixed_array_map);
+    for (int k = 0; k < kMaxInlineSortSize; k++) {
+      ab.Store(AccessBuilder::ForFixedArraySlot(k), jsgraph()->ZeroConstant());
+    }
+    TNode<FixedArray> temp_array =
+        TNode<FixedArray>::UncheckedCast(ab.Finish());
+    InitializeEffectControl(temp_array, control());
+
+    // Copy-in: temp_array[k] = elements[k] for k in [0, length).
+    // No CheckBounds needed: k in [0, length) and the receiver's length is
+    // original_length (no callbacks have run yet).
+    auto element_access = AccessBuilder::ForFixedArrayElement(kind);
+    TNode<FixedArrayBase> elements = LoadElements(receiver);
+    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        k = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), k));
+      }
+      TNode<Object> element = LoadElement<Object>(element_access, elements, k);
+      StoreElement(element_access, temp_array, k, element);
+    });
+
+    // Outer loop: for (i = 1; i < length; i++).
+    auto outer_exit = MakeLabel();
+    {
+      GraphAssembler::LoopScope<MachineRepresentation::kTagged> outer_scope(
+          this);
+      auto* outer_header = outer_scope.loop_header_label();
+      auto outer_body = MakeLabel();
+
+      Goto(outer_header, OneConstant());
+      Bind(outer_header);
+      TNode<Number> i = outer_header->PhiAt<Number>(0);
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        i = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), i));
+      }
+
+      BranchWithHint(NumberLessThan(i, original_length), &outer_body,
+                     &outer_exit, BranchHint::kNone);
+      Bind(&outer_body);
+
+      // Load pivot = temp_array[i].
+      TNode<Object> pivot = LoadElement<Object>(element_access, temp_array, i);
+
+      // Inner loop: j = i-1 downto 0.
+      auto inner_exit = MakeDeferredLabel(MachineRepresentation::kTagged);
+      {
+        GraphAssembler::LoopScope<MachineRepresentation::kTagged> inner_scope(
+            this);
+        auto* inner_header = inner_scope.loop_header_label();
+
+        TNode<Number> j_init = NumberAdd(i, NumberConstant(-1));
+        Goto(inner_header, j_init);
+        Bind(inner_header);
+        TNode<Number> j = inner_header->PhiAt<Number>(0);
+        if (!v8_flags.turbo_loop_variable) {
+          // Without loop variable analysis, Turbofan's typer is unable to
+          // derive a sufficiently precise type here. This is not a
+          // soundness problem, but triggers graph verification errors. So
+          // we only insert the TypeGuard if necessary.  SignedSmall (not
+          // UnsignedSmall) because j can be -1 transiently before the
+          // j < 0 exit below.
+          j = TNode<Number>::UncheckedCast(TypeGuard(Type::SignedSmall(), j));
+        }
+
+        // Exit when j < 0 (pivot belongs at index 0).
+        GotoIf(NumberLessThan(j, ZeroConstant()), &inner_exit,
+               BranchHint::kNone, j);
+
+        // Load elem = temp_array[j].
+        TNode<Object> elem = LoadElement<Object>(element_access, temp_array, j);
+
+        TNode<Object> comparefn_this = UndefinedConstant();
+        TNode<Object> cmp_result =
+            JSCall2(comparefn, comparefn_this, pivot, elem,
+                    SortNoopLazyFrameState(frame_state_params));
+
+        // Re-establish dominating frame state after JSCall for
+        // SpeculativeToNumber below.  Hoisting this Checkpoint out of the
+        // loop is unsafe: the JSCall's effect chain wipes the dominating
+        // frame state, and Turboshaft's graph builder DCHECKs that a
+        // dominating frame state exists for SpeculativeToNumber.
+        Checkpoint(SortNoopEagerFrameState(frame_state_params));
+
+        // Convert comparefn result to a number.
+        TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
+
+        // If cmp >= 0: insertion point found; exit.
+        GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit, j);
+
+        // cmp < 0: shift elem right: temp_array[j+1] = elem.
+        TNode<Number> gap = NumberAdd(j, OneConstant());
+        StoreElement(element_access, temp_array, gap, elem);
+
+        // j--
+        Goto(inner_header, NumberAdd(j, NumberConstant(-1)));
+      }  // ~inner LoopScope
+
+      Bind(&inner_exit);
+      TNode<Number> final_j = inner_exit.PhiAt<Number>(0);
+      TNode<Number> insertion_point = NumberAdd(final_j, OneConstant());
+
+      // temp_array[insertion_point] = pivot.
+      StoreElement(element_access, temp_array, insertion_point, pivot);
+
+      // i++
+      Goto(outer_header, NumberAdd(i, OneConstant()));
+    }  // ~outer LoopScope
+
+    Bind(&outer_exit);
+
+    // Guard: comparefn side effects may have changed the receiver's map or
+    // length.  Check once here before the copy-back (the sort loop only
+    // touches the temp array, so in-loop checks are unnecessary).
+    Checkpoint(SortNoopEagerFrameState(frame_state_params));
+    MaybeInsertMapChecks(inference, has_stability_dependency);
+    TNode<Number> current_length = LoadJSArrayLength(receiver, kind);
+    CheckIf(NumberEqual(current_length, original_length),
+            DeoptimizeReason::kArrayLengthChanged);
+
+    // Re-load the elements pointer: comparefn may have grown/shrunk the
+    // backing store via push/pop, replacing receiver.elements.  The map and
+    // length checks above don't catch a same-length push-then-pop sequence.
+    TNode<FixedArrayBase> writable_elements = LoadElements(receiver);
+    // Ensure the elements backing store isn't COW before we write into it.
+    // Array literals share a COW FixedArray; writing back without copying it
+    // first would corrupt every other invocation of the literal site.
+    // FixedDoubleArray has no COW form, so PACKED_DOUBLE is exempt.
+    if (IsSmiOrObjectElementsKind(kind)) {
+      writable_elements = AddNode<FixedArrayBase>(
+          graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
+                           writable_elements, effect(), control()));
+    }
+
+    // Copy-back: elements[k] = temp_array[k] for k in [0, length).
+    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        k = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), k));
+      }
+      TNode<Object> val = LoadElement<Object>(element_access, temp_array, k);
+      StoreFixedArrayBaseElement(writable_elements, k, val, kind);
+    });
+
+    Goto(&done_label);
+  }
+
+  // Slow path: call the generic sort builtin.
+  Bind(&slow_label);
+  {
+    JSCallNode n(node_ptr());
+    CallParameters const& p = n.Parameters();
+
+    // Use kDisallowSpeculation so JSCallReducer does not re-reduce this
+    // call, avoiding infinite recursion.
+    const Operator* op = javascript()->Call(
+        JSCallNode::ArityForArgc(1), p.frequency(), p.feedback(),
+        ConvertReceiverMode::kNotNullOrUndefined,
+        SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
+    Node* sort_builtin = node_ptr()->InputAt(0);
+
+    MayThrow(_ {
+      return AddNode<Object>(graph()->NewNode(
+          op, sort_builtin, receiver, comparefn, n.feedback_vector(),
+          ContextInput(), outer_frame_state, effect(), control()));
+    });
+
+    Goto(&done_label);
+  }
+
+  Bind(&done_label);
+  return receiver;
 }
 
 namespace {
@@ -3518,7 +3818,8 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
-  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
+  Node* receiver = nullptr;
+  if (arity == 3) receiver = n.Argument(2);
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
@@ -3770,6 +4071,36 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
   IteratingArrayBuiltinReducerAssembler a(this, node);
   a.InitializeEffectControl(h.effect(), h.control());
   TNode<Object> subgraph = a.ReduceArrayPrototypeForEach(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
+  return ReplaceWithSubgraph(&a, subgraph);
+}
+
+Reduction JSCallReducer::ReduceArraySort(Node* node,
+                                         SharedFunctionInfoRef shared) {
+  // Suppress for correctness fuzzing (different behavior vs. builtin).
+  if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions)) return NoChange();
+
+  JSCallNode n(node);
+  if (n.ArgumentCount() < 1) return NoChange();
+
+  // Only reduce when comparefn is statically known to be callable.
+  HeapObjectMatcher m(n.Argument(0));
+  bool comparefn_is_callable =
+      (m.HasResolvedValue() && m.Ref(broker()).map(broker()).is_callable()) ||
+      m.IsJSCreateClosure() || m.IsCheckClosure();
+  if (!comparefn_is_callable) return NoChange();
+
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
+
+  // Only non-holey, non-double PACKED kinds are supported.  Holey arrays need
+  // hole handling; double arrays need a FixedDoubleArray temp copy.
+  if (IsHoleyElementsKind(h.elements_kind())) return h.inference()->NoChange();
+  if (IsDoubleElementsKind(h.elements_kind())) return h.inference()->NoChange();
+
+  IteratingArrayBuiltinReducerAssembler a(this, node);
+  a.InitializeEffectControl(h.effect(), h.control());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeSort(
       h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
   return ReplaceWithSubgraph(&a, subgraph);
 }
@@ -5038,6 +5369,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceReflectHas(node);
     case Builtin::kArrayForEach:
       return ReduceArrayForEach(node, shared);
+    case Builtin::kArrayPrototypeSort:
+      return ReduceArraySort(node, shared);
     case Builtin::kArrayMap:
       return ReduceArrayMap(node, shared);
     case Builtin::kArrayFilter:
@@ -6796,6 +7129,18 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
     return NoChange();
   }
 
+  // We build a LAZY_WITH_CATCH continuation frame state for the inlined call
+  // so the deoptimizer treats the lazy-deopt continuation as a catch handler
+  // when a throw arrives at the inlined call PC after the optimized code is
+  // invalidated. That requires the surrounding function's SharedFunctionInfo,
+  // which lives in the outer frame state.
+  FrameState outer_frame_state{n.frame_state()};
+  Handle<SharedFunctionInfo> outer_shared;
+  if (!outer_frame_state.frame_state_info().shared_info().ToHandle(
+          &outer_shared)) {
+    return NoChange();
+  }
+
   MapInference inference(broker(), receiver, effect);
   if (inference.HaveMaps() &&
       inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
@@ -6879,20 +7224,29 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
       callable.descriptor().GetStackParameterCount(),
       CallDescriptor::kNeedsFrameState);
 
-  // Use a GeneratorNextLazyDeoptContinuation to wrap the yielded value
-  // correctly in case of a lazy deopt.
-  Node* lazy_deopt_parameters[] = {receiver};
-  Node* frame_state = CreateStubBuiltinContinuationFrameState(
-      jsgraph(), Builtin::kGeneratorNextLazyDeoptContinuation, context,
-      lazy_deopt_parameters, arraysize(lazy_deopt_parameters), n.frame_state(),
-      ContinuationFrameStateMode::LAZY);
+  // Use a GeneratorPrototypeNextLazyDeoptContinuation to wrap the yielded
+  // value correctly in case of a lazy deopt. LAZY_WITH_CATCH so the
+  // continuation also handles the deopt-on-throw case (close the generator
+  // and rethrow); see frame_state setup above.
+  Node* lazy_deopt_parameters[] = {
+      jsgraph()->UndefinedConstant(), /* receiver of the JS continuation */
+      receiver,                       /* generator argument */
+  };
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), MakeRef(broker(), outer_shared),
+      Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, n.target(),
+      context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+      n.frame_state(), ContinuationFrameStateMode::LAZY_WITH_CATCH);
 
   Node* result = e_receiverisrunning = if_receiverisrunning = graph()->NewNode(
       common()->Call(descriptor),
       jsgraph()->HeapConstantNoHole(callable.code()), value, receiver, context,
       frame_state, e_receiverisrunning, if_receiverisrunning);
 
-  // Close the generator if there was an exception.
+  // Close the generator if there was an exception, then dispatch to the
+  // surrounding handler (if any) or physically rethrow. The
+  // LAZY_WITH_CATCH continuation above handles the same flow when the
+  // optimized code is invalidated mid-call.
   Node* if_exception = graph()->NewNode(
       common()->IfException(), e_receiverisrunning, if_receiverisrunning);
   Node* e_exception = if_exception;

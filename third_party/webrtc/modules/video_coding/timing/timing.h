@@ -76,7 +76,7 @@ class VCMTiming {
 
   // Sets the minimum time the video must be delayed on the receiver to
   // get the desired jitter buffer level.
-  void SetJitterDelay(TimeDelta required_delay);
+  void SetMinimumDelay(TimeDelta minimum_delay);
 
   // Sets/gets the minimum playout delay from capture to render.
   TimeDelta min_playout_delay() const;
@@ -97,13 +97,11 @@ class VCMTiming {
 
   // Used to report that a frame is passed to decoding. Updates the timestamp
   // filter which is used to map between timestamps and receiver system time.
-  virtual void IncomingTimestamp(uint32_t rtp_timestamp,
-                                 Timestamp last_packet_time);
+  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now);
 
-  // Returns the receiver system time when the frame with timestamp
-  // `frame_timestamp` should be rendered, assuming that the system time
-  // currently is `now`.
-  virtual Timestamp RenderTime(uint32_t frame_timestamp, Timestamp now) const;
+  // Returns the receiver system time when the frame with `rtp_timestamp`
+  // should be rendered, assuming that the system time currently is `now`.
+  virtual Timestamp RenderTime(uint32_t rtp_timestamp, Timestamp now) const;
 
   // Returns the maximum time in ms that we can wait for a frame to become
   // complete before we must pass it to the decoder. render_time==0 indicates
@@ -116,7 +114,7 @@ class VCMTiming {
                                    Timestamp now,
                                    bool too_many_frames_queued) const;
 
-  // Returns the current target delay which is required delay + decode time +
+  // Returns the current target delay which is minimum delay + decode time +
   // render delay.
   TimeDelta TargetVideoDelay() const;
 

@@ -8,8 +8,9 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/wasm/decoder.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -228,22 +229,10 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
         uint8_t* address =
             reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
         args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
-        if (struct_type->field(i) == kWasmWaitQueue) {
-          // We have to allocate the Managed part of waitqueue after finishing
-          // initialization of the fresh struct object. Therefore we initialize
-          // it with 0 here.
-          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
-                                   Smi::FromInt(0));
-        }
       } else {
         obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref());
       }
     }
-  }
-
-  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    if (struct_type->field(i) != kWasmWaitQueue) continue;
-    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
   }
 
   result->runtime_value = WasmValue(
@@ -280,7 +269,6 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
     case kI32:
     case kI8:
     case kI16:
-    case kWaitQueue:
       return WasmValue(0);
     case kI64:
       return WasmValue(int64_t{0});
@@ -351,13 +339,6 @@ void ConstantExpressionInterface::StructNewDefault(
         DefaultValueForType(ftype, isolate_, module_)
             .Packed(ftype)
             .CopyTo(address);
-        if (struct_type->field(i) == kWasmWaitQueue) {
-          // We have to allocate the Managed part of waitqueue after finishing
-          // initialization of the fresh struct object. Therefore we initialize
-          // it with 0 here.
-          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
-                                   Smi::FromInt(0));
-        }
       } else {
         // No write barrier needed, as read-only-space objects never move.
         TaggedField<Object, WasmStruct::kHeaderSize>::store(
@@ -365,11 +346,6 @@ void ConstantExpressionInterface::StructNewDefault(
             *DefaultValueForType(ftype, isolate_, module_).to_ref());
       }
     }
-  }
-
-  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    if (struct_type->field(i) != kWasmWaitQueue) continue;
-    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
   }
 
   result->runtime_value = WasmValue(
@@ -541,6 +517,18 @@ void ConstantExpressionInterface::RefI31(FullDecoder* decoder,
   }
   result->runtime_value =
       WasmValue(direct_handle(Tagged<Smi>(shifted), isolate_), kWasmRefI31);
+}
+
+void ConstantExpressionInterface::WaitqueueNew(FullDecoder* decoder,
+                                               Value* result) {
+  if (!generate_value()) return;
+
+  auto ptr = std::make_shared<FutexManagedObjectWaitList>();
+  DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
+      Managed<FutexManagedObjectWaitList>::From(
+          isolate_, sizeof(FutexManagedObjectWaitList), ptr,
+          AllocationType::kSharedOld);
+  result->runtime_value = WasmValue(managed, kWasmWaitqueueRef.AsNonNull());
 }
 
 void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,

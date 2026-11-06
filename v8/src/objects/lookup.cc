@@ -1339,13 +1339,13 @@ bool LookupIterator::SkipInterceptor(Tagged<JSObject> holder) {
 Tagged<JSReceiver> LookupIterator::NextHolder(Tagged<Map> map) {
   DisallowGarbageCollection no_gc;
   if (map->prototype(isolate_) == ReadOnlyRoots(isolate_).null_value()) {
-    return JSReceiver();
+    return {};
   }
   bool check_prototype_chain =
       this->check_prototype_chain() ||
       interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty;
   if (!check_prototype_chain && !IsJSGlobalProxyMap(map)) {
-    return JSReceiver();
+    return {};
   }
   return Cast<JSReceiver>(map->prototype(isolate_));
 }

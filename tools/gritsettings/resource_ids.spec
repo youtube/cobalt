@@ -170,6 +170,9 @@
     "messages": [2540],
     "includes": [2600],
   },
+  "chrome/browser/indigo/resources/browser_resources.grd": {
+    "includes": [2640],
+  },
   # END chrome/browser section.
 
   # START chrome/ WebUI resources section
@@ -257,6 +260,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chrome_finds_internals/resources.grd": {
     "META": {"sizes": {"includes": [10]}},
     "includes": [2970],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/account_manager/resources.grd": {
+    "META": {"sizes": {"includes": [30],}},
+    "includes": [2975],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/add_supervision/resources.grd": {
     "META": {"sizes": {"includes": [10],}},
@@ -369,6 +376,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/password_change/resources.grd": {
     "META": {"sizes": {"includes": [30]}},
     "includes": [3560],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/power/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [3570],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/remote_maintenance_curtain/resources.grd": {
     "META": {"sizes": {"includes": [10]}},
@@ -844,6 +855,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/ai_overlay_dialog/resources.grd": {
     "META": {"sizes": {"includes": [30]}},
     "includes": [5300],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/emulator/resources.grd": {
+    "META": {"sizes": {"includes": [20]}},
+    "includes": [5330],
   },
   # END chrome/ WebUI resources section
 

@@ -2,7 +2,7 @@
 
 This is the workspace configuration for V8 when using Gemini.
 
-For understanding V8 concepts and structure, refer to the [v8_understanding](agents/skills/v8_understanding/SKILL.md) skill.
+For understanding V8 concepts and structure, refer to the [v8-understanding](agents/skills/v8-understanding/SKILL.md) skill.
 
 Some hints:
 - You are an expert C++ developer.
@@ -29,19 +29,19 @@ Detailed information has been moved to specialized subagents in `agents/agents/`
 
 General guidance and reference information are available as skills or rules:
 
--   **Folder/Directory Structure**: Understand the layout of the V8 repository. See [v8_structure](agents/skills/v8_structure/SKILL.md).
--   **Key Commands**: Find commands for building and debugging. See [v8_commands](agents/skills/v8_commands/SKILL.md).
--   **Testing**: Detailed guide for running and interpreting tests. See [v8_testing](agents/skills/v8_testing/SKILL.md).
+-   **Folder/Directory Structure**: Understand the layout of the V8 repository. See [v8-structure](agents/skills/v8-structure/SKILL.md).
+-   **Key Commands**: Find commands for building and debugging. See [v8-commands](agents/skills/v8-commands/SKILL.md).
+-   **Testing**: Detailed guide for running and interpreting tests. See [v8-testing](agents/skills/v8-testing/SKILL.md).
 -   **Best Practices**: Common pitfalls and fix proposal guidelines. See [v8_best_practices](agents/rules/v8_best_practices.md).
--   **Setup**: Handles missing dependencies and configuration for V8 tools. See [v8_setup](agents/skills/v8_setup/SKILL.md).
+-   **Setup**: Handles missing dependencies and configuration for V8 tools. See [v8-setup](agents/skills/v8-setup/SKILL.md).
 -   **Git CL Conventions**: Commit message format and usage. See [git_cl](agents/rules/git_cl.md).
 -   **Torque**: Expert guidance for Torque. See [torque](agents/skills/torque/SKILL.md).
--   **Debugging Workflow**: Guide for issue-based debugging. See [workflow_debugging](agents/skills/workflow_debugging/SKILL.md).
--   **General Debugging Workflow**: Guide for general debugging. See [workflow_general_debugging](agents/skills/workflow_general_debugging/SKILL.md).
--   **Performance Workflow**: Guide for performance evaluation. See [workflow_perf](agents/skills/workflow_perf/SKILL.md).
+-   **Debugging Workflow**: Guide for issue-based debugging. See [workflow-debugging](agents/skills/workflow-debugging/SKILL.md).
+-   **General Debugging Workflow**: Guide for general debugging. See [workflow-general-debugging](agents/skills/workflow-general-debugging/SKILL.md).
+-   **Performance Workflow**: Guide for performance evaluation. See [workflow-perf](agents/skills/workflow-perf/SKILL.md).
 -   **Porting Guide**: Guide for porting objects to HeapObjectLayout. See [port-to-heapobjectlayout](agents/skills/port-to-heapobjectlayout/SKILL.md).
 -   **Agent Evaluation**: Workflow for evaluating agents. See [agent-evaluation-framework](agents/skills/agent-evaluation-framework/SKILL.md).
--   **Agent Self-Improvement**: Workflow for agent self-improvement. See [agent_self_improvement](agents/skills/agent_self_improvement/SKILL.md).
+-   **Agent Self-Improvement**: Workflow for agent self-improvement. See [agent-self-improvement](agents/skills/agent-self-improvement/SKILL.md).
 -   **V8 Workflow**: General workflow for V8 development. See [v8-workflow](agents/skills/v8-workflow/SKILL.md).
 
 ## Coding and Committing

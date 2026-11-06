@@ -197,8 +197,8 @@ type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
 @useParentTypeChecker
 type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
 
-@export
-class OnHeapBasicBlockProfilerData extends HeapObject {
+@cppObjectLayoutDefinition
+extern class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: FixedInt32Array;
   counts: FixedUInt32Array;
   branches: PodArrayOfIntegerPairs;

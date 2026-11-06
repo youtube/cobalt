@@ -143,6 +143,8 @@ class WeakObjectRetainer;
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class SlotClearingMode { kCheckSweeping, kUnconditional };
+
 enum class InvalidateRecordedSlots { kYes, kNo };
 
 enum class InvalidateExternalPointerSlots { kYes, kNo };
@@ -1063,7 +1065,9 @@ class Heap final {
   uint8_t* IsMarkingFlagAddress();
   uint8_t* IsMinorMarkingFlagAddress();
 
-  void ClearRecordedSlotRange(Address start, Address end);
+  void ClearRecordedSlotRange(
+      Address start, Address end,
+      SlotClearingMode mode = SlotClearingMode::kCheckSweeping);
   static int InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                              size_t slot_offset);
 

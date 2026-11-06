@@ -128,6 +128,8 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
 
   base::ProcessId GetProcessId() const { return process_id_; }
 
+  DevToolsSession* GetSessionByIdForTesting(const std::string& session_id);
+
  protected:
   explicit DevToolsAgentHostImpl(const std::string& id);
   ~DevToolsAgentHostImpl() override;

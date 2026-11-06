@@ -82,7 +82,6 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -95,7 +94,9 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
+#include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -118,6 +119,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_metrics.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
@@ -273,7 +275,6 @@
 #include "components/user_education/common/new_badge/new_badge_controller.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/views/help_bubble_view.h"
-#include "components/user_education/views/view_subregion_anchor.h"
 #include "components/version_info/channel.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
@@ -338,6 +339,7 @@
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/interaction/element_tracker_views.h"
+#include "ui/views/interaction/view_subregion_anchor.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -647,10 +649,6 @@ class BrowserView::ExclusiveAccessContextImpl
   void operator=(const ExclusiveAccessContextImpl&) = delete;
   ~ExclusiveAccessContextImpl() override = default;
 
-  bool IsFullscreenBubbleVisible() const {
-    return exclusive_access_bubble_ != nullptr;
-  }
-
   ExclusiveAccessBubbleViews* exclusive_access_bubble() {
     return exclusive_access_bubble_.get();
   }
@@ -729,7 +727,8 @@ class BrowserView::ExclusiveAccessContextImpl
   }
 
   void ExitFullscreen() override {
-    if (browser_view_->IsForceFullscreen()) {
+    if (BrowserWindowFullscreenController::From(browser_view_->browser())
+            ->IsForceFullscreen()) {
       return;
     }
 
@@ -885,19 +884,16 @@ BrowserView::BrowserView(Browser* browser)
   top_container_insertion_index_ = GetIndexOf(top_container_.get());
 
   auto contents_container = std::make_unique<views::View>();
-
-  views::View* contents_view;
   auto multi_contents_view = std::make_unique<MultiContentsView>(
       this, std::make_unique<MultiContentsViewDelegateImpl>(*browser_));
   multi_contents_view_ =
       contents_container->AddChildView(std::move(multi_contents_view));
-  contents_view = multi_contents_view_;
 
   // Create the view that will house the Lens overlay. This view is visible but
   // transparent view that is used as a container for the Lens overlay WebView.
-  // It must have a higher index than contents_view so that it is drawn on top
-  // of it. Uses a fill layout so that the overlay WebView can fill the entire
-  // container.
+  // It must have a higher index than multi_contents_view so that it is drawn on
+  // top of it. Uses a fill layout so that the overlay WebView can fill the
+  // entire container.
   auto lens_overlay_view = std::make_unique<views::View>();
   lens_overlay_view->SetID(VIEW_ID_LENS_OVERLAY);
   lens_overlay_view->SetProperty(views::kElementIdentifierKey,
@@ -919,7 +915,7 @@ BrowserView::BrowserView(Browser* browser)
       contents_container->AddChildView(std::move(context_highlight_view));
 
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
-      contents_view, lens_overlay_view_, context_highlight_view_));
+      multi_contents_view_, lens_overlay_view_, context_highlight_view_));
 
   toolbar_ = top_container_->AddChildView(
       std::make_unique<ToolbarView>(browser_.get(), this));
@@ -931,9 +927,6 @@ BrowserView::BrowserView(Browser* browser)
 
   contents_container_ = AddChildView(std::move(contents_container));
   set_contents_view(contents_container_);
-
-  contents_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
-      this, SidePanelType::kContent, /*has_border=*/true));
 
   // InfoBarContainer needs to be added as a child here for drop-shadow, but
   // needs to come after toolbar in focus order (see EnsureFocusOrder()).
@@ -949,10 +942,7 @@ BrowserView::BrowserView(Browser* browser)
       views::kElementIdentifierKey,
       BrowserViewLayoutViews::kShadowOverlayElementId);
 
-  // TODO(crbug.com/454362874): Support dynamic horizontal alignment.
-
-  toolbar_height_side_panel_ = AddChildView(std::make_unique<SidePanel>(
-      this, SidePanelType::kToolbar, /*has_border=*/false));
+  side_panel_ = AddChildView(std::make_unique<SidePanel>(this));
 
   // Tabstrip comes basically last because it should be before toolbar in the
   // focus order but also needs to paint on top of everything.
@@ -1121,8 +1111,7 @@ BrowserView::~BrowserView() {
   vertical_tab_strip_top_corner_ = nullptr;
   vertical_tab_strip_bottom_corner_ = nullptr;
   projects_panel_container_ = nullptr;
-  toolbar_height_side_panel_ = nullptr;
-  contents_height_side_panel_ = nullptr;
+  side_panel_ = nullptr;
 
   // Child views maintain PrefMember attributes that point to
   // OffTheRecordProfile's PrefService which gets deleted by ~Browser.
@@ -1609,7 +1598,7 @@ bool BrowserView::IsVisible() const {
 }
 
 void BrowserView::SetBounds(const gfx::Rect& bounds) {
-  if (IsForceFullscreen()) {
+  if (BrowserWindowFullscreenController::From(browser())->IsForceFullscreen()) {
     return;
   }
 
@@ -2164,30 +2153,8 @@ void BrowserView::Restore() {
   browser_widget_->Restore();
 }
 
-bool BrowserView::ShouldHideUIForFullscreen() const {
-  // Immersive mode needs UI for the slide-down top panel.
-  if (ImmersiveModeController::From(browser())->IsEnabled()) {
-    return false;
-  }
-
-  return browser_widget_->IsFullscreen() &&
-         GetFrameView()->ShouldHideTopUIInFullscreen();
-}
-
 bool BrowserView::IsFullscreen() const {
   return browser_widget_->IsFullscreen();
-}
-
-bool BrowserView::IsFullscreenBubbleVisible() const {
-  return exclusive_access_context_->IsFullscreenBubbleVisible();
-}
-
-bool BrowserView::IsForceFullscreen() const {
-  return force_fullscreen_;
-}
-
-void BrowserView::SetForceFullscreen(bool force_fullscreen) {
-  force_fullscreen_ = force_fullscreen;
 }
 
 void BrowserView::RestoreFocus() {
@@ -3988,6 +3955,18 @@ bool BrowserView::ExecuteWindowsCommand(int command_id) {
     command_id = command_id_from_app_command;
   }
 
+  // Because Windows does not go through the SystemMenuModelDelegate's
+  // ExecuteCommand, we intercept the execution here.
+  if (command_id == IDC_TOGGLE_VERTICAL_TABS) {
+    auto* controller = tabs::VerticalTabStripStateController::From(browser_);
+    if (controller) {
+      // State is flipped because controller has not been updated yet.
+      const bool is_vertical = !controller->ShouldDisplayVerticalTabs();
+      tabs::RecordVerticalTabStripModeChanged(
+          is_vertical, tabs::VerticalTabStripEntryPoint::kSystemContextMenu);
+    }
+  }
+
   return chrome::ExecuteCommand(browser_.get(), command_id);
 }
 
@@ -4538,11 +4517,8 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
   if (infobar_container_) {
     panes->push_back(infobar_container_);
   }
-  if (toolbar_height_side_panel_) {
-    panes->push_back(toolbar_height_side_panel_);
-  }
-  if (contents_height_side_panel_) {
-    panes->push_back(contents_height_side_panel_);
+  if (side_panel_) {
+    panes->push_back(side_panel_);
   }
   for (views::View* pane : multi_contents_view_->GetAccessiblePanes()) {
     panes->push_back(pane);
@@ -4961,8 +4937,7 @@ void BrowserView::AddedToWidget() {
   // the ToolbarView does not create a button for them. This specifically seems
   // to hit web apps. See https://crbug.com/40803038.
   auto* const side_panel_coordinator = SidePanelCoordinator::From(browser_);
-  contents_height_side_panel_->AddObserver(side_panel_coordinator);
-  toolbar_height_side_panel_->AddObserver(side_panel_coordinator);
+  side_panel_->AddObserver(side_panel_coordinator);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // TopControlsSlideController must be initialized here in AddedToWidget()
@@ -5033,8 +5008,7 @@ void BrowserView::AddedToWidget() {
   layout_views.infobar_container = infobar_container_;
   layout_views.contents_container = contents_container_;
   layout_views.multi_contents_view = multi_contents_view_;
-  layout_views.toolbar_height_side_panel = toolbar_height_side_panel_;
-  layout_views.contents_height_side_panel = contents_height_side_panel_;
+  layout_views.side_panel = side_panel_;
   layout_views.top_container_separator = top_container_separator_;
   // LINT.ThenChange(//chrome/browser/ui/views/frame/layout/browser_view_layout.h:BrowserViewLayoutViews)
 
@@ -5097,7 +5071,7 @@ void BrowserView::AddedToWidget() {
     }
   }
 
-  dialog_anchor_ = std::make_unique<user_education::ViewSubregionAnchor>(
+  dialog_anchor_ = std::make_unique<views::ViewSubregionAnchor>(
       kBrowserDialogAnchorElementId, *this);
 
   initialized_ = true;

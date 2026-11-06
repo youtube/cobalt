@@ -190,6 +190,12 @@ public:
     PrecompileRTColorFilter(sk_sp<SkRuntimeEffect> effect,
                             SkSpan<const PrecompileChildOptions> childOptions)
             : PrecompileRTEffectBase(std::move(effect), childOptions) {}
+
+private:
+    bool isAlphaUnchanged(int /*desiredOption*/) const override {
+        // Runtime effect's analysis is not dependent on the actual bound children.
+        return SkRuntimeEffectPriv::IsAlphaUnchanged(fEffect.get());
+    }
 };
 
 class PrecompileRTBlender : public PrecompileRTEffectBase<PrecompileBlender> {

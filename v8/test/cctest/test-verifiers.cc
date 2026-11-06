@@ -10,7 +10,6 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/map-inl.h"
 #include "test/cctest/cctest.h"
-#include "torque-generated/class-verifiers.h"
 
 namespace v8 {
 namespace internal {

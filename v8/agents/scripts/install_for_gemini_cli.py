@@ -9,8 +9,9 @@ from pathlib import Path
 import yaml
 
 FILE_PATH = Path(__file__).resolve()
+repo_root = FILE_PATH.parents[2]
 src_dir = FILE_PATH.parents[1] / "agents"
-dest_dir = FILE_PATH.parents[2] / ".gemini" / "agents"
+dest_dir = repo_root / ".gemini" / "agents"
 
 # 1. Check if .gemini/agents is a symlink
 if dest_dir.is_symlink():
@@ -81,11 +82,10 @@ for item in src_dir.iterdir():
 
   print(f"Installed {name}.md for Gemini CLI")
 
-repo_root = Path(__file__).resolve().parents[2]
 gemini_md_path = repo_root / "GEMINI.md"
 if not gemini_md_path.exists():
   with gemini_md_path.open("w") as f:
     f.write("@agents/prompts/templates/modular.md\n")
-  print("Created GEMINI.md in the repository root.")
+  print(f"Created {gemini_md_path}")
 else:
-  print("Skipping GEMINI.md creation since it already exists.")
+  print(f"Skipping {gemini_md_path} creation since it already exists.")

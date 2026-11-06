@@ -36,6 +36,7 @@
 #include <openssl/hpke.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
+#include <openssl/pool.h>
 #include <openssl/rand.h>
 
 #include "../crypto/bytestring/internal.h"
@@ -1310,7 +1311,7 @@ static bool ext_sct_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
   // TODO(davidben): Enforce this anyway.
   if (!ssl->s3->session_reused) {
     hs->new_session->signed_cert_timestamp_list.reset(
-        CRYPTO_BUFFER_new_from_CBS(contents, ssl->ctx->pool));
+        CRYPTO_BUFFER_new_from_CBS(contents, ssl->ctx->pool.get()));
     if (hs->new_session->signed_cert_timestamp_list == nullptr) {
       *out_alert = SSL_AD_INTERNAL_ERROR;
       return false;

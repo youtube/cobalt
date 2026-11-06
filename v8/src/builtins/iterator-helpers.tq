@@ -98,6 +98,9 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
     case (concatHelper: JSIteratorConcatHelper): {
       return IteratorConcatHelperNext(concatHelper);
     }
+    case (zipHelper: JSIteratorZipKeyedHelper): {
+      return IteratorZipKeyedHelperNext(zipHelper);
+    }
     case (zipHelper: JSIteratorZipHelper): {
       return IteratorZipHelperNext(zipHelper);
     }
@@ -1679,15 +1682,15 @@ transitioning javascript builtin IteratorZip(
 //    iters, iterCount, openIters, mode, padding, and finishResults, and
 //    performs the following steps when called:
 //
-// (This builtin implements the part that generates next values.)
-transitioning builtin IteratorZipHelperNext(
-    implicit context: Context)(helper: JSIteratorZipHelper): JSAny {
-  const methodName: constexpr string = 'Iterator.zip';
-
+// (This macro implements the shared part of generating next values.)
+transitioning macro IteratorZipHelperNextCommon(
+    implicit context: Context)(helper: JSIteratorZipHelper,
+    methodName: constexpr string): FixedArray
+    labels Done, DoneWithException(JSAny, JSMessageObject|TheHole) {
   // a. If iterCount = 0, return ReturnCompletion(undefined).
   if (helper.underlying_iterators.length == 0) {
     MarkIteratorHelperAsExhausted(helper);
-    return AllocateJSIteratorResult(Undefined, True);
+    goto Done;
   }
 
   const iterCount =
@@ -1735,7 +1738,7 @@ transitioning builtin IteratorZipHelperNext(
           //    ii. Return ? IteratorCloseAll(openIters, result).
           iterators.objects[kIteratorRecordFieldCount * i] = TheHole;
           IteratorZipCloseAll(iterators, false);
-          ReThrowWithMessage(context, exception, message);
+          goto DoneWithException(exception, message);
         } label IterDone {
           // d. If result is done, then
           //    i. Remove iter from openIters.
@@ -1748,7 +1751,7 @@ transitioning builtin IteratorZipHelperNext(
             //        ReturnCompletion(undefined)).
             IteratorZipCloseAll(iterators, true);
             MarkIteratorHelperAsExhausted(helper);
-            return AllocateJSIteratorResult(Undefined, True);
+            goto Done;
           } else if (mode == JSIteratorZipHelperMode::kStrict) {
             // iii. Else if mode is "strict", then
             if (i != 0) {
@@ -1794,7 +1797,7 @@ transitioning builtin IteratorZipHelperNext(
                 //      ii. Return ? IteratorCloseAll(openIters, open).
                 iterators.objects[kIteratorRecordFieldCount * k] = TheHole;
                 IteratorZipCloseAll(iterators, false);
-                ReThrowWithMessage(context, e, message);
+                goto DoneWithException(e, message);
               } label InnerDone {
                 // v. If open is done, then
                 //    i. Remove iters[k] from openIters.
@@ -1803,7 +1806,7 @@ transitioning builtin IteratorZipHelperNext(
             }
             // iii. Return ReturnCompletion(undefined).
             MarkIteratorHelperAsExhausted(helper);
-            return AllocateJSIteratorResult(Undefined, True);
+            goto Done;
           } else {
             // iv. Else,
             //     i. Assert: mode is "longest".
@@ -1811,7 +1814,7 @@ transitioning builtin IteratorZipHelperNext(
             if (helper.active_count == 0) {
               // ii. If openIters is empty, return ReturnCompletion(undefined).
               MarkIteratorHelperAsExhausted(helper);
-              return AllocateJSIteratorResult(Undefined, True);
+              goto Done;
             }
             // iii. Set iters[i] to null.
             // (This was already done, when removing iter from openIters.)
@@ -1824,18 +1827,242 @@ transitioning builtin IteratorZipHelperNext(
       // 4. Append result to results.
       results.objects[i] = result;
     }
-
-    // iv. Set results to finishResults(results).
-    // v. Let completion be Completion(Yield(results)).
-    const arrayMap = GetFastPackedElementsJSArrayMap();
-    const finalResult = NewJSArray(arrayMap, results);
-
-    MarkIteratorHelperAsFinishedExecuting(helper);
-    return AllocateJSIteratorResult(finalResult, False);
+    // (Steps iv and v are implemented in the "next" methods.)
+    return results;
   } catch (e, message) {
     // vi. If completion is an abrupt completion, then
     //     1. Return ? IteratorCloseAll(openIters, completion).
     MarkIteratorHelperAsExhausted(helper);
+    goto DoneWithException(e, message);
+  }
+}
+
+transitioning builtin IteratorZipHelperNext(
+    implicit context: Context)(helper: JSIteratorZipHelper): JSAny {
+  const methodName: constexpr string = 'Iterator.zip';
+  try {
+    const results = IteratorZipHelperNextCommon(helper, methodName)
+        otherwise Done, DoneWithException;
+
+    // iv. Set results to finishResults(results).
+    // Iterator.zip, abstract closure, step 15:
+    //   a. Return CreateArrayFromList(results).
+    const arrayMap = GetFastPackedElementsJSArrayMap();
+    const finalResult = NewJSArray(arrayMap, results);
+
+    // v. Let completion be Completion(Yield(finalResult)).
+    MarkIteratorHelperAsFinishedExecuting(helper);
+    return AllocateJSIteratorResult(finalResult, False);
+  } label Done {
+    return AllocateJSIteratorResult(Undefined, True);
+  } label DoneWithException(e: JSAny, message: JSMessageObject|TheHole) {
+    ReThrowWithMessage(context, e, message);
+  }
+}
+
+// --- zipKeyed helper
+
+macro NewJSIteratorZipKeyedHelper(
+    implicit context: Context)(iterators: FixedArray, padding: FixedArray,
+    zipMode: JSIteratorZipHelperMode,
+    keys: FixedArray): JSIteratorZipKeyedHelper {
+  dcheck(iterators.length % kIteratorRecordFieldCount == 0);
+  return new JSIteratorZipKeyedHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_ZIP_KEYED_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterators: iterators,
+    mode: SmiTag<JSIteratorZipHelperMode>(zipMode),
+    active_count:
+        Convert<Smi>(iterators.length_intptr / kIteratorRecordFieldCount),
+    padding: padding,
+    keys: keys
+  };
+}
+
+// https://tc39.es/proposal-joint-iteration/#sec-iterator.zipkeyed
+transitioning javascript builtin IteratorZipKeyed(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const methodName: constexpr string = 'Iterator.zipKeyed';
+
+  // 1. If iterables is not an Object, throw a TypeError exception.
+  const iterables = arguments[0];
+  const iterablesObj = Cast<JSReceiver>(iterables)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 2. Set options to ? GetOptionsObject(options).
+  const options = GetOptionsObject(arguments[1]);
+
+  // 3. Let mode be ? Get(options, "mode").
+  // 4. If mode is undefined, set mode to "shortest".
+  // 5. If mode is not one of "shortest", "longest", or "strict", throw a
+  //    TypeError exception.
+  let zipMode: JSIteratorZipHelperMode = JSIteratorZipHelperMode::kShortest;
+  const modeVal = GetProperty(options, 'mode');
+  if (modeVal != Undefined) {
+    const modeStr = Cast<String>(modeVal)
+        otherwise ThrowTypeError(
+        MessageTemplate::kInvalidIteratorZipMode, methodName);
+    if (StringEqual(context, modeStr, StringConstant('shortest')) == True) {
+      zipMode = JSIteratorZipHelperMode::kShortest;
+    } else if (
+        StringEqual(context, modeStr, StringConstant('longest')) == True) {
+      zipMode = JSIteratorZipHelperMode::kLongest;
+    } else if (
+        StringEqual(context, modeStr, StringConstant('strict')) == True) {
+      zipMode = JSIteratorZipHelperMode::kStrict;
+    } else {
+      ThrowTypeError(MessageTemplate::kInvalidIteratorZipMode, methodName);
+    }
+  }
+
+  // 6. Let paddingOption be undefined.
+  // 7. If mode is "longest", then
+  //     a. Set paddingOption to ? Get(options, "padding").
+  //     b. If paddingOption is not undefined and paddingOption is not an
+  //        Object, throw a TypeError exception.
+  let paddingOption: JSAny = Undefined;
+  if (zipMode == JSIteratorZipHelperMode::kLongest) {
+    paddingOption = GetProperty(options, 'padding');
+    if (paddingOption != Undefined && !Is<JSReceiver>(paddingOption)) {
+      ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'padding');
+    }
+  }
+
+  // 8. Let iters be a new empty List.
+  // 9. Let padding be a new empty List.
+  let iters = growable_fixed_array::NewGrowableFixedArray();
+  let padding: FixedArray = kEmptyFixedArray;
+
+  // 10. Let allKeys be ? iterables.[[OwnPropertyKeys]]().
+  const allKeysJSArray = GetOwnPropertyKeys(iterablesObj, SmiConstant(0));
+  const allKeys =
+      Cast<FixedArray>(allKeysJSArray.elements) otherwise unreachable;
+
+  // 11. Let keys be a new empty List.
+  let keys = growable_fixed_array::NewGrowableFixedArray();
+
+  // 12. For each element key of allKeys, do
+  const allKeysLen = Convert<uintptr>(allKeysJSArray.length);
+  for (let i: uintptr = 0; i < allKeysLen; ++i) {
+    const key = Cast<JSAny>(allKeys.objects[i]) otherwise unreachable;
+    try {
+      // a. Let desc be Completion(iterables.[[GetOwnProperty]](key)).
+      // b. IfAbruptCloseIterators(desc, iters).
+      //
+      // TODO(465357675): To avoid the overhead of creating a
+      // PropertyDescriptorObject just to check the enumerable attribute, we
+      // should implement a CSA builtin that only returns the attributes of a
+      // property (e.g. `GetOwnPropertyAttributes`).
+      const desc = reflect::GetOwnPropertyDescriptor(iterablesObj, ToName(key));
+      // c. If desc is not undefined and desc.[[Enumerable]] is true, then
+      if (desc != Undefined) {
+        const descObj =
+            Cast<PropertyDescriptorObject>(desc) otherwise unreachable;
+        if (descObj.flags.has_enumerable && descObj.flags.is_enumerable) {
+          // i. Let value be Completion(Get(iterables, key)).
+          // ii. IfAbruptCloseIterators(value, iters).
+          const value = GetProperty(iterablesObj, key);
+          // iii. If value is not undefined, then
+          if (value != Undefined) {
+            // 1. Append key to keys.
+            keys.Push(key);
+            // 2. Let iter be Completion(GetIteratorFlattenable(value,
+            //    reject-primitives)).
+            // 3. IfAbruptCloseIterators(iter, iters).
+            const valueObj = Cast<JSReceiver>(value)
+                otherwise ThrowTypeError(MessageTemplate::kNotIterable, value);
+            const iter = GetIteratorFlattenable(valueObj);
+            // 4. Append iter to iters.
+            iters.Push(iter.object);
+            iters.Push(iter.next);
+          }
+        }
+      }
+    } catch (e, message) {
+      // Steps 12.b, 12.c.ii, and 12.c.iii.3:
+      // IfAbruptCloseIterators(..., iters).
+      const finalIters = iters.ResizeFixedArray(iters.length);
+      IteratorZipCloseAll(finalIters, false);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+
+  // 13. Let iterCount be the number of elements in iters.
+  const iterCount: intptr = iters.length / kIteratorRecordFieldCount;
+
+  // 14. If mode is "longest", then
+  if (zipMode == JSIteratorZipHelperMode::kLongest) {
+    // a. If paddingOption is undefined, then
+    //     i. Perform the following steps iterCount times:
+    //         1. Append undefined to padding.
+    padding = NewFixedArray(iterCount, ConstantIterator(Undefined));
+    // b. Else,
+    if (paddingOption != Undefined) {
+      // i. For each element key of keys, do
+      const keysArray = keys.array;
+      for (let j: intptr = 0; j < iterCount; ++j) {
+        const key = Cast<JSAny>(keysArray.objects[j]) otherwise unreachable;
+        try {
+          // 1. Let value be Completion(Get(paddingOption, key)).
+          // 3. Append value to padding.
+          padding.objects[j] = GetProperty(paddingOption, key);
+        } catch (e, message) {
+          // 2. IfAbruptCloseIterators(value, iters).
+          const finalIters = iters.ResizeFixedArray(iters.length);
+          IteratorZipCloseAll(finalIters, false);
+          ReThrowWithMessage(context, e, message);
+        }
+      }
+    }
+  }
+
+  // Steps 15 and 16 are implemented in IteratorZipKeyedHelperNext.
+  const finalIterators = iters.ResizeFixedArray(iters.length);
+  const finalKeys = keys.ResizeFixedArray(keys.length);
+  return NewJSIteratorZipKeyedHelper(
+      finalIterators, padding, zipMode, finalKeys);
+}
+
+transitioning builtin IteratorZipKeyedHelperNext(
+    implicit context: Context)(helper: JSIteratorZipKeyedHelper): JSAny {
+  const methodName: constexpr string = 'Iterator.zipKeyed';
+  try {
+    const results = IteratorZipHelperNextCommon(helper, methodName)
+        otherwise Done, DoneWithException;
+
+    // iv. Set results to finishResults(results).
+    // Iterator.zipKeyed, abstract closure, step 15:
+    // a. Let obj be OrdinaryObjectCreate(null).
+    const nativeContext = Cast<NativeContext>(context) otherwise unreachable;
+    const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(nativeContext);
+    const keys = helper.keys;
+    const iterCount = keys.length_intptr;
+    // TODO(465357675): Since the keys are fixed for the lifetime of the
+    // iterator, we could pre-compute a fast-mode Map during initialization and
+    // cache it on the helper, allowing next() to just allocate and populate a
+    // PropertyArray instead of building a dictionary on every call.
+    const properties = AllocateNameDictionary(iterCount);
+    const obj = AllocateJSObjectFromMap(nullProtoMap, properties);
+    // b. For each integer i such that 0 ≤ i < iterCount, in ascending order,
+    //    do
+    for (let j: intptr = 0; j < iterCount; ++j) {
+      // i. Perform ! CreateDataPropertyOrThrow(obj, keys[i], results[i]).
+      const key = Cast<JSAny>(keys.objects[j]) otherwise unreachable;
+      const result = Cast<JSAny>(results.objects[j]) otherwise unreachable;
+      CreateDataProperty(obj, key, result);
+    }
+    // c. Return obj.
+    const finalResult = obj;
+
+    // v. Let completion be Completion(Yield(finalResult)).
+    MarkIteratorHelperAsFinishedExecuting(helper);
+    return AllocateJSIteratorResult(finalResult, False);
+  } label Done {
+    return AllocateJSIteratorResult(Undefined, True);
+  } label DoneWithException(e: JSAny, message: JSMessageObject|TheHole) {
     ReThrowWithMessage(context, e, message);
   }
 }

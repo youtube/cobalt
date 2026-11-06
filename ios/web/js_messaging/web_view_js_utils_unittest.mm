@@ -19,6 +19,11 @@
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
+@interface CustomObject : NSObject
+@end
+@implementation CustomObject
+@end
+
 namespace web {
 
 namespace {
@@ -322,6 +327,38 @@ TEST_F(WebViewJsUtilsTest, NSObjectFromDictValueResult) {
   EXPECT_NSEQ(@(42), inner_dictionary[@"Key3"]);
 }
 
+// Tests that NSDictionaryFromValue converts base::DictValue to NSDictionary.
+TEST_F(WebViewJsUtilsTest, NSDictionaryFromValue) {
+  base::DictValue test_dict;
+  test_dict.Set("Key1", "Value1");
+
+  base::DictValue inner_test_dict;
+  inner_test_dict.Set("Key3", 42);
+  test_dict.Set("Key2", std::move(inner_test_dict));
+
+  id wk_result = web::NSDictionaryFromValue(test_dict);
+  EXPECT_TRUE(wk_result);
+  EXPECT_TRUE([wk_result isKindOfClass:[NSDictionary class]]);
+
+  NSDictionary* wk_result_dictionary =
+      base::apple::ObjCCastStrict<NSDictionary>(wk_result);
+  EXPECT_NSEQ(@"Value1", wk_result_dictionary[@"Key1"]);
+
+  NSDictionary* inner_dictionary = wk_result_dictionary[@"Key2"];
+  EXPECT_TRUE(inner_dictionary);
+  EXPECT_NSEQ(@(42), inner_dictionary[@"Key3"]);
+}
+
+// Tests that NSDictionaryFromValue converts empty base::DictValue to empty
+// NSDictionary.
+TEST_F(WebViewJsUtilsTest, NSDictionaryFromEmptyValue) {
+  base::DictValue empty_dict;
+  id wk_result = web::NSDictionaryFromValue(empty_dict);
+  EXPECT_TRUE(wk_result);
+  EXPECT_TRUE([wk_result isKindOfClass:[NSDictionary class]]);
+  EXPECT_NSEQ(@{}, wk_result);
+}
+
 // Tests that NSObjectFromValueResult converts Value::Type::LIST to NSArray.
 TEST_F(WebViewJsUtilsTest, NSObjectFromListValueResult) {
   base::ListValue test_list;
@@ -568,6 +605,174 @@ TEST_F(WebViewJsUtilsTest, RegisterExistingFrames) {
                                                 WKContentWorld.pageWorld));
   EXPECT_EQ(1, GetExistingFramesScriptCallCount(
                    web_view, frame_info, WKContentWorld.defaultClientWorld));
+}
+
+// Tests that ExecuteAsyncJavaScript waits for a Promise to resolve.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptWaitsForPromise) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block id block_result = nil;
+
+  NSString* script = @"return new Promise(resolve => {"
+                     @"  setTimeout(() => resolve('resolved_value'), 100);"
+                     @"});";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, /*arguments=*/nil,
+                              ^(id result, NSError* error) {
+                                block_result = [result copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+
+  EXPECT_NSEQ(@"resolved_value", block_result);
+}
+
+// Tests that ExecuteAsyncJavaScript safely handles arguments that could
+// otherwise cause JS injection.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptInjectionSafety) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block id block_result = nil;
+
+  NSString* dangerous_string = @"'; alert(1); var x = '";
+  NSDictionary* args = @{@"input" : dangerous_string};
+
+  NSString* script = @"return input;";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, args, ^(id result, NSError* error) {
+                                block_result = [result copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+
+  EXPECT_NSEQ(dangerous_string, block_result);
+}
+
+// Tests that ExecuteAsyncJavaScript safely handles parameter names that could
+// otherwise cause JS injection.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptParameterNameInjectionSafety) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block id block_result = nil;
+
+  NSString* dangerous_key = @"input'; alert(1); var x = '";
+  NSDictionary* args = @{dangerous_key : @"value"};
+
+  NSString* script = @"return true;";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, args, ^(id result, NSError* error) {
+                                block_result = [result copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+
+  EXPECT_TRUE(complete);
+  EXPECT_FALSE(block_result);
+}
+
+// Tests that passing an arbitrary custom NSObject results in an error.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptCustomObjectArgument) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block NSError* block_error = nil;
+
+  CustomObject* custom_object = [[CustomObject alloc] init];
+  NSDictionary* args = @{@"input" : custom_object};
+  NSString* script = @"return input;";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, args, ^(id result, NSError* error) {
+                                block_error = [error copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+  // WKJavaScriptExceptionMessage
+  // Function argument values must be one of the following types, or contain
+  // only the following types: NSNumber, NSNull, NSDate, NSString, NSArray, and
+  // NSDictionary
+  EXPECT_TRUE(block_error);
+}
+
+// Tests that 'await' can be used directly within the script body.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptWithAwait) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block id block_result = nil;
+
+  NSString* script = @"const asyncHelper = (val) => Promise.resolve(val * 2);"
+                     @"const result = await asyncHelper(21);"
+                     @"return result;";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, /*arguments=*/nil,
+                              ^(id result, NSError* error) {
+                                block_result = [result copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+
+  EXPECT_NSEQ(@42, block_result);
+}
+
+// Tests that a rejected Promise in JavaScript results in an NSError.
+TEST_F(WebViewJsUtilsTest, ExecuteAsyncJavaScriptHandlesRejection) {
+  WKWebView* web_view = [[WKWebView alloc] init];
+  WKFrameInfo* frame_info = GetMainFrameWKFrameInfo(web_view);
+
+  __block bool complete = false;
+  __block NSError* block_error = nil;
+
+  NSString* script = @"return Promise.reject(new Error('Async Failure'));";
+
+  web::ExecuteAsyncJavaScript(web_view, WKContentWorld.pageWorld, frame_info,
+                              script, /*arguments=*/nil,
+                              ^(id result, NSError* error) {
+                                block_error = [error copy];
+                                complete = true;
+                              });
+
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+    return complete;
+  }));
+
+  EXPECT_TRUE(block_error);
+  EXPECT_NSEQ(block_error.domain, WKErrorDomain);
+
+  EXPECT_EQ(WKErrorJavaScriptExceptionOccurred, block_error.code);
+
+  NSString* exception_message =
+      block_error.userInfo[@"WKJavaScriptExceptionMessage"];
+
+  EXPECT_TRUE([(exception_message ?: block_error.localizedDescription)
+      containsString:@"Async Failure"]);
 }
 
 }  // namespace web

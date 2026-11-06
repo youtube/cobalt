@@ -42,8 +42,10 @@
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/map-word-inl.h"
 #include "src/objects/number-string-cache-inl.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -90,203 +92,6 @@ Tagged<Smi> PropertyDetails::AsSmi() const {
 int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), PropertyLocation::kField);
   return 1;
-}
-
-bool IsTaggedIndex(Tagged<Object> obj) {
-  return IsSmi(obj) &&
-         TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
-}
-
-#define IS_TYPE_FUNCTION_DEF(type_)                               \
-  bool Is##type_(Tagged<Object> obj) {                            \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(Tagged<Object> obj, PtrComprCageBase) {          \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(HeapObject obj) {                                \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(HeapObject obj, PtrComprCageBase) {              \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj) {                   \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj, PtrComprCageBase) { \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }
-HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(HashTableBase)
-IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
-IS_TYPE_FUNCTION_DEF(PropertyDictionary)
-IS_TYPE_FUNCTION_DEF(AnyHole)
-#undef IS_TYPE_FUNCTION_DEF
-
-#define IS_TYPE_FUNCTION_DEF(Type, ...)                                      \
-  bool Is##Type(Tagged<Object> obj, Isolate*) { return Is##Type(obj); }      \
-  bool Is##Type(Tagged<Object> obj, LocalIsolate*) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<Object> obj, ReadOnlyRoots) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<HeapObject> obj) {                                    \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(HeapObject obj) {                                            \
-    static_assert(kTaggedCanConvertToRawObjects);                            \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj, Isolate*) {                     \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj) {                               \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-#if V8_STATIC_ROOTS_BOOL
-#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                           \
-  bool Is##Type(Tagged<Object> obj) {                                          \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(                                  \
-        obj.ptr(), GetReadOnlyRoots().Value().ptr()));                         \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }                                                                            \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) {                \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(obj.ptr(), roots.Value().ptr())); \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }
-#else
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                    \
-  bool Is##Type(Tagged<Object> obj) {                           \
-    return obj == GetReadOnlyRoots().Value();                   \
-  }                                                             \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) { \
-    return obj == roots.Value();                                \
-  }
-#endif
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
-                     UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-namespace detail {
-#if V8_STATIC_ROOTS_BOOL
-#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
-constexpr Tagged_t kMinStaticHoleValue = std::min({HOLE_LIST(GET_HOLE_ROOT)});
-constexpr Tagged_t kMaxStaticHoleValue = std::max({HOLE_LIST(GET_HOLE_ROOT)});
-#undef GET_HOLE_ROOT
-#endif
-
-// Helper for IsAnyHole and SafeIsAnyHole which doesn't check whether we're
-// doing a sane comparison for the space of the object -- callers are expected
-// to verify the space of the object, either before or after this call.
-inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  // Use a direct cast to Tagged_t rather than CompressObject to allow
-  // space-indepenedent comparisons in here.
-  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinStaticHoleValue,
-                         kMaxStaticHoleValue);
-#else
-  return obj->map()->instance_type() == HOLE_TYPE;
-#endif
-}
-}  // namespace detail
-
-bool IsAnyHole(Tagged<HeapObject> obj) {
-  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if V8_STATIC_ROOTS_BOOL
-    // Compressed object tests need to be done on a matching compression scheme.
-    // Holes are always in the main cage's RO space. If the object is in a
-    // different cage, IsAnyHoleNoSpaceCheck may have returned a false positive
-    // due to address aliasing.
-    //
-    // Only check this after the hole check succeeds, to make it cheaper in the
-    // common case that things aren't holes.
-    if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
-#if defined(DEBUG) && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-      // When contiguous compressed RO space is enabled, the trusted space guard
-      // region is large enough (kContiguousReadOnlyReservationSize) to prevent
-      // aliasing with hole values. This DCHECK verifies that assumption.
-      DCHECK(obj.IsInTrustedCageBase());
-      DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
-                detail::kMaxStaticHoleValue);
-#endif
-      // Object is not in main cage, so it can't be a hole (holes are in RO
-      // space which is in the main cage).
-      return false;
-    }
-#endif
-    return true;
-  }
-  return false;
-}
-
-bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
-  return IsAnyHole(obj);
-}
-
-bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
-
-bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
-
-bool IsNullOrUndefined(Tagged<Object> obj, Isolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, LocalIsolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, ReadOnlyRoots) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, EarlyReadOnlyRoots roots) {
-  return IsNull(obj, roots) || IsUndefined(obj, roots);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj) {
-  // TODO(leszeks): For static roots, we could do the below range check for
-  // this, but we'd need to also do a Smi check. Two compares against static
-  // values are probably just as good or better.
-  return IsNull(obj) || IsUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  // This range check relies on undefined and null being the first two RO roots.
-  static_assert(StaticReadOnlyRoot::kUndefinedValue ==
-                StaticReadOnlyRoot::kFirstAllocatedRoot);
-  static_assert(StaticReadOnlyRoot::kNullValue ==
-                StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined));
-  return V8HeapCompressionScheme::CompressObject(obj.ptr()) <=
-         StaticReadOnlyRoot::kNullValue;
-#else
-  return IsNull(obj) || IsUndefined(obj);
-#endif
-}
-
-bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
-
-bool IsPublicSymbol(Tagged<Object> obj) {
-  Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && !symbol->is_any_private();
-}
-bool IsPrivateSymbol(Tagged<Object> obj) {
-  Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && symbol->is_any_private();
-}
-
-bool IsNoSharedNameSentinel(Tagged<Object> obj) {
-  return obj == SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
 // TODO(leszeks): Expand Is<T> to all types.
@@ -515,31 +320,6 @@ bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #endif
 }
 
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
-  // Do not optimize objects in the shared heap because it is not
-  // threadsafe. Objects in the shared heap have fixed layouts and their maps
-  // never change.
-  return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
-}
-
-bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsAnyObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
-bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
-  // Do not optimize objects in the shared heap because it is not
-  // threadsafe. Objects in the shared heap have fixed layouts and their maps
-  // never change.
-  return (IsJSObject(obj) || IsWasmObject(obj)) &&
-         !HeapLayout::InWritableSharedSpace(*obj);
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
   return IsInternalizedString(obj, cage_base) || IsSymbol(obj, cage_base);
 }
@@ -609,29 +389,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
   if (!IsString(obj, cage_base)) return false;
   return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
-}
-
-bool IsNumber(Tagged<Object> obj) {
-  if (IsSmi(obj)) return true;
-  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base);
-}
-
-bool IsNumber(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsHeapNumber(obj, cage_base);
-}
-
-bool IsNumeric(Tagged<Object> obj) {
-  if (IsSmi(obj)) return true;
-  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base) ||
-         IsBigInt(heap_object, cage_base);
-}
-
-bool IsNumeric(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsNumber(obj, cage_base) || IsBigInt(obj, cage_base);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
@@ -721,19 +478,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) {
   return IsHashTable(obj, cage_base);
 }
 
-// This should be in objects/map-inl.h, but can't, because of a cyclic
-// dependency.
-bool IsMetaMapMap(Tagged<Map> map) {
-  return InstanceTypeChecker::IsMap(map->instance_type());
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMetaMap) {
-  if (!InstanceTypeChecker::IsMap(obj->map(cage_base)->instance_type())) {
-    return false;
-  }
-  return IsMetaMapMap(UncheckedCast<Map>(obj));
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
   return IsHashTable(obj, cage_base);
 }
@@ -744,19 +488,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectTwoHashTable) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
   return IsHashTable(obj, cage_base);
-}
-
-// static
-bool IsPrimitive(Tagged<Object> obj) {
-  if (obj.IsSmi()) return true;
-  Tagged<HeapObject> this_heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return IsPrimitiveMap(this_heap_object->map(cage_base));
-}
-
-// static
-bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsPrimitiveMap(Cast<HeapObject>(obj)->map(cage_base));
 }
 
 // static
@@ -787,31 +518,6 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSmiStringCache) {
   return IsFixedArray(obj);
 }
-
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                             \
-  bool Is##Name(Tagged<Object> obj) {                                       \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj));            \
-  }                                                                         \
-  bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base) {           \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj), cage_base); \
-  }                                                                         \
-  bool Is##Name(HeapObject obj) {                                           \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(HeapObject obj, PtrComprCageBase cage_base) {               \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj) {                              \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj, PtrComprCageBase cage_base) {  \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
-  }
-// static
-STRUCT_LIST(MAKE_STRUCT_PREDICATE)
-#undef MAKE_STRUCT_PREDICATE
 
 // static
 double Object::NumberValue(Tagged<Number> obj) {
@@ -1523,68 +1229,7 @@ IndirectPointerSlot HeapObject::RawIndirectPointerField(
   return IndirectPointerSlot(field_address(byte_offset), tag_range);
 }
 
-MapWord MapWord::FromMap(const Tagged<Map> map) {
-  DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
-#ifdef V8_MAP_PACKING
-  return MapWord(Pack(map.ptr()));
-#else
-  return MapWord(map.ptr());
-#endif
-}
 
-Tagged<Map> MapWord::ToMap() const {
-#ifdef V8_MAP_PACKING
-  return UncheckedCast<Map>(Tagged<Object>(Unpack(value_)));
-#else
-  return UncheckedCast<Map>(Tagged<Object>(value_));
-#endif
-}
-
-bool MapWord::IsForwardingAddress() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When external code space is enabled forwarding pointers are encoded as
-  // Smi representing a diff from the source object address in kObjectAlignment
-  // chunks.
-  return HAS_SMI_TAG(value_);
-#else
-  return (value_ & kForwardingTagMask) == kForwardingTag;
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-MapWord MapWord::FromForwardingAddress(Tagged<HeapObject> map_word_host,
-                                       Tagged<HeapObject> object) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When external code space is enabled forwarding pointers are encoded as
-  // Smi representing a diff from the source object address in kObjectAlignment
-  // chunks.
-  intptr_t diff = static_cast<intptr_t>(object.ptr() - map_word_host.ptr());
-  DCHECK(IsAligned(diff, kObjectAlignment));
-  MapWord map_word(Smi::FromIntptr(diff / kObjectAlignment).ptr());
-  DCHECK(map_word.IsForwardingAddress());
-  return map_word;
-#else
-  return MapWord(object.ptr() - kHeapObjectTag);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-Tagged<HeapObject> MapWord::ToForwardingAddress(
-    Tagged<HeapObject> map_word_host) const {
-  DCHECK(IsForwardingAddress());
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When the sandbox or the external code space is enabled, forwarding
-  // pointers are encoded as Smi representing a diff from the source object
-  // address in kObjectAlignment chunks. This is required as we are using
-  // multiple pointer compression cages in these scenarios.
-  intptr_t diff =
-      static_cast<intptr_t>(Tagged<Smi>(value_).value()) * kObjectAlignment;
-  Address address = map_word_host.address() + diff;
-  return HeapObject::FromAddress(address);
-#else
-  // The sandbox requires the external code space.
-  DCHECK(!V8_ENABLE_SANDBOX_BOOL);
-  return HeapObject::FromAddress(value_);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {

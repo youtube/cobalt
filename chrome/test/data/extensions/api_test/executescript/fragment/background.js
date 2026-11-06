@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let gotRequest = false;
+const gotRequest = false;
 let testUrl;
 
 // For running in normal chrome (ie outside of the browser_tests environment),
@@ -10,17 +10,19 @@ let testUrl;
 const debug = 0;
 if (debug) {
   testUrl = 'http://www.google.com/';
-  chrome.test.log = function(msg) { console.log(msg) };
+  chrome.test.log = function(msg) {
+    console.info(msg);
+  };
   chrome.test.runTests = function(tests) {
-    for (let i in tests) {
+    for (const i in tests) {
       tests[i]();
     }
   };
   chrome.test.succeed = function() {
-    console.log('succeed');
+    console.info('succeed');
   };
   chrome.test.fail = function() {
-    console.log('fail');
+    console.info('fail');
   };
 }
 
@@ -49,16 +51,16 @@ function runTests() {
     function test1() {
       chrome.runtime.onMessage.addListener(function(req, sender) {
         chrome.test.log(`got request: ${JSON.stringify(req)}`);
-        if (req == 'content_script') {
+        if (req === 'content_script') {
           navigateToFragment(sender.tab, doExecute);
-        } else if (req == 'execute_script') {
+        } else if (req === 'execute_script') {
           succeeded = true;
           chrome.test.succeed();
         }
       });
       chrome.test.log('creating tab');
       chrome.tabs.create({url: testUrl});
-    }
+    },
   ]);
 }
 

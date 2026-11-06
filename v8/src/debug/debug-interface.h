@@ -596,6 +596,16 @@ class V8_NODISCARD PostponeInterruptsScope {
   std::unique_ptr<i::PostponeInterruptsScope> scope_;
 };
 
+class V8_NODISCARD DisallowGarbageCollectionScope {
+ public:
+  DisallowGarbageCollectionScope();
+  ~DisallowGarbageCollectionScope();
+
+ private:
+  alignas(internal::Internals::kDisallowGarbageCollectionAlign) char internal_
+      [internal::Internals::kDisallowGarbageCollectionSize];
+};
+
 class V8_NODISCARD DisableBreakScope {
  public:
   explicit DisableBreakScope(v8::Isolate* isolate);

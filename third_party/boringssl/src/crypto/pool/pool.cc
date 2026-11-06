@@ -42,7 +42,7 @@ static int CRYPTO_BUFFER_cmp(const CryptoBuffer *a, const CryptoBuffer *b) {
   return a->span() == b->span() ? 0 : 1;
 }
 
-CryptoBufferPool::CryptoBufferPool() {
+CryptoBufferPool::CryptoBufferPool() : RefCounted(CheckSubClass()) {
   RAND_bytes(reinterpret_cast<uint8_t *>(&hash_key_), sizeof(hash_key_));
 }
 
@@ -85,7 +85,14 @@ CRYPTO_BUFFER_POOL *CRYPTO_BUFFER_POOL_new() {
 }
 
 void CRYPTO_BUFFER_POOL_free(CRYPTO_BUFFER_POOL *pool) {
-  Delete(FromOpaque(pool));
+  if (pool != nullptr) {
+    FromOpaque(pool)->DecRefInternal();
+  }
+}
+
+int CRYPTO_BUFFER_POOL_up_ref(CRYPTO_BUFFER_POOL *pool) {
+  FromOpaque(pool)->UpRefInternal();
+  return 1;
 }
 
 void CryptoBuffer::UpRefInternal() {

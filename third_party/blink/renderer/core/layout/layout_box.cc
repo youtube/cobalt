@@ -747,6 +747,22 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
       // spanners. See https://drafts.csswg.org/css-multicol-1/#spanning-columns
       MarkColumnSpannerCandidatesForLayoutIfNeeded();
     }
+
+    // When a fixed-position element changes between top-relative and
+    // bottom-relative positioning, invalidate paint properties to ensure
+    // IsAffectedByOuterViewportBoundsDelta() is re-evaluated on the next
+    // document lifecycle update. This mirrors the style-level checks in
+    // CompositingReasonsForViewportScrollEffect(), and must be kept in sync
+    // with that function.
+    if (new_style.GetPosition() == EPosition::kFixed) {
+      if (old_style->IsFixedToBottom() != new_style.IsFixedToBottom()) {
+        SetNeedsPaintPropertyUpdate();
+      } else if (new_style.IsFixedToBottom() &&
+                 (old_style->IsBottomRelativeToSafeAreaInset() !=
+                  new_style.IsBottomRelativeToSafeAreaInset())) {
+        SetNeedsPaintPropertyUpdate();
+      }
+    }
   }
 
   if (diff.transform_changed && TransformsChangeMayRequireLayout()) {
@@ -1003,9 +1019,10 @@ LayoutUnit LayoutBox::ClientLeft() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
     if (CanSkipComputeScrollbars()) {
-      return BorderLeft();
+      return BorderOutsets().left;
     }
-    return BorderLeft() + ComputeScrollbarsInternal(kClampToContentBox).left;
+    return BorderOutsets().left +
+           ComputeScrollbarsInternal(kClampToContentBox).left;
   }
   return PhysicalContractedBoxRect(kContractToPaddingEdge).X();
 }
@@ -1015,9 +1032,10 @@ LayoutUnit LayoutBox::ClientTop() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
     if (CanSkipComputeScrollbars()) {
-      return BorderTop();
+      return BorderOutsets().top;
     }
-    return BorderTop() + ComputeScrollbarsInternal(kClampToContentBox).top;
+    return BorderOutsets().top +
+           ComputeScrollbarsInternal(kClampToContentBox).top;
   }
   return PhysicalContractedBoxRect(kContractToPaddingEdge).Y();
 }
@@ -1030,9 +1048,9 @@ LayoutUnit LayoutBox::ClientWidth() const {
   LayoutUnit width = StitchedSize().width;
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
     if (CanSkipComputeScrollbars()) {
-      return (width - BorderLeft() - BorderRight()).ClampNegativeToZero();
+      return (width - BorderOutsets().HorizontalSum()).ClampNegativeToZero();
     }
-    return (width - BorderLeft() - BorderRight() -
+    return (width - BorderOutsets().HorizontalSum() -
             ComputeScrollbarsInternal(kClampToContentBox).HorizontalSum())
         .ClampNegativeToZero();
   }
@@ -1045,9 +1063,9 @@ LayoutUnit LayoutBox::ClientHeight() const {
   LayoutUnit height = StitchedSize().height;
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
     if (CanSkipComputeScrollbars()) {
-      return (height - BorderTop() - BorderBottom()).ClampNegativeToZero();
+      return (height - BorderOutsets().VerticalSum()).ClampNegativeToZero();
     }
-    return (height - BorderTop() - BorderBottom() -
+    return (height - BorderOutsets().VerticalSum() -
             ComputeScrollbarsInternal(kClampToContentBox).VerticalSum())
         .ClampNegativeToZero();
   }
@@ -1067,7 +1085,7 @@ LayoutUnit LayoutBox::ClientWidthWithTableSpecialBehavior() const {
   // retrieve clientWidth/Height from table wrapper box, not table grid box. So
   // when we retrieve clientWidth/Height, it includes table's border size.
   if (IsTable())
-    return ClientWidth() + BorderLeft() + BorderRight();
+    return ClientWidth() + BorderOutsets().HorizontalSum();
   return ClientWidth();
 }
 
@@ -1084,7 +1102,7 @@ LayoutUnit LayoutBox::ClientHeightWithTableSpecialBehavior() const {
   // retrieve clientWidth/Height from table wrapper box, not table grid box. So
   // when we retrieve clientWidth/Height, it includes table's border size.
   if (IsTable())
-    return ClientHeight() + BorderTop() + BorderBottom();
+    return ClientHeight() + BorderOutsets().VerticalSum();
   return ClientHeight();
 }
 
@@ -1267,7 +1285,7 @@ DISABLE_CFI_PERF
 LayoutUnit LayoutBox::ContentLeft() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
-    return ClientLeft() + PaddingLeft();
+    return ClientLeft() + PaddingOutsets().left;
   }
   return PhysicalContractedBoxRect(kContractToContentEdge).X();
 }
@@ -1276,7 +1294,7 @@ DISABLE_CFI_PERF
 LayoutUnit LayoutBox::ContentTop() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
-    return ClientTop() + PaddingTop();
+    return ClientTop() + PaddingOutsets().top;
   }
   return PhysicalContractedBoxRect(kContractToContentEdge).Y();
 }
@@ -1285,7 +1303,7 @@ DISABLE_CFI_PERF
 LayoutUnit LayoutBox::ContentWidth() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
-    return (ClientWidth() - PaddingLeft() - PaddingRight())
+    return (ClientWidth() - PaddingOutsets().HorizontalSum())
         .ClampNegativeToZero();
   }
   return PhysicalContractedBoxRect(kContractToContentEdge).Width();
@@ -1295,7 +1313,7 @@ DISABLE_CFI_PERF
 LayoutUnit LayoutBox::ContentHeight() const {
   NOT_DESTROYED();
   if (!RuntimeEnabledFeatures::LayoutBoxRectGettersUseFragmentsEnabled()) {
-    return (ClientHeight() - PaddingTop() - PaddingBottom())
+    return (ClientHeight() - PaddingOutsets().VerticalSum())
         .ClampNegativeToZero();
   }
   return PhysicalContractedBoxRect(kContractToContentEdge).Height();
@@ -3697,7 +3715,7 @@ bool LayoutBox::IsMonolithic() const {
   // IsFlexibleBox(). The breakability should be handled at the item
   // level. (Likely same for Table and Grid).
   if (IsInline() || IsSemiReplaced() || HasUnsplittableScrollingOverflow() ||
-      (Parent() && IsWritingModeRoot()) ||
+      IsOverscrollContainer() || (Parent() && IsWritingModeRoot()) ||
       (IsFixedPositioned() && GetDocument().Printing() &&
        IsA<LayoutView>(Container())) ||
       ShouldApplySizeContainment() || IsFrameSet() ||

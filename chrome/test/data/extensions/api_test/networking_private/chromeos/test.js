@@ -52,11 +52,11 @@ const privateHelpers = {
       if (expectedStates.length > 0) {
         const expectedState = expectedStates.pop();
         assertEq(expectedState, currentState);
-        if (expectedStates.length == 0) {
+        if (expectedStates.length === 0) {
           networkToExpectedStatesMap.delete(network);
         }
       }
-      if (networkToExpectedStatesMap.size == 0) {
+      if (networkToExpectedStatesMap.size === 0) {
         finishTest();
       }
     };
@@ -85,7 +85,7 @@ const privateHelpers = {
   networksChangedListener: function(guid, test, done) {
     function listener(changes) {
       for (const c of changes) {
-        if (c != guid) {
+        if (c !== guid) {
           continue;
         }
         chrome.networkingPrivate.onNetworksChanged.removeListener(listener);
@@ -192,7 +192,7 @@ const availableTests = [
           },
         },
         callbackPass(function(guid) {
-          assertFalse(guid == '');
+          assertFalse(guid === '');
           assertEq('some_guid', guid);
           chrome.networkingPrivate.getProperties(
               guid, callbackPass(function(properties) {
@@ -230,7 +230,7 @@ const availableTests = [
     const testNetworkGuid = 'stub_wifi1_guid';
     function guidExists(networks, guid) {
       for (const n of networks) {
-        if (n.GUID == testNetworkGuid) {
+        if (n.GUID === testNetworkGuid) {
           return true;
         }
       }
@@ -309,7 +309,7 @@ const availableTests = [
                     Security: 'WPA-PSK',
                     SSID: 'wifi2_PSK',
                   },
-                }
+                },
               ],
               result);
 
@@ -435,7 +435,7 @@ const availableTests = [
                     SignalStrength: 80,
                     SSID: 'wifi2_PSK',
                   },
-                }
+                },
               ],
               result);
         }));
@@ -478,7 +478,7 @@ const availableTests = [
                     SignalStrength: 80,
                     SSID: 'wifi2_PSK',
                   },
-                }
+                },
               ],
               result);
         }));
@@ -524,13 +524,13 @@ const availableTests = [
               Scanning: false,
               State: 'Enabled',
               Type: 'WiFi',
-              ManagedNetworkAvailable: false
+              ManagedNetworkAvailable: false,
             },
             {
               State: 'Uninitialized',
               SIMPresent: true,
               SIMLockStatus: {LockEnabled: true, LockType: '', RetriesLeft: 3},
-              Type: 'Cellular'
+              Type: 'Cellular',
             },
           ],
           result);
@@ -540,8 +540,11 @@ const availableTests = [
   function requestNetworkScan() {
     // Connected or Connecting networks should be listed first, sorted by type.
     const expected = [
-      'stub_ethernet_guid', 'stub_wifi1_guid', 'stub_vpn1_guid',
-      'stub_vpn2_guid', 'stub_wifi2_guid'
+      'stub_ethernet_guid',
+      'stub_wifi1_guid',
+      'stub_vpn1_guid',
+      'stub_vpn2_guid',
+      'stub_wifi2_guid',
     ];
     const done = chrome.test.callbackAdded();
     const listener =
@@ -555,7 +558,7 @@ const availableTests = [
         CELLULAR_GUID, function(result) {
           const cellular = result.Cellular;
           return cellular && cellular.FoundNetworks &&
-              cellular.FoundNetworks[0].Status == 'available';
+              cellular.FoundNetworks[0].Status === 'available';
         }, done);
     listener.start();
     chrome.networkingPrivate.requestNetworkScan('Cellular');
@@ -916,8 +919,11 @@ const availableTests = [
     // Connecting to wifi2 should set wifi1 to offline. Connected or Connecting
     // networks should be listed first, sorted by type.
     const expected = [
-      'stub_ethernet_guid', 'stub_vpn1_guid', 'stub_wifi2_guid',
-      'stub_wifi1_guid', 'stub_vpn2_guid'
+      'stub_ethernet_guid',
+      'stub_vpn1_guid',
+      'stub_wifi2_guid',
+      'stub_wifi1_guid',
+      'stub_vpn2_guid',
     ];
     const done = chrome.test.callbackAdded();
     const listener =
@@ -951,8 +957,9 @@ const availableTests = [
   },
   function getCaptivePortalStatus() {
     const networks = [
-      ['stub_ethernet_guid', 'Online'], ['stub_wifi1_guid', 'Offline'],
-      ['stub_wifi2_guid', 'Portal']
+      ['stub_ethernet_guid', 'Online'],
+      ['stub_wifi1_guid', 'Offline'],
+      ['stub_wifi2_guid', 'Portal'],
     ];
     networks.forEach(function(network) {
       const guid = network[0];
@@ -985,15 +992,15 @@ const availableTests = [
     const simState = {
       requirePin: true,
       currentPin: DEFAULT_PIN,
-      newPin: newPin
+      newPin: newPin,
     };
     // Test setting 'requirePin' and 'newPin'.
     chrome.networkingPrivate.getProperties(
         CELLULAR_GUID, callbackPass(function(result) {
           // Ensure the SIM is initially unlocked.
           assertTrue(
-              result.Cellular.SIMLockStatus == undefined ||
-              result.Cellular.SIMLockStatus.LockType == '');
+              result.Cellular.SIMLockStatus === undefined ||
+              result.Cellular.SIMLockStatus.LockType === '');
           chrome.networkingPrivate.setCellularSimState(
               CELLULAR_GUID, simState, callbackPass(function() {
                 chrome.networkingPrivate.getProperties(
@@ -1018,8 +1025,8 @@ const availableTests = [
           // Ensure that there are two found networks and the first is selected.
           assertTrue(!!result.Cellular.FoundNetworks);
           assertTrue(result.Cellular.FoundNetworks.length >= 2);
-          assertTrue(result.Cellular.FoundNetworks[0].Status == 'current');
-          assertTrue(result.Cellular.FoundNetworks[1].Status == 'available');
+          assertTrue(result.Cellular.FoundNetworks[0].Status === 'current');
+          assertTrue(result.Cellular.FoundNetworks[1].Status === 'available');
           // Select the second network
           const secondNetworkId = result.Cellular.FoundNetworks[1].NetworkId;
           chrome.networkingPrivate.selectCellularMobileNetwork(
@@ -1127,7 +1134,7 @@ const availableTests = [
 chrome.test.getConfig(function(config) {
   const args = JSON.parse(config.customArg);
   const tests = availableTests.filter(function(op) {
-    return args.test == op.name;
+    return args.test === op.name;
   });
   if (tests.length !== 1) {
     chrome.test.notifyFail(`Test not found ${args.test}`);

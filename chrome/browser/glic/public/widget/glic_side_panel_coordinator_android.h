@@ -11,10 +11,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/tab_bottom_sheet_bridge.h"
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
-
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
+#include "components/tabs/public/tab_interface.h"
 
 namespace glic {
 
@@ -27,11 +24,12 @@ class GlicSidePanelCoordinatorAndroid
 
   // GlicSidePanelCoordinator:
   using GlicSidePanelCoordinator::Show;
-  void Show(bool suppress_animations) override;
+  void Show(const ShowOptions& options) override;
   void SetWebContents(content::WebContents* web_contents) override;
   void Close(const CloseOptions& options) override;
   bool IsShowing() const override;
   State state() override;
+  bool SupportsPeek() const override;
   base::CallbackListSubscription AddStateCallback(
       base::RepeatingCallback<void(State state)> callback) override;
   int GetPreferredWidth() override;
@@ -43,10 +41,11 @@ class GlicSidePanelCoordinatorAndroid
   void OnOpened(bool is_expanded) override;
 
  private:
-  void Show(bool suppress_animations, bool starts_expanded);
   void SetState(State state);
   void OnTabDidActivate(tabs::TabInterface* tab);
   void OnTabWillDeactivate(tabs::TabInterface* tab);
+  void OnTabWillDetach(tabs::TabInterface* tab,
+                       tabs::TabInterface::DetachReason detach_reason);
 
   State state_ = State::kClosed;
   base::RepeatingCallbackList<void(State)> state_callbacks_;
@@ -54,7 +53,7 @@ class GlicSidePanelCoordinatorAndroid
   base::WeakPtr<content::WebContents> web_contents_;
   base::CallbackListSubscription did_activate_subscription_;
   base::CallbackListSubscription will_deactivate_subscription_;
-  bool pending_starts_expanded_state_ = true;
+  base::CallbackListSubscription will_detach_subscription_;
   std::unique_ptr<context_sharing::TabBottomSheetBridge> bridge_;
 };
 

@@ -2592,11 +2592,11 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
       if_swiss_property_dictionary(this), if_property_dictionary(this),
       if_fixed_array(this);
 
-  TNode<Object> properties_or_hash =
-      LoadObjectField(receiver, JSReceiver::kPropertiesOrHashOffset);
-  GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
+  TNode<Object> raw_properties_or_hash =
+      LoadObjectField(receiver, offsetof(JSReceiver, properties_or_hash_));
+  GotoIf(TaggedIsSmi(raw_properties_or_hash), &if_smi);
 
-  TNode<HeapObject> properties = CAST(properties_or_hash);
+  TNode<HeapObject> properties = CAST(raw_properties_or_hash);
   TNode<Uint16T> properties_instance_type = LoadInstanceType(properties);
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
@@ -2617,7 +2617,7 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_smi);
   {
-    var_hash = PositiveSmiToUint32(CAST(properties_or_hash));
+    var_hash = PositiveSmiToUint32(CAST(raw_properties_or_hash));
     Goto(&done);
   }
 
@@ -5131,14 +5131,14 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
   // check in AllocatedJSObjectFromMap.
   if (!properties) {
     CSA_DCHECK(this, Word32BinaryNot(IsDictionaryMap((map))));
-    StoreObjectFieldRoot(object, JSObject::kPropertiesOrHashOffset,
+    StoreObjectFieldRoot(object, offsetof(JSObject, properties_or_hash_),
                          RootIndex::kEmptyFixedArray);
   } else {
     CSA_DCHECK(this, Word32Or(Word32Or(IsPropertyArray(*properties),
                                        IsPropertyDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
-    StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
-                                   *properties);
+    StoreObjectFieldNoWriteBarrier(
+        object, offsetof(JSObject, properties_or_hash_), *properties);
   }
   if (!elements) {
     StoreObjectFieldRoot(object, JSObject::kElementsOffset,
@@ -5451,7 +5451,7 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
 
   StoreMapNoWriteBarrier(array, array_map);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
-  StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(array, offsetof(JSArray, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
 
   if (allocation_site) {
@@ -12829,7 +12829,7 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
       GotoIf(InstanceTypeEqual(LoadMapInstanceType(holder_map), JS_PROXY_TYPE),
              &lookup);
       TNode<Object> properties =
-          LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
+          LoadObjectField(holder, offsetof(JSObject, properties_or_hash_));
       CSA_DCHECK(this, TaggedIsNotSmi(properties));
       CSA_DCHECK(this, IsPropertyDictionary(CAST(properties)));
       // TODO(pthier): Support swiss dictionaries.
@@ -18113,7 +18113,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
       native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);
   StoreMapNoWriteBarrier(result, map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(result, offsetof(JSIteratorResult, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
                        RootIndex::kEmptyFixedArray);
@@ -18147,7 +18147,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSIteratorResultValueForEntry(
   TNode<HeapObject> array =
       Allocate(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize));
   StoreMapNoWriteBarrier(array, array_map);
-  StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(array, offsetof(JSArray, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length_smi);
@@ -18163,7 +18163,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
       native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);
   StoreMapNoWriteBarrier(result, iterator_map);
-  StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(result, offsetof(JSIteratorResult, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
                        RootIndex::kEmptyFixedArray);
@@ -18417,9 +18417,9 @@ TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(
       native_context, Context::PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSPromiseWithResolversResult::kSize);
   StoreMapNoWriteBarrier(result, map);
-  StoreObjectFieldRoot(result,
-                       JSPromiseWithResolversResult::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(
+      result, offsetof(JSPromiseWithResolversResult, properties_or_hash_),
+      RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSPromiseWithResolversResult::kElementsOffset,
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(
@@ -19345,7 +19345,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
   const TNode<HeapObject> fun = Allocate(JSFunctionWithoutPrototype::kMinSize);
   static_assert(JSFunctionWithoutPrototype::kMinSize == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(fun, map);
-  StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(fun, offsetof(JSObject, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
                        RootIndex::kEmptyFixedArray);

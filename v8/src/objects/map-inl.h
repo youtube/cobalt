@@ -17,14 +17,15 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map-updater.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
-#include "src/objects/prototype-info.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -32,7 +33,7 @@
 #include "src/utils/memcopy.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):
@@ -261,12 +262,14 @@ void Map::set_transitions_or_prototype_info(Tagged<Object> value,
 }
 
 // |bit_field| fields.
-// Concurrent access to |TBD| and |has_non_instance_prototype|
+// Concurrent access to |is_extended_map| and |has_non_instance_prototype|
 // is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
                     Map::Bits1::HasNonInstancePrototypeBit)
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, is_extended_map,
+                    Map::Bits1::IsExtendedMapBit)
 
 // These are fine to be written as non-atomic since we don't have data races.
 // However, they have to be read atomically from the background since the
@@ -547,7 +550,16 @@ void Map::set_instance_type(InstanceType value) {
   instance_type_.store(value, std::memory_order_relaxed);
 }
 
-int Map::AllocatedSize() const { return Map::kSize; }
+int Map::AllocatedSize() const {
+  if (is_extended_map()) [[unlikely]] {
+    // This is an extended map, figure out its size from the extended map kind.
+    Tagged<ExtendedMap> self = UncheckedCast<ExtendedMap>(this);
+    return self->map_size();
+  }
+  // This is either a meta map or a regular map. Currently they have the same
+  // size.
+  return Map::kSize;
+}
 
 int Map::UnusedPropertyFields() const {
 #if V8_ENABLE_WEBASSEMBLY
@@ -728,7 +740,11 @@ uint32_t Map::bit_field3() const {
   return relaxed_bit_field3();
 }
 
-void Map::set_bit_field3(uint32_t value) { set_relaxed_bit_field3(value); }
+void Map::set_bit_field3(uint32_t value) {
+  // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+  // map's store synchronization.
+  set_relaxed_bit_field3(value);
+}
 
 uint32_t Map::relaxed_bit_field3() const {
   return bit_field3_.load(std::memory_order_relaxed);
@@ -758,7 +774,7 @@ bool Map::should_be_fast_prototype_map() const {
 
 bool Map::has_prototype_info() const {
   DCHECK(is_prototype_map());
-  return PrototypeInfo::IsPrototypeInfoFast(prototype_info());
+  return IsPrototypeInfo(prototype_info());
 }
 
 bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
@@ -768,7 +784,7 @@ bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
   DCHECK(is_prototype_map());
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> maybe_proto_info = prototype_info();
-  if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
+  if (!IsPrototypeInfo(maybe_proto_info)) return false;
   *result = Cast<PrototypeInfo>(maybe_proto_info);
   return true;
 }
@@ -1347,6 +1363,80 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
 
 int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
+}
+
+constexpr int ExtendedMapSizeForKind(ExtendedMapKind kind) {
+  switch (kind) {
+    case ExtendedMapKind::kJSInterceptorMap:
+      return sizeof(JSInterceptorMap);
+  }
+  UNREACHABLE();
+}
+
+uint8_t ExtendedMap::relaxed_bit_field_ex() const {
+  return bit_field_ex_.load(std::memory_order_relaxed);
+}
+
+void ExtendedMap::set_relaxed_bit_field_ex(uint8_t value) {
+  bit_field_ex_.store(value, std::memory_order_relaxed);
+}
+
+uint8_t ExtendedMap::bit_field_ex() const {
+  // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+  // map's store synchronization.
+  return relaxed_bit_field_ex();
+}
+
+void ExtendedMap::set_bit_field_ex(uint8_t value) {
+  // TODO(solanes, v8:7790, v8:11353): Make this non-atomic when TSAN sees the
+  // map's store synchronization.
+  set_relaxed_bit_field_ex(value);
+}
+
+ExtendedMapKind ExtendedMap::map_kind() const {
+  return BitsEx::MapKindBits::decode(relaxed_bit_field_ex());
+}
+
+uint8_t ExtendedMap::map_size_in_words() const {
+  return BitsEx::MapSizeInWordsBits::decode(relaxed_bit_field_ex());
+}
+
+int ExtendedMap::map_size() const {
+  return map_size_in_words() << kTaggedSizeLog2;
+}
+
+void ExtendedMap::set_map_kind_and_size(ExtendedMapKind kind,
+                                        int size_in_bytes) {
+  DCHECK(IsAligned(size_in_bytes, kTaggedSize));
+  int size_in_words = size_in_bytes >> kTaggedSizeLog2;
+  CHECK_LE(static_cast<unsigned>(size_in_words), kMaxUInt8);
+
+  uint8_t field =
+      BitsEx::MapKindBits::encode(kind) |
+      BitsEx::MapSizeInWordsBits::encode(static_cast<uint8_t>(size_in_words));
+  set_relaxed_bit_field_ex(field);
+}
+
+Tagged<InterceptorInfo> JSInterceptorMap::named_interceptor() const {
+  return named_interceptor_.load();
+}
+void JSInterceptorMap::set_named_interceptor(
+    Tagged<InterceptorInfo> interceptor_info, WriteBarrierMode mode) {
+  DCHECK(interceptor_info->is_named());
+  named_interceptor_.store(this, interceptor_info, mode);
+}
+
+Tagged<InterceptorInfo> JSInterceptorMap::indexed_interceptor() const {
+  return indexed_interceptor_.load();
+}
+void JSInterceptorMap::set_indexed_interceptor(
+    Tagged<InterceptorInfo> interceptor_info, WriteBarrierMode mode) {
+  DCHECK(!interceptor_info->is_named());
+  indexed_interceptor_.store(this, interceptor_info, mode);
+}
+
+void JSInterceptorMap::clear_extended_padding() {
+  memset(extended_padding_, 0, sizeof(extended_padding_));
 }
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,

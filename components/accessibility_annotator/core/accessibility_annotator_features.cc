@@ -72,6 +72,11 @@ BASE_FEATURE_PARAM(double,
                    &kContentAnnotator,
                    "content_annotator_semantic_match_threshold",
                    0.8);
+BASE_FEATURE_PARAM(bool,
+                   kContentAnnotatorEnableMultiTabAnnotations,
+                   &kContentAnnotator,
+                   "content_annotator_enable_multi_tab_annotations",
+                   false);
 
 BASE_FEATURE(kAccessibilityAnnotator, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -98,6 +103,17 @@ BASE_FEATURE_PARAM(int,
                    &kAccessibilityAnnotatorLiveTabContext,
                    "live_tab_context_max_search_results",
                    3);
+// TODO(b/496946516): Evaluate passage count latency vs recall tradeoffs.
+BASE_FEATURE_PARAM(int,
+                   kAccessibilityAnnotatorLiveTabContextPassagesPerPage,
+                   &kAccessibilityAnnotatorLiveTabContext,
+                   "live_tab_context_passages_per_page",
+                   10);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kAccessibilityAnnotatorLiveTabContextRequestTimeout,
+                   &kAccessibilityAnnotatorLiveTabContext,
+                   "live_tab_context_request_timeout",
+                   base::Seconds(3));
 
 BASE_FEATURE(kAccessibilityAnnotationReducerOnePResolver,
              base::FEATURE_DISABLED_BY_DEFAULT);

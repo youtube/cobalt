@@ -20,6 +20,10 @@
 #include "src/objects/feedback-vector.h"
 #include "src/strings/string-builder-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 

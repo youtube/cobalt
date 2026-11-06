@@ -67,6 +67,7 @@ class ToolbarActionViewModel {
 
   // State for the toolbar action view's hover card.
   struct HoverCardState {
+    // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.ui.toolbar
     enum class SiteAccess {
       // All extensions are allowed on the current site by the user.
       kAllExtensionsAllowed,
@@ -84,8 +85,10 @@ class ToolbarActionViewModel {
       kExtensionDoesNotWantAccess,
     };
 
+    // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.ui.toolbar
     enum class AdminPolicy {
       kNone,
+
       // Extension is force pinned by administrator.
       kPinnedByAdmin,
 
@@ -95,6 +98,18 @@ class ToolbarActionViewModel {
 
     SiteAccess site_access;
     AdminPolicy policy;
+  };
+
+  // Helper struct to hold hover card strings.
+  struct HoverCardUiState {
+    HoverCardUiState();
+    HoverCardUiState(HoverCardUiState&&);
+    HoverCardUiState& operator=(HoverCardUiState&&);
+    ~HoverCardUiState();
+
+    std::optional<std::u16string> site_access_title;
+    std::optional<std::u16string> site_access_description;
+    std::optional<std::u16string> policy_text;
   };
 
   virtual ~ToolbarActionViewModel() = default;
@@ -131,6 +146,11 @@ class ToolbarActionViewModel {
 
   // Returns the hover card state to use for the given `web_contents`.
   virtual HoverCardState GetHoverCardState(
+      content::WebContents* web_contents) const = 0;
+
+  // Returns the appropriate `HoverCardUiState` to use.
+  virtual HoverCardUiState GetHoverCardUiState(
+      const ToolbarActionViewModel::HoverCardState& state,
       content::WebContents* web_contents) const = 0;
 
   // Returns true if the action should be enabled on the given |web_contents|.

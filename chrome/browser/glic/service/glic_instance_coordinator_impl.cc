@@ -119,14 +119,9 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
 }
 
 GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
-  // Delete all open invoke handlers, first triggering error handling.
-  auto handlers = std::exchange(invoke_handlers_, {});
-  for (auto& [instance, handler] : handlers) {
-    // Will result in erase from invoke_handlers_, which is safe because we
-    // exchanged.
-    handler->OnError(GlicInvokeError::kInstanceDestroyed);
+  for (auto& [id, instance] : instances_) {
+    instance->CloseInstanceAndShutdown();
   }
-  handlers.clear();
 
   // Delete all instances before destruction. Destroying web contents can result
   // in various calls to dependencies.
@@ -257,7 +252,6 @@ void GlicInstanceCoordinatorImpl::Toggle(
     bool prevent_close,
     mojom::InvocationSource source,
     std::optional<std::string> deprecated_prompt_suggestion,
-    bool deprecated_auto_send,
     std::optional<std::string> deprecated_conversation_id) {
   if (!browser) {
     if (!GlicEnabling::IsLiveAndFloatyEnabledByFlags()) {
@@ -277,7 +271,7 @@ void GlicInstanceCoordinatorImpl::Toggle(
   }
 
   ToggleSidePanel(browser, prevent_close, source, deprecated_prompt_suggestion,
-                  deprecated_auto_send, deprecated_conversation_id);
+                  deprecated_conversation_id);
 }
 
 void GlicInstanceCoordinatorImpl::EnsurePreload() {
@@ -303,30 +297,42 @@ void GlicInstanceCoordinatorImpl::RemoveAllInstances() {
   }
 }
 
-void GlicInstanceCoordinatorImpl::Invoke(GlicInvokeOptions options) {
-  InvokeInternal(std::nullopt, std::move(options));
+base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::Invoke(
+    GlicInvokeOptions options) {
+  return InvokeInternal(std::nullopt, std::move(options),
+                        GlicInvokeWithAutoSubmitOptions());
 }
 
-void GlicInstanceCoordinatorImpl::InvokeWithAutoSubmit(
+base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeWithAutoSubmit(
     InvokeWithAutoSubmitPasskey auto_submit_passkey,
     GlicInvokeOptions options) {
-  InvokeInternal(auto_submit_passkey, std::move(options));
+  return InvokeInternal(auto_submit_passkey, std::move(options),
+                        GlicInvokeWithAutoSubmitOptions());
+}
+
+base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeWithAutoSubmit(
+    InvokeWithAutoSubmitPasskey auto_submit_passkey,
+    GlicInvokeOptions options,
+    GlicInvokeWithAutoSubmitOptions auto_submit_options) {
+  return InvokeInternal(auto_submit_passkey, std::move(options),
+                        std::move(auto_submit_options));
 }
 
 void GlicInstanceCoordinatorImpl::GetExperimentalTriggeringUpdates(
     mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
     base::OnceCallback<void(bool)> success_status_callback) {
   if (active_instance_) {
-    active_instance_->host().getExperimentalTriggeringUpdates(
+    active_instance_->host().GetExperimentalTriggeringUpdates(
         std::move(handler), std::move(success_status_callback));
   } else {
     std::move(success_status_callback).Run(false);
   }
 }
 
-void GlicInstanceCoordinatorImpl::InvokeInternal(
+base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
-    GlicInvokeOptions options) {
+    GlicInvokeOptions options,
+    GlicInvokeWithAutoSubmitOptions auto_submit_options) {
   GlicInvokeHandler::ResolvedTarget resolved_target =
       GlicInvokeHandler::ResolveTargetSurface(profile_, options.target);
   tabs::TabInterface* tab = resolved_target.tab;
@@ -337,7 +343,7 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
       std::move(options.on_error).Run(GlicInvokeError::kInvalidTab);
     }
     // TODO(crbug.com/483387751): Show default toast here once implemented.
-    return;
+    return nullptr;
   }
 
   GlicInstanceImpl* instance = nullptr;
@@ -363,7 +369,7 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
       options.target.conversation);
 
   if (!instance) {
-    return;
+    return nullptr;
   }
 
   if (invoke_handlers_.contains(instance)) {
@@ -371,14 +377,17 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
       std::move(options.on_error).Run(GlicInvokeError::kInvokeInProgress);
     }
     // TODO(crbug.com/483387751): Show default toast here once implemented.
-    return;
+    return nullptr;
   }
 
   invoke_handlers_[instance] = std::make_unique<GlicInvokeHandler>(
-      *instance, resolved_target, std::move(options), auto_submit_passkey,
+      *instance, resolved_target, std::move(options),
+      std::move(auto_submit_options), auto_submit_passkey,
       base::BindOnce(&GlicInstanceCoordinatorImpl::OnInvokeHandlerComplete,
                      base::Unretained(this)));
   invoke_handlers_[instance]->Invoke();
+
+  return instance->GetWeakPtr();
 }
 
 void GlicInstanceCoordinatorImpl::OnInvokeHandlerComplete(
@@ -457,10 +466,6 @@ void GlicInstanceCoordinatorImpl::Reload(
 base::WeakPtr<GlicInstanceCoordinatorImpl>
 GlicInstanceCoordinatorImpl::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
-}
-
-Profile* GlicInstanceCoordinatorImpl::profile() {
-  return profile_;
 }
 
 base::CallbackListSubscription GlicInstanceCoordinatorImpl::
@@ -647,15 +652,14 @@ void GlicInstanceCoordinatorImpl::ToggleFloaty(
   CHECK(GlicEnabling::IsLiveAndFloatyEnabledByFlags());
   GetOrCreateInstanceImplForFloaty()->Toggle(
       ShowOptions::ForFloating(/*source_tab=*/tabs::TabHandle::Null()),
-      prevent_close, source, prompt_suggestion, /*auto_send=*/false);
+      prevent_close, source, prompt_suggestion);
 }
 
 void GlicInstanceCoordinatorImpl::ToggleSidePanel(
     BrowserWindowInterface* browser,
     bool prevent_close,
-    glic::mojom::InvocationSource source,
+    mojom::InvocationSource source,
     std::optional<std::string> prompt_suggestion,
-    bool auto_send,
     std::optional<std::string> conversation_id) {
   auto* tab = TabListInterface::From(browser)->GetActiveTab();
   if (!tab) {
@@ -690,17 +694,11 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   ShowOptions options = ShowOptions::ForSidePanel(
       *tab, GlicPinTrigger::kInstanceCreation, source);
 
-  instance->Toggle(std::move(options), prevent_close, source, prompt_suggestion,
-                   auto_send);
+  instance->Toggle(std::move(options), prevent_close, source,
+                   prompt_suggestion);
 }
 
 void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstanceImpl* instance) {
-  if (invoke_handlers_.contains(instance)) {
-    // OnError will trigger the completion callback which will remove the invoke
-    // handler from the map.
-    invoke_handlers_[instance]->OnError(GlicInvokeError::kInstanceDestroyed);
-  }
-
   if (!instances_.contains(instance->id())) {
     // This instance has already been removed, so there's no work to do.
     return;
@@ -711,11 +709,11 @@ void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstanceImpl* instance) {
   // not return the instance being deleted while it's being deleted.
   InstanceId id = instance->id();
   instance->CloseInstanceAndShutdown();
-  auto instance_value = std::exchange(instances_[id], {});
-  instances_.erase(id);
   if (instance == last_active_instance_) {
     last_active_instance_ = nullptr;
   }
+  auto instance_value = std::exchange(instances_[id], {});
+  instances_.erase(id);
 }
 
 void GlicInstanceCoordinatorImpl::SwitchConversation(
@@ -780,6 +778,21 @@ GlicInstanceCoordinatorImpl::GetRecentlyActiveInstances(size_t limit) {
     result.push_back({instance->id(), info->conversation_title});
   }
   return result;
+}
+
+bool GlicInstanceCoordinatorImpl::IsTabPinnedToAnyInstance(
+    const tabs::TabHandle& tab_handle) const {
+  return std::ranges::any_of(instances_, [&](const auto& entry) {
+    return entry.second->sharing_manager().IsTabPinned(tab_handle);
+  });
+}
+
+void GlicInstanceCoordinatorImpl::UnpinTabsFromAllInstances(
+    base::span<const tabs::TabHandle> tab_handles,
+    GlicUnpinTrigger trigger) {
+  for (auto& entry : instances_) {
+    entry.second->sharing_manager().UnpinTabs(tab_handles, trigger);
+  }
 }
 
 std::vector<GlicInstanceImpl*>
@@ -1038,6 +1051,7 @@ void GlicInstanceCoordinatorImpl::RestoreTab(
       auto side_panel_options = SidePanelShowOptions(*tab);
       side_panel_options.suppress_opening_animation = true;
       side_panel_options.pin_on_bind = false;
+      side_panel_options.prefer_peek = true;
       bound_instance->Show(ShowOptions{side_panel_options});
     } else {
       bound_instance->BindTabWithoutShowing(tab, /*pin_on_bind=*/false);

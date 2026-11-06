@@ -1354,10 +1354,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                     use_info.truncation().IdentifiesZeroAndMinusZero());
       op = machine()->ChangeUint32ToUint64();
     } else if (output_type.Is(Type::Signed32OrMinusZero())) {
-      // int32 -> int64
       CHECK_IMPLIES(output_type.Maybe(Type::MinusZero()),
                     use_info.truncation().IdentifiesZeroAndMinusZero());
-      op = machine()->ChangeInt32ToInt64();
+      if (use_info.type_check() == TypeCheckKind::kUnsigned64) {
+        op = simplified()->CheckedInt32ToUint64(use_info.feedback());
+      } else {
+        op = machine()->ChangeInt32ToInt64();
+      }
     } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
       // If it is a word representation, but not word32 type, then it is not an
       // integer.
@@ -1453,6 +1456,9 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       if (output_type.IsRange() && output_type.AsRange()->Min() >= 0) {
         node = InsertChangeTaggedSignedToInt32(node);
         op = machine()->ChangeUint32ToUint64();
+      } else if (use_info.type_check() == TypeCheckKind::kUnsigned64) {
+        node = InsertChangeTaggedSignedToInt32(node);
+        op = simplified()->CheckedInt32ToUint64(use_info.feedback());
       } else {
         op = simplified()->ChangeTaggedSignedToInt64();
       }

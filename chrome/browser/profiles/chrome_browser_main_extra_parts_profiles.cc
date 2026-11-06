@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/accessibility/accessibility_labels_service_factory.h"
@@ -101,6 +102,7 @@
 #include "chrome/browser/favicon/history_ui_favicon_request_handler_factory.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/feed/feed_service_factory.h"
+#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
 #include "chrome/browser/file_system_access/file_system_access_permission_context_factory.h"
 #include "chrome/browser/finds/finds_service_factory.h"
 #include "chrome/browser/first_party_sets/first_party_sets_policy_service_factory.h"
@@ -312,6 +314,7 @@
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/device_form_factor.h"
+#include "ui/webui/buildflags.h"
 
 // Per-platform #include blocks, in alphabetical order.
 
@@ -352,8 +355,8 @@
 #include "chrome/browser/badging/badge_manager_factory.h"
 #include "chrome/browser/device_api/managed_configuration_api_factory.h"
 #include "chrome/browser/devtools/device/devtools_android_bridge.h"
+#include "chrome/browser/dictation/dictation_keyed_service_factory.h"
 #include "chrome/browser/download/offline_item_model_manager_factory.h"
-#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
 #include "chrome/browser/hid/hid_chooser_context_factory.h"
 #include "chrome/browser/hid/hid_connection_tracker_factory.h"
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_sink_service_factory.h"
@@ -362,7 +365,6 @@
 #include "chrome/browser/new_tab_page/chrome_colors/chrome_colors_factory.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_factory.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service_factory.h"
-#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_factory.h"
 #include "chrome/browser/new_tab_page/promos/promo_service_factory.h"
 #include "chrome/browser/password_manager/factories/bulk_leak_check_service_factory.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
@@ -570,6 +572,10 @@
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
 #include "chrome/browser/spellchecker/spellcheck_factory.h"
+#endif
+
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
+#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_factory.h"
 #endif
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
@@ -905,6 +911,9 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
   BtmBrowserSigninDetectorFactory::GetInstance();
   policy::DeveloperToolsPolicyCheckerFactory::GetInstance();
+#if !BUILDFLAG(IS_ANDROID)
+  dictation::DictationKeyedServiceFactory::GetInstance();
+#endif
   digital_credentials::DigitalCredentialsKeyedServiceFactory::GetInstance();
   DocumentSuggestionsServiceFactory::GetInstance();
   dom_distiller::DomDistillerServiceFactory::GetInstance();
@@ -991,9 +1000,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if BUILDFLAG(IS_ANDROID)
   feed::FeedServiceFactory::GetInstance();
 #endif
-#if !BUILDFLAG(IS_ANDROID)
   feedback::FeedbackUploaderFactoryChrome::GetInstance();
-#endif
   FieldInfoManagerFactory::GetInstance();
   FileSystemAccessPermissionContextFactory::GetInstance();
   FindBarStateFactory::GetInstance();
@@ -1175,8 +1182,11 @@ void ChromeBrowserMainExtraPartsProfiles::
   on_device_translation::ServiceControllerManagerFactory::GetInstance();
 #endif
   OnDeviceTailModelServiceFactory::GetInstance();
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
   OneGoogleBarServiceFactory::GetInstance();
+#endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(b/502297163): Implement for Android.
   OneTimePermissionsTrackerFactory::GetInstance();
 #endif
   if (optimization_guide::ShouldStartModelValidator()) {

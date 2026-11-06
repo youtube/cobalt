@@ -45,7 +45,6 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
@@ -218,8 +217,6 @@ class BaseChannel : public ChannelInterface,
 
   // From RtpTransportInternal
   void OnWritableState(bool writable);
-
-  void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route);
 
   bool SendPacket(bool rtcp,
                   CopyOnWriteBuffer* packet,

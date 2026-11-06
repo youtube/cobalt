@@ -34,9 +34,9 @@ namespace {
 static constexpr int kExpectedBlendCFCombos = 15;
 static constexpr int kExpectedColorSpaceCFCombos = 1;
 static constexpr int kExpectedHighContrastCFCombos = 1;
-static constexpr int kExpectedLightingCFCombos = 1;
 static constexpr int kExpectedLumaCFCombos = 1;
-static constexpr int kExpectedMatrixCFCombos = 1;
+static constexpr int kExpectedMatrixCFCombos = 2; // alpha-preserving and not
+static constexpr int kExpectedLightingCFCombos = kExpectedMatrixCFCombos; // Maps to ::Matrix
 static constexpr int kExpectedOverdrawCFCombos = 1;
 static constexpr int kExpectedTableCFCombos = 1;
 
@@ -99,6 +99,11 @@ void run_test(const KeyContext& keyContext,
                                               precompileIDs.push_back(id);
                                           });
 
+    // Some combinations produced may result in the same UniquePaintParamsID since the combinatorics
+    // introduce opaque vs. non-opaque branches. Depending on how that recombines in the final
+    // paint key, key-impacting decisions may or may not be made. In most cases, the number of
+    // unique paint IDs will be lower than the raw number of combinations. Since we don't de-dupe
+    // when adding to `precompileIDs` here, we can assert the total is `expectedNumOptions`.
     SkASSERT(static_cast<int>(precompileIDs.size()) == expectedNumOptions);
 }
 

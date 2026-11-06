@@ -116,6 +116,12 @@ class GlicInstanceCoordinatorImpl
   std::vector<ConversationInfo> GetRecentlyActiveInstances(
       size_t limit) override;
 
+  bool IsTabPinnedToAnyInstance(
+      const tabs::TabHandle& tab_handle) const override;
+
+  void UnpinTabsFromAllInstances(base::span<const tabs::TabHandle> tab_handles,
+                                 GlicUnpinTrigger trigger) override;
+
   // Creates a new conversation and pins the given tabs.
   // This overrides any conversation that was already associated with any
   // of the given tabs.
@@ -134,16 +140,20 @@ class GlicInstanceCoordinatorImpl
               bool prevent_close,
               mojom::InvocationSource source,
               std::optional<std::string> deprecated_prompt_suggestion,
-              bool deprecated_auto_send,
               std::optional<std::string> deprecated_conversation_id) override;
   void EnsurePreload() override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
   void Shutdown() override;
   void Close(const CloseOptions& options) override;
-  void Invoke(GlicInvokeOptions options);
-  void InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
-                            GlicInvokeOptions options);
+  base::WeakPtr<GlicInstance> Invoke(GlicInvokeOptions options);
+  base::WeakPtr<GlicInstance> InvokeWithAutoSubmit(
+      InvokeWithAutoSubmitPasskey auto_submit_passkey,
+      GlicInvokeOptions options);
+  base::WeakPtr<GlicInstance> InvokeWithAutoSubmit(
+      InvokeWithAutoSubmitPasskey auto_submit_passkey,
+      GlicInvokeOptions options,
+      GlicInvokeWithAutoSubmitOptions auto_submit_options);
   void GetExperimentalTriggeringUpdates(
       mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
       base::OnceCallback<void(bool)> success_status_callback) override;
@@ -164,8 +174,6 @@ class GlicInstanceCoordinatorImpl
   void Reload(content::RenderFrameHost* render_frame_host) override;
   base::WeakPtr<GlicInstanceCoordinatorImpl> GetWeakPtr();
 
-  Profile* profile() override;
-
   base::CallbackListSubscription
   AddActiveInstanceChangedCallbackAndNotifyImmediately(
       ActiveInstanceChangedCallback callback) override;
@@ -185,9 +193,10 @@ class GlicInstanceCoordinatorImpl
 
  private:
   void RemoveAllInstances();
-  void InvokeInternal(
+  base::WeakPtr<GlicInstance> InvokeInternal(
       std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
-      GlicInvokeOptions options);
+      GlicInvokeOptions options,
+      GlicInvokeWithAutoSubmitOptions auto_submit_options);
 
   void OnTabEvent(const GlicTabEvent& event);
   // Returns a pointer to an instance with the given conversation id or nullptr
@@ -219,7 +228,6 @@ class GlicInstanceCoordinatorImpl
                        bool prevent_close,
                        glic::mojom::InvocationSource source,
                        std::optional<std::string> prompt_suggestion,
-                       bool auto_send,
                        std::optional<std::string> conversation_id);
 
   void CloseFloaty(const CloseOptions& options = {});

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import './composebox_submit.js';
 
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
@@ -10,6 +11,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
+import {SubmitButtonIconType} from './composebox.js';
 import type {PageHandlerRemote} from './composebox.mojom-webui.js';
 import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './composebox_voice_search.css.js';
@@ -39,7 +41,14 @@ const QUERY_LENGTH_LIMIT: number = 120;
  * Time in milliseconds to wait before automatically closing the UI after a
  * NO_MATCH error occurs (when the error timer is enabled).
  */
-const ERROR_TIMEOUT_MS: number = 24000;
+const ERROR_TIMEOUT_LONG_MS: number = 24000;
+
+/**
+ * Time in milliseconds to wait before automatically closing the UI after a non
+ * NO_MATCH error occurs (when the error timer is enabled).
+ */
+const ERROR_TIMEOUT_SHORT_MS: number = 9000;
+
 
 // The set of controller states.
 enum State {
@@ -172,6 +181,9 @@ export class ComposeboxVoiceSearchElement extends
       detailsUrl_: {type: String},
       detailedError_: {type: Number},
       hasErrorTimer: {type: Boolean},
+      voiceSearchCoherenceComposeboxesEnabled_: {type: Boolean},
+      voiceSearchCoherenceSearchboxEnabled_: {type: Boolean},
+      submitButtonIconType: {type: String},
     };
   }
 
@@ -182,6 +194,11 @@ export class ComposeboxVoiceSearchElement extends
   protected accessor interimResult_: string = '';
   protected accessor error_: VoiceSearchError|null = null;
   protected accessor errorMessage_: string = '';
+  protected accessor voiceSearchCoherenceComposeboxesEnabled_: boolean =
+      loadTimeData.getBoolean('voiceSearchCoherenceComposeboxesEnabled');
+  protected accessor voiceSearchCoherenceSearchboxEnabled_: boolean =
+      loadTimeData.getBoolean(
+          'voiceSearchCoherenceAnySearchboxExperimentEnabled');
   accessor detailedError_: VoiceSearchError|null = null;
   protected accessor detailsUrl_: string =
       `https://support.google.com/chrome/?p=ui_voice_search&hl=${
@@ -196,6 +213,8 @@ export class ComposeboxVoiceSearchElement extends
   private searchboxHandler_: SearchboxPageHandlerRemote =
       ComposeboxProxyImpl.getInstance().searchboxHandler;
   accessor hasErrorTimer: boolean = false;
+  accessor submitButtonIconType: SubmitButtonIconType =
+      SubmitButtonIconType.FORWARD;
 
   constructor() {
     super();
@@ -243,17 +262,28 @@ export class ComposeboxVoiceSearchElement extends
         VoiceSearchAction.MAX_VALUE + 1);
   }
 
-  stop() {
+  protected onStopClick_(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.fire('recording-stopped', this.transcript_);
     this.recordMetric_(
         VoiceSearchMetricType.ACTION, VoiceSearchAction.STOP_BUTTON_CLICKED,
         VoiceSearchAction.MAX_VALUE + 1);
     this.voiceRecognition_.stop();
+    this.voiceModeEndCleanup_();
   }
 
   private resetIdleTimer_() {
     WindowProxy.getInstance().clearTimeout(this.timerId_);
     this.timerId_ = WindowProxy.getInstance().setTimeout(
         this.onIdleTimeout_.bind(this), IDLE_TIMEOUT_MS);
+  }
+
+  protected onSubmitClick_(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    this.onFinalResult_(this.transcript_);
   }
 
   private onIdleTimeout_() {
@@ -310,12 +340,14 @@ export class ComposeboxVoiceSearchElement extends
     this.state_ = State.RESULT_RECEIVED;
     this.interimResult_ = '';
     this.finalResult_ = '';
+    this.transcript_ = '';
 
     const speechResult = results[e.resultIndex];
     assert(speechResult);
     // Process final results if is fully final.
     if (!!speechResult && speechResult.isFinal) {
       this.finalResult_ = speechResult[0]!.transcript;
+      this.transcript_ = this.finalResult_;
       this.onFinalResult_(this.finalResult_);
       return;
     }
@@ -361,6 +393,7 @@ export class ComposeboxVoiceSearchElement extends
       case State.RESULT_RECEIVED:
         this.onError_(VoiceSearchError.NO_MATCH);
         return;
+      case State.UNINITIALIZED:
       case State.ERROR_RECEIVED:
       case State.RESULT_FINAL:
         return;
@@ -424,32 +457,55 @@ export class ComposeboxVoiceSearchElement extends
     this.error_ = error;
     this.detailedError_ = error;
 
-    this.errorMessage_ = this.getErrorText_(error);
-
-    if (this.hasErrorTimer && error === VoiceSearchError.NO_MATCH) {
-      // NO_MATCH errors with a timer auto-close after 24s (NTP Realbox Case).
-      // Log as a canceling error.
-      this.recordMetric_(
-          VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_CANCELING,
-          VoiceSearchAction.MAX_VALUE + 1);
-
-      this.fire('voice-search-error', /*canceled-by-error=*/ true);
-
-      // Start the auto-close timer. Do not record metrics here to avoid double
-      // counting.
-      this.timerId_ = WindowProxy.getInstance().setTimeout(() => {
+    // Handle error display and dismissal behavior based on the embedder.
+    if (!this.hasErrorTimer) {
+      if (error === VoiceSearchError.NO_MATCH) {
+        // Without a timer, NO_MATCH errors close immediately with no message.
+        this.errorMessage_ = '';
         this.resetState_();
+        this.recordMetric_(
+            VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_CANCELING,
+            VoiceSearchAction.MAX_VALUE + 1);
+        // This fire event does not record metric.
         this.fire('voice-search-cancel', /*canceled-by-user=*/ false);
-      }, ERROR_TIMEOUT_MS);
-
+        // This fire event records metric for contextual tasks and cancels voice
+        // search.
+        this.fire('voice-search-error', /*canceled-by-error=*/ true);
+      } else {
+        // Without a timer, other errors show a message and stay open
+        // permanently.
+        this.errorMessage_ = this.getErrorText_(error);
+        this.recordMetric_(
+            VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_NON_CANCELING,
+            VoiceSearchAction.MAX_VALUE + 1);
+        // this fire event records metric for contextual tasks but does not
+        // cancel voice search.
+        this.fire('voice-search-error', /*canceled-by-error=*/ false);
+      }
     } else {
-      // All other errors keep the UI open permanently. Log as a non-canceling
-      // error.
-      this.recordMetric_(
-          VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_NON_CANCELING,
-          VoiceSearchAction.MAX_VALUE + 1);
+      // If there is a timer, an error message would show up.
+      this.errorMessage_ = this.getErrorText_(error);
 
-      this.fire('voice-search-error', /*canceled-by-error=*/ false);
+      if (error === VoiceSearchError.NO_MATCH) {
+        // NO_MATCH errors auto-close after a longer delay.
+        this.timerId_ = WindowProxy.getInstance().setTimeout(() => {
+          this.recordMetric_(
+              VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_CANCELING,
+              VoiceSearchAction.MAX_VALUE + 1);
+          this.resetState_();
+          // This fire event does not record metric.
+          this.fire('voice-search-cancel', /*canceled-by-user=*/ false);
+        }, ERROR_TIMEOUT_LONG_MS);
+      } else {
+        // Other errors auto-close after a shorter delay.
+        this.timerId_ = WindowProxy.getInstance().setTimeout(() => {
+          this.recordMetric_(
+              VoiceSearchMetricType.ACTION, VoiceSearchAction.ERROR_CANCELING,
+              VoiceSearchAction.MAX_VALUE + 1);
+          this.resetState_();
+          this.fire('voice-search-cancel', /*canceled-by-user=*/ false);
+        }, ERROR_TIMEOUT_SHORT_MS);
+      }
     }
   }
 

@@ -473,10 +473,11 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       // For supertypes of i31ref, we would need to check for i31ref anyway
       // before loading from the object, so we might as well just check directly
       // for null.
-      // For subtypes of externref, we use JS null, so we have to check
-      // explicitly.
+      // Exnrefs can hold any JS value, so do not use the trapping null check.
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
+                            module_) ||
+          wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), op_parameter.type,
                             module_) ||
           !op_parameter.type.use_wasm_null()) {
         gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);

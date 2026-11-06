@@ -562,7 +562,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK(isolate->context().is_null());
 
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT("v8", "V8.DeoptimizeCode");
   DirectHandle<JSFunction> function = deoptimizer->function();
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.

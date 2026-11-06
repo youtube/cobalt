@@ -37,8 +37,8 @@
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/login/login_handler.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -1257,7 +1257,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerBrowserTest,
   signin_form.password_value = u"12345";
   password_store->AddLogin(signin_form);
 
-  // Steps from https://crbug.com/40348800#c37.
+  // Steps from https://crbug.com/40348800#comment38.
   // Navigate to the page, click a link that opens a second tab, reload the
   // first tab and observe that the password is accessible.
   NavigateToFile("/password/form_and_link.html");

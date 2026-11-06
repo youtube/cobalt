@@ -67,6 +67,7 @@ DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkReplaceOldGroupCheckboxId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkSidePanelWebViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kBookmarkStarViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kBrowserDialogAnchorElementId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kBrowserFrameElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kBrowserViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kConstrainedDialogWebViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kContentsCaptureBorder);
@@ -147,6 +148,7 @@ DECLARE_ELEMENT_IDENTIFIER_VALUE(kPerformanceSidePanelWebViewElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(
     kPinnedToolbarActionsContainerDividerElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kPinnedToolbarActionsContainerElementId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kPinnedToolbarActionSendTabToSelfElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(
     kPinnedToolbarActionShowSidePanelBookmarksElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(

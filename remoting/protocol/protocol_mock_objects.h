@@ -22,7 +22,6 @@
 #include "remoting/proto/internal.pb.h"
 #include "remoting/proto/video.pb.h"
 #include "remoting/protocol/authenticator.h"
-#include "remoting/protocol/channel_authenticator.h"
 #include "remoting/protocol/client_stub.h"
 #include "remoting/protocol/clipboard_stub.h"
 #include "remoting/protocol/connection_to_client.h"
@@ -68,21 +67,12 @@ class MockAuthenticator : public Authenticator {
               (),
               (const, override));
   MOCK_METHOD(const std::string&, GetAuthKey, (), (const, override));
-  MOCK_METHOD(ChannelAuthenticator*,
-              CreateChannelAuthenticatorPtr,
-              (),
-              (const));
   MOCK_METHOD(void,
               ProcessMessage,
               (const JingleAuthentication& message,
                base::OnceClosure resume_callback),
               (override));
   MOCK_METHOD(JingleAuthentication, GetNextMessage, (), (override));
-
-  std::unique_ptr<ChannelAuthenticator> CreateChannelAuthenticator()
-      const override {
-    return base::WrapUnique(CreateChannelAuthenticatorPtr());
-  }
 
   // Make this method public.
   void NotifyStateChangeAfterAccepted() override {
@@ -236,6 +226,10 @@ class MockClientStub : public ClientStub {
               SetActiveDisplay,
               (const ActiveDisplay& active_display),
               (override));
+  MOCK_METHOD(void,
+              ControlMicrophone,
+              (const MicrophoneControl& control),
+              (override));
 
   // ClipboardStub mock implementation.
   MOCK_METHOD(void,
@@ -309,7 +303,6 @@ class MockSession : public Session {
   MOCK_METHOD(ErrorCode, error, (), (const, override));
   MOCK_METHOD(void, SetTransport, (Transport*), (override));
   MOCK_METHOD(const std::string&, jid, (), (override));
-  MOCK_METHOD(const SessionConfig&, config, (), (override));
   MOCK_METHOD(const Authenticator&, authenticator, (), (const, override));
   MOCK_METHOD(void,
               Close,
@@ -333,8 +326,6 @@ class MockSessionManager : public SessionManager {
               AcceptIncoming,
               (const IncomingSessionCallback&),
               (override));
-  void set_protocol_config(
-      std::unique_ptr<CandidateSessionConfig> config) override {}
   MOCK_METHOD(Session*,
               ConnectPtr,
               (const SignalingAddress& peer_address,

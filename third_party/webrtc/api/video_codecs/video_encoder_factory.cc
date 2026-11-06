@@ -14,6 +14,7 @@
 #include <string>
 
 #include "absl/algorithm/container.h"
+#include "api/video/resolution.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/sdp_video_format.h"
 
@@ -21,7 +22,8 @@ namespace webrtc {
 
 VideoEncoderFactory::CodecSupport VideoEncoderFactory::QueryCodecSupport(
     const SdpVideoFormat& format,
-    std::optional<std::string> scalability_mode) const {
+    std::optional<std::string> scalability_mode,
+    std::optional<Resolution> resolution) const {
   // Default implementation, query for supported formats and check if the
   // specified format is supported. If a scalability mode is specified, check
   // that it is present in the matching format's scalability_modes list.

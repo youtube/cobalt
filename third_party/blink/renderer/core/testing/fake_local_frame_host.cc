@@ -261,17 +261,6 @@ void FakeLocalFrameHost::SetFencedFrameAutomaticBeaconReportEventData(
     bool once,
     bool cross_origin_exposed) {}
 
-void FakeLocalFrameHost::DisableUntrustedNetworkInFencedFrame(
-    DisableUntrustedNetworkInFencedFrameCallback callback) {
-  std::move(callback).Run();
-}
-
-void FakeLocalFrameHost::ExemptUrlFromNetworkRevocationForTesting(
-    const blink::KURL& exempted_url,
-    ExemptUrlFromNetworkRevocationForTestingCallback callback) {
-  std::move(callback).Run();
-}
-
 void FakeLocalFrameHost::SendLegacyTechEvent(
     const String& type,
     mojom::blink::LegacyTechEventCodeLocationPtr code_location) {}
@@ -286,12 +275,6 @@ void FakeLocalFrameHost::CreateFencedFrame(
     const base::UnguessableToken& devtools_frame_token) {
   NOTREACHED() << "At the moment, FencedFrame is not used in any unit tests, "
                   "so this path should not be hit";
-}
-
-void FakeLocalFrameHost::ForwardFencedFrameEventAndUserActivationToEmbedder(
-    const String& event_type) {
-  NOTREACHED() << "ForwardFencedFrameEventToEmbedder is tested above the unit "
-                  "test layer";
 }
 
 void FakeLocalFrameHost::StartDragging(

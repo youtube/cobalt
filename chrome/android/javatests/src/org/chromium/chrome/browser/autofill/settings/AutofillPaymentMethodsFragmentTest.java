@@ -9,6 +9,7 @@ import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.intent.Intents.intended;
+import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
@@ -34,6 +35,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
+import android.app.Instrumentation;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
 
@@ -63,6 +66,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
@@ -82,7 +86,6 @@ import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.IbanRecordType;
 import org.chromium.components.autofill.MandatoryReauthAuthenticationFlowEvent;
 import org.chromium.components.autofill.VirtualCardEnrollmentState;
@@ -105,11 +108,7 @@ import java.util.concurrent.TimeoutException;
 
 /** Instrumentation tests for AutofillPaymentMethodsFragment. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@EnableFeatures({})
 @DisableFeatures({
-    ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
-    ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO,
-    ChromeFeatureList.AUTOFILL_ENABLE_FLAT_RATE_CARD_BENEFITS_FROM_CURINOS,
     ChromeFeatureList.AUTOFILL_ENABLE_WALLET_BRANDING,
 })
 @Batch(Batch.PER_CLASS)
@@ -340,8 +339,9 @@ public class AutofillPaymentMethodsFragmentTest {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
         // Verify that the preferences on the initial screen map to Save and Fill toggle + CVC
-        // storage toggle + 2 Cards + Add Card button + Payment Apps + Loyalty cards.
-        assertEquals(7, getPreferenceScreen(activity).getPreferenceCount());
+        // storage toggle + Card benefits toggle + 2 Cards + Add Card button + Payment Apps +
+        // Loyalty cards.
+        assertEquals(8, getPreferenceScreen(activity).getPreferenceCount());
     }
 
     @Test
@@ -898,8 +898,9 @@ public class AutofillPaymentMethodsFragmentTest {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
         // Verify that the preference on the initial screen map is only Save and Fill toggle +
-        // Reauth toggle + CVC storage toggle + Add Card button + Payment Apps + Loyalty cards.
-        assertEquals(6, getPreferenceScreen(activity).getPreferenceCount());
+        // Reauth toggle + CVC storage toggle + Card benefits toggle + Add Card button + Payment
+        // Apps + Loyalty cards.
+        assertEquals(7, getPreferenceScreen(activity).getPreferenceCount());
 
         ChromeSwitchPreference saveCvcToggle =
                 findPreferenceByKey(activity, AutofillPaymentMethodsFragment.PREF_SAVE_CVC);
@@ -1232,9 +1233,9 @@ public class AutofillPaymentMethodsFragmentTest {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
         // Verify that the preference on the initial screen map is only Save and Fill toggle +
-        // Mandatory Reauth toggle + CVC storage toggle + Add Card button + Add IBAN button +
-        // Payment Apps + Loyalty cards.
-        assertEquals(7, getPreferenceScreen(activity).getPreferenceCount());
+        // Mandatory Reauth toggle + CVC storage toggle + Card benefits toggle + Add Card button +
+        // Add IBAN button + Payment Apps + Loyalty cards.
+        assertEquals(8, getPreferenceScreen(activity).getPreferenceCount());
     }
 
     @Test
@@ -1710,10 +1711,15 @@ public class AutofillPaymentMethodsFragmentTest {
         Preference loyaltyCardsPref =
                 getPreferenceScreen(activity)
                         .findPreference(AutofillPaymentMethodsFragment.PREF_LOYALTY_CARDS);
+
+        var intentMatcher = hasData(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL);
+        intending(intentMatcher)
+                .respondWith(new Instrumentation.ActivityResult(Activity.RESULT_OK, null));
+
         // Simulate click on the loyalty card row.
         ThreadUtils.runOnUiThreadBlocking(loyaltyCardsPref::performClick);
 
-        intended(hasData(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL));
+        intended(intentMatcher);
     }
 
     @Test
@@ -2102,11 +2108,15 @@ public class AutofillPaymentMethodsFragmentTest {
     private static Preference getFirstPaymentMethodPreference(SettingsActivity activity) {
         boolean mandatoryReauthToggleShown = !DeviceInfo.isAutomotive();
         boolean saveCvcToggleShown = true;
+        boolean cardBenefitsShown = true;
         // The first payment method will come after the general settings for enabling
         // autofill, enabling mandatory re-auth (if available), and enabling CVC storage (if
-        // available).
+        // available), and enabling card benefits (if available).
         int firstPaymentMethodIndex =
-                1 + (mandatoryReauthToggleShown ? 1 : 0) + (saveCvcToggleShown ? 1 : 0);
+                1
+                        + (mandatoryReauthToggleShown ? 1 : 0)
+                        + (saveCvcToggleShown ? 1 : 0)
+                        + (cardBenefitsShown ? 1 : 0);
         return getPreferenceScreen(activity).getPreference(firstPaymentMethodIndex);
     }
 

@@ -1983,7 +1983,6 @@ static void add_image_to_key(const KeyContext& keyContext,
     static_cast<Image_Base*>(imageToDraw.get())->notifyInUse(keyContext.recorder(),
                                                              keyContext.drawContext());
 
-#if !defined(SK_GRAPHITE_USE_LEGACY_CLAMPING)
     // Here we detect pixel aligned blit-like image draws. Some devices have low precision filtering
     // and will produce degraded (blurry) images unexpectedly for sequential exact pixel blits when
     // not using nearest filtering. This is common for canvas scrolling implementations. Forcing
@@ -2013,7 +2012,6 @@ static void add_image_to_key(const KeyContext& keyContext,
             }
         }
     }
-#endif
 
     if (as_IB(imageToDraw)->isYUVA()) {
         return add_yuv_image_to_key(keyContext,
@@ -2033,28 +2031,6 @@ static void add_image_to_key(const KeyContext& keyContext,
                                         tileModeY,
                                         view.proxy()->dimensions(),
                                         subset);
-
-#if defined(SK_GRAPHITE_USE_LEGACY_CLAMPING)
-    // Here we detect pixel aligned blit-like image draws. Some devices have low precision filtering
-    // and will produce degraded (blurry) images unexpectedly for sequential exact pixel blits when
-    // not using nearest filtering. This is common for canvas scrolling implementations. Forcing
-    // nearest filtering when possible can also be a minor perf/power optimization depending on the
-    // hardware.
-    bool samplingHasNoEffect = false;
-    // Cubic sampling is will not filter the same as nearest even when pixel aligned.
-    if (!(keyContext.flags() & KeyGenFlags::kDisableSamplingOptimization || newSampling.useCubic)) {
-        SkMatrix totalM = keyContext.local2Dev().asM33();
-        if (keyContext.localMatrix()) {
-            totalM.preConcat(*keyContext.localMatrix());
-        }
-        totalM.normalizePerspective();
-        // The matrix should be translation with only pixel aligned 2d translation.
-        samplingHasNoEffect = totalM.isTranslate() && SkScalarIsInt(totalM.getTranslateX()) &&
-                              SkScalarIsInt(totalM.getTranslateY());
-    }
-
-    imgData.fSampling = samplingHasNoEffect ? SkFilterMode::kNearest : newSampling;
-#endif
 
     imgData.fTextureProxy = view.refProxy();
     skgpu::Swizzle readSwizzle = view.swizzle();

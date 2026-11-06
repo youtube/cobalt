@@ -19,7 +19,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/lookup-inl.h"
-#include "src/objects/managed.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -34,7 +34,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-export-wrapper-cache.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -322,7 +322,7 @@ RUNTIME_FUNCTION(Runtime_WasmReThrow) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+  TRACE_EVENT("v8.execute", "V8.StackGuard");
 
   uint32_t gap = args.positive_smi_value_at(0);
 
@@ -344,7 +344,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
   DCHECK_EQ(0, args.length());
   SealHandleScope shs(isolate);
-  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+  TRACE_EVENT("v8.execute", "V8.StackGuard");
 
   return isolate->stack_guard()->HandleInterrupts(
       StackGuard::InterruptLevel::kNoHeapWrites);
@@ -365,7 +365,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
     Tagged<WasmTrustedInstanceData> trusted_instance_data =
         TrustedCast<WasmTrustedInstanceData>(args[0]);
 
-    TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
+    TRACE_EVENT("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
     native_module = trusted_instance_data->native_module();
 
     DCHECK(isolate->context().is_null());
@@ -785,14 +785,16 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
 
 RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
   int field_offset = args.smi_value_at(1);
   int32_t expected_value = static_cast<int32_t>(args.number_value_at(2));
-  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[3]);
+  Tagged<HeapObject> waitqueue = Cast<HeapObject>(args[3]);
+  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
   if (!v8_flags.experimental_wasm_skip_null_checks &&
-      object == ReadOnlyRoots(isolate).wasm_null()) {
+      (object == ReadOnlyRoots(isolate).wasm_null() ||
+       waitqueue == ReadOnlyRoots(isolate).wasm_null())) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapNullDereference);
   }
 
@@ -803,17 +805,21 @@ RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
   }
 
   return FutexEmulation::WaitWasmManagedObject(
-      isolate, object, field_offset, expected_value, timeout_ns->AsInt64());
+      isolate, object, field_offset,
+      Cast<Managed<FutexManagedObjectWaitList>>(waitqueue), expected_value,
+      timeout_ns->AsInt64());
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAllocateWaitQueue) {
+RUNTIME_FUNCTION(Runtime_WasmWaitqueueNew) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<WasmStruct> struct_value(Cast<WasmStruct>(args[0]), isolate);
-  int raw_field_offset = args.smi_value_at(1);
+  DCHECK_EQ(0, args.length());
 
-  WasmStruct::AllocateWaitQueue(isolate, struct_value, raw_field_offset);
-  return Smi::FromInt(0);
+  auto ptr = std::make_shared<FutexManagedObjectWaitList>();
+  DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
+      Managed<FutexManagedObjectWaitList>::From(
+          isolate, sizeof(FutexManagedObjectWaitList), ptr,
+          AllocationType::kSharedOld);
+  return *managed;
 }
 
 namespace {

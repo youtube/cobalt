@@ -651,6 +651,7 @@ FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
 FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_int128_add, wasm::wasm_int128_add_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
@@ -706,10 +707,9 @@ FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
 
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
-int32_t (&futex_emulation_managed_object_wait)(Address, int32_t,
-                                               uint32_t) = FutexEmulation::Wake;
-FUNCTION_REFERENCE(wasm_managed_object_notify,
-                   futex_emulation_managed_object_wait)
+int32_t (&futex_emulation_waitqueue_wait)(Address,
+                                          uint32_t) = FutexEmulation::Wake;
+FUNCTION_REFERENCE(wasm_waitqueue_notify, futex_emulation_waitqueue_wait)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V

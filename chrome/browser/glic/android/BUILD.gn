@@ -11,6 +11,7 @@ generate_jni("jni_headers") {
     "//chrome/browser/glic/public/android/java/src/org/chromium/chrome/browser/glic/GlicKeyedServiceFactory.java",
     "java/src/org/chromium/chrome/browser/glic/ActorLoginPermission.java",
     "java/src/org/chromium/chrome/browser/glic/GlicActorLoginBridge.java",
+    "java/src/org/chromium/chrome/browser/glic/GlicInstanceHelper.java",
     "java/src/org/chromium/chrome/browser/glic/GlicKeyedServiceImpl.java",
     "java/src/org/chromium/chrome/browser/glic/GlicSettingsNavigation.java",
   ]
@@ -36,6 +37,19 @@ android_resources("java_resources") {
   ]
 }
 
+android_library("helper_java") {
+  sources =
+      [ "java/src/org/chromium/chrome/browser/glic/GlicInstanceHelper.java" ]
+  deps = [
+    ":jni_headers_java",
+    "//base:base_java",
+    "//chrome/browser/tab:java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+  resources_package = "org.chromium.chrome.browser.glic"
+}
+
 android_library("java") {
   sources = [
     "java/src/org/chromium/chrome/browser/glic/ActorLoginPermission.java",
@@ -52,6 +66,7 @@ android_library("java") {
   resources_package = "org.chromium.chrome.browser.glic"
 
   deps = [
+    ":helper_java",
     ":java_resources",
     ":jni_headers_java",
     "//base:base_java",
@@ -71,6 +86,7 @@ android_library("java") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/ui/android/bottombar:java",
+    "//chrome/browser/ui/android/toolbar:adaptive_features_java",
     "//chrome/browser/ui/android/toolbar:java",
     "//chrome/browser/ui/android/toolbar:optional_button_java",
     "//chrome/browser/ui/browser_window/public/android:java",
@@ -105,6 +121,7 @@ source_set("jni_bridges") {
   ]
   deps = [
     "//base",
+    "//chrome/browser/context_sharing/tab_bottom_sheet/android:client_type_java_enum",
     "//chrome/browser/context_sharing/tab_bottom_sheet/android:jni_headers",
     "//components/tabs:public",
     "//content/public/browser",
@@ -128,12 +145,12 @@ source_set("android") {
     ":jni_headers",
     "//base",
     "//chrome/browser/affiliations",
+    "//chrome/browser/android:tabs_public",
     "//chrome/browser/glic",
     "//chrome/browser/glic:mojo_bindings",
     "//chrome/browser/password_manager/actor_login:factories",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/sync",
-    "//chrome/browser/ui",
     "//components/password_manager/core/browser/actor_login:permissions_manager_impl",
     "//components/password_manager/core/browser/ui",
     "//skia",
@@ -169,6 +186,7 @@ robolectric_library("junit") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/ui/android/actions:java",
+    "//chrome/browser/ui/android/toolbar:adaptive_features_java",
     "//chrome/browser/ui/android/toolbar:java",
     "//chrome/browser/ui/android/toolbar:optional_button_java",
     "//chrome/browser/ui/browser_window/public/android:java",

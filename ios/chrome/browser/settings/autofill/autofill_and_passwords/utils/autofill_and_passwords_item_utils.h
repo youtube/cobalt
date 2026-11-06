@@ -18,6 +18,12 @@ NSString* AutofillCreditCardItemDetailText(BOOL enabled);
 // Returns the detail text for the autofill profile item.
 NSString* AutofillProfileItemDetailText(BOOL enabled);
 
+// Returns the detail text for the identity docs item.
+NSString* IdentityDocsItemDetailText(BOOL enabled);
+
+// Returns the detail text for the travel info item.
+NSString* TravelInfoItemDetailText(BOOL enabled);
+
 // Returns the passwords item.
 TableViewDetailIconItem* PasswordsItem(BOOL enabled);
 
@@ -26,5 +32,11 @@ TableViewDetailIconItem* AutofillCreditCardItem(BOOL enabled);
 
 // Returns the autofill profile item.
 TableViewDetailIconItem* AutofillProfileItem(BOOL enabled);
+
+// Returns the identity docs item.
+TableViewDetailIconItem* IdentityDocsItem(BOOL enabled);
+
+// Returns the travel info item.
+TableViewDetailIconItem* TravelInfoItem(BOOL enabled);
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UTILS_AUTOFILL_AND_PASSWORDS_ITEM_UTILS_H_

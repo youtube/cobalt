@@ -19,8 +19,13 @@ use bssl_crypto::FfiSlice as _;
 use crate::{
     check_lib_error,
     config::ConfigurationError,
-    context::{SupportedMode, TlsContextBuilder},
+    context::{
+        SupportedMode,
+        TlsContext,
+        TlsContextBuilder, //
+    },
     errors::Error,
+    sessions::TlsSession, //
 };
 
 /// # Sessions
@@ -84,5 +89,67 @@ bitflags::bitflags! {
         const NO_INTERNAL_STORE = bssl_sys::SSL_SESS_CACHE_NO_INTERNAL_STORE as c_int;
         /// Disable session internal caching.
         const NO_INTERNAL = bssl_sys::SSL_SESS_CACHE_NO_INTERNAL as c_int;
+    }
+}
+
+/// # Sessions
+impl<M> TlsContext<M>
+where
+    M: SupportedMode,
+{
+    /// Add a [`TlsSession`] to the context.
+    ///
+    /// This method returns `true` if the session is freshly added;
+    /// otherwise, it is already present in the context by returning `false`.
+    pub fn add_session(&self, session: &TlsSession) -> bool {
+        let ret = unsafe {
+            // Safety:
+            // - the validity of the handle `self.0` is witnessed by `self`.
+            // - the method is synchronised with a mutex guard.
+            bssl_sys::SSL_CTX_add_session(self.ptr(), session.ptr()) == 1
+        };
+        unsafe {
+            // Safety: we are only clearing the error queue in the current thread.
+            bssl_sys::ERR_clear_error();
+        }
+        ret
+    }
+
+    /// Remove a [`TlsSession`] from the context.
+    ///
+    /// This method returns `true` if the session is present and removed from the context;
+    /// otherwise, it is missing by returning `false`.
+    pub fn remove_session(&self, session: &TlsSession) -> bool {
+        let ret = unsafe {
+            // Safety:
+            // - the validity of the handle `self.0` is witnessed by `self`.
+            // - the method is synchronised with a mutex guard.
+            bssl_sys::SSL_CTX_remove_session(self.ptr(), session.ptr()) == 1
+        };
+        unsafe {
+            // Safety: we are only clearing the error queue in the current thread.
+            bssl_sys::ERR_clear_error();
+        }
+        ret
+    }
+
+    /// Remove all sessions that have expired past the `deadline`, which is a POSIX timestamp.
+    pub fn flush_sessions(&self, deadline: u64) {
+        unsafe {
+            // Safety:
+            // - the validity of the handle `self.0` is witnessed by `self`.
+            // - the method is synchronised with a mutex guard.
+            bssl_sys::SSL_CTX_flush_sessions(self.ptr(), deadline);
+        }
+    }
+
+    /// Get the number of sessions in the context.
+    pub fn count_sessions(&self) -> usize {
+        unsafe {
+            // Safety:
+            // - the validity of the handle `self.0` is witnessed by `self`.
+            // - the method is synchronised with a mutex guard.
+            bssl_sys::SSL_CTX_sess_number(self.ptr())
+        }
     }
 }

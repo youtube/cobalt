@@ -37,6 +37,9 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   AsyncTCPSocketBase(const AsyncTCPSocketBase&) = delete;
   AsyncTCPSocketBase& operator=(const AsyncTCPSocketBase&) = delete;
 
+  using AsyncPacketSocket::Send;
+  using AsyncPacketSocket::SendTo;
+
   // Pure virtual methods to send and recv data.
   int Send(const void* pv,
            size_t cb,
@@ -88,6 +91,9 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
 
   AsyncTCPSocket(const AsyncTCPSocket&) = delete;
   AsyncTCPSocket& operator=(const AsyncTCPSocket&) = delete;
+
+  using AsyncTCPSocketBase::Send;
+  using AsyncTCPSocketBase::SendTo;
 
   int Send(const void* pv,
            size_t cb,

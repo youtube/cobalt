@@ -1183,6 +1183,9 @@ TEST_P(ViewTransitionTest, PseudoAwareChildTraversal) {
   EXPECT_EQ(root_image_pair_pseudo->PseudoAwareLastChild(), root_new_pseudo);
 }
 
+// Note: This test includes view transition pseudos due to setup available in
+// ViewTransitionTest. For full traversal of non-VT pseudos, see
+// NodeTest.PseudoAwareSiblingTraversalAllPseudos in node_test.cc.
 TEST_P(ViewTransitionTest, PseudoAwareSiblingTraversal) {
   SetHtmlInnerHTML(R"HTML(
     <style>
@@ -1192,6 +1195,7 @@ TEST_P(ViewTransitionTest, PseudoAwareSiblingTraversal) {
       #bar {
         view-transition-name: bar;
       }
+      html::after { content: ''; }
     </style>
     <div id="foo"></div>
     <div id="bar"></div>
@@ -1222,10 +1226,13 @@ TEST_P(ViewTransitionTest, PseudoAwareSiblingTraversal) {
   auto* transition_pseudo = GetDocument().documentElement()->GetPseudoElement(
       kPseudoIdViewTransition);
   ASSERT_TRUE(transition_pseudo);
+  PseudoElement* after =
+      GetDocument().documentElement()->GetPseudoElement(kPseudoIdAfter);
+  ASSERT_TRUE(after);
 
+  // Order: ::after then ::view-transition
   EXPECT_FALSE(transition_pseudo->PseudoAwareNextSibling());
-  EXPECT_EQ(transition_pseudo->PseudoAwarePreviousSibling(),
-            GetDocument().QuerySelector(AtomicString("body")));
+  EXPECT_EQ(transition_pseudo->PseudoAwarePreviousSibling(), after);
 
   auto* foo_group_pseudo = transition_pseudo->GetPseudoElement(
       kPseudoIdViewTransitionGroup, AtomicString("foo"));
@@ -1264,6 +1271,9 @@ TEST_P(ViewTransitionTest, PseudoAwareSiblingTraversal) {
   EXPECT_EQ(foo_new_pseudo->PseudoAwarePreviousSibling(), foo_old_pseudo);
 }
 
+// Note: This test includes view transition pseudos due to setup available in
+// ViewTransitionTest. For full traversal of non-VT pseudos, see
+// NodeTest.PseudoAwareSiblingTraversalAllPseudos in node_test.cc.
 TEST_P(ViewTransitionTest, IncludingPseudoTraversal) {
   SetHtmlInnerHTML(R"HTML(
   <style>
@@ -1679,6 +1689,59 @@ TEST_P(ViewTransitionTest,
 
   UpdateAllLifecyclePhasesAndFinishDirectives();
   EXPECT_TRUE(callback_ran);
+}
+
+TEST_P(ViewTransitionTest, AutoResizeMismatchedSizes) {
+  SetHtmlInnerHTML(R"HTML(
+    <style>
+      html { view-transition-name: root; }
+      body { height: 2000px; margin: 0; }
+      #anchor { height: 100px; background: blue; }
+      #anchor2 { height: 100px; background: green; }
+    </style>
+    <div id="anchor"></div>
+    <div id="anchor2"></div>
+  )HTML");
+
+  GetDocument().scrollingElement()->setScrollTop(150);
+  UpdateAllLifecyclePhasesForTest();
+
+  ScriptState* script_state = GetScriptState();
+  ScriptState::Scope scope(script_state);
+
+  auto lambda = [](const v8::FunctionCallbackInfo<v8::Value>& info) {};
+  auto* callback = V8ViewTransitionCallback::Create(
+      v8::Function::New(script_state->GetContext(), lambda, {})
+          .ToLocalChecked());
+
+  auto* transition = ViewTransitionSupplement::startViewTransition(
+      script_state, GetDocument(), callback, ASSERT_NO_EXCEPTION);
+
+  UpdateAllLifecyclePhasesForTest();
+
+  // Force GetViewportEnabled() to false to trigger the ClientWidth branch.
+  GetDocument().GetSettings()->SetViewportEnabled(false);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+
+  // Defer main frame updates to simulate the race!
+  auto defer_update = web_view_helper_->LocalMainFrame()
+                          ->FrameWidgetImpl()
+                          ->DeferMainFrameUpdate();
+
+  gfx::Size original_size = web_view_helper_->GetWebView()->Size();
+  gfx::Size new_size =
+      gfx::Size(original_size.width() + 100, original_size.height() + 100);
+
+  // Call Resize directly on LocalFrameView to force the size change!
+  GetDocument().View()->Resize(new_size);
+
+  // Call ViewRect, which is possible from scroll anchoring.
+  GetDocument().GetLayoutView()->ViewRect();
+
+  UpdateAllLifecyclePhasesForTest();
+  test::RunPendingTasks();
+
+  EXPECT_EQ(GetState(transition), State::kAborted);
 }
 
 }  // namespace blink

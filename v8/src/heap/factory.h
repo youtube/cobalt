@@ -192,6 +192,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<TurbofanOtherNumberConstantType> NewTurbofanOtherNumberConstantType(
       double constant, AllocationType allocation);
 
+  Handle<OnHeapBasicBlockProfilerData> NewOnHeapBasicBlockProfilerData(
+      DirectHandle<FixedInt32Array> block_ids,
+      DirectHandle<FixedUInt32Array> counts,
+      DirectHandle<PodArray<std::pair<int32_t, int32_t>>> branches,
+      DirectHandle<String> name, DirectHandle<String> schedule,
+      DirectHandle<String> code, int hash, AllocationType allocation);
+
   // Allocate a new fixed double array with hole values.
   DirectHandle<FixedArrayBase> NewFixedDoubleArrayWithHoles(uint32_t size);
 
@@ -574,14 +581,32 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
 
   // Allocates and initializes a new Map.
-  Handle<Map> NewMap(DirectHandle<HeapObject> meta_map_holder,
-                     InstanceType type, int instance_size,
+  Handle<Map> NewMap(DirectHandle<HeapObject> meta_map_holder, int map_size,
+                     InstanceType instance_type, int instance_size,
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
 
   DirectHandle<Map> NewMapWithMetaMap(
+      DirectHandle<Map> meta_map, int map_size, InstanceType type,
+      int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
+  DirectHandle<Map> NewMapWithMetaMap(
       DirectHandle<Map> meta_map, InstanceType type, int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap) {
+    return NewMapWithMetaMap(meta_map, Map::kSize, type, instance_size,
+                             elements_kind, inobject_properties,
+                             allocation_type);
+  }
+
+  DirectHandle<ExtendedMap> NewExtendedMapWithMetaMap(
+      DirectHandle<Map> meta_map, ExtendedMapKind map_kind, InstanceType type,
+      int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
@@ -1389,7 +1414,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // For example,  std::function<Tagged<Map>()>.
   template <typename MetaMapProviderFunc>
   V8_INLINE Handle<Map> NewMapImpl(
-      MetaMapProviderFunc&& meta_map_provider, InstanceType type,
+      MetaMapProviderFunc&& meta_map_provider, int map_size, InstanceType type,
       int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
@@ -1457,7 +1482,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(
       Tagged<Map> map, Tagged<JSObject> obj,
-      std::optional<Tagged<Object>> maybe_properties,
+      std::optional<Tagged<JSReceiver::PropertiesOrHash>> maybe_properties,
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
   // Initializes JSObject body starting at given offset.
   void InitializeJSObjectBody(

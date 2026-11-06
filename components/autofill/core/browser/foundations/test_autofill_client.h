@@ -22,6 +22,7 @@
 #include "base/notreached.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/accessibility_annotator/core/accessibility_query_service.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
@@ -211,6 +212,16 @@ class TestAutofillClientTemplate : public T {
     return accessibility_query_service_.get();
   }
 
+  accessibility_annotator::RemoteAnnotatorEnablementState
+  GetAccessibilityAnnotatorEnablementState() const override {
+    return accessibility_annotator_enablement_state_;
+  }
+
+  void set_accessibility_annotator_enablement_state(
+      accessibility_annotator::RemoteAnnotatorEnablementState state) {
+    accessibility_annotator_enablement_state_ = state;
+  }
+
   IdentityCredentialDelegate* GetIdentityCredentialDelegate() override {
     return identity_credential_delegate_.get();
   }
@@ -325,7 +336,8 @@ class TestAutofillClientTemplate : public T {
       base::WeakPtr<AutofillSuggestionDelegate> delegate) override {
     is_showing_popup_ = true;
     static AutofillClient::SuggestionUiSessionId::Generator generator;
-    return generator.GenerateNextId();
+    suggestion_ui_session_id_ = generator.GenerateNextId();
+    return *suggestion_ui_session_id_;
   }
 
   void UpdateAutofillDataListValues(
@@ -353,6 +365,7 @@ class TestAutofillClientTemplate : public T {
   void HideAutofillSuggestions(SuggestionHidingReason reason) override {
     popup_hidden_reason_ = reason;
     is_showing_popup_ = false;
+    suggestion_ui_session_id_.reset();
   }
 
   bool IsShowingAutofillPopup() { return is_showing_popup_; }
@@ -682,6 +695,9 @@ class TestAutofillClientTemplate : public T {
   std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate_;
   std::unique_ptr<accessibility_annotator::AccessibilityQueryService>
       accessibility_query_service_;
+  accessibility_annotator::RemoteAnnotatorEnablementState
+      accessibility_annotator_enablement_state_ =
+          accessibility_annotator::RemoteAnnotatorEnablementState::kEnabled;
   std::unique_ptr<IdentityCredentialDelegate> identity_credential_delegate_;
   std::unique_ptr<PasswordManagerDelegate> password_manager_delegate_;
   TestAddressNormalizer test_address_normalizer_;

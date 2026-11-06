@@ -535,31 +535,31 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
 
 Tagged<String> JSReceiver::class_name() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*this)) {
+  if (IsJSFunctionOrBoundFunctionOrWrappedFunction(this)) {
     return roots.Function_string();
   }
-  if (IsJSArgumentsObject(*this)) return roots.Arguments_string();
-  if (IsJSArray(*this)) return roots.Array_string();
-  if (IsJSArrayBuffer(*this)) {
-    if (Cast<JSArrayBuffer>(*this)->is_shared()) {
+  if (IsJSArgumentsObject(this)) return roots.Arguments_string();
+  if (IsJSArray(this)) return roots.Array_string();
+  if (IsJSArrayBuffer(this)) {
+    if (Cast<JSArrayBuffer>(this)->is_shared()) {
       return roots.SharedArrayBuffer_string();
     }
     return roots.ArrayBuffer_string();
   }
-  if (IsJSArrayIterator(*this)) return roots.ArrayIterator_string();
-  if (IsJSDate(*this)) return roots.Date_string();
-  if (IsJSError(*this)) return roots.Error_string();
-  if (IsJSGeneratorObject(*this)) return roots.Generator_string();
-  if (IsJSMap(*this)) return roots.Map_string();
-  if (IsJSMapIterator(*this)) return roots.MapIterator_string();
-  if (IsJSProxy(*this)) {
+  if (IsJSArrayIterator(this)) return roots.ArrayIterator_string();
+  if (IsJSDate(this)) return roots.Date_string();
+  if (IsJSError(this)) return roots.Error_string();
+  if (IsJSGeneratorObject(this)) return roots.Generator_string();
+  if (IsJSMap(this)) return roots.Map_string();
+  if (IsJSMapIterator(this)) return roots.MapIterator_string();
+  if (IsJSProxy(this)) {
     return map()->is_callable() ? roots.Function_string()
                                 : roots.Object_string();
   }
-  if (IsJSRegExp(*this)) return roots.RegExp_string();
-  if (IsJSSet(*this)) return roots.Set_string();
-  if (IsJSSetIterator(*this)) return roots.SetIterator_string();
-  if (IsJSTypedArray(*this)) {
+  if (IsJSRegExp(this)) return roots.RegExp_string();
+  if (IsJSSet(this)) return roots.Set_string();
+  if (IsJSSetIterator(this)) return roots.SetIterator_string();
+  if (IsJSTypedArray(this)) {
 #define SWITCH_KIND(Type, type, TYPE, ctype)       \
   if (map()->elements_kind() == TYPE##_ELEMENTS) { \
     return roots.Type##Array_string();             \
@@ -567,8 +567,8 @@ Tagged<String> JSReceiver::class_name() {
     TYPED_ARRAYS(SWITCH_KIND)
 #undef SWITCH_KIND
   }
-  if (IsJSPrimitiveWrapper(*this)) {
-    Tagged<Object> value = Cast<JSPrimitiveWrapper>(*this)->value();
+  if (IsJSPrimitiveWrapper(this)) {
+    Tagged<Object> value = Cast<JSPrimitiveWrapper>(this)->value();
     if (IsBoolean(value)) return roots.Boolean_string();
     if (IsString(value)) return roots.String_string();
     if (IsNumber(value)) return roots.Number_string();
@@ -577,15 +577,15 @@ Tagged<String> JSReceiver::class_name() {
     if (IsScript(value)) return roots.Script_string();
     UNREACHABLE();
   }
-  if (IsJSWeakMap(*this)) return roots.WeakMap_string();
-  if (IsJSWeakSet(*this)) return roots.WeakSet_string();
-  if (IsShared(*this)) {
-    if (IsJSSharedStruct(*this)) return roots.SharedStruct_string();
-    if (IsJSSharedArray(*this)) return roots.SharedArray_string();
-    if (IsJSAtomicsMutex(*this)) return roots.AtomicsMutex_string();
-    if (IsJSAtomicsCondition(*this)) return roots.AtomicsCondition_string();
+  if (IsJSWeakMap(this)) return roots.WeakMap_string();
+  if (IsJSWeakSet(this)) return roots.WeakSet_string();
+  if (IsShared(this)) {
+    if (IsJSSharedStruct(this)) return roots.SharedStruct_string();
+    if (IsJSSharedArray(this)) return roots.SharedArray_string();
+    if (IsJSAtomicsMutex(this)) return roots.AtomicsMutex_string();
+    if (IsJSAtomicsCondition(this)) return roots.AtomicsCondition_string();
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmObject(*this)) return roots.Object_string();
+    if (IsWasmObject(this)) return roots.Object_string();
 #endif
     // Other shared values are primitives.
     UNREACHABLE();
@@ -812,8 +812,8 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 
 namespace {
 
-Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
-                                          int hash) {
+Tagged<JSReceiver::PropertiesOrHash> SetHashAndUpdateProperties(
+    Tagged<JSReceiver::PropertiesOrHash::Without<Smi>> properties, int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
@@ -844,7 +844,8 @@ Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
 
 int GetIdentityHashHelper(Tagged<JSReceiver> object) {
   DisallowGarbageCollection no_gc;
-  Tagged<Object> properties = object->raw_properties_or_hash();
+  Tagged<JSReceiver::PropertiesOrHash> properties =
+      object->raw_properties_or_hash();
   if (IsSmi(properties)) {
     return Smi::ToInt(properties);
   }
@@ -877,20 +878,20 @@ void JSReceiver::SetIdentityHash(int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  Tagged<HeapObject> existing_properties =
-      Cast<HeapObject>(raw_properties_or_hash());
-  Tagged<Object> new_properties =
+  Tagged<Properties> existing_properties =
+      Cast<Properties>(raw_properties_or_hash());
+  Tagged<PropertiesOrHash> new_properties =
       SetHashAndUpdateProperties(existing_properties, hash);
   set_raw_properties_or_hash(new_properties, kRelaxedStore);
 }
 
-void JSReceiver::SetProperties(Tagged<HeapObject> properties) {
+void JSReceiver::SetProperties(Tagged<Properties> properties) {
   DCHECK_IMPLIES(IsPropertyArray(properties) &&
                      Cast<PropertyArray>(properties)->length().value() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
   DisallowGarbageCollection no_gc;
   int hash = GetIdentityHashHelper(*this);
-  Tagged<Object> new_properties = properties;
+  Tagged<PropertiesOrHash> new_properties = properties;
 
   // TODO(cbruni): Make GetIdentityHashHelper return a bool so that we
   // don't have to manually compare against kNoHashSentinel.
@@ -2650,6 +2651,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return sizeof(JSIteratorConcatHelper);
     case JS_ITERATOR_ZIP_HELPER_TYPE:
       return sizeof(JSIteratorZipHelper);
+    case JS_ITERATOR_ZIP_KEYED_HELPER_TYPE:
+      return sizeof(JSIteratorZipKeyedHelper);
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
@@ -4751,7 +4754,8 @@ Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
 // static
 std::optional<Tagged<Object>> JSObject::DictionaryPropertyAt(
     DirectHandle<JSObject> object, InternalIndex dict_index, Heap* heap) {
-  Tagged<Object> backing_store = object->raw_properties_or_hash(kRelaxedLoad);
+  Tagged<JSReceiver::PropertiesOrHash> backing_store =
+      object->raw_properties_or_hash(kRelaxedLoad);
   if (!IsHeapObject(backing_store)) return {};
   if (heap->IsPendingAllocation(Cast<HeapObject>(backing_store))) return {};
 

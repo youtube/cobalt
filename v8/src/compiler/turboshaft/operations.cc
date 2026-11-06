@@ -419,6 +419,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Float64ToInt64";
     case ChangeOrDeoptOp::Kind::kFloat64NotHole:
       return os << "Float64NotHole";
+    case ChangeOrDeoptOp::Kind::kInt32ToUint64:
+      return os << "Int32ToUint64";
     case ChangeOrDeoptOp::Kind::kFloat64ToUint64:
       return os << "Float64ToUint64";
   }
@@ -1746,7 +1748,6 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kI8:
     case wasm::kI16:
     case wasm::kI32:
-    case wasm::kWaitQueue:
       return kWord32;
     case wasm::kI64:
       return kWord64;

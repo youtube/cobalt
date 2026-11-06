@@ -53,7 +53,6 @@
 <translation id="1594928384848033697">Chromium 要刪除密碼管理工具資料。如果允許，請輸入 Windows 密碼。</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{系統管理員要求你重新啟動 Chromium，以套用更新}=1{系統管理員要求你重新啟動 Chromium，以套用更新。你的無痕視窗不會重新開啟。}other{系統管理員要求你重新啟動 Chromium，以套用更新。你的 # 個無痕視窗不會重新開啟。}}</translation>
 <translation id="1625909126243026060">查看 Chromium 中最重要的隱私權和安全性控制項</translation>
-<translation id="1639380494700489405">登入 Chromium 後，不必離開頁面就能用 AI 模式查詢分頁，並在所有裝置上同步密碼與其他資料。</translation>
 <translation id="1640672724030957280">下載中…</translation>
 <translation id="1680687534629375545">向「圖片搜尋」詢問這個頁面的相關問題</translation>
 <translation id="1708414395296835197">在訊息、文件和其他應用程式中點選連結後，都會使用 Chromium 開啟。Chromium 也會釘選到工作列。</translation>
@@ -216,6 +215,7 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">自訂新的 Chromium 設定檔</translation>
+<translation id="3189205223539394158">你可以繼續與 AI 模式對話，不必切換分頁。登入 Chromium 即可使用，密碼和其他資料也會同步到所有裝置。</translation>
 <translation id="3224847870593914902">如要從 Chromium 中移除 Google 帳戶，請前往「設定」頁面登出 Chromium</translation>
 <translation id="3234316605225071811">Chromium 稍後會詢問你，是否要使用已儲存的資訊自動填寫表單</translation>
 <translation id="3258596308407688501">Chromium 無法讀取及寫入資料目錄：

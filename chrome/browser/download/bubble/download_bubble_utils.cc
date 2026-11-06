@@ -11,6 +11,8 @@
 #include "chrome/browser/download/download_ui_model.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/download/download_item_mode.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/grit/generated_resources.h"
@@ -203,12 +205,15 @@ BrowserWindowInterface* FindBrowserToShowAnimation(
     }
   }
   BrowserWindowInterface* browser_to_show_animation =
-      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
+      web_contents ? GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+                         web_contents)
+                   : nullptr;
 
   // As a last resort, use the last active browser for this profile. Not ideal,
   // but better than not showing the download at all.
   if (browser_to_show_animation == nullptr) {
-    browser_to_show_animation = chrome::FindLastActiveWithProfile(profile);
+    browser_to_show_animation = ProfileBrowserCollection::GetForProfile(profile)
+                                    ->GetLastActiveBrowser();
   }
   return browser_to_show_animation;
 }

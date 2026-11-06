@@ -2027,7 +2027,7 @@ bssl::UniquePtr<SSL_CTX> TestConfig::SetupCtx(SSL_CTX *old_ctx) const {
     return nullptr;
   }
 
-  SSL_CTX_set0_buffer_pool(ssl_ctx.get(), BufferPool());
+  SSL_CTX_set1_buffer_pool(ssl_ctx.get(), BufferPool());
 
   std::string cipher_list = "ALL";
   // Explicitly add deprecated ciphers that are otherwise not included.

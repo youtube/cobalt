@@ -130,6 +130,16 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   </summary>
 </histogram>
 
+<histogram name="Settings.AiPage.AiSuggestions.Interactions"
+    enum="SettingsAiPageAiSuggestionsInteractions" expires_after="2026-10-25">
+  <owner>sophiechang@google.com</owner>
+  <owner>iwells@chromium.org</owner>
+  <summary>
+    Captures the user interaction with all elements in AI Suggestions settings
+    page.
+  </summary>
+</histogram>
+
 <histogram name="Settings.AiPage.Compose.Interactions"
     enum="SettingsAiPageComposeInteractions" expires_after="2026-06-21">
   <owner>zalmashni@google.com</owner>
@@ -155,6 +165,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     <variant name="Compose"/>
     <variant name="HistorySearch"/>
     <variant name="PasswordChange"/>
+    <variant name="Suggestions"/>
   </token>
 </histogram>
 
@@ -485,7 +496,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.PrivacySandbox.AdMeasurement.EnabledForProfile"
-    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-05-07">
+    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-08-07">
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -495,7 +506,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.PrivacySandbox.ConsentCheckIsMismatched"
-    enum="Boolean" expires_after="2026-05-07">
+    enum="Boolean" expires_after="2026-08-07">
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -515,7 +526,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.PrivacySandbox.Fledge.EnabledForProfile"
-    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-05-07">
+    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-08-07">
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -525,7 +536,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.PrivacySandbox.NoticeCheckIsMismatched"
-    enum="Boolean" expires_after="2026-05-07">
+    enum="Boolean" expires_after="2026-08-07">
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -570,7 +581,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.PrivacySandbox.Topics.EnabledForProfile"
-    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-05-07">
+    enum="SettingsPrivacySandboxProfileEnabledState" expires_after="2026-08-07">
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -1365,6 +1376,32 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   <summary>
     Which Search Engines settings page elements a user interacted with. Recorded
     every time a user interacts with an element of interest.
+  </summary>
+</histogram>
+
+<histogram
+    name="Settings.SearchEngines.SearchHijackingDetector.HeuristicAvailable"
+    enum="Boolean" expires_after="2027-01-01">
+  <owner>bcl@google.com</owner>
+  <owner>chrome-omnibox-team@google.com</owner>
+  <summary>
+    Records whether the Safe Browsing traffic-based search hijacking heuristic
+    had been calculated whenever a user visits chrome://settings/search. As of
+    M149, this only expected to be true for Enhanced Safe Browsing users who run
+    extension telemetry, and may still be false for ESB users if the detector
+    hasn't yet had opportunity and sufficent data to run. Recorded once each
+    time chrome://settings/search is loaded.
+  </summary>
+</histogram>
+
+<histogram name="Settings.SearchEngines.SearchHijackingDetector.HeuristicMatch"
+    enum="Boolean" expires_after="2027-01-01">
+  <owner>bcl@google.com</owner>
+  <owner>chrome-omnibox-team@google.com</owner>
+  <summary>
+    Records whether the Safe Browsing traffic-based search hijacking heuristic
+    matched. Recorded once each time chrome://settings/search page is loaded, if
+    and only if the heuristic is available.
   </summary>
 </histogram>
 

@@ -13,14 +13,15 @@
 
 #include "absl/strings/string_view.h"
 #include "api/transport/stun.h"
+#include "rtc_base/span_helpers.h"
 #include "test/fuzzers/fuzz_data_helper.h"
 
 namespace webrtc {
 void FuzzOneInput(FuzzDataHelper fuzz_data) {
   absl::string_view message = fuzz_data.ReadString();
 
-  webrtc::StunMessage::ValidateFingerprint(message.data(), message.size());
-  webrtc::StunMessage::ValidateMessageIntegrityForTesting(message.data(),
-                                                          message.size(), "");
+  std::span<const uint8_t> data = AsUint8Span(message);
+  StunMessage::ValidateFingerprint(data);
+  StunMessage::ValidateMessageIntegrityForTesting("", data);
 }
 }  // namespace webrtc

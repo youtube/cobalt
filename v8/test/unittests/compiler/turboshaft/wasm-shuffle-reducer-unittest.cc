@@ -468,6 +468,227 @@ TEST_F(ReducerTest, MultipleChained) {
   test.Run<WasmShuffleReducer>();
 }
 
+TEST_F(ReducerTest, ShuffleOfShufflePropagatesDemandedBytes) {
+  struct TestCase {
+    Simd128ExtractLaneOp::Kind extract_kind;
+    uint8_t expected;
+    bool shuffle_from_right;
+  };
+
+  std::array cases = {
+      TestCase{Simd128ExtractLaneOp::Kind::kI64x2, 8, false},
+      TestCase{Simd128ExtractLaneOp::Kind::kI32x4, 4, false},
+      TestCase{Simd128ExtractLaneOp::Kind::kI16x8U, 2, false},
+      TestCase{Simd128ExtractLaneOp::Kind::kI8x16S, 1, false},
+      TestCase{Simd128ExtractLaneOp::Kind::kI64x2, 8, true},
+      TestCase{Simd128ExtractLaneOp::Kind::kI32x4, 4, true},
+      TestCase{Simd128ExtractLaneOp::Kind::kI16x8S, 2, true},
+      TestCase{Simd128ExtractLaneOp::Kind::kI8x16U, 1, true},
+  };
+
+  constexpr std::array<uint8_t, kSimd128Size> inner_bytes = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+
+  for (auto const& test_case : cases) {
+    SCOPED_TRACE(test_case.expected);
+    SCOPED_TRACE(test_case.shuffle_from_right);
+    OpIndex inner_shuffle = OpIndex::Invalid();
+    auto test = CreateFromGraph(1, [&](auto& Asm) {
+      auto left =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      auto right =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+
+      inner_shuffle = __ Simd128Shuffle(
+          left, right, Simd128ShuffleOp::Kind::kI8x16, inner_bytes.data());
+
+      const uint8_t source_offset = test_case.shuffle_from_right ? 16 : 0;
+      const uint8_t filler_offset = test_case.shuffle_from_right ? 0 : 16;
+
+      std::array<uint8_t, kSimd128Size> outer_bytes{};
+      for (int i = 0; i < kSimd128Size; ++i) {
+        outer_bytes[i] = i < test_case.expected
+                             ? static_cast<uint8_t>(source_offset + i)
+                             : filler_offset;
+      }
+
+      V<Simd128> outer = test_case.shuffle_from_right
+                             ? __ Simd128Shuffle(left, inner_shuffle,
+                                                 Simd128ShuffleOp::Kind::kI8x16,
+                                                 outer_bytes.data())
+                             : __ Simd128Shuffle(inner_shuffle, right,
+                                                 Simd128ShuffleOp::Kind::kI8x16,
+                                                 outer_bytes.data());
+
+      __ Return(__ Simd128ExtractLane(outer, test_case.extract_kind, 0));
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    EXPECT_TRUE(analyzer.ShouldReduce());
+    EXPECT_TRUE(analyzer.GetDemandedBytes(&test.graph().Get(inner_shuffle))
+                    .IsLow(test_case.expected));
+
+    test.Run<WasmShuffleReducer>();
+  }
+}
+
+TEST_F(ReducerTest, ShuffleOfShuffleAdjustsDemandedBytesBySpan) {
+  constexpr std::array<uint8_t, kSimd128Size> inner_bytes = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+
+  // A single ConvertLow operation sets the initial DemandedBytes, of
+  // inner_shuffle to eight. But when we look at the span, we can see only
+  // four bytes are needed. We could then do an i32x4 splat of lane zero.
+  {
+    OpIndex inner_shuffle = OpIndex::Invalid();
+    constexpr std::array<uint8_t, kSimd128Size> outer_bytes = {
+        0, 1, 2, 3, 0, 1, 2, 3, 16, 16, 16, 16, 16, 16, 16, 16};
+    auto test = CreateFromGraph(1, [&](auto& Asm) {
+      auto left =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      auto right =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      inner_shuffle = __ Simd128Shuffle(
+          left, right, Simd128ShuffleOp::Kind::kI8x16, inner_bytes.data());
+      V<Simd128> outer =
+          __ Simd128Shuffle(inner_shuffle, right,
+                            Simd128ShuffleOp::Kind::kI8x16, outer_bytes.data());
+      __ Return(
+          __ Simd128Unary(outer, Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low));
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    EXPECT_TRUE(analyzer.ShouldReduce());
+    EXPECT_TRUE(
+        analyzer.GetDemandedBytes(&test.graph().Get(inner_shuffle)).IsLow(4));
+
+    test.Run<WasmShuffleReducer>();
+  }
+
+  // The ExtractLane sets the initial DemandedBytes to two, but the span shows
+  // that we need more than that to cover the 0-2 range, so we choose the
+  // smallest size possible.
+  {
+    OpIndex inner_shuffle = OpIndex::Invalid();
+    constexpr std::array<uint8_t, kSimd128Size> outer_bytes = {
+        0, 2, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16};
+    auto test = CreateFromGraph(1, [&](auto& Asm) {
+      auto left =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      auto right =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      inner_shuffle = __ Simd128Shuffle(
+          left, right, Simd128ShuffleOp::Kind::kI8x16, inner_bytes.data());
+      V<Simd128> outer =
+          __ Simd128Shuffle(inner_shuffle, right,
+                            Simd128ShuffleOp::Kind::kI8x16, outer_bytes.data());
+      __ Return(
+          __ Simd128ExtractLane(outer, Simd128ExtractLaneOp::Kind::kI16x8S, 0));
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    EXPECT_TRUE(analyzer.ShouldReduce());
+    EXPECT_TRUE(
+        analyzer.GetDemandedBytes(&test.graph().Get(inner_shuffle)).IsLow(4));
+
+    test.Run<WasmShuffleReducer>();
+  }
+}
+
+TEST_F(ReducerTest, ShuffleOfShuffleRejectsDisjointWindows) {
+  constexpr std::array<uint8_t, kSimd128Size> inner_bytes = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  // Two disjoint in-range windows (0-3 and 4-7). The reducer must not shrink
+  // to the second window only.
+  constexpr std::array<uint8_t, kSimd128Size> outer_bytes = {
+      0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 16, 17, 18, 19};
+
+  auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+  OpIndex inner_shuffle = OpIndex::Invalid();
+  auto test = CreateFromGraph(1, [&](auto& Asm) {
+    auto left =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    auto right =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+
+    inner_shuffle = Asm.Capture(
+        __ Simd128Shuffle(left, right, ShuffleKind, inner_bytes.data()),
+        "inner");
+
+    V<Simd128> outer = __ Simd128Shuffle(inner_shuffle, right, ShuffleKind,
+                                         outer_bytes.data());
+    __ Return(
+        __ Simd128ExtractLane(outer, Simd128ExtractLaneOp::Kind::kI8x16S, 8));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+  // The inner shuffle is still needed for two separate windows, so it should
+  // only narrow to 8 bytes (kI8x8), not to 4.
+  EXPECT_TRUE(
+      analyzer.GetDemandedBytes(&test.graph().Get(inner_shuffle)).IsLow(8));
+
+  test.Run<WasmShuffleReducer>();
+  const Simd128ShuffleOp* reduced_inner =
+      test.GetCapture("inner").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_inner);
+  EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x8);
+}
+
+TEST_F(ReducerTest, ShuffleOfShuffleRepeatedIndexUpdatesAllDemandedBytes) {
+  constexpr std::array<uint8_t, kSimd128Size> inner_bytes = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  // Outer low half is entirely lane 8 of the inner shuffle.
+  constexpr std::array<uint8_t, kSimd128Size> outer_bytes = {
+      8, 8, 8, 8, 8, 8, 8, 8, 16, 17, 18, 19, 20, 21, 22, 23};
+
+  auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+  OpIndex inner_shuffle = OpIndex::Invalid();
+  OpIndex outer_shuffle = OpIndex::Invalid();
+  auto test = CreateFromGraph(1, [&](auto& Asm) {
+    auto left =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    auto right =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+
+    inner_shuffle = Asm.Capture(
+        __ Simd128Shuffle(left, right, ShuffleKind, inner_bytes.data()),
+        "inner");
+
+    outer_shuffle =
+        Asm.Capture(__ Simd128Shuffle(inner_shuffle, right, ShuffleKind,
+                                      outer_bytes.data()),
+                    "outer");
+
+    __ Return(__ Simd128Unary(outer_shuffle,
+                              Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+
+  test.Run<WasmShuffleReducer>();
+
+  const Simd128ShuffleOp* reduced_inner =
+      test.GetCapture("inner").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_inner);
+  if (v8_flags.experimental_wasm_simd_opt) {
+    EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x1);
+  } else {
+    EXPECT_EQ(reduced_inner->kind, Simd128ShuffleOp::Kind::kI8x16);
+  }
+
+  const Simd128ShuffleOp* reduced_outer =
+      test.GetCapture("outer").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_outer);
+  EXPECT_EQ(reduced_outer->kind, Simd128ShuffleOp::Kind::kI8x8);
+}
+
 TEST_F(ReducerTest, ExtractLaneNarrowsShuffle) {
   using ExtractCase = std::tuple<Simd128ExtractLaneOp::Kind, uint8_t,
                                  Simd128ShuffleOp::Kind, DemandedBytes>;

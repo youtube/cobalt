@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/page_actions/page_action_observer.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
@@ -34,7 +35,6 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_page_handler.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_ui.h"
@@ -230,13 +230,29 @@ void ReadAnythingSidePanelController::OnEntryHidden(SidePanelEntry* entry) {
     observers_.Notify(&Observer::Activate, false,
                       std::optional<ReadAnythingOpenTrigger>());
   }
+
+  // When the reading mode side panel is replaced with another side panel,
+  // ownership of its WebContents is transferred back to the
+  // ReadAnythingController in OnEntryWillHide(). If the reading mode side
+  // panel is later reopened, it would attempt to use the previously cached
+  // view, which now lacks a valid WebContents, causing a crash. Clearing the
+  // cached view prevents this.
+  if (should_clear_cached_view_on_hidden_) {
+    entry->ClearCachedView();
+    should_clear_cached_view_on_hidden_ = false;
+  }
 }
 
 void ReadAnythingSidePanelController::OnEntryWillHide(
     SidePanelEntry* entry,
     SidePanelEntryHideReason reason) {
-  if (reason == SidePanelEntryHideReason::kSidePanelClosed) {
+  if (reason == SidePanelEntryHideReason::kSidePanelClosed ||
+      reason == SidePanelEntryHideReason::kReplaced) {
     ReturnWebUIToController();
+  }
+  if (features::IsImmersiveReadAnythingEnabled() &&
+      reason == SidePanelEntryHideReason::kReplaced) {
+    should_clear_cached_view_on_hidden_ = true;
   }
 
   if (!features::IsImmersiveReadAnythingEnabled()) {
@@ -347,8 +363,7 @@ void ReadAnythingSidePanelController::TabWillDetach(
     SidePanelEntry* const entry =
         side_panel_registry_->GetEntryForKey(read_anything_key);
     CHECK(entry);
-    side_panel_ui->Close(entry->type(),
-                         SidePanelEntryHideReason::kSidePanelClosed,
+    side_panel_ui->Close(SidePanelEntryHideReason::kSidePanelClosed,
                          /*suppress_animations=*/true);
   }
 }

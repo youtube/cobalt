@@ -59,6 +59,7 @@
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/network_route.h"
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -166,8 +167,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
       const AudioOptions& audio_options,
       const VideoOptions& video_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
-      absl::AnyInvocable<RtpTransportInternal*(absl::string_view) &&>
-          transport_lookup,
+      absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup,
       ScopedOperationsBatcher& worker_tasks,
       ScopedOperationsBatcher& network_tasks);
 
@@ -198,8 +198,9 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // ClearChannel() must be used before calling SetChannel() again.
   RTCError SetChannelForTest(
       std::unique_ptr<ChannelInterface> channel,
-      absl::AnyInvocable<RtpTransportInternal*(const std::string&) &&>
-          transport_lookup);
+      absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup = []() {
+        return nullptr;
+      });
 
   // Clear the association between the transceiver and the channel.
   void ClearChannel();
@@ -403,7 +404,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
     return channel_ != nullptr;
   }
 
-  bool SetChannelRtpTransport(RtpTransportInternal* rtp_transport);
+  bool SetRtpTransport(RtpTransportInternal* rtp_transport);
+
   // Configures the channel with local content description.
   // Pushes a multi-stage execution task into the provided
   // `ScopedOperationsBatcher`. See `SetChannelContent` for details on the
@@ -445,6 +447,15 @@ class RtpTransceiver : public RtpTransceiverInterface {
                         scoped_refptr<PendingTaskSafetyFlag> safety)
       RTC_RUN_ON(context()->network_thread());
   void OnFirstPacketSent();
+  RTCErrorOr<std::optional<std::string>> InitializeOnNetworkThread(
+      absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup)
+      RTC_RUN_ON(context()->network_thread());
+  void OnNetworkRouteChanged(ChannelInterface* channel,
+                             std::optional<NetworkRoute> network_route)
+      RTC_RUN_ON(context()->network_thread());
+  void ClearRtpTransportState() RTC_RUN_ON(context()->network_thread());
+  void SetRtpTransportState(RtpTransportInternal* transport)
+      RTC_RUN_ON(context()->network_thread());
 
   // Stops the receivers synchronously and returns a task that stops the
   // senders. The returned task must be executed on the worker thread.
@@ -529,6 +540,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   bool receptive_n_ RTC_GUARDED_BY(context()->network_thread()) = false;
   bool packet_notified_after_receptive_
       RTC_GUARDED_BY(context()->network_thread()) = false;
+  RtpTransportInternal* rtp_transport_
+      RTC_GUARDED_BY(context()->network_thread()) = nullptr;
 
   // Accessed on both thread_ and the network thread. Considered safe
   // because all access on the network thread is within an invoke()

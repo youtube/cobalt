@@ -18,7 +18,7 @@ let expected = [
         id: '2',
         parentId: '0',
         index: 1,
-        title: 'Other bookmarks'
+        title: 'Other bookmarks',
       },
       {
         id: '4',
@@ -33,7 +33,7 @@ let expected = [
             index: 0,
             title: 'Managed Bookmark',
             url: 'http://www.chromium.org/',
-            unmodifiable: 'managed'
+            unmodifiable: 'managed',
           },
           {
             id: '6',
@@ -41,7 +41,7 @@ let expected = [
             index: 1,
             title: 'Managed Folder',
             children: [],
-            unmodifiable: 'managed'
+            unmodifiable: 'managed',
           },
         ],
       },
@@ -62,17 +62,17 @@ function otherBookmarks() {
 let node1 = {
   parentId: '1',
   title: 'bar baz',
-  url: 'http://www.example.com/hello'
+  url: 'http://www.example.com/hello',
 };
 let node2 = {
   parentId: '1',
   title: 'foo quux',
-  url: 'http://www.example.com/bar'
+  url: 'http://www.example.com/bar',
 };
 let node3 = {
   parentId: '1',
   title: 'Foo bar baz',
-  url: 'http://www.google.com/hello/quux'
+  url: 'http://www.google.com/hello/quux',
 };
 
 const pass = chrome.test.callbackPass;
@@ -83,23 +83,23 @@ function compareNode(left, right) {
   // chrome.test.log(JSON.stringify(left, null, 2));
   // chrome.test.log(JSON.stringify(right, null, 2));
   //  TODO(erikkay): do some comparison of dateAdded
-  if (left.id != right.id) {
+  if (left.id !== right.id) {
     return `id mismatch: ${left.id} != ${right.id}`;
   }
-  if (left.title != right.title) {
+  if (left.title !== right.title) {
     // TODO(erikkay): This resource dependency still isn't working reliably.
     // See bug 19866.
     // return 'title mismatch: ' + left.title + ' != ' + right.title;
     chrome.test.log(`title mismatch: ${left.title} != ${right.title}`);
   }
-  if (left.url != right.url) {
+  if (left.url !== right.url) {
     return `url mismatch: ${left.url} != ${right.url}`;
   }
   // Check only when optional 'index' property exist.
-  if (left.index != undefined && left.index != right.index) {
+  if (left.index !== undefined && left.index !== right.index) {
     return `index mismatch: ${left.index} != ${right.index}`;
   }
-  if (left.unmodifiable != right.unmodifiable) {
+  if (left.unmodifiable !== right.unmodifiable) {
     return `unmodifiable mismatch: ${left.unmodifiable} ` +
         `!= ${right.unmodifiable}`;
   }
@@ -117,7 +117,7 @@ function compareTrees(left, right, verbose) {
   if (left == null || right == null) {
     return `${left} != ${right}`;
   }
-  if (left.length != right.length) {
+  if (left.length !== right.length) {
     return `count mismatch: ${left.length} != ${right.length}`;
   }
   for (let i = 0; i < left.length; i++) {
@@ -218,7 +218,7 @@ function run() {
       const node = {
         parentId: '1',
         title: 'google',
-        url: 'http://www.google.com/'
+        url: 'http://www.google.com/',
       };
       chrome.test.listenOnce(chrome.bookmarks.onCreated, function(id, created) {
         node.id = created.id;
@@ -261,7 +261,7 @@ function run() {
       const node = {
         parentId: '0',
         title: 'g404',
-        url: 'http://www.google.com/404'
+        url: 'http://www.google.com/404',
       };
       chrome.bookmarks.create(node, fail(error));
     },
@@ -271,7 +271,7 @@ function run() {
       const node = {
         parentId: '4',
         title: 'g404',
-        url: 'http://www.google.com/404'
+        url: 'http://www.google.com/404',
       };
       chrome.bookmarks.create(node, fail(error));
     },
@@ -586,17 +586,17 @@ function run() {
           node1 = {
             parentId: '1',
             title: 'bar baz',
-            url: 'http://www.example.com/hello'
+            url: 'http://www.example.com/hello',
           };
           node2 = {
             parentId: '1',
             title: 'foo quux',
-            url: 'http://www.example.com/bar'
+            url: 'http://www.example.com/bar',
           };
           node3 = {
             parentId: '1',
             title: 'Foo bar baz',
-            url: 'http://www.google.com/hello/quux'
+            url: 'http://www.google.com/hello/quux',
           };
           createNodes(bookmarksBar(), [node1, node2, node3], pass(function() {
                         verifyTreeIsExpected(pass());

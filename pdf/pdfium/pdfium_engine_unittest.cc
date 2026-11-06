@@ -10,6 +10,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -33,6 +34,7 @@
 #include "pdf/document_metadata.h"
 #include "pdf/page_character_index.h"
 #include "pdf/pdf_features.h"
+#include "pdf/pdfium/pdfium_api_wrappers.h"
 #include "pdf/pdfium/pdfium_draw_selection_test_base.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_page.h"
@@ -94,6 +96,9 @@ constexpr char kSelectTextExpectedText[] =
 constexpr gfx::PointF kHelloWorldStartPosition{35.0f, 110.0f};
 constexpr gfx::PointF kHelloWorldEndPosition{100.0f, 110.0f};
 
+const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
+constexpr gfx::Size kBlankPageSizeInPoints(200, 200);
+
 MATCHER_P2(LayoutWithSize, width, height, "") {
   return arg.size() == gfx::Size(width, height);
 }
@@ -118,6 +123,18 @@ std::string GetPlatformTextExpectation(std::string expectation) {
                                      "\r\n");
 #endif
   return expectation;
+}
+
+void CheckPdfRenderingIsBlank200x200(FPDF_PAGE page) {
+  CheckPdfRendering(page, kBlankPageSizeInPoints, kBlankPngFilePath);
+}
+
+void CheckSavedPdfRenderingIsBlank200x200(PDFiumEngine* engine) {
+  constexpr int kPageIndex = 0;
+  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
+  ASSERT_FALSE(saved_pdf_data.empty());
+  CheckPdfRendering(saved_pdf_data, kPageIndex, kBlankPageSizeInPoints,
+                    kBlankPngFilePath);
 }
 
 class MockTestClient : public TestClient {
@@ -2412,7 +2429,7 @@ TEST_P(PDFiumEngineInkTest, LoadV2InkPathsForPage) {
   EXPECT_EQ(1u, ink_shapes_it->second.Meshes().size());
   EXPECT_TRUE(pdf_shapes_it->second);
 
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 }
 
@@ -2635,13 +2652,7 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeData) {
                                          kInkAnnotationIdentifierKeyV2),
             0);
 
-  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
-  ASSERT_FALSE(saved_pdf_data.empty());
-  constexpr int kPageIndex = 0;
-  constexpr gfx::Size kPageSizeInPoints(200, 200);
-  const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
-  CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
-                    kBlankPngFilePath);
+  ASSERT_NO_FATAL_FAILURE(CheckSavedPdfRenderingIsBlank200x200(engine.get()));
 
   // Draw 2 strokes.
   auto pen_brush = std::make_unique<PdfInkBrush>(PdfInkBrush::Type::kPen,
@@ -2667,22 +2678,24 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeData) {
                                  highlighter_inputs.value());
   constexpr InkStrokeId kPenStrokeId(1);
   constexpr InkStrokeId kHighlighterStrokeId(2);
+  constexpr int kPageIndex = 0;
   engine->ApplyStroke(kPageIndex, kPenStrokeId, pen_stroke);
   engine->ApplyStroke(kPageIndex, kHighlighterStrokeId, highlighter_stroke);
 
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
 
   // Verify the visibility of strokes for in-memory PDF.
+  const gfx::Size& kPageSizeInPoints = kBlankPageSizeInPoints;
   const base::FilePath kAppliedStroke2FilePath(
       GetInkTestDataFilePath(FILE_PATH_LITERAL("applied_stroke2.png")));
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedStroke2FilePath);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Getting the save data should now have the new strokes.
   // Verify visibility of strokes in that copy.  Must call GetSaveData()
   // before checking mark objects count, so that the PDF gets regenerated.
-  saved_pdf_data = engine->GetSaveData();
+  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
   ASSERT_FALSE(saved_pdf_data.empty());
   CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
                     kAppliedStroke2FilePath);
@@ -2705,7 +2718,7 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeData) {
   EXPECT_EQ(GetPdfMarkObjCountForTesting(engine->doc(),
                                          kInkAnnotationIdentifierKeyV2),
             1);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Set the highlighter stroke as active again, to perform the equivalent of an
@@ -2720,7 +2733,7 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeData) {
   EXPECT_EQ(GetPdfMarkObjCountForTesting(engine->doc(),
                                          kInkAnnotationIdentifierKeyV2),
             2);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 }
 
@@ -2737,13 +2750,7 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeDiscardStroke) {
                                          kInkAnnotationIdentifierKeyV2),
             0);
 
-  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
-  ASSERT_FALSE(saved_pdf_data.empty());
-  constexpr int kPageIndex = 0;
-  constexpr gfx::Size kPageSizeInPoints(200, 200);
-  const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
-  CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
-                    kBlankPngFilePath);
+  ASSERT_NO_FATAL_FAILURE(CheckSavedPdfRenderingIsBlank200x200(engine.get()));
 
   // Draw a stroke.
   auto brush = std::make_unique<PdfInkBrush>(PdfInkBrush::Type::kPen,
@@ -2756,37 +2763,36 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeDiscardStroke) {
   ASSERT_TRUE(batch.has_value());
   ink::Stroke stroke0(brush->ink_brush(), batch.value());
   constexpr InkStrokeId kStrokeId(0);
+  constexpr int kPageIndex = 0;
   engine->ApplyStroke(kPageIndex, kStrokeId, stroke0);
 
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
 
   // Verify the visibility of strokes for in-memory PDF.
+  const gfx::Size& kPageSizeInPoints = kBlankPageSizeInPoints;
   const base::FilePath kAppliedStroke1FilePath(
       GetInkTestDataFilePath(FILE_PATH_LITERAL("applied_stroke1.png")));
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedStroke1FilePath);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Set the stroke as inactive, to perform the equivalent of an "undo" action.
   engine->UpdateStrokeActive(kPageIndex, kStrokeId, /*active=*/false);
 
   // The document should not have any stroke data.
-  saved_pdf_data = engine->GetSaveData();
-  ASSERT_FALSE(saved_pdf_data.empty());
-  CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
-                    kBlankPngFilePath);
+  ASSERT_NO_FATAL_FAILURE(CheckSavedPdfRenderingIsBlank200x200(engine.get()));
   EXPECT_EQ(GetPdfMarkObjCountForTesting(engine->doc(),
                                          kInkAnnotationIdentifierKeyV2),
             0);
   EXPECT_EQ(FPDFPage_CountObjects(page.GetPage()), 1);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Discard the stroke.
   engine->DiscardStroke(kPageIndex, kStrokeId);
 
   EXPECT_EQ(FPDFPage_CountObjects(page.GetPage()), 0);
-  EXPECT_FALSE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_FALSE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Draw a new stroke, reusing the same InkStrokeId. This can occur after an
@@ -2805,7 +2811,7 @@ TEST_P(PDFiumEngineInkDrawTest, StrokeDiscardStroke) {
       GetInkTestDataFilePath(FILE_PATH_LITERAL("applied_stroke3.png")));
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedStroke3FilePath);
   EXPECT_EQ(FPDFPage_CountObjects(page.GetPage()), 1);
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 }
 
@@ -2838,7 +2844,7 @@ TEST_P(PDFiumEngineInkDrawTest, LoadedV2InkPathsAndUpdateShapeActive) {
 
   // Attempt to unload the page before erasing. This would have caught
   // https://crbug.com/402364794.
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
   page.Unload();
 
@@ -2846,26 +2852,22 @@ TEST_P(PDFiumEngineInkDrawTest, LoadedV2InkPathsAndUpdateShapeActive) {
   const auto ink_shapes_it = ink_shapes.begin();
   const InkModeledShapeId& shape_id = ink_shapes_it->first;
   engine->UpdateShapeActive(kPageIndex, shape_id, /*active=*/false);
-  const base::FilePath kBlankPngPath(FILE_PATH_LITERAL("blank.png"));
-  CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kBlankPngPath);
-  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
-  ASSERT_FALSE(saved_pdf_data.empty());
-  CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
-                    kBlankPngPath);
+  CheckPdfRenderingIsBlank200x200(page.GetPage());
+  ASSERT_NO_FATAL_FAILURE(CheckSavedPdfRenderingIsBlank200x200(engine.get()));
   EXPECT_EQ(GetPdfMarkObjCountForTesting(engine->doc(),
                                          kInkAnnotationIdentifierKeyV2),
             0);
 
   // Attempt to unload the page before undoing. This would have caught
   // https://crbug.com/402454523.
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
   page.Unload();
 
   // Undo the erasure and check the rendering.
   engine->UpdateShapeActive(kPageIndex, shape_id, /*active=*/true);
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kInkV2PngPath);
-  saved_pdf_data = engine->GetSaveData();
+  std::vector<uint8_t> saved_pdf_data = engine->GetSaveData();
   ASSERT_FALSE(saved_pdf_data.empty());
   CheckPdfRendering(saved_pdf_data, kPageIndex, kPageSizeInPoints,
                     kInkV2PngPath);
@@ -2889,7 +2891,7 @@ TEST_P(PDFiumEngineInkDrawTest, LoadedV2InkPathsAndApplyAndDiscardStroke) {
   ASSERT_EQ(GetPdfMarkObjCountForTesting(engine->doc(),
                                          kInkAnnotationIdentifierKeyV2),
             1);
-  ASSERT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  ASSERT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 
   // Draw a stroke and immediately discard the stroke to undo.
@@ -2908,7 +2910,7 @@ TEST_P(PDFiumEngineInkDrawTest, LoadedV2InkPathsAndApplyAndDiscardStroke) {
 
   // The page at `kPageIndex` should still not be allowed to unload, since
   // `engine` is holding onto page objects within that page.
-  EXPECT_TRUE(engine->stroked_pages_unload_preventers_for_testing().contains(
+  EXPECT_TRUE(engine->edited_pages_unload_preventers_for_testing().contains(
       kPageIndex));
 }
 
@@ -3028,7 +3030,32 @@ TEST_P(PDFiumEngineInkDrawTest, RotatedPdf) {
                     kExpectedFilePath);
 }
 
-TEST_P(PDFiumEngineInkDrawTest, DrawText) {
+// Don't be concerned about any slight rendering differences in AGG vs. Skia,
+// covering one of these is sufficient for checking how data is written out.
+INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineInkDrawTest, testing::Values(false));
+
+class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
+ protected:
+  static FontId AddDefaultFont(PDFiumEngine* engine) {
+    sk_sp<SkTypeface> default_font = skia::DefaultTypeface();
+    sk_sp<SkData> serialized_font = default_font->serialize();
+    FontId font_id = static_cast<FontId>(default_font->uniqueID());
+    engine->AddFont(font_id, gfx::SkDataToSpan(serialized_font));
+    return font_id;
+  }
+
+  static std::vector<uint32_t> GetGlyphsForText(std::string_view text) {
+    CHECK(base::IsStringASCII(text));
+    std::vector<SkGlyphID> sk_glyphs(text.size());
+    size_t glyph_count = skia::DefaultTypeface()->textToGlyphs(
+        text.data(), text.size(), SkTextEncoding::kUTF8,
+        SkSpan<SkGlyphID>(sk_glyphs));
+    CHECK_EQ(glyph_count, sk_glyphs.size());  // Since `text` is ASCII.
+    return std::vector<uint32_t>(sk_glyphs.begin(), sk_glyphs.end());
+  }
+};
+
+TEST_P(PDFiumEngineInkDrawTextTest, DrawText) {
   TestClient client(/*use_skia_renderer=*/GetParam());
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
@@ -3037,45 +3064,41 @@ TEST_P(PDFiumEngineInkDrawTest, DrawText) {
   ASSERT_EQ(page_count, 1);
 
   constexpr int kPageIndex = 0;
-  constexpr gfx::Size kPageSizeInPoints(200, 200);
-
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
-  const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
-  CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kBlankPngFilePath);
+  CheckPdfRenderingIsBlank200x200(page.GetPage());
 
-  // Add the default font.
-  sk_sp<SkTypeface> default_font = skia::DefaultTypeface();
-  sk_sp<SkData> serialized_font = default_font->serialize();
-  FontId font_id = static_cast<FontId>(default_font->uniqueID());
-  engine->AddFont(font_id, gfx::SkDataToSpan(serialized_font));
-
-  // Convert a string to glyphs.
+  FontId font_id = AddDefaultFont(engine.get());
   constexpr std::string_view kTextToDraw = "Hello!";
-  std::vector<SkGlyphID> sk_glyphs(kTextToDraw.size());
-  size_t glyph_count = default_font->textToGlyphs(
-      kTextToDraw.data(), kTextToDraw.size(), SkTextEncoding::kUTF8,
-      SkSpan<SkGlyphID>(sk_glyphs));
-  ASSERT_EQ(glyph_count, sk_glyphs.size());
-  std::vector<uint32_t> glyphs(sk_glyphs.begin(), sk_glyphs.end());
+  std::vector<uint32_t> glyphs = GetGlyphsForText(kTextToDraw);
+  ASSERT_FALSE(glyphs.empty());
 
   // Draw some text.
   engine->DrawText(
-      kPageIndex,
+      kPageIndex, InkTextId(0),
       {InkTextInfo(
           font_id, glyphs,
           /*glyph_positions=*/std::vector<gfx::Vector2dF>(glyphs.size()),
           /*location=*/gfx::RectF(0.0f, 0.0f, 100.0f, 20.0f),
           /*is_horizontal=*/true)},
-      /*color=*/SK_ColorBLACK, /*css_font_size=*/10.0f, /*pdf_zoom=*/1.0,
-      /*textbox=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f));
+      /*pdf_zoom=*/1.0,
+      InkTextBoxAttributes(
+          /*rect=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f),
+          /*color=*/SK_ColorBLACK,
+          /*css_font_size=*/10.0f,
+          /*typeface=*/TextTypeface::kSansSerif,
+          /*alignment=*/TextAlignment::kLeft,
+          /*orientation=*/0,
+          /*is_bold=*/false,
+          /*is_italic=*/false));
 
   // Verify the rendering of text for in-memory PDF.
+  const gfx::Size& kPageSizeInPoints = kBlankPageSizeInPoints;
   const base::FilePath kAppliedTextFilePath(GetInkTestDataFilePath(
       GetTestDataPathWithPlatformSuffix("applied_text_hello.png")));
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedTextFilePath);
 }
 
-TEST_P(PDFiumEngineInkDrawTest, DrawOrangeText) {
+TEST_P(PDFiumEngineInkDrawTextTest, DrawOrangeText) {
   TestClient client(/*use_skia_renderer=*/GetParam());
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
@@ -3084,47 +3107,139 @@ TEST_P(PDFiumEngineInkDrawTest, DrawOrangeText) {
   ASSERT_EQ(page_count, 1);
 
   constexpr int kPageIndex = 0;
-  constexpr gfx::Size kPageSizeInPoints(200, 200);
-
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
-  const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
-  CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kBlankPngFilePath);
+  CheckPdfRenderingIsBlank200x200(page.GetPage());
 
-  // Add the default font.
-  sk_sp<SkTypeface> default_font = skia::DefaultTypeface();
-  sk_sp<SkData> serialized_font = default_font->serialize();
-  FontId font_id = static_cast<FontId>(default_font->uniqueID());
-  engine->AddFont(font_id, gfx::SkDataToSpan(serialized_font));
-
-  // Convert a string to glyphs.
+  FontId font_id = AddDefaultFont(engine.get());
   constexpr std::string_view kTextToDraw = "orange";
-  std::vector<SkGlyphID> sk_glyphs(kTextToDraw.size());
-  size_t glyph_count = default_font->textToGlyphs(
-      kTextToDraw.data(), kTextToDraw.size(), SkTextEncoding::kUTF8, sk_glyphs);
-  ASSERT_EQ(glyph_count, sk_glyphs.size());
-  std::vector<uint32_t> glyphs(sk_glyphs.begin(), sk_glyphs.end());
+  std::vector<uint32_t> glyphs = GetGlyphsForText(kTextToDraw);
+  ASSERT_FALSE(glyphs.empty());
 
   // Draw some orange text.
   engine->DrawText(
-      kPageIndex,
+      kPageIndex, InkTextId(0),
       {InkTextInfo(
           font_id, glyphs,
           /*glyph_positions=*/std::vector<gfx::Vector2dF>(glyphs.size()),
           /*location=*/gfx::RectF(0.0f, 0.0f, 100.0f, 20.0f),
           /*is_horizontal=*/true)},
-      /*color=*/SkColorSetRGB(0xFF, 0x63, 0x0C), /*css_font_size=*/10.0f,
       /*pdf_zoom=*/1.0,
-      /*textbox=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f));
+      InkTextBoxAttributes(
+          /*rect=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f),
+          /*color=*/SkColorSetRGB(0xFF, 0x63, 0x0C),
+          /*css_font_size=*/10.0f,
+          /*typeface=*/TextTypeface::kSansSerif,
+          /*alignment=*/TextAlignment::kLeft,
+          /*orientation=*/0,
+          /*is_bold=*/false,
+          /*is_italic=*/false));
 
   // Verify the rendering of orange text for in-memory PDF.
+  const gfx::Size& kPageSizeInPoints = kBlankPageSizeInPoints;
   const base::FilePath kAppliedTextFilePath(GetInkTestDataFilePath(
       GetTestDataPathWithPlatformSuffix("applied_text_orange.png")));
   CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedTextFilePath);
 }
 
+TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSavesMetadata) {
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+  int page_count = FPDF_GetPageCount(engine->doc());
+  ASSERT_EQ(page_count, 1);
+
+  constexpr int kPageIndex = 0;
+  PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
+  CheckPdfRenderingIsBlank200x200(page.GetPage());
+
+  FontId font_id = AddDefaultFont(engine.get());
+  std::vector<uint32_t> glyphs1 = GetGlyphsForText("Hello");
+  std::vector<uint32_t> glyphs2 = GetGlyphsForText("!");
+  ASSERT_FALSE(glyphs1.empty());
+  ASSERT_FALSE(glyphs2.empty());
+
+  // Draw some text with two runs to force multiple text objects.
+  engine->DrawText(kPageIndex, InkTextId(1),
+                   {InkTextInfo(font_id, glyphs1,
+                                std::vector<gfx::Vector2dF>(glyphs1.size()),
+                                gfx::RectF(0.0f, 0.0f, 80.0f, 20.0f), true),
+                    InkTextInfo(font_id, glyphs2,
+                                std::vector<gfx::Vector2dF>(glyphs2.size()),
+                                gfx::RectF(80.0f, 0.0f, 20.0f, 20.0f), true)},
+                   /*pdf_zoom=*/1.0,
+                   InkTextBoxAttributes(
+                       /*rect=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f),
+                       /*color=*/SK_ColorBLACK,
+                       /*css_font_size=*/10.0f,
+                       /*typeface=*/TextTypeface::kSansSerif,
+                       /*alignment=*/TextAlignment::kLeft,
+                       /*orientation=*/0,
+                       /*is_bold=*/true,
+                       /*is_italic=*/false));
+
+  FPDF_PAGE pdf_page = page.GetPage();
+  int obj_count = FPDFPage_CountObjects(pdf_page);
+  ASSERT_EQ(2, obj_count);
+
+  // Verify all text objects have a mark with the same textbox ID.
+  std::string textbox_id;
+  for (int i = 0; i < obj_count; ++i) {
+    FPDF_PAGEOBJECT obj = FPDFPage_GetObject(pdf_page, i);
+    ASSERT_EQ(1, FPDFPageObj_CountMarks(obj));
+
+    FPDF_PAGEOBJECTMARK mark = FPDFPageObj_GetMark(obj, 0);
+    EXPECT_EQ(kInkTextAnnotationIdentifierKey,
+              base::UTF16ToUTF8(GetPageObjectMarkName(mark)));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "TextboxId"),
+                testing::Optional(0));
+
+    if (i == 0) {
+      // Verify the first text object contains the full textbox metadata.
+      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Version"),
+                  testing::Optional(kInkTextAnnotationVersion));
+      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsX"),
+                  testing::Optional(20.0f));
+      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsY"),
+                  testing::Optional(20.0f));
+      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsWidth"),
+                  testing::Optional(100.0f));
+      EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsHeight"),
+                  testing::Optional(100.0f));
+      EXPECT_THAT(
+          GetPageObjectMarkIntParam(mark, "Typeface"),
+          testing::Optional(static_cast<int>(TextTypeface::kSansSerif)));
+      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Alignment"),
+                  testing::Optional(static_cast<int>(TextAlignment::kLeft)));
+      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Orientation"),
+                  testing::Optional(0));
+      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsBold"),
+                  testing::Optional(1));
+      EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsItalic"),
+                  testing::Optional(0));
+    } else {
+      // Verify the remaining text objects do not have the full metadata.
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Version").has_value());
+      EXPECT_FALSE(GetPageObjectMarkFloatParam(mark, "BoundsX").has_value());
+      EXPECT_FALSE(GetPageObjectMarkFloatParam(mark, "BoundsY").has_value());
+      EXPECT_FALSE(
+          GetPageObjectMarkFloatParam(mark, "BoundsWidth").has_value());
+      EXPECT_FALSE(
+          GetPageObjectMarkFloatParam(mark, "BoundsHeight").has_value());
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Typeface").has_value());
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Alignment").has_value());
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "Orientation").has_value());
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "IsBold").has_value());
+      EXPECT_FALSE(GetPageObjectMarkIntParam(mark, "IsItalic").has_value());
+    }
+  }
+}
+
 // Don't be concerned about any slight rendering differences in AGG vs. Skia,
 // covering one of these is sufficient for checking how data is written out.
-INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineInkDrawTest, testing::Values(false));
+INSTANTIATE_TEST_SUITE_P(All,
+                         PDFiumEngineInkDrawTextTest,
+                         testing::Values(false));
 
 using PDFiumEngineInkPrintTest = PDFiumTestBase;
 

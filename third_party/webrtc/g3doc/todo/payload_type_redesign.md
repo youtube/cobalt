@@ -15,6 +15,12 @@ recvonly media sections, it indicates a willingness to receive; for sendrecv
 media sections, it indicates a willingness to receive AND a willingness to send.
 Presence in a media section does not guarantee that it will be used. (RFC 3264)
 
+The `Codec` class represents the configuration of a particular payload type as
+represented in an SDP offer/answer, which also controls how the data is
+transferred on the wire. A better name would have been something like
+`RtpPayloadTypeConfiguration`, but the `Codec` name is embedded quite widely in
+the code.
+
 ## Current allocation strategy
 
 The payload types are assigned by the VideoEngine and VoiceEngine according to a
@@ -31,6 +37,34 @@ Picking a payload type is done in the PayloadTypePicker class. This is preloaded
 with some assignments, so that if a PT is free, the commonly used PT for that
 codec can be used.
 
+```
+          +-----------------------------------+
+          | PeerConnection's PayloadTypePicker|
+          +-----------------+-----------------+
+                            |
+              +-------------+-------------+
+              |                           |
+      +-------v-------+           +-------v-------+
+      |  VoiceEngine  |           |  VideoEngine  |
+      +-------+-------+           +-------+-------+
+              |                           |
+              |      (Initial PTs)        |
+              v                           v
+      +-------------------------------------------+    +-----------------------+
+      |               CodecVendor                 |    |    Media section's    |
+      |      (Munges PTs to avoid collisions)     +---->   PayloadTypePicker   |
+      +-------+-------------+-------+-------------+    +-----------+-----------+
+              |             |       |                              |
+              |             |       |              +---------------v-------+
+              |             |       +-------------->SdpPayloadTypeSuggester|
+              |             |                      +---------------+-------+
+              |             |                                      |
+              v             v                                      v
+      +----------------+ +------------------+<---------------------+
+      |TypedCodecVendor| |PayloadTypeRecorder|
+      +----------------+ +------------------+
+```
+
 ## Desired future strategy
 
 There should be no assignment of payload types in VideoEngine and VoiceEngine.
@@ -39,6 +73,30 @@ assigned permanently in SetLocalDescription / SetRemoteDescription.
 
 Once an assignment is made, it should never need to change (apart from the case
 noted above).
+
+```
+          +-------------+           +-------------+
+          | VoiceEngine |           | VideoEngine |
+          +------+------+           +------+------+
+                 |                         |
+                 |  (CodecConfigurations)  |
+                 |    (No initial PTs)     |
+                 v                         v
+          +-------------------------------------------+    +-----------------------+
+          |               CodecVendor                 |    |    Media section's    |
+          |   (Assigns PTs and expands resiliency)    +---->   PayloadTypePicker   |
+          +-------+-----------------------------------+    +-----------+-----------+
+                  |                                                    |
+                  v                                        +-----------v-----------+
+          +----------------+                               |SdpPayloadTypeSuggester|
+          |TypedCodecVendor|                               +-----------+-----------+
+          +----------------+                                           |
+                                                           +-----------v-----------+
+                                                           | PayloadTypeRecorder & |
+                                                           | PeerConnection's PT   |
+                                                           | Picker                |
+                                                           +-----------------------+
+```
 
 ## Dealing with resiliency mechanisms
 
@@ -74,36 +132,63 @@ have been identified and fixed:
 
 The new strategy is not yet implemented for video codecs.
 
-## Implementation Strategy for Video
+## Unified Implementation Strategy for Audio and Video
 
-The goal is to transition video codec handling to the same late-assignment model
-used for audio.
+The goal is to transition audio and video codec handling to a unified
+late-assignment model using a new internal representation to handle resiliency
+mechanisms. This also involves refactoring the existing partial late assignment
+implementation for audio.
 
-### 1. Unified Codec Collection
+### 1. CodecConfiguration and ResiliencyInfo
 
-- Implement `VideoCodecsFromFactory` in `pc/typed_codec_vendor.cc`. This will
-  query the `VideoEncoderFactory` and `VideoDecoderFactory` to gather supported
-  `SdpVideoFormat`s.
-- These codecs will be initialized with `kIdNotSet`, allowing
-  `SdpPayloadTypeSuggester` to assign payload types only during the creation of
-  an offer or answer.
+To support late assignment without modifying the global `webrtc::Codec` class, a
+new internal representation `CodecConfiguration` will be introduced in the `pc/`
+directory.
 
-### 2. Payload Type Suggester Integration
+- **`ResiliencyInfo`**: Encapsulates the redundancy requirements for a codec
+  (e.g., RTX, RED, ULPFEC, FlexFEC). It supports combined requirements (RED +
+  ULPFEC) and identifies whether a mechanism is shared across the media section.
+- **`CodecConfiguration`**: Stores codec attributes (excluding payload type) and
+  the associated `ResiliencyInfo`. This is the primary representation used
+  during capability gathering and the initial stages of negotiation.
 
-- Ensure `PayloadTypePicker` has a complete list of preferred payload types for
-  video codecs (VP8, VP9, H.264, AV1, etc.) to maintain stable and conventional
-  assignments.
-- Update `CodecVendor` to use the unassigned video codec list when the
-  `WebRTC-PayloadTypesInTransport` trial is active.
+### 2. Unified Codec Collection with Bifurcated Paths
 
-### 3. Resiliency and Parameter Linking
+- `TypedCodecVendor` will be updated to store either a legacy `CodecList` or a
+  collection of `CodecConfiguration` objects for audio and video, depending on
+  the `WebRTC-PayloadTypesInTransport` field trial.
+- When the trial is active:
+  - **Audio**: `CollectAudioCodecs` will be refactored to return
+    `CodecConfiguration` objects. Media codecs like Opus will be tagged with a
+    shared RED requirement.
+  - **Video**: `CollectVideoCodecs` and `VideoCodecsFromFactory` will populate
+    `CodecConfiguration` objects, tagging media codecs with their required
+    resiliency (e.g., VP8 gets RTX; all video codecs get shared RED and
+    FlexFEC).
+- When the trial is inactive, legacy methods will be used to ensure zero
+  behavior change.
 
-- Refine `MergeCodecs` and `AssignCodecIdsAndLinkRed` to handle video-specific
-  resiliency:
-  - **RTX:** Correctly link RTX codecs to their primary video codecs by matching
-    names and specific parameters (like `profile-level-id` for H.264).
-  - **RED/ULPFEC:** Ensure parameters for video redundancy are correctly
-    populated once the primary codec PTs are assigned.
+### 3. Late Expansion and Unified Parameter Linking
+
+`CodecVendor` will bifurcate its negotiation logic:
+
+- **Legacy Path**: Continues to use the existing `MergeCodecs` logic with
+  pre-assigned payload types.
+- **Late Assignment Path**: Uses a new `MergeCodecsFromConfigurations` function
+  for all media types that:
+  1. Assigns a payload type to the primary media codec via
+     `SdpPayloadTypeSuggester`.
+  2. Expands the `ResiliencyInfo` into one or more redundancy `Codec` objects.
+  3. Links these redundancy codecs to the primary codec's payload type (e.g.,
+     setting the `apt` parameter for RTX, or updating RED's FMTP with the
+     primary PT).
+  4. Assigns payload types to the redundancy codecs, following conventional
+     rules where possible (e.g., `RTX_PT = Primary_PT + 1`).
+
+This unified strategy removes the need for media-specific hacks (like the
+current manual RED linking for audio) and ensures that all redundancy codecs are
+correctly linked only after the primary payload types are known, while strictly
+preserving legacy behavior when the field trial is disabled.
 
 ### 4. Verification and Testing
 

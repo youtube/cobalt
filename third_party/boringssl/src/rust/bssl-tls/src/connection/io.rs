@@ -26,6 +26,7 @@ use core::{
 };
 
 use crate::{
+    ReceiveBuffer,
     connection::{
         lifecycle::ShutdownStatus,
         methods::HasTlsConnectionMethod, //
@@ -41,7 +42,6 @@ use crate::{
     },
     ffi::slice_into_ffi_raw_parts,
     io::IoStatus, //
-    ReceiveBuffer,
 };
 
 use super::TlsConnectionRef;
@@ -224,7 +224,8 @@ where
         self.get_connection_methods().set_pending_reason(reason);
         Ok(None)
     }
-    fn aread_inner(
+    #[doc(hidden)]
+    pub fn aread_inner(
         self: Pin<&mut Self>,
         buffer: &mut [u8],
         cx: &mut Context<'_>,
@@ -233,7 +234,8 @@ where
         self.do_async_io(cx, move |this| this.sync_read(&mut buffer))
     }
 
-    fn awrite_inner(
+    #[doc(hidden)]
+    pub fn awrite_inner(
         self: Pin<&mut Self>,
         buffer: &[u8],
         cx: &mut Context<'_>,
@@ -241,7 +243,11 @@ where
         self.do_async_io(cx, move |this| this.sync_write(buffer))
     }
 
-    fn aflush_inner(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Result<Option<IoStatus>, Error> {
+    #[doc(hidden)]
+    pub fn aflush_inner(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Result<Option<IoStatus>, Error> {
         self.do_async_io(cx, move |this| this.flush())
     }
 
@@ -289,7 +295,8 @@ where
         })
     }
 
-    fn ashutdown_inner(
+    #[doc(hidden)]
+    pub fn ashutdown_inner(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Result<Option<ShutdownStatus>, Error> {
@@ -326,6 +333,3 @@ where
 
 #[cfg(feature = "std")]
 mod stdio;
-
-#[cfg(feature = "tokio_io")]
-mod tokio_io_impl;

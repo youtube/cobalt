@@ -289,15 +289,6 @@ chromium-metrics-reviews@google.com.
   <variant name="UnsetFps"/>
 </variants>
 
-<variants name="GooglePhotosApi">
-  <variant name="GetAlbum" summary="returns a single album"/>
-  <variant name="GetAlbums" summary="returns all albums"/>
-  <variant name="GetEnabled" summary="returns enablement state"/>
-  <variant name="GetPhoto" summary="returns a single photo"/>
-  <variant name="GetPhotos" summary="returns all photos"/>
-  <variant name="GetSharedAlbums" summary="returns all shared albums"/>
-</variants>
-
 <variants name="HotseatTransitionType">
   <variant name=".TransitionToExtendedHotseat"
       summary="Transition to the extended hotseat"/>
@@ -4530,13 +4521,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Ash.HotseatGesture" enum="HotseatInAppGesture"
-    expires_after="2023-06-04">
-  <owner>andrewxu@chromium.org</owner>
-  <owner>tbarzic@chromium.org</owner>
-  <summary>Gestures supported by the in-app hotseat.</summary>
-</histogram>
-
 <histogram
     name="Ash.HotseatTransition.AnimationSmoothness{HotseatTransitionType}"
     units="%" expires_after="2025-12-31">
@@ -5349,7 +5333,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Ash.NightLight.AutoNightLightNotificationShown"
     enum="BooleanShown" expires_after="2026-10-08">
-  <owner>cambickel@google.com</owner>
+  <owner>longbowei@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
     Emitted when the Auto Night Light notification is shown. Warning: this
@@ -5359,7 +5343,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Ash.NightLight.AutoNightLightNotificationState"
     enum="AshAutoNightLightNotificationState" expires_after="2026-10-08">
-  <owner>cambickel@google.com</owner>
+  <owner>longbowei@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
     Emitted when the user interacts with the Auto Night Light notification to
@@ -5371,7 +5355,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Ash.NightLight.ScheduleType" enum="AshNightLightScheduleType"
     expires_after="2026-10-08">
-  <owner>cambickel@google.com</owner>
+  <owner>longbowei@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
     The selected Night Light schedule type. Emitted when the user changes the
@@ -5382,7 +5366,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Ash.NightLight.ScheduleType.Initial"
     enum="AshNightLightScheduleType" expires_after="2026-10-08">
-  <owner>cambickel@google.com</owner>
+  <owner>longbowei@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>The selected Night Light schedule type. Emitted on login.</summary>
 </histogram>
@@ -7932,19 +7916,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Ash.SearchResultUpdateAnimationShortened" enum="Boolean"
-    expires_after="2023-11-01">
-  <owner>yulunwu@google.com</owner>
-  <owner>tbarzic@google.com</owner>
-  <owner>tby@google.com</owner>
-  <summary>
-    Records whether search result animation times were shorted for recent search
-    result update animation preemptions. Recorded when productivity launcher
-    search containers' results change while result containers are still
-    animating.
-  </summary>
-</histogram>
-
 <histogram
     name="Ash.ServerBasedSpeechRecognition.AudioLengthLeftWhenAudioCaptureEnd"
     units="ms" expires_after="2026-09-27">
@@ -8990,60 +8961,6 @@ chromium-metrics-reviews@google.com.
     20-40. After this theory is validated, this metric can be removed. It has a
     50 MB maximum.
   </summary>
-</histogram>
-
-<histogram name="Ash.Wallpaper.GooglePhotos.Api.{Api}.RefreshCount"
-    units="count" expires_after="2024-12-08">
-  <owner>thuongphan@google.com</owner>
-  <owner>cowmoo@google.com</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Records the refresh count for the request of the Google Photos API which
-    {Api} with a valid refresh token. The count increases each time a user
-    scrolls down to the end of the page to fetch more photos or albums from the
-    Google Photos API. Emitted only at the end of a session.
-  </summary>
-  <token key="Api" variants="GooglePhotosApi"/>
-</histogram>
-
-<histogram name="Ash.Wallpaper.GooglePhotos.Api.{Api}.ResponseTime.{Result}"
-    units="ms" expires_after="2022-11-15">
-  <owner>xiaohuic@google.com</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Records the response time for the {Result} request to the Google Photos API
-    which {Api}. Emitted only on {Result} parsing of the API response at the
-    moment parsing is completed.
-  </summary>
-  <token key="Api" variants="GooglePhotosApi"/>
-  <token key="Result">
-    <variant name="Failure" summary="failed"/>
-    <variant name="Success" summary="successful"/>
-  </token>
-</histogram>
-
-<histogram name="Ash.Wallpaper.GooglePhotos.Api.{Api}.Result"
-    enum="BooleanSuccess" expires_after="2022-11-15">
-  <owner>xiaohuic@google.com</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Records the result for the request to the Google Photos API which {Api}.
-    Emitted for both failed and successful parsing of the API request at the
-    moment parsing is completed.
-  </summary>
-  <token key="Api" variants="GooglePhotosApi"/>
-</histogram>
-
-<histogram name="Ash.Wallpaper.GooglePhotos.Api.{Api}.Result.Count"
-    units="results" expires_after="2022-11-15">
-  <owner>xiaohuic@google.com</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Records the result count for the response of the Google Photos API which
-    {Api}. Emitted only on successful parsing of the API response at the moment
-    parsing is completed.
-  </summary>
-  <token key="Api" variants="GooglePhotosApi"/>
 </histogram>
 
 <histogram name="Ash.Wallpaper.GooglePhotos.Source2"
@@ -10400,26 +10317,6 @@ chromium-metrics-reviews@google.com.
 
     Expired from 2021-04-01 to M113. May be missing some data.
     {PreferenceChangeType}
-  </summary>
-</histogram>
-
-<histogram name="Touchpad.HapticClickSensitivity.Changed"
-    enum="HapticClickSensitivity" expires_after="2024-03-10">
-  <owner>gavinwill@google.com</owner>
-  <owner>cros-device-enablement@chromium.org</owner>
-  <summary>
-    Tracks touchpad haptic click sensitivity setting changes by the user. Only
-    reported on Chrome OS.
-  </summary>
-</histogram>
-
-<histogram name="Touchpad.HapticClickSensitivity.Started"
-    enum="HapticClickSensitivity" expires_after="2024-02-11">
-  <owner>gavinwill@google.com</owner>
-  <owner>cros-device-enablement@chromium.org</owner>
-  <summary>
-    Tracks touchpad haptic click sensitivity setting on startup. Only reported
-    on Chrome OS.
   </summary>
 </histogram>
 

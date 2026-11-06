@@ -222,18 +222,20 @@ static void trim_trailing_zeros(ASN1_BIT_STRING *a) {
 
 // These next 2 functions from Goetz Babin-Ebell <babinebell@trustcenter.de>
 int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value) {
-  int w, v, iv;
-  unsigned char *c;
-
-  w = n / 8;
-  v = 1 << (7 - (n & 0x07));
-  iv = ~v;
-  if (!value) {
-    v = 0;
-  }
-
   if (a == nullptr) {
     return 0;
+  }
+
+  if (n < 0) {
+    OPENSSL_PUT_ERROR(ASN1, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  int w = n / 8;
+  int v = 1 << (7 - (n & 0x07));
+  int iv = ~v;
+  if (!value) {
+    v = 0;
   }
 
   if ((a->length < (w + 1)) || (a->data == nullptr)) {
@@ -241,6 +243,7 @@ int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value) {
       trim_trailing_zeros(a);
       return 1;  // Don't need to set
     }
+    unsigned char *c;
     if (a->data == nullptr) {
       c = (unsigned char *)OPENSSL_malloc(w + 1);
     } else {

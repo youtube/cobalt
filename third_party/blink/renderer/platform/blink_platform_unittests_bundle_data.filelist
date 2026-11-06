@@ -149,10 +149,14 @@
 ../../web_tests/external/wpt/jpegxl/resources/3x3a_srgb_lossless.jxl
 ../../web_tests/external/wpt/jpegxl/resources/3x3a_srgb_lossy.jxl
 ../../web_tests/external/wpt/jpegxl/resources/8x8_noise.jxl
+../../web_tests/external/wpt/jpegxl/resources/animation-1loop.jxl
+../../web_tests/external/wpt/jpegxl/resources/animation-2loops.jxl
+../../web_tests/external/wpt/jpegxl/resources/animation-infiniteloop.jxl
 ../../web_tests/external/wpt/jpegxl/resources/basic.jxl
 ../../web_tests/external/wpt/jpegxl/resources/conformance_alpha_nonpremultiplied.jxl
 ../../web_tests/external/wpt/jpegxl/resources/conformance_animation_spline.jxl
 ../../web_tests/external/wpt/jpegxl/resources/conformance_cmyk_layers.jxl
+../../web_tests/external/wpt/jpegxl/resources/conformance_patches.jxl
 ../../web_tests/external/wpt/jpegxl/resources/conformance_sunset_logo.jxl
 ../../web_tests/external/wpt/jpegxl/resources/green_queen_modular_e3.jxl
 ../../web_tests/external/wpt/jpegxl/resources/green_queen_vardct_e3.jxl
@@ -252,6 +256,7 @@
 ../../web_tests/images/bmp-suite/questionable/rgba32-2.bmp
 ../../web_tests/images/bmp-suite/questionable/rgba32-61754.bmp
 ../../web_tests/images/bmp-suite/questionable/rgba32-81284.bmp
+../../web_tests/images/bmp-suite/questionable/rgba32-v5-alpha.bmp
 ../../web_tests/images/bmp-suite/questionable/rgba32abf.bmp
 ../../web_tests/images/bmp-suite/questionable/rgba32h56.bmp
 ../../web_tests/images/bmp-suite/questionable/rgba64.bmp

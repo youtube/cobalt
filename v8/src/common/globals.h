@@ -943,6 +943,22 @@ constexpr size_t kInterceptedSize = 4;
 // CallNamedInterceptorXXXX/CallIndexedInterceptorXXX builtins to caller.
 constexpr uint32_t kNotInterceptedSentinel = kHeapObjectTag;
 
+// ExtendedMap kinds.
+enum class ExtendedMapKind : uint8_t {
+  kJSInterceptorMap,
+};
+constexpr const char* ExtendedMapKindToString(ExtendedMapKind kind) {
+  switch (kind) {
+    case ExtendedMapKind::kJSInterceptorMap:
+      return "JSInterceptorMap";
+  }
+  return "<corrupt>";
+}
+
+inline std::ostream& operator<<(std::ostream& os, ExtendedMapKind kind) {
+  return os << ExtendedMapKindToString(kind);
+}
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 
@@ -1243,8 +1259,10 @@ using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
 class TrustedCage;
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
 #else
-// The trusted cage does not exist in this case.
-using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+// The trusted cage does not exist in this case; a distinct struct type (not
+// an alias of V8HeapCompressionScheme) keeps type-based dispatch working
+// identically across sandbox configs.
+struct TrustedSpaceCompressionScheme;
 #endif
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>

@@ -39,6 +39,7 @@
 #include <openssl/mlkem.h>
 #include <openssl/obj.h>
 #include <openssl/rsa.h>
+#include <openssl/xwing.h>
 
 #include "../test/der_trailing_data.h"
 #include "../test/file_test.h"
@@ -130,6 +131,8 @@ const std::map<std::string, AlgorithmInfo> kAllAlgorithms = {
     {"ML-KEM-1024",
      {EVP_pkey_ml_kem_1024(), EVP_kem_ml_kem_1024(), EVP_PKEY_ML_KEM_1024,
       true}},
+
+    {"X-Wing", {EVP_pkey_xwing(), EVP_kem_xwing(), EVP_PKEY_XWING, false}},
 };
 
 using KeyMap = std::map<std::string, bssl::UniquePtr<EVP_PKEY>>;
@@ -177,17 +180,27 @@ bool CheckRawKey(FileTest *t, std::string_view attr_name, const EVP_PKEY *pkey,
   if (!getter(pkey, nullptr, &len)) {
     return false;
   }
+  const size_t expected_len = len;
   raw.resize(len);
   if (!getter(pkey, raw.data(), &len)) {
     return false;
   }
+  EXPECT_EQ(len, expected_len);
   raw.resize(len);
   EXPECT_EQ(Bytes(raw), Bytes(expected));
 
   // Short buffers should be rejected.
-  raw.resize(len - 1);
+  raw.resize(expected_len - 1);
   len = raw.size();
   EXPECT_FALSE(getter(pkey, raw.data(), &len));
+
+  // Long buffer should be accepted and the proper length written out.
+  raw.resize(expected_len + 1);
+  len = raw.size();
+  EXPECT_TRUE(getter(pkey, raw.data(), &len));
+  EXPECT_EQ(len, expected_len);
+  raw.resize(len);
+  EXPECT_EQ(Bytes(raw), Bytes(expected));
   return true;
 }
 
@@ -222,6 +235,16 @@ bool ImportRawKey(FileTest *t, KeyMap *key_map, KeyRole key_role,
     return false;
   }
   if (!CheckRawKey(t, "Input", pkey.get(), getter)) {
+    return false;
+  }
+  // Ensure the other raw getters are consistent with the input.
+  if ((t->HasAttribute("RawPrivate") &&
+       !CheckRawKey(t, "RawPrivate", pkey.get(),
+                    EVP_PKEY_get_raw_private_key)) ||
+      (t->HasAttribute("RawPublic") &&
+       !CheckRawKey(t, "RawPublic", pkey.get(), EVP_PKEY_get_raw_public_key)) ||
+      (t->HasAttribute("PrivateSeed") &&
+       !CheckRawKey(t, "PrivateSeed", pkey.get(), EVP_PKEY_get_private_seed))) {
     return false;
   }
 
@@ -728,10 +751,21 @@ bool TestKem(FileTest *t, EVP_PKEY *pkey, bool copy_ctx, bool encapsulate,
     return false;
   }
 
-  const size_t expected_ciphertext_len = (alg_info.alg == EVP_pkey_ml_kem_768())
-                                             ? MLKEM768_CIPHERTEXT_BYTES
-                                             : MLKEM1024_CIPHERTEXT_BYTES;
-  const size_t expected_secret_len = MLKEM_SHARED_SECRET_BYTES;
+  size_t expected_ciphertext_len;
+  size_t expected_secret_len;
+  if (alg_info.kem == EVP_kem_ml_kem_768()) {
+    expected_ciphertext_len = MLKEM768_CIPHERTEXT_BYTES;
+    expected_secret_len = MLKEM_SHARED_SECRET_BYTES;
+  } else if (alg_info.kem == EVP_kem_ml_kem_1024()) {
+    expected_ciphertext_len = MLKEM1024_CIPHERTEXT_BYTES;
+    expected_secret_len = MLKEM_SHARED_SECRET_BYTES;
+  } else if (alg_info.kem == EVP_kem_xwing()) {
+    expected_ciphertext_len = XWING_CIPHERTEXT_BYTES;
+    expected_secret_len = XWING_SHARED_SECRET_BYTES;
+  } else {
+    ADD_FAILURE() << "KEM not found: " << alg_name;
+    return false;
+  }
 
   bssl::UniquePtr<EVP_PKEY_CTX> ctx;
   std::vector<uint8_t> ciphertext, secret, decapsulated_secret;
@@ -1188,6 +1222,10 @@ TEST(EVPTest, RSATestVectors) { RunEVPTests("crypto/evp/test/rsa_tests.txt"); }
 
 TEST(EVPTest, X25519TestVectors) {
   RunEVPTests("crypto/evp/test/x25519_tests.txt");
+}
+
+TEST(EVPTest, XWingTestVectors) {
+  RunEVPTests("crypto/evp/test/xwing_tests.txt");
 }
 
 void RunWycheproofVerifyTest(const char *path, const EVP_PKEY_ALG *alg) {

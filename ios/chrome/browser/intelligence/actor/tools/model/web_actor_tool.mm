@@ -6,19 +6,31 @@
 
 #import "base/memory/weak_ptr.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/action_target_java_script_feature.h"
-#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/web/public/web_state.h"
 
 namespace actor {
+
+WebActorTool::WebActorTool() = default;
+WebActorTool::~WebActorTool() = default;
+
+base::WeakPtr<web::WebFrame> WebActorTool::GetTargetWebFrame() const {
+  return target_frame_;
+}
 
 void WebActorTool::ResolveTargetFrame(
     base::WeakPtr<web::WebState> web_state,
     base::WeakPtr<web::WebFrame> web_frame,
     const optimization_guide::proto::ActionTarget& target,
     ActionTargetJavaScriptFeature::TargetFrameCallback callback) {
-  if (!web_state || !web_frame) {
+  if (!web_state) {
     std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kExecutionMissingDependencies}));
+        ToolExecutionResult(mojom::ActionResultCode::kTabWentAway)));
+    return;
+  }
+  if (!web_frame) {
+    std::move(callback).Run(base::unexpected(
+        ToolExecutionResult(mojom::ActionResultCode::kFrameWentAway)));
     return;
   }
 

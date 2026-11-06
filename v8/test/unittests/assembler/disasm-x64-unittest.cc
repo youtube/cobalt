@@ -653,6 +653,7 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   COMPARE("4883eb0c             REX.W subq rbx,0xc", subq(rbx, Immediate(12)));
   COMPARE("4883ac8a102700000c   REX.W subq [rdx+rcx*4+0x2710],0xc",
           subq(Operand(rdx, rcx, times_4, 10000), Immediate(12)));
+  COMPARE("2c80                 subb al,0x80", subb(rax, Immediate(128)));
   COMPARE("4881f339300000       REX.W xorq rbx,0x3039",
           xorq(rbx, Immediate(12345)));
   COMPARE("486bd10c             REX.W imulq rdx,rcx,0xc",

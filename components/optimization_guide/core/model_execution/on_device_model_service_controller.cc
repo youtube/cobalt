@@ -345,7 +345,7 @@ OnDeviceModelServiceController::BaseModelController::BaseModelController(
 
   // Check if the model needs validation, which may mark it pending validation,
   // blocking session creation.
-  if (!access_controller().ShouldValidateModel(model_metadata_->version())) {
+  if (!access_controller().MaybeBeginValidation(model_metadata_->version())) {
     return;
   }
 
@@ -462,11 +462,11 @@ OnDeviceModelServiceController::BaseModelController::PopulateModelPaths() {
   on_device_model::ModelAssetPaths model_paths;
   model_paths.weights = model_metadata_->model_path().Append(kWeightsFile);
 
-  // TODO(crbug.com/400998489): Cache files are experimental for now.
   if (model_metadata_->performance_hint() ==
       proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU) {
-    model_paths.cache =
-        model_metadata_->model_path().Append(kExperimentalCacheFile);
+    // Weights cache is used for CPU backend (XNNPACK) only and re-built when
+    // it's deemed stale by version compatibility (see crbug.com/400998489).
+    model_paths.cache = model_metadata_->model_path().Append(kWeightCacheFile);
   }
   model_paths.encoder_cache =
       model_metadata_->model_path().Append(kEncoderCacheFile);

@@ -18,6 +18,7 @@
 #include "absl/strings/string_view.h"
 #include "api/audio_options.h"
 #include "api/jsep.h"
+#include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
@@ -48,6 +49,7 @@ namespace {
 
 using test::GetAvailableSendBitrate;
 using test::GetAverageRoundTripTime;
+using test::GetPacketsReceived;
 using test::GetPacketsReceivedWithCe;
 using test::GetPacketsReceivedWithEct1;
 using test::GetPacketsSentWithEct1;
@@ -569,6 +571,103 @@ TEST(L4STest, SendsEct1AfterRouteChangeEvenIfBleached) {
   EXPECT_GT(not_ect_count_cellular, 0);
 }
 
+TEST(L4STest, SendsEct1AfterRouteChangeFromTurnWithBleachingToDirect) {
+  PeerScenario s(*test_info_);
+
+  EmulatedTURNServerConfig turn_config;
+  turn_config.client_config.type = AdapterType::ADAPTER_TYPE_WIFI;
+  turn_config.peer_config.type = AdapterType::ADAPTER_TYPE_WIFI;
+  EmulatedTURNServerInterface* turn_server =
+      s.net()->CreateTURNServer(turn_config);
+
+  auto ice_server_config = turn_server->GetIceServerConfig();
+  PeerConnectionInterface::IceServer ice_server;
+  ice_server.urls.push_back(ice_server_config.url);
+  ice_server.username = ice_server_config.username;
+  ice_server.password = ice_server_config.password;
+
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                          "Enabled,offer:true");
+  config.field_trials.Set("WebRTC-Bwe-ScreamV2", "Enabled");
+  config.disable_encryption = true;
+  config.endpoints = {{0, {.type = AdapterType::ADAPTER_TYPE_WIFI}}};
+  config.rtc_config.servers.push_back(ice_server);
+  PeerScenarioClient* caller = s.CreateClient(config);
+  PeerScenarioClient* callee = s.CreateClient(config);
+
+  // TURN routes for Caller.
+  // Route via a node that will not forward ECN markings to simulate TURN
+  // server bleaching. The route also has longer delay to test that packets will
+  // be delivered out of order when switching to a direct route.
+  s.net()->CreateRoute(
+      caller->endpoint(0),
+      {s.net()->NodeBuilder().delay_ms(50).Build().node,
+       s.net()->NodeBuilder().config({.forward_ecn = false}).Build().node},
+      turn_server->GetClientEndpoint());
+  s.net()->CreateRoute(turn_server->GetClientEndpoint(),
+                       {s.net()->NodeBuilder().Build().node},
+                       caller->endpoint(0));
+
+  // TURN routes for Callee.
+  s.net()->CreateRoute(callee->endpoint(0),
+                       {s.net()->NodeBuilder().Build().node},
+                       turn_server->GetClientEndpoint());
+  s.net()->CreateRoute(turn_server->GetClientEndpoint(),
+                       {s.net()->NodeBuilder().Build().node},
+                       callee->endpoint(0));
+
+  auto signaling =
+      s.ConnectSignaling(caller, callee, {s.net()->NodeBuilder().Build().node},
+                         {s.net()->NodeBuilder().Build().node});
+
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 15;
+  caller->CreateVideo("VIDEO_1", video_conf);
+  signaling.StartIceSignaling();
+
+  std::atomic<bool> offer_exchange_done(false);
+  signaling.NegotiateSdp([&](const SessionDescriptionInterface& answer) {
+    offer_exchange_done = true;
+  });
+  ASSERT_TRUE(s.WaitAndProcess(&offer_exchange_done));
+  ASSERT_TRUE(offer_exchange_done);
+
+  /// Run simulation with the TURN route
+  s.ProcessMessages(TimeDelta::Seconds(5));
+  scoped_refptr<const RTCStatsReport> callee_stats =
+      GetStatsAndProcess(s, callee);
+  ASSERT_GT(GetPacketsReceived(callee_stats), 0);
+  EXPECT_LT(GetAverageRoundTripTime(callee_stats), TimeDelta::Millis(90));
+
+  // Create a direct route from caller to callee and callee to caller.
+  EmulatedNetworkNode* caller_to_direct_node =
+      s.net()->NodeBuilder().delay_ms(0).Build().node;
+  s.net()->CreateRoute(caller->endpoint(0), {caller_to_direct_node},
+                       callee->endpoint(0));
+  int ect1_count_direct = 0;
+  int not_ect_count_direct = 0;
+  caller_to_direct_node->router()->SetWatcher(
+      [&](const EmulatedIpPacket& packet) {
+        if (!IsRtpPacket(packet.data))
+          return;
+        if (packet.ecn == EcnMarking::kEct1) {
+          ++ect1_count_direct;
+        } else if (packet.ecn == EcnMarking::kNotEct) {
+          ++not_ect_count_direct;
+        }
+      });
+  s.net()->CreateRoute(callee->endpoint(0),
+                       {s.net()->NodeBuilder().Build().node},
+                       caller->endpoint(0));
+
+  s.ProcessMessages(TimeDelta::Seconds(10));
+  // Expect that eventually, caller switches to sending packets with ect1 on the
+  // direct route.
+  EXPECT_GT(ect1_count_direct, 0);
+  EXPECT_EQ(not_ect_count_direct, 0);
+}
+
 TEST(L4STest, RtcpSentAsEct1IfRtpWithEct1Received) {
   int ecn_count = 0;
   int not_ect_count = 0;
@@ -587,9 +686,7 @@ TEST(L4STest, RtcpSentAsEct1IfRtpWithEct1Received) {
   // be RTCP. Negotiation is still done using not ECT.
   callee_to_caller_node->router()->SetWatcher(
       [&](const EmulatedIpPacket& packet) {
-        if (StunMessage::ValidateFingerprint(
-                reinterpret_cast<const char*>(packet.data.data()),
-                packet.data.size())) {
+        if (StunMessage::ValidateFingerprint(packet.data)) {
           return;
         }
         if (packet.ecn == EcnMarking::kEct1 || packet.ecn == EcnMarking::kCe) {

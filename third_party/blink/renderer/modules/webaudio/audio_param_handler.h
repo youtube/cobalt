@@ -36,8 +36,9 @@ namespace blink {
 // dies.
 //
 // Connected to AudioNodeOutput using AudioNodeWiring.
-class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
-                                public AudioSummingJunction {
+class MODULES_EXPORT AudioParamHandler final
+    : public ThreadSafeRefCounted<AudioParamHandler>,
+      public AudioSummingJunction {
  public:
   // Each AudioParam gets an identifier here.  This is mostly for instrospection
   // if warnings or other messages need to be printed. It's useful to know what
@@ -540,14 +541,6 @@ class AudioParamHandler final : public ThreadSafeRefCounted<AudioParamHandler>,
       size_t current_frame,
       float value,
       unsigned write_index) EXCLUSIVE_LOCKS_REQUIRED(events_lock_);
-
-  // Fill the output vector `values` with the value `default_value`,
-  // starting at `write_index` and continuing up to `end_frame`
-  // (exclusive).  `write_index` is updated with the new index.
-  uint32_t FillWithDefault(float* values,
-                           float default_value,
-                           uint32_t end_frame,
-                           uint32_t write_index);
 
   // When cancelling events, remove the items from `events_` starting
   // at the given index.

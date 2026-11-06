@@ -80,6 +80,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/hats/survey_config.h"
@@ -872,19 +873,6 @@ class ProfilePickerCreationFlowBrowserTest
     profile_picker_handler()->HandleLaunchGuestProfile(args);
   }
 
-  // Simulates a click on "Open all profiles".
-  void OpenAllProfilesFromPicker() {
-    base::ListValue args;
-    for (const base::Value& profile :
-         profile_picker_handler()->GetProfilesList()) {
-      const std::optional<base::FilePath> profile_path =
-          base::ValueToFilePath(profile.GetDict().Find("profilePath"));
-      args.Append(base::FilePathToValue(*profile_path));
-    }
-
-    profile_picker_handler()->HandleLaunchAllProfiles(args);
-  }
-
   // Creates a new profile without opening a browser.
   base::FilePath CreateNewProfileWithoutBrowser() {
     // Create a second profile.
@@ -1384,7 +1372,9 @@ IN_PROC_BROWSER_TEST_P(ForceSigninProfilePickerCreationFlowBrowserTest,
   Profile* force_sign_in_profile = SignInForNewProfile(
       target_url, "joe.consumer@gmail.com", "Joe", kNoHostedDomainFound, true);
   // No browser for the created profile exist yet.
-  ASSERT_EQ(chrome::GetBrowserCount(force_sign_in_profile), 0u);
+  ASSERT_EQ(
+      ProfileBrowserCollection::GetForProfile(force_sign_in_profile)->GetSize(),
+      0u);
   ASSERT_TRUE(ProfilePicker::IsOpen());
 
   ProfileAttributesEntry* entry =
@@ -1436,7 +1426,9 @@ IN_PROC_BROWSER_TEST_P(ForceSigninProfilePickerCreationFlowBrowserTest,
       target_url, "joe.consumer@gmail.com", "Joe", kNoHostedDomainFound, true);
   base::FilePath force_sign_in_profile_path = force_sign_in_profile->GetPath();
   // No browser for the created profile exist yet.
-  ASSERT_EQ(chrome::GetBrowserCount(force_sign_in_profile), 0u);
+  ASSERT_EQ(
+      ProfileBrowserCollection::GetForProfile(force_sign_in_profile)->GetSize(),
+      0u);
   ASSERT_TRUE(ProfilePicker::IsOpen());
 
   ProfileAttributesStorage& storage =
@@ -4268,166 +4260,6 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerToAllUsersBrowserTest,
 
   EXPECT_TRUE(ProfilePicker::IsOpen());
   EXPECT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
-}
-
-class ProfilePickerWithReducedFrictionRemoveSigninBrowserTest
-    : public ProfilePickerCreationFlowBrowserTest {
- private:
-  base::test::ScopedFeatureList feature_list_{
-      switches::kProfileCreationFrictionReductionExperimentRemoveSigninStep};
-};
-
-IN_PROC_BROWSER_TEST_F(ProfilePickerWithReducedFrictionRemoveSigninBrowserTest,
-                       CreateLocalProfileWithoutSigninStep) {
-  ASSERT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_EQ(1u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-
-  content::TestNavigationObserver profile_customization_observer(
-      kLocalProfileCreationUrl);
-  profile_customization_observer.StartWatchingNewWebContents();
-  BrowserAddedWaiter waiter(2u, BrowserAddedWaiter::ReturnMode::kNew);
-
-  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
-  // Wait until webUI is fully initialized.
-  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
-
-  // If the signin step is displayed, the test will fail with timeout. There's
-  // no interaction with signin step in this test so it's not passed through.
-  // It's waiting only for profile customization which should be shown directly.
-
-  BrowserWindowInterface* const new_browser = waiter.Wait();
-  profile_customization_observer.Wait();
-
-  content::WebContents* dialog_web_contents =
-      new_browser->GetFeatures()
-          .signin_view_controller()
-          ->GetModalDialogWebContentsForTesting();
-  EXPECT_EQ(dialog_web_contents->GetLastCommittedURL(),
-            kLocalProfileCreationUrl);
-
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(new_browser->GetProfile()->GetPath());
-  ASSERT_TRUE(entry->IsEphemeral());
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_TRUE(
-      new_browser->GetFeatures().signin_view_controller()->ShowsModalDialog());
-
-  // Simulate clicking the "Done" button on the profile customization dialog.
-  ConfirmLocalProfileCreation(dialog_web_contents);
-
-  ASSERT_FALSE(entry->IsEphemeral());
-  ASSERT_EQ(kLocalProfileName, base::UTF16ToUTF8(entry->GetLocalProfileName()));
-  ASSERT_EQ(2u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-  EXPECT_FALSE(
-      new_browser->GetFeatures().signin_view_controller()->ShowsModalDialog());
-}
-
-class ProfilePickerWithReducedFrictionSkipCustomizationBrowserTest
-    : public ProfilePickerCreationFlowBrowserTest {
- private:
-  base::test::ScopedFeatureList feature_list_{
-      switches::
-          kProfileCreationFrictionReductionExperimentSkipCustomizeProfile};
-};
-
-IN_PROC_BROWSER_TEST_F(
-    ProfilePickerWithReducedFrictionSkipCustomizationBrowserTest,
-    CreateLocalProfileWithoutCustomizationStep) {
-  ASSERT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_EQ(1u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-
-  content::TestNavigationObserver profile_customization_observer(
-      kLocalProfileCreationUrl);
-  profile_customization_observer.StartWatchingNewWebContents();
-  BrowserAddedWaiter waiter(2u, BrowserAddedWaiter::ReturnMode::kNew);
-
-  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
-  // Wait until webUI is fully initialized.
-  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
-
-  // Simulate clicking the "Continue without an account" button.
-  CreateLocalProfile();
-
-  BrowserWindowInterface* const new_browser = waiter.Wait();
-  EXPECT_FALSE(
-      new_browser->GetFeatures().signin_view_controller()->ShowsModalDialog());
-
-  WaitForPickerClosed();
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(new_browser->GetProfile()->GetPath());
-  ASSERT_EQ("Person 1", base::UTF16ToUTF8(entry->GetLocalProfileName()));
-  ASSERT_FALSE(entry->IsEphemeral());
-  ASSERT_EQ(2u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-}
-
-class ProfilePickerOpenAllProfilesButtonExperimentBrowserTest
-    : public ProfilePickerCreationFlowBrowserTest {
- public:
-  ProfilePickerOpenAllProfilesButtonExperimentBrowserTest() {
-    // Since `OpenAllProfilesAfterSimulatingButtonClick` depends on the order
-    // of profiles, need to enable `kProfilesReordering`.
-    feature_list_.InitWithFeatures(
-        {switches::kOpenAllProfilesFromProfilePickerExperiment,
-         switches::kProfilesReordering},
-        {});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(ProfilePickerOpenAllProfilesButtonExperimentBrowserTest,
-                       OpenAllProfilesAfterSimulatingButtonClick) {
-  base::HistogramTester histogram_tester;
-  base::FilePath profile_path1 = browser()->profile()->GetPath();
-  base::FilePath profile_path2 = CreateNewProfileWithoutBrowser();
-  base::FilePath profile_path3 = CreateNewProfileWithoutBrowser();
-
-  ASSERT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
-  ASSERT_EQ(3u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-
-  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-      ProfilePicker::EntryPoint::kProfileMenuManageProfiles));
-  WaitForLoadStop(GURL{"chrome://profile-picker"});
-
-  BrowserAddedWaiter waiter2(2u, BrowserAddedWaiter::ReturnMode::kNew);
-  BrowserAddedWaiter waiter3(3u, BrowserAddedWaiter::ReturnMode::kNew);
-
-  OpenAllProfilesFromPicker();
-
-  BrowserWindowInterface* const new_browser2 = waiter2.Wait();
-  ASSERT_TRUE(ProfilePicker::IsOpen());
-  BrowserWindowInterface* const new_browser3 = waiter3.Wait();
-
-  // Profile Picker should be closed only after last profile is opened.
-  WaitForPickerClosed();
-
-  EXPECT_EQ(new_browser2->GetProfile()->GetPath(), profile_path2);
-  EXPECT_EQ(new_browser3->GetProfile()->GetPath(), profile_path3);
-  ASSERT_EQ(3u, GlobalBrowserCollection::GetInstance()->GetSize());
-
-  histogram_tester.ExpectBucketCount(
-      "ProfilePicker.OpenAllProfilesButtonAction",
-      ProfilePickerOpenAllProfilesButtonAction::kShown, 1);
-  histogram_tester.ExpectBucketCount(
-      "ProfilePicker.OpenAllProfilesButtonAction",
-      ProfilePickerOpenAllProfilesButtonAction::kClicked, 1);
 }
 
 class SigninErrorProfilePickerBrowserTest

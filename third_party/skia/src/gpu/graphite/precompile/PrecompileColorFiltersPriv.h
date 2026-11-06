@@ -19,6 +19,10 @@ namespace skgpu::graphite {
     data members or virtual methods. */
 class PrecompileColorFilterPriv {
 public:
+    bool isAlphaUnchanged(int desiredCombination) const {
+        return fPrecompileColorFilter->isAlphaUnchanged(desiredCombination);
+    }
+
     // The remaining methods make this a viable standin for PrecompileBasePriv
     int numChildCombinations() const { return fPrecompileColorFilter->numChildCombinations(); }
 

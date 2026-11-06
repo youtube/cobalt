@@ -4097,7 +4097,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // pool is used for all |CRYPTO_BUFFER|s in case we wish to share certificate
   // memory.
-  CRYPTO_BUFFER_POOL *pool = nullptr;
+  bssl::UniquePtr<CRYPTO_BUFFER_POOL> pool;
 
   // ticket_aead_method contains function pointers for opening and sealing
   // session tickets.

@@ -299,11 +299,6 @@ export declare interface NetworkInfo {
  */
 export declare interface ClientApiDelegate {
   /**
-   * Request authentication for the webview.
-   */
-  authenticateWebview(): Promise<boolean>;
-
-  /**
    * Get a list of Window tabs opened on device.
    */
   getWindowsTabsList(): Promise<DeviceWindow[]>;
@@ -403,11 +398,6 @@ export declare interface ClientApiDelegate {
   setSitePermission(
       url: string, permission: Permission,
       setting: PermissionSetting): Promise<boolean>;
-
-  /**
-   * Close the tab with tabId.
-   */
-  closeTab(tabId: number): Promise<boolean>;
 
   openFeedbackDialog(): Promise<void>;
 

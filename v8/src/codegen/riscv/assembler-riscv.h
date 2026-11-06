@@ -799,9 +799,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   bool is_trampoline_emitted() const { return trampoline_check_ == kMaxInt; }
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large

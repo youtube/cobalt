@@ -10,6 +10,7 @@
 #include "base/types/strong_alias.h"
 #include "cc/paint/paint_record.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/inline/used_font.h"
 #include "third_party/blink/renderer/core/paint/decoration_line_painter.h"
 #include "third_party/blink/renderer/core/paint/line_relative_rect.h"
 #include "third_party/blink/renderer/core/paint/text_paint_style.h"
@@ -28,9 +29,7 @@ namespace blink {
 
 class ComputedStyle;
 class DecoratingBox;
-class Font;
 class InlinePaintContext;
-class SimpleFontData;
 class TextDecorationOffset;
 
 enum class ResolvedUnderlinePosition {
@@ -52,10 +51,8 @@ struct ResolvedDecoration {
   // ResolveDecorationAt() must fill `applied_text_decoration`, so it never be
   // nullptr.
   const AppliedTextDecoration* applied_text_decoration = nullptr;
-  const SimpleFontData* font_data = nullptr;
+  UsedFont used_font;
   TextDecorationLine lines = TextDecorationLine::kNone;
-  float ascent = 0.f;
-  float computed_font_size = 0.f;
   float resolved_thickness = 0.f;
   float effective_zoom = 1.0f;
   // This field is available only if a decorating box is applied and `lines`
@@ -66,6 +63,10 @@ struct ResolvedDecoration {
   bool has_underline = false;
   bool has_overline = false;
   bool is_flipped_underline_and_overline = false;
+
+  // ResolvedDecoration should be initialized with a UsedFont because
+  // UsedFont has no default constructor.
+  explicit ResolvedDecoration(const UsedFont& font) : used_font(font) {}
 
   bool HasUnderline() const { return has_underline; }
   bool HasOverline() const { return has_overline; }
@@ -81,6 +82,7 @@ struct ResolvedDecoration {
   bool HasSpellingOrGrammarError() const {
     return HasSpellingError() || HasGrammarError();
   }
+  bool HasFontData() const { return used_font.PrimaryFont(); }
 };
 
 // Container for computing and storing information for text decoration
@@ -93,11 +95,11 @@ class CORE_EXPORT TextDecorationInfo {
   TextDecorationInfo(LineRelativeOffset local_origin,
                      LayoutUnit width,
                      const ComputedStyle& target_style,
+                     const UsedFont& target_font,
                      const InlinePaintContext* inline_context,
                      const TextDecorationLine selection_decoration_line,
                      const Color selection_decoration_color,
                      const AppliedTextDecoration* decoration_override = nullptr,
-                     const Font* font_override = nullptr,
                      IsSvgText is_svg_text = IsSvgText(false),
                      float svg_resource_scaling_factor = 1.0f);
 
@@ -168,6 +170,7 @@ class CORE_EXPORT TextDecorationInfo {
   const ComputedStyle* decorating_box_style_ = nullptr;
 
   const InlinePaintContext* const inline_context_ = nullptr;
+  const UsedFont target_used_font_;
 
   const TextDecorationLine selection_decoration_line_ =
       TextDecorationLine::kNone;
@@ -177,7 +180,6 @@ class CORE_EXPORT TextDecorationInfo {
   // of the one from the decorating box. Note that using them means that the
   // [decorating box] is not supported.
   const AppliedTextDecoration* const decoration_override_ = nullptr;
-  const Font* const font_override_ = nullptr;
 
   // Geometry of the target text/box.
   const LineRelativeOffset local_origin_;

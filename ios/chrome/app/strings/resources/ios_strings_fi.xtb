@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">Tallennustila on täynnä</translation>
 <translation id="1181037720776840403">Poista</translation>
 <translation id="1190609913194133056">Ilmoituskeskus</translation>
+<translation id="1199631150313925648">Lisää manuaalisesti</translation>
 <translation id="1199963004393929848">Vihreä teema</translation>
 <translation id="1201402288615127009">Seuraava</translation>
 <translation id="1204075260022434100">{count,plural, =1{Kirjanmerkki tallennettu tilin {email} kansioon "{title}"}other{{count} kirjanmerkkiä tallennettu tilin {email} kansioon "{title}"}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">Kuvia ei voitu ladata</translation>
 <translation id="3565930036634619844">Välilehti. <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Tallenna eri tavalla</translation>
+<translation id="3571703298474554279">Nopeampi tapa käyttää sovellusta</translation>
 <translation id="3572503683475187385">Nykyinen välilehti jaetaan Geminille, kun aloitat uuden keskustelun. Kun jaat välilehden Geminille, sen sisältö ja URL-osoite lähetetään Googlelle. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Google-tililläsi</translation>
 <translation id="3575234738189584619">Hae Lensilla</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">Tarkista tallentamasi salasanat tietoturvan parantamiseksi ja selataksesi turvallisemmin</translation>
 <translation id="3838985624086228724">Seuraamassasi tuotteessa on hinnanlasku, vanha hinta <ph name="PREVIOUS_PRICE" />, nyt <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Takaisin</translation>
-<translation id="3850952228519377137">Piilota "Seuraa hintoja välilehdillä"</translation>
 <translation id="3851938967634752633">Näiden salasanat poistetaan: <ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" /> ja <ph name="NUMBER_OF_ACCOUNTS" /> muuta. Tilejäsi ei poisteta.</translation>
 <translation id="3853162385423733133">Jatka Google-tilisi (<ph name="EMAIL" />) salasanojen käyttöä ja tallentamista</translation>
 <translation id="3853873210696342070">Tuo</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">Laita ilmoitukset päälle</translation>
 <translation id="4326912346867677256">Kirjaudu turvallisesti sisään valitsemalla "Käytä salasanaa".</translation>
-<translation id="4327017157997423717">Seuraa hintaa: <ph name="PRODUCT_NAME" />, <ph name="PRICE" />, <ph name="DOMAIN" /></translation>
 <translation id="4328843285884395590">Oma Drive</translation>
 <translation id="4331177082088332784">Voit hallita tätä BEGIN_LINK Sisältöasetuksissa END_LINK</translation>
 <translation id="4334428914252001502">1 lukematon artikkeli</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">Tietosuojailmoitus</translation>
 <translation id="4420409367264901497">Muokkaa kirjanmerkkiä</translation>
 <translation id="4425365312778464779">Tämä on hallinnoitu tili</translation>
+<translation id="443008484043213881">Työkalut</translation>
 <translation id="4430277756566635951">Tällä hetkellä valittuna <ph name="EMAIL" />. Valitse tili.</translation>
 <translation id="4430505936695785931">Käytä tallennettuja salasanoja muissa sovelluksissa</translation>
 <translation id="4431224949908513835">Valitse täytettävä maksutapa.</translation>
@@ -1294,6 +1295,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="5581786858144165447">Kysy tekoälyltä ‑tila</translation>
 <translation id="5585019845078534178">Kortit</translation>
 <translation id="5591526871732898147">Liitetty kuva {index}</translation>
+<translation id="5594597292424622277">Keskeytä videon toisto</translation>
 <translation id="5595485650161345191">Osoitteen muokkaus</translation>
 <translation id="559567008082979829">Valitse, että lataukset poistetaan kuukauden kuluttua.</translation>
 <translation id="5596627076506792578">Lisäasetukset</translation>
@@ -1518,7 +1520,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6321526113093607004">Lisää kirjanmerkkeihin</translation>
 <translation id="6327249202318869726">Gemini on laitettu pois päältä tililläsi. Pyydä lisätietoja järjestelmänvalvojalta.</translation>
 <translation id="6331836477476466332">Turvallisempi ja tehokkaampi selain</translation>
-<translation id="6335744088476213315">Tässä kortissa näkyvät tuotteet, joita olet äskettäin katsonut ja joiden hintaa saatat haluta seurata saadaksesi ilmoituksia hinnanlaskusta</translation>
 <translation id="6337234675334993532">Salaus</translation>
 <translation id="6337313937331295309">Gemini-sovellusten tietosuojailmoitus</translation>
 <translation id="633809752005859102">Jotain meni pahasti vikaan. Pyrimme korjaamaan tilanteen.</translation>
@@ -1573,6 +1574,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6476800141292307438">Käännetään sivua kielelle <ph name="LANGUAGE" />. Vaihtoehdot näkyvät näytön alareunan lähellä.</translation>
 <translation id="647867789226964031">Vaihda salasanasi</translation>
 <translation id="6480363549849064919">Asiakassovelluksen todennus</translation>
+<translation id="6489174933860678546">Avaa incognito-välilehtiä, niin voit selata verkkoa yksityisemmin.</translation>
 <translation id="6494931198667773526">Päättyy</translation>
 <translation id="6503077044568424649">Käydyimmät</translation>
 <translation id="6503763061813913607">Turvatarkistusilmoitukset</translation>
@@ -1630,6 +1632,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6640268266988685324">Avaa välilehti</translation>
 <translation id="6641465290890659327">Jaa kopio salasanasta</translation>
 <translation id="6642362222295953972">Siirry aiemmalle välilehdelle</translation>
+<translation id="6643016212128521049">Tyhjennä</translation>
 <translation id="6645899968535965230">QR-koodi: <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">Salasana</translation>
 <translation id="6659660757330712663">Voit siirtyä välilehdestä toiseen pyyhkäisemällä yläpalkkia.</translation>
@@ -1696,6 +1699,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6871397658902960384">Aloita selaaminen</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{Tallenna salasana tilille}other{Tallenna salasanat tilille}}</translation>
 <translation id="6875166646976836138">Voit katsella ja ylläpitää näitä kohteita myös kirjanmerkeissä, lukulistalla tai Salasanoissa.</translation>
+<translation id="6878052248816456143">Voit käyttää Google Drive ‐tiedostoja milloin tahansa.</translation>
 <translation id="6882836635272038266">Perustason suojaus vaaralliseksi tiedettyjä sivustoja, latauksia ja laajennuksia vastaan.</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{Tallenna {COUNT} salasana Google-tilillesi}other{Tallenna {COUNT} salasanaa Google-tilillesi}}</translation>
 <translation id="6888009575607455378">Haluatko varmasti hylätä muutokset?</translation>
@@ -1809,6 +1813,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="7345061034321640811">Tuonti ei ole sallittu</translation>
 <translation id="7347998088283246662">Tuo esimerkiksi salasanat, historia ja kirjanmerkit</translation>
 <translation id="7352651011704765696">Tapahtui jokin virhe</translation>
+<translation id="7363497636543208734">Sovelluksessa siirtyminen on nyt helpompaa.</translation>
 <translation id="7364796246159120393">Valitse tiedosto</translation>
 <translation id="736564850024123010">Personoi kokemusta vaihtamalla osoitepalkin paikkaa.</translation>
 <translation id="7366909168761621528">Selausdata</translation>
@@ -2108,7 +2113,6 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8319282042900445670">Muistutus asetettu: <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Uusimmat tapahtumat</translation>
 <translation id="8325455175867928593">Piilota "Kiinnostuksen kohteisiisi perustuvat arvostelut"</translation>
-<translation id="8328777765163860529">Sulje kaikki</translation>
 <translation id="833647236762414178">Luo, tallenna ja muokkaa salasanoja ja avainkoodeja, jotta voit kirjautua helposti sivustoille ja sovelluksiin. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Varmuuskopioi sisältösi ja käytä sitä millä tahansa laitteella.</translation>
 <translation id="8348530355586151720">Napauta kolmen pisteen valikkoa</translation>
@@ -2163,6 +2167,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8528009254289981965">Avaa muiden sovellusten linkkejä incognito-tilassa</translation>
 <translation id="8529767659511976195">Uusi</translation>
 <translation id="8531572740963685410">PDF-tiedostot</translation>
+<translation id="8532059953132740592">Toista video</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Selaussuoja on päällä</translation>
 <translation id="8534481786647257214">Google+ -viesti julkaistu.</translation>
@@ -2291,6 +2296,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="8915916167043355778">Sulje kaikki</translation>
 <translation id="892185197271200809">Kaikki menettävät heti pääsyn välilehtiryhmään "<ph name="GROUP_NAME" />", ja se poistetaan kaikilta laitteilta</translation>
 <translation id="8923178205567790913">Salasanat</translation>
+<translation id="8926498511977337209">Selaa incognito-tilassa</translation>
 <translation id="892776311701544612">Lue lisää…</translation>
 <translation id="8928133177108699615">Työpöytä</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" />, organisaatiosi hallinnoima, tällä hetkellä valittuna Valitse tili.</translation>

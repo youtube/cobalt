@@ -26,6 +26,7 @@
 #include "api/fec_controller_override.h"
 #include "api/test/video_quality_analyzer_interface.h"
 #include "api/video/encoded_image.h"
+#include "api/video/resolution.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
@@ -422,8 +423,9 @@ QualityAnalyzingVideoEncoderFactory::GetSupportedFormats() const {
 VideoEncoderFactory::CodecSupport
 QualityAnalyzingVideoEncoderFactory::QueryCodecSupport(
     const SdpVideoFormat& format,
-    std::optional<std::string> scalability_mode) const {
-  return delegate_->QueryCodecSupport(format, scalability_mode);
+    std::optional<std::string> scalability_mode,
+    std::optional<Resolution> resolution) const {
+  return delegate_->QueryCodecSupport(format, scalability_mode, resolution);
 }
 
 std::unique_ptr<VideoEncoder> QualityAnalyzingVideoEncoderFactory::Create(

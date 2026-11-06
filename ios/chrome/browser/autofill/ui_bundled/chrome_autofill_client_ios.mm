@@ -45,7 +45,6 @@
 #import "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
-#import "components/plus_addresses/core/browser/plus_address_service.h"
 #import "components/security_state/ios/security_state_utils.h"
 #import "components/sync/service/sync_service.h"
 #import "components/translate/core/browser/translate_manager.h"
@@ -79,7 +78,6 @@
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
-#import "ios/chrome/browser/plus_addresses/model/plus_address_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -95,6 +93,11 @@
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 
 namespace autofill {
+
+// Delay before allowing dismissal of the Save/Update dialog for Autofill AI
+// forms. This allows enough time to show the confirmation checkmark that the
+// user has saved their entity data to Google Wallet.
+const base::TimeDelta kConfirmationDelay = base::Milliseconds(500);
 
 ChromeAutofillClientIOS::ChromeAutofillClientIOS(
     ProfileIOS* profile,
@@ -641,7 +644,14 @@ void ChromeAutofillClientIOS::ShowEntityImportBubble(
 
 void ChromeAutofillClientIOS::CloseEntityImportBubble() {
   // This should be a no-op if the entity import bubble is already closed.
-  [commands_handler_ dismissSaveEntityDialog];
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](__weak id<AutofillCommands> handler) {
+            [handler dismissSaveEntityDialog];
+          },
+          commands_handler_),
+      kConfirmationDelay);
 }
 
 void ChromeAutofillClientIOS::ShowAutofillAiLocalSaveNotification() {

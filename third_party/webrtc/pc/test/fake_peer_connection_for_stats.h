@@ -644,8 +644,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
       std::unique_ptr<ChannelInterface> channel,
       MediaSendChannelInterface* send_channel,
       MediaReceiveChannelInterface* receive_channel) {
+    std::string mid = channel->mid();
     transceiver->SetChannelForTest(
-        std::move(channel), [this](const std::string& mid) {
+        std::move(channel), [this, mid = std::move(mid)]() {
           return transport_controller_->GetRtpTransport(mid);
         });
     RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()

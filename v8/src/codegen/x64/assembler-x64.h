@@ -2689,9 +2689,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsNop(Address addr);
   static bool IsJmpRel(Address addr);
 
-  // Avoid overflows for displacements etc.
-  static constexpr int kMaximalBufferSize = 512 * MB;
-
   uint8_t byte_at(int pos) { return buffer_start_[pos]; }
   void set_byte_at(int pos, uint8_t value) { buffer_start_[pos] = value; }
 

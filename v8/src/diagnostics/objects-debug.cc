@@ -91,6 +91,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
+#include "src/objects/sort-state.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
@@ -101,7 +102,6 @@
 #include "src/regexp/regexp.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/utils/ostreams.h"
-#include "torque-generated/class-verifiers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/base/strings.h"
@@ -136,11 +136,6 @@ namespace internal {
 //
 
 #ifdef VERIFY_HEAP
-
-#define USE_TORQUE_VERIFIER(Class)                                \
-  void Class::Class##Verify(Isolate* isolate) {                   \
-    TorqueGeneratedClassVerifiers::Class##Verify(*this, isolate); \
-  }
 
 // static
 void Object::ObjectVerify(Tagged<Object> obj, Isolate* isolate) {
@@ -471,6 +466,18 @@ void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
   CHECK_EQ(bytecode->wrapper(), this);
 }
 
+void JSReceiver::JSReceiverVerify(Isolate* isolate) {
+  CHECK(IsJSReceiver(this));
+
+  Tagged<JSReceiver::PropertiesOrHash> properties_or_hash =
+      raw_properties_or_hash(kRelaxedLoad);
+  Object::VerifyPointer(isolate, properties_or_hash);
+  CHECK(IsFixedArrayBase(properties_or_hash) || IsSmi(properties_or_hash) ||
+        IsPropertyArray(properties_or_hash) ||
+        IsSwissNameDictionary(properties_or_hash) ||
+        IsGlobalDictionary(properties_or_hash));
+}
+
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
@@ -671,6 +678,21 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
+
+  if (is_extended_map()) {
+    bool handled = false;
+    switch (UncheckedCast<ExtendedMap>(this)->map_kind()) {
+      case ExtendedMapKind::kJSInterceptorMap: {
+        Tagged<JSInterceptorMap> self = UncheckedCast<JSInterceptorMap>(this);
+        Object::VerifyPointer(isolate, self->named_interceptor());
+        Object::VerifyPointer(isolate, self->indexed_interceptor());
+        handled = true;
+        break;
+      }
+    }
+    CHECK(handled);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_struct = InstanceTypeChecker::IsWasmStruct(instance_type());
 #else
@@ -1588,10 +1610,6 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::JSFunctionVerify here because the
-  // Torque class definition contains the field `prototype_or_initial_map` which
-  // may not be allocated.
-
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
   static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
@@ -2326,40 +2344,56 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
   }
 }
 
-void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
+// TODO(42203505): Review and improve the verifiers for the hierarchy of
+// iterator helpers.
+
+void JSIteratorHelper::JSIteratorHelperVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
+}
+
+void JSIteratorHelperSimple::JSIteratorHelperSimpleVerify(Isolate* isolate) {
+  JSIteratorHelperVerify(isolate);
+}
+
+void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
+  JSIteratorHelperSimpleVerify(isolate);
   CHECK(IsCallable(mapper()));
   CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperSimpleVerify(isolate);
   CHECK(IsCallable(predicate()));
   CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperSimpleVerify(isolate);
   CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperSimpleVerify(isolate);
   CHECK_GE(Object::NumberValue(remaining()), 0);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperSimpleVerify(isolate);
   CHECK(IsCallable(mapper()));
   CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
 void JSIteratorConcatHelper::JSIteratorConcatHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperSimpleVerify(isolate);
 }
 
 void JSIteratorZipHelper::JSIteratorZipHelperVerify(Isolate* isolate) {
-  JSObjectVerify(isolate);
+  JSIteratorHelperVerify(isolate);
+}
+
+void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperVerify(
+    Isolate* isolate) {
+  JSIteratorZipHelperVerify(isolate);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -2551,7 +2585,7 @@ void JSPromise::JSPromiseVerify(Isolate* isolate) {
 }
 
 template <typename Derived>
-void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
+void SmallOrderedHashTableImpl<Derived>::SmallOrderedHashTableVerify(
     Isolate* isolate) {
   CHECK(IsSmallOrderedHashTable(*this));
 
@@ -2591,7 +2625,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
 
 void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
   CHECK(IsSmallOrderedHashMap(*this));
-  SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify(
+  SmallOrderedHashTableImpl<SmallOrderedHashMap>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
        entry++) {
@@ -2604,7 +2638,7 @@ void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
 
 void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
   CHECK(IsSmallOrderedHashSet(*this));
-  SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify(
+  SmallOrderedHashTableImpl<SmallOrderedHashSet>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
        entry++) {
@@ -2618,7 +2652,7 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
     Isolate* isolate) {
   CHECK(IsSmallOrderedNameDictionary(*this));
-  SmallOrderedHashTable<
+  SmallOrderedHashTableImpl<
       SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
        entry++) {
@@ -3533,6 +3567,46 @@ void TurbofanOtherNumberConstantType::TurbofanOtherNumberConstantTypeVerify(
   CHECK(IsTurbofanOtherNumberConstantType(this));
 }
 
+void SortState::SortStateVerify(Isolate* isolate) {
+  CHECK(IsSortState(this));
+  Object::VerifyPointer(isolate, receiver_.load());
+  Object::VerifyPointer(isolate, initial_receiver_map_.load());
+  Object::VerifyPointer(isolate, initial_receiver_length_.load());
+  Object::VerifyPointer(isolate, user_cmp_fn_.load());
+  Object::VerifyPointer(isolate, is_reset_to_generic_.load());
+  Object::VerifyPointer(isolate, pending_runs_.load());
+  Object::VerifyPointer(isolate, pending_powers_.load());
+  Object::VerifyPointer(isolate, work_array_.load());
+  Object::VerifyPointer(isolate, temp_array_.load());
+}
+
+void OnHeapBasicBlockProfilerData::OnHeapBasicBlockProfilerDataVerify(
+    Isolate* isolate) {
+  CHECK(IsOnHeapBasicBlockProfilerData(this));
+  Object::VerifyPointer(isolate, block_ids());
+  Object::VerifyPointer(isolate, counts());
+  Object::VerifyPointer(isolate, branches());
+  Object::VerifyPointer(isolate, name());
+  Object::VerifyPointer(isolate, schedule());
+  Object::VerifyPointer(isolate, code());
+  CHECK(IsSmi(hash()));
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+void WasmFastApiCallData::WasmFastApiCallDataVerify(Isolate* isolate) {
+  CHECK(IsWasmFastApiCallData(this));
+  Object::VerifyPointer(isolate, signature());
+  Object::VerifyPointer(isolate, callback_data());
+  Object::VerifyMaybeObjectPointer(isolate, cached_map());
+}
+
+void WasmStringViewIter::WasmStringViewIterVerify(Isolate* isolate) {
+  CHECK(IsWasmStringViewIter(this));
+  Object::VerifyPointer(isolate, string());
+  CHECK(IsString(string()));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
     Isolate* isolate) {
   CHECK(IsStruct(this));
@@ -4113,8 +4187,6 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       });
   return success;
 }
-
-#undef USE_TORQUE_VERIFIER
 
 #endif  // DEBUG
 

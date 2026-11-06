@@ -20,25 +20,34 @@
 use std::{
     io,
     os::{
-        fd::{AsRawFd, RawFd},
-        unix::net::UnixDatagram,
+        fd::{
+            AsRawFd,
+            RawFd, //
+        },
+        unix::net::UnixDatagram, //
     },
-    task::{Context, Poll},
+    task::{
+        Context,
+        Poll, //
+    }, //
 };
 
-#[cfg(feature = "tokio_net")]
-pub use crate::io::tokio::TokioIo;
-#[cfg(feature = "tokio_net")]
-pub use tokio_impl::TokioOverFd;
+#[cfg(feature = "libc")]
+use crate::ffi::{
+    mut_slice_into_ffi_raw_parts,
+    slice_into_ffi_raw_parts, //
+};
+use crate::io::stdio::{
+    DatagramSocket,
+    PollFor, //
+};
 
-use crate::ffi::{mut_slice_into_ffi_raw_parts, slice_into_ffi_raw_parts};
-use crate::io::stdio::{DatagramSocket, PollFor};
-use crate::io::sync_io::translate_stdio_err;
-
-use super::{AbstractReader, AbstractSocket, AbstractSocketResult, AbstractWriter};
-
-#[cfg(feature = "tokio_net")]
-mod tokio_impl;
+use super::{
+    AbstractReader,
+    AbstractSocket,
+    AbstractSocketResult,
+    AbstractWriter, //
+};
 
 // ============
 // Datagrams

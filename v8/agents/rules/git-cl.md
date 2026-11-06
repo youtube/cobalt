@@ -35,6 +35,12 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - Once associated (or if using current), fetch comments using `git cl comments`.
   - Note: If you have access to a dedicated tool for reviewing comments (e.g., a Gerrit MCP tool), prefer using that instead of `git cl comments`.
 
+## Stacked CL Workflow
+When working on a chain of dependent changes (stacked CLs):
+*   **Upstream Configuration**: Set the upstream of a child branch to its parent branch (e.g., `git branch --set-upstream-to=parent-branch`). The base branch at the bottom of the stack tracks `origin/main`.
+*   **Rebasing**: When the parent branch changes, rebase the child branch on top of the updated parent.
+*   **Unique Change-Ids**: Ensure each CL in the stack has a unique `Change-Id`. Make sure to remove `Change-Id` from commit messages of new CLs.
+
 ## Helpful Commands
 - Use `git cl patch <CL_NUMBER>` to fetch and checkout the latest patchset of a CL.
 - Use `git cl land` to land the CL after approval.

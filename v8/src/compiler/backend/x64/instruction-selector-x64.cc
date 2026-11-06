@@ -4822,6 +4822,19 @@ void InstructionSelector::VisitF32x8Splat(OpIndex node) {
 #endif
 }
 
+void InstructionSelector::VisitF16x16Splat(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  X64OperandGenerator g(this);
+  const Simd256SplatOp& op = Cast<Simd256SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(kX64FSplat | LaneSizeField::encode(LaneSize::kL16) |
+           VectorLengthField::encode(kV256),
+       g.DefineAsRegister(node), g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
+}
+
 #define SIMD_VISIT_EXTRACT_LANE(IF, Type, Sign, LaneSize, VectorLength)    \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(OpIndex node) { \
     X64OperandGenerator g(this);                                           \

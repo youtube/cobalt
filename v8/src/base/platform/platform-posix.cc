@@ -1487,6 +1487,9 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 #endif  // V8_OS_ZOS
 }
 
+#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
+        // !defined(_AIX) && !defined(V8_OS_SOLARIS)
+
 // static
 void Stack::SaveStackLimit() { UNREACHABLE(); }
 
@@ -1495,9 +1498,6 @@ Stack::StackSlot Stack::GetStackLimit() { UNREACHABLE(); }
 
 // static
 void Stack::SetCurrentThreadStackBounds(uintptr_t, uintptr_t) { UNREACHABLE(); }
-
-#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
-        // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static
 Stack::StackSlot Stack::GetCurrentStackPosition() {

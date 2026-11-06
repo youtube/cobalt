@@ -10,6 +10,7 @@
 #include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
@@ -27,6 +28,7 @@
 #include "components/viz/common/surfaces/subtree_capture_id.h"
 #include "components/viz/common/surfaces/surface_info.h"
 #include "components/viz/common/surfaces/surface_range.h"
+#include "components/viz/common/view_transition_element_resource_id.h"
 #include "components/viz/test/begin_frame_args_test.h"
 #include "components/viz/test/compositor_frame_helpers.h"
 #include "gpu/ipc/common/mailbox_mojom_traits.h"
@@ -52,6 +54,7 @@
 #include "services/viz/public/cpp/compositing/surface_id_mojom_traits.h"
 #include "services/viz/public/cpp/compositing/surface_info_mojom_traits.h"
 #include "services/viz/public/cpp/compositing/transferable_resource_mojom_traits.h"
+#include "services/viz/public/cpp/compositing/view_transition_element_resource_id_mojom_traits.h"
 #include "services/viz/public/mojom/compositing/begin_frame_args.mojom.h"
 #include "services/viz/public/mojom/compositing/compositor_frame.mojom.h"
 #include "services/viz/public/mojom/compositing/filter_operation.mojom.h"
@@ -65,6 +68,7 @@
 #include "skia/public/mojom/bitmap_skbitmap_mojom_traits.h"
 #include "skia/public/mojom/tile_mode_mojom_traits.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -1619,5 +1623,572 @@ TEST_F(StructTraitsTest, TreesInVizBadTimestampOrderTest) {
   EXPECT_FALSE(mojo::test::SerializeAndDeserialize<mojom::TreesInVizTiming>(
       timestamps, out));
 }
+
+namespace {
+
+auto AnyTimeTicks() {
+  return fuzztest::Map(
+      [](int64_t micros) {
+        return base::TimeTicks() + base::Microseconds(micros);
+      },
+      fuzztest::Arbitrary<int64_t>());
+}
+
+auto AnyTimeDelta() {
+  return fuzztest::Map(
+      [](int64_t micros) { return base::Microseconds(micros); },
+      fuzztest::Arbitrary<int64_t>());
+}
+
+auto AnyBeginFrameId() {
+  return fuzztest::ConstructorOf<BeginFrameId>(fuzztest::Arbitrary<uint64_t>(),
+                                               fuzztest::Arbitrary<uint64_t>());
+}
+
+auto AnyBeginFrameAck() {
+  return fuzztest::ConstructorOf<BeginFrameAck>(
+      /*source_id=*/fuzztest::Arbitrary<uint64_t>(),
+      /*sequence_number=*/
+      fuzztest::InRange<uint64_t>(1, std::numeric_limits<uint64_t>::max()),
+      /*has_damage=*/fuzztest::Arbitrary<bool>(),
+      /*trace_id=*/fuzztest::Arbitrary<int64_t>());
+}
+
+auto AnyBeginFrameArgs() {
+  return fuzztest::Map(
+      [](base::TimeTicks frame_time, base::TimeTicks deadline,
+         base::TimeDelta interval, base::TimeDelta unthrottled_interval,
+         BeginFrameId frame_id, int64_t trace_id, base::TimeTicks dispatch_time,
+         base::TimeTicks client_arrival_time,
+         BeginFrameArgs::BeginFrameArgsType type, bool on_critical_path,
+         bool animate_only, uint64_t frames_throttled_since_last) {
+        BeginFrameArgs args;
+        args.frame_time = frame_time;
+        args.deadline = deadline;
+        args.interval = interval;
+        args.unthrottled_interval = unthrottled_interval;
+        args.frame_id = frame_id;
+        args.trace_id = trace_id;
+        args.dispatch_time = dispatch_time;
+        args.client_arrival_time = client_arrival_time;
+        args.type = type;
+        args.on_critical_path = on_critical_path;
+        args.animate_only = animate_only;
+        args.frames_throttled_since_last = frames_throttled_since_last;
+        return args;
+      },
+      AnyTimeTicks(), AnyTimeTicks(), AnyTimeDelta(), AnyTimeDelta(),
+      AnyBeginFrameId(), fuzztest::Arbitrary<int64_t>(), AnyTimeTicks(),
+      AnyTimeTicks(),
+      fuzztest::ElementOf({BeginFrameArgs::INVALID, BeginFrameArgs::NORMAL,
+                           BeginFrameArgs::MISSED}),
+      fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<bool>(),
+      fuzztest::Arbitrary<uint64_t>());
+}
+
+void BeginFrameArgsFuzz(const BeginFrameArgs& input) {
+  BeginFrameArgs output;
+  mojo::test::SerializeAndDeserialize<mojom::BeginFrameArgs>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, BeginFrameArgsFuzz)
+    .WithDomains(AnyBeginFrameArgs());
+
+void BeginFrameAckFuzz(const BeginFrameAck& input) {
+  BeginFrameAck output;
+  mojo::test::SerializeAndDeserialize<mojom::BeginFrameAck>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, BeginFrameAckFuzz).WithDomains(AnyBeginFrameAck());
+
+void BeginFrameAckAsValueFuzz(const BeginFrameAck& input) {
+  base::trace_event::TracedValue dict;
+  input.AsValueInto(&dict);
+}
+FUZZ_TEST(StructTraitsTest, BeginFrameAckAsValueFuzz)
+    .WithDomains(AnyBeginFrameAck());
+
+auto AnyFrameSinkId() {
+  return fuzztest::ConstructorOf<FrameSinkId>(fuzztest::Arbitrary<uint32_t>(),
+                                              fuzztest::Arbitrary<uint32_t>());
+}
+
+auto AnyUnguessableToken() {
+  return fuzztest::Map(
+      [](uint64_t high, uint64_t low) {
+        return base::UnguessableToken::Deserialize(high, low).value_or(
+            base::UnguessableToken::Create());
+      },
+      fuzztest::Arbitrary<uint64_t>(), fuzztest::Arbitrary<uint64_t>());
+}
+
+auto AnyLocalSurfaceId() {
+  return fuzztest::ConstructorOf<LocalSurfaceId>(
+      fuzztest::Arbitrary<uint32_t>(), fuzztest::Arbitrary<uint32_t>(),
+      AnyUnguessableToken());
+}
+
+auto AnySurfaceId() {
+  return fuzztest::ConstructorOf<SurfaceId>(AnyFrameSinkId(),
+                                            AnyLocalSurfaceId());
+}
+
+void SurfaceIdFuzz(const SurfaceId& input) {
+  SurfaceId output;
+  mojo::test::SerializeAndDeserialize<mojom::SurfaceId>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SurfaceIdFuzz).WithDomains(AnySurfaceId());
+
+void FrameSinkIdFuzz(const FrameSinkId& input) {
+  FrameSinkId output;
+  mojo::test::SerializeAndDeserialize<mojom::FrameSinkId>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, FrameSinkIdFuzz).WithDomains(AnyFrameSinkId());
+
+void LocalSurfaceIdFuzz(const LocalSurfaceId& input) {
+  LocalSurfaceId output;
+  mojo::test::SerializeAndDeserialize<mojom::LocalSurfaceId>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, LocalSurfaceIdFuzz)
+    .WithDomains(AnyLocalSurfaceId());
+
+auto AnySurfaceRange() {
+  return fuzztest::ConstructorOf<SurfaceRange>(
+      fuzztest::OptionalOf(AnySurfaceId()), AnySurfaceId());
+}
+
+void SurfaceRangeFuzz(const SurfaceRange& input) {
+  SurfaceRange output;
+  mojo::test::SerializeAndDeserialize<mojom::SurfaceRange>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SurfaceRangeFuzz)
+    .WithDomains(
+        fuzztest::Filter([](const SurfaceRange& r) { return r.IsValid(); },
+                         AnySurfaceRange()));
+
+auto AnyPoint() {
+  return fuzztest::ConstructorOf<gfx::Point>(fuzztest::Arbitrary<int>(),
+                                             fuzztest::Arbitrary<int>());
+}
+
+auto AnyRect() {
+  return fuzztest::ConstructorOf<gfx::Rect>(
+      fuzztest::Arbitrary<int>(), fuzztest::Arbitrary<int>(),
+      fuzztest::InRange(0, 10000), fuzztest::InRange(0, 10000));
+}
+auto AnySkColor4f() {
+  return fuzztest::Map(
+      [](float r, float g, float b, float a) { return SkColor4f{r, g, b, a}; },
+      fuzztest::Arbitrary<float>(), fuzztest::Arbitrary<float>(),
+      fuzztest::Arbitrary<float>(), fuzztest::Arbitrary<float>());
+}
+
+auto AnyFilterOperation() {
+  return fuzztest::OneOf(
+      fuzztest::Map(cc::FilterOperation::CreateGrayscaleFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateSepiaFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateSaturateFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateHueRotateFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateInvertFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateBrightnessFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateContrastFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateOpacityFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(
+          cc::FilterOperation::CreateBlurFilter, fuzztest::Arbitrary<float>(),
+          fuzztest::ElementOf({SkTileMode::kClamp, SkTileMode::kRepeat,
+                               SkTileMode::kMirror, SkTileMode::kDecal})),
+      fuzztest::Map(cc::FilterOperation::CreateDropShadowFilter, AnyPoint(),
+                    fuzztest::Arbitrary<float>(), AnySkColor4f()),
+      fuzztest::Map(cc::FilterOperation::CreateColorMatrixFilter,
+                    fuzztest::Arbitrary<cc::FilterOperation::Matrix>()),
+      fuzztest::Map(cc::FilterOperation::CreateZoomFilter,
+                    fuzztest::Arbitrary<float>(), fuzztest::Arbitrary<int>()),
+      fuzztest::Map(cc::FilterOperation::CreateReferenceFilter,
+                    fuzztest::Just<sk_sp<cc::PaintFilter>>(nullptr)),
+      fuzztest::Map(cc::FilterOperation::CreateSaturatingBrightnessFilter,
+                    fuzztest::Arbitrary<float>()),
+      fuzztest::Map(cc::FilterOperation::CreateAlphaThresholdFilter,
+                    fuzztest::VectorOf(AnyRect())),
+      fuzztest::Map(cc::FilterOperation::CreateOffsetFilter, AnyPoint()));
+}
+
+auto AnyFilterOperations() {
+  return fuzztest::Map(
+      [](std::vector<cc::FilterOperation> operations) {
+        return cc::FilterOperations(std::move(operations));
+      },
+      fuzztest::VectorOf(AnyFilterOperation()));
+}
+
+void FilterOperationFuzz(const cc::FilterOperation& input) {
+  cc::FilterOperation output;
+  mojo::test::SerializeAndDeserialize<mojom::FilterOperation>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, FilterOperationFuzz)
+    .WithDomains(AnyFilterOperation());
+
+void FilterOperationsFuzz(const cc::FilterOperations& input) {
+  cc::FilterOperations output;
+  mojo::test::SerializeAndDeserialize<mojom::FilterOperations>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, FilterOperationsFuzz)
+    .WithDomains(AnyFilterOperations());
+
+auto AnyPointF() {
+  return fuzztest::ConstructorOf<gfx::PointF>(fuzztest::Arbitrary<float>(),
+                                              fuzztest::Arbitrary<float>());
+}
+
+auto AnySelectionBound() {
+  return fuzztest::Map(
+      [](gfx::SelectionBound::Type type, gfx::PointF edge_start,
+         gfx::PointF edge_end, bool visible) {
+        gfx::SelectionBound bound;
+        bound.set_type(type);
+        bound.SetEdge(edge_start, edge_end);
+        bound.set_visible(visible);
+        return bound;
+      },
+      fuzztest::ElementOf(
+          {gfx::SelectionBound::LEFT, gfx::SelectionBound::RIGHT,
+           gfx::SelectionBound::CENTER, gfx::SelectionBound::EMPTY}),
+      AnyPointF(), AnyPointF(), fuzztest::Arbitrary<bool>());
+}
+
+auto AnySelection() {
+  return fuzztest::Map(
+      [](const gfx::SelectionBound& start, const gfx::SelectionBound& end) {
+        Selection<gfx::SelectionBound> selection;
+        selection.start = start;
+        selection.end = end;
+        return selection;
+      },
+      AnySelectionBound(), AnySelectionBound());
+}
+
+void SelectionFuzz(const Selection<gfx::SelectionBound>& input) {
+  Selection<gfx::SelectionBound> output;
+  mojo::test::SerializeAndDeserialize<mojom::Selection>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SelectionFuzz).WithDomains(AnySelection());
+
+auto AnySharedQuadState() {
+  return fuzztest::Map(
+      [](const gfx::Rect& quad_layer_rect,
+         const gfx::Rect& visible_quad_layer_rect,
+         const std::optional<gfx::Rect>& clip_rect, bool are_contents_opaque,
+         float opacity, int sorting_context_id, uint32_t layer_id,
+         bool is_fast_rounded_corner) {
+        SharedQuadState sqs;
+        sqs.SetAll(gfx::Transform(), quad_layer_rect, visible_quad_layer_rect,
+                   gfx::MaskFilterInfo(), clip_rect, are_contents_opaque,
+                   opacity, SkBlendMode::kSrcOver, sorting_context_id, layer_id,
+                   is_fast_rounded_corner);
+        return sqs;
+      },
+      AnyRect(), AnyRect(), fuzztest::OptionalOf(AnyRect()),
+      fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<float>(),
+      fuzztest::Arbitrary<int>(), fuzztest::Arbitrary<uint32_t>(),
+      fuzztest::Arbitrary<bool>());
+}
+
+void SharedQuadStateFuzz(const SharedQuadState& input) {
+  SharedQuadState output;
+  mojo::test::SerializeAndDeserialize<mojom::SharedQuadState>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SharedQuadStateFuzz)
+    .WithDomains(AnySharedQuadState());
+
+auto AnyCompositorFrameTransitionDirective() {
+  return fuzztest::Map(
+      [](uint32_t sequence_id, bool maybe_cross_frame_sink) {
+        blink::ViewTransitionToken transition_token;
+        return CompositorFrameTransitionDirective::CreateSave(
+            transition_token, maybe_cross_frame_sink, sequence_id, {}, {},
+            false);
+      },
+      fuzztest::Arbitrary<uint32_t>(), fuzztest::Arbitrary<bool>());
+}
+
+void CompositorFrameTransitionDirectiveFuzz(
+    const CompositorFrameTransitionDirective& input) {
+  CompositorFrameTransitionDirective output;
+  mojo::test::SerializeAndDeserialize<
+      mojom::CompositorFrameTransitionDirective>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, CompositorFrameTransitionDirectiveFuzz)
+    .WithDomains(AnyCompositorFrameTransitionDirective());
+
+auto AnyCompositorFrame() {
+  return fuzztest::Map(
+      [](float device_scale_factor) {
+        auto frame = CompositorFrameBuilder().AddDefaultRenderPass().Build();
+        frame.metadata.device_scale_factor = device_scale_factor;
+        return frame;
+      },
+      fuzztest::Positive<float>());
+}
+
+void CompositorFrameFuzz(const CompositorFrame& input) {
+  CompositorFrame output;
+  mojo::test::SerializeAndDeserialize<mojom::CompositorFrame>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, CompositorFrameFuzz)
+    .WithDomains(AnyCompositorFrame());
+
+auto AnyViewTransitionElementResourceId() {
+  return fuzztest::Map(
+      [](uint64_t high, uint64_t low, uint32_t local_id,
+         bool for_scope_snapshot) {
+        return ViewTransitionElementResourceId(
+            blink::ViewTransitionToken(
+                base::UnguessableToken::Deserialize(high, low).value_or(
+                    base::UnguessableToken::Create())),
+            local_id, for_scope_snapshot);
+      },
+      fuzztest::Arbitrary<uint64_t>(), fuzztest::Arbitrary<uint64_t>(),
+      fuzztest::InRange<uint32_t>(1, std::numeric_limits<uint32_t>::max()),
+      fuzztest::Arbitrary<bool>());
+}
+void ViewTransitionElementResourceIdFuzz(
+    const ViewTransitionElementResourceId& input) {
+  ViewTransitionElementResourceId output;
+  mojo::test::SerializeAndDeserialize<mojom::ViewTransitionElementResourceId>(
+      input, output);
+}
+FUZZ_TEST(StructTraitsTest, ViewTransitionElementResourceIdFuzz)
+    .WithDomains(AnyViewTransitionElementResourceId());
+
+auto AnySurfaceInfo() {
+  return fuzztest::Map(
+      [](const SurfaceId& id, float device_scale_factor, int w, int h) {
+        return SurfaceInfo(id, device_scale_factor, gfx::Size(w, h));
+      },
+      AnySurfaceId(), fuzztest::Positive<float>(), fuzztest::InRange(1, 10000),
+      fuzztest::InRange(1, 10000));
+}
+void SurfaceInfoFuzz(const SurfaceInfo& input) {
+  SurfaceInfo output;
+  mojo::test::SerializeAndDeserialize<mojom::SurfaceInfo>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SurfaceInfoFuzz)
+    .WithDomains(fuzztest::Filter(
+        [](const SurfaceInfo& info) { return info.is_valid(); },
+        AnySurfaceInfo()));
+
+auto AnyReturnedResource() {
+  return fuzztest::Map(
+      [](uint32_t id, int count, bool lost) {
+        ReturnedResource res;
+        res.id = ResourceId(id);
+        res.count = count;
+        res.lost = lost;
+        return res;
+      },
+      fuzztest::InRange<uint32_t>(1, 1000000), fuzztest::Arbitrary<int>(),
+      fuzztest::Arbitrary<bool>());
+}
+void ReturnedResourceFuzz(const ReturnedResource& input) {
+  ReturnedResource output;
+  mojo::test::SerializeAndDeserialize<mojom::ReturnedResource>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, ReturnedResourceFuzz)
+    .WithDomains(AnyReturnedResource());
+
+auto AnyCompositorFrameMetadata() {
+  return fuzztest::Map(
+      [](float device_scale_factor, const gfx::PointF& root_scroll_offset,
+         float page_scale_factor, uint32_t frame_token) {
+        CompositorFrameMetadata metadata;
+        metadata.device_scale_factor = device_scale_factor;
+        metadata.root_scroll_offset = root_scroll_offset;
+        metadata.page_scale_factor = page_scale_factor;
+        metadata.frame_token = frame_token;
+        return metadata;
+      },
+      fuzztest::Positive<float>(), AnyPointF(), fuzztest::Arbitrary<float>(),
+      fuzztest::InRange<uint32_t>(1, std::numeric_limits<uint32_t>::max()));
+}
+void CompositorFrameMetadataFuzz(const CompositorFrameMetadata& input) {
+  CompositorFrameMetadata output;
+  mojo::test::SerializeAndDeserialize<mojom::CompositorFrameMetadata>(input,
+                                                                      output);
+}
+FUZZ_TEST(StructTraitsTest, CompositorFrameMetadataFuzz)
+    .WithDomains(AnyCompositorFrameMetadata());
+
+auto AnyCompositorRenderPass() {
+  return fuzztest::Map(
+      [](uint64_t id, const gfx::Rect& output_rect) {
+        auto pass = CompositorRenderPass::Create();
+        pass->SetNew(CompositorRenderPassId(id), output_rect, output_rect,
+                     gfx::Transform());
+        return pass;
+      },
+      fuzztest::InRange<uint64_t>(1, std::numeric_limits<uint64_t>::max()),
+      AnyRect());
+}
+void CompositorRenderPassFuzz(
+    const std::unique_ptr<CompositorRenderPass>& input) {
+  std::unique_ptr<CompositorRenderPass> output;
+  mojo::test::SerializeAndDeserialize<mojom::CompositorRenderPass>(input,
+                                                                   output);
+}
+FUZZ_TEST(StructTraitsTest, CompositorRenderPassFuzz)
+    .WithDomains(AnyCompositorRenderPass());
+
+auto AnyOffsetTag() {
+  return fuzztest::Map(
+      [](uint64_t high, uint64_t low) {
+        return OffsetTag(base::Token(high, low));
+      },
+      fuzztest::Arbitrary<uint64_t>(), fuzztest::Arbitrary<uint64_t>());
+}
+
+void OffsetTagFuzz(const OffsetTag& input) {
+  OffsetTag output;
+  mojo::test::SerializeAndDeserialize<mojom::OffsetTag>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, OffsetTagFuzz).WithDomains(AnyOffsetTag());
+
+auto AnyVector2dF() {
+  return fuzztest::ConstructorOf<gfx::Vector2dF>(fuzztest::Arbitrary<float>(),
+                                                 fuzztest::Arbitrary<float>());
+}
+
+auto AnyOffsetTagValue() {
+  return fuzztest::Map(
+      [](const OffsetTag& tag, const gfx::Vector2dF& offset) {
+        return OffsetTagValue{tag, offset};
+      },
+      AnyOffsetTag(), AnyVector2dF());
+}
+
+void OffsetTagValueFuzz(const OffsetTagValue& input) {
+  OffsetTagValue output;
+  mojo::test::SerializeAndDeserialize<mojom::OffsetTagValue>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, OffsetTagValueFuzz)
+    .WithDomains(fuzztest::Filter(
+        [](const OffsetTagValue& value) { return value.IsValid(); },
+        AnyOffsetTagValue()));
+
+auto AnyOffsetTagConstraints() {
+  return fuzztest::Map(
+      [](float min_x, float max_x, float min_y, float max_y) {
+        return OffsetTagConstraints(min_x, max_x, min_y, max_y);
+      },
+      fuzztest::NonPositive<float>(), fuzztest::NonNegative<float>(),
+      fuzztest::NonPositive<float>(), fuzztest::NonNegative<float>());
+}
+auto AnyOffsetTagDefinition() {
+  return fuzztest::Map(
+      [](const OffsetTag& tag, const SurfaceRange& provider,
+         const OffsetTagConstraints& constraints) {
+        return OffsetTagDefinition(tag, provider, constraints);
+      },
+      AnyOffsetTag(), AnySurfaceRange(), AnyOffsetTagConstraints());
+}
+
+void OffsetTagDefinitionFuzz(const OffsetTagDefinition& input) {
+  OffsetTagDefinition output;
+  mojo::test::SerializeAndDeserialize<mojom::OffsetTagDefinition>(input,
+                                                                  output);
+}
+FUZZ_TEST(StructTraitsTest, OffsetTagDefinitionFuzz)
+    .WithDomains(fuzztest::Filter(
+        [](const OffsetTagDefinition& def) { return def.IsValid(); },
+        AnyOffsetTagDefinition()));
+
+auto AnySharedImageFormat() {
+  return fuzztest::Map(
+      [](bool is_single, uint8_t pc, uint8_t sub, uint8_t cf) {
+        if (is_single) {
+          return SharedImageFormat(SinglePlaneFormat::kRGBA_8888);
+        } else {
+          return SharedImageFormat::MultiPlane(
+              static_cast<SharedImageFormat::PlaneConfig>(pc % 5),
+              static_cast<SharedImageFormat::Subsampling>(sub % 3),
+              static_cast<SharedImageFormat::ChannelFormat>(cf % 4));
+        }
+      },
+      fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<uint8_t>(),
+      fuzztest::Arbitrary<uint8_t>(), fuzztest::Arbitrary<uint8_t>());
+}
+
+void SharedImageFormatFuzz(const SharedImageFormat& input) {
+  SharedImageFormat output;
+  mojo::test::SerializeAndDeserialize<mojom::SharedImageFormat>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, SharedImageFormatFuzz)
+    .WithDomains(AnySharedImageFormat());
+
+auto AnyTransferableResource() {
+  return fuzztest::Map(
+      [](uint32_t id) {
+        TransferableResource res;
+        res.id = ResourceId(id);
+        res.set_shared_image(gpu::ClientSharedImage::CreateForTesting());
+        return res;
+      },
+      fuzztest::InRange<uint32_t>(1, 1000000));
+}
+void TransferableResourceFuzz(const TransferableResource& input) {
+  TransferableResource output;
+  mojo::test::SerializeAndDeserialize<mojom::TransferableResource>(input,
+                                                                   output);
+}
+FUZZ_TEST(StructTraitsTest, TransferableResourceFuzz)
+    .WithDomains(AnyTransferableResource());
+
+auto AnyCopyOutputResult() {
+  return fuzztest::Map(
+      [](CopyOutputResult::Destination destination,
+         CopyOutputResult::Error error) {
+        return std::make_unique<CopyOutputResult>(
+            CopyOutputResult::Format::RGBA, destination, error);
+      },
+      fuzztest::ElementOf({CopyOutputResult::Destination::kSystemMemory,
+                           CopyOutputResult::Destination::kSharedImage}),
+      fuzztest::ElementOf({CopyOutputResult::Error::kUnknown,
+                           CopyOutputResult::Error::kTimeout,
+                           CopyOutputResult::Error::kNone}));
+}
+
+void CopyOutputResultFuzz(const std::unique_ptr<CopyOutputResult>& input) {
+  std::unique_ptr<CopyOutputResult> output;
+  mojo::test::SerializeAndDeserialize<mojom::CopyOutputResult>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, CopyOutputResultFuzz)
+    .WithDomains(AnyCopyOutputResult());
+
+auto AnyTreesInVizTiming() {
+  return fuzztest::Map(
+      [](const base::TimeTicks t1, const base::TimeTicks t2,
+         const base::TimeTicks t3, const base::TimeTicks t4) {
+        TreesInVizTiming timing;
+        timing.start_update_display_tree = t1;
+        timing.start_prepare_to_draw = t2;
+        timing.start_draw_layers = t3;
+        timing.submit_compositor_frame = t4;
+        return timing;
+      },
+      AnyTimeTicks(), AnyTimeTicks(), AnyTimeTicks(), AnyTimeTicks());
+}
+
+void TreesInVizTimingFuzz(const TreesInVizTiming& input) {
+  TreesInVizTiming output;
+  mojo::test::SerializeAndDeserialize<mojom::TreesInVizTiming>(input, output);
+}
+FUZZ_TEST(StructTraitsTest, TreesInVizTimingFuzz)
+    .WithDomains(AnyTreesInVizTiming());
+
+}  // namespace
 
 }  // namespace viz

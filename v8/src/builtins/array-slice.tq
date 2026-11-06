@@ -19,10 +19,10 @@ macro HandleSimpleArgumentsSlice(
   }
 
 
-  const end: Smi = start + count;
+  const end: intptr = SmiUntag(start) + SmiUntag(count);
   const sourceElements: FixedArray =
       Cast<FixedArray>(args.elements) otherwise Bailout;
-  if (Convert<intptr>(end) > sourceElements.length_intptr) goto Bailout;
+  if (end > sourceElements.length_intptr) goto Bailout;
 
   const arrayMap: Map =
       LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
@@ -53,7 +53,7 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   // Check to make sure that the extraction will not access outside the
   // defined arguments
-  const end: intptr = Convert<intptr>(start + count);
+  const end: intptr = SmiUntag(start) + SmiUntag(count);
   const unmappedElements: FixedArray =
       Cast<FixedArray>(sloppyElements.arguments)
       otherwise Bailout;

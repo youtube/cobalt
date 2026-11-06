@@ -656,29 +656,29 @@ OrderedNameDictionary::FindEntry(LocalIsolate* isolate, Tagged<Object> key);
 
 template <>
 Handle<SmallOrderedHashSet>
-SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation) {
   return isolate->factory()->NewSmallOrderedHashSet(capacity, allocation);
 }
 
 template <>
 Handle<SmallOrderedHashMap>
-SmallOrderedHashTable<SmallOrderedHashMap>::Allocate(
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation) {
   return isolate->factory()->NewSmallOrderedHashMap(capacity, allocation);
 }
 
 template <>
 Handle<SmallOrderedNameDictionary>
-SmallOrderedHashTable<SmallOrderedNameDictionary>::Allocate(
+SmallOrderedHashTableImpl<SmallOrderedNameDictionary>::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation) {
   return isolate->factory()->NewSmallOrderedNameDictionary(capacity,
                                                            allocation);
 }
 
 template <class Derived>
-void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
-                                                int capacity) {
+void SmallOrderedHashTableImpl<Derived>::Initialize(Isolate* isolate,
+                                                    int capacity) {
   DisallowGarbageCollection no_gc;
   int num_buckets = capacity / kLoadFactor;
   int num_chains = capacity;
@@ -752,12 +752,12 @@ MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
 bool SmallOrderedHashSet::Delete(Isolate* isolate,
                                  Tagged<SmallOrderedHashSet> table,
                                  Tagged<Object> key) {
-  return SmallOrderedHashTable<SmallOrderedHashSet>::Delete(isolate, table,
-                                                            key);
+  return SmallOrderedHashTableImpl<SmallOrderedHashSet>::Delete(isolate, table,
+                                                                key);
 }
 
 bool SmallOrderedHashSet::HasKey(Isolate* isolate, DirectHandle<Object> key) {
-  return SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(isolate, key);
+  return SmallOrderedHashTableImpl<SmallOrderedHashSet>::HasKey(isolate, key);
 }
 
 MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
@@ -798,17 +798,17 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
 bool SmallOrderedHashMap::Delete(Isolate* isolate,
                                  Tagged<SmallOrderedHashMap> table,
                                  Tagged<Object> key) {
-  return SmallOrderedHashTable<SmallOrderedHashMap>::Delete(isolate, table,
-                                                            key);
+  return SmallOrderedHashTableImpl<SmallOrderedHashMap>::Delete(isolate, table,
+                                                                key);
 }
 
 bool SmallOrderedHashMap::HasKey(Isolate* isolate, DirectHandle<Object> key) {
-  return SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(isolate, key);
+  return SmallOrderedHashTableImpl<SmallOrderedHashMap>::HasKey(isolate, key);
 }
 
 template <>
 InternalIndex V8_EXPORT_PRIVATE
-SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
+SmallOrderedHashTableImpl<SmallOrderedNameDictionary>::FindEntry(
     Isolate* isolate, Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsUniqueName(key));
@@ -886,16 +886,16 @@ void SmallOrderedNameDictionary::SetEntry(InternalIndex entry,
 }
 
 template <class Derived>
-bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
-                                            DirectHandle<Object> key) {
+bool SmallOrderedHashTableImpl<Derived>::HasKey(Isolate* isolate,
+                                                DirectHandle<Object> key) {
   DisallowGarbageCollection no_gc;
   return FindEntry(isolate, *key).is_found();
 }
 
 template <class Derived>
-bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate,
-                                            Tagged<Derived> table,
-                                            Tagged<Object> key) {
+bool SmallOrderedHashTableImpl<Derived>::Delete(Isolate* isolate,
+                                                Tagged<Derived> table,
+                                                Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
   InternalIndex entry = table->FindEntry(isolate, key);
   if (entry.is_not_found()) return false;
@@ -933,12 +933,11 @@ Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::DeleteEntry(
 }
 
 template <class Derived>
-Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
-                                                       Handle<Derived> table,
-                                                       int new_capacity) {
+Handle<Derived> SmallOrderedHashTableImpl<Derived>::Rehash(
+    Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK_GE(kMaxCapacity, new_capacity);
 
-  Handle<Derived> new_table = SmallOrderedHashTable<Derived>::Allocate(
+  Handle<Derived> new_table = SmallOrderedHashTableImpl<Derived>::Allocate(
       isolate, new_capacity,
       HeapLayout::InYoungGeneration(*table) ? AllocationType::kYoung
                                             : AllocationType::kOld);
@@ -972,29 +971,29 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
 
 Handle<SmallOrderedHashSet> SmallOrderedHashSet::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity) {
-  return SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(isolate, table,
-                                                            new_capacity);
+  return SmallOrderedHashTableImpl<SmallOrderedHashSet>::Rehash(isolate, table,
+                                                                new_capacity);
 }
 
 Handle<SmallOrderedHashMap> SmallOrderedHashMap::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity) {
-  return SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(isolate, table,
-                                                            new_capacity);
+  return SmallOrderedHashTableImpl<SmallOrderedHashMap>::Rehash(isolate, table,
+                                                                new_capacity);
 }
 
 Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Rehash(
     Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
     int new_capacity) {
   Handle<SmallOrderedNameDictionary> new_table =
-      SmallOrderedHashTable<SmallOrderedNameDictionary>::Rehash(isolate, table,
-                                                                new_capacity);
+      SmallOrderedHashTableImpl<SmallOrderedNameDictionary>::Rehash(
+          isolate, table, new_capacity);
   new_table->SetHash(table->Hash());
   return new_table;
 }
 
 template <class Derived>
-Handle<Derived> SmallOrderedHashTable<Derived>::Shrink(Isolate* isolate,
-                                                       Handle<Derived> table) {
+Handle<Derived> SmallOrderedHashTableImpl<Derived>::Shrink(
+    Isolate* isolate, Handle<Derived> table) {
   int nof = table->NumberOfElements();
   int capacity = table->Capacity();
   if (nof >= (capacity >> 2)) return table;
@@ -1002,7 +1001,7 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Shrink(Isolate* isolate,
 }
 
 template <class Derived>
-MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
+MaybeHandle<Derived> SmallOrderedHashTableImpl<Derived>::Grow(
     Isolate* isolate, Handle<Derived> table) {
   int capacity = table->Capacity();
   int new_capacity = capacity;
@@ -1029,8 +1028,8 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
 }
 
 template <class Derived>
-InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
-                                                        Tagged<Object> key) {
+InternalIndex SmallOrderedHashTableImpl<Derived>::FindEntry(
+    Isolate* isolate, Tagged<Object> key) {
   DisallowGarbageCollection no_gc;
   Tagged<Object> hash = Object::GetHash(key);
 
@@ -1047,49 +1046,47 @@ InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
 }
 
 template bool V8_EXPORT_PRIVATE
-SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(Isolate* isolate,
-                                                   DirectHandle<Object> key);
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::HasKey(
+    Isolate* isolate, DirectHandle<Object> key);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashSet>
-SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashSet>
-SmallOrderedHashTable<SmallOrderedHashSet>::Shrink(
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Shrink(
     Isolate* isolate, Handle<SmallOrderedHashSet> table);
 template V8_EXPORT_PRIVATE MaybeHandle<SmallOrderedHashSet>
-SmallOrderedHashTable<SmallOrderedHashSet>::Grow(
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Grow(
     Isolate* isolate, Handle<SmallOrderedHashSet> table);
 template V8_EXPORT_PRIVATE void
-SmallOrderedHashTable<SmallOrderedHashSet>::Initialize(Isolate* isolate,
-                                                       int capacity);
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Initialize(Isolate* isolate,
+                                                           int capacity);
 template V8_EXPORT_PRIVATE bool
-SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
+SmallOrderedHashTableImpl<SmallOrderedHashSet>::Delete(
     Isolate* isolate, Tagged<SmallOrderedHashSet> table, Tagged<Object> key);
 
-template V8_EXPORT_PRIVATE bool
-SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(Isolate* isolate,
-                                                   DirectHandle<Object> key);
+template V8_EXPORT_PRIVATE bool SmallOrderedHashTableImpl<
+    SmallOrderedHashMap>::HasKey(Isolate* isolate, DirectHandle<Object> key);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashMap>
-SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedHashMap>
-SmallOrderedHashTable<SmallOrderedHashMap>::Shrink(
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Shrink(
     Isolate* isolate, Handle<SmallOrderedHashMap> table);
 template V8_EXPORT_PRIVATE MaybeHandle<SmallOrderedHashMap>
-SmallOrderedHashTable<SmallOrderedHashMap>::Grow(
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Grow(
     Isolate* isolate, Handle<SmallOrderedHashMap> table);
 template V8_EXPORT_PRIVATE void
-SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(Isolate* isolate,
-                                                       int capacity);
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Initialize(Isolate* isolate,
+                                                           int capacity);
 
 template V8_EXPORT_PRIVATE bool
-SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
+SmallOrderedHashTableImpl<SmallOrderedHashMap>::Delete(
     Isolate* isolate, Tagged<SmallOrderedHashMap> table, Tagged<Object> key);
 
-template V8_EXPORT_PRIVATE void
-SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(Isolate* isolate,
-                                                              int capacity);
+template V8_EXPORT_PRIVATE void SmallOrderedHashTableImpl<
+    SmallOrderedNameDictionary>::Initialize(Isolate* isolate, int capacity);
 template V8_EXPORT_PRIVATE Handle<SmallOrderedNameDictionary>
-SmallOrderedHashTable<SmallOrderedNameDictionary>::Shrink(
+SmallOrderedHashTableImpl<SmallOrderedNameDictionary>::Shrink(
     Isolate* isolate, Handle<SmallOrderedNameDictionary> table);
 
 template <class SmallTable, class LargeTable>

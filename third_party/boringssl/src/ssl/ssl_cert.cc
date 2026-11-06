@@ -406,7 +406,7 @@ bool ssl_cert_check_key_usage(const CBS *in, enum ssl_key_usage_t bit) {
 UniquePtr<STACK_OF(CRYPTO_BUFFER)> SSL_parse_CA_list(SSL *ssl,
                                                      uint8_t *out_alert,
                                                      CBS *cbs) {
-  CRYPTO_BUFFER_POOL *const pool = ssl->ctx->pool;
+  CRYPTO_BUFFER_POOL *const pool = ssl->ctx->pool.get();
 
   UniquePtr<STACK_OF(CRYPTO_BUFFER)> ret(sk_CRYPTO_BUFFER_new_null());
   if (!ret) {

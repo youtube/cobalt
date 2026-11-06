@@ -1369,20 +1369,23 @@ class MachineOptimizationReducer : public Next {
         uint32_t l, r;
         if (matcher_.MatchIntegralWord32Constant(shl_node->right(), &l) &&
             matcher_.MatchIntegralWord32Constant(shr_node->right(), &r)) {
-          // Rotation requires l+r = bit_width. For XOR, shift cannot be 0
-          // mod bit_width to avoid cancellation (x ^ x = 0). For OR, shift
-          // amount 0 is valid as it simplifies to identity.
-          if (l + r == rep.bit_width()) {
-            // Shifts by 0 or bit_width should have been simplified away
-            // earlier.
-            DCHECK_NE(l & (rep.bit_width() - 1), 0);
-
+          // Rotation requires that the effective shift amounts (masked by
+          // bit_width - 1) sum to the bit_width. This ensures that they are
+          // complementary and non-zero.
+          uint32_t mask = rep.bit_width() - 1;
+          if ((l & mask) + (r & mask) == rep.bit_width()) {
             V<Word> ror =
                 __ RotateRight(shl_node->left(), shr_node->right(), rep);
             V<Word> result = ror;
             for (size_t k = 0; k < operands.size(); ++k) {
               if (k == i || k == j) continue;
               result = __ WordBinop(result, operands[k], kind, rep);
+            }
+
+            // Combine remaining worklist items to preserve expression.
+            while (!worklist.empty()) {
+              result = __ WordBinop(result, worklist.back(), kind, rep);
+              worklist.pop_back();
             }
             return result;
           }

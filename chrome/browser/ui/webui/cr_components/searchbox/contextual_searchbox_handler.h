@@ -120,6 +120,7 @@ class ContextualSearchboxHandler
                        const std::string& resource_key,
                        const std::string& mime_type_string,
                        AddDriveContextCallback callback) override;
+  void OnDriveUploadClicked() override;
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override;
   void ClearFiles(bool should_block_auto_suggested_tabs) override;
@@ -319,21 +320,19 @@ class ContextualSearchboxHandler
       std::map<std::string, std::string> additional_params,
       std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
 
-  // Callback invoked when relevant tabs are determined for the query to inform
-  // if the smart tab sharing promo should be shown to the user.
-  void OnRelevantTabsReceivedToMaybeShowPromo(
-      std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
-
   std::optional<base::Uuid> GetTaskId();
 
   std::optional<std::pair<base::UnguessableToken,
                           std::unique_ptr<lens::ContextualInputData>>>
       tab_context_snapshot_;
 
+  // TODO(b/502297163): Implement for Android.
+#if !BUILDFLAG(IS_ANDROID)
   // Delegate handling desktop-specific operations for QueryContextualizer.
   std::unique_ptr<contextual_tasks::DesktopQueryContextualizerDelegate>
       desktop_delegate_;
   std::unique_ptr<contextual_tasks::QueryContextualizer> query_contextualizer_;
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   raw_ptr<contextual_tasks::ContextualTasksContextService>
       contextual_tasks_context_service_;
@@ -353,6 +352,16 @@ class ContextualSearchboxHandler
 
  protected:
   std::optional<bool> smart_tab_sharing_active_for_thread_;
+
+  // Checks eligibility and triggers the smart tab sharing IPH promo logic.
+  void MaybeTriggerSmartTabSharingPromo(
+      const std::string& query,
+      content::WebContents* web_contents_for_window);
+
+  // Callback invoked when relevant tabs are determined for the query to inform
+  // if the smart tab sharing promo should be shown to the user.
+  virtual void OnRelevantTabsReceivedToMaybeShowPromo(
+      std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
 
   base::WeakPtrFactory<ContextualSearchboxHandler> weak_ptr_factory_{this};
 };

@@ -185,6 +185,19 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case MEGA_DOM_HANDLER_TYPE:
       return kVisitMegaDomHandler;
 
+    case ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE:
+      return kVisitOnHeapBasicBlockProfilerData;
+
+    case SORT_STATE_TYPE:
+      return kVisitSortState;
+
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_FAST_API_CALL_DATA_TYPE:
+      return kVisitWasmFastApiCallData;
+    case WASM_STRING_VIEW_ITER_TYPE:
+      return kVisitWasmStringViewIter;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     case TURBOFAN_BITSET_TYPE_TYPE:
       return kVisitTurbofanBitsetType;
     case TURBOFAN_UNION_TYPE_TYPE:
@@ -312,6 +325,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
     case JS_ITERATOR_ZIP_HELPER_TYPE:
+    case JS_ITERATOR_ZIP_KEYED_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -525,12 +539,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case WASM_TYPE_INFO_TYPE:
       return kVisitWasmTypeInfo;
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-#define MAKE_TQ_CASE(TYPE, Name) \
-  case TYPE:                     \
-    return kVisit##Name;
-      TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
-#undef MAKE_TQ_CASE
 
 #define CASE(TypeCamelCase, TYPE_UPPER_CASE) \
   case TYPE_UPPER_CASE##_TYPE:               \
@@ -1311,8 +1319,9 @@ bool Map::ShouldCheckForReadOnlyElementsInPrototypeChain(Isolate* isolate) {
 
 Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
                          int instance_size, int inobject_properties) {
+  int map_size = src_handle->AllocatedSize();
   Handle<Map> result = isolate->factory()->NewMap(
-      src_handle, src_handle->instance_type(), instance_size,
+      src_handle, map_size, src_handle->instance_type(), instance_size,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
 
   // We have to set the bitfields before any potential GCs could happen because
@@ -1344,8 +1353,23 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
         raw->SetPrototypeSharedClosureInfo(infos);
       }
     }
-
     raw->clear_padding();
+    if (raw->is_extended_map()) {
+      DCHECK_LE(ExtendedMap::kMinimumSize, map_size);
+      Address src_addr = src->address() + Map::kSize;
+      Address raw_addr = raw->address() + Map::kSize;
+      int count = (map_size - Map::kSize) / kTaggedSize;
+      DCHECK_LT(0, count);
+      // Copy bit_field_ex_ along with other raw bitfields and padding
+      // (within one kTaggedSize), followed by other tagged fields.
+      CopyTagged(raw_addr, src_addr, count);
+      --count;
+      if (count) {
+        // Trigger write barrier for the remaining tagged fields.
+        ObjectSlot slot(raw_addr + kTaggedSize);
+        WriteBarrier::ForRange(isolate->heap(), raw, slot, slot + count);
+      }
+    }
   }
   DirectHandle<JSPrototype> prototype(src_handle->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
@@ -2566,7 +2590,7 @@ DirectHandle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
     DirectHandle<Map> prototype_map, Isolate* isolate) {
   {
     Tagged<Object> maybe_proto_info = prototype_map->prototype_info();
-    if (PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) {
+    if (IsPrototypeInfo(maybe_proto_info)) {
       return direct_handle(Cast<PrototypeInfo>(maybe_proto_info), isolate);
     }
   }
@@ -2759,9 +2783,7 @@ const char* ToString(VisitorId visitor_id) {
   case kVisit##id:               \
     return #id;
     DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
-    TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
     POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
-    TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
     TRUSTED_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
 #undef VISITOR_ID_CASE_DECL
     case kDataOnlyVisitorIdCount:

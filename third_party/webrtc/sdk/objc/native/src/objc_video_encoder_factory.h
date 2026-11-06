@@ -33,11 +33,13 @@ class ObjCVideoEncoderFactory : public VideoEncoderFactory {
 
   id<RTC_OBJC_TYPE(RTCVideoEncoderFactory)> wrapped_encoder_factory() const;
 
+  using VideoEncoderFactory::QueryCodecSupport;
   std::vector<SdpVideoFormat> GetSupportedFormats() const override;
   std::vector<SdpVideoFormat> GetImplementations() const override;
   CodecSupport QueryCodecSupport(
       const SdpVideoFormat& format,
-      std::optional<std::string> scalability_mode) const override;
+      std::optional<std::string> scalability_mode,
+      std::optional<Resolution> resolution) const override;
   std::unique_ptr<VideoEncoder> Create(const Environment& env,
                                        const SdpVideoFormat& format) override;
   std::unique_ptr<EncoderSelectorInterface> GetEncoderSelector() const override;

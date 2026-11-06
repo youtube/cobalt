@@ -18,15 +18,14 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
+import org.chromium.chrome.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.payments.AutofillSaveCardUiInfo;
 import org.chromium.components.autofill.payments.CardDetail;
 import org.chromium.components.autofill.payments.LegalMessageLine;
@@ -37,6 +36,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetTestSupport;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.base.ImmutableWeakReference;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -64,8 +64,6 @@ public class AutofillSaveCardBottomSheetRenderTest {
                     .setBugComponent(Component.UI_BROWSER_AUTOFILL)
                     .build();
 
-    @Mock private InsetObserver mInsetObserver;
-
     private Activity mActivity;
     private BottomSheetController mBottomSheetController;
     private AutofillSaveCardBottomSheetContent mSaveCardBottomSheetContent;
@@ -80,6 +78,14 @@ public class AutofillSaveCardBottomSheetRenderTest {
         runOnUiThreadBlocking(
                 () -> {
                     mActivity = sActivityTestRule.getActivity();
+
+                    InsetObserver insetObserver =
+                            new InsetObserver(
+                                    new ImmutableWeakReference<>(
+                                            mActivity.getWindow().getDecorView()),
+                                    new ImmutableWeakReference<>(mActivity.getApplicationContext()),
+                                    /* enableKeyboardOverlayMode= */ false,
+                                    /* enableExtraEdgeToEdgeLogging= */ false);
                     ViewGroup activityContentView = mActivity.findViewById(android.R.id.content);
                     activityContentView.removeAllViews();
                     ScrimManager scrimManager =
@@ -90,7 +96,7 @@ public class AutofillSaveCardBottomSheetRenderTest {
                                     mActivity.getWindow(),
                                     KeyboardVisibilityDelegate.getInstance(),
                                     () -> activityContentView,
-                                    mInsetObserver);
+                                    insetObserver);
                 });
     }
 

@@ -31,10 +31,10 @@ use crate::{
     alerts::AlertDescription,
     check_tls_error,
     connection::{
-        methods::HasTlsConnectionMethod, //
         Client,
         Server,
         TlsConnectionRef,
+        methods::HasTlsConnectionMethod, //
     },
     context::{
         HasBasicIo,
@@ -249,6 +249,17 @@ impl<R, M> Deref for EstablishedTlsConnection<'_, R, M> {
 impl<R, M> DerefMut for EstablishedTlsConnection<'_, R, M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.0
+    }
+}
+
+impl<'a, R, M> EstablishedTlsConnection<'a, R, M> {
+    /// Get the current session.
+    pub fn get_session(&self) -> Option<crate::sessions::TlsSession> {
+        let session = unsafe {
+            // Safety: self.ptr() is valid.
+            bssl_sys::SSL_get1_session(self.ptr())
+        };
+        core::ptr::NonNull::new(session).map(crate::sessions::TlsSession)
     }
 }
 

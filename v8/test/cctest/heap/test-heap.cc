@@ -74,6 +74,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/objects/transitions.h"
 #include "src/regexp/regexp.h"
@@ -106,7 +107,7 @@ static void CheckMap(Tagged<Map> map, int type, int instance_size) {
 TEST(HeapMaps) {
   CcTest::InitializeVM();
   ReadOnlyRoots roots(CcTest::heap());
-  CheckMap(roots.meta_map(), MAP_TYPE, Map::kSize);
+  CheckMap(roots.meta_map(), MAP_TYPE, kVariableSizeSentinel);
   CheckMap(roots.heap_number_map(), HEAP_NUMBER_TYPE, sizeof(HeapNumber));
   CheckMap(roots.fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   CheckMap(roots.hash_table_map(), HASH_TABLE_TYPE, kVariableSizeSentinel);
@@ -879,6 +880,78 @@ TEST(JSObjectMaps) {
 
   // Check the map has changed
   CHECK(*initial_map != obj->map());
+}
+
+// Checks that extended Maps handling works as expected regarding Map
+// transitions, object creation and so on.
+TEST(JSInterceptorMap) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = CcTest::heap();
+
+  HandleScope sc(isolate);
+
+  DirectHandle<InterceptorInfo> named_interceptor =
+      factory->NewInterceptorInfo(InterceptorKind::kNamed);
+  DirectHandle<InterceptorInfo> indexed_interceptor =
+      factory->NewInterceptorInfo(InterceptorKind::kIndexed);
+
+  DirectHandle<Map> last_map;
+  {
+    HandleScope sc1(isolate);
+
+    const size_t N = 100;
+    DirectHandleVector<JSObject> objects(isolate);
+    objects.reserve(N);
+    DirectHandle<JSInterceptorMap> map;
+
+    for (size_t i = 0; i < N; i++) {
+      if (i % 10 == 0) {
+        // Create a fresh map every now and then.
+        const int inobject_properties = 2;
+        map = Cast<JSInterceptorMap>(factory->NewExtendedMapWithMetaMap(
+            isolate->meta_map(), ExtendedMapKind::kJSInterceptorMap,
+            JS_OBJECT_TYPE,
+            JSObject::kHeaderSize + inobject_properties * kTaggedSize,
+            TERMINAL_FAST_ELEMENTS_KIND, inobject_properties));
+        map->clear_extended_padding();
+        map->set_named_interceptor(*named_interceptor);
+        map->set_indexed_interceptor(*indexed_interceptor);
+      }
+
+      Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
+      Object::SetProperty(isolate, obj, factory->a_string(), obj).Check();
+      Object::SetProperty(isolate, obj, factory->b_string(), obj).Check();
+      Object::SetProperty(isolate, obj, factory->c_string(), obj).Check();
+      Object::SetProperty(isolate, obj, factory->d_string(), obj).Check();
+
+#ifdef VERIFY_HEAP
+      obj->HeapObjectVerify(isolate);
+      obj->map()->HeapObjectVerify(isolate);
+#endif  // VERIFY_HEAP
+      objects.emplace_back(obj);
+      if (i == N / 2) {
+        InvokeMajorGC(heap);
+        InvokeMajorGC(heap);
+      }
+    }
+
+    InvokeMajorGC(heap);
+    InvokeMajorGC(heap);
+    last_map = sc1.CloseAndEscape(map);
+  }
+  InvokeMajorGC(heap);
+  InvokeMajorGC(heap);
+
+  CHECK(IsJSObjectMap(*last_map));
+  CHECK(last_map->is_extended_map());
+
+  CHECK_EQ(UncheckedCast<ExtendedMap>(last_map)->map_kind(),
+           ExtendedMapKind::kJSInterceptorMap);
+  DirectHandle<JSInterceptorMap> map = Cast<JSInterceptorMap>(last_map);
+  CHECK_EQ(map->named_interceptor(), *named_interceptor);
+  CHECK_EQ(map->indexed_interceptor(), *indexed_interceptor);
 }
 
 TEST(JSArray) {

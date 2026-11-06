@@ -11,6 +11,7 @@
 #include "video/video_receive_stream2.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
@@ -76,6 +77,7 @@
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
+#include "rtc_base/experiments/corruption_detection_frame_selector_settings.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/race_checker.h"
@@ -239,6 +241,13 @@ VideoReceiveStream2::VideoReceiveStream2(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
       frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
+      post_decode_queue_(
+          CorruptionDetectionFrameSelectorSettings(env.field_trials())
+                  .use_asynchronous_evaluation()
+              ? env_.task_queue_factory().CreateTaskQueue(
+                    "VideoPostDecodeQueue",
+                    TaskQueueFactory::Priority::kNormal)
+              : nullptr),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
           "VideoDecoderQueue",
           env_.field_trials().IsEnabled("WebRTC-MediaTaskQueuePriorities")
@@ -618,8 +627,40 @@ void VideoReceiveStream2::CalculateCorruptionScore(
     FrameInstrumentationData frame_instrumentation_data,
     VideoContentType content_type) {
   RTC_DCHECK_RUNS_SERIALIZED(&decode_callback_race_checker_);
-  frame_evaluator_->OnInstrumentedFrame(std::move(frame_instrumentation_data),
-                                        frame, content_type);
+
+  if (post_decode_queue_) {
+    // Set the max number of pending post decode tasks very conservative since
+    // each one has a refcounted VideoFrame.
+    constexpr int kMaxPendingPostDecodeFrames = 2;
+    std::optional<VideoFrame> frame_to_evaluate;
+    if (pending_post_decode_frames_.load() >= kMaxPendingPostDecodeFrames) {
+      RTC_LOG(LS_WARNING)
+          << "Post decode queue too long, discarding frame evaluation data.";
+    } else {
+      frame_to_evaluate = frame;
+      pending_post_decode_frames_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    post_decode_queue_->PostTask(
+        [this,
+         frame_instrumentation_data = std::move(frame_instrumentation_data),
+         frame_to_evaluate = std::move(frame_to_evaluate),
+         content_type]() mutable {
+          if (frame_to_evaluate) {
+            frame_evaluator_->OnInstrumentedFrame(
+                std::move(frame_instrumentation_data), *frame_to_evaluate,
+                content_type);
+            pending_post_decode_frames_.fetch_sub(1, std::memory_order_relaxed);
+          } else {
+            frame_evaluator_->OnSkippedInstrumentedFrame(
+                std::move(frame_instrumentation_data));
+          }
+        });
+  } else {
+    // Do the frame evaluation synchronously.
+    frame_evaluator_->OnInstrumentedFrame(std::move(frame_instrumentation_data),
+                                          frame, content_type);
+  }
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

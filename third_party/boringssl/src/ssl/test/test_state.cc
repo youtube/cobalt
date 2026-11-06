@@ -121,7 +121,7 @@ bool DeserializeContextState(CBS *cbs, SSL_CTX *ctx) {
   }
   while (CBS_len(&sessions)) {
     UniquePtr<SSL_SESSION> session =
-        SSL_SESSION_parse(&sessions, ctx->x509_method, ctx->pool);
+        SSL_SESSION_parse(&sessions, ctx->x509_method, ctx->pool.get());
     if (!session) {
       return false;
     }
@@ -166,8 +166,8 @@ std::unique_ptr<TestState> TestState::Deserialize(CBS *cbs, SSL_CTX *ctx) {
     return nullptr;
   }
   if (CBS_len(&pending_session)) {
-    state->pending_session = SSL_SESSION_parse(
-        &pending_session, ctx->x509_method, ctx->pool);
+    state->pending_session =
+        SSL_SESSION_parse(&pending_session, ctx->x509_method, ctx->pool.get());
     if (!state->pending_session) {
       return nullptr;
     }

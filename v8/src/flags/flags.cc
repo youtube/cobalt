@@ -141,7 +141,7 @@ struct FlagError : public std::ostringstream {
       "tools/testrunner/local/variants.py.";
   // MSVC complains about non-returning destructor; disable that.
   MSVC_SUPPRESS_WARNING(4722)
-  ~FlagError() {
+  [[noreturn]] ~FlagError() {
     base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
     base::OS::PrintError("%s\n", kHint);
     base::PrintStackTraceIfAvailable();

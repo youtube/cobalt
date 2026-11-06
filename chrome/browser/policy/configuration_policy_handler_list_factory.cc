@@ -2677,9 +2677,9 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(
       std::make_unique<performance_manager::MemorySaverPolicyHandler>());
   handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
-      key::kForceForegroundPriorityForOrigins,
+      key::kForceForegroundPriorityForUrls,
       performance_manager::user_tuning::prefs::
-          kForceForegroundPriorityForOrigins));
+          kForceForegroundPriorityForUrls));
   // Note: This needs to be created after `DefaultSearchPolicyHandler`.
 
   handlers->AddHandler(
@@ -3052,9 +3052,15 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           key::kUserSecurityAuthenticatedReporting,
           enterprise_reporting::kUserSecurityAuthenticatedReporting,
           base::Value::Type::BOOLEAN)));
-
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) ||
         // BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
+      std::make_unique<SimplePolicyHandler>(
+          key::kSecuritySignalsClientCertificatesSelectors,
+          enterprise_reporting::kSecuritySignalsClientCertificatesSelectors,
+          base::Value::Type::LIST)));
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   signin_legacy_policies.push_back(std::make_unique<SimplePolicyHandler>(
       key::kSigninAllowed,
 #if BUILDFLAG(IS_ANDROID)

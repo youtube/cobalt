@@ -13,6 +13,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/test-signatures.h"

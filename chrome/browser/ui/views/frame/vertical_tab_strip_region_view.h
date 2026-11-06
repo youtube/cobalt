@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_expand_on_hover_lock.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/events/event_handler.h"
@@ -132,7 +133,7 @@ class VerticalTabStripRegionView final
   bool IsTabStripCloseable() const override;
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) override;
   std::optional<int> GetFocusedTabIndex() const override;
-  const tabs::TabData& GetTabData(int tab_index) override;
+  const tabs::TabData& GetTabData(const tabs::TabHandle& tab) override;
   views::View* GetTabAnchorViewAt(int tab_index) override;
   views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) override;
@@ -372,6 +373,7 @@ class VerticalTabStripRegionView final
   // Given that both lock counters are non-zero, force_collapse_lock_count_ will
   // always take precedence.
   int force_collapse_lock_count_ = 0;
+  int keep_current_state_lock_count_ = 0;
   int keep_expanded_lock_count_ = 0;
   std::unique_ptr<ExpandOnHoverLock> omnibox_open_lock_;
   std::unique_ptr<ExpandOnHoverLock> link_drag_lock_;

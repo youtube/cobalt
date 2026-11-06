@@ -1790,6 +1790,8 @@ if (rtc_include_tests) {
       "../rtc_base:refcount",
       "//test:test_support",
       "//testing/gmock",
+      "//third_party/abseil-cpp/absl/functional:any_invocable",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 

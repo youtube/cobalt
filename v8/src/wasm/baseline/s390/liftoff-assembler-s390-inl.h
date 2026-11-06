@@ -1483,12 +1483,17 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
       trapping_load_pc, false, LiftoffAssembler::kNative);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
-    AddS64(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+    lay(result.gp(), MemOperand(result.gp(), kPtrComprCageBaseRegister));
   }
 
   if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
+  // We only need a write barrier if the CAS was successful.
+  // The AtomicCompareExchange above leaves the condition flags from the
+  // final comparison.
   Label exit;
+  bne(&exit);
+
+  // Emit the write barrier.
   JumpIfSmi(new_value.gp(), &exit);
   CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
                 to_condition(kZero), &exit);
