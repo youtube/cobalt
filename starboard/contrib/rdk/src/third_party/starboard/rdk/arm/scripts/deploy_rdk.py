@@ -266,6 +266,26 @@ def remove_duplicate_sb_args(
     return _merge_args(cobalt_json_args, override_args)
 
 
+def _get_container_devtools_host(
+    device_id: Optional[str], device_ip: Optional[str]
+) -> str:
+    """Returns the Dobby container IP exposing port 9222, or 'localhost'."""
+    probe = (
+        "PID=$(DobbyTool info YouTube 2>/dev/null | sed -n '/\"pids\"/,/]/p' "
+        "| grep -oE '[0-9]{2,}' | tail -n1); "
+        "[ -n \"$PID\" ] && awk 'NR>1{print $2}' /proc/$PID/net/tcp "
+        "| cut -d: -f1 | grep -vE '^(0100007F|00000000)$' | head -n1"
+    )
+    try:
+        hexip = run_remote_command(probe, device_id, device_ip, check=False,
+                                   verbose=False).strip()
+        if len(hexip) == 8:
+            return ".".join(str(int(hexip[i:i + 2], 16)) for i in (6, 4, 2, 0))
+    except Exception:
+        pass
+    return "localhost"
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -321,7 +341,12 @@ def launch_on_device(
                 
                 script_args = []
                 if devtools:
-                    script_args.append("--remote-debugging-port=9222")
+                    script_args.extend([
+                        "--remote-debugging-port=9222",
+                        "--remote-debugging-address=0.0.0.0",
+                        "--remote-allow-origins=*",
+                    ])
+                    config.setdefault("root", {})["mode"] = "Container"
 
                 user_override_args = param if param else []
 
@@ -361,32 +386,37 @@ def launch_on_device(
             }).replace('"', r'\"')
             remote_cmds.append(f"curl -X POST http://127.0.0.1:9998/jsonrpc -d '{rpc_deeplink_json}'")
 
-        if devtools:
-            print("[INFO] Setting up DevTools port forwarding...")
-            if device_id:
-                run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
-            elif device_ip:
-                ssh_tunnel_cmd = [
-                    "ssh",
-                    "-q",
-                    "-fN",
-                    "-L",
-                    "9222:localhost:9222",
-                    f"root@{device_ip}",
-                ]
-                try:
-                    subprocess.Popen(ssh_tunnel_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                except Exception as e:
-                    print(f"[WARNING] Failed to start SSH tunnel: {e}")
-            print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
-
-
     full_cmd = " && ".join(remote_cmds)
     output = run_remote_command(f"bash -l -c \"{full_cmd}\"", device_id, device_ip)
     print(output)
     if "ERROR_OPENING_FAILED" in output or "error" in output.lower():
         print("\n[WARNING] Activation failed with error (e.g., ERROR_OPENING_FAILED).")
         print("[WARNING] Please check the physical device state. It might be in setup/Out-of-Box Experience (OOBE) mode or not connected to a network.")
+
+    if devtools and not test_name:
+        print("[INFO] Setting up DevTools port forwarding...")
+        time.sleep(5)
+        if device_id:
+            run_command(["adb", "-s", device_id, "forward", "tcp:9222", "tcp:9222"])
+        elif device_ip:
+            devtools_host = _get_container_devtools_host(device_id, device_ip)
+            print(f"[INFO] Forwarding localhost:9222 -> {devtools_host}:9222 on the device.")
+            run_command(["pkill", "-f", "9222:.*:9222"], check=False)
+            ssh_tunnel_cmd = [
+                "ssh",
+                "-q",
+                "-fN",
+                "-o", "ExitOnForwardFailure=yes",
+                "-o", "ServerAliveInterval=30",
+                "-L",
+                f"9222:{devtools_host}:9222",
+                f"root@{device_ip}",
+            ]
+            try:
+                subprocess.Popen(ssh_tunnel_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e:
+                print(f"[WARNING] Failed to start SSH tunnel: {e}")
+        print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
 
 
 def parse_args() -> argparse.Namespace:
@@ -760,7 +790,7 @@ def main() -> None:
         run_remote_command("systemctl restart wpeframework", device_id, device_ip, sleep_time=5)
         print("=== Cleaning up DevTools ports on host ===")
         # Always try to kill SSH tunnel on host
-        run_command(["pkill", "-f", "9222:localhost:9222"], check=False)
+        run_command(["pkill", "-f", "9222:.*:9222"], check=False)
         # Try to remove ADB forward if we have a device_id
         if device_id:
             run_command(["adb", "-s", device_id, "forward", "--remove", "tcp:9222"], check=False)
