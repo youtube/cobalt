@@ -6552,7 +6552,6 @@ void NavigationRequest::CommitErrorPage(
     // document sequence number.
     CHECK_NE(ComputeErrorPageProcess(), ErrorPageProcess::kCurrentProcess);
   }
-#endif
 
   PopulateDocumentTokenForCrossDocumentNavigation();
   // Use a separate cache shard, and no cookies, for error pages.
