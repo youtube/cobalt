@@ -325,6 +325,9 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     allocator->decommit_on_suspend_enabled_.store(true,
                                                   std::memory_order_release);
   }
+  if (strategy_config.enable_decommit_on_idle) {
+    periodic_decommit = true;
+  }
   if (periodic_decommit) {
     // This feature is enable only, and isn't expected to be disabled.
     allocator->EnablePeriodicDecommitLoop();

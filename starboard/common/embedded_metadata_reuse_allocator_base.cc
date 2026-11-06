@@ -153,6 +153,7 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       SB_DCHECK(freed);
     }
     pending_frees_.clear();
+    pending_free_bytes_ = 0;
   }
 
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
@@ -196,7 +197,6 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
       static_cast<uint8_t*>(allocated_block.address()) + sizeof(BlockMetadata);
 
   AddAllocatedBlock(allocated_block);
-  TryToDecommitOneBlock(/*cadence=*/100);
 
   return user_address;
 }
@@ -206,6 +206,10 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
     return;
   }
 
+  const BlockMetadata* metadata = static_cast<const BlockMetadata*>(memory) - 1;
+  if (metadata->signature == this && metadata->size > 0) {
+    pending_free_bytes_ += static_cast<size_t>(metadata->size);
+  }
   pending_frees_.push_back(memory);
 
   if (pending_frees_.size() == total_allocated_blocks_) {
@@ -218,6 +222,7 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       pending_frees_.clear();
 
       total_allocated_in_bytes_ = 0;
+      pending_free_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
       if (enable_decommit_on_idle_) {
@@ -234,6 +239,7 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
         SB_DCHECK(freed);
       }
       pending_frees_.clear();
+      pending_free_bytes_ = 0;
     }
   }
 }

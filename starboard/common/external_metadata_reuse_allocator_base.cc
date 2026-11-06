@@ -175,7 +175,6 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
-  TryToDecommitOneBlock(/*cadence=*/100);
 
   return user_address;
 }
