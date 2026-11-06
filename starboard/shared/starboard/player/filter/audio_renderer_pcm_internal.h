@@ -57,19 +57,10 @@ class AudioRendererPcm : public AudioRenderer,
                          private AudioRendererSink::RenderCallback,
                          private JobQueue::JobOwner {
  public:
-  // |max_cached_frames| is a soft limit for the max audio frames this class can
-  // cache so it can:
-  // 1. Avoid using too much memory.
-  // 2. Have the audio cache full to simulate the state that the renderer can no
-  //    longer accept more data.
-  // |min_frames_per_append| is the min number of frames that the audio renderer
-  // tries to append to the sink buffer at once.
   AudioRendererPcm(JobQueue* job_queue,
                    std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const AudioStreamInfo& audio_stream_info,
-                   int max_cached_frames,
-                   int min_frames_per_append,
                    const ExperimentalFeatures& experimental_features);
   ~AudioRendererPcm() override;
 
@@ -106,6 +97,20 @@ class AudioRendererPcm : public AudioRenderer,
     kEOSSentToSink
   };
 
+  AudioRendererPcm(JobQueue* job_queue,
+                   std::unique_ptr<AudioDecoder> decoder,
+                   std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
+                   const AudioStreamInfo& audio_stream_info,
+                   AudioRendererSink::AudioRendererParams renderer_params,
+                   const ExperimentalFeatures& experimental_features);
+
+  // |max_cached_frames_| is a soft limit for the max audio frames this class
+  // can cache so it can:
+  // 1. Avoid using too much memory.
+  // 2. Have the audio cache full to simulate the state that the renderer can no
+  //    longer accept more data.
+  // |min_frames_per_append_| is the min number of frames that the audio
+  // renderer tries to append to the sink buffer at once.
   const int max_cached_frames_;
   const int min_frames_per_append_;
   const bool allow_audio_writing_on_pause_;
