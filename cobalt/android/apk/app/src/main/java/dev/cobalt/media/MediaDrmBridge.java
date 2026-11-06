@@ -292,13 +292,7 @@ public class MediaDrmBridge {
     }
 
     try {
-      try {
-        mMediaDrm.provideKeyResponse(sessionId, response);
-      } catch (IllegalStateException e) {
-        // This is not really an exception. Some error codes are incorrectly
-        // reported as an exception.
-        Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
-      }
+      mMediaDrm.provideKeyResponse(sessionId, response);
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
       return OperationResult.success();
     } catch (NotProvisionedException e) {
