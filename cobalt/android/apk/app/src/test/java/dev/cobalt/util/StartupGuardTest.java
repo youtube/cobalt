@@ -130,6 +130,55 @@ public class StartupGuardTest {
   }
 
   @Test
+  public void activityLifecycleMilestones_mapToExpectedIndicesAndHistogramNames() {
+    assertEquals(9, StartupGuard.POST_ACTIVITY_ON_CREATE);
+    assertEquals(10, StartupGuard.PRE_ACTIVITY_ON_START);
+    assertEquals(11, StartupGuard.POST_ACTIVITY_ON_START);
+    assertEquals(12, StartupGuard.PRE_ACTIVITY_ON_RESUME);
+    assertEquals(13, StartupGuard.POST_ACTIVITY_ON_RESUME);
+
+    int[] milestones = {
+      StartupGuard.POST_ACTIVITY_ON_CREATE,
+      StartupGuard.PRE_ACTIVITY_ON_START,
+      StartupGuard.POST_ACTIVITY_ON_START,
+      StartupGuard.PRE_ACTIVITY_ON_RESUME,
+      StartupGuard.POST_ACTIVITY_ON_RESUME,
+    };
+    String[] expectedNames = {
+      "PostActivityOnCreate",
+      "PreActivityOnStart",
+      "PostActivityOnStart",
+      "PreActivityOnResume",
+      "PostActivityOnResume",
+    };
+    String[] obsoleteNames = {
+      "ActivityOnStart",
+      "ActivityOnResume",
+      "ActivityOnPause",
+      "ActivityOnStop",
+      "ActivityOnDestroy",
+    };
+
+    for (int i = 0; i < milestones.length; i++) {
+      int milestone = milestones[i];
+      assertEquals(expectedNames[i], StartupGuard.MILESTONE_NAMES[milestone]);
+      mStartupGuard.setStartupMilestone(milestone);
+      assertEquals(
+          1,
+          RecordHistogram.getHistogramValueCountForTesting(
+              StartupGuard.METRIC_MILESTONE_REACHED, milestone));
+      assertEquals(
+          1,
+          RecordHistogram.getHistogramTotalCountForTesting(
+              StartupGuard.METRIC_MILESTONE_DURATION_PREFIX + expectedNames[i]));
+      assertEquals(
+          0,
+          RecordHistogram.getHistogramTotalCountForTesting(
+              StartupGuard.METRIC_MILESTONE_DURATION_PREFIX + obsoleteNames[i]));
+    }
+  }
+
+  @Test
   public void setStartupMilestone_ignoresMilestonesBelow1AndAbove37ForUma() {
     // Milestone 0 should not be logged to StartupGuard milestone UMA
     mStartupGuard.setStartupMilestone(0);

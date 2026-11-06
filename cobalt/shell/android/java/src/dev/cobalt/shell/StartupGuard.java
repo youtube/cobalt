@@ -36,11 +36,11 @@ public class StartupGuard {
     APPLICATION_ANDROID_INITIALIZE,
     POST_STARBOARD_BRIDGE_INIT,
     ACTIVITY_WINDOW_CONFIGURED,
-    ACTIVITY_ON_START,
-    ACTIVITY_ON_RESUME,
-    ACTIVITY_ON_PAUSE,
-    ACTIVITY_ON_STOP,
-    ACTIVITY_ON_DESTROY,
+    POST_ACTIVITY_ON_CREATE,
+    PRE_ACTIVITY_ON_START,
+    POST_ACTIVITY_ON_START,
+    PRE_ACTIVITY_ON_RESUME,
+    POST_ACTIVITY_ON_RESUME,
     MAIN_DELEGATE_BASIC_STARTUP_COMPLETE,
     MAIN_DELEGATE_PRE_SANDBOX_STARTUP,
     MAIN_DELEGATE_POST_EARLY_INITIALIZATION,
@@ -76,11 +76,11 @@ public class StartupGuard {
   public static final int APPLICATION_ANDROID_INITIALIZE = 6;
   public static final int POST_STARBOARD_BRIDGE_INIT = 7;
   public static final int ACTIVITY_WINDOW_CONFIGURED = 8;
-  public static final int ACTIVITY_ON_START = 9;
-  public static final int ACTIVITY_ON_RESUME = 10;
-  public static final int ACTIVITY_ON_PAUSE = 11;
-  public static final int ACTIVITY_ON_STOP = 12;
-  public static final int ACTIVITY_ON_DESTROY = 13;
+  public static final int POST_ACTIVITY_ON_CREATE = 9;
+  public static final int PRE_ACTIVITY_ON_START = 10;
+  public static final int POST_ACTIVITY_ON_START = 11;
+  public static final int PRE_ACTIVITY_ON_RESUME = 12;
+  public static final int POST_ACTIVITY_ON_RESUME = 13;
   public static final int MAIN_DELEGATE_BASIC_STARTUP_COMPLETE = 14;
   public static final int MAIN_DELEGATE_PRE_SANDBOX_STARTUP = 15;
   public static final int MAIN_DELEGATE_POST_EARLY_INITIALIZATION = 16;
@@ -119,11 +119,11 @@ public class StartupGuard {
     "ApplicationAndroidInitialize", // 6
     "PostStarboardBridgeInit", // 7
     "ActivityWindowConfigured", // 8
-    "ActivityOnStart", // 9
-    "ActivityOnResume", // 10
-    "ActivityOnPause", // 11
-    "ActivityOnStop", // 12
-    "ActivityOnDestroy", // 13
+    "PostActivityOnCreate", // 9
+    "PreActivityOnStart", // 10
+    "PostActivityOnStart", // 11
+    "PreActivityOnResume", // 12
+    "PostActivityOnResume", // 13
     "MainDelegateBasicStartupComplete", // 14
     "MainDelegatePreSandboxStartup", // 15
     "MainDelegatePostEarlyInitialization", // 16

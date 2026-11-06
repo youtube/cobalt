@@ -72,11 +72,11 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="6" label="ApplicationAndroidInitialize"/>
   <int value="7" label="PostStarboardBridgeInit"/>
   <int value="8" label="ActivityWindowConfigured"/>
-  <int value="9" label="ActivityOnStart"/>
-  <int value="10" label="ActivityOnResume"/>
-  <int value="11" label="ActivityOnPause"/>
-  <int value="12" label="ActivityOnStop"/>
-  <int value="13" label="ActivityOnDestroy"/>
+  <int value="9" label="PostActivityOnCreate"/>
+  <int value="10" label="PreActivityOnStart"/>
+  <int value="11" label="PostActivityOnStart"/>
+  <int value="12" label="PreActivityOnResume"/>
+  <int value="13" label="PostActivityOnResume"/>
   <int value="14" label="MainDelegateBasicStartupComplete"/>
   <int value="15" label="MainDelegatePreSandboxStartup"/>
   <int value="16" label="MainDelegatePostEarlyInitialization"/>
