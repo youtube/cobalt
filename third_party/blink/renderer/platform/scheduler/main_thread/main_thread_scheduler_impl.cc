@@ -958,6 +958,42 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
 }
 
 void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    const bool was_process_hidden =
+        main_thread_only().renderer_hidden_metadata.has_value();
+    if (hidden) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererHidden");
+      main_thread_only().renderer_hidden_metadata.emplace(
+          "MainThreadSchedulerImpl.RendererHidden", /* is_hidden */ 1,
+          base::SampleMetadataScope::kProcess);
+    } else {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererVisible");
+      main_thread_only().renderer_hidden_metadata.reset();
+    }
+    helper_.CheckOnValidThread();
+    main_thread_only().renderer_hidden = hidden;
+
+    if (!helper_.IsShutdown()) {
+      if (hidden && !was_process_hidden &&
+          main_thread_only().renderer_backgrounded) {
+        // On Android, kLaunchingProcessIsBackgrounded initializes
+        // renderer_backgrounded=true before any PageScheduler exists, causing
+        // SetRendererBackgrounded(true) to short-circuit on cold-start into
+        // hidden state. Notify MemoryPurgeManager directly (no-op if its timer
+        // is already running from OnRendererBackgrounded).
+        memory_purge_manager_.SetRendererBackgrounded(true);
+      } else {
+        SetRendererBackgrounded(hidden);
+      }
+    }
+    return;
+  }
+#endif
+
   if (hidden) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                  "MainThreadSchedulerImpl::OnRendererHidden");
@@ -980,6 +1016,43 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
       main_thread_only().renderer_backgrounded == backgrounded) {
     return;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    // Keep the scheduler and MemoryPurgeManager backgrounded while the renderer
+    // process is explicitly hidden so single-process priority boosts (e.g.
+    // service worker or media activity in RenderThreadImpl::SetProcessState)
+    // cannot cancel a pending hidden purge. SetRendererHidden(false) resets
+    // renderer_hidden_metadata before calling SetRendererBackgrounded(false).
+    if (!backgrounded &&
+        main_thread_only().renderer_hidden_metadata.has_value()) {
+      return;
+    }
+
+    if (backgrounded) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererBackgrounded");
+    } else {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
+                   "MainThreadSchedulerImpl::OnRendererForegrounded");
+    }
+
+    main_thread_only().renderer_backgrounded = backgrounded;
+    internal::ProcessState::Get()->is_process_backgrounded = backgrounded;
+
+    base::TimeTicks now = NowTicks();
+    main_thread_only().background_status_changed_at = now;
+    main_thread_only().metrics_helper.SetRendererBackgrounded(backgrounded,
+                                                              now);
+    MaybeSetBusyLoop(main_thread_only().message_pump, backgrounded);
+
+    UpdatePolicy();
+
+    ParkableStringManager::Instance().SetRendererBackgrounded(backgrounded);
+    memory_purge_manager_.SetRendererBackgrounded(backgrounded);
+    return;
+  }
+#endif
   if (backgrounded) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                  "MainThreadSchedulerImpl::OnRendererBackgrounded");
@@ -2221,6 +2294,46 @@ void MainThreadSchedulerImpl::AddAgentGroupScheduler(
 
 void MainThreadSchedulerImpl::AddPageScheduler(
     PageSchedulerImpl* page_scheduler) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    bool had_ordinary_page = false;
+    for (PageSchedulerImpl* existing : main_thread_only().page_schedulers) {
+      if (existing->IsOrdinary()) {
+        had_ordinary_page = true;
+        break;
+      }
+    }
+    main_thread_only().page_schedulers.insert(page_scheduler);
+    DetachOnIPCTaskPostedWhileInBackForwardCacheHandler();
+    if (page_scheduler->IsOrdinary()) {
+      // MemoryPurgeManager::OnPageCreated() assumes that the page isn't frozen.
+      // Its logic must be modified if this assumption is broken in the future.
+      CHECK(!page_scheduler->IsFrozen());
+      memory_purge_manager_.OnPageCreated();
+      // On cold-start hidden launch (`--preload` or Android TV background
+      // start), `SetRendererHidden(true)` runs before any ordinary
+      // `PageScheduler` exists, so `OnRendererBackgrounded()` early-returns on
+      // `total_page_count_ == 0` while later `SetRendererBackgrounded(true)`
+      // calls short-circuit. Start the background purge timer once the first
+      // ordinary page is registered while explicitly hidden.
+      if (!had_ordinary_page &&
+          main_thread_only().renderer_hidden_metadata.has_value()) {
+        memory_purge_manager_.SetRendererBackgrounded(true);
+      }
+    }
+
+    base::AutoLock lock(any_thread_lock_);
+    any_thread().waiting_for_any_main_frame_contentful_paint =
+        IsAnyOrdinaryMainFrameWaitingForFirstContentfulPaint();
+    any_thread().waiting_for_any_main_frame_meaningful_paint =
+        IsAnyOrdinaryMainFrameWaitingForFirstMeaningfulPaint();
+    any_thread().is_any_main_frame_loading = IsAnyOrdinaryMainFrameLoading();
+    UpdatePolicyLocked(UpdateType::kMayEarlyOutIfPolicyUnchanged);
+    return;
+  }
+#endif
+
   main_thread_only().page_schedulers.insert(page_scheduler);
   DetachOnIPCTaskPostedWhileInBackForwardCacheHandler();
   if (page_scheduler->IsOrdinary()) {
