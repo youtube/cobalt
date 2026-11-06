@@ -43,8 +43,8 @@ class AudioDecoderPassthrough : public AudioDecoder {
   // AudioDecoder methods.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(!output_cb_);
-    SB_DCHECK(output_cb);
+    SB_CHECK(!output_cb_);
+    SB_CHECK(output_cb);
 
     output_cb_ = output_cb;
   }
@@ -52,9 +52,9 @@ class AudioDecoderPassthrough : public AudioDecoder {
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(!input_buffers.empty());
+    SB_CHECK(!input_buffers.empty());
     SB_CHECK(consumed_cb);
-    SB_DCHECK(output_cb_);
+    SB_CHECK(output_cb_);
 
     // TODO: |decoded_audio| is used as a buffer to store raw, encoded audio
     //       here, which isn't aligned to its intended usage.  The code won't

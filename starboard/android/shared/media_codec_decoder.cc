@@ -188,7 +188,7 @@ MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
     j_media_crypto =
         ScopedJavaLocalRef<jobject>(env, drm_system_->GetMediaCrypto());
   }
-  SB_DCHECK(!drm_system_ || j_media_crypto);
+  SB_CHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = media_codec_factory.CreateAudioMediaCodec(
       audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
@@ -248,8 +248,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       enable_codec_thread_improvements_(
           use_dual_threads &&
           experimental_options.enable_codec_thread_improvements) {
-  SB_DCHECK(frame_rendered_cb_);
-  SB_DCHECK(first_tunnel_frame_ready_cb_);
+  SB_CHECK(frame_rendered_cb_);
+  SB_CHECK(first_tunnel_frame_ready_cb_);
 
   ScopedJavaLocalRef<jobject> j_media_crypto;
   if (drm_system_) {
@@ -259,7 +259,7 @@ MediaCodecDecoder::MediaCodecDecoder(
   }
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
-  SB_DCHECK(!drm_system_ || j_media_crypto);
+  SB_CHECK(!drm_system_ || j_media_crypto);
 
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,
@@ -325,8 +325,8 @@ MediaCodecDecoder::~MediaCodecDecoder() {
 
 void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(error_cb);
-  SB_DCHECK(!error_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(!error_cb_);
 
   error_cb_ = error_cb;
 
@@ -348,7 +348,7 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (use_dual_threads_) {
-    SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+    SB_CHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (!video_input_thread_) {
       // The input thread makes synchronous JNI/Binder calls into the codec on
       // every frame.  With the codec thread improvements it runs at the same
@@ -438,7 +438,7 @@ void MediaCodecDecoder::WriteEndOfStream() {
 }
 
 void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  SB_CHECK_EQ(media_type_, kSbMediaTypeVideo);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
@@ -510,7 +510,7 @@ bool MediaCodecDecoder::Flush() {
 void MediaCodecDecoder::AudioDecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeAudio);
 
   std::deque<PendingInput> pending_inputs;
@@ -575,7 +575,7 @@ void MediaCodecDecoder::AudioDecoderThreadFunc() {
 void MediaCodecDecoder::VideoDecoderThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
 
   // While it is possible to consolidate the logic for audio and video
@@ -660,7 +660,7 @@ void MediaCodecDecoder::VideoDecoderThreadFunc() {
 void MediaCodecDecoder::InputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
 
   std::deque<PendingInput> pending_inputs;
@@ -692,7 +692,7 @@ void MediaCodecDecoder::InputThreadFunc() {
 void MediaCodecDecoder::InputThreadFuncV2() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(use_dual_threads_);
   SB_DCHECK(enable_codec_thread_improvements_);
@@ -778,7 +778,7 @@ void MediaCodecDecoder::InputThreadFuncV2() {
 void MediaCodecDecoder::OutputThreadFunc() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
 
   std::vector<DequeueOutputResult> dequeue_output_results;
@@ -829,7 +829,7 @@ void MediaCodecDecoder::OutputThreadFunc() {
 void MediaCodecDecoder::OutputThreadFuncV2() {
   // Initialize() should be called before creating the thread, where `error_cb_`
   // is set.  Check `error_cb_` here to ensure Initialize() has been called.
-  SB_DCHECK(error_cb_);
+  SB_CHECK(error_cb_);
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(use_dual_threads_);
   SB_DCHECK(enable_codec_thread_improvements_);
@@ -1000,9 +1000,9 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   }
   SB_DCHECK_GE(input_buffer_index, 0);
 
-  SB_DCHECK(pending_input.type == PendingInput::kWriteCodecConfig ||
-            pending_input.type == PendingInput::kWriteInputBuffer ||
-            pending_input.type == PendingInput::kWriteEndOfStream);
+  SB_CHECK(pending_input.type == PendingInput::kWriteCodecConfig ||
+           pending_input.type == PendingInput::kWriteInputBuffer ||
+           pending_input.type == PendingInput::kWriteEndOfStream);
   const scoped_refptr<InputBuffer>& input_buffer = pending_input.input_buffer;
   if (pending_input.type == PendingInput::kWriteEndOfStream) {
     SB_DCHECK(pending_inputs->empty());
@@ -1010,7 +1010,7 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
   const void* data = NULL;
   int size = 0;
   if (pending_input.type == PendingInput::kWriteCodecConfig) {
-    SB_DCHECK_EQ(media_type_, kSbMediaTypeAudio);
+    SB_CHECK_EQ(media_type_, kSbMediaTypeAudio);
     data = pending_input.codec_config.data();
     size = pending_input.codec_config.size();
   } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
@@ -1278,7 +1278,7 @@ void MediaCodecDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
 }
 
 void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
-  SB_DCHECK(tunnel_mode_enabled_);
+  SB_CHECK(tunnel_mode_enabled_);
 
   first_tunnel_frame_ready_cb_();
 }

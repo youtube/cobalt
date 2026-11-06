@@ -111,7 +111,7 @@ bool Has(const char* name) {
 CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
-  SB_DCHECK(context);
+  SB_CHECK(context);
   JNIEnv* env = AttachCurrentThread();
 
   if (!Has(name)) {
@@ -151,8 +151,8 @@ void* Send(CobaltExtensionPlatformService service,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
-  SB_DCHECK(length == 0 || data);
-  SB_DCHECK(output_length);
+  SB_CHECK(length == 0 || data);
+  SB_CHECK(output_length);
   SB_CHECK(invalid_state);
 
   if (!service || service->cobalt_service.is_null()) {

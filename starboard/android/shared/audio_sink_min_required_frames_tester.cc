@@ -84,7 +84,7 @@ void AudioSinkMinRequiredFramesTester::AddTest(
   SB_CHECK(thread_checker_.CalledOnValidThread());
   // AudioSinkMinRequiredFramesTester doesn't support adding tests after it has
   // started.
-  SB_DCHECK(!tester_thread_);
+  SB_CHECK(!tester_thread_);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -93,7 +93,7 @@ void AudioSinkMinRequiredFramesTester::AddTest(
 void AudioSinkMinRequiredFramesTester::Start() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   // AudioSinkMinRequiredFramesTester only supports starting once.
-  SB_DCHECK(!tester_thread_);
+  SB_CHECK(!tester_thread_);
 
   tester_thread_ = std::make_unique<TesterThread>(this);
   tester_thread_->Start();
@@ -195,11 +195,11 @@ void AudioSinkMinRequiredFramesTester::UpdateSourceStatusFunc(
     void* context) {
   AudioSinkMinRequiredFramesTester* tester =
       static_cast<AudioSinkMinRequiredFramesTester*>(context);
-  SB_DCHECK(tester);
-  SB_DCHECK(frames_in_buffer);
-  SB_DCHECK(offset_in_frames);
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_reached);
+  SB_CHECK(tester);
+  SB_CHECK(frames_in_buffer);
+  SB_CHECK(offset_in_frames);
+  SB_CHECK(is_playing);
+  SB_CHECK(is_eos_reached);
 
   tester->UpdateSourceStatus(frames_in_buffer, offset_in_frames, is_playing,
                              is_eos_reached);
@@ -212,7 +212,7 @@ void AudioSinkMinRequiredFramesTester::ConsumeFramesFunc(
     void* context) {
   AudioSinkMinRequiredFramesTester* tester =
       static_cast<AudioSinkMinRequiredFramesTester*>(context);
-  SB_DCHECK(tester);
+  SB_CHECK(tester);
 
   tester->ConsumeFrames(frames_consumed);
 }

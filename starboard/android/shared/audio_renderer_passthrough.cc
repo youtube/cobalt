@@ -155,12 +155,12 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
                                           const PrerolledCB& prerolled_cb,
                                           const EndedCB& ended_cb) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(error_cb);
-  SB_DCHECK(prerolled_cb);
-  SB_DCHECK(ended_cb);
-  SB_DCHECK(!error_cb_);
-  SB_DCHECK(!prerolled_cb_);
-  SB_DCHECK(!ended_cb_);
+  SB_CHECK(error_cb);
+  SB_CHECK(prerolled_cb);
+  SB_CHECK(ended_cb);
+  SB_CHECK(!error_cb_);
+  SB_CHECK(!prerolled_cb_);
+  SB_CHECK(!ended_cb_);
 
   error_cb_ = error_cb;
   prerolled_cb_ = prerolled_cb;
@@ -172,8 +172,8 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
 
 void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(can_accept_more_data_.load());
+  SB_CHECK(!input_buffers.empty());
+  SB_CHECK(can_accept_more_data_.load());
 
   if (!audio_track_thread_) {
     audio_track_thread_ = JobThread::Create(
@@ -434,12 +434,12 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 }
 
 void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
-  SB_DCHECK(audio_track_thread_);
-  SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
-  SB_DCHECK(error_cb_);
+  SB_CHECK(audio_track_thread_);
+  SB_CHECK(audio_track_thread_->BelongsToCurrentThread());
+  SB_CHECK(error_cb_);
 
   if (audio_track_) {
-    SB_DCHECK(!update_status_and_write_data_token_);
+    SB_CHECK(!update_status_and_write_data_token_);
     AudioTrackState initial_state;
     update_status_and_write_data_token_ = audio_track_thread_->Schedule(
         std::bind(&AudioRendererPassthrough::UpdateStatusAndWriteData, this,
@@ -483,8 +483,8 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
 
 void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
     int64_t seek_to_time) {
-  SB_DCHECK(audio_track_thread_);
-  SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
+  SB_CHECK(audio_track_thread_);
+  SB_CHECK(audio_track_thread_->BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Pause audio track and stop processing.";
 
@@ -510,9 +510,9 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
 
 void AudioRendererPassthrough::UpdateStatusAndWriteData(
     const AudioTrackState previous_state) {
-  SB_DCHECK(audio_track_thread_);
-  SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
-  SB_DCHECK(error_cb_);
+  SB_CHECK(audio_track_thread_);
+  SB_CHECK(audio_track_thread_->BelongsToCurrentThread());
+  SB_CHECK(error_cb_);
   SB_CHECK(audio_track_);
 
   // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
@@ -675,7 +675,7 @@ void AudioRendererPassthrough::OnDecoderConsumed() {
 void AudioRendererPassthrough::OnDecoderOutput() {
   int decoded_audio_sample_rate;
   auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
-  SB_DCHECK(decoded_audio);
+  SB_CHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {
     SB_DCHECK_GT(decoded_audio->size_in_bytes(), 0);
