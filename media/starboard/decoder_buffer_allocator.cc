@@ -180,6 +180,9 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
 
 void DecoderBufferAllocator::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
+  if (!strategy_ || !is_decommit_on_pressure_strategy_) {
+    return;
+  }
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
@@ -189,9 +192,7 @@ void DecoderBufferAllocator::OnMemoryPressure(
       level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
       kCobaltDecoderBufferDecommitReleaseRetainedOnCritical.Get();
   base::AutoLock scoped_lock(mutex_);
-  if (strategy_) {
-    strategy_->DecommitAllDecommitableBlocks(include_retained_blocks);
-  }
+  strategy_->DecommitAllDecommitableBlocks(include_retained_blocks);
 }
 
 base::TimeDelta
@@ -402,6 +403,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
       media::kCobaltDisableDecoderBufferAllocator));
 
   is_strategy_switch_pending_ = false;
+  is_decommit_on_pressure_strategy_ = false;
 
   if (!experimental_strategy_create_cb_.is_null()) {
     strategy_ = experimental_strategy_create_cb_.Run(initial_capacity_,
@@ -429,6 +431,7 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     // Idle blocks are released only from OnMemoryPressure().
     strategy_config.enable_decommit_only_on_memory_pressure = true;
     strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
+    is_decommit_on_pressure_strategy_ = true;
     LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
                  "with decommit on memory pressure. initial_capacity: "
               << initial_capacity_ << ", allocation_increment: "

@@ -195,6 +195,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
       GUARDED_BY(mutex_);
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  // Whether |strategy_| was created for kCobaltDecoderBufferDecommit. False
+  // when another strategy (e.g. from h5vcc settings) is in use, in which case
+  // memory pressure is ignored.
+  bool is_decommit_on_pressure_strategy_ GUARDED_BY(mutex_) = false;
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   // The following variables are used for comprehensive logging of allocation
