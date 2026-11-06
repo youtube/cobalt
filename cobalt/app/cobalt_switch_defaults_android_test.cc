@@ -20,6 +20,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "build/buildflag.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
@@ -64,7 +65,11 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "UseAAudioInput,"
-      "DeferAudioFocusUntilAudible",
+      "DeferAudioFocusUntilAudible"
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      ",LocalNetworkAccessChecks"
+#endif
+      ,
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
 }
 
@@ -95,7 +100,11 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
   EXPECT_EQ(
       "TestFeature3,"
       "UseAAudioInput,"
-      "DeferAudioFocusUntilAudible",
+      "DeferAudioFocusUntilAudible"
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+      ",LocalNetworkAccessChecks"
+#endif
+      ,
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   EXPECT_EQ(
       "--no-decommit-pooled-pages,--no-concurrent-marking,"
