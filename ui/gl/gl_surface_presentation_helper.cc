@@ -96,7 +96,11 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
     int64_t start = 0;
     int64_t end = 0;
     frame.timer->GetStartEndTimestamps(&start, &end);
-    *timestamp = base::TimeTicks() + base::Microseconds(start);
+    if (gpu_timing_client_ && gpu_timing_client_->CheckAndResetTimerErrors()) {
+      *timestamp = base::TimeTicks::Now();
+    } else {
+      *timestamp = base::TimeTicks() + base::Microseconds(start);
+    }
   } else {
     if (!frame.fence->HasCompleted())
       return false;
@@ -209,15 +213,18 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
       egl_timestamp_client_ = nullptr;
   }
 
-  gpu_timing_client_ = context->CreateGPUTimingClient();
-  if (!gpu_timing_client_->IsAvailable())
-    gpu_timing_client_ = nullptr;
-
 // https://crbug.com/854298 : disable GLFence on Android as they seem to cause
 // issues on some devices.
 #if !BUILDFLAG(IS_ANDROID)
   gl_fence_supported_ = GLFence::IsSupported();
 #endif
+
+  gpu_timing_client_ = context->CreateGPUTimingClient();
+  if (!gpu_timing_client_ || !gpu_timing_client_->IsAvailable() ||
+      (gl_fence_supported_ &&
+       !gpu_timing_client_->AreTimestampQueriesPrecise())) {
+    gpu_timing_client_ = nullptr;
+  }
 }
 
 void GLSurfacePresentationHelper::PreSwapBuffers(
@@ -225,7 +232,9 @@ void GLSurfacePresentationHelper::PreSwapBuffers(
     int frame_id) {
   if (egl_timestamp_client_) {
     pending_frames_.emplace_back(frame_id, std::move(callback));
-  } else if (gpu_timing_client_) {
+  } else if (gpu_timing_client_ &&
+             (!gl_fence_supported_ ||
+              gpu_timing_client_->AreTimestampQueriesPrecise())) {
     std::unique_ptr<GPUTimer> timer;
     timer = gpu_timing_client_->CreateGPUTimer(false /* prefer_elapsed_time */);
     timer->QueryTimeStamp();
@@ -331,6 +340,12 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     gfx::PresentationFeedback feedback(timestamp, interval, flags);
     feedback.writes_done_timestamp = writes_done;
     frame_presentation_callback(feedback);
+  }
+
+  if (gpu_timing_client_ && gl_fence_supported_ &&
+      !gpu_timing_client_->AreTimestampQueriesPrecise() &&
+      (pending_frames_.empty() || !pending_frames_.front().timer)) {
+    gpu_timing_client_ = nullptr;
   }
 
   if (!pending_frames_.empty())
