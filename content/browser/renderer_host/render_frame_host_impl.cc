@@ -10228,7 +10228,6 @@ void RenderFrameHostImpl::CreateNewWindow(
     return;
   }
 
-An empty string (i.e. deleting the conflict block completely, taking upstream `HEAD`).
   bool no_javascript_access = false;
 
   // Filter out URLs to which navigation is disallowed from this context.
