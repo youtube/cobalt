@@ -278,6 +278,19 @@ class CONTENT_EXPORT RenderThreadImpl
       GetVideoFrameCompositorContextProvider(
           scoped_refptr<viz::RasterContextProvider>);
 
+#if BUILDFLAG(IS_COBALT)
+  // Non-blocking variant of GetVideoFrameCompositorContextProvider(). Creates
+  // the context on |gpu_channel_host|, as returned by EstablishGpuChannel(),
+  // and never calls EstablishGpuChannelSync(): while Cobalt is concealed, the
+  // GPU service queues channel requests until reveal, so a sync call would
+  // block the main thread for the whole concealed period. Returns null if
+  // |gpu_channel_host| is null or lost.
+  scoped_refptr<viz::RasterContextProvider>
+  GetVideoFrameCompositorContextProviderForChannel(
+      scoped_refptr<gpu::GpuChannelHost> gpu_channel_host,
+      scoped_refptr<viz::RasterContextProvider> unwanted_context_provider);
+#endif  // BUILDFLAG(IS_COBALT)
+
   scoped_refptr<gpu::ClientSharedImageInterface>
   GetRenderThreadSharedImageInterface();
 
@@ -542,6 +555,13 @@ class CONTENT_EXPORT RenderThreadImpl
 
   scoped_refptr<viz::RasterContextProvider>
       video_frame_compositor_context_provider_;
+#if BUILDFLAG(IS_COBALT)
+  // The channel that GetVideoFrameCompositorContextProviderForChannel() created
+  // |video_frame_compositor_context_provider_| on. A cached context is only
+  // reused on the same channel: one created on a channel that has since been
+  // torn down (e.g. on conceal) can never bind again.
+  scoped_refptr<gpu::GpuChannelHost> video_frame_compositor_gpu_channel_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   scoped_refptr<viz::RasterContextProvider> shared_worker_context_provider_;
 
