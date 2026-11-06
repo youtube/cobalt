@@ -958,6 +958,10 @@ void MainThreadSchedulerImpl::SetAllRenderWidgetsHidden(bool hidden) {
 }
 
 void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
+#if BUILDFLAG(IS_COBALT)
+  const bool was_process_hidden =
+      main_thread_only().renderer_hidden_metadata.has_value();
+#endif
   if (hidden) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                  "MainThreadSchedulerImpl::OnRendererHidden");
@@ -971,6 +975,24 @@ void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
   }
   helper_.CheckOnValidThread();
   main_thread_only().renderer_hidden = hidden;
+#if BUILDFLAG(IS_COBALT)
+  if (helper_.IsShutdown() ||
+      !base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    return;
+  }
+  if (hidden && !was_process_hidden &&
+      main_thread_only().renderer_backgrounded) {
+    // On Android, kLaunchingProcessIsBackgrounded initializes
+    // renderer_backgrounded=true before any PageScheduler exists, causing
+    // SetRendererBackgrounded(true) to short-circuit on cold-start into
+    // hidden state. Notify MemoryPurgeManager directly (no-op if its timer
+    // is already running from OnRendererBackgrounded).
+    memory_purge_manager_.SetRendererBackgrounded(true);
+    return;
+  }
+  SetRendererBackgrounded(hidden);
+#endif
 }
 
 void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
@@ -980,6 +1002,19 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
       main_thread_only().renderer_backgrounded == backgrounded) {
     return;
   }
+#if BUILDFLAG(IS_COBALT)
+  // Keep the scheduler and MemoryPurgeManager backgrounded while the renderer
+  // process is explicitly hidden so single-process priority boosts (e.g.
+  // service worker or media activity in RenderThreadImpl::SetProcessState)
+  // cannot cancel a pending hidden purge. SetRendererHidden(false) resets
+  // renderer_hidden_metadata before calling SetRendererBackgrounded(false).
+  if (!backgrounded &&
+      main_thread_only().renderer_hidden_metadata.has_value() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager)) {
+    return;
+  }
+#endif
   if (backgrounded) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                  "MainThreadSchedulerImpl::OnRendererBackgrounded");

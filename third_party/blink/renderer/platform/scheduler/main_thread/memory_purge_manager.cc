@@ -44,7 +44,12 @@ const base::FeatureParam<base::TimeDelta> kMemoryPurgeInBackgroundMaxDelay{
 }  // namespace
 
 MemoryPurgeManager::MemoryPurgeManager(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+#if BUILDFLAG(IS_COBALT)
+    : cobalt_purge_enabled_(base::FeatureList::IsEnabled(
+          features::kCobaltEnableBlinkMemoryPurgeManager))
+#endif
+{
   purge_timer_.SetTaskRunner(task_runner);
 }
 
@@ -104,6 +109,12 @@ void MemoryPurgeManager::OnPageResumed() {
 
   MaybeRunAllPagesFrozenCallback(were_all_frozen);
 
+#if BUILDFLAG(IS_COBALT)
+  if (!renderer_backgrounded_ && cobalt_purge_enabled_) {
+    did_purge_with_page_frozen_since_backgrounded_ = false;
+  }
+#endif
+
   if (!CanPurge()) {
     purge_timer_.Stop();
   }
@@ -128,7 +139,12 @@ void MemoryPurgeManager::SetRendererBackgrounded(bool backgrounded) {
 }
 
 void MemoryPurgeManager::OnRendererBackgrounded() {
+#if BUILDFLAG(IS_COBALT)
+  if ((!kPurgeEnabled && !cobalt_purge_enabled_) ||
+      purge_disabled_for_testing_) {
+#else
   if (!kPurgeEnabled || purge_disabled_for_testing_) {
+#endif
     return;
   }
 
@@ -148,6 +164,11 @@ void MemoryPurgeManager::OnRendererForegrounded() {
   backgrounded_purge_pending_ = false;
   did_purge_with_page_frozen_since_backgrounded_ = false;
   purge_timer_.Stop();
+#if BUILDFLAG(IS_COBALT)
+  if (cobalt_purge_enabled_) {
+    base::MemoryPressureListener::SetNotificationsSuppressed(false);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void MemoryPurgeManager::RecordAreAllPagesFrozenMetric(std::string_view name) {
@@ -199,6 +220,12 @@ bool MemoryPurgeManager::CanPurge() const {
     return true;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (cobalt_purge_enabled_ && AreAllPagesFrozen()) {
+    return true;
+  }
+#endif
+
   if (!renderer_backgrounded_) {
     return false;
   }
@@ -222,6 +249,11 @@ bool MemoryPurgeManager::AreAllPagesFrozen() const {
 }
 
 base::TimeDelta MemoryPurgeManager::GetTimeToPurgeAfterBackgrounded() const {
+#if BUILDFLAG(IS_COBALT)
+  if (cobalt_purge_enabled_) {
+    return kFreezePurgeDelay;
+  }
+#endif
   return base::Seconds(base::RandInt(
       static_cast<int>(kMemoryPurgeInBackgroundMinDelay.Get().InSeconds()),
       static_cast<int>(kMemoryPurgeInBackgroundMaxDelay.Get().InSeconds())));

@@ -282,6 +282,174 @@ TEST_F(MemoryPurgeManagerTest, MemoryPurgeOnFreezeLimitEnabled) {
   EXPECT_EQ(2U, MemoryPressureCount());
 }
 
+#if BUILDFLAG(IS_COBALT)
+class CobaltMemoryPurgeManagerFeatureInitializer {
+ protected:
+  explicit CobaltMemoryPurgeManagerFeatureInitializer(
+      bool enable_cobalt_purge) {
+    if (enable_cobalt_purge) {
+      scoped_feature_list_.InitAndEnableFeature(
+          features::kCobaltEnableBlinkMemoryPurgeManager);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          features::kCobaltEnableBlinkMemoryPurgeManager);
+    }
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class CobaltMemoryPurgeManagerEnabledTest
+    : private CobaltMemoryPurgeManagerFeatureInitializer,
+      public MemoryPurgeManagerTest {
+ public:
+  CobaltMemoryPurgeManagerEnabledTest()
+      : CobaltMemoryPurgeManagerFeatureInitializer(
+            /*enable_cobalt_purge=*/true),
+        MemoryPurgeManagerTest() {}
+};
+
+class CobaltMemoryPurgeManagerDisabledTest
+    : private CobaltMemoryPurgeManagerFeatureInitializer,
+      public MemoryPurgeManagerTest {
+ public:
+  CobaltMemoryPurgeManagerDisabledTest()
+      : CobaltMemoryPurgeManagerFeatureInitializer(
+            /*enable_cobalt_purge=*/false),
+        MemoryPurgeManagerTest() {}
+};
+
+TEST_F(CobaltMemoryPurgeManagerEnabledTest,
+       PurgesAfterShortDelayWhenBackgrounded) {
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.SetRendererBackgrounded(true);
+
+  EXPECT_EQ(0U, MemoryPressureCount());
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+
+TEST_F(CobaltMemoryPurgeManagerEnabledTest,
+       ForegroundBeforeShortDelayCancelsBackgroundPurge) {
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.SetRendererBackgrounded(true);
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay / 2);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.SetRendererBackgrounded(false);
+  FastForwardBy(MemoryPurgeManager::kDefaultMaxTimeToPurgeAfterBackgrounded);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+
+TEST_F(CobaltMemoryPurgeManagerEnabledTest,
+       PurgesWhenAllPagesFrozenEvenIfRendererNotBackgrounded) {
+  base::test::ScopedFeatureList freeze_limit{
+      features::kMemoryPurgeOnFreezeLimit};
+  memory_purge_manager_.SetPurgeDisabledForTesting(true);
+
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.SetRendererBackgrounded(false);
+  memory_purge_manager_.OnPageFrozen();
+
+  EXPECT_EQ(0U, MemoryPressureCount());
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, MemoryPressureCount());
+  EXPECT_TRUE(base::MemoryPressureListener::AreNotificationsSuppressed());
+
+  // Resuming unsuppresses notifications and resets the freeze-limit latch so
+  // subsequent freeze cycles still purge even when renderer_backgrounded_
+  // remained false due to single-process priority holds.
+  memory_purge_manager_.OnPageResumed();
+  EXPECT_FALSE(base::MemoryPressureListener::AreNotificationsSuppressed());
+
+  memory_purge_manager_.OnPageFrozen();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(2U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageResumed();
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+
+TEST_F(CobaltMemoryPurgeManagerEnabledTest,
+       ResumeBeforeDelayCancelsFreezePurgeWhenRendererNotBackgrounded) {
+  memory_purge_manager_.SetPurgeDisabledForTesting(true);
+
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.SetRendererBackgrounded(false);
+  memory_purge_manager_.OnPageFrozen();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay / 2);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageResumed();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+
+TEST_F(CobaltMemoryPurgeManagerEnabledTest,
+       NoPurgeWhenZeroPagesOrPartialFreezeOrDestroyedBeforeDelay) {
+  // 1. Zero pages (spare renderer): backgrounding must not schedule a purge.
+  memory_purge_manager_.SetRendererBackgrounded(true);
+  FastForwardBy(MemoryPurgeManager::kDefaultMaxTimeToPurgeAfterBackgrounded);
+  EXPECT_EQ(0U, MemoryPressureCount());
+  memory_purge_manager_.SetRendererBackgrounded(false);
+
+  // 2. Last frozen page destroyed before delay when renderer_backgrounded_ is
+  // false: total_page_count_ drops to 0 (where total == frozen == 0), so
+  // CanPurge() must return false and cancel the timer.
+  memory_purge_manager_.SetPurgeDisabledForTesting(true);
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.OnPageFrozen();
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/true);
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  // 3. Partial freeze (1 of 2 pages frozen) when renderer_backgrounded_ is
+  // false: AreAllPagesFrozen() is false, so CanPurge() must remain false until
+  // all pages are frozen.
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.OnPageFrozen();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageFrozen();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, MemoryPressureCount());
+  EXPECT_TRUE(base::MemoryPressureListener::AreNotificationsSuppressed());
+
+  memory_purge_manager_.OnPageResumed();
+  memory_purge_manager_.OnPageResumed();
+  EXPECT_FALSE(base::MemoryPressureListener::AreNotificationsSuppressed());
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+
+TEST_F(CobaltMemoryPurgeManagerDisabledTest,
+       PreservesDefaultBehaviorWhenFeatureDisabled) {
+  memory_purge_manager_.OnPageCreated();
+  memory_purge_manager_.SetRendererBackgrounded(false);
+  memory_purge_manager_.OnPageFrozen();
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, MemoryPressureCount());
+
+  memory_purge_manager_.OnPageResumed();
+  memory_purge_manager_.SetRendererBackgrounded(true);
+  FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, MemoryPressureCount());
+  FastForwardBy(MemoryPurgeManager::kDefaultMaxTimeToPurgeAfterBackgrounded);
+  EXPECT_EQ(MemoryPurgeManager::kPurgeEnabled ? 1U : 0U, MemoryPressureCount());
+
+  memory_purge_manager_.SetRendererBackgrounded(false);
+  memory_purge_manager_.OnPageDestroyed(/*frozen=*/false);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 
 }  // namespace blink
