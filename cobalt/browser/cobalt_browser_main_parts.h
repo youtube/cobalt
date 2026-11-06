@@ -20,6 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
@@ -51,6 +52,12 @@ namespace cobalt {
 #if BUILDFLAG(IS_ANDROID)
 namespace memory {
 class AndroidOsSignalEvaluator;
+}  // namespace memory
+#endif
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+namespace memory {
+class FontCacheMemoryPressureListener;
 }  // namespace memory
 #endif
 
@@ -131,6 +138,10 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<memory::AndroidOsSignalEvaluator>
       android_os_signal_evaluator_;
+#endif
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  std::unique_ptr<memory::FontCacheMemoryPressureListener>
+      font_cache_memory_pressure_listener_;
 #endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};

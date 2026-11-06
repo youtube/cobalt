@@ -158,6 +158,10 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
 void SkFontMgr_Cobalt::PurgeCaches() {
   SkGraphics::PurgeFontCache();
+  PurgeUnusedFontData();
+}
+
+void SkFontMgr_Cobalt::PurgeUnusedFontData() {
   local_typeface_stream_manager_.PurgeUnusedMemoryChunks();
 
   // Lock the family mutex prior to purging each family's unreferenced

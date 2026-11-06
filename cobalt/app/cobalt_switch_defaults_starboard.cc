@@ -84,6 +84,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // creation, but egl extension required to support the attribute is
        // missing and causes errors. So Enable it by default. (More context in
        // b/444042898)
+       "CobaltPurgeFontManagerCachesOnMemoryPressure, "
+       "EnableCobaltMemoryPressureEvaluator, "
        "DefaultEnableANGLEValidation, "
        "SmallerInterestArea, "
        "ReclaimPrepaintTilesWhenIdle, "
