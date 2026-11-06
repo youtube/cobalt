@@ -33,6 +33,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -56,6 +57,11 @@ const int kMaxRequiredFramesRemote = 32 * 1024;
 const int kMaxRequiredFrames = kMaxRequiredFramesRemote;
 const int kRequiredFramesIncrement = 4 * 1024;
 const int kMinStablePlayedFrames = 12 * 1024;
+
+// When the playback head hasn't moved for this long, check whether the
+// AudioTrack's start threshold has grown beyond what the sink can provide. See
+// AudioTrackAudioSink::CheckStartThresholdOnStall() for details.
+constexpr int64_t kStartThresholdCheckIntervalUs = 500'000;  // 500ms
 
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
@@ -102,6 +108,16 @@ bool HasRemoteAudioOutput() {
 }
 
 }  // namespace
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrackAudioSinkType::Options& options) {
+  return os << "{allow_audio_writing_on_pause="
+            << ToString(options.allow_audio_writing_on_pause)
+            << ", pause_using_audio_track_state="
+            << ToString(options.pause_using_audio_track_state)
+            << ", restart_on_audio_threshold_growth="
+            << ToString(options.restart_on_audio_threshold_growth) << "}";
+}
 
 class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
  public:
@@ -202,14 +218,18 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       context_(context),
       allow_audio_writing_on_pause_(options.allow_audio_writing_on_pause),
       pause_using_audio_track_state_(options.pause_using_audio_track_state),
+      restart_on_audio_threshold_growth_(
+          options.restart_on_audio_threshold_growth),
       audio_track_(std::move(audio_track)),
+      last_start_threshold_(audio_track_->GetStartThresholdInFrames()),
       audio_out_thread_(std::make_unique<AudioTrackOutThread>(this)) {
   SB_DCHECK(callbacks_.update_source_status);
   SB_DCHECK(callbacks_.consume_frames);
   SB_DCHECK(frame_buffer_);
   SB_CHECK(audio_track_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load();
+  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_.load()
+               << ", options=" << options;
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
@@ -360,6 +380,17 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
       if (last_playback_head_position == playback_head_position) {
         int64_t elapsed = now - last_playback_head_event_at;
+        if (restart_on_audio_threshold_growth_) {
+          StartThresholdAction action =
+              CheckStartThresholdOnStall(elapsed, now);
+          if (action == StartThresholdAction::kRestartPlayer) {
+            break;
+          }
+          if (action == StartThresholdAction::kResetAndFlush) {
+            reset_and_flush();
+            continue;
+          }
+        }
         if (elapsed > 5'000'000LL) {
           last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
@@ -566,6 +597,59 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   if (callbacks_.error) {
     callbacks_.error(capability_changed, error_message, context_);
   }
+}
+
+AudioTrackAudioSink::StartThresholdAction
+AudioTrackAudioSink::CheckStartThresholdOnStall(int64_t stalled_duration_us,
+                                                int64_t now_us) {
+  if (!callbacks_.error) {
+    return StartThresholdAction::kNone;
+  }
+  if (stalled_duration_us < kStartThresholdCheckIntervalUs) {
+    return StartThresholdAction::kNone;
+  }
+  if (last_start_threshold_check_at_us_ &&
+      now_us - *last_start_threshold_check_at_us_ <
+          kStartThresholdCheckIntervalUs) {
+    return StartThresholdAction::kNone;
+  }
+  last_start_threshold_check_at_us_ = now_us;
+
+  const int start_threshold = audio_track_->GetStartThresholdInFrames();
+  if (start_threshold == last_start_threshold_) {
+    return StartThresholdAction::kNone;
+  }
+  const int previous_start_threshold = last_start_threshold_;
+  last_start_threshold_ = start_threshold;
+
+  // The renderer only appends to the sink buffer when at least
+  // |kDefaultAudioSinkMinFramesPerAppend| frames are free, so the sink buffer
+  // may never be completely full.
+  const int max_frames_in_audio_track =
+      frames_per_channel_ -
+      AudioRendererSink::kDefaultAudioSinkMinFramesPerAppend;
+  if (start_threshold < previous_start_threshold) {
+    SB_LOG(INFO) << "AudioTrack start threshold decreased from "
+                 << previous_start_threshold << " to " << start_threshold
+                 << " frames.";
+    return StartThresholdAction::kNone;
+  }
+  if (start_threshold <= max_frames_in_audio_track) {
+    SB_LOG(INFO) << "AudioTrack start threshold grew from "
+                 << previous_start_threshold << " to " << start_threshold
+                 << " frames, which the sink can still provide ("
+                 << max_frames_in_audio_track
+                 << " frames). Resetting audio track to re-feed sink buffer.";
+    return StartThresholdAction::kResetAndFlush;
+  }
+
+  SB_LOG(WARNING) << "AudioTrack start threshold grew from "
+                  << previous_start_threshold << " to " << start_threshold
+                  << " frames, which exceeds the " << max_frames_in_audio_track
+                  << " frames the sink can provide. Raising a capability "
+                     "changed error to restart playback.";
+  ReportError(true, "AudioTrack start threshold exceeds sink buffer");
+  return StartThresholdAction::kRestartPlayer;
 }
 
 int64_t AudioTrackAudioSink::GetFramesDurationUs(int64_t frames) const {
