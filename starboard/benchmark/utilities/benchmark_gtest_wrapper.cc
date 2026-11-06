@@ -74,6 +74,12 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
 // the full original argv captured before InitGoogleTest() strips --gtest_*
 // flags, so filtering by the "--benchmark_" prefix forwards only Google
 // Benchmark flags.
+//
+// TODO(b/582763971): This wrapper is shared by player_benchmarks and
+// media_benchmarks, but argv[0] and the test name below are still
+// player-specific. Also, BenchmarkProcessState frees these strings while
+// Google Benchmark keeps a pointer to argv[0], which corrupts the "Running"
+// banner and --benchmark_out_format=json output.
 std::vector<std::string> GetBenchmarkArgs() {
   std::vector<std::string> args = {"player_benchmarks"};
 
