@@ -81,6 +81,8 @@ class BlobReader : public blink::mojom::BlobReaderClient {
  private:
   void OnDataAvailable(MojoResult result,
                        const mojo::HandleSignalsState& state);
+  // Finishes reading when the data pipe is closed, normally or on errors.
+  void OnPipeClosed(MojoResult result);
   void Abort();
 
   mojo::Remote<blink::mojom::Blob> blob_;

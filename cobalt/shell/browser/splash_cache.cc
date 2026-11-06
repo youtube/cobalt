@@ -38,6 +38,7 @@ void BindSplashCacheStorage(
     BrowserContext* browser_context,
     const std::string& splash_domain,
     mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) {
+  DCHECK(browser_context);
   auto spc = content::StoragePartitionConfig::CreateDefault(browser_context);
 
   content::StoragePartition* storage_partition =
@@ -107,7 +108,8 @@ BlobReader::~BlobReader() = default;
 void BlobReader::OnCalculatedSize(uint64_t total_size,
                                   uint64_t expected_content_size) {
   if (total_size > max_content_size_) {
-    return Abort();
+    Abort();
+    return;
   }
   content_.reserve(total_size);
 }
@@ -124,17 +126,10 @@ void BlobReader::OnComplete(int32_t status, uint64_t data_length) {
 }
 
 void BlobReader::OnDataAvailable(MojoResult result,
-                                 const mojo::HandleSignalsState& state) {
+                                 const mojo::HandleSignalsState&) {
   constexpr uint32_t kReadBufferSize = 64 * 1024;
   if (result != MOJO_RESULT_OK) {
-    watcher_.reset();
-    consumer_handle_.reset();
-    if (callback_) {
-      if (result != MOJO_RESULT_FAILED_PRECONDITION) {
-        LOG(ERROR) << "Data pipe watcher error: " << result;
-      }
-      std::move(callback_).Run(std::move(content_));
-    }
+    OnPipeClosed(result);
     return;
   }
 
@@ -148,13 +143,25 @@ void BlobReader::OnDataAvailable(MojoResult result,
       return;
     }
     if (read_result != MOJO_RESULT_OK) {
-      OnDataAvailable(read_result, state);
+      OnPipeClosed(read_result);
       return;
     }
     if (content_.size() + num_bytes > max_content_size_) {
-      return Abort();
+      Abort();
+      return;
     }
     content_.insert(content_.end(), buffer, buffer + num_bytes);
+  }
+}
+
+void BlobReader::OnPipeClosed(MojoResult result) {
+  watcher_.reset();
+  consumer_handle_.reset();
+  if (callback_) {
+    if (result != MOJO_RESULT_FAILED_PRECONDITION) {
+      LOG(ERROR) << "Data pipe watcher error: " << result;
+    }
+    std::move(callback_).Run(std::move(content_));
   }
 }
 
