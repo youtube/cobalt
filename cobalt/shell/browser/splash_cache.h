@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -37,6 +38,29 @@
 namespace content {
 
 class BrowserContext;
+
+// An enum for UMA histogram to indicate the result of clearing the cached
+// splash assets. These values are persisted to logs. Entries should not be
+// renumbered and numeric values should never be reused.
+enum class SplashCacheClearResult {
+  // No cached splash asset was found.
+  kNoCachedFiles = 0,
+  // All the cached splash assets found were deleted.
+  kCleared = 1,
+  // Failed to delete some cached splash assets.
+  kFailed = 2,
+  kMaxValue = kFailed,
+};
+
+// Asynchronously deletes the splash assets that the WebApp cached
+// ("splash.webm" and "splash.png" in the "default" and "music" caches of
+// |splash_domain|), e.g., in case they crash Cobalt. Records
+// Cobalt.SplashScreen.ClearCachedFilesResult, then runs |done_callback|. Must
+// be called on the UI thread.
+void ClearCachedSplashFiles(
+    BrowserContext* browser_context,
+    const std::string& splash_domain,
+    base::OnceClosure done_callback = base::DoNothing());
 
 // Binds |receiver| to the CacheStorage of the origin of |splash_domain|, in the
 // default StoragePartition of |browser_context|.
