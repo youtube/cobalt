@@ -630,7 +630,7 @@ TEST_F(SplashScreenTest, SplashTimeoutFromFeatureParam) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeatureWithParameters(
       cobalt::features::kSplashScreenConfig,
-      {{"SplashScreenConfig_timeout", "3s"}});
+      {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}});
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
@@ -657,7 +657,7 @@ TEST_F(SplashScreenTest, VideoPageLoadWaitsForFirstFrame) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
        {cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -687,7 +687,7 @@ TEST_F(SplashScreenTest, VideoFirstFrameWaitIsBounded) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
        {cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -714,7 +714,7 @@ TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
        {cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   // E.g., without VP9, splash.html shows its image instead.
   Shell::SetCanSplashScreenPlayVideoForTesting(false);
@@ -744,7 +744,7 @@ TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
        {cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -773,7 +773,7 @@ TEST_F(SplashScreenTest, ImageSplashScreenStartsWithPageLoad) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -876,7 +876,7 @@ TEST_F(SplashScreenTest, SplashTimeoutPassedToSplashScreen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kSplashScreenConfig,
-        {{"SplashScreenConfig_timeout", "3s"}}}},
+        {{cobalt::features::kSplashScreenTimeoutParam.name, "3s"}}}},
       {cobalt::features::kForceVideoSplashScreen});
   Shell* shell = CreateShellWithSplashScreen();
 
