@@ -364,10 +364,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
       max_codec_creation_retries_(
-          std::max(0,
-                   pipeline_config.experimental_features
-                       .Get(kMediaVideoCodecCreationRetryCount)
-                       .value_or(0))),
+          std::max(0, pipeline_config.codec_creation_retry_count)),
       codec_creation_retries_left_(max_codec_creation_retries_),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture

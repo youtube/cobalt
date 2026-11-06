@@ -31,6 +31,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
+#include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/mime_param.h"
 #include "starboard/common/check_op.h"
@@ -537,10 +538,19 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 #if !BUILDFLAG(IS_STARBOARD)
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+    std::optional<int> feature_codec_creation_retry_count;
+    if (FeatureList::IsEnabled(features::kRetryVideoCodecCreation)) {
+      feature_codec_creation_retry_count =
+          features::kVideoCodecCreationRetryCount.Get();
+    }
 #else
     int64_t flush_delay_usec = 0;
     int64_t reset_delay_usec = 0;
+    std::optional<int> feature_codec_creation_retry_count;
 #endif
+    // The H5VCC setting takes precedence over the Starboard feature.
+    const int codec_creation_retry_count = GetVideoCodecCreationRetryCount(
+        experimental_features, feature_codec_creation_retry_count);
 
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing video"
@@ -551,6 +561,11 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG_IF(INFO, reset_delay_usec > 0)
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
+    SB_LOG_IF(INFO, feature_codec_creation_retry_count.has_value())
+        << "`RetryVideoCodecCreation` is enabled with RetryCount="
+        << *feature_codec_creation_retry_count
+        << ", the effective video MediaCodec creation retry count is "
+        << codec_creation_retry_count << ".";
 
     bool use_dual_threads = ShouldUseDualThreads(
         creation_parameters.audio_codec(), creation_parameters.drm_system(),
@@ -574,7 +589,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.max_video_resolution()},
         decoder_tunnel_mode_config,
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
-         experimental_features},
+         experimental_features, codec_creation_retry_count},
         {reset_delay_usec, flush_delay_usec});
   }
 
