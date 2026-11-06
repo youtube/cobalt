@@ -133,6 +133,9 @@ class PLATFORM_EXPORT MemoryPurgeManager {
   // renderer is still backgrounded. Supports the metrics collection associated
   // with the PurgeAndSuspend experiment.
   bool backgrounded_purge_pending_ = false;
+#if BUILDFLAG(IS_COBALT)
+  const bool cobalt_purge_enabled_;
+#endif
 
   int total_page_count_ = 0;
   int frozen_page_count_ = 0;
