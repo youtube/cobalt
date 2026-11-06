@@ -155,34 +155,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
     // tvOS supports multiple types of input events from the Remote, including
     // the clickpad (touch surface), the clickpad ring (directional control),
     // and various physical buttons.
-<<<<<<< HEAD
-
-    // Create and add swipe gesture recognizers for all directions originating
-    // from the clickpad buttons.
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionUp];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionLeft];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionRight];
-    [self addSwipeGestureRecognizerWithDirection:
-              UISwipeGestureRecognizerDirectionDown];
-
-    // Add a pan gesture recognizer to capture input from the clickpad ring,
-    // which allows for continuous movement to the left or right.
-    UIPanGestureRecognizer* panGesture =
-        [[UIPanGestureRecognizer alloc] initWithTarget:self
-                                                action:@selector(handlePan:)];
-    panGesture.delegate = self;
-    [self addGestureRecognizer:panGesture];
-
-    // Only allow the pan gesture to activate if the swipe gesture fails to
-    // recognize.
-    for (UIGestureRecognizer* swipeGesture in self.gestureRecognizers) {
-      if ([swipeGesture isKindOfClass:[UISwipeGestureRecognizer class]]) {
-        [panGesture requireGestureRecognizerToFail:swipeGesture];
-      }
-=======
 #if BUILDFLAG(IS_COBALT)
     _gameControllers = [[NSMutableSet alloc] init];
     NSNotificationCenter* notifications = [NSNotificationCenter defaultCenter];
@@ -198,7 +170,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
     // the controller provides its own input events.
     if (![self addExistingControllers]) {
       [self addSwipeAndPanGestureRecognizers];
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 #else
     [self addSwipeAndPanGestureRecognizers];
@@ -379,10 +350,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
       _selectWillShowKeyboard = YES;
       return YES;
     }
-<<<<<<< HEAD
-=======
     _selectWillShowKeyboard = NO;
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (type == blink::WebInputEvent::Type::kKeyUp) {
     if (_selectWillShowKeyboard) {
       _selectWillShowKeyboard = NO;
@@ -395,19 +363,12 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
   return NO;
 }
 
-<<<<<<< HEAD
-// Returns the set of unhanlded UIPress events to propagate to `super`.
-- (NSSet<UIPress*>*)handlePresses:(NSSet<UIPress*>*)presses
-                         withType:(blink::WebInputEvent::Type)type {
-  NSMutableSet<UIPress*>* unhandled = [NSMutableSet set];
-=======
 // Returns YES if events are handled. Otherwise, NO to allow the event
 // to propagate to `super`.
 - (BOOL)handlePresses:(NSSet<UIPress*>*)presses
              withType:(blink::WebInputEvent::Type)type {
   // If any of `presses` is not handled, set `needToHandleInFramework`.
   BOOL needToHandleInFramework = NO;
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   for (UIPress* press in presses) {
     RemoteButton button = remoteButtonFromPressType(press.type);
     if (type == blink::WebInputEvent::Type::kKeyUp) {
@@ -424,13 +385,6 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
       continue;
     }
     if (button == kSelect && [self handleSelectPressWithType:type]) {
-<<<<<<< HEAD
-      continue;
-    }
-    if (![self sendKeyEventWithRemoteButton:button eventType:type]) {
-      [unhandled addObject:press];
-=======
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       continue;
     }
     needToHandleInFramework |= ![self sendKeyEventWithRemoteButton:button
