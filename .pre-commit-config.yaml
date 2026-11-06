@@ -47,7 +47,8 @@ repos:
     rev: 03d0035246f3e81f36aed592ffb4bebf33a03106
     hooks:
     -   id: actionlint
-        files: ^.github/workflows
+        entry: python3 ./cobalt/precommit/actionlint_wrapper.py
+        files: ^\.github/(workflows|actions)/
 -   repo: local
     hooks:
     -   id: autoroll-format

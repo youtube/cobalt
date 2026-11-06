@@ -120,7 +120,7 @@ jobs:
           curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${PR_API_URL}" > "${DIFF_FILE}"
 
           # If the diff exceeds 64 KB, omit it.
-          if [ $(wc -c < "${DIFF_FILE}") -gt 65536 ]; then
+          if [ "$(wc -c < "${DIFF_FILE}")" -gt 65536 ]; then
             echo "[Diff omitted: exceeds size limit]" > "${DIFF_FILE}"
           fi
 

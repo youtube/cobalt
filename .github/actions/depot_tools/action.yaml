@@ -28,9 +28,9 @@ runs:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
         if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
-          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+          echo "path=/runner-cache" >> "${GITHUB_OUTPUT}"
         else
-          echo "path=" >> ${GITHUB_OUTPUT}
+          echo "path=" >> "${GITHUB_OUTPUT}"
         fi
 
     - name: Authenticate with GoB
