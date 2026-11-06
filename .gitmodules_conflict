@@ -882,12 +882,10 @@
 	path = webkit/data/test_shell/plugins
 	url = https://chrome-internal.googlesource.com/chrome/data/webkit_plugin_tests
 	gclient-condition = checkout_src_internal
-<<<<<<< HEAD
 [submodule "third_party/libei/src"]
 	path = third_party/libei/src
 	url = https://chromium.googlesource.com/external/gitlab.freedesktop.org/libinput/libei
 	gclient-condition = checkout_linux
-=======
 [submodule "third_party/angle/build"]
 	path = third_party/angle/build
 [submodule "third_party/angle/buildtools"]
@@ -1040,4 +1038,3 @@
 	path = third_party/angle/tools/valgrind
 [submodule "third_party/angle/tools/win"]
 	path = third_party/angle/tools/win
->>>>>>> parent of fc064dab30a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
