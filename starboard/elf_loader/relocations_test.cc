@@ -485,5 +485,20 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   munmap(mapped, kMappingSize);
 }
 
+// When an Evergreen guest module (such as libcobalt.so or
+// libcobalt_browsertests.so) initializes a thread_local variable with a
+// non-trivial destructor on a renderer or worker thread, libc++abi checks
+// whether the weak symbol __cxa_thread_atexit_impl resolved to a non-null
+// address. Verify that ExportedSymbols::Lookup never resolves
+// __cxa_thread_atexit_impl from the host C library via dlsym in non-official
+// builds, ensuring libc++abi uses its self-contained pthread_key destructor
+// manager instead of passing an elf_loader-mapped dso_handle to Android
+// Bionic's linker.
+TEST_F(RelocationsTest, DoesNotResolveHostCxaThreadAtexitImpl) {
+  ExportedSymbols symbols;
+  EXPECT_EQ(nullptr, symbols.Lookup(nullptr));
+  EXPECT_EQ(nullptr, symbols.Lookup("__cxa_thread_atexit_impl"));
+}
+
 }  // namespace
 }  // namespace elf_loader
