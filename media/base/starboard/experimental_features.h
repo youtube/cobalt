@@ -181,6 +181,16 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceDecodeToTexture(
 
 inline constexpr ExperimentalFeatureKey<int> kMediaMaxSamplesPerWrite(
     "Media.MaxSamplesPerWrite");
+
+// When true, StarboardRenderer reports BUFFERING_HAVE_NOTHING and pauses the
+// SbPlayer when the playback position runs past the end of the audio or video
+// data written so far (e.g. video-only starvation while audio is still
+// buffered), and resumes once enough data has been written. Without this, a
+// mid-playback underflow is never surfaced to the HTMLMediaElement, so
+// readyState stays HAVE_ENOUGH_DATA and no 'waiting' event fires.
+// See b/578446041.
+inline constexpr ExperimentalFeatureKey<bool> kMediaReportPlaybackUnderflow(
+    "Media.ReportPlaybackUnderflow");
 // keep-sorted end
 
 }  // namespace media
