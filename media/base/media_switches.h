@@ -233,7 +233,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDisableDecoderBufferAllocator);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferDecommit);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure);
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                         kCobaltDecoderBufferDecommitRetainBlocks);
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(

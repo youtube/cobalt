@@ -536,21 +536,21 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 // DecoderBuffers are never released. The h5vcc setting
 // "DecoderBuffer.EnableConfigurableDecommitStrategy" still overrides the
 // strategy configuration.
-BASE_FEATURE(kCobaltDecoderBufferDecommit,
-             "CobaltDecoderBufferDecommit",
+BASE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure,
+             "CobaltDecoderBufferDecommitOnMemoryPressure",
              base::FEATURE_DISABLED_BY_DEFAULT);
 // Number of idle pool blocks kept committed on MODERATE memory pressure, so the
 // next playback can reuse them without page faults. Ignored when the h5vcc
 // setting overrides the strategy.
 BASE_FEATURE_PARAM(int,
                    kCobaltDecoderBufferDecommitRetainBlocks,
-                   &kCobaltDecoderBufferDecommit,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
                    "retain_blocks",
                    4);
 // Whether CRITICAL memory pressure also releases blocks in the retain window.
 BASE_FEATURE_PARAM(bool,
                    kCobaltDecoderBufferDecommitReleaseRetainedOnCritical,
-                   &kCobaltDecoderBufferDecommit,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
                    "release_retained_on_critical",
                    true);
 // When enabled, the MediaSource stream parsers parse appended data in place

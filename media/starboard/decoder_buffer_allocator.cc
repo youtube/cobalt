@@ -74,7 +74,8 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   base::UmaHistogramBoolean("Cobalt.Media.IsBufferPoolAllocateOnDemand",
                             is_memory_pool_allocated_on_demand_);
 
-  if (base::FeatureList::IsEnabled(media::kCobaltDecoderBufferDecommit)) {
+  if (base::FeatureList::IsEnabled(
+          media::kCobaltDecoderBufferDecommitOnMemoryPressure)) {
     // The allocator is owned by MediaClient and lives for the lifetime of the
     // process, and the listener is destroyed first in the destructor, so
     // base::Unretained() is safe.
@@ -180,9 +181,6 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
 
 void DecoderBufferAllocator::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (!strategy_ || !is_decommit_on_pressure_strategy_) {
-    return;
-  }
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
@@ -192,6 +190,9 @@ void DecoderBufferAllocator::OnMemoryPressure(
       level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
       kCobaltDecoderBufferDecommitReleaseRetainedOnCritical.Get();
   base::AutoLock scoped_lock(mutex_);
+  if (!strategy_ || !is_decommit_on_pressure_strategy_) {
+    return;
+  }
   strategy_->DecommitAllDecommitableBlocks(include_retained_blocks);
 }
 
@@ -417,7 +418,8 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
                     "strategy. Falling back to default.";
   }
 
-  if (base::FeatureList::IsEnabled(media::kCobaltDecoderBufferDecommit)) {
+  if (base::FeatureList::IsEnabled(
+          media::kCobaltDecoderBufferDecommitOnMemoryPressure)) {
     // Same allocator as the default strategy, but tracking idle blocks so they
     // can be returned to the OS. Keeps the platform's pool sizing.
     Strategy::ExperimentConfig strategy_config;
