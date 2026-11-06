@@ -21,8 +21,6 @@
 #include "v8/include/v8-wasm.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 GuestMemory::GuestMemory(v8::Isolate* isolate,
                          const v8::Global<v8::WasmMemoryObject>& memory)
@@ -98,6 +96,4 @@ bool GuestMemory::Load() {
   return base_ != nullptr;
 }
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

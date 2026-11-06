@@ -19,7 +19,7 @@
 
 namespace blink {
 
-using cobalt::wasm::starboard::WasmPlayerHost;
+using cobalt::WasmPlayerHost;
 
 H5vccWasmSurface::H5vccWasmSurface(H5vccWasmImports& imports)
     : imports_(&imports) {}

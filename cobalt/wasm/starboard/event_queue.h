@@ -29,8 +29,6 @@
 #include "cobalt/wasm/starboard/wasm_starboard_abi.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 // The events waiting for H5vccWasmPlayer.pollEvents(). Starboard callbacks
 // Push() on their own threads; the queue never drops events. Players hold a
@@ -71,8 +69,6 @@ class EventQueue : public base::RefCountedThreadSafe<EventQueue> {
   bool wake_requested_ GUARDED_BY(lock_) = false;
 };
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt
 
 #endif  // COBALT_WASM_STARBOARD_EVENT_QUEUE_H_

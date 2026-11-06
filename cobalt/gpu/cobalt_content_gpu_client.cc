@@ -81,7 +81,7 @@ void CobaltContentGpuClient::CreateVideoGeometrySetterService() {
   // Lets Wasm players follow their <video> holes. Cobalt is single-process,
   // so the renderer's hosts can use the service directly. Posting keeps the
   // service's WeakPtrs on this sequence.
-  wasm::starboard::WasmPlayerHost::SetVideoGeometrySubscriberBinder(
+  WasmPlayerHost::SetVideoGeometrySubscriberBinder(
       base::BindPostTaskToCurrentDefault(
           video_geometry_setter_service_->GetBindSubscriberCallback()));
 }

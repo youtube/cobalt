@@ -28,8 +28,6 @@
 #include "v8/include/v8-persistent-handle.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 // Resolves guest pointers, which are byte offsets into the WebAssembly.Memory
 // bound with bindMemory(), for the duration of one import call. Memory can
@@ -76,8 +74,6 @@ class GuestMemory {
   size_t size_ = 0;
 };
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt
 
 #endif  // COBALT_WASM_STARBOARD_GUEST_MEMORY_H_

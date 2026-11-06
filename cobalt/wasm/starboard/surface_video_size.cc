@@ -28,8 +28,6 @@
 #include "base/thread_annotations.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 namespace {
 
@@ -124,6 +122,4 @@ base::ScopedClosureRunner SurfaceVideoSize::Watch(
                      surface, id));
 }
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

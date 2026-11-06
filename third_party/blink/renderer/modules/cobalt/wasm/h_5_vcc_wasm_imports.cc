@@ -94,13 +94,13 @@ H5vccWasmImports* H5vccWasmImports::FromContext(ExecutionContext* context) {
 H5vccWasmImports::H5vccWasmImports(ExecutionContext& context)
     : Supplement<ExecutionContext>(context),
       ExecutionContextLifecycleObserver(&context),
-      events_(base::MakeRefCounted<cobalt::wasm::starboard::EventQueue>(
+      events_(base::MakeRefCounted<cobalt::EventQueue>(
           context.GetTaskRunner(TaskType::kInternalMedia),
           WTF::BindRepeating(&H5vccWasmImports::DispatchWake,
                              WrapWeakPersistent(this)))),
-      host_(std::make_unique<cobalt::wasm::starboard::WasmPlayerHost>(
+      host_(std::make_unique<cobalt::WasmPlayerHost>(
           events_,
-          cobalt::wasm::starboard::WasmPlayerHost::DefaultSbPlayerInterface())),
+          cobalt::WasmPlayerHost::DefaultSbPlayerInterface())),
       surface_(MakeGarbageCollected<H5vccWasmSurface>(*this)),
       player_(MakeGarbageCollected<H5vccWasmPlayer>(*this)) {}
 
@@ -130,9 +130,8 @@ void H5vccWasmImports::bindMemory(ScriptState* script_state,
   memory_.Reset(script_state->GetIsolate(), value.As<v8::WasmMemoryObject>());
 }
 
-cobalt::wasm::starboard::GuestMemory H5vccWasmImports::Memory(
-    v8::Isolate* isolate) const {
-  return cobalt::wasm::starboard::GuestMemory(isolate, memory_);
+cobalt::GuestMemory H5vccWasmImports::Memory(v8::Isolate* isolate) const {
+  return cobalt::GuestMemory(isolate, memory_);
 }
 
 EventListener* H5vccWasmImports::onwake() {
@@ -145,7 +144,7 @@ void H5vccWasmImports::setOnwake(EventListener* listener) {
 
 void H5vccWasmImports::ContextDestroyed() {
   host_.reset();
-  cobalt::wasm::starboard::WasmPlayerHost::ResetForCurrentThread();
+  cobalt::WasmPlayerHost::ResetForCurrentThread();
   // Players being destroyed keep the queue alive; stop it calling back here.
   events_->Shutdown();
   events_.reset();

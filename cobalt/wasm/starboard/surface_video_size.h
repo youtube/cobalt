@@ -21,8 +21,6 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 
 // The size of the video on each Wasm surface, from its players' stream info.
 // The surface's <video> element reports it as its natural size, so the
@@ -45,8 +43,6 @@ class SurfaceVideoSize {
       Callback callback);
 };
 
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt
 
 #endif  // COBALT_WASM_STARBOARD_SURFACE_VIDEO_SIZE_H_

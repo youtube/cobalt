@@ -45,8 +45,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace wasm {
-namespace starboard {
 namespace {
 
 using ::testing::_;
@@ -899,6 +897,4 @@ TEST_F(WasmPlayerHostTest, QueueOutlivesContextDuringDestroy) {
 }
 
 }  // namespace
-}  // namespace starboard
-}  // namespace wasm
 }  // namespace cobalt

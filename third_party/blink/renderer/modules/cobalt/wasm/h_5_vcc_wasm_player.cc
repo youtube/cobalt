@@ -24,9 +24,9 @@
 
 namespace blink {
 
-using cobalt::wasm::starboard::GuestMemory;
-using cobalt::wasm::starboard::WasmPlayerHost;
-using cobalt::wasm::starboard::WasmSbEvent;
+using cobalt::GuestMemory;
+using cobalt::WasmPlayerHost;
+using cobalt::WasmSbEvent;
 
 H5vccWasmPlayer::H5vccWasmPlayer(H5vccWasmImports& imports)
     : imports_(&imports) {}
@@ -211,7 +211,7 @@ bool H5vccWasmPlayer::canChangeType(v8::Isolate* isolate,
 }
 
 void H5vccWasmPlayer::requestWake() {
-  if (cobalt::wasm::starboard::EventQueue* queue = imports_->events()) {
+  if (cobalt::EventQueue* queue = imports_->events()) {
     queue->RequestWake();
   }
 }
@@ -219,7 +219,7 @@ void H5vccWasmPlayer::requestWake() {
 uint32_t H5vccWasmPlayer::pollEvents(v8::Isolate* isolate,
                                      uint32_t events,
                                      uint32_t count) {
-  cobalt::wasm::starboard::EventQueue* queue = imports_->events();
+  cobalt::EventQueue* queue = imports_->events();
   GuestMemory memory = imports_->Memory(isolate);
   uint8_t* out = memory.Array(events, count, sizeof(WasmSbEvent));
   if (!queue || !out) {
