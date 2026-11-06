@@ -58,19 +58,38 @@ def main():
 
   target_label = f'cp-{args.target_branch}'
   commits_added = []
+  existing_refs = set(
+      lib.get_out([
+          'git', 'for-each-ref', '--format=%(refname:short)', 'refs/heads/',
+          'refs/remotes/origin/'
+      ]).splitlines())
 
   for sha, title, pr_num in commits_to_target:
     identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
 
+    conflict_branch = (f'autoroll-{args.source_branch}-to-'
+                       f'{args.target_branch}-conflict-{pr_num or sha[:7]}')
+    had_conflict_branch = (
+        conflict_branch in existing_refs or
+        f'origin/{conflict_branch}' in existing_refs)
+
     # Skip if already merged in target branch
     pr_num_int = int(pr_num) if pr_num else None
     if sha in target_shas or (pr_num_int and pr_num_int in target_prs):
+      if had_conflict_branch:
+        lib.cleanup_conflict_branch(conflict_branch)
+        existing_refs.discard(conflict_branch)
+        existing_refs.discard(f'origin/{conflict_branch}')
       continue
 
     # Skip if already in autoroll (matched by SHA or original PR number)
     if sha in already_rolled_shas or (pr_num_int and
                                       pr_num_int in already_rolled_prs):
       commits_added.append(identifier)
+      if had_conflict_branch:
+        lib.cleanup_conflict_branch(conflict_branch)
+        existing_refs.discard(conflict_branch)
+        existing_refs.discard(f'origin/{conflict_branch}')
       continue
 
     # In label mode, only migrate PRs that have the cherry pick label applied
@@ -87,27 +106,29 @@ def main():
 
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
-    first_commit = not commits_added
     autoroll_sha = sha if args.mode == 'full' else target_start
     autoroll_metadata = (args.autoroll_file, autoroll_sha, args.mode == 'full')
 
-    result, unmerged_files = cherry_pick(sha, metadata, first_commit,
-                                         autoroll_metadata)
+    result, _ = cherry_pick(sha, metadata, False, autoroll_metadata)
 
     if result == lib.CommitStatus.FAILED:
-      lib.log(f'Reached FAILED commit ({sha}).')
-      break
+      if not had_conflict_branch:
+        lib.log(f'Isolating conflicted commit ({sha}) on {conflict_branch}.')
+        lib.run(['git', 'checkout', '-b', conflict_branch])
+        cherry_pick(sha, metadata, True, None)
+        lib.run(['git', 'checkout', '-'])
+        existing_refs.add(conflict_branch)
+      else:
+        lib.log(f'Conflicted commit ({sha}) already isolated on '
+                f'{conflict_branch}; keeping intact.')
+      continue
 
     commits_added.append(identifier)
-
-    if result == lib.CommitStatus.CONFLICTED:
-      commits_added.append('')
-      commits_added.append('CONFLICTED files:')
-      commits_added.append('```')
-      commits_added.extend(unmerged_files)
-      commits_added.append('```')
-      lib.log(f'Reached CONFLICTED commit ({sha}).')
-      break
+    if had_conflict_branch:
+      lib.log(f'Conflict resolved for {sha}; cleaning up {conflict_branch}.')
+      lib.cleanup_conflict_branch(conflict_branch)
+      existing_refs.discard(conflict_branch)
+      existing_refs.discard(f'origin/{conflict_branch}')
 
   if commits_added:
     print('\n'.join(commits_added))
